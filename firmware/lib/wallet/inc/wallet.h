@@ -82,6 +82,8 @@ _Static_assert(
 
 void wallet_init(mempool_t* mempool);
 
+bool wallet_is_initialized(void);
+
 void wallet_clear_derived_key_cache(void);
 bool wallet_derive_key_priv_using_cache(extended_key_t* key_priv,
                                         derivation_path_t derivation_path);
@@ -93,7 +95,8 @@ wallet_res_t wallet_csek_decrypt(uint8_t* wrapped_csek, uint8_t* unwrapped_csek_
                                  uint32_t length, uint8_t iv[AES_GCM_IV_LENGTH],
                                  uint8_t tag[AES_GCM_TAG_LENGTH]);
 
-derivation_path_t* wallet_get_w1_auth_path();
+derivation_path_t* wallet_get_w1_auth_path(void);
+bool wallet_get_w1_auth_key(extended_key_t* key_priv);
 
 // Store data in flash, wrapped by the WKEK.
 bool wkek_encrypt_and_store(char* filename, const uint8_t* data, uint32_t size);

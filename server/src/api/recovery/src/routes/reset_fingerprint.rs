@@ -85,7 +85,7 @@ struct ApiDoc;
 pub struct ResetFingerprintRequest {
     pub hw_auth_public_key: PublicKey,
     pub version: u8,
-    pub action: String,
+    pub action: u8,
     pub device_id: String,
     pub challenge: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]

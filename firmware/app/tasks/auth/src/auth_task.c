@@ -7,6 +7,7 @@
 #include "bio.h"
 #include "feature_flags.h"
 #include "filesystem.h"
+#include "grant_protocol.h"
 #include "hex.h"
 #include "ipc.h"
 #include "log.h"
@@ -38,6 +39,7 @@ typedef enum {
 
 typedef struct {
   secure_bool_t authenticated;
+  secure_bool_t allow_fingerprint_enrollment;
   // Below state is only valid if authenticated is true. It's purely informational,
   // and should not be used for any security sensitive operations.
   unlock_method_t method;
@@ -47,6 +49,7 @@ typedef struct {
 // TODO(W-6614): Remove SHARED_TASK_DATA and replace with IPC.
 auth_state_t auth_state SHARED_TASK_DATA = {
   .authenticated = SECURE_FALSE,
+  .allow_fingerprint_enrollment = SECURE_FALSE,
   .method = UNSPECIFIED,
   .fingerprint_index = BIO_TEMPLATE_ID_INVALID,
 };
@@ -185,6 +188,21 @@ NO_OPTIMIZE secure_bool_t is_authenticated(void) {
 #endif
 }
 
+secure_bool_t is_allowing_fingerprint_enrollment(void) {
+  rtos_mutex_lock(&auth_priv.auth_lock);
+  secure_bool_t result = SECURE_FALSE;
+  SECURE_DO_FAILOUT(auth_state.allow_fingerprint_enrollment == SECURE_TRUE,
+                    { result = SECURE_TRUE; });
+  rtos_mutex_unlock(&auth_priv.auth_lock);
+  return result;
+}
+
+void present_grant_for_fingerprint_enrollment(void) {
+  rtos_mutex_lock(&auth_priv.auth_lock);
+  auth_state.allow_fingerprint_enrollment = SECURE_TRUE;
+  rtos_mutex_unlock(&auth_priv.auth_lock);
+}
+
 static void reset_auth_state(void) {
   auth_state.method = UNSPECIFIED;
   auth_state.fingerprint_index = BIO_TEMPLATE_ID_INVALID;
@@ -207,7 +225,7 @@ void deauthenticate_without_animation(void) {
 }
 
 void enroll_failed_animation(void) {
-  if (onboarding_auth_is_setup()) {
+  if (onboarding_complete()) {
     static led_set_rest_animation_t LED_TASK_DATA rest_msg = {.animation = (uint32_t)ANI_OFF};
     ipc_send(led_port, &rest_msg, sizeof(rest_msg), IPC_LED_SET_REST_ANIMATION);
     static led_start_animation_t LED_TASK_DATA msg = {.animation = (uint32_t)ANI_ENROLLMENT_FAILED,
@@ -676,6 +694,10 @@ void auth_main_thread(void* UNUSED(args)) {
         handle_cancel_fingerprint_enrollment(&message);
         break;
       }
+      case IPC_AUTH_PRESENT_GRANT_FOR_FINGERPRINT_ENROLLMENT: {
+        present_grant_for_fingerprint_enrollment();
+        break;
+      }
       default: {
         LOGE("unknown message %ld", message.tag);
       }
@@ -726,11 +748,15 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
       auth_priv.current_enrollment_ctx.index = BIO_TEMPLATE_ID_INVALID;
 
       SECURE_DO_FAILOUT(auth_priv.current_enrollment_ctx.enroll_ok == SECURE_TRUE, {
+        // Deletes an outstanding grant if this fingerprint enrollment happened as part
+        // of the fingerprint reset flow. This does nothing if there is no persisted grant request.
+        grant_protocol_delete_outstanding_request();
+
         // If enrollment was successful, then unlock the device.
         set_authenticated_via_fingerprint();
         auth_state.fingerprint_index = used_index;
       });
-    } else if ((onboarding_auth_is_setup() == SECURE_TRUE)) {  // Fingerprint unlock
+    } else if ((onboarding_complete() == SECURE_TRUE)) {  // Fingerprint unlock
       // Give the user some immediate feedback by turning on the LED; the actual matching takes
       // a few hundred ms, so this makes the device feel more responsive.
       finger_down_animation();

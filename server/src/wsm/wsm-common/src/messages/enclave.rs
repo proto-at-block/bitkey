@@ -216,21 +216,24 @@ pub struct EnclaveContinueShareRefreshResponse {}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GrantRequest {
     pub version: u8,
-    pub action: String,
     pub device_id: String,
     pub challenge: Vec<u8>,
+    pub action: u8,
     pub signature: Signature,
 }
 
 impl GrantRequest {
-    pub fn serialize(&self) -> Vec<u8> {
+    pub fn serialize(&self, include_signature: bool) -> Vec<u8> {
         let mut data = Vec::new();
 
         data.push(self.version);
-        data.extend_from_slice(self.action.as_bytes());
         data.extend_from_slice(self.device_id.as_bytes());
         data.extend_from_slice(&self.challenge);
-        data.extend_from_slice(&self.signature.serialize_compact());
+        data.push(self.action);
+
+        if include_signature {
+            data.extend_from_slice(&self.signature.serialize_compact());
+        }
 
         data
     }

@@ -361,8 +361,10 @@ pub fn is_psbt_addressed_to_wallet(
 
     Ok(true)
 }
-
-pub fn get_total_outflow_for_psbt(wallet: &dyn AttributableWallet, psbt: &Psbt) -> u64 {
+fn get_unowned_output_iter<'a>(
+    wallet: &'a dyn AttributableWallet,
+    psbt: &'a Psbt,
+) -> impl Iterator<Item = (usize, &'a bdk::bitcoin::TxOut)> + 'a {
     psbt.unsigned_tx
         .output
         .iter()
@@ -375,8 +377,27 @@ pub fn get_total_outflow_for_psbt(wallet: &dyn AttributableWallet, psbt: &Psbt) 
                 .get_output_spk_and_derivation(*idx)
                 .is_some_and(|spk| wallet.is_my_psbt_address(&spk).is_ok_and(|x| x))
         })
+}
+
+pub fn get_total_outflow_for_psbt(wallet: &dyn AttributableWallet, psbt: &Psbt) -> u64 {
+    get_unowned_output_iter(wallet, psbt)
         .map(|(_idx, output)| output.value)
         .sum()
+}
+
+pub fn get_outflow_addresses_for_psbt(
+    wallet: &dyn AttributableWallet,
+    psbt: &Psbt,
+    network: Network,
+) -> Result<Vec<String>, BdkUtilError> {
+    let destination_addresses = get_unowned_output_iter(wallet, psbt)
+        .map(|(_, output)| {
+            Address::from_script(&output.script_pubkey, network)
+                .map(|address| address.to_string())
+                .map_err(|_| BdkUtilError::InvalidOutputAddressInPsbt)
+        })
+        .collect::<Result<Vec<String>, BdkUtilError>>()?;
+    Ok(destination_addresses)
 }
 
 fn extend_descriptor_public_key(
@@ -560,8 +581,8 @@ pub mod tests {
 
     use crate::error::BdkUtilError;
     use crate::{
-        as_bdk_util_err, get_electrum_server, AttributableWallet, ElectrumRpcUris,
-        PsbtWithDerivation,
+        as_bdk_util_err, get_electrum_server, get_outflow_addresses_for_psbt, AttributableWallet,
+        ElectrumRpcUris, PsbtWithDerivation,
     };
 
     pub fn get_fake_prefunded_wallet(total_funds: u64) -> Wallet<AnyDatabase> {
@@ -625,6 +646,41 @@ pub mod tests {
 
         // check the easy way
         assert!(wallet.all_inputs_are_from_self(&psbt).unwrap());
+    }
+
+    #[test]
+    fn test_psbt_outflow_address_works() {
+        let wallet = get_fake_prefunded_wallet(50_000);
+        let recipient = get_fake_prefunded_wallet(50_000);
+        let recipient_address = recipient.get_address(AddressIndex::New).unwrap();
+        let mut builder = wallet.build_tx();
+        builder.add_recipient(recipient_address.script_pubkey(), 1000);
+        let (psbt, _) = builder.finish().unwrap();
+        assert_eq!(psbt.inputs.len(), 1); // make sure we have an input
+        assert_eq!(psbt.outputs.len(), 2); // we should have one output to our recipient, one for change
+
+        let outflow_addresses =
+            get_outflow_addresses_for_psbt(&wallet, &psbt, Network::Signet).unwrap();
+        assert_eq!(outflow_addresses.len(), 1);
+        assert_eq!(outflow_addresses[0], recipient_address.to_string());
+
+        let mut builder = wallet.build_tx();
+        builder.ordering(TxOrdering::Untouched); // We are going to be looking at specific outputs, so don't reshuffle the ordering
+                                                 // coins to self
+        let recipient_address_1 = recipient.get_address(AddressIndex::New).unwrap();
+        let recipient_address_2 = recipient.get_address(AddressIndex::New).unwrap();
+        builder.add_recipient(recipient_address_1.script_pubkey(), 1000);
+        // coins to another wallet
+        builder.add_recipient(recipient_address_2.script_pubkey(), 1000);
+        let (psbt, _) = builder.finish().unwrap();
+        assert_eq!(psbt.inputs.len(), 1); // make sure we have an input
+        assert_eq!(psbt.outputs.len(), 3); // we should have two outputs for the recipient, one for change
+
+        let outflow_addresses =
+            get_outflow_addresses_for_psbt(&wallet, &psbt, Network::Signet).unwrap();
+        assert_eq!(outflow_addresses.len(), 2);
+        assert_eq!(outflow_addresses[0], recipient_address_1.to_string());
+        assert_eq!(outflow_addresses[1], recipient_address_2.to_string());
     }
 
     #[test]

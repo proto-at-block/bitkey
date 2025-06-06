@@ -203,6 +203,14 @@ class HomeUiStateMachineImpl(
                 uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
                 true
               }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_CLOUD_REPAIR -> {
+                uiState = uiState.copy(
+                  presentedScreen = CloudBackupRepair(
+                    problemWithBackup = BackupMissing
+                  )
+                )
+                true
+              }
               else -> false
             }
           }
@@ -324,8 +332,8 @@ class HomeUiStateMachineImpl(
               hardwareRecoveryData = props.lostHardwareRecoveryData
             ),
             onExit = {
-              anchorRootScreen = MoneyHome(origin = Origin.Launch)
-              uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.Launch))
+              anchorRootScreen = MoneyHome(origin = Origin.SecurityHub)
+              uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.SecurityHub))
             }
           )
         }

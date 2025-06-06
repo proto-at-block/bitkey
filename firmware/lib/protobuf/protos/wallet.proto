@@ -662,6 +662,21 @@ message get_unlock_method_rsp {
 message cancel_fingerprint_enrollment_cmd {}
 message cancel_fingerprint_enrollment_rsp {}
 
+message fingerprint_reset_request_cmd {
+}
+
+message fingerprint_reset_request_rsp {
+  // Serialized grant_request_t.
+  bytes grant_request = 1 [(nanopb).max_size = 256];
+}
+
+message fingerprint_reset_finalize_cmd {
+  bytes grant = 1 [(nanopb).max_size = 256];
+}
+
+message fingerprint_reset_finalize_rsp {
+}
+
 enum status {
   UNSPECIFIED = 0;
   SUCCESS = 1;
@@ -681,6 +696,9 @@ enum status {
   INVALID_STATE = 15;
   IN_PROGRESS = 16;
   INVALID_ARGUMENT = 17;
+  VERIFICATION_FAILED = 18;
+  REQUEST_MISMATCH = 19;
+  VERSION_MISMATCH = 20;
 }
 
 message wallet_cmd {
@@ -739,6 +757,8 @@ message wallet_cmd {
     get_unlock_method_cmd get_unlock_method_cmd = 54;
     set_fingerprint_label_cmd set_fingerprint_label_cmd = 55;
     cancel_fingerprint_enrollment_cmd cancel_fingerprint_enrollment_cmd = 56;
+    fingerprint_reset_request_cmd fingerprint_reset_request_cmd = 57;
+    fingerprint_reset_finalize_cmd fingerprint_reset_finalize_cmd = 58;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
@@ -802,6 +822,8 @@ message wallet_rsp {
     get_unlock_method_rsp get_unlock_method_rsp = 54;
     set_fingerprint_label_rsp set_fingerprint_label_rsp = 55;
     cancel_fingerprint_enrollment_rsp cancel_fingerprint_enrollment_rsp = 56;
+    fingerprint_reset_request_rsp fingerprint_reset_request_rsp = 57;
+    fingerprint_reset_finalize_rsp fingerprint_reset_finalize_rsp = 58;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations

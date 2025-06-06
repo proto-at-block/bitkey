@@ -8,8 +8,6 @@ import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation.EakBuild
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
-import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.*
 import build.wallet.platform.device.DeviceInfoProvider
@@ -29,7 +27,6 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val emergencyAccessKitDataProvider: EmergencyAccessKitDataProvider,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
   private val createSoftwareWalletUiStateMachine: CreateSoftwareWalletUiStateMachine,
-  private val wipeHardwareFlag: WipeHardwareLoggedOutFeatureFlag,
 ) : ChooseAccountAccessUiStateMachine {
   @Composable
   override fun model(props: ChooseAccountAccessUiProps): ScreenModel {
@@ -92,9 +89,7 @@ class ChooseAccountAccessUiStateMachineImpl(
             onRestoreYourWalletClick = props.chooseAccountAccessData.startRecovery,
             onBeTrustedContactClick = {
               props.chooseAccountAccessData.startLiteAccountCreation()
-            },
-            onResetExistingDevice = props.chooseAccountAccessData.wipeExistingDevice
-              .takeIf { wipeHardwareFlag.isEnabled() }
+            }
           ).asRootScreen()
         }
       }

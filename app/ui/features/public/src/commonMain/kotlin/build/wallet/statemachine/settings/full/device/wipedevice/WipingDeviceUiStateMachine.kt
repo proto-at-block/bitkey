@@ -12,5 +12,5 @@ interface WipingDeviceUiStateMachine : StateMachine<WipingDeviceProps, ScreenMod
 data class WipingDeviceProps(
   val onBack: () -> Unit,
   val onSuccess: () -> Unit,
-  val fullAccount: FullAccount?,
+  val fullAccount: FullAccount,
 )

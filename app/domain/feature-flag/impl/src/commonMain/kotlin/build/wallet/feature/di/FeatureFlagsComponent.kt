@@ -53,6 +53,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun transactionVerificationFlag(featureFlagDao: FeatureFlagDao) =
+    TxVerificationFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun sellBitcoinMaxAmountFeatureFlag(featureFlagDao: FeatureFlagDao) =
     SellBitcoinMaxAmountFeatureFlag(featureFlagDao)
 
@@ -65,11 +70,6 @@ interface FeatureFlagsComponent {
   @SingleIn(AppScope::class)
   fun softwareWalletIsEnabledFeatureFlag(featureFlagDao: FeatureFlagDao) =
     SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun provideWipeHardwareLoggedOutFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -114,7 +114,6 @@ interface FeatureFlagsComponent {
     mobileRealTimeMetricsFeatureFlag: MobileRealTimeMetricsFeatureFlag,
     securityHubFeatureFlag: SecurityHubFeatureFlag,
     balanceHistoryFeatureFlag: BalanceHistoryFeatureFlag,
-    wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
     usSmsFeatureFlag: UsSmsFeatureFlag,
     checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
     fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
@@ -136,7 +135,6 @@ interface FeatureFlagsComponent {
       coachmarksGlobalFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       firmwareCommsLoggingFeatureFlag,
-      wipeHardwareLoggedOutFeatureFlag,
       asyncNfcSigningFeatureFlag
     )
   }

@@ -75,6 +75,31 @@ bool crypto_ecc_secp256k1_priv_verify(const uint8_t privkey[SECP256K1_KEY_SIZE])
   return secp256k1_ec_seckey_verify(ctx, privkey);
 }
 
+bool crypto_ecc_secp256k1_verify_signature(const uint8_t pubkey[SECP256K1_KEY_SIZE],
+                                           const uint8_t* message, uint32_t message_size,
+                                           const uint8_t signature[ECC_SIG_SIZE]) {
+  ASSERT(pubkey && message && signature);
+
+  ENSURE_CTX();
+
+  secp256k1_pubkey parsed_pubkey;
+  if (!secp256k1_ec_pubkey_parse(ctx, &parsed_pubkey, pubkey, SECP256K1_SEC1_KEY_SIZE)) {
+    return false;
+  }
+
+  secp256k1_ecdsa_signature sig = {0};
+  if (!secp256k1_ecdsa_signature_parse_compact(ctx, &sig, signature)) {
+    return false;
+  }
+
+  uint8_t message_digest[SHA256_DIGEST_SIZE];
+  if (!crypto_hash(message, message_size, message_digest, sizeof(message_digest), ALG_SHA256)) {
+    return false;
+  }
+
+  return secp256k1_ecdsa_verify(ctx, &sig, message_digest, &parsed_pubkey);
+}
+
 bool crypto_ecc_secp256k1_schnorr_sign_hash32(key_handle_t* key, uint8_t* hash, uint8_t* signature,
                                               uint32_t signature_size) {
   ASSERT(key && hash && signature && (signature_size == ECC_SIG_SIZE));

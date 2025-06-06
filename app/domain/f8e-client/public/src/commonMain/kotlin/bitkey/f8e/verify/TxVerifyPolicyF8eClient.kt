@@ -17,5 +17,13 @@ interface TxVerifyPolicyF8eClient {
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     threshold: VerificationThreshold,
-  ): Result<TxVerificationPolicy, Throwable>
+  ): Result<TxVerificationPolicy.DelayNotifyAuthorization?, Error>
+
+  /**
+   * Fetch the current active policy for transaction verification.
+   */
+  suspend fun getPolicy(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+  ): Result<VerificationThreshold, Error>
 }

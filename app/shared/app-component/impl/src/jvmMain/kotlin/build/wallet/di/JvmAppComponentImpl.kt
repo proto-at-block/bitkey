@@ -1,5 +1,9 @@
 package build.wallet.di
 
+import bitkey.recovery.fundslost.FundsLostRiskService
+import bitkey.recovery.fundslost.FundsLostRiskServiceFake
+import bitkey.recovery.fundslost.FundsLostRiskServiceImpl
+import bitkey.recovery.fundslost.FundsLostRiskSyncWorker
 import build.wallet.bdk.BdkBlockchainFactoryImpl
 import build.wallet.bdk.bindings.BdkBlockchainFactory
 import build.wallet.bitcoin.AppPrivateKeyDao
@@ -40,7 +44,8 @@ import kotlin.time.Duration.Companion.seconds
     CloudKeyValueStoreImpl::class,
     ExchangeRateF8eClientImpl::class,
     RecoverySyncFrequencyComponent::class,
-    UiDelaysComponent::class
+    UiDelaysComponent::class,
+    FundsLostRiskServiceImpl::class
   ]
 )
 @SingleIn(AppScope::class)
@@ -101,4 +106,13 @@ abstract class JvmAppComponentImpl(
 
   @Provides
   fun provideSecureEnclave(): SecureEnclave = SecureEnclaveFake()
+
+  // TODO W-11527 - remove this once we have a proper handle for funds lost risk service in tests
+  @Provides
+  @SingleIn(AppScope::class)
+  fun provideAtRiskService(): FundsLostRiskService = FundsLostRiskServiceFake()
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun provideAtRiskServiceSyncWorker(): FundsLostRiskSyncWorker = FundsLostRiskServiceFake()
 }

@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - uses: cashapp/activate-hermit@e49f5cb4dd64ff0b0b659d1d8df499595451155a  # v1
-      - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+      - uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
         with:
           install: true
       - name: Build Image
@@ -60,7 +60,7 @@ jobs:
         run: just update-tag
         working-directory: atlantis
       - name: Make PR
-        uses: peter-evans/create-pull-request@16e0059bfd236716f0191bfcfa63d9ded4cf325f
+        uses: peter-evans/create-pull-request@88ed63ce144f5372efe9f999d8bb224f582d98d9
         with:
           commit-message: Update Atlantis image
           title: Update Atlantis image

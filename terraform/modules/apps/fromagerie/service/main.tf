@@ -105,17 +105,21 @@ locals {
   ###############################################
   # APNS Certificates
   ###############################################
-  team_alpha_apns_json  = jsondecode(data.aws_secretsmanager_secret_version.apns_team_alpha.secret_string)
-  team_alpha_principal  = local.team_alpha_apns_json.certificate
-  team_alpha_credential = local.team_alpha_apns_json.key
+  apns_configs = var.sns_platform_applications ? {
+    team_alpha = jsondecode(data.aws_secretsmanager_secret_version.apns_secrets["team_alpha"].secret_string)
+    team       = jsondecode(data.aws_secretsmanager_secret_version.apns_secrets["team"].secret_string)
+    customer   = jsondecode(data.aws_secretsmanager_secret_version.apns_secrets["customer"].secret_string)
+  } : {}
 
-  team_apns_json  = jsondecode(data.aws_secretsmanager_secret_version.apns_team.secret_string)
-  team_principal  = local.team_apns_json.certificate
-  team_credential = local.team_apns_json.key
+  # Direct extraction of certificate and key values
+  team_alpha_principal  = try(local.apns_configs.team_alpha.certificate, null)
+  team_alpha_credential = try(local.apns_configs.team_alpha.key, null)
 
-  customer_apns_json  = jsondecode(data.aws_secretsmanager_secret_version.apns_customer.secret_string)
-  customer_principal  = local.customer_apns_json.certificate
-  customer_credential = local.customer_apns_json.key
+  team_principal  = try(local.apns_configs.team.certificate, null)
+  team_credential = try(local.apns_configs.team.key, null)
+
+  customer_principal  = try(local.apns_configs.customer.certificate, null)
+  customer_credential = try(local.apns_configs.customer.key, null)
 }
 
 data "aws_secretsmanager_secret" "fromagerie_onboarding_demo_mode_credentials" {
@@ -174,28 +178,19 @@ data "aws_secretsmanager_secret_version" "gcm_firebase_admin_key" {
   secret_id = data.aws_secretsmanager_secret.gcm_firebase_admin_key.id
 }
 
-data "aws_secretsmanager_secret" "apns_team_alpha" {
-  name = "fromagerie/apns/team-alpha"
+data "aws_secretsmanager_secret" "apns_secrets" {
+  for_each = var.sns_platform_applications ? {
+    team_alpha = "fromagerie/apns/team-alpha"
+    team       = "fromagerie/apns/team"
+    customer   = "fromagerie/apns/customer"
+  } : {}
+
+  name = each.value
 }
 
-data "aws_secretsmanager_secret_version" "apns_team_alpha" {
-  secret_id = data.aws_secretsmanager_secret.apns_team_alpha.id
-}
-
-data "aws_secretsmanager_secret" "apns_team" {
-  name = "fromagerie/apns/team"
-}
-
-data "aws_secretsmanager_secret_version" "apns_team" {
-  secret_id = data.aws_secretsmanager_secret.apns_team.id
-}
-
-data "aws_secretsmanager_secret" "apns_customer" {
-  name = "fromagerie/apns/customer"
-}
-
-data "aws_secretsmanager_secret_version" "apns_customer" {
-  secret_id = data.aws_secretsmanager_secret.apns_customer.id
+data "aws_secretsmanager_secret_version" "apns_secrets" {
+  for_each  = data.aws_secretsmanager_secret.apns_secrets
+  secret_id = each.value.id
 }
 
 data "aws_secretsmanager_secret" "fromagerie_histogram_output_encryption_key" {
@@ -247,6 +242,7 @@ module "ecs_api" {
   load_balancer_allow_cloudflare_ips = var.load_balancer_allow_cloudflare_ips
   dns_hosted_zone                    = var.dns_hosted_zone
   subdomain                          = var.subdomain
+  alt_subdomains                     = var.alt_subdomains
   additional_certs                   = data.aws_acm_certificate.external_certs[*].arn
   port                               = local.port
   vpc_name                           = var.vpc_name
@@ -255,10 +251,11 @@ module "ecs_api" {
 
   environment = var.environment
   environment_variables = merge(local.common_env_vars, {
-    SERVER_WALLET_TELEMETRY = "{service_name=${var.name}-api,mode=datadog}"
-    COGNITO_USER_POOL       = var.cognito_user_pool_id
-    COGNITO_CLIENT_ID       = var.cognito_user_pool_client_id
-    ROCKET_PORT             = local.port
+    SERVER_SECURE_SITE_BASE_URL = var.secure_site_base_url
+    SERVER_WALLET_TELEMETRY     = "{service_name=${var.name}-api,mode=datadog}"
+    COGNITO_USER_POOL           = var.cognito_user_pool_id
+    COGNITO_CLIENT_ID           = var.cognito_user_pool_client_id
+    ROCKET_PORT                 = local.port
   })
   secrets = merge(local.common_secrets, {
     ONBOARDING_DEMO_MODE_CODE_HASH = data.aws_secretsmanager_secret.fromagerie_onboarding_demo_mode_credentials.arn,

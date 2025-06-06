@@ -16,9 +16,11 @@ inputs = {
 
   config_profile = "staging"
 
-  subdomain       = "api"
-  port            = 8080
-  internet_facing = true
+  subdomain            = "api"
+  alt_subdomains       = ["secure"]
+  secure_site_base_url = "https://secure.bitkeystaging.world"
+  port                 = 8080
+  internet_facing      = true
 
   image_name = "${include.root.locals.aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/wallet-api"
 

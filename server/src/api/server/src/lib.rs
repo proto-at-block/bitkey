@@ -11,6 +11,9 @@ use authn_authz::authorizer::{
     authorize_account_or_recovery_token_for_path, authorize_recovery_token_for_path,
     authorize_token_for_path, AuthorizerConfig,
 };
+use axum::body::Body;
+use axum::extract::Request;
+use axum::routing::any_service;
 use axum::{middleware, Router};
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 use bdk_utils::{TransactionBroadcaster, TransactionBroadcasterTrait};
@@ -19,6 +22,7 @@ use comms_verification::Service as CommsVerificationService;
 use database::ddb::{self, Repository};
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::service::Service as FeatureFlagsService;
+use http::header::HOST;
 use http_server::config::Config;
 use http_server::middlewares::identifier_generator::IdentifierGenerator;
 use http_server::middlewares::wsm;
@@ -65,8 +69,10 @@ use repository::recovery::social::SocialRecoveryRepository;
 use request_logger::{log_requests, RequestLoggerState};
 pub use routes::axum::axum;
 use screener::service::Service as ScreenerService;
+use serde::Deserialize;
 use thiserror::Error;
 use tokio::try_join;
+use tower::{service_fn, ServiceExt};
 use tower_http::catch_panic::CatchPanicLayer;
 use transaction_verification::{
     repository::TransactionVerificationRepository,
@@ -233,6 +239,11 @@ struct Repositories {
     privileged_action_repository: PrivilegedActionRepository,
     promotion_code_repository: PromotionCodeRepository,
     transaction_verification_repository: TransactionVerificationRepository,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct SecureSiteConfig {
+    pub(crate) secure_site_base_url: url::Url,
 }
 
 impl BootstrapBuilder {
@@ -447,16 +458,18 @@ impl BootstrapBuilder {
                 .unwrap_or_else(|| Arc::new(DefaultClock)),
             notification_service.clone(),
         );
+
+        let wsm_service = config::extract::<wsm::Config>(profile)?.to_client()?;
+        let wsm_client = wsm_service.client;
+
         let transaction_verification_service = TransactionVerificationService::new(
             config::extract::<TransactionVerificationConfig>(profile)?,
             repositories.transaction_verification_repository.clone(),
             account_service.clone(),
             exchange_rate_service.clone(),
             notification_service.clone(),
+            Arc::new(wsm_client.clone()),
         );
-
-        let wsm_service = config::extract::<wsm::Config>(profile)?.to_client()?;
-        let wsm_client = wsm_service.client;
 
         let twilio_client = config::extract::<onboarding::routes::Config>(profile)?
             .twilio
@@ -742,8 +755,8 @@ impl BootstrapBuilder {
         // Swagger UI with all endpoints
         let swagger_router = SwaggerUi::new("/docs/swagger-ui").urls(swagger_endpoints);
 
-        // Assemble the final router
-        let router = Router::new()
+        // Assemble the final API router
+        let api_router = Router::new()
             .merge(account_authed_router)
             .merge(recovery_authed_router)
             .merge(account_or_recovery_authed_router)
@@ -756,7 +769,51 @@ impl BootstrapBuilder {
             ))
             .merge(Router::from(health_checks_state))
             .merge(Router::from(analytics_state))
-            .merge(swagger_router)
+            .merge(swagger_router);
+
+        // Assemble the "secure site" router for out-of-band verification
+        let secure_site_router = transaction_verification_state.secure_site_router();
+
+        // Merge the API and secure site routers into a single router.
+        //
+        let secure_site_config = config::extract::<SecureSiteConfig>(profile)?;
+        let app = match secure_site_config.secure_site_base_url.host_str() {
+            // If the secure site is configured to localhost or left blank, merge the routers and
+            // ignore HOST.
+            None | Some("localhost") => Router::new().merge(api_router).merge(secure_site_router),
+
+            // If the secure site is configured to a non-localhost URL, HOST routing is enabled so
+            // that the api router and the site router do not share paths. This routing acts
+            // like a hostname based reverse proxy.
+            // Based on https://github.com/tokio-rs/axum/blob/769e4066b1f4da5662641d4097cb9f53f5b4406e/examples/http-proxy/src/main.rs
+            Some(secure_site_host) => {
+                let secure_site_host = secure_site_host.to_string();
+                Router::new().route(
+                    "/*any",
+                    any_service(service_fn(move |req: Request<_>| {
+                        let host = req
+                            .headers()
+                            .get(HOST)
+                            .and_then(|v| v.to_str().ok())
+                            .unwrap_or_default()
+                            .to_string();
+                        let secure_site_router = secure_site_router.clone();
+                        let api_router = api_router.clone();
+                        let req = req.map(Body::new);
+                        let secure_site_host = secure_site_host.clone();
+                        async move {
+                            if host == secure_site_host {
+                                secure_site_router.oneshot(req).await
+                            } else {
+                                api_router.oneshot(req).await
+                            }
+                        }
+                    })),
+                )
+            }
+        };
+
+        let router = app
             .layer(HttpMetrics::new())
             .layer(OtelInResponseLayer)
             .layer(OtelAxumLayer::default())

@@ -202,10 +202,10 @@ pub struct EvaluatePinResponse {
 }
 
 #[serde_as]
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct GrantRequest {
     pub version: u8,
-    pub action: String,
+    pub action: u8,
     pub device_id: String,
     pub challenge: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]
@@ -221,4 +221,27 @@ pub struct GrantResponse {
     pub serialized_request: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]
     pub signature: Signature,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct TransactionVerificationApproval {
+    pub version: u8,
+    pub hw_auth_public_key: PublicKey,
+    #[serde_as(as = "Base64")]
+    pub allowed_hash: Vec<u8>,
+    #[serde_as(as = "DisplayFromStr")]
+    pub signature: Signature,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ApprovePsbtRequest {
+    pub psbt: String,
+    pub hw_auth_public_key: PublicKey,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ApprovePsbtResponse {
+    pub approval: TransactionVerificationApproval,
 }

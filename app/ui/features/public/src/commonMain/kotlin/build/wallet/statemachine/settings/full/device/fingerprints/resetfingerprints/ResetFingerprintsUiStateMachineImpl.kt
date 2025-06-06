@@ -6,6 +6,9 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.grants.Grant
+import build.wallet.grants.GrantAction
+import build.wallet.grants.GrantRequest
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
@@ -16,8 +19,10 @@ import build.wallet.time.DurationFormatter
 import build.wallet.time.durationProgress
 import build.wallet.time.nonNegativeDurationBetween
 import com.github.michaelbull.result.getOrElse
+import io.ktor.utils.io.core.toByteArray
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 
 @BitkeyInject(ActivityScope::class)
@@ -60,17 +65,22 @@ class ResetFingerprintsUiStateMachineImpl(
         nfcSessionUIStateMachine.model(
           props = NfcSessionUIStateMachineProps<ResetFingerprintsNfcResult>(
             session = { session, commands ->
-              // TODO: implement NFC session logic
-              ResetFingerprintsNfcResult.Success
+              val grantRequest = commands.getGrantRequest(session, GrantAction.FINGERPRINT_RESET)
+              ResetFingerprintsNfcResult.GrantRequestRetrieved(grantRequest)
             },
             onSuccess = { result ->
               when (result) {
-                ResetFingerprintsNfcResult.Success -> {
+                is ResetFingerprintsNfcResult.GrantRequestRetrieved -> {
+                  // TODO: pass grant request to server
                   val now = clock.now()
                   uiState = ResetFingerprintsUiState.ShowingProgress(
                     startTime = now,
-                    endTime = now + 7.days
+                    endTime = now + 7.days,
+                    grantRequest = result.grantRequest
                   )
+                }
+                else -> {
+                  uiState = ResetFingerprintsUiState.ShowingConfirmation()
                 }
               }
             },
@@ -78,7 +88,9 @@ class ResetFingerprintsUiStateMachineImpl(
               uiState = ResetFingerprintsUiState.ShowingConfirmation()
             },
             screenPresentationStyle = ScreenPresentationStyle.Modal,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS
+            eventTrackerContext = NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS,
+            needsAuthentication = false,
+            hardwareVerification = NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
           )
         )
       }
@@ -103,6 +115,15 @@ class ResetFingerprintsUiStateMachineImpl(
         LaunchedEffect("update-reset-progress") {
           launchTicker(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE) {
             remainingDelayPeriod = nonNegativeDurationBetween(clock.now(), state.endTime)
+            if (remainingDelayPeriod.isNegative() || remainingDelayPeriod == Duration.ZERO) {
+              // TODO: fetch grant from server
+              val mockGrant = Grant(
+                version = 0x01,
+                serializedRequest = "mockSerializedRequest".toByteArray(),
+                signature = "mockSignature".toByteArray()
+              )
+              uiState = ResetFingerprintsUiState.ReadyToProvideGrant(mockGrant)
+            }
           }
         }
 
@@ -118,6 +139,41 @@ class ResetFingerprintsUiStateMachineImpl(
             onStopRecovery = props.onCancel
           ),
           presentationStyle = ScreenPresentationStyle.Modal
+        )
+      }
+
+      is ResetFingerprintsUiState.ReadyToProvideGrant -> {
+        nfcSessionUIStateMachine.model(
+          props = NfcSessionUIStateMachineProps(
+            session = { session, commands ->
+              val success = commands.provideGrant(session, state.grant)
+              if (success) {
+                ResetFingerprintsNfcResult.ProvideGrantSuccess
+              } else {
+                ResetFingerprintsNfcResult.ProvideGrantFailure
+              }
+            },
+            onSuccess = { result ->
+              when (result) {
+                is ResetFingerprintsNfcResult.ProvideGrantSuccess -> {
+                  uiState = ResetFingerprintsUiState.Finishing
+                }
+                is ResetFingerprintsNfcResult.ProvideGrantFailure -> {
+                  uiState = ResetFingerprintsUiState.ShowingConfirmation()
+                }
+                else -> {
+                  uiState = ResetFingerprintsUiState.ShowingConfirmation()
+                }
+              }
+            },
+            onCancel = {
+              uiState = ResetFingerprintsUiState.ShowingConfirmation()
+            },
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS,
+            needsAuthentication = false,
+            hardwareVerification = NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+          )
         )
       }
 
@@ -156,6 +212,14 @@ class ResetFingerprintsUiStateMachineImpl(
     data class ShowingProgress(
       val startTime: Instant,
       val endTime: Instant,
+      val grantRequest: GrantRequest,
+    ) : ResetFingerprintsUiState
+
+    /**
+     * Ready to provide the server-signed grant to the hardware after D+N.
+     */
+    data class ReadyToProvideGrant(
+      val grant: Grant,
     ) : ResetFingerprintsUiState
 
     /**

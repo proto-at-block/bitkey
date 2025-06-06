@@ -36,18 +36,20 @@ use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountAddDeviceTokenRequest, AccountAddTouchpointRequest,
     AccountVerifyTouchpointRequest, ActivateSpendingKeyDefinitionRequest,
     CompleteOnboardingRequest, ContinueDistributedKeygenRequest, CreateAccountRequest,
-    InititateDistributedKeygenRequest, UpgradeAccountRequest,
+    InititateDistributedKeygenRequest, UpdateDescriptorBackupsRequest, UpgradeAccountRequest,
 };
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use recovery::routes::distributed_keys::CreateSelfSovereignBackupRequest;
+use rstest::rstest;
 use serde_json::{json, Value};
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network as AccountNetwork;
 use types::account::entities::{
-    Factor, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload,
-    SpendingKeysetRequest, Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
+    DescriptorBackup, Factor, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload,
+    SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
+    UpgradeLiteAccountAuthKeysPayload,
 };
-use types::account::identifiers::TouchpointId;
+use types::account::identifiers::{KeysetId, TouchpointId};
 use types::account::AccountType;
 use types::consent::Consent;
 use types::privileged_action::router::generic::{
@@ -2173,4 +2175,109 @@ fn test_create_bdk_wallet() {
     wallet.sync(&blockchain, Default::default()).unwrap();
 
     assert_eq!(wallet.get_balance().unwrap().untrusted_pending, 50_000);
+}
+
+#[rstest]
+#[case::pre_onboarding_happy_path(false, false, false, false, StatusCode::OK)]
+#[case::unknown_keyset_id(false, false, false, true, StatusCode::NOT_FOUND)]
+#[case::missing_keyset_id(false, false, true, false, StatusCode::BAD_REQUEST)]
+#[case::missing_hw_pop(true, false, false, false, StatusCode::FORBIDDEN)]
+#[case::post_onboarding_happy_path(true, true, false, false, StatusCode::OK)]
+#[tokio::test]
+async fn test_descriptor_backup(
+    #[case] complete_onboarding: bool,
+    #[case] include_hw_pop: bool,
+    #[case] omit_keyset_id: bool,
+    #[case] unknown_keyset_id: bool,
+    #[case] expected_status: StatusCode,
+) {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    if complete_onboarding {
+        assert_eq!(
+            client
+                .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {})
+                .await
+                .status_code,
+            StatusCode::OK,
+        );
+    }
+
+    let keys = if include_hw_pop {
+        Some(
+            context
+                .get_authentication_keys_for_account_id(&account.id)
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+
+    let mut keyset_ids = account
+        .spending_keysets
+        .into_iter()
+        .map(|k| k.0)
+        .collect::<Vec<_>>();
+
+    if omit_keyset_id {
+        keyset_ids.pop();
+    }
+
+    if unknown_keyset_id {
+        keyset_ids.push(KeysetId::gen().unwrap());
+    }
+
+    let sealed_descriptor = "sealed_descriptor".to_string();
+
+    let request = UpdateDescriptorBackupsRequest {
+        descriptor_backups: keyset_ids
+            .into_iter()
+            .map(|keyset_id| DescriptorBackup {
+                keyset_id,
+                sealed_descriptor: sealed_descriptor.clone(),
+            })
+            .collect(),
+    };
+
+    assert_eq!(
+        client
+            .update_descriptor_backups(&account.id.to_string(), &request, keys.as_ref())
+            .await
+            .status_code,
+        expected_status
+    );
+
+    let account_status_sealed_descriptor = client
+        .get_account_status(&account.id.to_string())
+        .await
+        .body
+        .unwrap()
+        .sealed_descriptor;
+    let account_keysets_sealed_descriptor = client
+        .get_account_keysets(&account.id.to_string())
+        .await
+        .body
+        .unwrap()
+        .descriptor_backups
+        .first()
+        .map(|b| b.sealed_descriptor.clone());
+    let expected_sealed_descriptor = if expected_status == StatusCode::OK {
+        Some(sealed_descriptor)
+    } else {
+        None
+    };
+
+    assert_eq!(account_status_sealed_descriptor, expected_sealed_descriptor);
+    assert_eq!(
+        account_keysets_sealed_descriptor,
+        expected_sealed_descriptor
+    );
 }

@@ -38,11 +38,14 @@ import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiStateMachineImpl
+import build.wallet.statemachine.recovery.cloud.ProblemWithCloudBackupModel
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -137,6 +140,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
     keyboxDao.reset()
     recoveryStatusService.reset()
     cloudBackupDao.reset()
+    backupRestorer.restoration = AccountRestorationMock.copy(
+      cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock
+    )
   }
 
   test("happy path - restore from cloud back up") {
@@ -199,6 +205,43 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       keyboxDao.activeKeybox.value
         .shouldBeOk()
         .shouldNotBeNull()
+    }
+  }
+
+  test("user sees problem with cloud backup screen when backup is corrupted and is able to recover") {
+    backupRestorer.restoration = null
+
+    stateMachineActiveDeviceFlagOn.test(props) {
+      accountAuthorizer.authResults =
+        mutableListOf(
+          Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id")),
+          Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id"))
+        )
+
+      // Cloud back up found model
+      awaitBody<FormBodyModel> {
+        clickPrimaryButton()
+      }
+      // Unsealing CSEK
+      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(CsekFake)
+      }
+      csekDao.get(SealedCsekFake).shouldBe(Ok(CsekFake))
+
+      // activating restored keybox
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitBody<ProblemWithCloudBackupModel> {
+        val listGroup = mainContentList.first() as FormMainContentModel.ListGroup
+        listGroup.listGroupModel.items[0].title.shouldBe("Recover your wallet")
+        listGroup.listGroupModel.items[0].onClick.shouldNotBeNull().invoke()
+      }
+
+      onRecoverAppKeyCalls.awaitItem()
     }
   }
 })

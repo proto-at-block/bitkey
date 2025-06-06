@@ -3,6 +3,7 @@ import logging
 
 from .comms import WalletComms
 from .secure_channel import SecureChannel
+from .grant_protocol import Grant
 from bitkey_proto import wallet_pb2 as wallet_pb
 from bitkey_proto import ops_keybundle_pb2 as ops_keybundle
 from bitkey_proto import mfgtest_pb2 as mfgtest_pb
@@ -439,4 +440,18 @@ class Wallet:
         cmd = self._build_cmd()
         msg = wallet_pb.cancel_fingerprint_enrollment_cmd()
         cmd.cancel_fingerprint_enrollment_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    def fingerprint_reset_request(self):
+        cmd = self._build_cmd()
+        msg = wallet_pb.fingerprint_reset_request_cmd()
+        cmd.fingerprint_reset_request_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    def fingerprint_reset_finalize(self, grant: Grant):
+        serialized_grant = grant.serialize()
+        cmd = self._build_cmd()
+        msg = wallet_pb.fingerprint_reset_finalize_cmd()
+        msg.grant = serialized_grant
+        cmd.fingerprint_reset_finalize_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)

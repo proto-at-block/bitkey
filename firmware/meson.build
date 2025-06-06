@@ -148,6 +148,7 @@ subdir('hal/biometrics')
 subdir('lib/unlock')
 subdir('lib/onboarding')
 subdir('lib/policy')
+subdir('lib/grant_protocol')
 
 subdir('config')
 subdir('app')

@@ -13,5 +13,5 @@ data class WipingDeviceIntroProps(
   val onBack: () -> Unit,
   val onUnwindToMoneyHome: () -> Unit,
   val onDeviceConfirmed: (pairedDevice: Boolean) -> Unit,
-  val fullAccount: FullAccount?,
+  val fullAccount: FullAccount,
 )

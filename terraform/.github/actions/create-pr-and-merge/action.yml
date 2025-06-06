@@ -44,7 +44,7 @@ runs:
         github-token: ${{ steps.bot-token.outputs.token}}
         pull-request-number: ${{ steps.create-pr.outputs.pull-request-number }}
     - name: Merge PR
-      uses: "pascalgn/automerge-action@d1203c0bf94a827b991e5de69d662e9163304fa0" # 0.16.3
+      uses: "pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67" # 0.16.4
       if: ${{ steps.create-pr.outputs.pull-request-number }}
       env:
         GITHUB_TOKEN: ${{ steps.bot-token.outputs.token}}

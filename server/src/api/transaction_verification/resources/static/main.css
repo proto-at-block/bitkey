@@ -1,0 +1,47 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+.transaction-box {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+}
+.amount {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+.recipient {
+    font-family: monospace;
+    word-break: break-all;
+    background-color: #eee;
+    padding: 8px;
+    border-radius: 4px;
+}
+.buttons {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+button {
+    padding: 10px 20px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+.confirm {
+    background-color: #4CAF50;
+    color: white;
+}
+.cancel {
+    background-color: #f44336;
+    color: white;
+}

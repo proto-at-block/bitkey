@@ -23,8 +23,12 @@ import build.wallet.firmware.FirmwareMetadataMock
 import build.wallet.firmware.UnlockInfo
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
+import build.wallet.grants.Grant
+import build.wallet.grants.GrantAction
+import build.wallet.grants.GrantRequest
 import build.wallet.money.BitcoinMoney
 import build.wallet.nfc.platform.NfcCommands
+import io.ktor.utils.io.core.toByteArray
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 
@@ -37,6 +41,8 @@ class NfcCommandsMock(
   val deleteFingerprintCalls = turbine.invoke("DeleteFingerprint calls")
   val startFingerprintEnrollmentCalls = turbine.invoke("StartFingerprintEnrollment calls")
   val setFingerprintLabelCalls = turbine.invoke("SetFingerprintLabel calls")
+  val getGrantRequestCalls = turbine.invoke("GetGrantRequest calls")
+  val provideGrantCalls = turbine.invoke("ProvideGrant calls")
 
   private val defaultEnrollmentResult = FingerprintEnrollmentResult(
     status = FingerprintEnrollmentStatus.COMPLETE,
@@ -210,6 +216,33 @@ class NfcCommandsMock(
     deviceIdentityDer: List<UByte>,
     challenge: List<UByte>,
   ): Boolean = true
+
+  override suspend fun getGrantRequest(
+    session: NfcSession,
+    action: GrantAction,
+  ): GrantRequest {
+    return when (action) {
+      GrantAction.FINGERPRINT_RESET -> {
+        GrantRequest(
+          version = 0x01,
+          deviceId = "mockDevice".toByteArray(),
+          challenge = "mockChallenge".toByteArray(),
+          action = action,
+          signature = "mockSignature".toByteArray()
+        ).also { getGrantRequestCalls.add(action) }
+      }
+      else -> {
+        throw IllegalArgumentException(
+          "Unsupported GrantAction: $action"
+        )
+      }
+    }
+  }
+
+  override suspend fun provideGrant(
+    session: NfcSession,
+    grant: Grant,
+  ) = true.also { provideGrantCalls.add(grant) }
 
   fun setEnrollmentStatus(enrollmentStatus: FingerprintEnrollmentStatus) {
     this.enrollmentResult.status = enrollmentStatus

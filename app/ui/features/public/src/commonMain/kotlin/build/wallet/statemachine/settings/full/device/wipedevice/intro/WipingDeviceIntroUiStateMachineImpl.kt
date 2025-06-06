@@ -8,9 +8,6 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.encrypt.Secp256k1PublicKey
-import build.wallet.encrypt.SignatureVerifier
-import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayService
 import build.wallet.limit.SpendingLimit
@@ -26,7 +23,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
 import build.wallet.statemachine.settings.full.device.wipedevice.intro.WipingDeviceIntroUiState.*
 import build.wallet.ui.model.StandardClick
@@ -34,20 +30,17 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import okio.ByteString.Companion.encodeUtf8
 import kotlin.time.Duration.Companion.milliseconds
 
 @BitkeyInject(ActivityScope::class)
 class WipingDeviceIntroUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
-  private val signatureVerifier: SignatureVerifier,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val currencyConverter: CurrencyConverter,
@@ -63,7 +56,8 @@ class WipingDeviceIntroUiStateMachineImpl(
       )
     }
 
-    val transactionsData = remember { bitcoinWalletService.transactionsData() }.collectAsState().value
+    val transactionsData =
+      remember { bitcoinWalletService.transactionsData() }.collectAsState().value
 
     val scope = rememberStableCoroutineScope()
 
@@ -76,7 +70,6 @@ class WipingDeviceIntroUiStateMachineImpl(
           }
         }
         WipingDeviceIntroModel(
-          presentedModally = props.fullAccount != null,
           onBack = props.onBack,
           onWipeDevice = { uiState = ScanToContinueState },
           bottomSheet = null
@@ -92,7 +85,6 @@ class WipingDeviceIntroUiStateMachineImpl(
         )
 
         WipingDeviceIntroModel(
-          presentedModally = props.fullAccount != null,
           onBack = props.onBack,
           onWipeDevice = { uiState = ScanToContinueState },
           bottomSheet = bottomSheet
@@ -105,10 +97,11 @@ class WipingDeviceIntroUiStateMachineImpl(
           .value
 
         InitialDeviceTapModel(
-          pubKey = props.fullAccount?.keybox?.activeHwKeyBundle?.authKey?.pubKey,
-          balance = transactionsData?.balance,
-          onTapPairedDevice = { balance ->
-            if (balance.untrustedPending.isPositive) {
+          onTapPairedDevice = {
+            val balance = transactionsData?.balance
+            if (balance == null) {
+              uiState = SpendableBalanceCheckFailedState
+            } else if (balance.untrustedPending.isPositive) {
               // Incoming pending transaction, treat as spendable and send to
               // transfer funds before wipe sheet
               uiState = TransferringFundsState
@@ -130,9 +123,6 @@ class WipingDeviceIntroUiStateMachineImpl(
               props.onDeviceConfirmed(true)
             }
           },
-          onTapUnknownDevice = {
-            uiState = UnpairedDeviceWarningState
-          },
           onCancel = {
             uiState = IntroState()
           }
@@ -150,25 +140,8 @@ class WipingDeviceIntroUiStateMachineImpl(
         )
       }
 
-      is UnpairedDeviceWarningState -> {
-        val bottomSheet =
-          UnpairedDeviceWarningSheet(
-            onWipeDevice = {
-              props.onDeviceConfirmed(false)
-            },
-            onCancel = { uiState = IntroState() }
-          )
-
-        WipingDeviceIntroModel(
-          presentedModally = props.fullAccount != null,
-          onBack = props.onBack,
-          onWipeDevice = { uiState = ScanToContinueState },
-          bottomSheet = bottomSheet
-        )
-      }
-
       is TransferringFundsState -> {
-        val shouldNotReach = transactionsData?.balance == null || props.fullAccount == null
+        val shouldNotReach = transactionsData?.balance == null
         LaunchedEffect("log-should-not-reach-TransferringFundsState", shouldNotReach) {
           if (shouldNotReach) {
             logError {
@@ -178,7 +151,6 @@ class WipingDeviceIntroUiStateMachineImpl(
         }
 
         WipingDeviceIntroModel(
-          presentedModally = props.fullAccount != null,
           onBack = props.onBack,
           onWipeDevice = { uiState = ScanToContinueState },
           bottomSheet = TransferFundsBeforeWipeSheet(
@@ -195,13 +167,11 @@ class WipingDeviceIntroUiStateMachineImpl(
 
   @Composable
   fun WipingDeviceIntroModel(
-    presentedModally: Boolean,
     onBack: () -> Unit,
     onWipeDevice: () -> Unit,
     bottomSheet: SheetModel? = null,
   ): ScreenModel {
     val wipingDeviceModel = WipingDeviceIntroBodyModel(
-      presentedModally = presentedModally,
       onBack = onBack,
       onWipeDevice = onWipeDevice
     )
@@ -214,23 +184,18 @@ class WipingDeviceIntroUiStateMachineImpl(
   }
 
   private data class WipingDeviceIntroBodyModel(
-    val presentedModally: Boolean,
     override val onBack: () -> Unit,
     val onWipeDevice: () -> Unit,
   ) : FormBodyModel(
       id = WipingDeviceEventTrackerScreenId.RESET_DEVICE_INTRO,
       onBack = null,
       toolbar = ToolbarModel(
-        leadingAccessory = if (presentedModally) {
-          ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBack)
-        } else {
-          ToolbarAccessoryModel.IconAccessory.BackAccessory(onBack)
-        }
+        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBack)
       ),
       header = FormHeaderModel(
         headline = "Permanently wipe your device",
-        subline = "Always pair a new Bitkey device before wiping your current device.\n\n" +
-          "If you lose your phone and do not have Recovery Contacts set up before a new device is paired you will permanently lose access to your funds."
+        subline = "Always transfer the funds from this wallet to a new wallet before wiping this device.\n\n" +
+          "Wiping a device can lead to permanent loss of funds."
       ),
       primaryButton = ButtonModel(
         text = "Wipe device",
@@ -283,35 +248,17 @@ class WipingDeviceIntroUiStateMachineImpl(
 
   @Composable
   private fun InitialDeviceTapModel(
-    pubKey: Secp256k1PublicKey?,
-    balance: BitcoinBalance?,
-    onTapPairedDevice: (spendableBalance: BitcoinBalance) -> Unit,
-    onTapUnknownDevice: (pubKey: Secp256k1PublicKey) -> Unit,
+    onTapPairedDevice: () -> Unit,
     onCancel: () -> Unit,
   ): ScreenModel {
-    val challengeString = "verify-paired-device".encodeUtf8()
-
     return nfcSessionUIStateMachine.model(
       NfcSessionUIStateMachineProps(
         session = { session, commands ->
-          // if we're not onboarded, we need to get the pubKey from the hardware
-          val hwPubKey = pubKey ?: commands.getAuthenticationKey(session).pubKey
-          val signature = commands.signChallenge(session, challengeString)
-          Pair(hwPubKey, signature)
+          // Any command will result in an nfc interceptor validating that the hardware is paired; we
+          // just need to choose one that requires the device to be unlocked.
+          commands.getDeviceInfo(session)
         },
-        onSuccess = { (publicKey, signature) ->
-          val verification = signatureVerifier.verifyEcdsaResult(
-            message = challengeString,
-            signature = signature,
-            publicKey = publicKey
-          )
-          if (verification.get() == true && balance != null) {
-            onTapPairedDevice(balance)
-          } else {
-            onTapUnknownDevice(publicKey)
-          }
-        },
-        hardwareVerification = NotRequired,
+        onSuccess = { onTapPairedDevice() },
         onCancel = onCancel,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
         eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
@@ -472,50 +419,6 @@ class WipingDeviceIntroUiStateMachineImpl(
         treatment = ButtonModel.Treatment.Secondary
       )
     )
-
-  @Composable
-  private fun UnpairedDeviceWarningSheet(
-    onWipeDevice: () -> Unit,
-    onCancel: () -> Unit,
-  ): SheetModel {
-    return SheetModel(
-      size = SheetSize.DEFAULT,
-      onClosed = onCancel,
-      body = UnpairedDeviceWarningSheetBodyModel(
-        subline = "This device might be protecting funds. If you wipe the device, the funds may no longer be accessible.",
-        onWipeDevice = onWipeDevice,
-        onCancel = onCancel
-      )
-    )
-  }
-
-  private data class UnpairedDeviceWarningSheetBodyModel(
-    val subline: String,
-    val onWipeDevice: () -> Unit,
-    val onCancel: () -> Unit,
-  ) : FormBodyModel(
-      id = WipingDeviceEventTrackerScreenId.RESET_DEVICE_CONFIRMATION,
-      onBack = onCancel,
-      toolbar = null,
-      header = FormHeaderModel(
-        headline = "This Bitkey device isn’t paired to this app",
-        subline = subline
-      ),
-      primaryButton = ButtonModel(
-        text = "Wipe device",
-        requiresBitkeyInteraction = false,
-        onClick = onWipeDevice,
-        size = ButtonModel.Size.Footer,
-        treatment = ButtonModel.Treatment.PrimaryDanger
-      ),
-      secondaryButton = ButtonModel(
-        text = "Cancel",
-        treatment = ButtonModel.Treatment.Secondary,
-        size = ButtonModel.Size.Footer,
-        onClick = StandardClick(onCancel)
-      ),
-      renderContext = RenderContext.Sheet
-    )
 }
 
 private sealed interface WipingDeviceIntroUiState {
@@ -540,11 +443,6 @@ private sealed interface WipingDeviceIntroUiState {
    * Error checking spendable balance
    */
   data object SpendableBalanceCheckFailedState : WipingDeviceIntroUiState
-
-  /**
-   * Warning state for unpaired device
-   */
-  data object UnpairedDeviceWarningState : WipingDeviceIntroUiState
 
   /**
    * Viewing the transfer funds before wipe bottom sheet

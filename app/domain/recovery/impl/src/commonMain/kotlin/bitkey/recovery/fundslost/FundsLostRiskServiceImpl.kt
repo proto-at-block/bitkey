@@ -6,7 +6,6 @@ import bitkey.notifications.NotificationsService.NotificationStatus
 import build.wallet.account.AccountService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
-import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -52,10 +51,6 @@ class FundsLostRiskServiceImpl(
       } else if (mobileKeyStatus is MobileKeyBackupStatus.ProblemWithBackup) {
         FundsLostRiskLevel.AtRisk(
           AtRiskCause.MissingCloudBackup(mobileKeyStatus)
-        )
-      } else if (eekBackupStatus is EekBackupStatus.ProblemWithBackup) {
-        FundsLostRiskLevel.AtRisk(
-          AtRiskCause.MissingEek(eekBackupStatus)
         )
       } else if (notificationStatus is NotificationStatus.Missing &&
         notificationStatus.missingChannels.containsAll(listOf(NotificationChannel.Email, NotificationChannel.Sms))

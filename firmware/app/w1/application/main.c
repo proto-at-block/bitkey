@@ -29,6 +29,12 @@ NO_OPTIMIZE int main(void) {
   serial_init();
   sysevent_init();
 
+#ifdef CONFIG_PROD
+  grant_protocol_init(true);
+#else
+  grant_protocol_init(false);
+#endif
+
 #ifndef CONFIG_PROD
   shell_task_create();
 #endif

@@ -1,12 +1,14 @@
+use crate::repository::TransactionVerificationRepository;
 use account::service::Service as AccountService;
 use exchange_rate::service::Service as ExchangeRateService;
 use notification::service::Service as NotificationService;
 use serde::Deserialize;
-
-use crate::repository::TransactionVerificationRepository;
+use std::sync::Arc;
+use wsm_rust_client::GrantService;
 
 mod fetch;
 mod initiate;
+pub mod mock;
 pub mod tests;
 
 #[derive(Clone, Deserialize)]
@@ -23,6 +25,7 @@ pub struct Service {
     account_service: AccountService,
     exchange_rate_service: ExchangeRateService,
     notification_service: NotificationService,
+    grant_service: Arc<dyn GrantService + Send + Sync>,
 }
 
 impl Service {
@@ -32,6 +35,7 @@ impl Service {
         account_service: AccountService,
         exchange_rate_service: ExchangeRateService,
         notification_service: NotificationService,
+        grant_service: Arc<dyn GrantService + Send + Sync>,
     ) -> Self {
         Self {
             config,
@@ -39,6 +43,7 @@ impl Service {
             account_service,
             exchange_rate_service,
             notification_service,
+            grant_service,
         }
     }
 }

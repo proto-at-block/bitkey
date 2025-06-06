@@ -3,6 +3,8 @@ package build.wallet.statemachine.app
 import androidx.compose.runtime.Composable
 import bitkey.datadog.DatadogRumMonitorFake
 import bitkey.ui.framework.NavigatorPresenterFake
+import bitkey.ui.statemachine.interstitial.InterstitialUiProps
+import bitkey.ui.statemachine.interstitial.InterstitialUiStateMachine
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
@@ -33,7 +35,10 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
 import build.wallet.statemachine.biometric.BiometricPromptProps
 import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.SplashBodyModel
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
@@ -64,8 +69,6 @@ import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachineImpl
 import build.wallet.statemachine.root.SplashScreenDelay
 import build.wallet.statemachine.root.WelcomeToBitkeyScreenDuration
-import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
-import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -119,9 +122,6 @@ class AppUiStateMachineImplTests : FunSpec({
       ScreenStateMachineMock<RotateAuthKeyUIStateMachineProps>(
         id = "rotate-auth-key"
       ) {}
-  val wipingDeviceUiStateMachine =
-    object : WipingDeviceUiStateMachine,
-      ScreenStateMachineMock<WipingDeviceProps>(id = "wiping-device") {}
 
   lateinit var stateMachine: AppUiStateMachineImpl
 
@@ -130,8 +130,7 @@ class AppUiStateMachineImplTests : FunSpec({
   val gettingStartedData = GettingStartedData(
     startLiteAccountCreation = {},
     startRecovery = {},
-    startEmergencyAccessRecovery = {},
-    wipeExistingDevice = {}
+    startEmergencyAccessRecovery = {}
   )
 
   val biometricAuthService = BiometricAuthServiceFake()
@@ -166,7 +165,6 @@ class AppUiStateMachineImplTests : FunSpec({
         liteAccountCloudBackupRestorationUiStateMachine,
         emergencyAccessKitRecoveryUiStateMachine = emergencyAccessKitRecoveryUiStateMachine,
         authKeyRotationUiStateMachine = authKeyRotationUiStateMachine,
-        wipingDeviceUiStateMachine = wipingDeviceUiStateMachine,
         appWorkerExecutor = appWorkerExecutor,
         biometricPromptUiStateMachine = object : BiometricPromptUiStateMachine {
           @Composable
@@ -186,7 +184,13 @@ class AppUiStateMachineImplTests : FunSpec({
         datadogRumMonitor = datadogRumMonitor,
         splashScreenDelay = SplashScreenDelay(10.milliseconds),
         welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
-        deviceInfoProvider = DeviceInfoProviderMock()
+        deviceInfoProvider = DeviceInfoProviderMock(),
+        interstitialUiStateMachine = object : InterstitialUiStateMachine {
+          @Composable
+          override fun model(props: InterstitialUiProps): ScreenModel? {
+            return null
+          }
+        }
       )
   }
 

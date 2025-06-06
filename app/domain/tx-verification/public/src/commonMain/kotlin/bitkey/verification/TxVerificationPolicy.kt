@@ -13,14 +13,40 @@ import kotlin.jvm.JvmInline
  * delay/notify process. These details can be used to differentiate two
  * requests and contain the tokens needed to modify them.
  */
-data class TxVerificationPolicy(
-  val id: Id,
-  val threshold: VerificationThreshold,
-  val authorization: DelayNotifyAuthorization? = null,
-) {
+sealed interface TxVerificationPolicy {
+  /**
+   * Local identifier used to track policy records.
+   */
+  val id: PolicyId
+
+  /**
+   * The max limit for send amounts that will require transaction verification.
+   */
+  val threshold: VerificationThreshold
+
+  /**
+   * A policy that has been activated by the server.
+   */
+  data class Active(
+    override val id: PolicyId,
+    override val threshold: VerificationThreshold,
+  ) : TxVerificationPolicy
+
+  /**
+   * A policy that still requires completion after auth is complete.
+   */
+  data class Pending(
+    override val id: PolicyId,
+    override val threshold: VerificationThreshold,
+    val authorization: DelayNotifyAuthorization,
+  ) : TxVerificationPolicy
+
+  /**
+   * Local identifier used to track policy records.
+   */
   @JvmInline
-  value class Id(
-    val value: String,
+  value class PolicyId(
+    val value: Long,
   )
 
   /**
@@ -29,8 +55,15 @@ data class TxVerificationPolicy(
   @Redacted
   data class DelayNotifyAuthorization(
     @Unredacted
+    val id: AuthId,
+    @Unredacted
     val delayEndTime: Instant,
     val cancellationToken: String,
     val completionToken: String,
-  )
+  ) {
+    @JvmInline
+    value class AuthId(
+      val value: String,
+    )
+  }
 }

@@ -18,6 +18,12 @@ messages:
       auth: always
     - name: fwpb_derive_public_key_and_sign_cmd
       auth: always
+    # Auth task should handle these, but it doesn't have the
+    # stack space for libsecp256k1...
+    - name: fwpb_fingerprint_reset_request_cmd
+      auth: never
+    - name: fwpb_fingerprint_reset_finalize_cmd
+      auth: never
   structs:
     - name: key_manager_remove_wallet_state_t
     - name: key_manager_clear_derived_key_cache_t

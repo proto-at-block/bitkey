@@ -25,7 +25,6 @@ data class AccountAccessMoreOptionsFormBodyModel(
   override val onBack: () -> Unit,
   val onRestoreYourWalletClick: (() -> Unit),
   val onBeTrustedContactClick: (() -> Unit),
-  val onResetExistingDevice: (() -> Unit)?,
 ) : FormBodyModel(
     id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
     onBack = onBack,
@@ -62,22 +61,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
               onClick = onRestoreYourWalletClick,
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
               testTag = "restore-your-wallet"
-            ),
-            onResetExistingDevice?.let {
-              ListItemModel(
-                leadingAccessory = IconAccessory(
-                  iconPadding = 12,
-                  model = IconModel(
-                    icon = Icon.SmallIconBitkey,
-                    iconSize = IconSize.Small
-                  )
-                ),
-                title = "Wipe an existing device",
-                onClick = onResetExistingDevice,
-                trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
-                testTag = "wipe-existing-device"
-              )
-            }
+            )
           ),
           style = ListGroupStyle.CARD_ITEM
         )

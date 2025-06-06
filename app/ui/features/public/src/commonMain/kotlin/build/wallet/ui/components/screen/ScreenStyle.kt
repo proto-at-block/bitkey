@@ -7,6 +7,7 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.ScreenPresentationStyle.*
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.inheritance.InheritanceUpsellBodyModel
 import build.wallet.statemachine.partnerships.purchase.CustomAmountBodyModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel
 import build.wallet.statemachine.send.TransferAmountBodyModel
@@ -48,6 +49,7 @@ data class ScreenStyle(
   val useDarkSystemBarIcons: Boolean,
   val addSystemBarsPadding: Boolean,
   val statusBarColor: Color,
+  val screenBackgroundColor: Color,
 )
 
 /**
@@ -62,6 +64,14 @@ internal fun screenStyle(
   // This is a one off for the security hub to have the correct status bar color
   val statusBarColor = if (bodyModel is SecurityHubBodyModel) {
     WalletTheme.colors.secondary
+  } else if (bodyModel is InheritanceUpsellBodyModel) {
+    WalletTheme.colors.inheritanceSurface
+  } else {
+    WalletTheme.colors.background
+  }
+
+  val screenBackgroundColor = if (bodyModel is InheritanceUpsellBodyModel) {
+    WalletTheme.colors.inheritanceSurface
   } else {
     WalletTheme.colors.background
   }
@@ -69,6 +79,7 @@ internal fun screenStyle(
   return ScreenStyle(
     useDarkSystemBarIcons = theme == LIGHT,
     addSystemBarsPadding = doesScreenRequirePadding(bodyModel, presentationStyle),
-    statusBarColor = statusBarColor
+    statusBarColor = statusBarColor,
+    screenBackgroundColor = screenBackgroundColor
   )
 }

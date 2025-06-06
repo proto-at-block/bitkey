@@ -1,3 +1,4 @@
+use crate::service::mock::MockGrantService;
 use crate::{
     repository::TransactionVerificationRepository,
     service::{Config, Service},
@@ -9,6 +10,7 @@ use database::ddb::{Config as DDBConfig, Repository};
 use exchange_rate::service::Service as ExchangeRateService;
 use http_server::config;
 use notification::service::tests::construct_test_notification_service;
+use std::sync::Arc;
 use types::account::entities::TransactionVerificationPolicy;
 use types::account::{bitcoin::Network, entities::FullAccount};
 
@@ -18,6 +20,7 @@ pub async fn construct_test_transaction_verification_service() -> Service {
     let ddb_connection = ddb_config.to_connection().await;
     let account_service = construct_test_account_service().await;
     let notification_service = construct_test_notification_service().await;
+    let mock_grant_service = MockGrantService::new();
     let transaction_verification_repository =
         TransactionVerificationRepository::new(ddb_connection.clone());
     Service::new(
@@ -26,6 +29,7 @@ pub async fn construct_test_transaction_verification_service() -> Service {
         account_service,
         ExchangeRateService::new(),
         notification_service,
+        Arc::new(mock_grant_service),
     )
 }
 

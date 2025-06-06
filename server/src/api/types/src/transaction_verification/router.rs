@@ -1,18 +1,19 @@
+use crate::transaction_verification::entities::TransactionVerification;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
+use bdk_utils::bdk::bitcoin::secp256k1::ecdsa::Signature;
+use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as, DisplayFromStr};
 use time::serde::rfc3339;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
-
-use crate::transaction_verification::entities::TransactionVerification;
 
 use super::TransactionVerificationId;
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct TransactionVerificationViewSuccess {
     pub psbt: Psbt,
-    pub hw_grant: String,
-    pub signature: String,
+    pub hw_grant: TransactionVerificationApprovalView,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -33,19 +34,29 @@ impl From<TransactionVerification> for TransactionVerificationView {
             TransactionVerification::Success(success) => {
                 TransactionVerificationView::Success(TransactionVerificationViewSuccess {
                     psbt: success.common_fields.psbt,
-                    hw_grant: success.common_fields.hw_grant,
-                    signature: success.signed_hw_grant,
+                    hw_grant: success.signed_hw_grant,
                 })
             }
         }
     }
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct InitiateTransactionVerificationViewSigned {
     pub psbt: Psbt,
-    pub hw_grant: String,
-    pub signature: String,
+    pub hw_grant: TransactionVerificationApprovalView,
+}
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema, PartialEq)]
+pub struct TransactionVerificationApprovalView {
+    pub version: u8,
+    pub hw_auth_public_key: PublicKey,
+    #[serde_as(as = "Base64")]
+    pub allowed_hash: Vec<u8>,
+    #[serde_as(as = "DisplayFromStr")]
+    pub signature: Signature,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]

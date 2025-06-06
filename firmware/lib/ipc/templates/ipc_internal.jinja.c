@@ -16,8 +16,8 @@ SHARED_TASK_DATA uint32_t num_ipc_ports = {{num_ports}};
 // NOTE: This breaks the convention of not calling task-owned functions.
 extern void refresh_auth(void);
 extern secure_bool_t is_authenticated(void);
-
-extern secure_bool_t onboarding_auth_is_setup(void);
+extern secure_bool_t is_allowing_fingerprint_enrollment(void);
+extern secure_bool_t onboarding_complete(void);
 
 {% for port in ports -%}
 const uint32_t {{port}} = {{loop.index - 1}};
@@ -61,7 +61,7 @@ NO_OPTIMIZE secure_bool_t check_authentication(uint16_t pb_tag) {
     case fwpb_wallet_cmd_{{'_'.join(proto.split('_')[1:])}}_tag:
     {% endfor %}
     {
-      if (onboarding_auth_is_setup() != SECURE_TRUE) {
+      if (onboarding_complete() != SECURE_TRUE) {
         // Not onboarded. Same as above, return SECURE_TRUE to indicate that
         // authentication is not required.
         return SECURE_TRUE;
@@ -72,6 +72,18 @@ NO_OPTIMIZE secure_bool_t check_authentication(uint16_t pb_tag) {
     default:
       break;
   }
+
+  // Grant logic follows.
+  SECURE_DO_FAILOUT(is_allowing_fingerprint_enrollment() == SECURE_TRUE, {
+    switch (pb_tag) {
+      case fwpb_wallet_cmd_start_fingerprint_enrollment_cmd_tag:
+        return SECURE_TRUE;
+      case fwpb_wallet_cmd_delete_fingerprint_cmd_tag:
+        return SECURE_TRUE;
+      default:
+        break;
+    }
+  });
 
   // Authentication logic follows.
 

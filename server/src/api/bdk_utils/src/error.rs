@@ -40,6 +40,8 @@ pub enum BdkUtilError {
     TransactionAlreadyInMempoolError,
     #[error("Min relay fee not met.")]
     MinRelayFeeNotMetError,
+    #[error("Invalid output address in PSBT")]
+    InvalidOutputAddressInPsbt,
 }
 
 impl From<&BdkUtilError> for ApiError {
@@ -64,7 +66,10 @@ impl From<&BdkUtilError> for ApiError {
             | BdkUtilError::MalformedDerivationPath
             | BdkUtilError::UnsupportedBitcoinNetwork(_)
             | BdkUtilError::MissingWitnessUtxo
-            | BdkUtilError::MinRelayFeeNotMetError => ApiError::GenericBadRequest(val.to_string()),
+            | BdkUtilError::MinRelayFeeNotMetError
+            | BdkUtilError::InvalidOutputAddressInPsbt => {
+                ApiError::GenericBadRequest(val.to_string())
+            }
             BdkUtilError::TransactionAlreadyInMempoolError => {
                 ApiError::GenericConflict(val.to_string())
             }

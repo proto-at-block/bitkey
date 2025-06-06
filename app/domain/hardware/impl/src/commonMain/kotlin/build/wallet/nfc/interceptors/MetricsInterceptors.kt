@@ -17,7 +17,11 @@ import build.wallet.catchingResult
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.crypto.SealedData
 import build.wallet.firmware.*
+import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.fwup.FwupMode
+import build.wallet.grants.Grant
+import build.wallet.grants.GrantAction
+import build.wallet.grants.GrantRequest
 import build.wallet.logging.*
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
@@ -269,4 +273,20 @@ private class MetricsNfcCommandsImpl(
     measure("signVerifyAttestationChallenge") {
       commands.signVerifyAttestationChallenge(session, deviceIdentityDer, challenge)
     }
+
+  override suspend fun getGrantRequest(
+    session: NfcSession,
+    action: GrantAction,
+  ): GrantRequest {
+    // TODO: Add specific metrics for this command if needed
+    return commands.getGrantRequest(session, action)
+  }
+
+  override suspend fun provideGrant(
+    session: NfcSession,
+    grant: Grant,
+  ): Boolean {
+    // TODO: Add specific metrics for this command if needed
+    return commands.provideGrant(session, grant)
+  }
 }

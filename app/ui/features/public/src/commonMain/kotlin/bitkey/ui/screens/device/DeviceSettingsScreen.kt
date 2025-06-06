@@ -16,6 +16,7 @@ import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Availab
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
@@ -36,8 +37,11 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
+import build.wallet.statemachine.settings.full.device.fingerprints.ManageFingerprintsOptionsSheetModel
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsProps
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsUiStateMachine
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
@@ -69,6 +73,8 @@ class DeviceSettingsScreenPresenter(
   private val appFunctionalityService: AppFunctionalityService,
   private val wipingDeviceUiStateMachine: WipingDeviceUiStateMachine,
   private val firmwareDataService: FirmwareDataService,
+  private val fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
+  private val resetFingerprintsUiStateMachine: ResetFingerprintsUiStateMachine,
   private val clock: Clock,
 ) : ScreenPresenter<DeviceSettingsScreen> {
   @Composable
@@ -93,6 +99,8 @@ class DeviceSettingsScreenPresenter(
     val firmwareData = remember {
       firmwareDataService.firmwareData()
     }.collectAsState().value
+
+    val isFingerprintResetEnabled by fingerprintResetFeatureFlag.flagValue().collectAsState()
 
     return when (val state = uiState) {
       is ViewingDeviceDataUiState -> {
@@ -141,36 +149,53 @@ class DeviceSettingsScreenPresenter(
           replaceDeviceEnabled = replaceDeviceEnabled,
           firmwareData = firmwareData,
           onManageFingerprints = {
-            navigator.goTo(
-              screen = ManagingFingerprintsScreen(
-                account = screen.account,
-                onFwUpRequired = {
-                  uiState = ViewingDeviceDataUiState(showingPromptForFingerprintFwUpdate = true)
-                },
-                entryPoint = EntryPoint.DEVICE_SETTINGS,
-                origin = screen
-              )
+            uiState = state.copy(
+              showingManageFingerprintsOptions = true
             )
           },
           navigator = navigator
         ).copy(
           alertModel = alertModel,
-          bottomSheetModel = PromptingForFingerprintFwUpSheetModel(
-            onCancel = { uiState = ViewingDeviceDataUiState() },
-            onUpdate = {
-              when (val fwupState = firmwareData.firmwareUpdateState) {
-                FirmwareData.FirmwareUpdateState.UpToDate -> {
-                  uiState = ViewingDeviceDataUiState()
+          bottomSheetModel = when {
+            state.showingPromptForFingerprintFwUpdate -> PromptingForFingerprintFwUpSheetModel(
+              onCancel = { uiState = ViewingDeviceDataUiState() },
+              onUpdate = {
+                when (val fwupState = firmwareData.firmwareUpdateState) {
+                  FirmwareData.FirmwareUpdateState.UpToDate -> {
+                    uiState = ViewingDeviceDataUiState()
+                  }
+                  is FirmwareData.FirmwareUpdateState.PendingUpdate -> navigator.goTo(
+                    screen = FwupScreen(
+                      firmwareUpdateData = fwupState,
+                      onExit = { uiState = ViewingDeviceDataUiState() }
+                    )
+                  )
                 }
-                is FirmwareData.FirmwareUpdateState.PendingUpdate -> navigator.goTo(
-                  screen = FwupScreen(
-                    firmwareUpdateData = fwupState,
-                    onExit = { uiState = ViewingDeviceDataUiState() }
+              }
+            )
+            state.showingManageFingerprintsOptions -> ManageFingerprintsOptionsSheetModel(
+              onDismiss = { uiState = ViewingDeviceDataUiState() },
+              onEditFingerprints = {
+                navigator.goTo(
+                  screen = ManagingFingerprintsScreen(
+                    account = screen.account,
+                    onFwUpRequired = {
+                      uiState = ViewingDeviceDataUiState(
+                        showingPromptForFingerprintFwUpdate = true
+                      )
+                    },
+                    entryPoint = EntryPoint.DEVICE_SETTINGS,
+                    origin = screen
                   )
                 )
-              }
-            }
-          ).takeIf { state.showingPromptForFingerprintFwUpdate }
+              },
+              onCannotUnlock = {
+                uiState = ResetFingerprintsUiState
+              },
+              fingerprintResetEnabled = isFingerprintResetEnabled.value
+            )
+            else -> null
+          }
         )
       }
 
@@ -198,6 +223,15 @@ class DeviceSettingsScreenPresenter(
               navigator.exit()
             },
             fullAccount = screen.account
+          )
+        )
+      }
+
+      is ResetFingerprintsUiState -> {
+        resetFingerprintsUiStateMachine.model(
+          props = ResetFingerprintsProps(
+            onComplete = { uiState = ViewingDeviceDataUiState() },
+            onCancel = { uiState = ViewingDeviceDataUiState() }
           )
         )
       }
@@ -330,6 +364,7 @@ private sealed interface DeviceSettingsUiState {
    */
   data class ViewingDeviceDataUiState(
     val showingPromptForFingerprintFwUpdate: Boolean = false,
+    val showingManageFingerprintsOptions: Boolean = false,
   ) : DeviceSettingsUiState
 
   /**
@@ -341,6 +376,11 @@ private sealed interface DeviceSettingsUiState {
    * Wiping the device
    */
   data object WipingDeviceState : DeviceSettingsUiState
+
+  /**
+   * Showing the reset fingerprints flow
+   */
+  data object ResetFingerprintsUiState : DeviceSettingsUiState
 }
 
 private sealed interface EnrolledFingerprintResult {

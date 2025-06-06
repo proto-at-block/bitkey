@@ -25,7 +25,8 @@ use wsm_common::bitcoin::bip32::DerivationPath;
 
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::{
-    AttestationDocResponse, ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
+    ApprovePsbtRequest, ApprovePsbtResponse, AttestationDocResponse,
+    ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
     ContinueShareRefreshRequest, ContinueShareRefreshResponse, CreateRootKeyRequest,
     CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse, CreatedSigningKey,
     EvaluatePinRequest, EvaluatePinResponse, GenerateIntegrityKeyResponse,
@@ -91,6 +92,7 @@ impl From<RouteState> for Router {
             .route("/evaluate-pin", post(evaluate_pin))
             .route("/initiate-share-refresh", post(initiate_distributed_keygen))
             .route("/approve-grant", post(approve_grant))
+            .route("/approve-psbt", post(approve_psbt))
             .with_state(state)
     }
 }
@@ -634,6 +636,19 @@ async fn approve_grant(
         .approve_grant(request)
         .await
         .map_err(|e| ApiError::ServerError(format!("Failed to create grant: {e}")))?;
+
+    Ok(Json(result))
+}
+
+#[instrument(err, skip(enclave_client))]
+async fn approve_psbt(
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<ApprovePsbtRequest>,
+) -> Result<Json<ApprovePsbtResponse>, ApiError> {
+    let result = enclave_client
+        .approve_psbt(request)
+        .await
+        .map_err(|e| ApiError::ServerError(format!("Failed to approve PSBT: {e}")))?;
 
     Ok(Json(result))
 }

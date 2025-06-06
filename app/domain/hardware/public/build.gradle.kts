@@ -15,6 +15,7 @@ kotlin {
         api(projects.domain.cloudBackupPublic)
         api(projects.libs.loggingPublic)
         api(projects.libs.platformPublic)
+        api(projects.libs.grantsPublic)
         api(projects.domain.featureFlagPublic)
       }
     }

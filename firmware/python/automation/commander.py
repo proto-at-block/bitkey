@@ -12,3 +12,7 @@ class CommanderHelper:
             COMMANDER_BIN + " device reset", shell=True)
         print(result)
         return result
+
+def reset_device():
+    subprocess.check_output(
+        COMMANDER_BIN + " device reset", shell=True)

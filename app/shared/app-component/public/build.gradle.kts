@@ -20,6 +20,7 @@ kotlin {
         api(projects.domain.databasePublic)
         api(projects.domain.f8eClientPublic)
         api(projects.domain.inheritancePublic)
+        api(projects.domain.txVerificationPublic)
         api(projects.libs.keyValueStorePublic)
         api(projects.libs.loggingPublic)
         api(projects.libs.memfaultPublic)

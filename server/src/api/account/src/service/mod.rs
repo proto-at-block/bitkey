@@ -4,7 +4,8 @@ use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
 use types::account::bitcoin::Network;
 use types::account::entities::{
-    CommsVerificationClaim, CommsVerificationScope, Keyset, LiteAccount, TouchpointPlatform,
+    CommsVerificationClaim, CommsVerificationScope, DescriptorBackup, FullAccount, Keyset,
+    LiteAccount, TouchpointPlatform,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId};
 use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
@@ -33,6 +34,7 @@ mod put_transaction_verification_policy;
 mod rotate_to_spending_key_definition;
 mod rotate_to_spending_keyset;
 pub mod tests;
+mod update_descriptor_backups;
 mod upgrade_lite_account_to_full_account;
 
 #[derive(Clone)]
@@ -208,4 +210,10 @@ pub struct PutInactiveSpendingDistributedKeyInput<'a> {
 pub struct RotateToSpendingKeyDefinitionInput<'a> {
     pub account_id: &'a AccountId,
     pub key_definition_id: &'a KeyDefinitionId,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpdateDescriptorBackupsInput<'a> {
+    pub account: &'a FullAccount,
+    pub descriptor_backups: Vec<DescriptorBackup>,
 }

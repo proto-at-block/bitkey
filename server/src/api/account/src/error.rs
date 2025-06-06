@@ -39,6 +39,10 @@ pub enum AccountError {
     TouchpointAlreadyActive,
     #[error("Conflicting spending key definition state during rotation for account")]
     ConflictingSpendingKeyDefinitionStateForRotation,
+    #[error("Missing keyset ID(s)")]
+    MissingKeysetIds,
+    #[error("Unrecognized keyset ID(s)")]
+    UnrecognizedKeysetIds,
 }
 
 impl From<AccountErrorType> for AccountError {
@@ -64,11 +68,12 @@ impl From<AccountError> for ApiError {
             | AccountError::InvalidUpdateAccountProperties
             | AccountError::Unexpected
             | AccountError::UserPoolError(_) => ApiError::GenericInternalApplicationError(err_msg),
-            AccountError::TouchpointNotFound => ApiError::GenericNotFound(err_msg),
-            AccountError::InvalidSpendingKeysetIdentifierForRotation
-            | AccountError::InvalidSpendingKeyDefinitionIdentifierForRotation => {
-                ApiError::GenericBadRequest(err_msg)
+            AccountError::TouchpointNotFound | AccountError::UnrecognizedKeysetIds => {
+                ApiError::GenericNotFound(err_msg)
             }
+            AccountError::InvalidSpendingKeysetIdentifierForRotation
+            | AccountError::InvalidSpendingKeyDefinitionIdentifierForRotation
+            | AccountError::MissingKeysetIds => ApiError::GenericBadRequest(err_msg),
             AccountError::DDBError(err) => match err {
                 DatabaseError::ObjectNotFound(DatabaseObject::Account) => ApiError::Specific {
                     code: ErrorCode::AccountNotFound,

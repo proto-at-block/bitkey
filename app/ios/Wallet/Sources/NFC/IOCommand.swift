@@ -57,6 +57,16 @@ extension CancelFingerprintEnrollment: IOCommand {
     typealias ResultType = Bool
 }
 
+extension FingerprintResetRequest: IOCommand {
+    typealias FFIStateType = BytesState
+    typealias ResultType = [UInt8]
+}
+
+extension FingerprintResetFinalize: IOCommand {
+    typealias FFIStateType = BooleanState
+    typealias ResultType = Bool
+}
+
 extension SignTransaction: IOCommand {
     typealias FFIStateType = PartiallySignedTransactionState
     typealias ResultType = String

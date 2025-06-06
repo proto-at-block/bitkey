@@ -2,6 +2,8 @@ package build.wallet.statemachine.settings.full.device.fingerprints
 
 import app.cash.turbine.plusAssign
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.grants.GrantAction
+import build.wallet.grants.GrantRequest
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -95,8 +97,17 @@ class ResetFingerprintsUiStateMachineImplTests : FunSpec({
 
       awaitBodyMock<NfcSessionUIStateMachineProps<ResetFingerprintsNfcResult>>(id = nfcSessionUiStateMachine.id) {
         session(NfcSessionFake(), nfcCommandsMock)
-        onSuccess(ResetFingerprintsNfcResult.Success)
+        val mockGrantRequest = GrantRequest(
+          version = 1.toByte(),
+          deviceId = ByteArray(8),
+          challenge = ByteArray(16),
+          action = GrantAction.FINGERPRINT_RESET,
+          signature = ByteArray(64)
+        )
+        onSuccess(ResetFingerprintsNfcResult.GrantRequestRetrieved(mockGrantRequest))
       }
+
+      nfcCommandsMock.getGrantRequestCalls.awaitItem() shouldBe GrantAction.FINGERPRINT_RESET
 
       awaitBody<AppDelayNotifyInProgressBodyModel> {
         header.shouldNotBeNull()

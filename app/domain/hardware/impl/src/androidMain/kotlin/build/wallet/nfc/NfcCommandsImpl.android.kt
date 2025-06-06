@@ -28,6 +28,9 @@ import build.wallet.firmware.UnlockInfo
 import build.wallet.firmware.UnlockMethod
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
+import build.wallet.grants.Grant
+import build.wallet.grants.GrantAction
+import build.wallet.grants.GrantRequest
 import build.wallet.logging.NFC_TAG
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
@@ -445,6 +448,46 @@ class NfcCommandsImpl(
     getResponse = { state: BooleanState.Data -> state.response },
     generateResult = { state: BooleanState.Result -> state.value }
   )
+
+  override suspend fun getGrantRequest(
+    session: NfcSession,
+    action: GrantAction,
+  ): GrantRequest {
+    when (action) {
+      GrantAction.FINGERPRINT_RESET -> {
+        return executeCommand(
+          session = session,
+          generateCommand = { FingerprintResetRequest() },
+          getNext = { command, data -> command.next(data) },
+          getResponse = { state: BytesState.Data -> state.response },
+          generateResult = { state: BytesState.Result ->
+            GrantRequest.fromBytes(state.value.toByteString())
+              ?: throw NfcException.CommandError("Failed to parse GrantRequest from device response")
+          }
+        )
+      }
+      else -> {
+        throw NfcException.CommandError("Unsupported GrantAction: $action")
+      }
+    }
+  }
+
+  override suspend fun provideGrant(
+    session: NfcSession,
+    grant: Grant,
+  ): Boolean {
+    return executeCommand(
+      session = session,
+      generateCommand = {
+        val grantPayload = grant.toBytes()
+          ?: throw NfcException.CommandError("Failed to serialize Grant for device command")
+        FingerprintResetFinalize(grantPayload = grantPayload.toUByteList())
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: BooleanState.Data -> state.response },
+      generateResult = { state: BooleanState.Result -> state.value }
+    )
+  }
 }
 
 @Suppress(

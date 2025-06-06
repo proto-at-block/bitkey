@@ -17,13 +17,14 @@ use wsm_common::bitcoin::secp256k1::ecdsa::Signature;
 use wsm_common::bitcoin::secp256k1::PublicKey;
 use wsm_common::bitcoin::Network;
 use wsm_common::messages::api::{
-    AttestationDocResponse, ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
+    ApprovePsbtRequest, ApprovePsbtResponse, AttestationDocResponse,
+    ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
     ContinueShareRefreshRequest, ContinueShareRefreshResponse, CreateRootKeyRequest,
     CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse, EvaluatePinRequest,
     EvaluatePinResponse, GeneratePartialSignaturesRequest, GeneratePartialSignaturesResponse,
     GetIntegritySigRequest, GetIntegritySigResponse, InitiateDistributedKeygenRequest,
     InitiateDistributedKeygenResponse, InitiateShareRefreshRequest, InitiateShareRefreshResponse,
-    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse,
+    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse, TransactionVerificationApproval,
 };
 
 pub use wsm_common::messages::{
@@ -101,7 +102,7 @@ pub struct Grant {
 pub struct CreateGrantRequest {
     pub hw_auth_public_key: PublicKey,
     pub version: u8,
-    pub action: String,
+    pub action: u8,
     pub device_id: String,
     pub challenge: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]
@@ -181,6 +182,15 @@ pub trait SigningService {
         noise_session: Vec<u8>,
     ) -> Result<EvaluatePinResponse, Error>;
     async fn create_signed_grant(&self, request: CreateGrantRequest) -> Result<Grant, Error>;
+}
+
+#[async_trait]
+pub trait GrantService {
+    async fn approve_psbt(
+        &self,
+        psbt: &str,
+        hw_auth_public_key: PublicKey,
+    ) -> Result<TransactionVerificationApproval, Error>;
 }
 
 #[derive(Clone)]
@@ -542,6 +552,31 @@ impl SigningService for WsmClient {
             .await?;
 
         self.handle_wsm_response(res).await
+    }
+}
+
+#[async_trait]
+impl GrantService for WsmClient {
+    #[instrument]
+    async fn approve_psbt(
+        &self,
+        psbt: &str,
+        hw_auth_public_key: PublicKey,
+    ) -> Result<TransactionVerificationApproval, Error> {
+        let request = ApprovePsbtRequest {
+            psbt: psbt.to_string(),
+            hw_auth_public_key,
+        };
+
+        let res = self
+            .client
+            .post(self.endpoint.join("approve-psbt")?)
+            .json(&request)
+            .send()
+            .await?;
+
+        let response: ApprovePsbtResponse = self.handle_wsm_response(res).await?;
+        Ok(response.approval)
     }
 }
 

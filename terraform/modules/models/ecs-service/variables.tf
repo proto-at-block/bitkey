@@ -25,8 +25,14 @@ variable "port" {
 
 variable "subdomain" {
   type        = string
-  description = "The name of the DNS record to create in the subdomain"
+  description = "The name of the DNS record to create in the hosted zone and to provision a certificate for. Defaults to the service name if not set"
   default     = ""
+}
+
+variable "alt_subdomains" {
+  type        = list(string)
+  description = "Additional DNS records to create in the hosted zone and to add as subject alternative names in the certificate."
+  default     = []
 }
 
 variable "dns_hosted_zone" {

@@ -7,7 +7,7 @@
 #include "unlock.h"
 #include "wallet.h"
 
-secure_bool_t onboarding_auth_is_setup(void) {
+secure_bool_t onboarding_complete(void) {
   bool biometrics_auth_setup = bio_fingerprint_exists();
 
   bool unlock_secret_setup = false;
@@ -15,7 +15,9 @@ secure_bool_t onboarding_auth_is_setup(void) {
     unlock_secret_setup = false;  // As a precaution, default to false.
   }
 
-  if (biometrics_auth_setup || unlock_secret_setup) {
+  bool wallet_initialized = wallet_is_initialized();
+
+  if (biometrics_auth_setup || unlock_secret_setup || wallet_initialized) {
     return SECURE_TRUE;
   } else {
     return SECURE_FALSE;

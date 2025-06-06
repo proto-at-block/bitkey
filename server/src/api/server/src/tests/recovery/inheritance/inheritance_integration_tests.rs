@@ -315,6 +315,7 @@ pub(super) async fn try_package_upload(
                         recovery_relationship_id: r.clone(),
                         sealed_dek: "RANDOM_SEALED_DEK".to_string(),
                         sealed_mobile_key: "RANDOM_SEALED_MOBILE_KEY".to_string(),
+                        sealed_descriptor: None,
                     })
                     .collect(),
             },

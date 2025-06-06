@@ -4,7 +4,7 @@ use time::OffsetDateTime;
 use super::{
     router::{
         InitiateTransactionVerificationView, InitiateTransactionVerificationViewRequested,
-        InitiateTransactionVerificationViewSigned,
+        InitiateTransactionVerificationViewSigned, TransactionVerificationApprovalView,
     },
     TransactionVerificationId,
 };
@@ -24,8 +24,7 @@ pub enum InitiateVerificationResult {
     },
     SignedWithoutVerification {
         psbt: Psbt,
-        hw_grant: String,
-        signature: String,
+        hw_grant: TransactionVerificationApprovalView,
     },
 }
 
@@ -44,17 +43,11 @@ impl InitiateVerificationResult {
                     expiration,
                 },
             ),
-            InitiateVerificationResult::SignedWithoutVerification {
-                psbt,
-                hw_grant,
-                signature,
-            } => InitiateTransactionVerificationView::Signed(
-                InitiateTransactionVerificationViewSigned {
-                    psbt,
-                    hw_grant,
-                    signature,
-                },
-            ),
+            InitiateVerificationResult::SignedWithoutVerification { psbt, hw_grant } => {
+                InitiateTransactionVerificationView::Signed(
+                    InitiateTransactionVerificationViewSigned { psbt, hw_grant },
+                )
+            }
         }
     }
 }

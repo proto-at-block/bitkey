@@ -36,6 +36,7 @@ kotlin {
         api(projects.domain.relationshipsImpl)
         api(projects.domain.securityCenterImpl)
         api(projects.domain.supportImpl)
+        api(projects.domain.txVerificationImpl)
         api(projects.domain.walletImpl)
         api(projects.domain.workerImpl)
         api(projects.libs.amountImpl)
@@ -58,6 +59,7 @@ kotlin {
         api(projects.ui.featuresPublic)
         api(projects.ui.frameworkImpl)
         api(projects.shared.priceChartImpl)
+        api(projects.domain.privilegedActionsImpl)
       }
     }
 
@@ -82,6 +84,7 @@ kotlin {
         implementation(projects.libs.moneyFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.secureEnclaveFake)
+        implementation(projects.domain.recoveryFake)
       }
     }
   }

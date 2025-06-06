@@ -34,4 +34,6 @@ policy_sign_result_t bip32_sign_with_policy(extended_key_t* key_priv, derivation
                                             uint8_t digest[SHA256_DIGEST_SIZE],
                                             uint8_t signature_out[ECC_SIG_SIZE]);
 
+void policy_present_grant(void);
+
 void policy_disable(void);

@@ -96,7 +96,8 @@ impl Service {
             common_fields: pending_claim.common_fields.to_owned(),
             sealed_dek: inheritance_package.sealed_dek,
             sealed_mobile_key: inheritance_package.sealed_mobile_key,
-            benefactor_descriptor_keyset: benefactor_descriptor,
+            sealed_descriptor: inheritance_package.sealed_descriptor,
+            benefactor_descriptor_keyset: Some(benefactor_descriptor),
             locked_at: OffsetDateTime::now_utc(),
         };
 

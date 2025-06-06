@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.9
+# syntax=docker/dockerfile:1.13
 FROM alpine:3 AS builder
 
 ARG TERRAGRUNT_VERSION

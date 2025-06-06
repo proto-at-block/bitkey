@@ -40,7 +40,6 @@ class HomeStatusBannerUiStateMachineImpl(
         val subtitle = when ((fundsLostRisk as FundsLostRiskLevel.AtRisk).cause) {
           AtRiskCause.MissingHardware -> "Add a Bitkey device to avoid losing funds →"
           is AtRiskCause.MissingCloudBackup -> "Add a cloud backup to protect your funds →"
-          is AtRiskCause.MissingEek -> "Back up your Emergency Exit Kit to protect your funds →"
           AtRiskCause.MissingContactMethod -> "Add a contact method to protect your funds →"
         }
 
@@ -48,9 +47,6 @@ class HomeStatusBannerUiStateMachineImpl(
           AtRiskCause.MissingHardware -> BannerType.MissingHardware
           AtRiskCause.MissingContactMethod -> BannerType.MissingCommunication
           is AtRiskCause.MissingCloudBackup -> BannerType.MissingCloudBackup(
-            problemWithBackup = cause.problem
-          )
-          is AtRiskCause.MissingEek -> BannerType.MissingEak(
             problemWithBackup = cause.problem
           )
         }

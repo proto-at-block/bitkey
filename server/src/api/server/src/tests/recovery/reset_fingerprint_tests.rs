@@ -128,7 +128,7 @@ async fn test_complete_reset_fingerprint(
         };
 
         // expected signature for the pregenerated request
-        let expected_signature = Signature::from_str("3045022100b9f5494d72019efe6e0379027880b0a55d02c06925d5c781b4d9f54679bfbba5022054a4cfb01336ff95a76ded3ccbd501b27693a615e0a237ede71a85937ba1e912").unwrap();
+        let expected_signature = Signature::from_str("304402205ce8b3ee12324d783c6dcbfb679d178e80c3c37f30c41cd7785ea616d01b61f60220197b7cffd2207f5590c1384f0ea1dea846f0b0448c69b711a353c1a7fb1a6059").unwrap();
         assert_eq!(signature, expected_signature);
     }
 }
@@ -136,11 +136,11 @@ async fn test_complete_reset_fingerprint(
 // Pregenerated request with a signature that matches the hw_auth_public_key
 fn get_pregenerated_request() -> ResetFingerprintRequest {
     ResetFingerprintRequest {
-        hw_auth_public_key: PublicKey::from_str("032d2b02cf205aea7173627bcfcd48838b4204fa9bef0f9d85b1e4d84f179b55c1").unwrap(),
+        hw_auth_public_key: PublicKey::from_str("03260c677bf1106ae4ca6baeadd9b1f45d9a50801c33674f3509ff3badadddeb6d").unwrap(),
         version: 1,
-        action: "FINGERPRINT_RESET".to_string(),
+        action: 1,
         device_id: "test-device-12345".to_string(),
-        signature: Signature::from_str("3045022100afe9ac067b2e50021bd563ff25969e82ab11f103dc590326d2bcba036bd4ee4002206ac69067da7236c703e5f1d231fc3fd20e5aab72ce30235fb78e08596590d9cb").unwrap(),
+        signature: Signature::from_str("3045022100e9941e69c0b738b70ae67f17f99cc4cfa974544cb63fbe05142a13a6b35861f5022056939b16a79fccddc55807a605546586247b6e55ded6ee932415f53e84e4755f").unwrap(),
         challenge: "random-challenge-98765".as_bytes().to_vec(),
     }
 }

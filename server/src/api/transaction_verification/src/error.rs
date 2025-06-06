@@ -6,6 +6,7 @@ use std::error::Error;
 use thiserror::Error;
 use types::account::identifiers::KeysetId;
 use types::transaction_verification::entities::TransactionVerificationDiscriminants;
+use wsm_rust_client::Error as WsmError;
 
 #[derive(Debug, Error)]
 pub enum TransactionVerificationError {
@@ -34,6 +35,10 @@ pub enum TransactionVerificationError {
     NotificationPayloadBuilder(#[from] notification::NotificationPayloadBuilderError),
     #[error(transparent)]
     PsbtParsingFailed(#[from] PsbtParseError),
+    #[error(transparent)]
+    WsmError(#[from] WsmError),
+    #[error("Invalid web auth token")]
+    InvalidWebAuthToken,
 }
 
 impl From<TransactionVerificationError> for ApiError {
@@ -50,7 +55,8 @@ impl From<TransactionVerificationError> for ApiError {
         match val {
             TransactionVerificationError::ExchangeRateError(_)
             | TransactionVerificationError::Notification(_)
-            | TransactionVerificationError::NotificationPayloadBuilder(_) => {
+            | TransactionVerificationError::NotificationPayloadBuilder(_)
+            | TransactionVerificationError::WsmError(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
             TransactionVerificationError::InvalidVerificationId => {
@@ -65,7 +71,8 @@ impl From<TransactionVerificationError> for ApiError {
             | TransactionVerificationError::InvalidVerificationState(_, _)
             | TransactionVerificationError::InvalidTokenForCompletion
             | TransactionVerificationError::NoSpendKeyset(_)
-            | TransactionVerificationError::PsbtParsingFailed(_) => {
+            | TransactionVerificationError::PsbtParsingFailed(_)
+            | TransactionVerificationError::InvalidWebAuthToken => {
                 ApiError::GenericBadRequest(err_msg)
             }
         }

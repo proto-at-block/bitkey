@@ -40,8 +40,6 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
-import build.wallet.statemachine.inheritance.InheritanceUpsellSheetModel
-import build.wallet.statemachine.inheritance.ManagingInheritanceTab
 import build.wallet.statemachine.limit.MobilePayOnboardingScreenModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -665,20 +663,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                     )
                   )
                 }
-              }
-            )
-          }
-          InheritanceUpsell -> {
-            InheritanceUpsellSheetModel(
-              onGetStarted = {
-                props.setState(InheritanceManagementUiState(ManagingInheritanceTab.Beneficiaries))
-              },
-              onClose = {
-                props.setState(
-                  props.state.copy(
-                    bottomSheetDisplayState = null
-                  )
-                )
               }
             )
           }

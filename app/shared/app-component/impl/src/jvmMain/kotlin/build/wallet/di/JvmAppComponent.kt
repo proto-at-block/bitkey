@@ -4,6 +4,7 @@ import bitkey.account.AccountConfigService
 import bitkey.metrics.MetricTrackerService
 import bitkey.onboarding.CreateLiteAccountService
 import bitkey.recovery.RecoveryStatusService
+import bitkey.recovery.fundslost.FundsLostRiskService
 import build.wallet.account.AccountService
 import build.wallet.auth.AuthTokensService
 import build.wallet.auth.FullAccountAuthKeyRotationService
@@ -38,6 +39,7 @@ import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.home.GettingStartedTaskDao
+import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
@@ -109,7 +111,9 @@ interface JvmAppComponent {
   val fileDirectoryProvider: FileDirectoryProvider
   val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService
   val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator
+  val fundsRiskLossService: FundsLostRiskService
   val gettingStartedTaskDao: GettingStartedTaskDao
+  val inheritanceUpsellService: InheritanceUpsellService
   val keyboxDao: KeyboxDao
   val keysetWalletProvider: KeysetWalletProvider
   val liteAccountCloudBackupCreator: LiteAccountCloudBackupCreator

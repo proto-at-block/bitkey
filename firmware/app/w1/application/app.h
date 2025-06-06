@@ -10,6 +10,7 @@
 #include "clock.h"
 #include "filesystem.h"
 #include "fwup_task.h"
+#include "grant_protocol.h"
 #include "key_manager_task.h"
 #include "led.h"
 #include "led_task.h"

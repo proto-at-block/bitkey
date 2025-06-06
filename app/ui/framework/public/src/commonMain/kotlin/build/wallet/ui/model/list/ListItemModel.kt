@@ -33,6 +33,7 @@ data class ListItemModel(
   val testTag: String? = null,
   val titleLabel: LabelModel? = null,
   val coachmark: CoachmarkModel? = null,
+  val allowFontScaling: Boolean = true,
 )
 
 enum class ListItemTitleAlignment {

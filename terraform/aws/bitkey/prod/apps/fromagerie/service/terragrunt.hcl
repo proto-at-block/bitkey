@@ -16,8 +16,11 @@ inputs = {
 
   config_profile = "production"
 
-  subdomain                          = "api"
-  external_certs                     = ["api.bitkey.build"]
+  subdomain      = "api"
+  external_certs = ["api.bitkey.build"]
+  alt_subdomains = ["secure"]
+  // TODO(W-11385) Update to secure.bitkey.world
+  secure_site_base_url               = "https://secure.bitkeyproduction.com"
   port                               = 8080
   internet_facing                    = true
   load_balancer_allow_cloudflare_ips = true

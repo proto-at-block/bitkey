@@ -209,6 +209,18 @@ interface CancelFingerprintEnrollment {
   BooleanState next(sequence<u8> response);
 };
 
+interface FingerprintResetRequest {
+  constructor();
+  [Throws=CommandError]
+  BytesState next(sequence<u8> response);
+};
+
+interface FingerprintResetFinalize {
+  constructor(sequence<u8> grant_payload);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
 [Enum]
 interface BooleanState {
   Data(sequence<u8> response);
@@ -391,6 +403,7 @@ enum CommandError {
   "Timeout",
   "BadStatus",
   "PolicyViolation",
+  "RequestMismatch",
 };
 
 enum FirmwareSlot {

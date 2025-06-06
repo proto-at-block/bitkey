@@ -185,7 +185,9 @@ data "aws_route53_zone" "domain" {
 }
 
 locals {
-  domain_name = "${module.this.id_dns}.${var.dns_hosted_zone}"
+  domain_name      = "${module.this.id_dns}.${var.dns_hosted_zone}"
+  alt_domain_names = [for domain in var.alt_subdomains : (var.namespace == "default" ? "${domain}.${var.dns_hosted_zone}" : "${domain}.${var.namespace}.${var.dns_hosted_zone}")]
+  all_domain_names = concat([local.domain_name], local.alt_domain_names)
 }
 
 module "certificate" {
@@ -193,17 +195,18 @@ module "certificate" {
 
   create_certificate = var.create_load_balancer
 
-  domain_name         = local.domain_name
-  zone_id             = var.create_load_balancer ? data.aws_route53_zone.domain[0].zone_id : ""
-  wait_for_validation = true
+  domain_name               = local.domain_name
+  subject_alternative_names = local.alt_domain_names
+  zone_id                   = var.create_load_balancer ? data.aws_route53_zone.domain[0].zone_id : ""
+  wait_for_validation       = true
 }
 
 resource "aws_route53_record" "alb" {
-  count = var.create_load_balancer ? 1 : 0
+  count = var.create_load_balancer ? length(local.all_domain_names) : 0
 
-  name    = local.domain_name
+  name    = local.all_domain_names[count.index]
   type    = "A"
-  zone_id = var.create_load_balancer ? data.aws_route53_zone.domain[0].zone_id : ""
+  zone_id = data.aws_route53_zone.domain[0].zone_id
 
   alias {
     evaluate_target_health = true

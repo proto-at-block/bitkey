@@ -276,8 +276,12 @@ pub async fn get_inheritance_claims(
 #[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
 pub struct InheritancePackage {
     pub recovery_relationship_id: RecoveryRelationshipId,
+    // The dek is sealed using DH between an ephemeral key pair and the beneficiary's
+    // delegated decryption key. The mobile key and descriptor are encrypted using the dek.
     pub sealed_dek: String,
     pub sealed_mobile_key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_descriptor: Option<String>,
 }
 impl From<InheritancePackage> for Package {
     fn from(value: InheritancePackage) -> Self {
@@ -285,6 +289,7 @@ impl From<InheritancePackage> for Package {
             recovery_relationship_id: value.recovery_relationship_id,
             sealed_dek: value.sealed_dek,
             sealed_mobile_key: value.sealed_mobile_key,
+            sealed_descriptor: value.sealed_descriptor,
 
             updated_at: OffsetDateTime::now_utc(),
             created_at: OffsetDateTime::now_utc(),

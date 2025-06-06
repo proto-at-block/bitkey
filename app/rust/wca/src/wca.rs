@@ -134,6 +134,8 @@ adpu_from_proto!(GetEnrolledFingerprintsCmd);
 adpu_from_proto!(DeleteFingerprintCmd);
 adpu_from_proto!(GetUnlockMethodCmd);
 adpu_from_proto!(CancelFingerprintEnrollmentCmd);
+adpu_from_proto!(FingerprintResetRequestCmd);
+adpu_from_proto!(FingerprintResetFinalizeCmd);
 
 impl TryFrom<crate::fwpb::CoredumpGetCmd> for apdu::Command {
     type Error = EncodeError;
@@ -204,6 +206,15 @@ pub fn decode_and_check(
         Ok(crate::fwpb::Status::InvalidState) => Err(crate::errors::CommandError::InvalidState),
         Ok(crate::fwpb::Status::InvalidArgument) => {
             Err(crate::errors::CommandError::InvalidArguments)
+        }
+        Ok(crate::fwpb::Status::VerificationFailed) => {
+            Err(crate::errors::CommandError::SignatureInvalid)
+        }
+        Ok(crate::fwpb::Status::RequestMismatch) => {
+            Err(crate::errors::CommandError::RequestMismatch)
+        }
+        Ok(crate::fwpb::Status::VersionMismatch) => {
+            Err(crate::errors::CommandError::VersionInvalid)
         }
         Err(_) => Ok(message), // TODO(W-1211): Same as above comment.
     }

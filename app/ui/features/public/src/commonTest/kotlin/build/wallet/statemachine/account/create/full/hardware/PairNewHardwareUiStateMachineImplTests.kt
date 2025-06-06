@@ -10,6 +10,8 @@ import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.firmware.HardwareUnlockInfoServiceFake
+import build.wallet.firmware.UnlockMethod
 import build.wallet.nfc.transaction.PairingTransactionProviderFake
 import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.nfc.transaction.PairingTransactionResponse.*
@@ -30,6 +32,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.flow.first
 import okio.ByteString.Companion.encodeUtf8
 
 class PairNewHardwareUiStateMachineImplTests : FunSpec({
@@ -46,11 +49,14 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     object : HelpCenterUiStateMachine,
       ScreenStateMachineMock<HelpCenterUiProps>("help-center") {}
 
+  val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
+
   val stateMachine = PairNewHardwareUiStateMachineImpl(
     eventTracker = eventTracker,
     pairingTransactionProvider = pairingTransactionProvider,
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-    helpCenterUiStateMachine = helpCenterUiStateMachine
+    helpCenterUiStateMachine = helpCenterUiStateMachine,
+    hardwareUnlockInfoService = hardwareUnlockInfoService
   )
 
   val onSuccessCalls = turbines.create<FingerprintEnrolled>("on success calls")
@@ -77,6 +83,10 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     },
     eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
   )
+
+  beforeTest {
+    hardwareUnlockInfoService.clear()
+  }
 
   test("pairing new wallet ui -- success") {
     stateMachine.test(props) {
@@ -120,6 +130,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_FINGERPRINT_COMPLETE))
 
       onSuccessCalls.awaitItem().shouldBe(fingerprintEnrolled)
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS)
+        .first().shouldBe(1)
     }
   }
 
@@ -150,6 +162,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_FINGERPRINT_COMPLETE))
 
       onSuccessCalls.awaitItem().shouldBe(fingerprintEnrolled)
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS)
+        .first().shouldBe(1)
     }
   }
 

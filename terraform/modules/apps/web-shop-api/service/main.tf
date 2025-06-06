@@ -35,7 +35,7 @@ locals {
   commands = {
     api_server                                    = "api-server"                # start the api server (default)
     revenue_reporting_job                         = "revenue-reporting-job"     # schedule periodic revenue reporting job
-    order_update_job                              = "order-update-job"          # schedule periodic order update job
+    fetch_order_updates_job                       = "fetch-order-updates-job"   # schedule periodic order update job
     process_order_updates_job                     = "process-order-updates-job" # schedule periodic process order updates job
     refund_request_job                            = "refund-request-job"        # schedule periodic refund request job
     tax_refund_request_job                        = "tax-refund-request-job"    # schedule periodic tax refund request job    
@@ -124,11 +124,11 @@ module "web_revenue_reporting" {
   }
 }
 
-module "web_order_update" {
+module "web_fetch_order_updates" {
   source = "../../../models/ecs-service"
 
   namespace = var.namespace
-  name      = "${var.name}-order-update-job"
+  name      = "${var.name}-fetch-order-updates-job"
 
   vpc_name             = var.vpc_name
   security_group_ids   = [module.lookup_db.ingress_security_group_id]
@@ -139,10 +139,10 @@ module "web_order_update" {
   cpu_architecture     = "X86_64"
   desired_count        = 1
   create_load_balancer = false
-  command              = [local.commands.order_update_job]
+  command              = [local.commands.fetch_order_updates_job]
 
   environment_variables = merge(local.environment_variables, {
-    DD_SERVICE = "${var.name}-order-update-job"
+    DD_SERVICE = "${var.name}-fetch-order-updates-job"
   })
   secrets = local.secrets
 
@@ -312,13 +312,13 @@ resource "aws_iam_role_policy" "web_revenue_reporting_secrets_policy" {
   policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
 }
 
-resource "aws_iam_role_policy" "web_order_update_secrets_policy_exec" {
-  role   = module.web_order_update.exec_role_name
+resource "aws_iam_role_policy" "web_fetch_order_updates_secrets_policy_exec" {
+  role   = module.web_fetch_order_updates.exec_role_name
   policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
 }
 
-resource "aws_iam_role_policy" "web_order_update_secrets_policy" {
-  role   = module.web_order_update.task_role_name
+resource "aws_iam_role_policy" "web_fetch_order_updates_secrets_policy" {
+  role   = module.web_fetch_order_updates.task_role_name
   policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
 }
 

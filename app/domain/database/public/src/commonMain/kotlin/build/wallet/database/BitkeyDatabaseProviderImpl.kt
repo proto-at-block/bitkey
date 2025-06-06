@@ -378,7 +378,6 @@ class BitkeyDatabaseProviderImpl(
         timeScaleAdapter = EnumColumnAdapter()
       ),
       txVerificationPolicyEntityAdapter = TxVerificationPolicyEntity.Adapter(
-        effectiveAdapter = InstantAsIso8601ColumnAdapter,
         thresholdCurrencyAlphaCodeAdapter = IsoCurrencyTextCodeColumnAdapter,
         delayEndTimeAdapter = InstantAsIso8601ColumnAdapter
       )

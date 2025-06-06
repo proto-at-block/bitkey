@@ -186,9 +186,14 @@ impl InheritanceClaimPending {
 pub struct InheritanceClaimLocked {
     #[serde(flatten)]
     pub common_fields: InheritanceClaimCommonFields,
+    // The dek is sealed using DH between an ephemeral key pair and the beneficiary's
+    // delegated decryption key. The mobile key and descriptor are encrypted using the dek.
     pub sealed_dek: String,
     pub sealed_mobile_key: String,
-    pub benefactor_descriptor_keyset: ExtendedDescriptor,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_descriptor: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub benefactor_descriptor_keyset: Option<ExtendedDescriptor>,
     #[serde(with = "rfc3339")]
     pub locked_at: OffsetDateTime,
 }
@@ -267,6 +272,7 @@ impl InheritanceClaim {
                 benefactor_descriptor_keyset: locked.benefactor_descriptor_keyset.to_owned(),
                 sealed_dek: locked.sealed_dek.to_owned(),
                 sealed_mobile_key: locked.sealed_mobile_key.to_owned(),
+                sealed_descriptor: locked.sealed_descriptor.to_owned(),
                 locked_at: locked.locked_at,
             }),
             Self::Completed(completed) => Self::Completed(InheritanceClaimCompleted {

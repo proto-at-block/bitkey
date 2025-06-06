@@ -9,7 +9,7 @@ template_files = [
 ]
 
 incs = ['inc', 'generated']
-deps = [rtos_dep, protos_dep, log_dep, mempool_dep, sleep_dep]
+deps = [rtos_dep, protos_dep, log_dep, mempool_dep, sleep_dep, auth_dep]
 
 generated_code = run_command('python3', 'ipc_codegen.py', 'collect-generated',
   check: true).stdout().strip().split(' ')

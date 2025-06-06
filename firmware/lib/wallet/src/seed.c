@@ -76,3 +76,7 @@ seed_res_t seed_derive_bip32(const derivation_path_t path, extended_key_t* key,
 
   return SEED_RES_OK;
 }
+
+bool wallet_is_initialized(void) {
+  return fs_file_exists(SEED_PATH);
+}

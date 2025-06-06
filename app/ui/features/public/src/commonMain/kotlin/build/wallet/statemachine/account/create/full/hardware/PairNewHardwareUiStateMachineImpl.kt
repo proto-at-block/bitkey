@@ -6,13 +6,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import bitkey.firmware.HardwareUnlockInfoService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.v1.Action.ACTION_HW_FINGERPRINT_COMPLETE
 import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_FINGERPRINT
 import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_OPEN
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.firmware.UnlockInfo
 import build.wallet.logging.*
 import build.wallet.nfc.transaction.PairingTransactionProvider
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
@@ -33,6 +36,7 @@ import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
+import kotlinx.coroutines.launch
 
 @BitkeyInject(ActivityScope::class)
 class PairNewHardwareUiStateMachineImpl(
@@ -40,9 +44,11 @@ class PairNewHardwareUiStateMachineImpl(
   private val pairingTransactionProvider: PairingTransactionProvider,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val helpCenterUiStateMachine: HelpCenterUiStateMachine,
+  private val hardwareUnlockInfoService: HardwareUnlockInfoService,
 ) : PairNewHardwareUiStateMachine {
   @Composable
   override fun model(props: PairNewHardwareProps): ScreenModel {
+    val scope = rememberStableCoroutineScope()
     var state: State by remember { mutableStateOf(ShowingActivationInstructionsUiState()) }
 
     // Always show the [PairNewHardwareBodyModel] as full screens
@@ -106,8 +112,11 @@ class PairNewHardwareUiStateMachineImpl(
               onSuccess = {
                 when (it) {
                   is FingerprintEnrolled -> {
-                    eventTracker.track(action = ACTION_HW_FINGERPRINT_COMPLETE)
-                    s.request.onSuccess(it)
+                    scope.launch {
+                      hardwareUnlockInfoService.replaceAllUnlockInfo(unlockInfoList = UnlockInfo.ONBOARDING_DEFAULT)
+                      eventTracker.track(action = ACTION_HW_FINGERPRINT_COMPLETE)
+                      s.request.onSuccess(it)
+                    }
                   }
                   FingerprintEnrollmentStarted,
                   FingerprintNotEnrolled,
@@ -167,8 +176,11 @@ class PairNewHardwareUiStateMachineImpl(
               onSuccess = { response ->
                 when (response) {
                   is FingerprintEnrolled -> {
-                    eventTracker.track(action = ACTION_HW_FINGERPRINT_COMPLETE)
-                    s.request.onSuccess(response)
+                    scope.launch {
+                      hardwareUnlockInfoService.replaceAllUnlockInfo(unlockInfoList = UnlockInfo.ONBOARDING_DEFAULT)
+                      eventTracker.track(action = ACTION_HW_FINGERPRINT_COMPLETE)
+                      s.request.onSuccess(response)
+                    }
                   }
 
                   FingerprintNotEnrolled -> {

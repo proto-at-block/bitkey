@@ -6,8 +6,8 @@ import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.encrypt.Secp256k1PublicKey
-import build.wallet.encrypt.SignatureVerifierMock
+import build.wallet.firmware.FirmwareDeviceInfo
+import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
@@ -40,7 +40,6 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
       object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
         "wiping device nfc"
       ) {},
-    signatureVerifier = SignatureVerifierMock(),
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),
     currencyConverter = CurrencyConverterFake(conversionRate = 3.0),
@@ -120,8 +119,8 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
           .primaryButton?.onClick?.invoke()
       }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<Pair<Secp256k1PublicKey, String>>> {
-        onSuccess(Pair(Secp256k1PublicKey("public"), "success"))
+      awaitBodyMock<NfcSessionUIStateMachineProps<FirmwareDeviceInfo>> {
+        onSuccess(FirmwareDeviceInfoMock)
       }
 
       // Transfer funds warning sheet

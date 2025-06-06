@@ -29,6 +29,9 @@ bool bio_fingerprint_exists(void) {
 secure_bool_t is_authenticated(void) {
   return SECURE_TRUE;
 }
+secure_bool_t is_allowing_fingerprint_enrollment(void) {
+  return SECURE_TRUE;
+}
 
 bool bd_error_str(char* UNUSED(a), const size_t UNUSED(b), const int UNUSED(c)) {
   return false;

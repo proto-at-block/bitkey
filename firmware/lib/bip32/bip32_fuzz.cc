@@ -13,6 +13,9 @@ bool bio_fingerprint_exists(void) {
 secure_bool_t is_authenticated(void) {
   return SECURE_TRUE;
 }
+secure_bool_t is_allowing_fingerprint_enrollment(void) {
+  return SECURE_TRUE;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FuzzedDataProvider fuzzed_data(data, size);

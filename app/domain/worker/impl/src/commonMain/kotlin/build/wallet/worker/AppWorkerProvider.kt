@@ -3,6 +3,7 @@ package build.wallet.worker
 import bitkey.metrics.MetricTrackerTimeoutPoller
 import bitkey.recovery.RecoverySyncWorker
 import bitkey.recovery.fundslost.FundsLostRiskSyncWorker
+import bitkey.verification.TxVerificationSyncWorker
 import build.wallet.activity.TransactionsActivitySyncWorker
 import build.wallet.analytics.events.AnalyticsEventPeriodicProcessor
 import build.wallet.analytics.events.EventTracker
@@ -64,6 +65,7 @@ class AppWorkerProviderImpl(
   private val inheritanceMaterialSyncWorker: InheritanceMaterialSyncWorker,
   private val inheritanceClaimsSyncWorker: InheritanceClaimsSyncWorker,
   private val transactionsActivitySyncWorker: TransactionsActivitySyncWorker,
+  private val txVerificationSyncWorker: TxVerificationSyncWorker,
   private val electrumConfigSyncWorker: ElectrumServerConfigSyncWorker,
   private val partnershipTransactionsSyncWorker: PartnershipTransactionsSyncWorker,
   private val socRecCloudBackupSyncWorker: SocRecCloudBackupSyncWorker,
@@ -94,6 +96,7 @@ class AppWorkerProviderImpl(
       appFunctionalitySyncWorker,
       inheritanceClaimsSyncWorker,
       transactionsActivitySyncWorker,
+      txVerificationSyncWorker,
       electrumConfigSyncWorker,
       partnershipTransactionsSyncWorker,
       socRecCloudBackupSyncWorker,

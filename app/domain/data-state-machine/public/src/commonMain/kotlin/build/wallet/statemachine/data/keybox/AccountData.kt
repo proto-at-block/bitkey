@@ -35,7 +35,6 @@ sealed interface AccountData {
       val startLiteAccountCreation: () -> Unit,
       val startRecovery: () -> Unit,
       val startEmergencyAccessRecovery: () -> Unit,
-      val wipeExistingDevice: () -> Unit,
     ) : NoActiveAccountData
 
     /**
@@ -43,14 +42,6 @@ sealed interface AccountData {
      */
     data class RecoveringAccountData(
       val lostAppRecoveryData: LostAppRecoveryData,
-    ) : NoActiveAccountData
-
-    /**
-     * This is a non-onboarded state with a template config used for the non-onboarded device reset flow
-     */
-    data class ResettingExistingDeviceData(
-      val onExit: () -> Unit,
-      val onSuccess: () -> Unit,
     ) : NoActiveAccountData
 
     /**

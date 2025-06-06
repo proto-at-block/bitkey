@@ -37,7 +37,8 @@ use onboarding::routes::{
     ContinueDistributedKeygenResponse, CreateAccountRequest, CreateAccountResponse,
     CreateKeysetRequest, CreateKeysetResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
-    RotateSpendingKeysetRequest, UpgradeAccountRequest,
+    RotateSpendingKeysetRequest, UpdateDescriptorBackupsRequest, UpdateDescriptorBackupsResponse,
+    UpgradeAccountRequest,
 };
 use privileged_action::routes::{
     CancelPendingDelayAndNotifyInstanceByTokenRequest,
@@ -82,8 +83,8 @@ use sha2::Sha256;
 use tokio::sync::Mutex;
 use tower::Service;
 use transaction_verification::routes::{
-    GetTransactionVerificationPolicyResponse, PutTransactionVerificationPolicyRequest,
-    PutTransactionVerificationPolicyResponse,
+    GetTransactionVerificationPolicyResponse, InitiateTransactionVerificationRequest,
+    PutTransactionVerificationPolicyRequest, PutTransactionVerificationPolicyResponse,
 };
 use types::account::identifiers::{AccountId, KeysetId};
 use types::notification::NotificationsPreferences;
@@ -91,6 +92,7 @@ use types::privileged_action::router::generic::{
     PrivilegedActionRequest, PrivilegedActionResponse,
 };
 use types::recovery::trusted_contacts::TrustedContactRole;
+use types::transaction_verification::router::InitiateTransactionVerificationView;
 
 use super::{AuthenticatedRequestExt, CognitoAuthentication, Response};
 use crate::test_utils::{AuthenticatedRequest, ExtendRequest};
@@ -464,6 +466,20 @@ impl TestClient {
                 },
             )
             .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn initiate_transaction_verification(
+        &self,
+        account_id: &AccountId,
+        keys: &TestAuthenticationKeys,
+        request: &InitiateTransactionVerificationRequest,
+    ) -> Response<InitiateTransactionVerificationView> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/tx-verify/requests"))
+            .authenticated(account_id, Some(keys.app.secret_key), None)
+            .post(request)
             .call(&self.router)
             .await
     }
@@ -1661,5 +1677,23 @@ impl TestClient {
         }
 
         builder.call(&self.router).await
+    }
+
+    pub(crate) async fn update_descriptor_backups(
+        &self,
+        account_id: &str,
+        request: &UpdateDescriptorBackupsRequest,
+        keys: Option<&TestAuthenticationKeys>,
+    ) -> Response<UpdateDescriptorBackupsResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/descriptor-backups"))
+            .authenticated(
+                &AccountId::from_str(account_id).unwrap(),
+                keys.map(|k| k.app.secret_key),
+                keys.map(|k| k.hw.secret_key),
+            )
+            .put(request)
+            .call(&self.router)
+            .await
     }
 }

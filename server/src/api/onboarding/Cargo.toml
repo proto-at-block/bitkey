@@ -10,6 +10,7 @@ axum = { workspace = true }
 axum-extra = { workspace = true }
 axum-macros = { workspace = true }
 isocountry = { workspace = true }
+itertools = { workspace = true }
 once_cell = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }

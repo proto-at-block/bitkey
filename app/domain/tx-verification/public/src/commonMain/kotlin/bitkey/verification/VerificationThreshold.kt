@@ -44,6 +44,19 @@ sealed interface VerificationThreshold {
     }
   }
 
+  operator fun compareTo(other: VerificationThreshold): Int {
+    return when (this) {
+      Disabled -> when (other) {
+        Disabled -> 0
+        is Enabled -> 1
+      }
+      is Enabled -> when (other) {
+        Disabled -> -1
+        is Enabled -> amount.compareTo(other.amount)
+      }
+    }
+  }
+
   companion object {
     /**
      * Verification is enforced for any amount.

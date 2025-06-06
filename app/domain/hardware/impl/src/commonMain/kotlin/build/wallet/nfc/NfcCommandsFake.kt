@@ -15,14 +15,21 @@ import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.signResult
 import build.wallet.firmware.*
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
+import build.wallet.firmware.FirmwareCertType
+import build.wallet.firmware.FirmwareFeatureFlagCfg
+import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
+import build.wallet.grants.Grant
+import build.wallet.grants.GrantAction
+import build.wallet.grants.GrantRequest
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.toByteString
 import build.wallet.toUByteList
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
+import io.ktor.utils.io.core.toByteArray
 import kotlinx.datetime.Instant
 import okio.ByteString
 import okio.ByteString.Companion.decodeHex
@@ -75,21 +82,7 @@ class NfcCommandsFake(
     offset: Int,
   ) = CoredumpFragment(emptyList(), 0, true, 0)
 
-  override suspend fun getDeviceInfo(session: NfcSession) =
-    FirmwareDeviceInfo(
-      version = "1.2.3",
-      serial = "serial",
-      swType = "dev",
-      hwRevision = "evtd",
-      activeSlot = FirmwareMetadata.FirmwareSlot.B,
-      batteryCharge = 89.45,
-      vCell = 1000,
-      avgCurrentMa = 1234,
-      batteryCycles = 1234,
-      secureBootConfig = SecureBootConfig.PROD,
-      timeRetrieved = 1691787589,
-      bioMatchStats = null
-    )
+  override suspend fun getDeviceInfo(session: NfcSession) = FakeFirmwareDeviceInfo
 
   override suspend fun getEvents(session: NfcSession) = EventFragment(emptyList(), 0)
 
@@ -296,6 +289,24 @@ class NfcCommandsFake(
     challenge: List<UByte>,
   ): Boolean = true
 
+  override suspend fun getGrantRequest(
+    session: NfcSession,
+    action: GrantAction,
+  ): GrantRequest {
+    return GrantRequest(
+      version = 0x01,
+      deviceId = "fakeDevice".toByteArray(),
+      challenge = "fakeChallenge".toByteArray(),
+      action = action,
+      signature = "fakeSignature".toByteArray()
+    )
+  }
+
+  override suspend fun provideGrant(
+    session: NfcSession,
+    grant: Grant,
+  ): Boolean = true
+
   private fun EnrolledFingerprints.insertOrUpdateFingerprintHandle(
     fingerprintHandle: FingerprintHandle,
   ): EnrolledFingerprints {
@@ -304,3 +315,18 @@ class NfcCommandsFake(
     return EnrolledFingerprints(3, fingerprints)
   }
 }
+
+val FakeFirmwareDeviceInfo = FirmwareDeviceInfo(
+  version = "1.2.3",
+  serial = "fake-serial",
+  swType = "dev",
+  hwRevision = "evtd",
+  activeSlot = FirmwareMetadata.FirmwareSlot.B,
+  batteryCharge = 89.45,
+  vCell = 1000,
+  avgCurrentMa = 1234,
+  batteryCycles = 1234,
+  secureBootConfig = SecureBootConfig.PROD,
+  timeRetrieved = 1691787589,
+  bioMatchStats = null
+)

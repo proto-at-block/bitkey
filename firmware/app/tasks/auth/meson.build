@@ -15,6 +15,7 @@ deps = [
   secure_channel_dep,
   unlock_dep,
   onboarding_dep,
+  grant_dep,
 ]
 
 auth_task_lib = library('auth-task',

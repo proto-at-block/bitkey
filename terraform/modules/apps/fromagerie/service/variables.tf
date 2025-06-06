@@ -19,6 +19,17 @@ variable "subdomain" {
   default     = null
 }
 
+variable "alt_subdomains" {
+  type        = list(string)
+  description = "Additional DNS records to create in the hosted zone and to add as subject alternative names in the certificate."
+  default     = []
+}
+
+variable "secure_site_base_url" {
+  type        = string
+  description = "The base URL for the secure site used for out of band verification, e.g. Transaction Verification"
+}
+
 variable "dns_hosted_zone" {
   type        = string
   description = "The name of the route53 hosted zone to create a DNS record in. The record will have the same name as the service name"

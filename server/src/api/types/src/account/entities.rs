@@ -294,6 +294,8 @@ pub struct FullAccount {
     pub active_keyset_id: KeysetId,
     #[serde(default)]
     pub spending_keysets: HashMap<KeysetId, SpendingKeyset>,
+    #[serde(default)]
+    pub descriptor_backups: HashMap<KeysetId, String>,
     // Spending limit
     pub spending_limit: Option<SpendingLimit>,
     #[serde(default)]
@@ -327,6 +329,7 @@ impl FullAccount {
             active_keyset_id: active_keyset_id.clone(),
             auth_keys: HashMap::from([(active_auth_keys_id.clone(), auth)]),
             spending_keysets: HashMap::from([(active_keyset_id, spending)]),
+            descriptor_backups: HashMap::new(),
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey,
@@ -437,6 +440,7 @@ impl LiteAccount {
             id: self.id.clone(),
             active_keyset_id: keyset_id.clone(),
             spending_keysets: HashMap::from([(keyset_id, spending_keyset)]),
+            descriptor_backups: HashMap::new(),
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey: Some(auth_keys.app_pubkey),
@@ -650,6 +654,12 @@ impl From<Account> for PubkeysToAccount {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct DescriptorBackup {
+    pub keyset_id: KeysetId,
+    pub sealed_descriptor: String,
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -827,6 +837,7 @@ mod tests {
                     descriptor_public_key,
                 ),
             )]),
+            descriptor_backups: HashMap::new(),
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey: None,

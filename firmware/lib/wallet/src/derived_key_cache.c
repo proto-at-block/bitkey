@@ -56,12 +56,19 @@ static const derivation_path_parts_t* DERIVATION_PATHS[] = {
 // session.
 STATIC_VISIBLE_FOR_TESTING derived_key_cache_t derived_key_cache = {
   .version = DERIVED_KEY_CACHE_VERSION,
+  .bip84_external_key = {0},
+  .bip84_internal_key = {0},
+  .w1_auth_key = {0},
 };
 
 STATIC_VISIBLE_FOR_TESTING bool derived_key_cache_initialized = false;
 
-derivation_path_t* wallet_get_w1_auth_path() {
+derivation_path_t* wallet_get_w1_auth_path(void) {
   return &W1_AUTH.path;
+}
+
+bool wallet_get_w1_auth_key(extended_key_t* key_priv) {
+  return wallet_derive_key_priv_using_cache(key_priv, W1_AUTH.path);
 }
 
 // Returns whether `a` is a subset of `b`.
@@ -155,10 +162,6 @@ static bool create_derived_key_cache(coin_type_t coin_type) {
 }
 
 void derived_key_cache_lazy_init(coin_type_t coin_type) {
-  if (coin_type == COIN_TYPE_UNKNOWN) {
-    return;
-  }
-
   if (derived_key_cache_initialized) {
     return;
   }
@@ -215,6 +218,12 @@ bool wallet_derive_key_priv_using_cache(extended_key_t* key_priv,
   const derivation_path_parts_t* parts = get_derivation_path_parts(derivation_path);
 
   if (parts) {
+    // Edge case: we're trying to derive an auth key, but we haven't derived the bip84 keys yet.
+    if (parts->purpose == PURPOSE_W1_AUTH && !fs_file_exists(DERIVED_KEY_CACHE_PATH)) {
+      LOGD("Manually deriving W1 auth key");
+      goto full_derive;
+    }
+
     // We have a known cached path, ensure the cache is initialized and derive from it instead of
     // from the seed.
     derived_key_cache_lazy_init(parts->coin_type);
@@ -240,6 +249,7 @@ bool wallet_derive_key_priv_using_cache(extended_key_t* key_priv,
     }
   }
 
+full_derive:
   // We don't support caching for this derivation path, so we always re-derive it from our seed.
   return derive_key_priv_from_seed(key_priv, derivation_path);
 }

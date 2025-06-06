@@ -1,6 +1,7 @@
 package build.wallet.statemachine.settings.full.device.wipedevice.confirmation
 
 import androidx.compose.runtime.*
+import bitkey.firmware.HardwareUnlockInfoService
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.di.ActivityScope
@@ -13,7 +14,6 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.ConfirmationScreen
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.WipingDevice
@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.firstOrNull
 class WipingDeviceConfirmationUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
+  private val hardwareUnlockInfoService: HardwareUnlockInfoService,
 ) : WipingDeviceConfirmationUiStateMachine {
   private val confirmationMessages = arrayOf(
     "This device can no longer be used to access the funds in my Bitkey wallet.",
@@ -235,15 +236,16 @@ class WipingDeviceConfirmationUiStateMachineImpl(
           commands.wipeDevice(session)
         },
         onSuccess = {
-          val firmwareSerial = firmwareDeviceInfoDao.deviceInfo().firstOrNull()?.get()?.serial ?: "failed to retrieve serial number"
+          val firmwareSerial = firmwareDeviceInfoDao.deviceInfo().firstOrNull()?.get()?.serial
+            ?: "failed to retrieve serial number"
           logDebug { "Bitkey wipe successfully with serial number: $firmwareSerial" }
           if (isDevicePaired) {
             firmwareDeviceInfoDao.clear()
+            hardwareUnlockInfoService.clear()
           }
           onSuccess()
         },
         onCancel = onCancel,
-        hardwareVerification = NotRequired,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
         shouldLock = false,
         eventTrackerContext = NfcEventTrackerScreenIdContext.WIPE_DEVICE

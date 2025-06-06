@@ -5,7 +5,17 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumString};
 use time::{serde::rfc3339, OffsetDateTime};
 
+use crate::currencies::CurrencyCode;
+use crate::transaction_verification::router::TransactionVerificationApprovalView;
 use crate::{account::identifiers::AccountId, transaction_verification::TransactionVerificationId};
+
+/// The unit in which the Bitcoin amount is displayed in the secure verification site.
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BitcoinDisplayUnit {
+    Bitcoin,
+    Satoshi,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumDiscriminants)]
 #[strum_discriminants(derive(Display, EnumString))]
@@ -27,13 +37,19 @@ impl TransactionVerification {
         }
     }
 
-    pub fn new_pending(account_id: &AccountId, psbt: Psbt, hw_grant: String) -> Self {
+    pub fn new_pending(
+        account_id: &AccountId,
+        psbt: Psbt,
+        fiat_currency: CurrencyCode,
+        bitcoin_display_unit: BitcoinDisplayUnit,
+    ) -> Self {
         let id = TransactionVerificationId::gen().unwrap();
         Self::Pending(TransactionVerificationPending::new(
             id,
             account_id.to_owned(),
             psbt,
-            hw_grant,
+            fiat_currency,
+            bitcoin_display_unit,
         ))
     }
 }
@@ -47,6 +63,10 @@ pub struct TransactionVerificationPending {
     pub confirmation_token: String,
     /// The token used to cancel the transaction verification.
     pub cancellation_token: String,
+    /// The fiat currency we should show the user in the secure site.
+    pub fiat_currency: CurrencyCode,
+    /// The unit in which the Bitcoin amount is displayed in the secure verification site.
+    pub bitcoin_display_unit: BitcoinDisplayUnit,
     #[serde(flatten)]
     pub common_fields: TransactionVerificationCommonFields,
 }
@@ -56,7 +76,8 @@ impl TransactionVerificationPending {
         id: TransactionVerificationId,
         account_id: AccountId,
         psbt: Psbt,
-        hw_grant: String,
+        fiat_currency: CurrencyCode,
+        bitcoin_display_unit: BitcoinDisplayUnit,
     ) -> Self {
         // Generate 128 bytes (1024 bits) of random data for each token
         let mut web_auth_bytes = [0u8; 128];
@@ -77,7 +98,9 @@ impl TransactionVerificationPending {
             web_auth_token,
             confirmation_token,
             cancellation_token,
-            common_fields: TransactionVerificationCommonFields::new(id, account_id, psbt, hw_grant),
+            fiat_currency,
+            bitcoin_display_unit,
+            common_fields: TransactionVerificationCommonFields::new(id, account_id, psbt),
         }
     }
 
@@ -85,7 +108,10 @@ impl TransactionVerificationPending {
         TransactionVerification::Failed(self.common_fields.to_owned())
     }
 
-    pub fn mark_as_success(&self, signed_hw_grant: String) -> TransactionVerification {
+    pub fn mark_as_success(
+        &self,
+        signed_hw_grant: TransactionVerificationApprovalView,
+    ) -> TransactionVerification {
         TransactionVerification::Success(TransactionVerificationSuccess {
             signed_hw_grant,
             common_fields: self.common_fields.to_owned(),
@@ -105,7 +131,7 @@ impl TransactionVerificationPending {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TransactionVerificationSuccess {
-    pub signed_hw_grant: String,
+    pub signed_hw_grant: TransactionVerificationApprovalView,
     #[serde(flatten)]
     pub common_fields: TransactionVerificationCommonFields,
 }
@@ -115,7 +141,6 @@ pub struct TransactionVerificationCommonFields {
     #[serde(rename = "partition_key")]
     pub id: TransactionVerificationId,
     pub psbt: Psbt,
-    pub hw_grant: String,
     pub account_id: AccountId,
     #[serde(with = "rfc3339")]
     pub expires_at: OffsetDateTime,
@@ -126,17 +151,11 @@ pub struct TransactionVerificationCommonFields {
 }
 
 impl TransactionVerificationCommonFields {
-    pub fn new(
-        id: TransactionVerificationId,
-        account_id: AccountId,
-        psbt: Psbt,
-        hw_grant: String,
-    ) -> Self {
+    pub fn new(id: TransactionVerificationId, account_id: AccountId, psbt: Psbt) -> Self {
         Self {
             id,
             account_id,
             psbt,
-            hw_grant,
             // figure out expiry
             expires_at: OffsetDateTime::now_utc() + time::Duration::hours(24),
             created_at: OffsetDateTime::now_utc(),
@@ -148,6 +167,9 @@ impl TransactionVerificationCommonFields {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transaction_verification::entities::BitcoinDisplayUnit::Satoshi;
+    use bdk_utils::bdk::bitcoin::secp256k1::ecdsa::Signature;
+    use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
     use std::str::FromStr;
 
     // Helper to create a test Psbt
@@ -159,16 +181,22 @@ mod tests {
     fn test_new_pending() {
         let account_id = AccountId::gen().unwrap();
         let psbt = create_test_psbt();
-        let hw_grant = "test-hw-grant".to_string();
 
-        let tx_verification =
-            TransactionVerification::new_pending(&account_id, psbt.clone(), hw_grant.clone());
+        let tx_verification = TransactionVerification::new_pending(
+            &account_id,
+            psbt.clone(),
+            CurrencyCode::USD,
+            Satoshi,
+        );
 
         match &tx_verification {
             TransactionVerification::Pending(pending) => {
                 // Check common fields
                 assert_eq!(pending.common_fields.account_id, account_id);
-                assert_eq!(pending.common_fields.hw_grant, hw_grant);
+
+                // Check display fields
+                assert_eq!(pending.fiat_currency, CurrencyCode::USD);
+                assert_eq!(pending.bitcoin_display_unit, Satoshi);
 
                 // Check tokens were generated
                 assert!(!pending.confirmation_token.is_empty());
@@ -190,10 +218,9 @@ mod tests {
     fn test_token_validation() {
         let account_id = AccountId::gen().unwrap();
         let psbt = create_test_psbt();
-        let hw_grant = "test-hw-grant".to_string();
 
         if let TransactionVerification::Pending(pending) =
-            TransactionVerification::new_pending(&account_id, psbt, hw_grant)
+            TransactionVerification::new_pending(&account_id, psbt, CurrencyCode::USD, Satoshi)
         {
             // Test confirmation token
             assert!(pending.is_confirmation_token(&pending.confirmation_token));
@@ -211,11 +238,18 @@ mod tests {
     fn test_state_transitions() {
         let account_id = AccountId::gen().unwrap();
         let psbt = create_test_psbt();
-        let hw_grant = "test-hw-grant".to_string();
-        let signed_hw_grant = "signed-hw-grant".to_string();
+        let signed_hw_grant = TransactionVerificationApprovalView {
+            version: 0,
+            hw_auth_public_key: PublicKey::from_str(
+                "0326cb04015410966e715a14da549bacbf12acb823fe1247540b6123b2daea0164",
+            )
+            .unwrap(),
+            allowed_hash: vec![],
+            signature: Signature::from_compact(&[0u8; 64]).unwrap(),
+        };
 
         if let TransactionVerification::Pending(pending) =
-            TransactionVerification::new_pending(&account_id, psbt, hw_grant)
+            TransactionVerification::new_pending(&account_id, psbt, CurrencyCode::USD, Satoshi)
         {
             // Test transition to Failed
             let failed = pending.mark_as_failed();
@@ -245,15 +279,23 @@ mod tests {
     fn test_common_fields() {
         let account_id = AccountId::gen().unwrap();
         let psbt = create_test_psbt();
-        let hw_grant = "test-hw-grant".to_string();
 
         if let TransactionVerification::Pending(pending) =
-            TransactionVerification::new_pending(&account_id, psbt, hw_grant)
+            TransactionVerification::new_pending(&account_id, psbt, CurrencyCode::USD, Satoshi)
         {
+            let signed_hw_grant = TransactionVerificationApprovalView {
+                version: 0,
+                hw_auth_public_key: PublicKey::from_str(
+                    "0326cb04015410966e715a14da549bacbf12acb823fe1247540b6123b2daea0164",
+                )
+                .unwrap(),
+                allowed_hash: vec![],
+                signature: Signature::from_compact(&[0u8; 64]).unwrap(),
+            };
             // Test for all variants
             let pending_tx = TransactionVerification::Pending(pending.clone());
             let failed_tx = pending.mark_as_failed();
-            let success_tx = pending.mark_as_success("signed-grant".to_string());
+            let success_tx = pending.mark_as_success(signed_hw_grant);
             let expired_tx = TransactionVerification::Expired(pending.common_fields.clone());
 
             // All should have the same ID
@@ -272,11 +314,15 @@ mod tests {
         // Generate two verifications and check tokens are unique
         let account_id = AccountId::gen().unwrap();
         let psbt = create_test_psbt();
-        let hw_grant = "test-hw-grant".to_string();
 
-        let verification1 =
-            TransactionVerification::new_pending(&account_id, psbt.clone(), hw_grant.clone());
-        let verification2 = TransactionVerification::new_pending(&account_id, psbt, hw_grant);
+        let verification1 = TransactionVerification::new_pending(
+            &account_id,
+            psbt.clone(),
+            CurrencyCode::USD,
+            Satoshi,
+        );
+        let verification2 =
+            TransactionVerification::new_pending(&account_id, psbt, CurrencyCode::USD, Satoshi);
 
         if let (TransactionVerification::Pending(v1), TransactionVerification::Pending(v2)) =
             (&verification1, &verification2)

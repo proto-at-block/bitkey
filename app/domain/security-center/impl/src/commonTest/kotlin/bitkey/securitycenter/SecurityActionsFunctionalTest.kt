@@ -15,6 +15,7 @@ import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockInfo
 import build.wallet.firmware.UnlockMethod
@@ -71,9 +72,11 @@ class SecurityActionsFunctionalTest :
 
     val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
     val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
+    val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
     val fingerprintsActionFactory = FingerprintsActionFactoryImpl(
       gettingStartedTaskDao,
-      hardwareUnlockInfoService
+      hardwareUnlockInfoService,
+      firmwareDeviceInfoDao
     )
 
     val firmwareDataService = FirmwareDataServiceFake()

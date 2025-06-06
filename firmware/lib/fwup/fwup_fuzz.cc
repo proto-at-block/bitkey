@@ -27,7 +27,7 @@ FAKE_VOID_FUNC(rtos_timer_create_static, rtos_timer_t*, rtos_timer_callback_t);
 FAKE_VOID_FUNC(rtos_timer_start, rtos_timer_t*, uint32_t);
 FAKE_VOID_FUNC(rtos_timer_stop, rtos_timer_t*);
 
-secure_bool_t onboarding_auth_is_setup(void) {
+secure_bool_t onboarding_complete(void) {
   return SECURE_TRUE;
 }
 

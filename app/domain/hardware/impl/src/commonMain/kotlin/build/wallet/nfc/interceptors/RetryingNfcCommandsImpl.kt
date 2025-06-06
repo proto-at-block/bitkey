@@ -11,6 +11,9 @@ import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.fwup.FwupMode
+import build.wallet.grants.Grant
+import build.wallet.grants.GrantAction
+import build.wallet.grants.GrantRequest
 import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcException.CanBeRetried
 import build.wallet.nfc.NfcSession
@@ -184,6 +187,22 @@ private class RetryingNfcCommandsImpl(
         challenge
       )
     }
+
+  override suspend fun getGrantRequest(
+    session: NfcSession,
+    action: GrantAction,
+  ): GrantRequest {
+    // Not retried: Each call generates a new request on firmware, overwriting the previous one.
+    return commands.getGrantRequest(session, action)
+  }
+
+  override suspend fun provideGrant(
+    session: NfcSession,
+    grant: Grant,
+  ): Boolean {
+    // Not retried: Firmware deletes its stored GrantRequest after the first attempt to process a Grant.
+    return commands.provideGrant(session, grant)
+  }
 }
 
 private inline fun <T> retry(block: () -> T): T {

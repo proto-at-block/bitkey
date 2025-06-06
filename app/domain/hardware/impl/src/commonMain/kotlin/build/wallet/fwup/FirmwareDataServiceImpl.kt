@@ -11,6 +11,7 @@ import build.wallet.fwup.FwupDataFetcher.FwupDataFetcherError.DownloadError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.nfc.FakeFirmwareDeviceInfo
 import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -89,7 +90,7 @@ class FirmwareDataServiceImpl(
   override suspend fun syncLatestFwupData(): Result<Unit, Error> {
     return coroutineBinding {
       val firmwareDeviceInfo = firmwareDeviceInfoDao.getDeviceInfo().bind()
-      if (firmwareDeviceInfo != null) {
+      if (firmwareDeviceInfo != null && firmwareDeviceInfo.serial != FakeFirmwareDeviceInfo.serial) {
         // Get and store new FWUP data, if any.
         val fwupData =
           fwupDataFetcher

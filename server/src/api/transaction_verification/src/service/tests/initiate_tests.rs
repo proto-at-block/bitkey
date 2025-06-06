@@ -12,6 +12,7 @@ use types::account::entities::TransactionVerificationPolicy;
 use types::account::money::Money;
 use types::currencies::CurrencyCode::USD;
 use types::exchange_rate::local_rate_provider::LocalRateProvider;
+use types::transaction_verification::entities::BitcoinDisplayUnit::Satoshi;
 use types::transaction_verification::service::{
     InitiateVerificationResultDiscriminants, StaticWalletProvider,
 };
@@ -52,9 +53,11 @@ async fn test_initiate_verification(
     let result = service
         .initiate(
             &account.id,
+            account.hardware_auth_pubkey,
             StaticWalletProvider { wallet: Box::from(get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0) },
             psbt,
-            "hw_grant".to_string(),
+            USD,
+            Satoshi,
             should_prompt_user,
         )
         .await;
@@ -113,11 +116,13 @@ async fn test_psbt_threshold(
     let result = service
         .initiate(
             &account.id,
+            account.hardware_auth_pubkey,
             StaticWalletProvider {
                 wallet: source_wallet,
             },
             psbt,
-            "hw_grant".to_string(),
+            USD,
+            Satoshi,
             false,
         )
         .await;

@@ -77,6 +77,7 @@ void log_set_level(log_level_t level);
 #define LOGW(...) _LOG(LOG_WARN, LOG_FORMAT(WARN), __VA_ARGS__)
 #define LOGE(...) _LOG(LOG_ERROR, LOG_FORMAT(ERROR), __VA_ARGS__)
 
+#ifdef EMBEDDED_BUILD
 // Assert with a custom error message.
 //
 // NOTE: This function has to live here instead of lib/assert
@@ -89,3 +90,12 @@ void log_set_level(log_level_t level);
       _assert_handler();      \
     }                         \
   } while (false)
+#else
+#define ASSERT_LOG(expr, ...) \
+  do {                        \
+    if (!(expr)) {            \
+      LOGE(__VA_ARGS__);      \
+      abort();                \
+    }                         \
+  } while (false)
+#endif

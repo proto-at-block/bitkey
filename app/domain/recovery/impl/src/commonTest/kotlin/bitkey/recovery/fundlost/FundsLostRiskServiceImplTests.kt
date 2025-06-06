@@ -89,31 +89,6 @@ class FundsLostRiskServiceImplTests : FunSpec({
     }
   }
 
-  test("at risk when eak back up is not healthy") {
-    cloudBackupHealthRepository.mobileKeyBackupStatus.value =
-      Healthy(ClockFake().now)
-    cloudBackupHealthRepository.eekBackupStatus.value =
-      EekBackupStatus.ProblemWithBackup.BackupMissing
-    firmwareDataService.firmwareData.value = FirmwareDataUpToDateMock
-    notificationsService.criticalNotificationsStatus.value = Enabled
-
-    val service = service()
-
-    createBackgroundScope().launch {
-      service.executeWork()
-    }
-
-    service.riskLevel().test {
-      awaitUntil(
-        FundsLostRiskLevel.AtRisk(
-          AtRiskCause.MissingEek(
-            EekBackupStatus.ProblemWithBackup.BackupMissing
-          )
-        )
-      )
-    }
-  }
-
   test("at risk when hardware is missing") {
     cloudBackupHealthRepository.mobileKeyBackupStatus.value =
       Healthy(ClockFake().now)

@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::env;
 use std::str::FromStr;
 
-use account::service::CreateSoftwareAccountInput;
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CompleteOnboardingInput,
     CreateAccountAndKeysetsInput, CreateInactiveSpendingKeysetInput, CreateLiteAccountInput,
@@ -11,6 +10,7 @@ use account::service::{
     PutInactiveSpendingDistributedKeyInput, RotateToSpendingKeyDefinitionInput,
     RotateToSpendingKeysetInput, Service as AccountService, UpgradeLiteAccountToFullAccountInput,
 };
+use account::service::{CreateSoftwareAccountInput, UpdateDescriptorBackupsInput};
 use argon2::{
     password_hash::{PasswordHash, PasswordVerifier},
     Argon2,
@@ -46,6 +46,7 @@ use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use http_server::{middlewares::identifier_generator::IdentifierGenerator, router::RouterBuilder};
 use isocountry::CountryCode;
+use itertools::Itertools;
 use notification::clients::iterable::{IterableClient, IterableMode};
 use notification::clients::twilio::{TwilioClient, TwilioMode};
 use notification::entities::NotificationTouchpoint;
@@ -63,8 +64,9 @@ use serde_with::{base64::Base64, serde_as};
 use time::Duration;
 use tracing::{error, event, instrument, Level};
 use types::account::entities::{
-    Account, CommsVerificationScope, FullAccountAuthKeysPayload as FullAccountAuthKeysRequest,
-    Keyset, LiteAccount, LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
+    Account, CommsVerificationScope, DescriptorBackup,
+    FullAccountAuthKeysPayload as FullAccountAuthKeysRequest, Keyset, LiteAccount,
+    LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
     SoftwareAccountAuthKeysPayload as SoftwareAccountAuthKeysRequest, SpendingKeysetRequest,
     Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
 };
@@ -175,6 +177,10 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/spending-key-definition",
                 put(activate_spending_key_definition),
             )
+            .route(
+                "/api/accounts/:account_id/descriptor-backups",
+                put(update_descriptor_backups),
+            )
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
     }
@@ -227,6 +233,7 @@ impl From<RouteState> for SwaggerEndpoint {
         initiate_distributed_keygen,
         continue_distributed_keygen,
         activate_spending_key_definition,
+        update_descriptor_backups,
     ),
     components(
         schemas(
@@ -281,6 +288,9 @@ impl From<RouteState> for SwaggerEndpoint {
             ContinueDistributedKeygenResponse,
             ActivateSpendingKeyDefinitionRequest,
             ActivateSpendingKeyDefinitionResponse,
+            DescriptorBackup,
+            UpdateDescriptorBackupsRequest,
+            UpdateDescriptorBackupsResponse,
         ),
     ),
     tags(
@@ -742,6 +752,8 @@ async fn get_touchpoints_for_account(
 pub struct GetAccountStatusResponse {
     pub keyset_id: KeysetId,
     pub spending: SpendingKeyset,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -768,12 +780,16 @@ async fn account_status(
             account_id: &account_id,
         })
         .await?;
+
+    let active_keyset_id = &account.active_keyset_id;
+
     Ok(Json(GetAccountStatusResponse {
-        keyset_id: account.clone().active_keyset_id,
+        keyset_id: active_keyset_id.clone(),
         spending: account
             .active_spending_keyset()
             .ok_or(RouteError::NoActiveSpendKeyset)?
             .to_owned(),
+        sealed_descriptor: account.descriptor_backups.get(active_keyset_id).cloned(),
     }))
 }
 
@@ -1391,6 +1407,7 @@ pub struct AccountKeyset {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GetAccountKeysetsResponse {
     pub keysets: Vec<AccountKeyset>,
+    pub descriptor_backups: Vec<DescriptorBackup>,
 }
 
 #[instrument(skip(account_service))]
@@ -1417,7 +1434,7 @@ pub async fn account_keysets(
         })
         .await?;
 
-    let mut keysets = account
+    let keysets = account
         .spending_keysets
         .into_iter()
         .map(|(keyset_id, spend_keyset)| AccountKeyset {
@@ -1427,10 +1444,23 @@ pub async fn account_keysets(
             hardware_dpub: spend_keyset.hardware_dpub,
             server_dpub: spend_keyset.server_dpub,
         })
+        .sorted_by_key(|k| k.keyset_id.to_string())
         .collect::<Vec<AccountKeyset>>();
-    keysets.sort_by_key(|k| k.keyset_id.to_string());
 
-    Ok(Json(GetAccountKeysetsResponse { keysets }))
+    let descriptor_backups = account
+        .descriptor_backups
+        .into_iter()
+        .map(|(keyset_id, sealed_descriptor)| DescriptorBackup {
+            keyset_id,
+            sealed_descriptor,
+        })
+        .sorted_by_key(|b| b.keyset_id.to_string())
+        .collect::<Vec<DescriptorBackup>>();
+
+    Ok(Json(GetAccountKeysetsResponse {
+        keysets,
+        descriptor_backups,
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
@@ -1880,6 +1910,63 @@ pub async fn initiate_demo_mode(
     } else {
         Err(ApiError::GenericBadRequest("Invalid code".to_string()))
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateDescriptorBackupsRequest {
+    pub descriptor_backups: Vec<DescriptorBackup>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateDescriptorBackupsResponse {}
+
+#[instrument(skip(account_service))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/descriptor-backups",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = UpdateDescriptorBackupsRequest,
+    responses(
+        (status = 200, description = "Updated descriptor backups", body=UpdateDescriptorBackupsResponse),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn update_descriptor_backups(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    key_proof: KeyClaims,
+    Json(request): Json<UpdateDescriptorBackupsRequest>,
+) -> Result<Json<UpdateDescriptorBackupsResponse>, ApiError> {
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    if full_account.common_fields.onboarding_complete
+        && !(key_proof.hw_signed && key_proof.app_signed)
+    {
+        event!(
+            Level::WARN,
+            "valid signature over access token required by both app and hw auth keys"
+        );
+        return Err(ApiError::GenericForbidden(
+            "valid signature over access token required by both app and hw auth keys".to_string(),
+        ));
+    }
+
+    account_service
+        .update_descriptor_backups(UpdateDescriptorBackupsInput {
+            account: &full_account,
+            descriptor_backups: request.descriptor_backups,
+        })
+        .await?;
+
+    return Ok(Json(UpdateDescriptorBackupsResponse {}));
 }
 
 async fn maybe_get_wsm_integrity_sig(wsm_client: &WsmClient, keyset_id: &str) -> Option<String> {

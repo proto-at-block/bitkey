@@ -3,6 +3,8 @@ package bitkey.verification
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.FiatCurrencyEntity
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -13,11 +15,13 @@ import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
+import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.binding
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.get
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.coroutines.flow.Flow
@@ -26,39 +30,64 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 
-internal class TxVerificationDaoImpl(
+@BitkeyInject(AppScope::class)
+class TxVerificationDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
-  private val clock: Clock,
 ) : TxVerificationDao {
-  override suspend fun setPolicy(policy: TxVerificationPolicy): Result<Unit, DbError> {
+  override suspend fun setActivePolicy(
+    threshold: VerificationThreshold,
+  ): Result<TxVerificationPolicy.Active, Error> {
+    return databaseProvider.database().awaitTransactionWithResult {
+      transactionVerificationQueries.replaceActivePolicy(
+        thresholdCurrencyAlphaCode = threshold.amount?.currency?.textCode,
+        thresholdAmountFractionalUnitValue = threshold.amount?.fractionalUnitValue?.longValue()
+      ).executeAsOne()
+    }.flatMap { entity ->
+      binding<TxVerificationPolicy.Active, Error> {
+        TxVerificationPolicy.Active(
+          id = TxVerificationPolicy.PolicyId(entity.id),
+          threshold = threshold
+        )
+      }
+    }
+  }
+
+  override suspend fun createPendingPolicy(
+    threshold: VerificationThreshold,
+    auth: TxVerificationPolicy.DelayNotifyAuthorization,
+  ): Result<TxVerificationPolicy.Pending, Error> {
+    return databaseProvider.database().awaitTransactionWithResult {
+      transactionVerificationQueries.createPendingPolicy(
+        thresholdCurrencyAlphaCode = threshold.amount?.currency?.textCode,
+        thresholdAmountFractionalUnitValue = threshold.amount?.fractionalUnitValue?.longValue(),
+        delayEndTime = auth.delayEndTime,
+        authId = auth.id.value,
+        cancellationToken = auth.cancellationToken,
+        completionToken = auth.completionToken
+      ).executeAsOne()
+    }.flatMap { entity ->
+      binding<TxVerificationPolicy.Pending, Error> {
+        TxVerificationPolicy.Pending(
+          id = TxVerificationPolicy.PolicyId(entity.id),
+          authorization = auth,
+          threshold = threshold
+        )
+      }
+    }
+  }
+
+  override suspend fun promotePolicy(id: TxVerificationPolicy.PolicyId): Result<Unit, DbError> {
     return databaseProvider.database().awaitTransaction {
-      transactionVerificationQueries.setPolicy(
-        id = policy.id.value,
-        effective = null,
-        thresholdCurrencyAlphaCode = policy.threshold.amount?.currency?.textCode,
-        thresholdAmountFractionalUnitValue = policy.threshold.amount?.fractionalUnitValue?.longValue(),
-        delayEndTime = policy.authorization?.delayEndTime,
-        cancellationToken = policy.authorization?.cancellationToken,
-        completionToken = policy.authorization?.completionToken
+      transactionVerificationQueries.promotePolicy(
+        id = id.value
       )
     }
   }
 
-  override suspend fun markPolicyEffective(id: TxVerificationPolicy.Id): Result<Unit, DbError> {
-    return databaseProvider.database().awaitTransaction {
-      transactionVerificationQueries.markPolicyEffective(
-        id = id.value,
-        effective = clock.now()
-      )
-    }
-  }
-
-  override suspend fun getEffectivePolicy(): Flow<Result<TxVerificationPolicy?, Error>> {
+  override suspend fun getActivePolicy(): Flow<Result<TxVerificationPolicy.Active?, Error>> {
     return databaseProvider.database().transactionVerificationQueries
-      .getEffectivePolicy()
+      .getActivePolicy()
       .asFlowOfOneOrNull()
       .flatMapLatest { policyResult ->
         policyResult.get()?.thresholdCurrencyAlphaCode?.let { code ->
@@ -72,21 +101,20 @@ internal class TxVerificationDaoImpl(
       .mapLatest { (policyResult, fiatCurrencyResult) ->
         policyResult.get()?.let { policy ->
           coroutineBinding {
-            buildPolicy(
-              id = policy.id,
-              policyCurrencyCode = policy.thresholdCurrencyAlphaCode,
-              threshold = policy.thresholdAmountFractionalUnitValue,
-              delayEndTime = policy.delayEndTime,
-              cancellationToken = policy.cancellationToken,
-              completionToken = policy.completionToken,
-              fiatCurrencyEntity = fiatCurrencyResult?.bind()
-            ).bind()
+            TxVerificationPolicy.Active(
+              id = TxVerificationPolicy.PolicyId(policy.id),
+              threshold = buildThreshold(
+                policyCurrencyCode = policy.thresholdCurrencyAlphaCode,
+                threshold = policy.thresholdAmountFractionalUnitValue,
+                fiatCurrencyEntity = fiatCurrencyResult?.bind()
+              ).bind()
+            )
           }
         } ?: Ok(null)
       }
   }
 
-  override suspend fun getPendingPolicies(): Flow<Result<List<TxVerificationPolicy>, DbError>> {
+  override suspend fun getPendingPolicies(): Flow<Result<List<TxVerificationPolicy.Pending>, DbError>> {
     return databaseProvider.database().transactionVerificationQueries
       .getPendingPolicies()
       .asFlowOfList()
@@ -97,23 +125,30 @@ internal class TxVerificationDaoImpl(
           .asFlowOfList()
       ) { policyResults, fiatCurrencyResults ->
         binding {
-          policyResults.bind().map { policy ->
-            buildPolicy(
-              id = policy.id,
-              policyCurrencyCode = policy.thresholdCurrencyAlphaCode,
-              threshold = policy.thresholdAmountFractionalUnitValue,
-              delayEndTime = policy.delayEndTime,
-              cancellationToken = policy.cancellationToken,
-              completionToken = policy.completionToken,
-              fiatCurrencyEntity = fiatCurrencyResults.bind()
-                .find { it.textCode == policy.thresholdCurrencyAlphaCode }
-            ).logFailure { "Pending policy is invalid" }.get()
-          }.filterNotNull()
+          policyResults.bind().mapNotNull { policy ->
+            binding {
+              TxVerificationPolicy.Pending(
+                id = TxVerificationPolicy.PolicyId(policy.id),
+                threshold = buildThreshold(
+                  policyCurrencyCode = policy.thresholdCurrencyAlphaCode,
+                  policy.thresholdAmountFractionalUnitValue,
+                  fiatCurrencyEntity = fiatCurrencyResults.bind()
+                    .find { it.textCode == policy.thresholdCurrencyAlphaCode }
+                ).bind(),
+                authorization = TxVerificationPolicy.DelayNotifyAuthorization(
+                  id = TxVerificationPolicy.DelayNotifyAuthorization.AuthId(policy.authId),
+                  delayEndTime = policy.delayEndTime,
+                  cancellationToken = policy.cancellationToken,
+                  completionToken = policy.completionToken
+                )
+              )
+            }.logFailure { "Pending policy is invalid" }.get()
+          }
         }
       }
   }
 
-  override suspend fun deletePolicy(id: TxVerificationPolicy.Id): Result<Unit, DbError> {
+  override suspend fun deletePolicy(id: TxVerificationPolicy.PolicyId): Result<Unit, DbError> {
     return databaseProvider.database().awaitTransaction {
       transactionVerificationQueries.deletePolicy(
         id = id.value
@@ -127,40 +162,22 @@ internal class TxVerificationDaoImpl(
     }
   }
 
-  /**
-   * Build the verification policy domain model from query results.
-   */
-  private fun buildPolicy(
-    id: String,
+  private fun buildThreshold(
     policyCurrencyCode: IsoCurrencyTextCode?,
     threshold: Long?,
-    delayEndTime: Instant?,
-    cancellationToken: String?,
-    completionToken: String?,
     fiatCurrencyEntity: FiatCurrencyEntity?,
-  ): Result<TxVerificationPolicy, InvalidPolicyError> {
+  ): Result<VerificationThreshold, InvalidPolicyError> {
     return binding {
-      TxVerificationPolicy(
-        id = TxVerificationPolicy.Id(id),
-        threshold = when {
-          policyCurrencyCode == null || threshold == null -> VerificationThreshold.Disabled
-          else -> VerificationThreshold.Enabled(
-            amount = buildMoney(
-              policyCurrencyCode = policyCurrencyCode,
-              threshold = threshold,
-              currency = fiatCurrencyEntity
-            ).bind()
-          )
-        },
-        authorization = when {
-          delayEndTime == null || cancellationToken == null || completionToken == null -> null
-          else -> TxVerificationPolicy.DelayNotifyAuthorization(
-            delayEndTime = delayEndTime,
-            cancellationToken = cancellationToken,
-            completionToken = completionToken
-          )
-        }
-      )
+      when {
+        policyCurrencyCode == null || threshold == null -> VerificationThreshold.Disabled
+        else -> VerificationThreshold.Enabled(
+          amount = buildMoney(
+            policyCurrencyCode = policyCurrencyCode,
+            threshold = threshold,
+            currency = fiatCurrencyEntity
+          ).bind()
+        )
+      }
     }
   }
 

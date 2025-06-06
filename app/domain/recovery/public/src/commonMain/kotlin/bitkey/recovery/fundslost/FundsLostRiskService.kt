@@ -1,6 +1,5 @@
 package bitkey.recovery.fundslost
 
-import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.worker.AppWorker
 import kotlinx.coroutines.flow.StateFlow
@@ -52,13 +51,6 @@ sealed interface AtRiskCause {
    * @param problem the problem with the backup
    */
   data class MissingCloudBackup(val problem: MobileKeyBackupStatus.ProblemWithBackup) : AtRiskCause
-
-  /**
-   * The customer is missing an Emergency Exit Kit backup.
-   *
-   * @param problem the problem with the backup
-   */
-  data class MissingEek(val problem: EekBackupStatus.ProblemWithBackup) : AtRiskCause
 
   /**
    * The customer is missing a critical contact method, email or phone number.

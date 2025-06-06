@@ -105,9 +105,6 @@ class NoActiveAccountDataStateMachineImpl(
           },
           startEmergencyAccessRecovery = {
             state = EmergencyAccessAccountRecoveryState
-          },
-          wipeExistingDevice = {
-            state = ResetAnExistingDeviceState
           }
         )
 
@@ -140,13 +137,6 @@ class NoActiveAccountDataStateMachineImpl(
         RecoveringAccountWithEmergencyAccessKit(
           onExit = { state = GettingStartedState }
         )
-
-      is ResetAnExistingDeviceState -> {
-        ResettingExistingDeviceData(
-          onExit = { state = GettingStartedState },
-          onSuccess = { state = GettingStartedState }
-        )
-      }
     }
   }
 
@@ -185,11 +175,6 @@ private sealed interface State {
    * Application is in the process of recovering from the Emergency Exit Kit backup.
    */
   data object EmergencyAccessAccountRecoveryState : State
-
-  /**
-   * Application is in the reset an existing device flow
-   */
-  data object ResetAnExistingDeviceState : State
 
   /**
    * Loading a cloud backup to determine how to proceed with recovery or account creation.

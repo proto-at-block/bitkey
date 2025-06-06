@@ -28,4 +28,4 @@ messages:
     - name: auth_set_timestamp_t
       fields:
         - uint32_t timestamp
-
+    - name: auth_present_grant_for_fingerprint_enrollment_t

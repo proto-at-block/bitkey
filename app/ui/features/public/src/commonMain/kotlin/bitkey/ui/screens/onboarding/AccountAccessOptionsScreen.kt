@@ -31,9 +31,6 @@ class AccountAccessOptionsScreenPresenter : ScreenPresenter<AccountAccessOptions
       },
       onBeTrustedContactClick = {
         // TODO: implement
-      },
-      onResetExistingDevice = {
-        // TODO: implement
       }
     ).asRootFullScreen()
   }

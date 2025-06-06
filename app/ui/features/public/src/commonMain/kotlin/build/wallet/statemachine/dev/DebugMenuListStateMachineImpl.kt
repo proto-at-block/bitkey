@@ -11,6 +11,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.AppDataDeleter
+import build.wallet.debug.cloud.CloudBackupCorrupter
 import build.wallet.debug.cloud.CloudBackupDeleter
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -44,6 +45,7 @@ class DebugMenuListStateMachineImpl(
   private val bitkeyDeviceOptionsUiStateMachine: BitkeyDeviceOptionsUiStateMachine,
   private val bitcoinNetworkPickerUiStateMachine: BitcoinNetworkPickerUiStateMachine,
   private val cloudBackupDeleter: CloudBackupDeleter,
+  private val cloudBackupCorrupter: CloudBackupCorrupter,
   private val f8eEnvironmentPickerUiStateMachine: F8eEnvironmentPickerUiStateMachine,
   private val featureFlagsOptionsUiStateMachine: FeatureFlagsOptionsUiStateMachine,
   private val infoOptionsUiStateMachine: InfoOptionsUiStateMachine,
@@ -191,7 +193,10 @@ class DebugMenuListStateMachineImpl(
       subline = "Are you sure?",
       onDismiss = onDismiss,
       primaryButtonText = "Yes",
-      onPrimaryButtonClick = actionConfirmation.gatedAction,
+      onPrimaryButtonClick = {
+        actionConfirmation.gatedAction()
+        onDismiss()
+      },
       primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
       secondaryButtonText = "Cancel",
       onSecondaryButtonClick = onDismiss
@@ -385,6 +390,21 @@ class DebugMenuListStateMachineImpl(
                 title = "Clear balance chart data",
                 onClick = {
                   balanceHistoryService.clearData()
+                }
+              ),
+              ListItemModel(
+                title = "Corrupt Cloud Backup",
+                onClick = {
+                  onActionConfirmationRequest(
+                    ActionConfirmationRequest(
+                      gatedActionTitle = "Corrupt cloud backup?",
+                      gatedAction = {
+                        scope.launch {
+                          cloudBackupCorrupter.corrupt()
+                        }
+                      }
+                    )
+                  )
                 }
               )
             ),

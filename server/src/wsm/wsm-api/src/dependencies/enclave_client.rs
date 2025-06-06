@@ -10,11 +10,11 @@ use serde::Serialize;
 use serde_json;
 use thiserror::Error;
 use tracing::{event, instrument};
-
 use wsm_common::enclave_log::LogBuffer;
 use wsm_common::messages::api::{
-    AttestationDocResponse, EvaluatePinRequest, EvaluatePinResponse, GrantRequest, GrantResponse,
-    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse,
+    ApprovePsbtRequest, ApprovePsbtResponse, AttestationDocResponse, EvaluatePinRequest,
+    EvaluatePinResponse, GrantRequest, GrantResponse, NoiseInitiateBundleRequest,
+    NoiseInitiateBundleResponse,
 };
 use wsm_common::messages::enclave::{
     DerivedKey, EnclaveContinueDistributedKeygenRequest, EnclaveContinueDistributedKeygenResponse,
@@ -279,6 +279,28 @@ impl EnclaveClient {
             .json(&request)
             .send()
             .await?;
+        if result.status() != 200 {
+            bail!("Error from the enclave: {}", result.text().await?);
+        }
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn approve_psbt(
+        &self,
+        request: ApprovePsbtRequest,
+    ) -> anyhow::Result<ApprovePsbtResponse> {
+        self.load_integrity_key().await?;
+        let result = self
+            .client
+            .post(self.endpoint.join("approve-psbt")?)
+            .json(&request)
+            .send()
+            .await?;
+        handle_enclave_logs(&result).await;
+        if result.status() != 200 {
+            bail!("Error from the enclave: {}", result.text().await?);
+        }
         Ok(result.json().await?)
     }
 

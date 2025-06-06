@@ -3906,9 +3906,9 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
 name = "mime_guess"
-version = "2.0.4"
+version = "2.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4192263c238a5f0d0c6bfd21f336a313a4ce1c450542449ca191bb657b4642ef"
+checksum = "f7c44f8e672c00fe5308fa235f821cb4198414e1c77935c1ab6948d3fd78550e"
 dependencies = [
  "mime",
  "unicase",
@@ -4220,6 +4220,7 @@ dependencies = [
  "http_server",
  "instrumentation",
  "isocountry",
+ "itertools 0.13.0",
  "notification",
  "once_cell",
  "privileged_action",
@@ -6130,6 +6131,7 @@ dependencies = [
  "transaction_verification",
  "types",
  "ulid",
+ "url",
  "userpool",
  "utoipa-swagger-ui",
  "wallet-telemetry",
@@ -6962,8 +6964,11 @@ dependencies = [
  "experimentation",
  "feature_flags",
  "http_server",
+ "mime_guess",
  "notification",
+ "regex",
  "rstest",
+ "rust-embed",
  "serde",
  "serde_json",
  "thiserror 1.0.57",
@@ -6973,6 +6978,8 @@ dependencies = [
  "types",
  "userpool",
  "utoipa",
+ "wsm-common",
+ "wsm-rust-client",
 ]
 
 [[package]]
@@ -7128,6 +7135,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

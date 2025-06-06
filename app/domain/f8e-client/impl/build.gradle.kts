@@ -37,6 +37,7 @@ kotlin {
         // For SocialRecoveryServiceFake
         implementation(projects.libs.ktorClientFake)
         implementation(projects.domain.relationshipsPublic)
+        implementation(projects.domain.txVerificationFake)
       }
     }
 

@@ -1,12 +1,20 @@
 use crate::error::TransactionVerificationError;
 use crate::service::Service as TransactionVerificationService;
-use account::service::{FetchAccountInput, Service as AccountService};
+use crate::static_handler::{get_template, static_handler};
+use account::service::{
+    tests::default_electrum_rpc_uris, FetchAccountInput, Service as AccountService,
+};
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
+    http::{header, StatusCode},
+    response::{Html, IntoResponse},
     routing::{get, post, put},
     Json, Router,
 };
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
+use bdk_utils::{
+    bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, get_outflow_addresses_for_psbt,
+    get_total_outflow_for_psbt,
+};
 use bdk_utils::{generate_electrum_rpc_uris, DescriptorKeyset};
 use errors::ApiError;
 use experimentation::claims::ExperimentationClaims;
@@ -15,11 +23,15 @@ use http_server::{
     router::RouterBuilder,
     swagger::{SwaggerEndpoint, Url},
 };
+use regex;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::str::FromStr;
 use tracing::instrument;
 use types::account::entities::TransactionVerificationPolicy;
 use types::account::identifiers::{AccountId, KeysetId};
+use types::currencies::CurrencyCode;
+use types::transaction_verification::entities::BitcoinDisplayUnit;
 use types::transaction_verification::router::{
     InitiateTransactionVerificationView, TransactionVerificationView,
 };
@@ -27,6 +39,26 @@ use types::transaction_verification::service::DescriptorKeysetWalletProvider;
 use types::transaction_verification::TransactionVerificationId;
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
+
+// Helper function to create HTML error responses
+// TODO: Move this to a more general purpose location
+fn html_error<E: std::fmt::Display>(
+    status: StatusCode,
+    error: E,
+) -> (
+    StatusCode,
+    [(header::HeaderName, &'static str); 1],
+    Html<String>,
+) {
+    (
+        status,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        Html(format!(
+            "<html><body><h1>Error</h1><p>{}</p></body></html>",
+            error
+        )),
+    )
+}
 
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(
@@ -55,6 +87,13 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/tx-verify/requests",
                 post(initiate_transaction_verification),
             )
+            .with_state(self.to_owned())
+    }
+
+    fn secure_site_router(&self) -> Router {
+        Router::new()
+            .route("/tx-verify", get(get_transaction_verification_interface))
+            .route("/static/*file", get(static_handler))
             .with_state(self.to_owned())
     }
 }
@@ -195,8 +234,9 @@ async fn check_transaction_verification(
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct InitiateTransactionVerificationRequest {
     pub psbt: String,
+    pub fiat_currency: CurrencyCode,
+    pub bitcoin_display_unit: BitcoinDisplayUnit,
     pub signing_keyset_id: KeysetId,
-    pub hw_grant: String,
     pub should_prompt_user: bool,
 }
 
@@ -249,13 +289,99 @@ async fn initiate_transaction_verification(
     let tx_verification = transaction_verification_service
         .initiate(
             &account_id,
+            account.hardware_auth_pubkey,
             wallet_provider,
             psbt,
-            request.hw_grant,
+            request.fiat_currency,
+            request.bitcoin_display_unit,
             request.should_prompt_user,
         )
         .await?;
     Ok(Json(tx_verification.to_response()))
+}
+
+#[derive(Deserialize)]
+pub struct TransactionVerificationInterfaceParams {
+    web_auth_token: String,
+}
+
+pub async fn get_transaction_verification_interface(
+    State(transaction_verification_service): State<TransactionVerificationService>,
+    State(account_service): State<AccountService>,
+    Query(params): Query<TransactionVerificationInterfaceParams>,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    let tx_verification = transaction_verification_service
+        .fetch_pending_with_web_auth_token(params.web_auth_token)
+        .await
+        .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+    let account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &tx_verification.common_fields.account_id,
+        })
+        .await
+        .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let electrum_rpc_uris = default_electrum_rpc_uris();
+    let wallet = account
+        .active_descriptor_keyset()
+        .ok_or(html_error(StatusCode::BAD_REQUEST, "Invalid keyset state"))?
+        .generate_wallet(false, &electrum_rpc_uris)
+        .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let psbt = &tx_verification.common_fields.psbt;
+
+    let amount_sats = get_total_outflow_for_psbt(&wallet, psbt);
+    let recipient = match get_outflow_addresses_for_psbt(&wallet, psbt, wallet.network())
+        .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?
+    {
+        addresses if addresses.is_empty() => {
+            return Err(html_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "No recipient address found in PSBT",
+            ))
+        }
+        addresses if addresses.len() > 1 => {
+            return Err(html_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Multiple recipient addresses found in PSBT",
+            ))
+        }
+        addresses => addresses[0].clone(),
+    };
+
+    let confirm_token = &tx_verification.confirmation_token;
+    let cancel_token = &tx_verification.cancellation_token;
+
+    let html_template = get_template();
+    let verification_params = serde_json::json!({
+        "amountSats": amount_sats,
+        "recipient": recipient,
+        "confirmToken": confirm_token,
+        "cancelToken": cancel_token
+    });
+
+    let params_json =
+        serde_json::to_string(&verification_params).unwrap_or_else(|_| "{}".to_string());
+
+    // Create a regex pattern to find and replace the mock verification-params script
+    let mock_script_pattern =
+        r#"<script type="application/json" id="verification-params">(\s*\{[\s\S]*?\})\s*</script>"#;
+    let replacement = format!(
+        r#"<script type="application/json" id="verification-params">{}</script>"#,
+        params_json
+    );
+
+    // Replace the mock data with real data using regex
+    let html_regex = regex::Regex::new(mock_script_pattern)
+        .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let html = html_regex
+        .replace(&html_template, replacement.as_str())
+        .to_string();
+
+    Ok((
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        Html(html),
+    ))
 }
 
 #[cfg(test)]

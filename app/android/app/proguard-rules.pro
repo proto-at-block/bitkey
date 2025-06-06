@@ -19,6 +19,9 @@
 -keep @kotlinx.serialization.Serializable class *
 -keep class kotlin.Unit {*;}
 
+# R8 kept trying to optimize this out.
+-keep class bitkey.verification.TxVerificationDaoImpl { *; }
+
 # These had to be added when jna was added to the keep list. When R8 evaluates it's input, it will
 # give an error if it comes across existing missing classes. If you aren't missing dependencies, this
 # is usually expected and we can tell R8 not to warn for them

@@ -76,9 +76,14 @@ pub struct BeneficiaryInheritanceClaimViewCanceled {
 pub struct BeneficiaryInheritanceClaimViewLocked {
     #[serde(flatten)]
     pub common_fields: InheritanceClaimViewCommonFields,
+    // The dek is sealed using DH between an ephemeral key pair and the beneficiary's
+    // delegated decryption key. The mobile key and descriptor are encrypted using the dek.
     pub sealed_dek: String,
     pub sealed_mobile_key: String,
-    pub benefactor_descriptor_keyset: ExtendedDescriptor,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_descriptor: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub benefactor_descriptor_keyset: Option<ExtendedDescriptor>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -182,6 +187,7 @@ impl From<InheritanceClaim> for BeneficiaryInheritanceClaimView {
                     },
                     sealed_dek: locked.sealed_dek,
                     sealed_mobile_key: locked.sealed_mobile_key,
+                    sealed_descriptor: locked.sealed_descriptor,
                     benefactor_descriptor_keyset: locked.benefactor_descriptor_keyset,
                 })
             }

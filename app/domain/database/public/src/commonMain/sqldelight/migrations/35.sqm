@@ -1,0 +1,13 @@
+-- Schema modified before the feature, so just drop and re-create.
+DROP TABLE txVerificationPolicyEntity;
+CREATE TABLE txVerificationPolicyEntity(
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    thresholdCurrencyAlphaCode TEXT AS IsoCurrencyTextCode,
+    thresholdAmountFractionalUnitValue INTEGER,
+    delayEndTime TEXT AS Instant,
+    authId TEXT,
+    cancellationToken TEXT,
+    completionToken TEXT
+);
+
+PRAGMA foreign_key_check;

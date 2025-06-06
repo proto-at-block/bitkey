@@ -1,16 +1,16 @@
 package bitkey.verification
 
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.sqldelight.InMemorySqlDriverFactory
 import build.wallet.testing.shouldBeOk
-import build.wallet.time.ClockFake
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.collections.shouldContainOnly
+import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.flow.first
@@ -19,10 +19,8 @@ import kotlinx.datetime.Instant
 class TxVerificationDaoTest : FunSpec({
   val driverFactory = InMemorySqlDriverFactory()
   val databaseProvider = BitkeyDatabaseProviderImpl(driverFactory)
-  val clock = ClockFake()
   val dao = TxVerificationDaoImpl(
-    databaseProvider = databaseProvider,
-    clock = clock
+    databaseProvider = databaseProvider
   )
 
   beforeTest {
@@ -30,57 +28,33 @@ class TxVerificationDaoTest : FunSpec({
   }
 
   test("Latest effective policy is returned") {
-    val active = TxVerificationPolicy(
-      id = TxVerificationPolicy.Id("active-policy"),
-      threshold = VerificationThreshold.Disabled,
-      authorization = null
-    )
-    val inactive = TxVerificationPolicy(
-      id = TxVerificationPolicy.Id("inactive-policy"),
-      threshold = VerificationThreshold.Disabled,
-      authorization = null
-    )
+    val active = VerificationThreshold.Enabled(BitcoinMoney.sats(123))
+    val inactive = VerificationThreshold.Disabled
 
-    dao.setPolicy(active)
-    dao.markPolicyEffective(active.id)
-    dao.setPolicy(inactive)
+    dao.setActivePolicy(active)
+    dao.createPendingPolicy(inactive, TxVerificationPolicyAuthFake)
 
-    val result = dao.getEffectivePolicy().first()
+    val result = dao.getActivePolicy().first().shouldBeOk()
 
-    result
-      .shouldBeOk()
-      .shouldBe(active)
+    result?.threshold.shouldBe(active)
   }
 
   test("Pending Policies are returned") {
-    val active = TxVerificationPolicy(
-      id = TxVerificationPolicy.Id("active-policy"),
-      threshold = VerificationThreshold.Disabled,
-      authorization = null
+    val active = VerificationThreshold.Always
+    val laterPendingThreshold = VerificationThreshold.Enabled(BitcoinMoney.sats(123))
+    val laterPendingAuth = TxVerificationPolicyAuthFake.copy(
+      id = TxVerificationPolicy.DelayNotifyAuthorization.AuthId("fake-auth-id-1"),
+      delayEndTime = Instant.fromEpochSeconds(9999)
     )
-    val laterPending = TxVerificationPolicy(
-      id = TxVerificationPolicy.Id("inactive-policy-1"),
-      threshold = VerificationThreshold.Always,
-      authorization = TxVerificationPolicy.DelayNotifyAuthorization(
-        delayEndTime = Instant.fromEpochSeconds(9999),
-        cancellationToken = "cancel-token-1",
-        completionToken = "complete-token-1"
-      )
-    )
-    val earlierPending = TxVerificationPolicy(
-      id = TxVerificationPolicy.Id("inactive-policy-2"),
-      threshold = VerificationThreshold.Always,
-      authorization = TxVerificationPolicy.DelayNotifyAuthorization(
-        delayEndTime = Instant.fromEpochSeconds(123),
-        cancellationToken = "cancel-token-2",
-        completionToken = "complete-token-2"
-      )
+    val earlierPendingThreshold = VerificationThreshold.Enabled(BitcoinMoney.sats(456))
+    val earlierPendingAuth = TxVerificationPolicyAuthFake.copy(
+      id = TxVerificationPolicy.DelayNotifyAuthorization.AuthId("fake-auth-id-2"),
+      delayEndTime = Instant.fromEpochSeconds(123)
     )
 
-    dao.setPolicy(active)
-    dao.setPolicy(laterPending)
-    dao.setPolicy(earlierPending)
-    dao.markPolicyEffective(active.id)
+    dao.setActivePolicy(active)
+    dao.createPendingPolicy(laterPendingThreshold, laterPendingAuth)
+    dao.createPendingPolicy(earlierPendingThreshold, earlierPendingAuth)
 
     val result = dao.getPendingPolicies().first()
 
@@ -88,73 +62,59 @@ class TxVerificationDaoTest : FunSpec({
     policies.size.shouldBe(2)
 
     // Earliest completing policy returns first:
-    policies[0].shouldBe(earlierPending)
-    policies[1].shouldBe(laterPending)
+    policies[0].threshold.shouldBeEqual(earlierPendingThreshold)
+    policies[0].authorization.shouldBe(earlierPendingAuth)
+    policies[1].threshold.shouldBeEqual(laterPendingThreshold)
+    policies[1].authorization.shouldBe(laterPendingAuth)
   }
 
   test("Active policy's currency not found returns error") {
-    val active = TxVerificationPolicy(
-      id = TxVerificationPolicy.Id("active-policy"),
-      threshold = VerificationThreshold.Enabled(
-        amount = FiatMoney(
-          currency = FiatCurrency(
-            textCode = IsoCurrencyTextCode("FAKE"),
-            unitSymbol = null,
-            fractionalDigits = 1,
-            displayConfiguration = FiatCurrency.DisplayConfiguration(
-              name = "fake",
-              displayCountryCode = "NA"
-            )
-          ),
-          value = BigDecimal.ONE
-        )
-      ),
-      authorization = null
+    val active = VerificationThreshold.Enabled(
+      amount = FiatMoney(
+        currency = FiatCurrency(
+          textCode = IsoCurrencyTextCode("FAKE"),
+          unitSymbol = null,
+          fractionalDigits = 1,
+          displayConfiguration = FiatCurrency.DisplayConfiguration(
+            name = "fake",
+            displayCountryCode = "NA"
+          )
+        ),
+        value = BigDecimal.ONE
+      )
     )
 
-    dao.setPolicy(active)
-    dao.markPolicyEffective(active.id)
+    dao.setActivePolicy(active)
 
-    val result = dao.getEffectivePolicy().first()
+    val result = dao.getActivePolicy().first()
 
     result.isErr.shouldBeTrue()
     result.error.shouldBeInstanceOf<InvalidPolicyError>()
   }
 
   test("Pending policy's currency not found removes from list") {
-    val valid = TxVerificationPolicy(
-      id = TxVerificationPolicy.Id("inactive-policy-1"),
-      threshold = VerificationThreshold.Always,
-      authorization = TxVerificationPolicy.DelayNotifyAuthorization(
-        delayEndTime = Instant.fromEpochSeconds(9999),
-        cancellationToken = "cancel-token-1",
-        completionToken = "complete-token-1"
+    val valid = VerificationThreshold.Always
+    val invalid = VerificationThreshold.Enabled(
+      amount = FiatMoney(
+        currency = FiatCurrency(
+          textCode = IsoCurrencyTextCode("FAKE"),
+          unitSymbol = null,
+          fractionalDigits = 1,
+          displayConfiguration = FiatCurrency.DisplayConfiguration(
+            name = "fake",
+            displayCountryCode = "NA"
+          )
+        ),
+        value = BigDecimal.ONE
       )
     )
-    val invalid = TxVerificationPolicy(
-      id = TxVerificationPolicy.Id("active-policy"),
-      threshold = VerificationThreshold.Enabled(
-        amount = FiatMoney(
-          currency = FiatCurrency(
-            textCode = IsoCurrencyTextCode("FAKE"),
-            unitSymbol = null,
-            fractionalDigits = 1,
-            displayConfiguration = FiatCurrency.DisplayConfiguration(
-              name = "fake",
-              displayCountryCode = "NA"
-            )
-          ),
-          value = BigDecimal.ONE
-        )
-      ),
-      authorization = null
-    )
 
-    dao.setPolicy(valid)
-    dao.setPolicy(invalid)
+    dao.createPendingPolicy(valid, TxVerificationPolicyAuthFake)
+    dao.createPendingPolicy(invalid, TxVerificationPolicyAuthFake)
 
-    val result = dao.getPendingPolicies().first()
+    val result = dao.getPendingPolicies().first().shouldBeOk()
 
-    result.shouldBeOk().shouldContainOnly(valid)
+    result[0].authorization.shouldBe(TxVerificationPolicyAuthFake)
+    result[0].threshold.shouldBeEqual(valid)
   }
 })

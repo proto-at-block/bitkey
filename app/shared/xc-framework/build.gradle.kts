@@ -75,6 +75,7 @@ kotlin {
       projects.libs.contactMethodPublic,
       projects.ui.routerPublic,
       projects.libs.secureEnclavePublic,
+      projects.libs.grantsPublic,
       libs.native.nserror.kt
     )
 

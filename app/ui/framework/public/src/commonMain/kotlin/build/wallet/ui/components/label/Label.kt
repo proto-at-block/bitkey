@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -29,12 +30,14 @@ fun Label(
   alignment: TextAlign = TextAlign.Start,
   treatment: LabelTreatment = LabelTreatment.Primary,
   color: Color = Color.Unspecified,
+  allowFontScaling: Boolean = true,
   onClick: (() -> Unit)? = null,
 ) {
   Label(
     text = AnnotatedString(text),
     modifier = modifier,
     style = WalletTheme.labelStyle(type, treatment, alignment, color),
+    allowFontScaling = allowFontScaling,
     onClick =
       onClick?.let {
         {
@@ -54,6 +57,7 @@ fun Label(
   overflow: TextOverflow = TextOverflow.Clip,
   maxLines: Int = Int.MAX_VALUE,
   style: TextStyle = WalletTheme.labelStyle(type, treatment, alignment),
+  allowFontScaling: Boolean = true,
   onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
   Label(
@@ -62,6 +66,7 @@ fun Label(
     style = style,
     maxLines = maxLines,
     overflow = overflow,
+    allowFontScaling = allowFontScaling,
     onTextLayout = onTextLayout
   )
 }
@@ -73,6 +78,7 @@ private fun Label(
   style: TextStyle,
   overflow: TextOverflow = TextOverflow.Clip,
   maxLines: Int = Int.MAX_VALUE,
+  allowFontScaling: Boolean = true,
   onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
   Label(
@@ -81,7 +87,8 @@ private fun Label(
     style = style,
     overflow = overflow,
     onTextLayout = onTextLayout,
-    maxLines = maxLines
+    maxLines = maxLines,
+    allowFontScaling = allowFontScaling,
   )
 }
 
@@ -93,12 +100,14 @@ fun Label(
   alignment: TextAlign = TextAlign.Start,
   treatment: LabelTreatment = LabelTreatment.Primary,
   color: Color = Color.Unspecified,
+  allowFontScaling: Boolean = true,
   onClick: ((TextClickPosition) -> Unit)? = null,
 ) {
   Label(
     text = text,
     modifier = modifier,
     style = WalletTheme.labelStyle(type, treatment, alignment, color),
+    allowFontScaling = allowFontScaling,
     onClick = onClick
   )
 }
@@ -118,12 +127,14 @@ fun Label(
   text: String,
   modifier: Modifier = Modifier,
   style: TextStyle,
+  allowFontScaling: Boolean = true,
   onClick: (() -> Unit)? = null,
 ) {
   Label(
     text = AnnotatedString(text),
     modifier = modifier,
     style = style,
+    allowFontScaling = allowFontScaling,
     onClick =
       onClick?.let {
         {
@@ -142,6 +153,7 @@ fun AutoResizedLabel(
   treatment: LabelTreatment = LabelTreatment.Primary,
   color: Color = Color.Unspecified,
   softWrap: Boolean = false,
+  allowFontScaling: Boolean = true,
   onClick: ((TextClickPosition) -> Unit)? = null,
 ) {
   AutoResizedLabel(
@@ -152,6 +164,7 @@ fun AutoResizedLabel(
     treatment = treatment,
     color = color,
     softWrap = softWrap,
+    allowFontScaling = allowFontScaling,
     onClick =
       onClick?.let {
         { position -> onClick(position) }
@@ -168,6 +181,7 @@ fun AutoResizedLabel(
   treatment: LabelTreatment = LabelTreatment.Primary,
   color: Color = Color.Unspecified,
   softWrap: Boolean = false,
+  allowFontScaling: Boolean = true,
   onClick: ((TextClickPosition) -> Unit)? = null,
 ) {
   val style = WalletTheme.labelStyle(type, treatment, alignment, color)
@@ -187,6 +201,7 @@ fun AutoResizedLabel(
       },
     style = resizedTextStyle,
     softWrap = softWrap,
+    allowFontScaling = allowFontScaling,
     onClick =
       onClick?.let {
         { position -> onClick(position) }
@@ -217,14 +232,25 @@ fun Label(
   softWrap: Boolean = true,
   maxLines: Int = Int.MAX_VALUE,
   overflow: TextOverflow = TextOverflow.Clip,
+  allowFontScaling: Boolean = true,
   onClick: ((TextClickPosition) -> Unit)? = null,
   onTextLayout: ((TextLayoutResult) -> Unit) = {},
 ) {
+  val fontScale = LocalDensity.current.fontScale
+  val styleWithFontScaling =
+    if (allowFontScaling) {
+      style
+    } else {
+      style.copy(
+        fontSize = style.fontSize / fontScale,
+        lineHeight = style.lineHeight / fontScale
+      )
+    }
   if (onClick != null) {
     ClickableText(
       text = text,
       modifier = modifier,
-      style = style,
+      style = styleWithFontScaling,
       overflow = overflow,
       onClick = onClick,
       onTextLayout = onTextLayout
@@ -233,7 +259,7 @@ fun Label(
     BasicText(
       text = text,
       modifier = modifier,
-      style = style,
+      style = styleWithFontScaling,
       softWrap = softWrap,
       overflow = overflow,
       onTextLayout = onTextLayout,

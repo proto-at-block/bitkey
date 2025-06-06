@@ -1,10 +1,12 @@
 package bitkey.securitycenter
 
+import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.home.GettingStartedTask
 
 class FingerprintsAction(
   private val gettingStartedTasks: List<GettingStartedTask>,
   private val fingerprintCount: Int,
+  private val firmwareDeviceInfo: FirmwareDeviceInfo?,
 ) : SecurityAction {
   override fun getRecommendations(): List<SecurityActionRecommendation> {
     if (fingerprintCount == 1) {
@@ -24,7 +26,7 @@ class FingerprintsAction(
         it.state == GettingStartedTask.TaskState.Incomplete
     }
 
-    return if (pendingFingerprintsTask) {
+    return if (pendingFingerprintsTask || firmwareDeviceInfo == null) {
       listOf(SecurityActionRecommendation.ADD_FINGERPRINTS)
     } else {
       emptyList()

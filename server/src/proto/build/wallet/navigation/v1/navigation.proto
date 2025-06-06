@@ -64,5 +64,8 @@ enum NavigationScreenId {
     /** The security hub screen. **/
     NAVIGATION_SCREEN_ID_SECURITY_HUB = 18;
 
-    /** The next tag is 19 **/
+    /** screen for repairing cloud back ups if there is an issue **/
+    NAVIGATION_SCREEN_ID_CLOUD_REPAIR = 19;
+
+    /** The next tag is 20 **/
 }

@@ -32,7 +32,7 @@ impl GrantCreator {
 
         Ok(GrantResponse {
             version: request.version,
-            serialized_request: request.serialize(),
+            serialized_request: request.serialize(true),
             signature: grant_signature,
         })
     }
@@ -42,7 +42,7 @@ impl GrantCreator {
 
         signing_input.extend_from_slice(GRANT_SIG_PREFIX);
         signing_input.push(version);
-        signing_input.extend_from_slice(&request.serialize());
+        signing_input.extend_from_slice(&request.serialize(true));
 
         let message = create_message(&signing_input)?;
         let secp = Secp256k1::new();
@@ -54,10 +54,7 @@ impl GrantCreator {
         let mut data = Vec::new();
 
         data.extend_from_slice(GRANT_REQUEST_SIG_PREFIX);
-        data.push(request.version);
-        data.extend_from_slice(request.action.to_string().as_bytes());
-        data.extend_from_slice(request.device_id.as_bytes());
-        data.extend_from_slice(&request.challenge);
+        data.extend_from_slice(&request.serialize(false));
 
         let message = create_message(&data)?;
 
@@ -93,16 +90,16 @@ mod tests {
 
     fn create_test_request(hw_auth_sk: &SecretKey) -> GrantRequest {
         let version = GRANT_PROTOCOL_VERSION;
-        let action = "TRANSACTION_VERIFICATION".to_string();
+        let action = 1;
         let device_id = "test-device-12345".to_string();
         let challenge = "random-challenge-98765".as_bytes().to_vec();
 
         let mut signable_data = Vec::new();
         signable_data.extend_from_slice(GRANT_REQUEST_SIG_PREFIX);
         signable_data.push(version);
-        signable_data.extend_from_slice(action.to_string().as_bytes());
         signable_data.extend_from_slice(device_id.as_bytes());
         signable_data.extend_from_slice(&challenge);
+        signable_data.push(action);
 
         let secp = Secp256k1::new();
         let hash = Sha256::digest(&signable_data);
@@ -155,7 +152,7 @@ mod tests {
 
         let grant = result.unwrap();
         assert_eq!(grant.version, GRANT_PROTOCOL_VERSION);
-        assert_eq!(grant.serialized_request, request.serialize());
+        assert_eq!(grant.serialized_request, request.serialize(true));
     }
 
     #[test]

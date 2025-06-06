@@ -37,6 +37,8 @@ data class MoneyHomeUiProps(
 
     data object Settings : Origin()
 
+    data object SecurityHub : Origin()
+
     data object LostHardwareRecovery : Origin()
 
     data class PartnershipsSell(

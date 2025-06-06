@@ -2,7 +2,10 @@ use tracing::instrument;
 
 use types::{
     account::identifiers::AccountId,
-    transaction_verification::{entities::TransactionVerification, TransactionVerificationId},
+    transaction_verification::{
+        entities::{TransactionVerification, TransactionVerificationPending},
+        TransactionVerificationId,
+    },
 };
 
 use crate::error::TransactionVerificationError;
@@ -21,5 +24,17 @@ impl Service {
             return Err(TransactionVerificationError::InvalidVerificationId);
         }
         Ok(tx_verification)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn fetch_pending_with_web_auth_token(
+        &self,
+        web_auth_token: String,
+    ) -> Result<TransactionVerificationPending, TransactionVerificationError> {
+        let tx_verification = self.repo.fetch_by_web_auth_token(web_auth_token).await?;
+        let TransactionVerification::Pending(pending_verification) = tx_verification else {
+            return Err(TransactionVerificationError::InvalidWebAuthToken);
+        };
+        Ok(pending_verification)
     }
 }

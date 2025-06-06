@@ -8,6 +8,7 @@
 #include "bitlog.h"
 #include "ecc.h"
 #include "filesystem.h"
+#include "grant_protocol.h"
 #include "hash.h"
 #include "ipc.h"
 #include "key_manager_task_impl.h"
@@ -422,10 +423,72 @@ out:
   proto_send_rsp(cmd, rsp);
 }
 
+static fwpb_status handle_grant_request(grant_action_t action, grant_request_t* grant_request) {
+  grant_protocol_result_t result = grant_protocol_create_request(action, grant_request);
+
+  switch (result) {
+    case GRANT_RESULT_OK:
+      return fwpb_status_SUCCESS;
+    case GRANT_RESULT_ERROR_SIGNING:
+      return fwpb_status_SIGNING_FAILED;
+    default:
+      return fwpb_status_ERROR;
+  }
+}
+
+static fwpb_status handle_grant_finalize(grant_t* grant) {
+  grant_protocol_result_t result = grant_protocol_verify_grant(grant);
+  switch (result) {
+    case GRANT_RESULT_OK:
+      return fwpb_status_SUCCESS;
+    case GRANT_RESULT_ERROR_VERIFICATION:
+      return fwpb_status_VERIFICATION_FAILED;
+    case GRANT_RESULT_ERROR_REQUEST_MISMATCH:
+      return fwpb_status_REQUEST_MISMATCH;
+    case GRANT_RESULT_ERROR_VERSION_MISMATCH:
+      return fwpb_status_VERSION_MISMATCH;
+    default:
+      return fwpb_status_ERROR;
+  }
+}
+
+void handle_fingerprint_reset_request(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_fingerprint_reset_request_rsp_tag;
+  rsp->status = fwpb_status_ERROR;
+
+  grant_request_t grant_request = {0};
+  rsp->status = handle_grant_request(ACTION_FINGERPRINT_RESET, &grant_request);
+  if (rsp->status != fwpb_status_SUCCESS) {
+    goto out;
+  }
+
+  rsp->msg.fingerprint_reset_request_rsp.grant_request.size = sizeof(grant_request);
+  memcpy(rsp->msg.fingerprint_reset_request_rsp.grant_request.bytes, &grant_request,
+         sizeof(grant_request));
+
+out:
+  proto_send_rsp(cmd, rsp);
+}
+
+void handle_fingerprint_reset_finalize(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_fingerprint_reset_finalize_rsp_tag;
+
+  grant_t* grant = (grant_t*)cmd->msg.fingerprint_reset_finalize_cmd.grant.bytes;
+  rsp->status = handle_grant_finalize(grant);
+
+  proto_send_rsp(cmd, rsp);
+}
+
 void key_manager_thread(void* UNUSED(args)) {
   sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
 
-  if (onboarding_auth_is_setup() == SECURE_FALSE) {
+  if (onboarding_complete() == SECURE_FALSE) {
     // TODO(W-3920) Yeah, yeah, yeah... I know.
     // Need this sleep to ensure this animation doesn't play just before the charging indicator.
     // The proper fix is an animation state machine; see ticket.
@@ -472,6 +535,14 @@ void key_manager_thread(void* UNUSED(args)) {
       case IPC_KEY_MANAGER_CLEAR_DERIVED_KEY_CACHE:
         wallet_clear_derived_key_cache();
         break;
+      case IPC_PROTO_FINGERPRINT_RESET_REQUEST_CMD: {
+        handle_fingerprint_reset_request(&message);
+        break;
+      }
+      case IPC_PROTO_FINGERPRINT_RESET_FINALIZE_CMD: {
+        handle_fingerprint_reset_finalize(&message);
+        break;
+      }
       default:
         LOGE("unknown message %ld", message.tag);
     }

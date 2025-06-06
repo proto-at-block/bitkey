@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Verification</title>
+    <link rel="stylesheet" href="/static/main.css">
+    <script type="text/javascript" src="/static/main.js"></script>
+</head>
+<body>
+    <h1>Transaction Verification</h1>
+    
+    <div class="transaction-box">
+        <p>Please verify the following transaction details:</p>
+        <div class="amount">Amount: <span id="amount">$AMOUNT_SATS</span> satoshis</div>
+        <p>Sending to:</p>
+        <div class="recipient" id="recipient">$RECIPIENT</div>
+    </div>
+    
+    <div class="buttons">
+        <button class="confirm" id="confirmBtn">Confirm Transaction</button>
+        <button class="cancel" id="cancelBtn">Cancel Transaction</button>
+    </div>
+    
+    <!-- MOCK DATA: This will be replaced by the server with real data -->
+    <script type="application/json" id="verification-params">
+    {
+        "amountSats": 1,
+        "recipient": "bc1thisisafakeaddress012345678",
+        "confirmToken": "mock-confirm-token",
+        "cancelToken": "mock-cancel-token"
+    }
+    </script>
+</body>
+</html> 

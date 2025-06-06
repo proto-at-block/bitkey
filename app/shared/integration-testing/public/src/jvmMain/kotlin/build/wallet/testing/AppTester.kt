@@ -269,7 +269,12 @@ private fun createAppComponent(
     writableCloudStoreAccountRepository = writableCloudStoreAccountRepository,
     cloudKeyValueStore = cloudKeyValueStore,
     cloudFileStore = cloudFileStore
-  )
+  ).also {
+    // prevent inheritance upsell from being shown in tests
+    appScope.launch {
+      it.inheritanceUpsellService.markUpsellAsSeen()
+    }
+  }
 }
 
 private fun createBlockchainControl(networkType: BitcoinNetworkType): BlockchainControl =

@@ -9,6 +9,8 @@ import build.wallet.availability.F8eUnreachable
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
@@ -29,6 +31,8 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsProps
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsUiStateMachine
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -68,6 +72,10 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
           "firmware metadata"
         ) {},
+      resetFingerprintsUiStateMachine =
+        object : ResetFingerprintsUiStateMachine, ScreenStateMachineMock<ResetFingerprintsProps>(
+          "reset fingerprints"
+        ) {},
       dateTimeFormatter = DateTimeFormatterMock(),
       timeZoneProvider = TimeZoneProviderMock(),
       durationFormatter = DurationFormatterFake(),
@@ -79,7 +87,10 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         ) {},
       firmwareDataService = firmwareDataService,
       clock = clock,
-      navigatorPresenter = NavigatorPresenterFake()
+      navigatorPresenter = NavigatorPresenterFake(),
+      fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(
+        featureFlagDao = FeatureFlagDaoFake()
+      )
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -264,14 +275,16 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         }
       }
 
+      // Expect the options sheet
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .body.shouldBeInstanceOf<FormBodyModel>().apply {
+          primaryButton.shouldNotBeNull().onClick()
+        }
+
       // Going to manage fingerprints
       awaitBody<NavigatorModelFake> {
         initialScreen.shouldBeTypeOf<ManagingFingerprintsScreen>()
-        onExit()
       }
-
-      // Back on the device settings screen
-      awaitBody<FormBodyModel>()
     }
   }
 
@@ -286,6 +299,12 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
           listGroupModel.items[0].onClick!!()
         }
       }
+
+      // Expect the options sheet
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .body.shouldBeInstanceOf<FormBodyModel>().apply {
+          primaryButton.shouldNotBeNull().onClick()
+        }
 
       // Going to manage fingerprints
       awaitBody<NavigatorModelFake> {

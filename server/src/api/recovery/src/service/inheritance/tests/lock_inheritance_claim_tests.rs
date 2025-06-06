@@ -39,6 +39,7 @@ async fn test_lock_inheritance_claim_success() {
         &recovery_relationship_id,
         &sealed_dek,
         &sealed_mobile_key,
+        None,
     )
     .await;
 
@@ -79,7 +80,10 @@ async fn test_lock_inheritance_claim_success() {
         .into_multisig_descriptor()
         .unwrap();
     assert_eq!(
-        locked_claim.benefactor_descriptor_keyset.to_string(),
+        locked_claim
+            .benefactor_descriptor_keyset
+            .unwrap()
+            .to_string(),
         expected_descriptor_keyset.to_string()
     );
 
@@ -111,6 +115,7 @@ async fn test_lock_inheritance_claim_before_delay_end_fails() {
         &recovery_relationship_id,
         "test_dek",
         "test_mobile_key",
+        None,
     )
     .await;
 
@@ -261,6 +266,7 @@ async fn test_lock_inheritance_claim_canceled_claim() {
         &recovery_relationship_id,
         &sealed_dek,
         &sealed_mobile_key,
+        None,
     )
     .await;
 
@@ -313,6 +319,7 @@ async fn test_lock_inheritance_claim_locked_claim_success() {
         &recovery_relationship_id,
         &sealed_dek,
         &sealed_mobile_key,
+        None,
     )
     .await;
 

@@ -10,6 +10,7 @@ import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
@@ -18,6 +19,7 @@ import build.wallet.fwup.FirmwareDataService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
+import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
@@ -31,8 +33,11 @@ import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.*
 import build.wallet.statemachine.settings.full.device.FirmwareDeviceAvailability.None
 import build.wallet.statemachine.settings.full.device.FirmwareDeviceAvailability.Present
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
+import build.wallet.statemachine.settings.full.device.fingerprints.ManageFingerprintsOptionsSheetModel
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsProps
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsUiStateMachine
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
@@ -49,6 +54,7 @@ import kotlinx.datetime.toLocalDateTime
 class DeviceSettingsUiStateMachineImpl(
   private val lostHardwareRecoveryUiStateMachine: LostHardwareRecoveryUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val resetFingerprintsUiStateMachine: ResetFingerprintsUiStateMachine,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
@@ -58,6 +64,7 @@ class DeviceSettingsUiStateMachineImpl(
   private val firmwareDataService: FirmwareDataService,
   private val clock: Clock,
   private val navigatorPresenter: NavigatorPresenter,
+  private val fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
 ) : DeviceSettingsUiStateMachine {
   @Composable
   override fun model(props: DeviceSettingsProps): ScreenModel {
@@ -78,6 +85,8 @@ class DeviceSettingsUiStateMachineImpl(
     val firmwareData = remember {
       firmwareDataService.firmwareData()
     }.collectAsState().value
+
+    val isFingerprintResetEnabled by fingerprintResetFeatureFlag.flagValue().collectAsState()
 
     return when (val state = uiState) {
       is ViewingDeviceDataUiState -> {
@@ -113,23 +122,38 @@ class DeviceSettingsUiStateMachineImpl(
           replaceDeviceEnabled = replaceDeviceEnabled,
           firmwareData = firmwareData,
           onManageFingerprints = {
-            uiState = ManagingFingerprintsUiState
+            uiState = ViewingDeviceDataUiState(
+              showingManageFingerprintsOptions = true
+            )
           }
         ).copy(
           alertModel = alertModel,
-          bottomSheetModel = PromptingForFingerprintFwUpSheetModel(
-            onCancel = { uiState = ViewingDeviceDataUiState() },
-            onUpdate = {
-              uiState = when (val fwupState = firmwareData.firmwareUpdateState) {
-                is FirmwareData.FirmwareUpdateState.PendingUpdate -> UpdatingFirmwareUiState(
-                  pendingFirmwareUpdate = fwupState
-                )
-                FirmwareData.FirmwareUpdateState.UpToDate -> {
-                  ViewingDeviceDataUiState()
+          bottomSheetModel = when {
+            state.showingPromptForFingerprintFwUpdate -> PromptingForFingerprintFwUpSheetModel(
+              onCancel = { uiState = ViewingDeviceDataUiState() },
+              onUpdate = {
+                uiState = when (val fwupState = firmwareData.firmwareUpdateState) {
+                  is FirmwareData.FirmwareUpdateState.PendingUpdate -> UpdatingFirmwareUiState(
+                    pendingFirmwareUpdate = fwupState
+                  )
+                  FirmwareData.FirmwareUpdateState.UpToDate -> {
+                    ViewingDeviceDataUiState()
+                  }
                 }
               }
-            }
-          ).takeIf { state.showingPromptForFingerprintFwUpdate }
+            )
+            state.showingManageFingerprintsOptions -> ManageFingerprintsOptionsSheetModel(
+              onDismiss = { uiState = ViewingDeviceDataUiState() },
+              onEditFingerprints = {
+                uiState = ManagingFingerprintsUiState
+              },
+              onCannotUnlock = {
+                uiState = ResetFingerprintsUiState
+              },
+              fingerprintResetEnabled = isFingerprintResetEnabled.value
+            )
+            else -> null
+          } as? SheetModel
         )
       }
 
@@ -204,6 +228,15 @@ class DeviceSettingsUiStateMachineImpl(
             onBack = { uiState = ViewingDeviceDataUiState() },
             onSuccess = props.onUnwindToMoneyHome,
             fullAccount = props.account
+          )
+        )
+      }
+
+      is ResetFingerprintsUiState -> {
+        resetFingerprintsUiStateMachine.model(
+          props = ResetFingerprintsProps(
+            onComplete = { uiState = ViewingDeviceDataUiState() },
+            onCancel = { uiState = ViewingDeviceDataUiState() }
           )
         )
       }
@@ -329,6 +362,7 @@ sealed interface DeviceSettingsUiState {
    */
   data class ViewingDeviceDataUiState(
     val showingPromptForFingerprintFwUpdate: Boolean = false,
+    val showingManageFingerprintsOptions: Boolean = false,
   ) : DeviceSettingsUiState
 
   /**
@@ -357,6 +391,11 @@ sealed interface DeviceSettingsUiState {
    * Managing (i.e. adding/editing/deleting) enrolled fingerprints
    */
   data object ManagingFingerprintsUiState : DeviceSettingsUiState
+
+  /**
+   * Showing the reset fingerprints flow
+   */
+  data object ResetFingerprintsUiState : DeviceSettingsUiState
 
   /**
    * Wiping the device

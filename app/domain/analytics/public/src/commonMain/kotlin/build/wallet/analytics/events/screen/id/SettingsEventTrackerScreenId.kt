@@ -18,4 +18,7 @@ enum class SettingsEventTrackerScreenId : EventTrackerScreenId {
 
   /** The settings screen for enabling biometrics is showing */
   SETTING_BIOMETRICS,
+
+  /** The sheet for managing or resetting fingerprints is showing */
+  SETTINGS_MANAGE_FINGERPRINTS_OPTIONS_SHEET,
 }

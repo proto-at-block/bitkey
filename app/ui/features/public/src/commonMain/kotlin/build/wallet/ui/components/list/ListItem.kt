@@ -44,6 +44,7 @@ fun ListItem(
       modifier = modifier,
       title = AnnotatedString(title),
       titleLabel = titleLabel,
+      allowFontScaling = allowFontScaling,
       contentAlignment =
         when (titleAlignment) {
           ListItemTitleAlignment.LEFT -> Alignment.Start
@@ -118,6 +119,7 @@ fun ListItem(
 fun ListItem(
   modifier: Modifier = Modifier,
   title: String,
+  allowFontScaling: Boolean = true,
   contentAlignment: Alignment.Horizontal = Alignment.Start,
   titleTreatment: LabelTreatment = Primary,
   titleType: LabelType = LabelType.Body2Medium,
@@ -139,6 +141,7 @@ fun ListItem(
   ListItem(
     modifier = modifier,
     title = AnnotatedString(title),
+    allowFontScaling = allowFontScaling,
     contentAlignment = contentAlignment,
     titleTreatment = titleTreatment,
     titleType = titleType,
@@ -177,6 +180,7 @@ fun ListItem(
 fun ListItem(
   modifier: Modifier = Modifier,
   title: AnnotatedString,
+  allowFontScaling: Boolean = true,
   contentAlignment: Alignment.Horizontal = Alignment.Start,
   titleTreatment: LabelTreatment = Primary,
   titleType: LabelType = LabelType.Body2Medium,
@@ -231,13 +235,15 @@ fun ListItem(
             Label(
               text = title,
               treatment = titleTreatment,
-              type = titleType
+              type = titleType,
+              allowFontScaling = allowFontScaling
             )
           } else {
             Label(
               model = titleLabel,
               treatment = titleTreatment,
-              type = titleType
+              type = titleType,
+              allowFontScaling = allowFontScaling
             )
           }
 
@@ -260,7 +266,8 @@ fun ListItem(
         {
           Label(
             text = secondaryText,
-            type = secondaryTextType
+            type = secondaryTextType,
+            allowFontScaling = allowFontScaling
           )
         }
       },
@@ -270,7 +277,8 @@ fun ListItem(
           Label(
             text = sideText,
             type = titleType,
-            alignment = TextAlign.End
+            alignment = TextAlign.End,
+            allowFontScaling = allowFontScaling
           )
         }
       },
@@ -281,7 +289,8 @@ fun ListItem(
             text = secondarySideText,
             type = LabelType.Body3Regular,
             treatment = LabelTreatment.Secondary,
-            alignment = TextAlign.End
+            alignment = TextAlign.End,
+            allowFontScaling = allowFontScaling
           )
         }
       },

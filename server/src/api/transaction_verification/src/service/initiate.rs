@@ -2,6 +2,7 @@ use super::Service;
 use crate::error::TransactionVerificationError;
 use account::service::FetchAccountInput;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
+use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use bdk_utils::get_total_outflow_for_psbt;
 use exchange_rate::currency_conversion::sats_for;
 use exchange_rate::error::ExchangeRateError;
@@ -12,9 +13,13 @@ use notification::{NotificationPayloadBuilder, NotificationPayloadType};
 use tracing::instrument;
 use types::account::entities::TransactionVerificationPolicy::{Always, Never, Threshold};
 use types::account::money::Money;
+use types::currencies::CurrencyCode;
 use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
 use types::exchange_rate::local_rate_provider::LocalRateProvider;
-use types::transaction_verification::entities::TransactionVerificationPending;
+use types::transaction_verification::entities::{
+    BitcoinDisplayUnit, TransactionVerificationPending,
+};
+use types::transaction_verification::router::TransactionVerificationApprovalView;
 use types::transaction_verification::service::WalletProvider;
 use types::{
     account::identifiers::AccountId,
@@ -28,9 +33,11 @@ impl Service {
     pub async fn initiate<W: WalletProvider>(
         &self,
         account_id: &AccountId,
+        hardware_auth_pubkey: PublicKey,
         wallet_provider: W,
         psbt: Psbt,
-        hw_grant: String,
+        fiat_currency: CurrencyCode,
+        bitcoin_display_unit: BitcoinDisplayUnit,
         should_prompt_user: bool,
     ) -> Result<InitiateVerificationResult, TransactionVerificationError> {
         let needs_verify = self
@@ -38,16 +45,29 @@ impl Service {
             .await?;
 
         let result = if !needs_verify {
+            let grant = self
+                .grant_service
+                .approve_psbt(&psbt.to_string(), hardware_auth_pubkey)
+                .await
+                .map_err(TransactionVerificationError::from)?;
             InitiateVerificationResult::SignedWithoutVerification {
                 psbt,
-                hw_grant: "".to_string(),
-                signature: "".to_string(),
+                hw_grant: TransactionVerificationApprovalView {
+                    version: grant.version,
+                    hw_auth_public_key: grant.hw_auth_public_key,
+                    allowed_hash: grant.allowed_hash,
+                    signature: grant.signature,
+                },
             }
         } else if !should_prompt_user {
             InitiateVerificationResult::VerificationRequired
         } else {
-            let tx_verification =
-                TransactionVerification::new_pending(account_id, psbt, hw_grant.to_string());
+            let tx_verification = TransactionVerification::new_pending(
+                account_id,
+                psbt,
+                fiat_currency,
+                bitcoin_display_unit,
+            );
             let pending = match tx_verification.clone() {
                 TransactionVerification::Pending(p) => &p.clone(),
                 _ => unreachable!("Expected TransactionVerification::Pending"),

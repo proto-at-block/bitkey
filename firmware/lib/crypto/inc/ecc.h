@@ -57,6 +57,10 @@ bool crypto_ecc_secp256k1_ecdsa_sign_hash32(key_handle_t* privkey, uint8_t* hash
 
 bool crypto_ecc_secp256k1_priv_verify(const uint8_t privkey[SECP256K1_KEY_SIZE]);
 
+bool crypto_ecc_secp256k1_verify_signature(const uint8_t pubkey[SECP256K1_KEY_SIZE],
+                                           const uint8_t* message, uint32_t message_size,
+                                           const uint8_t signature[ECC_SIG_SIZE]);
+
 // Returns the x-only public key
 bool crypto_ecc_secp256k1_priv_to_xonly_pub(uint8_t privkey[SECP256K1_KEY_SIZE],
                                             uint8_t pubkey_out[SECP256K1_KEY_SIZE],

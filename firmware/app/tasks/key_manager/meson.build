@@ -16,6 +16,7 @@ deps = [
   animation_dep,
   secure_channel_dep,
   onboarding_dep,
+  grant_dep,
   policy_dep,
 ]
 

@@ -16,7 +16,6 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FirmwareData
-import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.onboarding.OnboardingCompletionService
@@ -46,7 +45,8 @@ import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritance
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.*
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.PromptingForFwUpUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.ACTIVITY
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
@@ -102,7 +102,6 @@ class MoneyHomeUiStateMachineImpl(
   private val partnershipsSellUiStateMachine: PartnershipsSellUiStateMachine,
   private val failedPartnerTransactionUiStateMachine: FailedPartnerTransactionUiStateMachine,
   private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
-  private val inheritanceUpsellService: InheritanceUpsellService,
   private val completeClaimUiStateMachine: CompleteInheritanceClaimUiStateMachine,
   private val declineInheritanceClaimUiStateMachine: DeclineInheritanceClaimUiStateMachine,
   private val onboardingCompletionService: OnboardingCompletionService,
@@ -115,21 +114,17 @@ class MoneyHomeUiStateMachineImpl(
     }.collectAsState(initial = false)
 
     var hasAutoShownSocialRecoveryScreen by remember { mutableStateOf(false) }
-    val shouldShowUpsell = remember { mutableStateOf(false) }
-
     val scope = rememberStableCoroutineScope()
 
-    LaunchedEffect("check-for-upsell") {
+    LaunchedEffect("mark-onboarding-completed") {
       // Ensure onboarding is recorded for users who completed it before
       // this feature was introduced
-      shouldShowUpsell.value = inheritanceUpsellService.shouldShowUpsell()
       onboardingCompletionService.recordCompletionIfNotExists()
     }
 
     var uiState: MoneyHomeUiState by remember(
       props.origin,
-      justCompletingSocialRecovery,
-      shouldShowUpsell.value
+      justCompletingSocialRecovery
     ) {
       val initialState = when (val origin = props.origin) {
         MoneyHomeUiProps.Origin.Launch -> {
@@ -149,14 +144,6 @@ class MoneyHomeUiStateMachineImpl(
                   )
                 else -> ViewingBalanceUiState()
               }
-            shouldShowUpsell.value -> {
-              scope.launch {
-                inheritanceUpsellService.markUpsellAsSeen()
-              }
-              ViewingBalanceUiState(
-                bottomSheetDisplayState = InheritanceUpsell
-              )
-            }
             else -> ViewingBalanceUiState()
           }
         }
@@ -512,24 +499,23 @@ class MoneyHomeUiStateMachineImpl(
   ): ScreenModel {
     val scope = rememberStableCoroutineScope()
     return lostHardwareUiStateMachine.model(
-      props =
-        LostHardwareRecoveryProps(
-          account = account,
-          lostHardwareRecoveryData = lostHardwareRecoveryData,
-          onExit = onExit,
-          onFoundHardware = {
-            scope.launch {
-              // Set the flag to no longer show the replace hardware card nudge
-              // this flag is used by the MoneyHomeCardsUiStateMachine
-              // and toggled on by the FullAccountCloudBackupRestorationUiStateMachine
-              recoveryIncompleteRepository.setHardwareReplacementNeeded(false)
-            }
-            onExit()
-          },
-          screenPresentationStyle = Modal,
-          instructionsStyle = instructionsStyle,
-          onComplete = onExit
-        )
+      props = LostHardwareRecoveryProps(
+        account = account,
+        lostHardwareRecoveryData = lostHardwareRecoveryData,
+        onExit = onExit,
+        onFoundHardware = {
+          scope.launch {
+            // Set the flag to no longer show the replace hardware card nudge
+            // this flag is used by the MoneyHomeCardsUiStateMachine
+            // and toggled on by the FullAccountCloudBackupRestorationUiStateMachine
+            recoveryIncompleteRepository.setHardwareReplacementNeeded(false)
+          }
+          onExit()
+        },
+        screenPresentationStyle = Modal,
+        instructionsStyle = instructionsStyle,
+        onComplete = onExit
+      )
     )
   }
 }
@@ -574,11 +560,6 @@ sealed interface MoneyHomeUiState {
        * to add an additional fingerprint.
        */
       data object PromptingForFwUpUiState : BottomSheetDisplayState
-
-      /**
-       * Showing the inheritance upsell modal
-       */
-      data object InheritanceUpsell : BottomSheetDisplayState
     }
   }
 

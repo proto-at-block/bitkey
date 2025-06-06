@@ -318,9 +318,56 @@ public final class NfcCommandsImpl: NfcCommands {
             .transceive(session: session)
         )
     }
+
+    public func getGrantRequest(
+        session: NfcSession,
+        action: Shared.GrantAction
+    ) async throws -> Shared.GrantRequest {
+        switch action {
+        case Shared.GrantAction.fingerprintReset:
+            let grantRequestBytes = try await FingerprintResetRequest().transceive(session: session)
+            guard let grantRequest = Shared.GrantRequest.Companion()
+                .fromBytes(bytes: OkioKt.ByteString(data: Data(grantRequestBytes)))
+            else {
+                throw GrantRequestError.parsingFailed
+            }
+            return grantRequest
+        default:
+            throw GrantRequestError.unsupportedAction(action.description())
+        }
+    }
+
+    public func provideGrant(
+        session: NfcSession,
+        grant: Shared.Grant
+    ) async throws -> KotlinBoolean {
+        guard let grantPayloadBytes = grant.toBytes()?.toByteArray().asUInt8Array() else {
+            fatalError("Failed to serialize Grant for device command")
+        }
+        return try await .init(
+            bool: FingerprintResetFinalize(
+                grantPayload: grantPayloadBytes
+            )
+            .transceive(session: session)
+        )
+    }
 }
 
 // MARK: -
+
+private enum GrantRequestError: LocalizedError {
+    case unsupportedAction(String)
+    case parsingFailed
+
+    public var errorDescription: String? {
+        switch self {
+        case let .unsupportedAction(actionName):
+            return "Unsupported GrantAction: \(actionName)"
+        case .parsingFailed:
+            return "Failed to parse GrantRequest from device response"
+        }
+    }
+}
 
 private extension Shared.FwupMode {
     func toCoreFwupMode() -> firmware.FwupMode {

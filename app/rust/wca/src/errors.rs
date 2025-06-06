@@ -92,6 +92,8 @@ pub enum CommandError {
     BadStatus(i32),
     #[error("policy violation")]
     PolicyViolation,
+    #[error("request mismatch")]
+    RequestMismatch,
 }
 
 impl<T> From<PoisonError<T>> for CommandError {

@@ -175,7 +175,9 @@ class SecurityHubPresenter(
       }.filterNotNull().toImmutableList()
     )
 
-    val firmwareUpdateData = firmwareDataService.firmwareData().value.firmwareUpdateState
+    val firmwareUpdateData by remember {
+      firmwareDataService.firmwareData()
+    }.collectAsState()
 
     // Mark all recommendations as viewed when Security Hub is entered
     LaunchedEffect("mark-all-recommendations-viewed") {
@@ -190,11 +192,11 @@ class SecurityHubPresenter(
       isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
       // TODO W-11412 filter this in the service
       atRiskRecommendations = recommendations.filter {
-        it == BACKUP_EAK || it == BACKUP_MOBILE_KEY || it == PAIR_HARDWARE_DEVICE
+        it == BACKUP_MOBILE_KEY || it == PAIR_HARDWARE_DEVICE
       }.toImmutableList(),
       // TODO W-11412 filter this in the service
       recommendations = recommendations.filter {
-        it != BACKUP_EAK && it != BACKUP_MOBILE_KEY && it != PAIR_HARDWARE_DEVICE
+        it != BACKUP_MOBILE_KEY && it != PAIR_HARDWARE_DEVICE
       }.toImmutableList(),
       cardsModel = cardsModel,
       securityActions = securityActions,
@@ -205,11 +207,15 @@ class SecurityHubPresenter(
             screen = SecurityHubEducationScreen.RecommendationEducation(
               recommendation = recommendation,
               originScreen = screen,
-              firmwareData = firmwareUpdateData
+              firmwareData = firmwareUpdateData.firmwareUpdateState
             )
           )
         } else {
-          navigator.navigateToScreen(recommendation.navigationScreenId(), screen, firmwareUpdateData)
+          navigator.navigateToScreen(
+            recommendation.navigationScreenId(),
+            screen,
+            firmwareUpdateData.firmwareUpdateState
+          )
         }
       },
       onSecurityActionClick = { securityAction ->
@@ -218,11 +224,15 @@ class SecurityHubPresenter(
             screen = ActionEducation(
               action = securityAction,
               originScreen = screen,
-              firmwareData = firmwareUpdateData
+              firmwareData = firmwareUpdateData.firmwareUpdateState
             )
           )
         } else {
-          navigator.navigateToScreen(securityAction.navigationScreenId(), screen, firmwareUpdateData)
+          navigator.navigateToScreen(
+            securityAction.navigationScreenId(),
+            screen,
+            firmwareUpdateData.firmwareUpdateState
+          )
         }
       },
       onHomeTabClick = {

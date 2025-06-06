@@ -217,6 +217,7 @@ pub async fn create_locked_claim(
         &recovery_relationship_id,
         &sealed_dek,
         &sealed_mobile_key,
+        None,
     )
     .await;
 
@@ -281,11 +282,13 @@ pub async fn create_inheritance_package(
     recovery_relationship_id: &RecoveryRelationshipId,
     sealed_dek: &str,
     sealed_mobile_key: &str,
+    sealed_descriptor: Option<&str>,
 ) {
     let package = Package {
         recovery_relationship_id: recovery_relationship_id.to_owned(),
         sealed_dek: sealed_dek.to_string(),
         sealed_mobile_key: sealed_mobile_key.to_string(),
+        sealed_descriptor: sealed_descriptor.map(|s| s.to_string()),
 
         updated_at: OffsetDateTime::now_utc(),
         created_at: OffsetDateTime::now_utc(),

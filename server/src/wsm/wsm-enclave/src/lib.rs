@@ -58,7 +58,9 @@ use wsm_common::messages::api::EvaluatePinResponse;
 use wsm_common::messages::api::NoiseInitiateBundleRequest;
 use wsm_common::messages::api::NoiseInitiateBundleResponse;
 use wsm_common::messages::api::SignedPsbt;
-use wsm_common::messages::api::{AttestationDocResponse, GrantResponse};
+use wsm_common::messages::api::{
+    ApprovePsbtRequest, ApprovePsbtResponse, AttestationDocResponse, GrantResponse,
+};
 use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenResponse;
 use wsm_common::messages::enclave::EnclaveContinueShareRefreshRequest;
 use wsm_common::messages::enclave::EnclaveContinueShareRefreshResponse;
@@ -94,6 +96,7 @@ mod frost;
 mod grants;
 mod kms_tool;
 mod noise_cache;
+mod psbt_approval;
 mod psbt_verification;
 mod settings;
 
@@ -1271,6 +1274,36 @@ async fn approve_grant(
     Ok(Json(grant))
 }
 
+async fn approve_psbt(
+    State(route_state): State<RouteState>,
+    Json(request): Json<ApprovePsbtRequest>,
+) -> Result<Json<ApprovePsbtResponse>, WsmError> {
+    let keystore = route_state.keystore.clone();
+    let mut log_buffer = LogBuffer::new();
+
+    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await?;
+    let integrity_key =
+        SecretKey::from_slice(&integrity_key).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to fetch integrity key: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let psbt =
+        PartiallySignedTransaction::from_str(&request.psbt).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to parse PSBT: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let approval =
+        crate::psbt_approval::approve_psbt(integrity_key, request.hw_auth_public_key, psbt)
+            .map_err(|e| WsmError::ServerError {
+                message: format!("Failed to approve PSBT: {}", e),
+                log_buffer: log_buffer.clone(),
+            })?;
+
+    Ok(Json(ApprovePsbtResponse { approval }))
+}
+
 async fn derive_key(
     State(route_state): State<RouteState>,
     Json(request): Json<EnclaveDeriveKeyRequest>,
@@ -1618,6 +1651,7 @@ impl From<RouteState> for Router {
             .route("/initiate-share-refresh", post(initiate_share_refresh))
             .route("/continue-share-refresh", post(continue_share_refresh))
             .route("/approve-grant", post(approve_grant))
+            .route("/approve-psbt", post(approve_psbt))
             .with_state(state)
     }
 }

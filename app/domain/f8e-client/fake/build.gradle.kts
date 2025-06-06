@@ -15,6 +15,7 @@ kotlin {
         api(projects.libs.ktorClientFake)
         api(projects.domain.notificationsFake)
         api(projects.libs.timeFake)
+        implementation(projects.libs.encryptionFake)
         implementation(libs.kmp.test.kotest.assertions)
       }
     }

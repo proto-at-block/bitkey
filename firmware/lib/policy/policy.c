@@ -75,3 +75,7 @@ policy_sign_result_t bip32_sign_with_policy(extended_key_t* key_priv, derivation
 void policy_disable(void) {
   policy_ctx.enabled = false;
 }
+
+void policy_present_grant(void) {
+  policy_ctx.grant_presented = true;
+}

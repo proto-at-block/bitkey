@@ -49,6 +49,7 @@ fun selectPurchaseAmountModel(
         title = moneyDisplayFormatter.formatCompact(it),
         titleAlignment = ListItemTitleAlignment.CENTER,
         onClick = { onSelectAmount(it) },
+        allowFontScaling = false,
         selected = it == selectedAmount
       )
     }.toMutableList()

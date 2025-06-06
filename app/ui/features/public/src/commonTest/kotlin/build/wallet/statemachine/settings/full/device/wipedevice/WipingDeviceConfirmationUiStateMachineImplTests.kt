@@ -3,6 +3,8 @@ package build.wallet.statemachine.settings.full.device.wipedevice
 import app.cash.turbine.plusAssign
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
+import build.wallet.firmware.HardwareUnlockInfoServiceFake
+import build.wallet.firmware.UnlockMethod
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -13,6 +15,8 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationProps
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.statemachine.ui.matchers.shouldHaveId
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.callout.CalloutModel
@@ -25,14 +29,19 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.flow.first
 
 class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
+  val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
+  val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
+
   val stateMachine = WipingDeviceConfirmationUiStateMachineImpl(
     nfcSessionUIStateMachine =
       object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
         "wiping device nfc"
       ) {},
-    firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
+    firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+    hardwareUnlockInfoService = hardwareUnlockInfoService
   )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -137,6 +146,39 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
           }
         }
       }
+    }
+  }
+
+  test("full flow for wiping device") {
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(0)
+      }
+
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(1)
+      }
+
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().apply {
+          onClick()
+        }
+      }
+
+      awaitSheet<FormBodyModel> {
+        primaryButton.shouldNotBeNull().apply {
+          onClick()
+        }
+      }
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<Boolean>> {
+        onSuccess(true)
+      }
+
+      onConfirmWipeDeviceCalls.awaitItem()
+      firmwareDeviceInfoDao.clearCalls.awaitItem()
+
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).first().shouldBe(0)
     }
   }
 

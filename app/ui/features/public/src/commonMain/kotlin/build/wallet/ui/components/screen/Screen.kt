@@ -108,6 +108,7 @@ fun Screen(
       Screen(
         modifier = Modifier
           .weight(1f)
+          .background(style.screenBackgroundColor)
           .then(addSystemBarsPadding),
         bodyContent = {
           model.body.render()
