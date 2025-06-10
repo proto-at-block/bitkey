@@ -3,8 +3,6 @@ package build.wallet.statemachine.app
 import androidx.compose.runtime.Composable
 import bitkey.datadog.DatadogRumMonitorFake
 import bitkey.ui.framework.NavigatorPresenterFake
-import bitkey.ui.statemachine.interstitial.InterstitialUiProps
-import bitkey.ui.statemachine.interstitial.InterstitialUiStateMachine
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
@@ -184,13 +182,7 @@ class AppUiStateMachineImplTests : FunSpec({
         datadogRumMonitor = datadogRumMonitor,
         splashScreenDelay = SplashScreenDelay(10.milliseconds),
         welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
-        deviceInfoProvider = DeviceInfoProviderMock(),
-        interstitialUiStateMachine = object : InterstitialUiStateMachine {
-          @Composable
-          override fun model(props: InterstitialUiProps): ScreenModel? {
-            return null
-          }
-        }
+        deviceInfoProvider = DeviceInfoProviderMock()
       )
   }
 

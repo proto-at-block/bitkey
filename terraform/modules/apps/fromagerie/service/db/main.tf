@@ -112,6 +112,9 @@ module "notification_table" {
   point_in_time_recovery_enabled = true
   server_side_encryption_enabled = true
 
+  ttl_enabled        = true
+  ttl_attribute_name = "expiring_at"
+
   deletion_protection_enabled = var.enable_deletion_protection
 }
 

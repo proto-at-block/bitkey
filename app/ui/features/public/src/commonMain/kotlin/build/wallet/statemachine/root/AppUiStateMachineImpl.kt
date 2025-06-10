@@ -3,8 +3,6 @@ package build.wallet.statemachine.root
 import androidx.compose.runtime.*
 import bitkey.datadog.DatadogRumMonitor
 import bitkey.ui.framework.NavigatorPresenter
-import bitkey.ui.statemachine.interstitial.InterstitialUiProps
-import bitkey.ui.statemachine.interstitial.InterstitialUiStateMachine
 import build.wallet.account.AccountService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
@@ -93,7 +91,6 @@ class AppUiStateMachineImpl(
   private val splashScreenDelay: SplashScreenDelay,
   private val welcomeToBitkeyScreenDuration: WelcomeToBitkeyScreenDuration,
   private val deviceInfoProvider: DeviceInfoProvider,
-  private val interstitialUiStateMachine: InterstitialUiStateMachine,
 ) : AppUiStateMachine {
   /**
    * The last screen model emitted, if any.
@@ -200,8 +197,7 @@ class AppUiStateMachineImpl(
           },
           onCreateFullAccount = {
             uiState = State.CreatingFullAccount
-          },
-          isNewlyCreatedAccount = state.isNewlyCreatedAccount
+          }
         )
       }
       is State.ViewingFullAccount -> {
@@ -243,8 +239,7 @@ class AppUiStateMachineImpl(
               },
               onCreateFullAccount = {
                 uiState = State.CreatingFullAccount
-              },
-              isNewlyCreatedAccount = state.isNewlyCreatedAccount
+              }
             )
           }
         }
@@ -428,7 +423,6 @@ class AppUiStateMachineImpl(
     onStartLiteAccountRecovery: (CloudBackup) -> Unit,
     onStartLiteAccountCreation: (String?, StartIntent) -> Unit,
     onCreateFullAccount: () -> Unit,
-    isNewlyCreatedAccount: Boolean,
   ): ScreenModel {
     // Keep track of when to show the "Welcome to Bitkey" screen.
     // We want to show it when we transition from NoActiveAccount -> HasActiveFullAccount
@@ -453,8 +447,7 @@ class AppUiStateMachineImpl(
 
       is HasActiveFullAccountData ->
         HasActiveFullAccountDataScreenModel(
-          accountData = accountData,
-          isNewlyCreatedAccount = isNewlyCreatedAccount
+          accountData = accountData
         )
 
       is NoLongerRecoveringFullAccountData ->
@@ -532,7 +525,6 @@ class AppUiStateMachineImpl(
   @Composable
   private fun HasActiveFullAccountDataScreenModel(
     accountData: HasActiveFullAccountData,
-    isNewlyCreatedAccount: Boolean,
   ): ScreenModel {
     val shouldPromptForAuth by remember { biometricAuthService.isBiometricAuthRequired() }
       .collectAsState()
@@ -546,11 +538,6 @@ class AppUiStateMachineImpl(
         biometricPromptUiStateMachine.model(
           props = BiometricPromptProps(
             shouldPromptForAuth = shouldPromptForAuth
-          )
-        ) ?: interstitialUiStateMachine.model(
-          props = InterstitialUiProps(
-            account = accountData.account,
-            isComingFromOnboarding = isNewlyCreatedAccount
           )
         ) ?: homeScreenModel
       }
