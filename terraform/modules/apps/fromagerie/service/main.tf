@@ -35,6 +35,7 @@ locals {
     inheritance_table_name              = "${module.this.id_dot}.inheritance"
     promotion_code_table_name           = "${module.this.id_dot}.promotion_code"
     transaction_verification_table_name = "${module.this.id_dot}.transaction_verification"
+    encrypted_attachment_table_name     = "${module.this.id_dot}.encrypted_attachment"
   }
   table_name_list = [for k, name in local.tables : name]
 
@@ -90,6 +91,7 @@ locals {
     INHERITANCE_TABLE              = local.tables.inheritance_table_name
     PROMOTION_CODE_TABLE           = local.tables.promotion_code_table_name
     TRANSACTION_VERIFICATION_TABLE = local.tables.transaction_verification_table_name
+    ENCRYPTED_ATTACHMENT_TABLE     = local.tables.encrypted_attachment_table_name
   }
 
   ###############################################
@@ -230,6 +232,16 @@ module "dynamodb_tables" {
   inheritance_table_name              = local.tables.inheritance_table_name
   promotion_code_table_name           = local.tables.promotion_code_table_name
   transaction_verification_table_name = local.tables.transaction_verification_table_name
+  encrypted_attachment_table_name     = local.tables.encrypted_attachment_table_name
+}
+
+module "encrypted_attachment" {
+  source = "./encrypted-attachment"
+
+  namespace                      = var.namespace
+  fromagerie_iam_role_arn        = module.ecs_api.task_role_arn
+  fromagerie_iam_role_name       = module.ecs_api.task_role_name
+  encrypted_attachment_table_arn = module.dynamodb_tables.encrypted_attachment_table_arn
 }
 
 module "ecs_api" {
@@ -251,11 +263,12 @@ module "ecs_api" {
 
   environment = var.environment
   environment_variables = merge(local.common_env_vars, {
-    SERVER_SECURE_SITE_BASE_URL = var.secure_site_base_url
-    SERVER_WALLET_TELEMETRY     = "{service_name=${var.name}-api,mode=datadog}"
-    COGNITO_USER_POOL           = var.cognito_user_pool_id
-    COGNITO_CLIENT_ID           = var.cognito_user_pool_client_id
-    ROCKET_PORT                 = local.port
+    SERVER_INT_SECURE_SITE_BASE_URL = var.int_secure_site_base_url
+    SERVER_EXT_SECURE_SITE_BASE_URL = var.ext_secure_site_base_url
+    SERVER_WALLET_TELEMETRY         = "{service_name=${var.name}-api,mode=datadog}"
+    COGNITO_USER_POOL               = var.cognito_user_pool_id
+    COGNITO_CLIENT_ID               = var.cognito_user_pool_client_id
+    ROCKET_PORT                     = local.port
   })
   secrets = merge(local.common_secrets, {
     ONBOARDING_DEMO_MODE_CODE_HASH = data.aws_secretsmanager_secret.fromagerie_onboarding_demo_mode_credentials.arn,

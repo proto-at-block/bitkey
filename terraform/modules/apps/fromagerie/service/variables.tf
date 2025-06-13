@@ -25,9 +25,14 @@ variable "alt_subdomains" {
   default     = []
 }
 
-variable "secure_site_base_url" {
+variable "int_secure_site_base_url" {
   type        = string
-  description = "The base URL for the secure site used for out of band verification, e.g. Transaction Verification"
+  description = "The internal base URL for the secure site used to allow access to secure endpoints, e.g. Transaction Verification"
+}
+
+variable "ext_secure_site_base_url" {
+  type        = string
+  description = "The external base URL for the secure site usecases, e.g. Transaction Verification"
 }
 
 variable "dns_hosted_zone" {

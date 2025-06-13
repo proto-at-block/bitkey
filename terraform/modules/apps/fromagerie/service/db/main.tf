@@ -470,3 +470,24 @@ module "transaction_verification_table" {
 
   deletion_protection_enabled = var.enable_deletion_protection
 }
+
+module "encrypted_attachment_table" {
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table//?ref=9b66b76b2d178ca42425378deac9d9ebf95bf14e" // Tag v3.2.0
+
+  create_table = var.create_dynamodb_tables
+
+  name     = var.encrypted_attachment_table_name
+  hash_key = "partition_key"
+
+  attributes = [
+    { name = "partition_key", type = "S" }
+  ]
+
+  point_in_time_recovery_enabled = true
+  server_side_encryption_enabled = true
+
+  ttl_enabled        = true
+  ttl_attribute_name = "expiring_at"
+
+  deletion_protection_enabled = var.enable_deletion_protection
+}

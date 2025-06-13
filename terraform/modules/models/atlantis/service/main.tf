@@ -108,7 +108,11 @@ module "atlantis" {
     {
       name      = "DD_APP_KEY",
       valueFrom = data.aws_secretsmanager_secret_version.dd_app_key.arn,
-    }
+    },
+    {
+      name      = "SLACK_WEBHOOK_URL",
+      valueFrom = data.aws_secretsmanager_secret_version.slack_webhook_url.arn,
+    },
   ]
 
   alb_authenticate_oidc = {
@@ -217,6 +221,14 @@ data "aws_secretsmanager_secret" "dd_app_key" {
 
 data "aws_secretsmanager_secret_version" "dd_app_key" {
   secret_id = data.aws_secretsmanager_secret.dd_app_key.arn
+}
+
+data "aws_secretsmanager_secret" "slack_webhook_url" {
+  name = var.slack_webhook_url_secret_name
+}
+
+data "aws_secretsmanager_secret_version" "slack_webhook_url" {
+  secret_id = data.aws_secretsmanager_secret.slack_webhook_url.arn
 }
 
 data "github_ip_ranges" "ips" {}

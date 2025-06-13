@@ -13,6 +13,11 @@ variable "datadog_app_key_secret_name" {
   description = "Name of the SecretsManager secret containing the Datadog app token"
 }
 
+variable "slack_webhook_url_secret_name" {
+  type        = string
+  description = "Name of the SecretsManager secret containing the Atlantis Slack token"
+}
+
 variable "atlantis_image" {
   type        = string
   description = "Atlantis Docker image"

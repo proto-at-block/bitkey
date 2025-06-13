@@ -30,7 +30,8 @@ module "fromagerie" {
   image_name  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.us-west-2.amazonaws.com/wallet-api"
   image_tag   = var.fromagerie_image_tag
 
-  secure_site_base_url       = "https://fromagerie.${var.namespace}.${local.hosted_zone_name}"
+  int_secure_site_base_url   = "https://fromagerie.${var.namespace}.${local.hosted_zone_name}"
+  ext_secure_site_base_url   = "https://fromagerie.${var.namespace}.${local.hosted_zone_name}"
   wsm_endpoint               = local.wsm_url
   wsm_ingress_security_group = module.wsm_asg.allow_ingress_security_group_id
 

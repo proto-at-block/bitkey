@@ -17,6 +17,17 @@ workflows:
             name: TF_IN_AUTOMATION
             value: 'true'
         - run: terragrunt apply -input=false $PLANFILE --terragrunt-ignore-external-dependencies
+        - env:
+            name: SLACK_WEBHOOK_URL
+            command: 'echo "${SLACK_WEBHOOK_URL}"'
+        - run:
+            shell: bash
+            command: |
+              [[ "$PROJECT_NAME" == *prod* ]] && \
+                curl -sS --fail -X POST "$SLACK_WEBHOOK_URL" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"projectName\":\"$PROJECT_NAME\",\"pullUrl\":\"$PULL_URL\"}" \
+                || echo "Slack webhook failed"
     plan:
       steps:
         - env:
@@ -87,6 +98,16 @@ workflows:
     apply:
       steps:
         - apply
+        - env:
+            name: SLACK_WEBHOOK_URL
+            command: 'echo "${SLACK_WEBHOOK_URL}"'
+        - run:
+            shell: bash
+            command: |
+              curl -sS --fail -X POST "$SLACK_WEBHOOK_URL" \
+                -H "Content-Type: application/json" \
+                -d "{\"projectName\":\"$PROJECT_NAME\",\"pullUrl\":\"$PULL_URL\"}" \
+              || echo "Slack webhook failed"
 policies:
   owners:
     teams:

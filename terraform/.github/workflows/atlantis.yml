@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/atlantis.yml'
       - 'atlantis/**'
+      - 'modules/models/atlantis/**'
       # Keep these Hermit filters specific as we want to minimize Atlantis disruptions
       - 'bin/terragrunt'
       - 'bin/terraform'
@@ -14,6 +15,7 @@ on:
     paths:
       - '.github/workflows/atlantis.yml'
       - 'atlantis/**'
+      - 'modules/models/atlantis/**'
       # Keep these Hermit filters specific as we want to minimize Atlantis disruptions
       - 'bin/terragrunt'
       - 'bin/terraform'

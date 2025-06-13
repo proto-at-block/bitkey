@@ -9,7 +9,7 @@ terraform {
 
 locals {
   atlantis_repo = "${include.root.locals.aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/atlantis"
-  atlantis_tag  = "ed88aab93ba7ed103e33c280aa09ed6dd6ef8864"
+  atlantis_tag  = "286061a2f60defeaf39446add9852b257a8774d7"
 
   dev_vars   = read_terragrunt_config("${get_parent_terragrunt_dir()}/dev/account.hcl")
   stage_vars = read_terragrunt_config("${get_parent_terragrunt_dir()}/stage/account.hcl")
@@ -24,6 +24,7 @@ inputs = {
   github_app_private_key_secret_name = "atlantis/github-private-key"
   okta_client_secret_name            = "atlantis/okta-client-secret"
   datadog_app_key_secret_name        = "atlantis/datadog-app-key"
+  slack_webhook_url_secret_name      = "atlantis/slack-webhook-url"
   atlantis_image                     = "${local.atlantis_repo}:${local.atlantis_tag}"
   atlantis_repo_allowlist = [
     "github.com/squareup/bitkey-terraform",

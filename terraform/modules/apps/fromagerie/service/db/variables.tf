@@ -84,3 +84,8 @@ variable "transaction_verification_table_name" {
   type        = string
   description = "The name of the transaction verification table"
 }
+
+variable "encrypted_attachment_table_name" {
+  type        = string
+  description = "The name of the encrypted attachment table"
+}
