@@ -8,12 +8,14 @@ val IncomingRecoveryContactInvitationFake = IncomingInvitation(
   relationshipId = InvitationFake.relationshipId,
   code = InvitationFake.code,
   protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
-  recoveryRelationshipRoles = InvitationFake.roles
+  recoveryRelationshipRoles = InvitationFake.roles,
+  expiresAt = InvitationFake.expiresAt
 )
 
 val IncomingBeneficiaryInvitationFake = IncomingRecoveryContactInvitationFake.copy(
   relationshipId = BeneficiaryInvitationFake.relationshipId,
   code = BeneficiaryInvitationFake.code,
   protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
-  recoveryRelationshipRoles = BeneficiaryInvitationFake.roles
+  recoveryRelationshipRoles = BeneficiaryInvitationFake.roles,
+  expiresAt = BeneficiaryInvitationFake.expiresAt
 )

@@ -26,7 +26,7 @@ use mobile_pay::routes::{
 };
 use notification::routes::{
     RegisterWatchAddressRequest, RegisterWatchAddressResponse, SendTestPushData,
-    SendTestPushResponse,
+    SendTestPushResponse, SetNotificationsTriggersRequest, SetNotificationsTriggersResponse,
 };
 use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountActivateTouchpointResponse,
@@ -1692,6 +1692,19 @@ impl TestClient {
                 keys.map(|k| k.app.secret_key),
                 keys.map(|k| k.hw.secret_key),
             )
+            .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn set_notifications_triggers(
+        &self,
+        account_id: &str,
+        request: &SetNotificationsTriggersRequest,
+    ) -> Response<SetNotificationsTriggersResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/notifications/triggers"))
+            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
             .put(request)
             .call(&self.router)
             .await

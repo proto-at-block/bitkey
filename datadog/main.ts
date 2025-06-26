@@ -12,7 +12,8 @@ import { RecoveryRelationshipMonitors } from "./monitors/recoveryRelationship";
 import { PromotionCodeMonitors } from "./monitors/promotionCode";
 import { PartnershipsMonitors } from "./monitors/partnerships";
 import { ShopApiMonitors } from "./monitors/web/shop-api";
-import { ShopApiOrderUpdateJobMonitors } from "./monitors/web/shop-api-order-update-job";
+import { ShopApiProcessOrderUpdatesJobMonitors } from "./monitors/web/shop-api-process-order-updates-job";
+import { ShopApiFetchOrderUpdatesJobMonitors } from "./monitors/web/shop-api-fetch-order-updates-job";
 import { ShopApiRevenueReportingJobMonitors } from "./monitors/web/shop-api-revenue-reporting-job";
 import { RecoveryMonitors } from "./monitors/recovery";
 import { MoneyMovementMonitors } from "./monitors/moneyMovement";
@@ -63,8 +64,11 @@ class MonitorsStack extends TerraformStack {
     new ShopApiMonitors(this, Environment.STAGING)
     new ShopApiMonitors(this, Environment.PRODUCTION)
 
-    new ShopApiOrderUpdateJobMonitors(this, Environment.STAGING)
-    new ShopApiOrderUpdateJobMonitors(this, Environment.PRODUCTION)
+    new ShopApiFetchOrderUpdatesJobMonitors(this, Environment.STAGING)
+    new ShopApiFetchOrderUpdatesJobMonitors(this, Environment.PRODUCTION)
+
+    new ShopApiProcessOrderUpdatesJobMonitors(this, Environment.STAGING)
+    new ShopApiProcessOrderUpdatesJobMonitors(this, Environment.PRODUCTION)
 
     new ShopApiRevenueReportingJobMonitors(this, Environment.STAGING)
     new ShopApiRevenueReportingJobMonitors(this, Environment.PRODUCTION)

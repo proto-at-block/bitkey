@@ -13,7 +13,6 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeysAndHardwareKeys
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -98,7 +97,6 @@ class CreateFullAccountServiceImpl(
         activeSpendingKeyset = spendingKeyset,
         activeAppKeyBundle = keyCrossDraft.appKeyBundle,
         activeHwKeyBundle = keyCrossDraft.hardwareKeyBundle,
-        inactiveKeysets = emptyImmutableList(),
         appGlobalAuthKeyHwSignature = keyCrossDraft.appGlobalAuthKeyHwSignature,
         config = keyCrossDraft.config
       )

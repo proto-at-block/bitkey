@@ -73,6 +73,16 @@ class BitcoinMultiSigDescriptorBuilderImpl : BitcoinMultiSigDescriptorBuilder {
     )
   }
 
+  override fun watchingDescriptor(
+    appPublicKey: DescriptorPublicKey,
+    hardwareKey: DescriptorPublicKey,
+    serverKey: DescriptorPublicKey,
+  ): Watching {
+    return Watching(
+      "wsh(sortedmulti(2,${appPublicKey.dpub},${hardwareKey.dpub},${serverKey.dpub}))"
+    )
+  }
+
   private fun String.withReceivingChild() = withChild(isChange = false)
 
   private fun String.withChangeChild() = withChild(isChange = true)

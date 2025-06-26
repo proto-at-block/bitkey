@@ -7,8 +7,6 @@ import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.encrypt.MessageSignerFake
 import build.wallet.nfc.NfcSessionFake.Companion.invoke
 import build.wallet.platform.random.uuid
-import build.wallet.toByteString
-import build.wallet.toUByteList
 import com.github.michaelbull.result.Ok
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -36,27 +34,26 @@ class NfcCommandsFakeTests : FunSpec({
     test("happy path") {
       val csekSeed = uuid()
       val generatedCsek = Csek(key = SymmetricKeyImpl(raw = csekSeed.encodeUtf8()))
-      val sealedCsek = nfcCommands.sealKey(
+      val sealedCsek = nfcCommands.sealData(
         session = sessionFake,
-        unsealedKey = generatedCsek
+        unsealedData = generatedCsek.key.raw
       )
       nfcCommands
-        .unsealKey(sessionFake, sealedCsek.toUByteList()).toByteString()
+        .unsealData(sessionFake, sealedCsek)
         .shouldBeEqual(generatedCsek.key.raw)
     }
 
     test("cannot unseal key when appropriate private key is not present") {
       val csekSeed = uuid()
-      val generatedCsek = Csek(key = SymmetricKeyImpl(raw = csekSeed.encodeUtf8()))
-      val sealedCsek = nfcCommands.sealKey(
+      val sealedCsek = nfcCommands.sealData(
         session = sessionFake,
-        unsealedKey = generatedCsek
+        unsealedData = csekSeed.encodeUtf8()
       )
 
       fakeHardwareKeyStore.clear()
 
       shouldThrow<IllegalArgumentException> {
-        nfcCommands.unsealKey(sessionFake, sealedCsek.toUByteList())
+        nfcCommands.unsealData(sessionFake, sealedCsek)
       }.shouldHaveMessage("Appropriate fake hw auth private key missing")
     }
   }

@@ -127,7 +127,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   }
 
   test("displays locked beneficiary claim card") {
-    inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryLockedClaimFake)
+    inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryLockedClaimBothDescriptorsFake)
 
     stateMachine.test(props) {
       awaitItem().shouldBe(emptyList())
@@ -150,8 +150,8 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
 
   test("displays multiple beneficiary locked claim cards") {
     inheritanceCardService.cardsToDisplay.value = listOf(
-      BeneficiaryLockedClaimFake,
-      BeneficiaryLockedClaimFake.copy(
+      BeneficiaryLockedClaimBothDescriptorsFake,
+      BeneficiaryLockedClaimBothDescriptorsFake.copy(
         claimId = InheritanceClaimId("claim-benefactor-locked-id2")
       )
     )
@@ -184,7 +184,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   }
 
   test("displays both beneficiary locked and beneficiary pending claim cards") {
-    inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryPendingClaimFake, BeneficiaryLockedClaimFake)
+    inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryPendingClaimFake, BeneficiaryLockedClaimBothDescriptorsFake)
 
     stateMachine.test(props) {
       awaitItem().shouldBe(emptyList())

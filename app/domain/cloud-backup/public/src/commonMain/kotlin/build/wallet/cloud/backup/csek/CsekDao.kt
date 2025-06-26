@@ -6,7 +6,7 @@ interface CsekDao {
   /**
    * Access unsealed [Csek] from local storage, if available.
    *
-   * The [Csek] is created using [CsekGenerator] during hardware pairing.
+   * The [Csek] is created using [SekGenerator] during hardware pairing.
    *
    * Read [SealedCsek] and [Csek] for more details.
    */

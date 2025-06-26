@@ -26,7 +26,7 @@ import kotlin.native.HiddenFromObjC
  * this class:
  *
  * ```kotlin
- * data class EmergencyAccessKitImportWalletBodyModel(
+ * data class EmergencyExitKitImportWalletBodyModel(
  *   override val onBack: () -> Unit,
  *   val onScanQRCode: () -> Unit,
  *   val onEnterManually: () -> Unit,

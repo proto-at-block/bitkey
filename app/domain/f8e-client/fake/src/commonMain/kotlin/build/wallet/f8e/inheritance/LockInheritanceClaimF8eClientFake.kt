@@ -4,7 +4,7 @@ import app.cash.turbine.Turbine
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.challange.SignedChallenge.AppSignedChallenge
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
-import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimFake
+import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimBothDescriptorsFake
 import build.wallet.bitkey.inheritance.InheritanceClaimId
 import build.wallet.bitkey.relationships.RelationshipId
 import com.github.michaelbull.result.Ok
@@ -12,7 +12,9 @@ import com.github.michaelbull.result.Result
 
 class LockInheritanceClaimF8eClientFake(
   val calls: Turbine<InheritanceClaimId>,
-  var response: Result<BeneficiaryClaim.LockedClaim, Throwable> = Ok(BeneficiaryLockedClaimFake),
+  var response: Result<BeneficiaryClaim.LockedClaim, Throwable> = Ok(
+    BeneficiaryLockedClaimBothDescriptorsFake
+  ),
 ) : LockInheritanceClaimF8eClient {
   override suspend fun lockClaim(
     fullAccount: FullAccount,

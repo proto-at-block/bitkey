@@ -1,7 +1,5 @@
-package build.wallet.firmware.grant
+package build.wallet.grants
 
-import build.wallet.grants.GrantAction
-import build.wallet.grants.GrantRequest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe

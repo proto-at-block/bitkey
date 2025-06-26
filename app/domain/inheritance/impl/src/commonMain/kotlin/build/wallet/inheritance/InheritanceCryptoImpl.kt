@@ -3,6 +3,7 @@ package build.wallet.inheritance
 import bitkey.serialization.json.decodeFromStringResult
 import bitkey.serialization.json.encodeToStringResult
 import build.wallet.bitcoin.AppPrivateKeyDao
+import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitkey.inheritance.InheritanceKeyset
 import build.wallet.bitkey.inheritance.InheritanceMaterial
 import build.wallet.bitkey.inheritance.InheritanceMaterialHashData
@@ -14,6 +15,8 @@ import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.XCiphertext
+import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.relationships.RelationshipsCrypto
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -25,6 +28,9 @@ class InheritanceCryptoImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val relationships: InheritanceRelationshipsProvider,
   private val crypto: RelationshipsCrypto,
+  private val descriptorBuilder: BitcoinMultiSigDescriptorBuilder,
+  private val inheritanceUseEncryptedDescriptorFeatureFlag:
+    InheritanceUseEncryptedDescriptorFeatureFlag,
 ) : InheritanceCrypto {
   override suspend fun getInheritanceMaterialHashData(
     keybox: Keybox,
@@ -47,20 +53,35 @@ class InheritanceCryptoImpl(
       ?: return Err(Error("Inheritance Contacts unavailable."))
 
     return coroutineBinding {
-      val pKMatOutput = createInheritanceKeyset(keybox)
+      val pkMatOutput = createInheritanceKeyset(keybox)
         .mapError { Error("Error creating inheritance keyset", it) }
         .flatMap { Json.encodeToStringResult(it) }
         .map { it.encodeUtf8() }
         .flatMap { crypto.encryptPrivateKeyMaterial(it) }
         .bind()
+
+      val sealedDescriptor = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
+        val descriptor = descriptorBuilder.watchingDescriptor(
+          appPublicKey = keybox.activeSpendingKeyset.appKey.key,
+          hardwareKey = keybox.activeSpendingKeyset.hardwareKey.key,
+          serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key
+        ).raw.encodeUtf8()
+
+        crypto
+          .encryptDescriptor(dek = pkMatOutput.privateKeyEncryptionKey, descriptor = descriptor)
+          .bind()
+      } else {
+        null
+      }
+
       val packages = contacts.map {
         InheritanceMaterialPackage(
           relationshipId = RelationshipId(it.relationshipId),
-          sealedDek = crypto.encryptPrivateKeyEncryptionKey(
-            it.identityKey,
-            pKMatOutput.privateKeyEncryptionKey
-          ).bind(),
-          sealedMobileKey = pKMatOutput.sealedPrivateKeyMaterial
+          sealedDek = crypto
+            .encryptPrivateKeyEncryptionKey(it.identityKey, pkMatOutput.privateKeyEncryptionKey)
+            .bind(),
+          sealedMobileKey = pkMatOutput.sealedPrivateKeyMaterial,
+          sealedDescriptor = sealedDescriptor
         )
       }
 
@@ -84,22 +105,38 @@ class InheritanceCryptoImpl(
       )
     }
 
-  override suspend fun decryptInheritanceMaterial(
+  override suspend fun decryptInheritanceMaterialPackage(
     delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
     sealedDek: XCiphertext,
     sealedMobileKey: XCiphertext,
-  ): Result<InheritanceKeyset, Error> =
-    coroutineBinding {
+    sealedDescriptor: XCiphertext?,
+  ): Result<DecryptInheritanceMaterialPackageOutput, Error> {
+    return coroutineBinding {
       val pkek = crypto.decryptPrivateKeyEncryptionKey(
-        delegatedDecryptionKey = delegatedDecryptionKey,
-        sealedPrivateKeyEncryptionKey = sealedDek
+        delegatedDecryptionKey,
+        sealedDek
       )
 
-      val privateKeyMaterial = crypto.decryptPrivateKeyMaterial(
-        privateKeyEncryptionKey = pkek,
-        sealedPrivateKeyMaterial = sealedMobileKey
-      ).bind()
+      val privateKeyMaterial = crypto
+        .decryptPrivateKeyMaterial(pkek, sealedMobileKey)
+        .bind()
 
-      Json.decodeFromStringResult<InheritanceKeyset>(privateKeyMaterial.utf8())
-    }.flatMap { it }
+      val inheritanceKeyset = Json
+        .decodeFromStringResult<InheritanceKeyset>(privateKeyMaterial.utf8())
+        .bind()
+
+      val descriptor = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
+        sealedDescriptor?.let {
+          crypto.decryptPrivateKeyMaterial(pkek, it).bind().utf8()
+        }
+      } else {
+        null
+      }
+
+      DecryptInheritanceMaterialPackageOutput(
+        inheritanceKeyset = inheritanceKeyset,
+        descriptor = descriptor
+      )
+    }
+  }
 }

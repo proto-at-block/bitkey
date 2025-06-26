@@ -18,7 +18,7 @@ data class ResetFingerprintsConfirmationSheetModel(
       subline = "Press the fingerprint sensor until you see a red light to wake your Bitkey."
     ),
     primaryButton = ButtonModel.BitkeyInteractionButtonModel(
-      text = "Bitkey is awake",
+      text = "Continue",
       onClick = StandardClick(onConfirmReset),
       size = ButtonModel.Size.Footer
     ),

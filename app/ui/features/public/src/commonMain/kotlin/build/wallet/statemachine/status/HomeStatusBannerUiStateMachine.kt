@@ -1,7 +1,7 @@
 package build.wallet.statemachine.status
 
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.EekBackupStatus
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.ui.model.status.StatusBannerModel
 
@@ -20,7 +20,7 @@ data class HomeStatusBannerUiProps(
  * Represents the type of banner that can be shown in the status banner.
  */
 sealed interface BannerType {
-  /** Shown with the app is offline, inactive, in EAK mode, or when the app is unable to reach Bitkey services. */
+  /** Shown with the app is offline, inactive, in EEK mode, or when the app is unable to reach Bitkey services. */
   data object OfflineStatus : BannerType
 
   /** Shown when the customer is at risk of losing funds from lack of recovery methods. */
@@ -28,11 +28,11 @@ sealed interface BannerType {
 
   /** Shown when the customer is at risk of losing funds from lack of cloud backup. */
   data class MissingCloudBackup(
-    val problemWithBackup: MobileKeyBackupStatus.ProblemWithBackup,
+    val problemWithBackup: AppKeyBackupStatus.ProblemWithBackup,
   ) : BannerType
 
-  /** Shown when the customer is at risk of losing funds from lack of EAK. */
-  data class MissingEak(val problemWithBackup: EekBackupStatus.ProblemWithBackup) : BannerType
+  /** Shown when the customer is at risk of losing funds from lack of EEK. */
+  data class MissingEek(val problemWithBackup: EekBackupStatus.ProblemWithBackup) : BannerType
 
   /** Shown when the customer is at risk of losing funds from lack of primary touchpoint */
   data object MissingCommunication : BannerType

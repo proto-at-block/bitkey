@@ -51,8 +51,8 @@ import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiProps
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiStateMachine
 import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiProps
 import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiStateMachine
-import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachine
-import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachineProps
+import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachine
+import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
@@ -81,7 +81,7 @@ class AppUiStateMachineImpl(
   private val createLiteAccountUiStateMachine: CreateLiteAccountUiStateMachine,
   private val liteAccountCloudBackupRestorationUiStateMachine:
     LiteAccountCloudBackupRestorationUiStateMachine,
-  private val emergencyAccessKitRecoveryUiStateMachine: EmergencyAccessKitRecoveryUiStateMachine,
+  private val emergencyExitKitRecoveryUiStateMachine: EmergencyExitKitRecoveryUiStateMachine,
   private val authKeyRotationUiStateMachine: RotateAuthKeyUIStateMachine,
   private val appWorkerExecutor: AppWorkerExecutor,
   private val biometricAuthService: BiometricAuthService,
@@ -331,7 +331,6 @@ class AppUiStateMachineImpl(
           },
           onOnboardingComplete = { account ->
             scope.launch {
-              accountService.setActiveAccount(account)
               uiState = State.ViewingFullAccount(
                 account = account,
                 isNewlyCreatedAccount = true
@@ -492,9 +491,9 @@ class AppUiStateMachineImpl(
           )
         )
 
-      is RecoveringAccountWithEmergencyAccessKit ->
-        emergencyAccessKitRecoveryUiStateMachine.model(
-          EmergencyAccessKitRecoveryUiStateMachineProps(
+      is RecoveringAccountWithEmergencyExitKit ->
+        emergencyExitKitRecoveryUiStateMachine.model(
+          EmergencyExitKitRecoveryUiStateMachineProps(
             onExit = accountData.onExit
           )
         )
@@ -515,7 +514,7 @@ class AppUiStateMachineImpl(
             onStartLiteAccountCreation = {
               onStartLiteAccountCreation(it, accountData.intent)
             },
-            onImportEmergencyAccessKit = accountData.onImportEmergencyAccessKit,
+            onImportEmergencyExitKit = accountData.onImportEmergencyExitKit,
             onExit = accountData.onExit
           )
         )

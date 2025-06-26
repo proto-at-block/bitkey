@@ -16,7 +16,7 @@ export class ShopApiRevenueReportingJobMonitors extends Construct {
             },
         }
 
-        const window = "5m";
+        const window = "30m";
         const serviceName = 'web-shop-api-revenue-reporting-job';
         const common_query = `service:${serviceName} env:${environment}`;
 

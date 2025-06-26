@@ -10,9 +10,11 @@ import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.bitcoin.wallet.SpendingWalletProviderMock
-import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimFake
-import build.wallet.bitkey.inheritance.InheritanceMaterial
+import build.wallet.bitkey.inheritance.*
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.relationships.RelationshipsCryptoFake
 import build.wallet.relationships.RelationshipsKeysDaoFake
 import build.wallet.relationships.RelationshipsKeysRepository
@@ -39,6 +41,7 @@ class InheritanceTransactionFactoryTests : FunSpec({
     }
   }
   val spendingWalletProvider = SpendingWalletProviderMock()
+  val inheritanceUseEncryptedDescriptorFeatureFlag = InheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
   val factory = InheritanceTransactionFactoryImpl(
     bitcoinAddressService = addressService,
     bitcoinFeeRateEstimator = BitcoinFeeRateEstimatorMock(),
@@ -47,22 +50,109 @@ class InheritanceTransactionFactoryTests : FunSpec({
     inheritanceCrypto = InheritanceCryptoFake(
       inheritanceMaterial = Ok(InheritanceMaterial(emptyList()))
     ),
-    spendingWalletProvider = spendingWalletProvider
+    spendingWalletProvider = spendingWalletProvider,
+    inheritanceUseEncryptedDescriptorFeatureFlag = inheritanceUseEncryptedDescriptorFeatureFlag
   )
 
-  test("Create full balance transaction") {
+  beforeTest {
+    inheritanceUseEncryptedDescriptorFeatureFlag.reset()
+  }
+
+  test("Create full balance transaction w/ no sealed descriptor & ff off") {
     addressService.result = Ok(someBitcoinAddress)
     spendingWallet.psbtResult = Ok(PsbtMock)
     spendingWalletProvider.walletResult = Ok(spendingWallet)
 
     val result = factory.createFullBalanceTransaction(
       account = FullAccountMock,
-      claim = BeneficiaryLockedClaimFake
+      claim = BeneficiaryLockedClaimNoSealedDescriptorFake
     )
 
     result.isOk.shouldBeTrue()
     result.getOrThrow().run {
-      claim.shouldBe(BeneficiaryLockedClaimFake)
+      claim.shouldBe(BeneficiaryLockedClaimNoSealedDescriptorFake)
+      psbt.shouldBe(PsbtMock)
+      inheritanceWallet.shouldBe(spendingWallet)
+      recipientAddress.shouldBe(someBitcoinAddress)
+    }
+  }
+
+  test("Create full balance transaction w/ no sealed descriptor & ff on") {
+    inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
+
+    addressService.result = Ok(someBitcoinAddress)
+    spendingWallet.psbtResult = Ok(PsbtMock)
+    spendingWalletProvider.walletResult = Ok(spendingWallet)
+
+    val result = factory.createFullBalanceTransaction(
+      account = FullAccountMock,
+      claim = BeneficiaryLockedClaimNoSealedDescriptorFake
+    )
+
+    result.isOk.shouldBeTrue()
+    result.getOrThrow().run {
+      claim.shouldBe(BeneficiaryLockedClaimNoSealedDescriptorFake)
+      psbt.shouldBe(PsbtMock)
+      inheritanceWallet.shouldBe(spendingWallet)
+      recipientAddress.shouldBe(someBitcoinAddress)
+    }
+  }
+
+  test("Create full balance transaction w/ both descriptors & ff off") {
+    addressService.result = Ok(someBitcoinAddress)
+    spendingWallet.psbtResult = Ok(PsbtMock)
+    spendingWalletProvider.walletResult = Ok(spendingWallet)
+
+    val result = factory.createFullBalanceTransaction(
+      account = FullAccountMock,
+      claim = BeneficiaryLockedClaimBothDescriptorsFake
+    )
+
+    result.isOk.shouldBeTrue()
+    result.getOrThrow().run {
+      claim.shouldBe(BeneficiaryLockedClaimBothDescriptorsFake)
+      psbt.shouldBe(PsbtMock)
+      inheritanceWallet.shouldBe(spendingWallet)
+      recipientAddress.shouldBe(someBitcoinAddress)
+    }
+  }
+
+  test("Create full balance transaction w/ both descriptors & ff on") {
+    inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
+
+    addressService.result = Ok(someBitcoinAddress)
+    spendingWallet.psbtResult = Ok(PsbtMock)
+    spendingWalletProvider.walletResult = Ok(spendingWallet)
+
+    val result = factory.createFullBalanceTransaction(
+      account = FullAccountMock,
+      claim = BeneficiaryLockedClaimBothDescriptorsFake
+    )
+
+    result.isOk.shouldBeTrue()
+    result.getOrThrow().run {
+      claim.shouldBe(BeneficiaryLockedClaimBothDescriptorsFake)
+      psbt.shouldBe(PsbtMock)
+      inheritanceWallet.shouldBe(spendingWallet)
+      recipientAddress.shouldBe(someBitcoinAddress)
+    }
+  }
+
+  test("Create full balance transaction w/ no plaintext descriptor & ff on") {
+    inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
+
+    addressService.result = Ok(someBitcoinAddress)
+    spendingWallet.psbtResult = Ok(PsbtMock)
+    spendingWalletProvider.walletResult = Ok(spendingWallet)
+
+    val result = factory.createFullBalanceTransaction(
+      account = FullAccountMock,
+      claim = BeneficiaryLockedClaimNoPlaintextDescriptorFake
+    )
+
+    result.isOk.shouldBeTrue()
+    result.getOrThrow().run {
+      claim.shouldBe(BeneficiaryLockedClaimNoPlaintextDescriptorFake)
       psbt.shouldBe(PsbtMock)
       inheritanceWallet.shouldBe(spendingWallet)
       recipientAddress.shouldBe(someBitcoinAddress)
@@ -76,7 +166,7 @@ class InheritanceTransactionFactoryTests : FunSpec({
 
     val result = factory.createFullBalanceTransaction(
       account = FullAccountMock,
-      claim = BeneficiaryLockedClaimFake
+      claim = BeneficiaryLockedClaimBothDescriptorsFake
     )
 
     result.isErr.shouldBeTrue()
@@ -90,7 +180,7 @@ class InheritanceTransactionFactoryTests : FunSpec({
 
     val result = factory.createFullBalanceTransaction(
       account = FullAccountMock,
-      claim = BeneficiaryLockedClaimFake
+      claim = BeneficiaryLockedClaimBothDescriptorsFake
     )
 
     result.isErr.shouldBeTrue()

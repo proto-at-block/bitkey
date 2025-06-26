@@ -1,5 +1,6 @@
 package build.wallet.f8e.recovery
 
+import bitkey.backup.DescriptorBackup
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
@@ -21,7 +22,7 @@ import build.wallet.ktor.result.bodyResult
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import io.ktor.client.request.get
+import io.ktor.client.request.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -33,7 +34,7 @@ class ListKeysetsF8eClientImpl(
   override suspend fun listKeysets(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-  ): Result<List<SpendingKeyset>, NetworkingError> {
+  ): Result<ListKeysetsF8eClient.ListKeysetsResponse, NetworkingError> {
     return f8eHttpClient.authenticated()
       .bodyResult<ResponseBody> {
         get("/api/accounts/${fullAccountId.serverId}/keysets") {
@@ -43,7 +44,7 @@ class ListKeysetsF8eClientImpl(
         }
       }
       .map { body ->
-        body.keysets.map { keyset ->
+        val keysets = body.keysets.map { keyset ->
           val appBitcoinPublicKey = AppSpendingPublicKey(dpub = keyset.appDpub)
           val hardwareBitcoinPublicKey = HwSpendingPublicKey(dpub = keyset.hardwareDpub)
           val serverBitcoinPublicKey = F8eSpendingPublicKey(dpub = keyset.serverDpub)
@@ -59,6 +60,11 @@ class ListKeysetsF8eClientImpl(
             hardwareKey = hardwareBitcoinPublicKey
           )
         }
+
+        ListKeysetsF8eClient.ListKeysetsResponse(
+          keysets = keysets,
+          descriptorBackups = body.descriptorBackups
+        )
       }
   }
 
@@ -80,5 +86,7 @@ class ListKeysetsF8eClientImpl(
   private data class ResponseBody(
     @SerialName("keysets")
     val keysets: List<Keyset>,
+    @SerialName("descriptor_backups")
+    val descriptorBackups: List<DescriptorBackup>,
   ) : RedactedResponseBody
 }

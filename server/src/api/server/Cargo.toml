@@ -64,7 +64,7 @@ privileged_action = { workspace = true }
 promotion_code = { workspace = true }
 queue = { workspace = true }
 recovery = { workspace = true }
-repository = { workspace = true, features = ["recovery"] }
+repository = { workspace = true, features = ["account", "recovery"] }
 screener = { workspace = true }
 transaction_verification = { workspace = true }
 types = { workspace = true, features = [

@@ -18,7 +18,7 @@ class InheritanceClaimsDaoImplTests : FunSpec({
       BenefactorPendingClaimFake, BenefactorCanceledClaimFake, BenefactorLockedClaimFake
     ),
     beneficiaryClaims = listOf(
-      BeneficiaryPendingClaimFake, BeneficiaryCanceledClaimFake, BeneficiaryLockedClaimFake
+      BeneficiaryPendingClaimFake, BeneficiaryCanceledClaimFake, BeneficiaryLockedClaimBothDescriptorsFake
     )
   )
 

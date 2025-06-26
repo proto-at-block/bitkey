@@ -21,13 +21,15 @@ import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.time.ClockFake
 import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 class LiteHomeUiStateMachineImplTests : FunSpec({
 
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val clock = ClockFake()
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val onUpgradeComplete = turbines.create<Unit>("onUpgradeComplete calls")
   val stateMachine =
     LiteHomeUiStateMachineImpl(

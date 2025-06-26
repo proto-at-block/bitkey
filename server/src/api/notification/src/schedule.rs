@@ -19,6 +19,7 @@ pub enum ScheduleNotificationType {
     InheritanceClaimPeriodInitiated(OffsetDateTime, RecoveryRelationshipRole, bool),
     RecoveryRelationshipBenefactorInvitationPending,
     RecoveryRelationshipEndorsementPending,
+    SecurityHubWalletAtRisk,
 }
 
 impl ScheduleNotificationType {
@@ -190,7 +191,7 @@ impl ScheduleNotificationType {
             }
             ScheduleNotificationType::RecoveryRelationshipEndorsementPending => {
                 vec![(
-                    // Starts in 7 days
+                    // Starts now
                     // Sends every week
                     // Ends after a month
                     // =
@@ -200,6 +201,22 @@ impl ScheduleNotificationType {
                     Some(NotificationSchedule {
                         interval: Duration::days(7),
                         end_date_time: None,
+                        jitter: Some(Duration::ZERO),
+                    }),
+                )]
+            }
+            ScheduleNotificationType::SecurityHubWalletAtRisk => {
+                vec![(
+                    // Starts now
+                    // Sends every 2 days
+                    // Ends after a month
+                    // =
+                    // DAYS 0, 2, 4, ...
+                    NotificationPayloadType::SecurityHub,
+                    now,
+                    Some(NotificationSchedule {
+                        interval: Duration::days(2),
+                        end_date_time: Some(now + Duration::days(31)),
                         jitter: Some(Duration::ZERO),
                     }),
                 )]

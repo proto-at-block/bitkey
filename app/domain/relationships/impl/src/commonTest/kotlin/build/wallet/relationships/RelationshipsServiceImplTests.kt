@@ -20,6 +20,8 @@ import build.wallet.f8e.relationships.shouldBeEmpty
 import build.wallet.f8e.relationships.shouldOnlyHaveEndorsed
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.sqldelight.InMemorySqlDriverFactory
+import build.wallet.testing.shouldBeErrOfType
+import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -28,7 +30,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
 
 class RelationshipsServiceImplTests : FunSpec({
@@ -65,12 +67,13 @@ class RelationshipsServiceImplTests : FunSpec({
   val appSessionManager = AppSessionManagerFake()
   val accountService = AccountServiceFake()
   val accountConfigService = AccountConfigServiceFake()
+  val clock = ClockFake()
 
   fun TestScope.relationshipsService(backgroundScope: CoroutineScope): RelationshipsServiceImpl {
     relationshipsF8eFake = RelationshipsF8eClientFake(
       uuidGenerator = { "fake-uuid" },
       backgroundScope = backgroundScope,
-      clock = Clock.System
+      clock = clock
     )
     return RelationshipsServiceImpl(
       relationshipsF8eClientProvider = { relationshipsF8eFake },
@@ -81,6 +84,7 @@ class RelationshipsServiceImplTests : FunSpec({
       appSessionManager = appSessionManager,
       accountService = accountService,
       appCoroutineScope = backgroundScope,
+      clock = clock,
       relationshipsSyncFrequency = RelationshipsSyncFrequency(100.milliseconds),
       accountConfigService = accountConfigService
     )
@@ -229,5 +233,22 @@ class RelationshipsServiceImplTests : FunSpec({
         .shouldNotBeNull()
         .shouldOnlyHaveEndorsed(tcAliceTampered, tcBobVerified)
     }
+  }
+
+  test("retrieveInvitation returns ExpiredInvitationCode when invitation is expired") {
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
+
+    val currentTime = clock.now()
+    val expiredTime = currentTime.minus(1.days)
+
+    relationshipsF8eFake.invitationExpirationOverride = expiredTime
+
+    val result = service.retrieveInvitation(
+      account = FullAccountMock,
+      invitationCode = "deadbeef,server123"
+    )
+
+    result.shouldBeErrOfType<RetrieveInvitationCodeError.ExpiredInvitationCode>()
   }
 })

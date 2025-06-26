@@ -33,7 +33,7 @@ class BeneficiaryClaimSerializerTests : FunSpec({
                 "recovery_relationship_id": "test-relationship_id"
             }
   """.trimIndent()
-  val lockedClaim = """
+  val lockedClaimNoSealedDescriptor = """
             {
                 "status": "LOCKED",
                 "id": "test-id",
@@ -41,6 +41,27 @@ class BeneficiaryClaimSerializerTests : FunSpec({
                 "sealed_dek": "test-sealed_dek",
                 "sealed_mobile_key": "test-sealed_mobile_key",
                 "benefactor_descriptor_keyset": "test-keyset"
+            }
+  """.trimIndent()
+  val lockedClaimBothDescriptors = """
+            {
+                "status": "LOCKED",
+                "id": "test-id",
+                "recovery_relationship_id": "test-relationship_id",
+                "sealed_dek": "test-sealed_dek",
+                "sealed_mobile_key": "test-sealed_mobile_key",
+                "sealed_descriptor": "test-sealed_descriptor",
+                "benefactor_descriptor_keyset": "test-keyset"
+            }
+  """.trimIndent()
+  val lockedClaimNoPlaintextDescriptor = """
+            {
+                "status": "LOCKED",
+                "id": "test-id",
+                "recovery_relationship_id": "test-relationship_id",
+                "sealed_dek": "test-sealed_dek",
+                "sealed_mobile_key": "test-sealed_mobile_key",
+                "sealed_descriptor": "test-sealed_descriptor"
             }
   """.trimIndent()
   val completeClaim = """
@@ -99,29 +120,85 @@ class BeneficiaryClaimSerializerTests : FunSpec({
     result.shouldBe(canceledClaim)
   }
 
-  test("Deserialize locked claim") {
-    val result = json.decodeFromString(BeneficiaryClaimSerializer, lockedClaim)
+  test("Deserialize locked claim w/ no sealed descriptor") {
+    val result = json.decodeFromString(BeneficiaryClaimSerializer, lockedClaimNoSealedDescriptor)
 
     result.shouldBeInstanceOf<BeneficiaryClaim.LockedClaim>()
     result.claimId.value.shouldBe("test-id")
     result.relationshipId.value.shouldBe("test-relationship_id")
     result.sealedDek.value.shouldBe("test-sealed_dek")
     result.sealedMobileKey.value.shouldBe("test-sealed_mobile_key")
-    result.benefactorKeyset.value.shouldBe("test-keyset")
+    result.sealedDescriptor?.value.shouldBe(null)
+    result.benefactorKeyset?.value.shouldBe("test-keyset")
   }
 
-  test("Serialize Locked Claim") {
+  test("Deserialize locked claim w/ both descriptors") {
+    val result = json.decodeFromString(BeneficiaryClaimSerializer, lockedClaimBothDescriptors)
+
+    result.shouldBeInstanceOf<BeneficiaryClaim.LockedClaim>()
+    result.claimId.value.shouldBe("test-id")
+    result.relationshipId.value.shouldBe("test-relationship_id")
+    result.sealedDek.value.shouldBe("test-sealed_dek")
+    result.sealedMobileKey.value.shouldBe("test-sealed_mobile_key")
+    result.sealedDescriptor?.value.shouldBe("test-sealed_descriptor")
+    result.benefactorKeyset?.value.shouldBe("test-keyset")
+  }
+
+  test("Deserialize locked claim w/ no plaintext descriptor") {
+    val result = json.decodeFromString(BeneficiaryClaimSerializer, lockedClaimNoPlaintextDescriptor)
+
+    result.shouldBeInstanceOf<BeneficiaryClaim.LockedClaim>()
+    result.claimId.value.shouldBe("test-id")
+    result.relationshipId.value.shouldBe("test-relationship_id")
+    result.sealedDek.value.shouldBe("test-sealed_dek")
+    result.sealedMobileKey.value.shouldBe("test-sealed_mobile_key")
+    result.sealedDescriptor?.value.shouldBe("test-sealed_descriptor")
+    result.benefactorKeyset?.value.shouldBe(null)
+  }
+
+  test("Serialize locked claim w/ no sealed descriptor") {
     val input = BeneficiaryClaim.LockedClaim(
       claimId = InheritanceClaimId("test-id"),
       relationshipId = RelationshipId("test-relationship_id"),
       sealedDek = XCiphertext("test-sealed_dek"),
       sealedMobileKey = XCiphertext("test-sealed_mobile_key"),
+      sealedDescriptor = null,
       benefactorKeyset = BenefactorDescriptorKeyset("test-keyset")
     )
 
     val result = json.encodeToString(BeneficiaryClaimSerializer, input)
 
-    result.shouldBe(lockedClaim)
+    result.shouldBe(lockedClaimNoSealedDescriptor)
+  }
+
+  test("Serialize locked claim w/ both descriptors") {
+    val input = BeneficiaryClaim.LockedClaim(
+      claimId = InheritanceClaimId("test-id"),
+      relationshipId = RelationshipId("test-relationship_id"),
+      sealedDek = XCiphertext("test-sealed_dek"),
+      sealedMobileKey = XCiphertext("test-sealed_mobile_key"),
+      sealedDescriptor = XCiphertext("test-sealed_descriptor"),
+      benefactorKeyset = BenefactorDescriptorKeyset("test-keyset")
+    )
+
+    val result = json.encodeToString(BeneficiaryClaimSerializer, input)
+
+    result.shouldBe(lockedClaimBothDescriptors)
+  }
+
+  test("Serialize locked claim w/ no plaintext descriptor") {
+    val input = BeneficiaryClaim.LockedClaim(
+      claimId = InheritanceClaimId("test-id"),
+      relationshipId = RelationshipId("test-relationship_id"),
+      sealedDek = XCiphertext("test-sealed_dek"),
+      sealedMobileKey = XCiphertext("test-sealed_mobile_key"),
+      sealedDescriptor = XCiphertext("test-sealed_descriptor"),
+      benefactorKeyset = null
+    )
+
+    val result = json.encodeToString(BeneficiaryClaimSerializer, input)
+
+    result.shouldBe(lockedClaimNoPlaintextDescriptor)
   }
 
   test("Deserialize complete claim") {

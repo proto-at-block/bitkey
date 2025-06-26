@@ -26,6 +26,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * A function which creates the form screen model for the recipient screen
@@ -39,6 +40,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  * @param onPasteButtonClick - click handler for paste button within the input field
  */
 data class BitcoinRecipientAddressScreenModel(
+  @Redacted
   val enteredText: String,
   val warningText: String?,
   val onEnteredTextChanged: (String) -> Unit,

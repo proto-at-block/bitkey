@@ -14,6 +14,8 @@ import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.relationships.RelationshipsKeysRepository
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -26,6 +28,8 @@ class InheritanceTransactionFactoryImpl(
   private val relationshipsKeysRepository: RelationshipsKeysRepository,
   private val inheritanceCrypto: InheritanceCrypto,
   private val spendingWalletProvider: SpendingWalletProvider,
+  private val inheritanceUseEncryptedDescriptorFeatureFlag:
+    InheritanceUseEncryptedDescriptorFeatureFlag,
 ) : InheritanceTransactionFactory {
   override suspend fun createFullBalanceTransaction(
     account: FullAccount,
@@ -33,25 +37,29 @@ class InheritanceTransactionFactoryImpl(
   ): Result<InheritanceTransactionDetails, Throwable> =
     coroutineBinding {
       val receiveAddress = bitcoinAddressService.generateAddress().bind()
-      val delegatedDecryptionKey = relationshipsKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>().bind()
-      val inheritanceKeyset = inheritanceCrypto.decryptInheritanceMaterial(
+      val delegatedDecryptionKey =
+        relationshipsKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
+          .bind()
+      val benefactorInheritancePackage = inheritanceCrypto.decryptInheritanceMaterialPackage(
         delegatedDecryptionKey = delegatedDecryptionKey,
         sealedDek = claim.sealedDek,
-        sealedMobileKey = claim.sealedMobileKey
+        sealedAppKey = claim.sealedMobileKey,
+        sealedDescriptor = claim.sealedDescriptor
       ).bind()
+      val descriptorKeyset = descriptorKeysetToUse(benefactorInheritancePackage, claim)
       val inheritanceWallet = spendingWalletProvider.getWallet(
         walletDescriptor = SpendingWalletDescriptor(
           identifier = "inheritance-transaction-${claim.claimId.value}",
           networkType = account.config.bitcoinNetworkType,
           receivingDescriptor = descriptorBuilder.spendingReceivingDescriptor(
-            descriptorKeyset = claim.benefactorKeyset.value,
-            publicKey = inheritanceKeyset.appSpendingPublicKey.key,
-            privateKey = inheritanceKeyset.appSpendingPrivateKey.key
+            descriptorKeyset = descriptorKeyset,
+            publicKey = benefactorInheritancePackage.inheritanceKeyset.appSpendingPublicKey.key,
+            privateKey = benefactorInheritancePackage.inheritanceKeyset.appSpendingPrivateKey.key
           ),
           changeDescriptor = descriptorBuilder.spendingChangeDescriptor(
-            descriptorKeyset = claim.benefactorKeyset.value,
-            publicKey = inheritanceKeyset.appSpendingPublicKey.key,
-            privateKey = inheritanceKeyset.appSpendingPrivateKey.key
+            descriptorKeyset = descriptorKeyset,
+            publicKey = benefactorInheritancePackage.inheritanceKeyset.appSpendingPublicKey.key,
+            privateKey = benefactorInheritancePackage.inheritanceKeyset.appSpendingPrivateKey.key
           )
         )
       ).bind()
@@ -76,4 +84,17 @@ class InheritanceTransactionFactoryImpl(
         psbt = psbt
       )
     }
+
+  private fun descriptorKeysetToUse(
+    decryptInheritanceMaterialPackage: DecryptInheritanceMaterialPackageOutput,
+    claim: BeneficiaryClaim.LockedClaim,
+  ): String {
+    // If the feature flag is disabled, fall back to using the benefactor keyset provided by the server.
+    if (!inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
+      return claim.benefactorKeyset!!.value
+    }
+
+    // Otherwise, we try to use the decrypted package descriptor if it is available.
+    return decryptInheritanceMaterialPackage.descriptor ?: claim.benefactorKeyset!!.value
+  }
 }

@@ -41,7 +41,7 @@ notification = { workspace = true }
 notification_validation = { workspace = true }
 queue = { workspace = true }
 recovery = { workspace = true }
-repository = { workspace = true, features = ["privileged_action"] }
+repository = { workspace = true, features = ["account", "privileged_action"] }
 types = { workspace = true, features = ["account", "notification"] }
 
 [lints]

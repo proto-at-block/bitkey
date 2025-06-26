@@ -1,7 +1,7 @@
 package build.wallet.statemachine.inheritance
 
 import build.wallet.bitkey.inheritance.BenefactorLockedClaimFake
-import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimFake
+import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimBothDescriptorsFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.bitkey.relationships.ProtectedCustomerFake
@@ -98,7 +98,7 @@ class InheritanceManagementUiStateMachineTests : FunSpec({
           ContactClaimState.Benefactor(
             timestamp = Instant.DISTANT_PAST,
             relationship = ProtectedCustomerFake,
-            claims = listOf(BeneficiaryLockedClaimFake)
+            claims = listOf(BeneficiaryLockedClaimBothDescriptorsFake)
           )
         )
       }

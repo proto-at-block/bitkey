@@ -91,13 +91,13 @@ mod tests {
     fn create_test_request(hw_auth_sk: &SecretKey) -> GrantRequest {
         let version = GRANT_PROTOCOL_VERSION;
         let action = 1;
-        let device_id = "test-device-12345".to_string();
+        let device_id = "test-device-12345".as_bytes().to_vec();
         let challenge = "random-challenge-98765".as_bytes().to_vec();
 
         let mut signable_data = Vec::new();
         signable_data.extend_from_slice(GRANT_REQUEST_SIG_PREFIX);
         signable_data.push(version);
-        signable_data.extend_from_slice(device_id.as_bytes());
+        signable_data.extend_from_slice(&device_id);
         signable_data.extend_from_slice(&challenge);
         signable_data.push(action);
 

@@ -17,6 +17,7 @@ kotlin {
         api(projects.libs.timeFake)
         implementation(projects.libs.encryptionFake)
         implementation(libs.kmp.test.kotest.assertions)
+        implementation(projects.domain.txVerificationFake)
       }
     }
   }

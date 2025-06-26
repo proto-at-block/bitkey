@@ -7,7 +7,10 @@ use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
 use serde::Deserialize;
 use time::{Duration, OffsetDateTime};
-use types::{account::identifiers::AccountId, notification::NotificationsPreferences};
+use types::{
+    account::identifiers::AccountId,
+    notification::{NotificationsPreferences, NotificationsTriggerType},
+};
 
 use crate::{
     clients::iterable::{IterableClient, IterableMode},
@@ -25,6 +28,7 @@ mod fetch_for_account;
 mod fetch_scheduled_for_window;
 pub mod migrations;
 pub mod notifications_preferences;
+pub mod notifications_triggers;
 mod persist_notifications;
 mod schedule_notifications;
 mod send_notification;
@@ -150,4 +154,10 @@ pub struct UpdateNotificationsPreferencesInput<'a> {
     pub account_id: &'a AccountId,
     pub notifications_preferences: &'a NotificationsPreferences,
     pub key_proof: Option<KeyClaims>,
+}
+
+#[derive(Debug)]
+pub struct UpdateNotificationsTriggersInput<'a> {
+    pub account_id: &'a AccountId,
+    pub trigger_types: Vec<NotificationsTriggerType>,
 }

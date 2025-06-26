@@ -41,7 +41,7 @@ import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit
+import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyExitKit
 import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
@@ -60,8 +60,8 @@ import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiProps
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiStateMachine
 import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiProps
 import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiStateMachine
-import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachine
-import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachineProps
+import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachine
+import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachineImpl
@@ -110,9 +110,9 @@ class AppUiStateMachineImplTests : FunSpec({
       ScreenStateMachineMock<LiteAccountCloudBackupRestorationUiProps>(
         id = "recover-lite-account"
       ) {}
-  val emergencyAccessKitRecoveryUiStateMachine =
-    object : EmergencyAccessKitRecoveryUiStateMachine,
-      ScreenStateMachineMock<EmergencyAccessKitRecoveryUiStateMachineProps>(
+  val emergencyExitKitRecoveryUiStateMachine =
+    object : EmergencyExitKitRecoveryUiStateMachine,
+      ScreenStateMachineMock<EmergencyExitKitRecoveryUiStateMachineProps>(
         id = "emergencey-access-kit-recovery"
       ) {}
   val authKeyRotationUiStateMachine =
@@ -128,7 +128,7 @@ class AppUiStateMachineImplTests : FunSpec({
   val gettingStartedData = GettingStartedData(
     startLiteAccountCreation = {},
     startRecovery = {},
-    startEmergencyAccessRecovery = {}
+    startEmergencyExitRecovery = {}
   )
 
   val biometricAuthService = BiometricAuthServiceFake()
@@ -161,7 +161,7 @@ class AppUiStateMachineImplTests : FunSpec({
         createLiteAccountUiStateMachine = createLiteAccountUiStateMachine,
         liteAccountCloudBackupRestorationUiStateMachine =
         liteAccountCloudBackupRestorationUiStateMachine,
-        emergencyAccessKitRecoveryUiStateMachine = emergencyAccessKitRecoveryUiStateMachine,
+        emergencyExitKitRecoveryUiStateMachine = emergencyExitKitRecoveryUiStateMachine,
         authKeyRotationUiStateMachine = authKeyRotationUiStateMachine,
         appWorkerExecutor = appWorkerExecutor,
         biometricPromptUiStateMachine = object : BiometricPromptUiStateMachine {
@@ -267,16 +267,16 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("RecoveringAccountWithEmergencyAccessKit") {
+  test("RecoveringAccountWithEmergencyExitKit") {
     accountDataStateMachine.emitModel(
-      RecoveringAccountWithEmergencyAccessKit(
+      RecoveringAccountWithEmergencyExitKit(
         onExit = {}
       )
     )
     stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
-      awaitBodyMock<EmergencyAccessKitRecoveryUiStateMachineProps>()
+      awaitBodyMock<EmergencyExitKitRecoveryUiStateMachineProps>()
     }
   }
 
@@ -388,7 +388,7 @@ class AppUiStateMachineImplTests : FunSpec({
         inviteCode = "invite-code",
         onStartCloudRecovery = {},
         onStartLostAppRecovery = {},
-        onImportEmergencyAccessKit = {},
+        onImportEmergencyExitKit = {},
         onExit = {}
       )
     )
@@ -421,7 +421,7 @@ class AppUiStateMachineImplTests : FunSpec({
         inviteCode = "invite-code",
         onStartCloudRecovery = {},
         onStartLostAppRecovery = {},
-        onImportEmergencyAccessKit = {},
+        onImportEmergencyExitKit = {},
         onExit = {}
       )
     )

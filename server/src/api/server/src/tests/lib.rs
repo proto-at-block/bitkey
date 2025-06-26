@@ -216,21 +216,40 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
     create_keyset_response.keyset_id
 }
 
-pub(crate) async fn create_account(
+pub(crate) async fn create_test_account(
     context: &mut TestContext,
     services: &Services,
     account_type: AccountType,
 ) -> Account {
+    create_account(context, services, account_type, true).await
+}
+
+pub(crate) async fn create_account(
+    context: &mut TestContext,
+    services: &Services,
+    account_type: AccountType,
+    is_test_account: bool,
+) -> Account {
     match account_type {
         AccountType::Full => Account::Full(
-            create_full_account(context, services, Network::BitcoinSignet, None).await,
+            create_full_account(
+                context,
+                services,
+                if is_test_account {
+                    Network::BitcoinSignet
+                } else {
+                    Network::BitcoinMain
+                },
+                None,
+            )
+            .await,
         ),
         AccountType::Lite => {
-            Account::Lite(create_lite_account(context, services, None, true).await)
+            Account::Lite(create_lite_account(context, services, None, is_test_account).await)
         }
-        AccountType::Software => {
-            Account::Software(create_software_account(context, services, None, true).await)
-        }
+        AccountType::Software => Account::Software(
+            create_software_account(context, services, None, is_test_account).await,
+        ),
     }
 }
 

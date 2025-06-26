@@ -10,7 +10,8 @@ import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.cloud.backup.csek.CsekDaoFake
-import build.wallet.cloud.backup.csek.CsekGeneratorMock
+import build.wallet.cloud.backup.csek.SekGeneratorMock
+import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.firmware.HardwareAttestationFake
@@ -28,9 +29,10 @@ import okio.ByteString.Companion.encodeUtf8
 class PairingTransactionProviderImplTests : FunSpec({
   val nfcSession = NfcSessionFake()
   val nfcCommands = NfcCommandsMock(turbine = turbines::create)
-  val csekGenerator = CsekGeneratorMock()
-  val csek = csekGenerator.csek
+  val sekGenerator = SekGeneratorMock()
+  val csek = sekGenerator.csek
   val csekDao = CsekDaoFake()
+  val ssekDao = SsekDaoFake()
   val uuid = UuidGeneratorFake()
   val appInstallationDao = AppInstallationDaoMock()
   val hardwareAttestation = HardwareAttestationFake()
@@ -41,8 +43,9 @@ class PairingTransactionProviderImplTests : FunSpec({
 
   val provider =
     PairingTransactionProviderImpl(
-      csekGenerator = csekGenerator,
+      sekGenerator = sekGenerator,
       csekDao = csekDao,
+      ssekDao = ssekDao,
       uuidGenerator = uuid,
       appInstallationDao = appInstallationDao,
       hardwareAttestation = hardwareAttestation,
@@ -89,11 +92,15 @@ class PairingTransactionProviderImplTests : FunSpec({
         authKey = HwAuthSecp256k1PublicKeyMock.copy(pubKey = Secp256k1PublicKey("hw-auth-dpub"))
       )
     )
-    activationResult.sealedCsek.shouldBe("sealed-key".encodeUtf8())
+
+    // Our mocks return a fixed value when wrapping key command is called.
+    activationResult.sealedCsek.shouldBe("sealed-data".encodeUtf8())
+    activationResult.sealedSsek.shouldBe("sealed-data".encodeUtf8())
     activationResult.serial.shouldBe("serial")
 
-    // Store hardware sealed CSEK to app.
+    // Store hardware sealed CSEK and SSEK to app.
     csekDao.get(activationResult.sealedCsek).shouldBe(Ok(csek))
+    ssekDao.get(activationResult.sealedSsek).shouldBe(Ok(csek))
 
     // Store hardware serial to app.
     appInstallationDao

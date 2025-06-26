@@ -21,7 +21,7 @@ import kotlin.time.Duration
 
 /**
  * Model to represent the screen in which the user is waiting for their
- * delay time to pass so that they can recover their App Key
+ * delay time to pass so that they can recover their App Key or reset fingerprints.
  * https://www.figma.com/file/XH6G74MVgS7x0WGvomq80f/Lost-Mobile-Key?node-id=354%3A19029&t=8ZQiMO2gZLaoROx7-0
  */
 data class AppDelayNotifyInProgressBodyModel(

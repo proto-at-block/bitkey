@@ -19,7 +19,7 @@ kotlin {
       implementation(projects.libs.timeFake)
       implementation(projects.libs.testingPublic)
       implementation(projects.domain.txVerificationFake)
-      implementation(projects.domain.f8eClientImpl)
+      implementation(projects.domain.f8eClientFake)
       implementation(projects.domain.accountFake)
     }
   }

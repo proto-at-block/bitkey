@@ -19,7 +19,7 @@ use types::exchange_rate::local_rate_provider::LocalRateProvider;
 use types::transaction_verification::entities::{
     BitcoinDisplayUnit, TransactionVerificationPending,
 };
-use types::transaction_verification::router::TransactionVerificationApprovalView;
+use types::transaction_verification::router::TransactionVerificationGrantView;
 use types::transaction_verification::service::WalletProvider;
 use types::{
     account::identifiers::AccountId,
@@ -52,11 +52,12 @@ impl Service {
                 .map_err(TransactionVerificationError::from)?;
             InitiateVerificationResult::SignedWithoutVerification {
                 psbt,
-                hw_grant: TransactionVerificationApprovalView {
+                hw_grant: TransactionVerificationGrantView {
                     version: grant.version,
                     hw_auth_public_key: grant.hw_auth_public_key,
-                    allowed_hash: grant.allowed_hash,
+                    commitment: grant.commitment,
                     signature: grant.signature,
+                    reverse_hash_chain: grant.reverse_hash_chain,
                 },
             }
         } else if !should_prompt_user {
@@ -68,6 +69,7 @@ impl Service {
                 fiat_currency,
                 bitcoin_display_unit,
             );
+            self.repo.persist(&tx_verification).await?;
             let pending = match tx_verification.clone() {
                 TransactionVerification::Pending(p) => &p.clone(),
                 _ => unreachable!("Expected TransactionVerification::Pending"),
@@ -136,7 +138,7 @@ impl Service {
     ) -> Result<(), TransactionVerificationError> {
         let payload = NotificationPayloadBuilder::default()
             .transaction_verification_payload(Some(TransactionVerificationPayload {
-                base_verification_url: "".to_string(),
+                base_verification_url: self.config.ext_secure_site_base_url.clone(),
                 auth_token: tx_verification.web_auth_token.clone(),
             }))
             .build()?;

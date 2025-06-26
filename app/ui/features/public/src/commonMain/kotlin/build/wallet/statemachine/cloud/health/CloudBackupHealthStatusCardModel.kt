@@ -6,8 +6,8 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 enum class CloudBackupHealthStatusCardType {
-  MOBILE_KEY_BACKUP,
-  EAK_BACKUP,
+  APP_KEY_BACKUP,
+  EEK_BACKUP,
 }
 
 data class CloudBackupHealthStatusCardModel(

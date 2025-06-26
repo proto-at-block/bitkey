@@ -1,13 +1,16 @@
-notify:
-  - slack:
-      channels:
-        - "#bitkey-robots"
-
 steps:
-  - label: "build customer app"
+  - label: "Build customer app for verification"
     timeout_in_minutes: 30
     command: ".buildkite/build-customer-release-aab.sh"
+    notify:
+      - slack:
+          channels:
+            - "#bitkey-releases"
 
-  - label: "build emergency EEK"
+  - label: "Build emergency exit kit for verification"
     timeout_in_minutes: 30
     command: ".buildkite/build-emergency-release-apk.sh"
+    notify:
+      - slack:
+          channels:
+            - "#bitkey-releases"

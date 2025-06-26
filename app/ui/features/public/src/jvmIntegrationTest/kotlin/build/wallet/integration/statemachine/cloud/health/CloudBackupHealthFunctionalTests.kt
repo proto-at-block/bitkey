@@ -80,8 +80,8 @@ class CloudBackupHealthFunctionalTests : FunSpec({
     val app = launchAppAndOnboard()
     app.appUiStateMachine.test(props = Unit) {
       shouldNavigateToCloudBackupHealthDashboard {
-        mobileKeyBackupStatusCard.backupStatus.title.shouldBe("Fake Cloud Store backup")
-        mobileKeyBackupStatusCard.backupStatusActionButton.shouldBeNull()
+        appKeyBackupStatusCard.backupStatus.title.shouldBe("Fake Cloud Store backup")
+        appKeyBackupStatusCard.backupStatusActionButton.shouldBeNull()
       }
       cancelAndIgnoreRemainingEvents()
     }
@@ -92,10 +92,10 @@ class CloudBackupHealthFunctionalTests : FunSpec({
       val app = launchAppAndOnboard()
       app.appUiStateMachine.test(props = Unit) {
         shouldNavigateToCloudBackupHealthDashboard {
-          mobileKeyBackupStatusCard.backupStatus.title
+          appKeyBackupStatusCard.backupStatus.title
             .shouldBe("Problem with Fake Cloud Store\naccount access")
-          mobileKeyBackupStatusCard.backupStatus.onClick.shouldBeNull()
-          mobileKeyBackupStatusCard.backupStatusActionButton.shouldNotBeNull().onClick()
+          appKeyBackupStatusCard.backupStatus.onClick.shouldBeNull()
+          appKeyBackupStatusCard.backupStatusActionButton.shouldNotBeNull().onClick()
         }
         awaitUntilBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING)
         awaitUntilBody<CloudSignInModelFake>()
@@ -108,10 +108,10 @@ class CloudBackupHealthFunctionalTests : FunSpec({
     app.appUiStateMachine.test(props = Unit) {
       app.cloudBackupRepository.clear(CloudStoreAccount1Fake, false)
       shouldNavigateToCloudBackupHealthDashboard {
-        mobileKeyBackupStatusCard.backupStatus.title
+        appKeyBackupStatusCard.backupStatus.title
           .shouldBe("Problem with App Key\nBackup")
-        mobileKeyBackupStatusCard.backupStatus.onClick.shouldBeNull()
-        mobileKeyBackupStatusCard.backupStatusActionButton.shouldNotBeNull().onClick()
+        appKeyBackupStatusCard.backupStatus.onClick.shouldBeNull()
+        appKeyBackupStatusCard.backupStatusActionButton.shouldNotBeNull().onClick()
       }
       awaitUntilBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING)
       awaitUntilBody<NfcBodyModel>(NFC_INITIATE)
@@ -122,7 +122,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
       awaitUntilBody<CloudBackupHealthDashboardBodyModel>(
         matching = {
-          it.mobileKeyBackupStatusCard.backupStatus.secondaryText == "Successfully backed up"
+          it.appKeyBackupStatusCard.backupStatus.secondaryText == "Successfully backed up"
         }
       )
       cancelAndIgnoreRemainingEvents()

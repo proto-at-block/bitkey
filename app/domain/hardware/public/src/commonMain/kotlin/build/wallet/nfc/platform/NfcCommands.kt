@@ -6,8 +6,6 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.cloud.backup.csek.Csek
-import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.SealedData
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EnrolledFingerprints
@@ -204,11 +202,6 @@ interface NfcCommands {
     sealedData: SealedData,
   ): ByteString
 
-  suspend fun sealKey(
-    session: NfcSession,
-    unsealedKey: Csek,
-  ): SealedCsek
-
   /**
    * Sign a challenge (e.g. an auth challenge returned from f8e, an access token for
    * proof of possession, or static strings required by server endpoints).
@@ -247,16 +240,6 @@ interface NfcCommands {
     session: NfcSession,
     fingerprintHandle: FingerprintHandle = FingerprintHandle(0, ""),
   ): Boolean
-
-  /**
-   * Unseal a previously sealed key obtained from the [sealKey] command.
-   *
-   * @param sealedKey: The sealed key, aka "sealant" returned by the hardware after [sealKey].
-   */
-  suspend fun unsealKey(
-    session: NfcSession,
-    sealedKey: List<UByte>,
-  ): List<UByte>
 
   /**
    * Get the current version of the hardware device.

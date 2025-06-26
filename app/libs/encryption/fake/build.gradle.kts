@@ -10,6 +10,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        implementation(projects.libs.encryptionPublic)
         implementation(libs.kmp.kotlin.serialization.json)
         implementation(libs.kmp.ktor.client.core)
       }

@@ -53,7 +53,7 @@ kotlin {
         implementation(projects.domain.cloudBackupFake)
         implementation(projects.libs.cloudStoreFake)
         implementation(projects.domain.debugFake)
-        implementation(projects.domain.emergencyAccessKitFake)
+        implementation(projects.domain.emergencyExitKitFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.hardwareFake)

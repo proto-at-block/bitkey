@@ -51,3 +51,6 @@ pub async fn setup_account_with_transaction_verification_policy(
 
 #[cfg(test)]
 mod initiate_tests;
+
+#[cfg(test)]
+mod verification_tests;

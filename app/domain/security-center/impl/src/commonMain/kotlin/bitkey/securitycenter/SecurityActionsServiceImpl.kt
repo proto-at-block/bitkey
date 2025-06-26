@@ -16,14 +16,15 @@ import kotlinx.datetime.Instant
  */
 @BitkeyInject(AppScope::class)
 class SecurityActionsServiceImpl(
-  private val mobileKeyBackupHealthActionFactory: MobileKeyBackupHealthActionFactory,
-  private val eakBackupHealthActionFactory: EakBackupHealthActionFactory,
+  private val appKeyBackupHealthActionFactory: AppKeyBackupHealthActionFactory,
+  private val eekBackupHealthActionFactory: EekBackupHealthActionFactory,
   private val socialRecoveryActionFactory: SocialRecoveryActionFactory,
 //  private val inheritanceActionFactory: InheritanceActionFactory,
   private val biometricActionFactory: BiometricActionFactory,
   private val criticalAlertsActionFactory: CriticalAlertsActionFactory,
   private val fingerprintsActionFactory: FingerprintsActionFactory,
   private val hardwareDeviceActionFactory: HardwareDeviceActionFactory,
+  private val txVerificationActionFactory: TxVerificationActionFactory,
   private val eventTracker: EventTracker,
   private val metricTrackerService: MetricTrackerService,
   private val securityRecommendationInteractionDao: SecurityRecommendationInteractionDao,
@@ -36,11 +37,12 @@ class SecurityActionsServiceImpl(
     SecurityActionType.HARDWARE_DEVICE to hardwareDeviceActionFactory::create,
     SecurityActionType.CRITICAL_ALERTS to criticalAlertsActionFactory::create,
     SecurityActionType.SOCIAL_RECOVERY to socialRecoveryActionFactory::create,
-    SecurityActionType.MOBILE_KEY_BACKUP to mobileKeyBackupHealthActionFactory::create,
+    SecurityActionType.APP_KEY_BACKUP to appKeyBackupHealthActionFactory::create,
     //    SecurityActionType.INHERITANCE to inheritanceActionFactory::create, // TODO: add once we have built dismissible recommendations
-    SecurityActionType.EAK_BACKUP to eakBackupHealthActionFactory::create,
+    SecurityActionType.EEK_BACKUP to eekBackupHealthActionFactory::create,
     SecurityActionType.FINGERPRINTS to fingerprintsActionFactory::create,
-    SecurityActionType.BIOMETRIC to biometricActionFactory::create
+    SecurityActionType.BIOMETRIC to biometricActionFactory::create,
+    SecurityActionType.TRANSACTION_VERIFICATION to txVerificationActionFactory::create
   )
 
   override suspend fun getActions(category: SecurityActionCategory): List<SecurityAction> {

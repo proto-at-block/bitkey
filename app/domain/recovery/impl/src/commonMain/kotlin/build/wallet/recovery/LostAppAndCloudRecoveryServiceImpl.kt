@@ -89,6 +89,7 @@ class LostAppAndCloudRecoveryServiceImpl(
         val keysets = listKeysetsF8eClient
           .listKeysets(accountConfig.f8eEnvironment, accountId)
           .bind()
+          .keysets
 
         val destinationAppKeys = appKeysGenerator
           .generateKeyBundle()

@@ -1,8 +1,6 @@
 package build.wallet.keybox
 
-import app.cash.sqldelight.async.coroutines.awaitAsOne
 import bitkey.account.FullAccountConfig
-import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppKeyBundle
@@ -13,7 +11,6 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.BitkeyDatabase
 import build.wallet.database.sqldelight.FullAccountView
-import build.wallet.database.sqldelight.SpendingKeysetEntity
 import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -24,7 +21,6 @@ import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.*
 
 @BitkeyInject(AppScope::class)
@@ -162,7 +158,6 @@ class KeyboxDaoImpl(
       activeSpendingKeysetId = keybox.activeSpendingKeyset.localId,
       activeKeyBundleId = keybox.activeAppKeyBundle.localId,
       activeHwKeyBundleId = keybox.activeHwKeyBundle.localId,
-      inactiveKeysetIds = emptySet(),
       appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
       networkType = keybox.config.bitcoinNetworkType,
       fakeHardware = keybox.config.isHardwareFake,
@@ -189,16 +184,6 @@ class KeyboxDaoImpl(
   }
 
   private suspend fun FullAccountView.keybox(): Keybox {
-    // Get the inactive keysets
-    val inactiveKeysets =
-      inactiveKeysetIds.map {
-        databaseProvider.database()
-          .spendingKeysetQueries
-          .keysetById(it)
-          .awaitAsOne()
-          .spendingKeyset(networkType)
-      }
-
     return Keybox(
       localId = keyboxId,
       fullAccountId = accountId,
@@ -228,7 +213,6 @@ class KeyboxDaoImpl(
         authKey = hwAuthKey,
         networkType = networkType
       ),
-      inactiveKeysets = inactiveKeysets.toImmutableList(),
       appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
       config =
         FullAccountConfig(
@@ -241,17 +225,4 @@ class KeyboxDaoImpl(
         )
     )
   }
-
-  private fun SpendingKeysetEntity.spendingKeyset(networkType: BitcoinNetworkType): SpendingKeyset =
-    SpendingKeyset(
-      localId = id,
-      f8eSpendingKeyset =
-        F8eSpendingKeyset(
-          keysetId = serverId,
-          spendingPublicKey = serverKey
-        ),
-      appKey = appKey,
-      hardwareKey = hardwareKey,
-      networkType = networkType
-    )
 }

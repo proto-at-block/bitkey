@@ -5,8 +5,8 @@ import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InternetUnreachable
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
@@ -166,8 +166,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud backup health setting when mobile backup has problem") {
-    cloudBackupHealthRepository.mobileKeyBackupStatus.value =
-      MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
+    cloudBackupHealthRepository.appKeyBackupStatus.value =
+      AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
         sectionModels

@@ -101,6 +101,21 @@ interface FeatureFlagsComponent {
     FingerprintResetFeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun inheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    InheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun encryptedDescriptorBackupsFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    EncryptedDescriptorBackupsFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun atRiskNotificationsFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    AtRiskNotificationsFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
     coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
@@ -117,6 +132,10 @@ interface FeatureFlagsComponent {
     usSmsFeatureFlag: UsSmsFeatureFlag,
     checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
     fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
+    txVerificationFeatureFlag: TxVerificationFeatureFlag,
+    inheritanceUseEncryptedDescriptorFeatureFlag: InheritanceUseEncryptedDescriptorFeatureFlag,
+    encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
+    atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       balanceHistoryFeatureFlag,
@@ -127,6 +146,7 @@ interface FeatureFlagsComponent {
       usSmsFeatureFlag,
       checkHardwareIsPairedFeatureFlag,
       fingerprintResetFeatureFlag,
+      atRiskNotificationsFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
       utxoMaxConsolidationCountFeatureFlag,
@@ -135,7 +155,10 @@ interface FeatureFlagsComponent {
       coachmarksGlobalFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       firmwareCommsLoggingFeatureFlag,
-      asyncNfcSigningFeatureFlag
+      asyncNfcSigningFeatureFlag,
+      txVerificationFeatureFlag,
+      inheritanceUseEncryptedDescriptorFeatureFlag,
+      encryptedDescriptorBackupsFeatureFlag
     )
   }
 }

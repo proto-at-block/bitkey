@@ -20,6 +20,7 @@ import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.relationships.RelationshipsFake
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.time.ClockFake
@@ -31,11 +32,12 @@ import kotlinx.coroutines.launch
 
 class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
 
+  val clock = ClockFake()
   val cloudInstanceId = "fake"
   val fullAccount = FullAccountMock
   val accountService = AccountServiceFake()
   val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val cloudBackupDao = CloudBackupDaoFake()
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
   val cloudBackupRepository = CloudBackupRepositoryFake()
@@ -59,7 +61,8 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
     cloudBackupRepository = cloudBackupRepository,
     fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
     eventTracker = eventTracker,
-    clock = ClockFake()
+    clock = ClockFake(),
+    appSessionManager = AppSessionManagerFake()
   )
 
   beforeTest {

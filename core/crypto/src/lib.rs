@@ -5,6 +5,7 @@ pub mod frost;
 pub mod hkdf;
 pub mod hmac;
 pub mod keys;
+pub mod signature_utils;
 pub mod signature_verifier;
 
 #[cfg(feature = "spake2")]

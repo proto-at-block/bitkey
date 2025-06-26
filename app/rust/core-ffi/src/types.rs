@@ -3,6 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use crate::UniffiCustomTypeConverter;
 use bitcoin::{psbt::Psbt, secp256k1::ecdsa::Signature, Network};
 use crypto::frost::FrostShare;
+use crypto::signature_utils::DERSerializedSignature;
 use miniscript::DescriptorPublicKey;
 
 trait Stringable: Display + FromStr {}
@@ -25,6 +26,20 @@ where
 
     fn from_custom(obj: Self) -> Self::Builtin {
         obj.to_string()
+    }
+}
+
+impl UniffiCustomTypeConverter for DERSerializedSignature {
+    type Builtin = Vec<u8>;
+
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
+        Ok(DERSerializedSignature(
+            Signature::from_der(&val)?.serialize_der(),
+        ))
+    }
+
+    fn from_custom(obj: Self) -> Self::Builtin {
+        obj.0.to_vec()
     }
 }
 

@@ -7,7 +7,7 @@ import build.wallet.account.AccountService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.coroutines.flow.launchTicker
+import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusF8eClient
@@ -52,15 +52,17 @@ class RecoveryStatusServiceImpl(
           hasActiveLostAppRecovery -> recovery.fullAccountId
           else -> null
         }
-      }.distinctUntilChanged()
+      }
+        .distinctUntilChanged()
+        .flatMapLatest { accountId ->
+          accountId?.let {
+            tickerFlow(recoverySyncFrequency.value)
+              .map { accountId }
+              .filter { appSessionManager.isAppForegrounded() }
+          } ?: emptyFlow()
+        }
         .collectLatest { accountId ->
-          if (accountId != null) {
-            launchTicker(recoverySyncFrequency.value) {
-              if (appSessionManager.isAppForegrounded()) {
-                performSync(accountId)
-              }
-            }
-          }
+          performSync(accountId)
         }
     }
   }

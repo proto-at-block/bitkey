@@ -8,7 +8,7 @@ actual fun CloudBackupNotFoundBodyModel(
   onBack: () -> Unit,
   onCheckCloudAgain: () -> Unit,
   onCannotAccessCloud: () -> Unit,
-  onImportEmergencyAccessKit: (() -> Unit)?,
+  onImportEmergencyExitKit: (() -> Unit)?,
   onShowTroubleshootingSteps: () -> Unit,
 ): FormBodyModel =
   CloudWarningBodyModel(
@@ -19,14 +19,14 @@ actual fun CloudBackupNotFoundBodyModel(
     onBack = onBack,
     onCheckCloudAgain = onCheckCloudAgain,
     onCannotAccessCloud = onCannotAccessCloud,
-    onImportEmergencyAccessKit = onImportEmergencyAccessKit
+    onImportEmergencyExitKit = onImportEmergencyExitKit
   )
 
 actual fun CloudNotSignedInBodyModel(
   onBack: () -> Unit,
   onCheckCloudAgain: () -> Unit,
   onCannotAccessCloud: () -> Unit,
-  onImportEmergencyAccessKit: (() -> Unit)?,
+  onImportEmergencyExitKit: (() -> Unit)?,
   onShowTroubleshootingSteps: () -> Unit,
 ): FormBodyModel =
   CloudWarningBodyModel(
@@ -37,5 +37,5 @@ actual fun CloudNotSignedInBodyModel(
     onBack = onBack,
     onCheckCloudAgain = onCheckCloudAgain,
     onCannotAccessCloud = onCannotAccessCloud,
-    onImportEmergencyAccessKit = onImportEmergencyAccessKit
+    onImportEmergencyExitKit = onImportEmergencyExitKit
   )

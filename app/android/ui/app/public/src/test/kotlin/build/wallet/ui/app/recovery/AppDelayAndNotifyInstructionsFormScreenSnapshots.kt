@@ -1,7 +1,7 @@
 package build.wallet.ui.app.recovery
 
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.statemachine.recovery.inprogress.RecoverYourMobileKeyBodyModel
+import build.wallet.statemachine.recovery.inprogress.RecoverYourAppKeyBodyModel
 import build.wallet.ui.app.core.form.FormScreen
 import io.kotest.core.spec.style.FunSpec
 
@@ -11,7 +11,7 @@ class AppDelayAndNotifyInstructionsFormScreenSnapshots : FunSpec({
   test("recover your App Key screen") {
     paparazzi.snapshot {
       FormScreen(
-        RecoverYourMobileKeyBodyModel(
+        RecoverYourAppKeyBodyModel(
           onBack = {},
           onStartRecovery = {}
         )

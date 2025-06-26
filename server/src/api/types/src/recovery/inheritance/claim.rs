@@ -187,7 +187,7 @@ pub struct InheritanceClaimLocked {
     #[serde(flatten)]
     pub common_fields: InheritanceClaimCommonFields,
     // The dek is sealed using DH between an ephemeral key pair and the beneficiary's
-    // delegated decryption key. The mobile key and descriptor are encrypted using the dek.
+    // delegated decryption key. The app(mobile) key and descriptor are encrypted using the dek.
     pub sealed_dek: String,
     pub sealed_mobile_key: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

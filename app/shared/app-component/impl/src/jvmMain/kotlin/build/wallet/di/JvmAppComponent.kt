@@ -1,6 +1,8 @@
 package build.wallet.di
 
 import bitkey.account.AccountConfigService
+import bitkey.f8e.account.GetActiveKeysetF8eClient
+import bitkey.f8e.account.UpdateDescriptorBackupsF8eClient
 import bitkey.metrics.MetricTrackerService
 import bitkey.onboarding.CreateLiteAccountService
 import bitkey.recovery.RecoveryStatusService
@@ -20,7 +22,7 @@ import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
-import build.wallet.cloud.backup.csek.CsekGenerator
+import build.wallet.cloud.backup.csek.SekGenerator
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.backup.socrec.SocRecCloudBackupSyncWorker
 import build.wallet.cloud.store.CloudFileStore
@@ -35,8 +37,10 @@ import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
+import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
+import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.inheritance.InheritanceUpsellService
@@ -97,9 +101,12 @@ interface JvmAppComponent {
   val cloudKeyValueStore: CloudKeyValueStore
   val cloudStoreAccountRepository: CloudStoreAccountRepository
   val createAccountKeysetF8eClient: CreateAccountKeysetF8eClient
+  val getActiveKeysetF8eClient: GetActiveKeysetF8eClient
+  val listKeysetsF8eClient: ListKeysetsF8eClient
+  val updateDescriptorBackupsF8eClient: UpdateDescriptorBackupsF8eClient
   val onboardFullAccountService: OnboardFullAccountService
   val onboardSoftwareAccountService: OnboardSoftwareAccountService
-  val csekGenerator: CsekGenerator
+  val sekGenerator: SekGenerator
   val defaultAccountConfigService: AccountConfigService
   val delegatedDecryptionKeyService: DelegatedDecryptionKeyService
   val exportTransactionsService: ExportTransactionsService
@@ -159,4 +166,5 @@ interface JvmAppComponent {
   val writableCloudStoreAccountRepository: WritableCloudStoreAccountRepository
   val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator
   val metricTrackerService: MetricTrackerService
+  val inheritanceUseEncryptedDescriptorFeatureFlag: InheritanceUseEncryptedDescriptorFeatureFlag
 }

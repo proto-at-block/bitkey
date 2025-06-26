@@ -4,6 +4,7 @@ use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 use super::{
+    definition::PrivilegedActionDefinition,
     repository::{AuthorizationStrategyRecord, PrivilegedActionInstanceRecord},
     shared::{PrivilegedActionInstanceId, PrivilegedActionType},
 };
@@ -12,6 +13,10 @@ use super::{
 pub struct DelayAndNotify {
     #[serde(with = "rfc3339")]
     pub delay_end_time: OffsetDateTime,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cancellation_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completion_token: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
@@ -31,6 +36,9 @@ pub struct PrivilegedActionInstance {
 
 impl<T> From<PrivilegedActionInstanceRecord<T>> for PrivilegedActionInstance {
     fn from(value: PrivilegedActionInstanceRecord<T>) -> Self {
+        let expose_tokens_on_fetch =
+            PrivilegedActionDefinition::from(&value.privileged_action_type)
+                .expose_tokens_on_fetch();
         Self {
             id: value.id,
             privileged_action_type: value.privileged_action_type,
@@ -41,6 +49,16 @@ impl<T> From<PrivilegedActionInstanceRecord<T>> for PrivilegedActionInstance {
                 AuthorizationStrategyRecord::DelayAndNotify(d) => {
                     AuthorizationStrategy::DelayAndNotify(DelayAndNotify {
                         delay_end_time: d.delay_end_time,
+                        cancellation_token: if expose_tokens_on_fetch {
+                            Some(d.cancellation_token)
+                        } else {
+                            None
+                        },
+                        completion_token: if expose_tokens_on_fetch {
+                            Some(d.completion_token)
+                        } else {
+                            None
+                        },
                     })
                 }
             },
@@ -158,6 +176,62 @@ pub mod generic {
             PrivilegedActionResponse::Pending(PendingPrivilegedActionResponse {
                 privileged_action_instance: value.into(),
             })
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use std::collections::HashMap;
+
+    use super::*;
+    use crate::account::identifiers::AccountId;
+    use crate::privileged_action::repository::{DelayAndNotifyRecord, DelayAndNotifyStatus};
+
+    #[rstest]
+    #[case::reset_fingerprint(PrivilegedActionType::ResetFingerprint, true)]
+    #[case::activate_touchpoint(PrivilegedActionType::ActivateTouchpoint, false)]
+    #[case::configure_delays(PrivilegedActionType::ConfigurePrivilegedActionDelays, false)]
+    #[tokio::test]
+    async fn test_instance_record_to_router_output(
+        #[case] privileged_action_type: PrivilegedActionType,
+        #[case] expect_expose_tokens_on_fetch: bool,
+    ) {
+        let instance_record = PrivilegedActionInstanceRecord {
+            id: PrivilegedActionInstanceId::gen().unwrap(),
+            account_id: AccountId::gen().unwrap(),
+            privileged_action_type,
+            authorization_strategy: AuthorizationStrategyRecord::DelayAndNotify(
+                DelayAndNotifyRecord {
+                    status: DelayAndNotifyStatus::Pending,
+                    delay_end_time: OffsetDateTime::now_utc(),
+                    cancellation_token: "cancellation_token".to_string(),
+                    completion_token: "completion_token".to_string(),
+                },
+            ),
+            request: HashMap::<String, String>::new(),
+            created_at: OffsetDateTime::now_utc(),
+            updated_at: OffsetDateTime::now_utc(),
+        };
+
+        let router_output = PrivilegedActionInstance::from(instance_record);
+
+        if let AuthorizationStrategy::DelayAndNotify(delay_and_notify) =
+            router_output.authorization_strategy
+        {
+            assert_eq!(
+                delay_and_notify.cancellation_token.is_some(),
+                expect_expose_tokens_on_fetch,
+                "cancellation_token presence mismatch"
+            );
+            assert_eq!(
+                delay_and_notify.completion_token.is_some(),
+                expect_expose_tokens_on_fetch,
+                "completion_token presence mismatch"
+            );
+        } else {
+            panic!("Expected DelayAndNotify");
         }
     }
 }

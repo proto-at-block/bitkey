@@ -53,4 +53,12 @@ class BitcoinMultiSigDescriptorBuilderMock : BitcoinMultiSigDescriptorBuilder {
   ): Watching {
     return Watching("")
   }
+
+  override fun watchingDescriptor(
+    appPublicKey: DescriptorPublicKey,
+    hardwareKey: DescriptorPublicKey,
+    serverKey: DescriptorPublicKey,
+  ): Watching {
+    return Watching("")
+  }
 }

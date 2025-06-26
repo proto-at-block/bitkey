@@ -34,6 +34,7 @@ fun SwitchCard(
     ) {
       Switch(
         checked = model.switchModel.checked,
+        enabled = model.switchModel.enabled,
         onCheckedChange = model.switchModel.onCheckedChange
       )
       Spacer(modifier = Modifier.height(24.dp))

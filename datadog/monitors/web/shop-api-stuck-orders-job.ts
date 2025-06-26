@@ -41,7 +41,7 @@ export class ShopApiStuckOrdersJobMonitors extends Construct {
             'Shipped'
         ]
 
-        const window = "5m";
+        const window = "30m";
         const common_query = `service:${serviceName} env:${environment}`;
 
         const error_query = `${common_query} status:error`;

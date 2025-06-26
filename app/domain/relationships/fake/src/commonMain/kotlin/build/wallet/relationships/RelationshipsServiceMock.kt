@@ -13,12 +13,13 @@ import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.relationships.RelationshipsFake
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.datetime.Clock
 
 class RelationshipsServiceMock(
   turbine: (String) -> Turbine<Any>,
+  private val clock: Clock,
 ) : RelationshipsService {
   val syncCalls = turbine("RelationshipsService syncRelationships calls")
 
@@ -105,7 +106,17 @@ class RelationshipsServiceMock(
     account: Account,
     invitationCode: String,
   ): Result<IncomingInvitation, RetrieveInvitationCodeError> {
-    return retrieveInvitationResult
+    return retrieveInvitationResult.andThen { invitation ->
+      if (invitation.expiresAt < clock.now()) {
+        Err(
+          RetrieveInvitationCodeError.ExpiredInvitationCode(
+            cause = Error("Invitation expired at ${invitation.expiresAt}")
+          )
+        )
+      } else {
+        Ok(invitation)
+      }
+    }
   }
 
   private val defaultAcceptInvitationResult:

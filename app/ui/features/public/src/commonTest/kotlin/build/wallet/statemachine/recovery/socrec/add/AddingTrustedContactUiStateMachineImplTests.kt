@@ -34,6 +34,7 @@ import build.wallet.statemachine.trustedcontact.PromoCodeUpsellUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -41,13 +42,14 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class AddingTrustedContactUiStateMachineImplTests : FunSpec({
+  val clock = ClockFake()
   val exitCalls = turbines.create<Unit>("Exit Calls")
   val invitationSharedCalls = turbines.create<Unit>("Invitation Shared Calls")
 
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(
     turbine = turbines::create
   )
-  val relationshipService = RelationshipsServiceMock(turbines::create)
+  val relationshipService = RelationshipsServiceMock(turbines::create, clock)
   val notificationsService = NotificationsServiceMock()
 
   val proofOfPossessionUIStateMachine =

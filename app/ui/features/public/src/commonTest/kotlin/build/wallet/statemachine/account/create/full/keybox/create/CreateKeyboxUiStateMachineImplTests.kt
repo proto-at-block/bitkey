@@ -59,6 +59,7 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
             appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             keyBundle = HwKeyBundleMock,
             sealedCsek = ByteString.EMPTY,
+            sealedSsek = ByteString.EMPTY,
             serial = "123"
           )
         )

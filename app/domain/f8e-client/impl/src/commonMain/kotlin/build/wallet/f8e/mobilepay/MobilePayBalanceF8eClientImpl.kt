@@ -8,6 +8,7 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
+import build.wallet.f8e.money.MoneyDTO
 import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.limit.MobilePayBalance

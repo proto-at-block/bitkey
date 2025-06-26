@@ -15,6 +15,7 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getHardwareFactorProofOfPossession
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.shouldBeOk
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
@@ -45,6 +46,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   val alias = TrustedContactAlias("trustedContactId")
 
+  val clock = ClockFake()
+
   suspend fun TestScope.launchAndPrepareApp() {
     app = launchNewApp(isUsingSocRecFakes = true)
 
@@ -67,6 +70,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       appSessionManager = app.appSessionManager,
       accountService = accountService,
       appCoroutineScope = app.appCoroutineScope,
+      clock = clock,
       relationshipsSyncFrequency = RelationshipsSyncFrequency(1.seconds),
       accountConfigService = app.accountConfigService
     )

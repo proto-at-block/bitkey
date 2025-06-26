@@ -24,7 +24,7 @@ use wsm_common::messages::api::{
     EvaluatePinResponse, GeneratePartialSignaturesRequest, GeneratePartialSignaturesResponse,
     GetIntegritySigRequest, GetIntegritySigResponse, InitiateDistributedKeygenRequest,
     InitiateDistributedKeygenResponse, InitiateShareRefreshRequest, InitiateShareRefreshResponse,
-    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse, TransactionVerificationApproval,
+    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse, TransactionVerificationGrant,
 };
 
 pub use wsm_common::messages::{
@@ -103,7 +103,9 @@ pub struct CreateGrantRequest {
     pub hw_auth_public_key: PublicKey,
     pub version: u8,
     pub action: u8,
-    pub device_id: String,
+    #[serde_as(as = "Base64")]
+    pub device_id: Vec<u8>,
+    #[serde_as(as = "Base64")]
     pub challenge: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]
     pub signature: Signature,
@@ -190,7 +192,7 @@ pub trait GrantService {
         &self,
         psbt: &str,
         hw_auth_public_key: PublicKey,
-    ) -> Result<TransactionVerificationApproval, Error>;
+    ) -> Result<TransactionVerificationGrant, Error>;
 }
 
 #[derive(Clone)]
@@ -562,7 +564,7 @@ impl GrantService for WsmClient {
         &self,
         psbt: &str,
         hw_auth_public_key: PublicKey,
-    ) -> Result<TransactionVerificationApproval, Error> {
+    ) -> Result<TransactionVerificationGrant, Error> {
         let request = ApprovePsbtRequest {
             psbt: psbt.to_string(),
             hw_auth_public_key,

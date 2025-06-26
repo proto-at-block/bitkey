@@ -213,10 +213,13 @@ pub struct EnclaveContinueShareRefreshRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveContinueShareRefreshResponse {}
 
+#[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GrantRequest {
     pub version: u8,
-    pub device_id: String,
+    #[serde_as(as = "Base64")]
+    pub device_id: Vec<u8>,
+    #[serde_as(as = "Base64")]
     pub challenge: Vec<u8>,
     pub action: u8,
     pub signature: Signature,
@@ -227,7 +230,7 @@ impl GrantRequest {
         let mut data = Vec::new();
 
         data.push(self.version);
-        data.extend_from_slice(self.device_id.as_bytes());
+        data.extend_from_slice(&self.device_id);
         data.extend_from_slice(&self.challenge);
         data.push(self.action);
 

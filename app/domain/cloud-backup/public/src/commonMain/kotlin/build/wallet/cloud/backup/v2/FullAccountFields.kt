@@ -60,10 +60,6 @@ data class FullAccountFields(
 data class FullAccountKeys(
   @Serializable(with = SpendingKeysetSerializer::class)
   val activeSpendingKeyset: SpendingKeyset,
-  val inactiveSpendingKeysets: List<
-    @Serializable(with = SpendingKeysetSerializer::class)
-    SpendingKeyset
-  >,
   @Serializable(with = AppKeyKeyPairSerializer::class)
   val appGlobalAuthKeypair: AppKey<AppGlobalAuthKey>,
   val appSpendingKeys: Map<

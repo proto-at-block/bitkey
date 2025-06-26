@@ -12,7 +12,6 @@ import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
-import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.toErrorIfNull
 
@@ -52,24 +51,5 @@ internal suspend fun Keybox.appKeys(
           put(activeSpendingKeyset.appKey, activeSpendingExtendedPrivateKey)
         }
         .bind()
-
-      // Retrieve inactive app spending keys
-      inactiveKeysets
-        .onEach { inactiveKeySet ->
-          appPrivateKeyDao
-            .getAppSpendingPrivateKey(publicKey = inactiveKeySet.appKey)
-            .onFailure {
-              logWarn {
-                "Missing private spending key for inactive spending public key: ${inactiveKeySet.appKey}"
-              }
-            }
-            .onSuccess { inactiveSpendingExtendedPrivateKey ->
-              if (inactiveSpendingExtendedPrivateKey != null) {
-                put(inactiveKeySet.appKey, inactiveSpendingExtendedPrivateKey)
-              }
-            }
-            .logFailure { "Error reading inactive, private spending app key" }
-            .bind()
-        }
     }
   }

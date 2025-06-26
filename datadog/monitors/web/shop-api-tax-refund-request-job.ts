@@ -17,7 +17,7 @@ export class ShopApiTaxRefundRequestJobMonitors extends Construct {
             },
         }
 
-        const window = "5m";
+        const window = "30m";
         const serviceName = `${job}`;
         const common_query = `service:${serviceName} env:${environment}`;
 

@@ -20,13 +20,14 @@ class SecurityActionsServiceImplTest : FunSpec({
   val clock = Clock.System
 
   val service = SecurityActionsServiceImpl(
-    MobileKeyCloudBackupHealthActionFactoryFake(),
-    EakCloudBackupHealthActionFactoryFake(),
+    AppKeyCloudBackupHealthActionFactoryFake(),
+    EekCloudBackupHealthActionFactoryFake(),
     SocialRecoveryActionFactoryFake(),
     BiometricActionFactoryFake(),
     CriticalAlertsActionFactoryFake(),
     FingerprintsActionFactoryFake(),
     HardwareDeviceActionFactoryFake(),
+    TxVerificationActionFactoryFake(),
     eventTracker,
     metricTrackerService,
     securityRecommendationInteractionDao,
@@ -43,18 +44,19 @@ class SecurityActionsServiceImplTest : FunSpec({
     actions.map { it.type() } shouldBe listOf(
       SecurityActionType.CRITICAL_ALERTS,
       SecurityActionType.SOCIAL_RECOVERY,
-      SecurityActionType.MOBILE_KEY_BACKUP,
-      SecurityActionType.EAK_BACKUP
+      SecurityActionType.APP_KEY_BACKUP,
+      SecurityActionType.EEK_BACKUP
     )
   }
 
   test("getActions when category is security") {
     val actions = service.getActions(SecurityActionCategory.SECURITY)
-    actions.size shouldBe 3
+    actions.size shouldBe 4
     actions.map { it.type() } shouldBe listOf(
       SecurityActionType.HARDWARE_DEVICE,
       SecurityActionType.FINGERPRINTS,
-      SecurityActionType.BIOMETRIC
+      SecurityActionType.BIOMETRIC,
+      SecurityActionType.TRANSACTION_VERIFICATION
     )
   }
 
@@ -70,10 +72,11 @@ class SecurityActionsServiceImplTest : FunSpec({
         SecurityActionRecommendation.ADD_TRUSTED_CONTACTS,
         SecurityActionRecommendation.UPDATE_FIRMWARE,
         SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS,
-        SecurityActionRecommendation.SETUP_BIOMETRICS
+        SecurityActionRecommendation.SETUP_BIOMETRICS,
+        SecurityActionRecommendation.ENABLE_TRANSACTION_VERIFICATION
       )
 
-      eventTracker.eventCalls.skipItems(11)
+      eventTracker.eventCalls.skipItems(12)
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -83,14 +86,15 @@ class SecurityActionsServiceImplTest : FunSpec({
     fingerprintFactory.includeRecommendations = false
 
     val service = SecurityActionsServiceImpl(
-      MobileKeyCloudBackupHealthActionFactoryFake(),
-      EakCloudBackupHealthActionFactoryFake(),
+      AppKeyCloudBackupHealthActionFactoryFake(),
+      EekCloudBackupHealthActionFactoryFake(),
       SocialRecoveryActionFactoryFake(),
       // InheritanceActionFactoryFake(),
       BiometricActionFactoryFake(),
       CriticalAlertsActionFactoryFake(),
       fingerprintFactory,
       HardwareDeviceActionFactoryFake(),
+      TxVerificationActionFactoryFake(),
       eventTracker,
       metricTrackerService,
       securityRecommendationInteractionDao,
@@ -140,7 +144,7 @@ class SecurityActionsServiceImplTest : FunSpec({
           )
         }
       )
-      eventTracker.eventCalls.skipItems(11)
+      eventTracker.eventCalls.skipItems(12)
       cancelAndIgnoreRemainingEvents()
     }
   }

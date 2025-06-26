@@ -30,7 +30,7 @@ pub struct Cli {
     wallet: String,
 
     /// URL for the server
-    #[clap(short, long, default_value = "https://api.dev.wallet.build")]
+    #[clap(short, long, default_value = "https://api.bitkey.world")]
     server: String,
 
     /// URL for the Electrum node

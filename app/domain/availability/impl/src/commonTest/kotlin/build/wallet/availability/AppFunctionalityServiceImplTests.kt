@@ -181,7 +181,7 @@ class AppFunctionalityServiceImplTests : FunSpec({
     service.status.test {
       awaitItem().shouldBe(
         LimitedFunctionality(
-          cause = EmergencyAccessMode
+          cause = EmergencyExitMode
         )
       )
     }

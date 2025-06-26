@@ -25,7 +25,7 @@ class SignChallengeAndCsek(
       challenge = challenge,
       signature = commands.signChallenge(session, challenge.asByteString())
     ),
-    sealedCsek = commands.sealKey(session, csek)
+    sealedCsek = commands.sealData(session, csek.key.raw)
   )
 
   override suspend fun onSuccess(response: SignedChallengeAndCsek) = success(response)

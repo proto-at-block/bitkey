@@ -3,6 +3,8 @@ package build.wallet.statemachine.settings.full
 import androidx.compose.runtime.*
 import bitkey.ui.framework.NavigatorPresenter
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
+import bitkey.ui.verification.TxVerificationPolicyProps
+import bitkey.ui.verification.TxVerificationPolicyStateMachine
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -61,6 +63,7 @@ class SettingsHomeUiStateMachineImpl(
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
   private val exportToolsUiStateMachine: ExportToolsUiStateMachine,
+  private val transactionVerificationPolicyStateMachine: TxVerificationPolicyStateMachine,
 ) : SettingsHomeUiStateMachine {
   @Composable
   override fun model(props: SettingsHomeUiProps): ScreenModel {
@@ -281,6 +284,15 @@ class SettingsHomeUiStateMachineImpl(
           onBack = { state = ShowingAllSettingsUiState }
         )
       )
+
+      is ShowingTransactionVerificationPolicyState -> {
+        transactionVerificationPolicyStateMachine.model(
+          TxVerificationPolicyProps(
+            account = props.account as FullAccount,
+            onExit = props.onBack
+          )
+        )
+      }
     }
   }
 
@@ -339,5 +351,10 @@ class SettingsHomeUiStateMachineImpl(
     ) : SettingsListState()
 
     data object ShowingExportToolsUiState : SettingsListState()
+
+    /**
+     * Showing the UI for toggling/changing the Transaction Verification Policy.
+     */
+    data object ShowingTransactionVerificationPolicyState : SettingsListState()
   }
 }

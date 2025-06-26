@@ -53,6 +53,7 @@ import build.wallet.recovery.socrec.SocRecStartedChallengeDaoFake
 import build.wallet.relationships.RelationshipsKeysDaoFake
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.testing.shouldBeOk
+import build.wallet.time.ClockFake
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.maps.shouldBeEmpty
@@ -61,6 +62,7 @@ import io.kotest.matchers.shouldBe
 
 class AppDataDeleterImplTests : FunSpec({
 
+  val clock = ClockFake()
   val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
   val onboardingKeyboxSealedCsekDao = OnboardingKeyboxSealedCsekDaoMock()
   val onboardingKeyboxStepStateDao =
@@ -84,7 +86,7 @@ class AppDataDeleterImplTests : FunSpec({
   val cloudBackupDao = CloudBackupDaoFake()
   val relationshipsKeysDao = RelationshipsKeysDaoFake()
   val socRecStartedChallengeDao = SocRecStartedChallengeDaoFake()
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val authKeyRotationAttemptMock = AuthKeyRotationAttemptDaoMock(turbines::create)
   val recoveryDaoMock = RecoveryDaoMock(turbines::create)
   val authSignatureStatusProvider = F8eAuthSignatureStatusProviderFake()

@@ -2,11 +2,12 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64, Engine as _};
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 use strum_macros::{Display, EnumDiscriminants, EnumString};
 use time::{serde::rfc3339, OffsetDateTime};
 
 use crate::currencies::CurrencyCode;
-use crate::transaction_verification::router::TransactionVerificationApprovalView;
+use crate::transaction_verification::router::TransactionVerificationGrantView;
 use crate::{account::identifiers::AccountId, transaction_verification::TransactionVerificationId};
 
 /// The unit in which the Bitcoin amount is displayed in the secure verification site.
@@ -110,7 +111,7 @@ impl TransactionVerificationPending {
 
     pub fn mark_as_success(
         &self,
-        signed_hw_grant: TransactionVerificationApprovalView,
+        signed_hw_grant: TransactionVerificationGrantView,
     ) -> TransactionVerification {
         TransactionVerification::Success(TransactionVerificationSuccess {
             signed_hw_grant,
@@ -131,15 +132,17 @@ impl TransactionVerificationPending {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TransactionVerificationSuccess {
-    pub signed_hw_grant: TransactionVerificationApprovalView,
+    pub signed_hw_grant: TransactionVerificationGrantView,
     #[serde(flatten)]
     pub common_fields: TransactionVerificationCommonFields,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde_as]
 pub struct TransactionVerificationCommonFields {
     #[serde(rename = "partition_key")]
     pub id: TransactionVerificationId,
+    #[serde_as(as = "DisplayFromStr")]
     pub psbt: Psbt,
     pub account_id: AccountId,
     #[serde(with = "rfc3339")]
@@ -238,13 +241,14 @@ mod tests {
     fn test_state_transitions() {
         let account_id = AccountId::gen().unwrap();
         let psbt = create_test_psbt();
-        let signed_hw_grant = TransactionVerificationApprovalView {
+        let signed_hw_grant = TransactionVerificationGrantView {
             version: 0,
             hw_auth_public_key: PublicKey::from_str(
                 "0326cb04015410966e715a14da549bacbf12acb823fe1247540b6123b2daea0164",
             )
             .unwrap(),
-            allowed_hash: vec![],
+            commitment: vec![],
+            reverse_hash_chain: vec![],
             signature: Signature::from_compact(&[0u8; 64]).unwrap(),
         };
 
@@ -283,13 +287,14 @@ mod tests {
         if let TransactionVerification::Pending(pending) =
             TransactionVerification::new_pending(&account_id, psbt, CurrencyCode::USD, Satoshi)
         {
-            let signed_hw_grant = TransactionVerificationApprovalView {
+            let signed_hw_grant = TransactionVerificationGrantView {
                 version: 0,
                 hw_auth_public_key: PublicKey::from_str(
                     "0326cb04015410966e715a14da549bacbf12acb823fe1247540b6123b2daea0164",
                 )
                 .unwrap(),
-                allowed_hash: vec![],
+                commitment: vec![],
+                reverse_hash_chain: vec![],
                 signature: Signature::from_compact(&[0u8; 64]).unwrap(),
             };
             // Test for all variants

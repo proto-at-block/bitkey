@@ -18,7 +18,7 @@ fun AcceptingInviteWithF8eFailureBodyModel(
   error: AcceptInvitationCodeError,
 ): BodyModel {
   val subject = if (isInheritance) "beneficiary" else "Recovery Contact"
-  val title = "We couldn’t complete your enrollment as a $subject"
+  var title = "We couldn’t complete your enrollment as a $subject"
   val eventTrackerScreenId = TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE
 
   return when (error) {
@@ -34,6 +34,11 @@ fun AcceptingInviteWithF8eFailureBodyModel(
     is AcceptInvitationCodeError.F8ePropagatedError -> {
       when (val f8eError = error.error) {
         is F8eError.SpecificClientError -> {
+          title = when (f8eError.errorCode) {
+            INVITATION_EXPIRED -> "This code has expired"
+            else -> title
+          }
+
           val subline =
             when (f8eError.errorCode) {
               ACCOUNT_ALREADY_TRUSTED_CONTACT -> {
@@ -60,14 +65,19 @@ fun AcceptingInviteWithF8eFailureBodyModel(
                 )
               }
               INVITATION_CODE_MISMATCH -> "The provided code was incorrect. Please try again."
-              INVITATION_EXPIRED -> "The provided code has expired. Please try again."
+              INVITATION_EXPIRED -> "The invite code you entered has expired. Reach out to your contact to request a new code."
               RELATIONSHIP_ALREADY_ESTABLISHED -> "The enrollment for this code has already been completed by someone else."
             }
+
+          val buttonText = when (f8eError.errorCode) {
+            INVITATION_EXPIRED -> "Got it"
+            else -> "Back"
+          }
 
           ErrorFormBodyModel(
             title = title,
             subline = subline,
-            primaryButton = ButtonDataModel(text = "Back", onClick = onBack),
+            primaryButton = ButtonDataModel(text = buttonText, onClick = onBack),
             eventTrackerScreenId = eventTrackerScreenId
           )
         }

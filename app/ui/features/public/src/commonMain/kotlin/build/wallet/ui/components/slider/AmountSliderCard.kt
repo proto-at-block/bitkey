@@ -37,7 +37,7 @@ fun AmountSliderCard(
       HeroAmount(
         modifier = Modifier.padding(vertical = 16.dp),
         primaryAmount = AnnotatedString(model.primaryAmount),
-        secondaryAmountWithCurrency = model.secondaryAmount
+        contextLine = model.secondaryAmount
       )
       Slider(
         value = sliderValue.value,

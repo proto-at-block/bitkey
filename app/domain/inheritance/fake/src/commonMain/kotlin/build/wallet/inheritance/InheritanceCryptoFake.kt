@@ -1,7 +1,6 @@
 package build.wallet.inheritance
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.inheritance.InheritanceKeyset
 import build.wallet.bitkey.inheritance.InheritanceKeysetFake
 import build.wallet.bitkey.inheritance.InheritanceMaterial
 import build.wallet.bitkey.inheritance.InheritanceMaterialHashData
@@ -23,7 +22,13 @@ class InheritanceCryptoFake(
         contacts = emptyList()
       )
     ),
-  var inheritanceKeysetResult: Result<InheritanceKeyset, Error> = Ok(InheritanceKeysetFake),
+  var inheritanceMaterialPackageResult: Result<DecryptInheritanceMaterialPackageOutput, Error> =
+    Ok(
+      DecryptInheritanceMaterialPackageOutput(
+        inheritanceKeyset = InheritanceKeysetFake,
+        descriptor = "fake-descriptor"
+      )
+    ),
 ) : InheritanceCrypto {
   override suspend fun getInheritanceMaterialHashData(
     keybox: Keybox,
@@ -37,11 +42,12 @@ class InheritanceCryptoFake(
     return inheritanceMaterial
   }
 
-  override suspend fun decryptInheritanceMaterial(
+  override suspend fun decryptInheritanceMaterialPackage(
     delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
     sealedDek: XCiphertext,
     sealedMobileKey: XCiphertext,
-  ): Result<InheritanceKeyset, Error> {
-    return inheritanceKeysetResult
+    sealedDescriptor: XCiphertext?,
+  ): Result<DecryptInheritanceMaterialPackageOutput, Error> {
+    return inheritanceMaterialPackageResult
   }
 }

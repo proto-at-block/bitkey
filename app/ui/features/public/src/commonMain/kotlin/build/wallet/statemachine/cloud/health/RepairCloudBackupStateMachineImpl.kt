@@ -10,20 +10,21 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.*
 import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
-import build.wallet.cloud.backup.csek.CsekGenerator
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SekGenerator
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.emergencyaccesskit.EmergencyAccessKitData
-import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
-import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
-import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryError
+import build.wallet.emergencyexitkit.EmergencyExitKitData
+import build.wallet.emergencyexitkit.EmergencyExitKitPdfGenerator
+import build.wallet.emergencyexitkit.EmergencyExitKitRepository
+import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryError
 import build.wallet.logging.logDebug
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
@@ -47,16 +48,16 @@ class RepairCloudBackupStateMachineImpl(
   private val cloudBackupRepository: CloudBackupRepository,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val deviceInfoProvider: DeviceInfoProvider,
-  private val csekGenerator: CsekGenerator,
+  private val sekGenerator: SekGenerator,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val csekDao: CsekDao,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
-  private val emergencyAccessKitPdfGenerator: EmergencyAccessKitPdfGenerator,
-  private val emergencyAccessKitRepository: EmergencyAccessKitRepository,
+  private val emergencyExitKitPdfGenerator: EmergencyExitKitPdfGenerator,
+  private val emergencyExitKitRepository: EmergencyExitKitRepository,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : RepairCloudBackupStateMachine {
   @Composable
-  override fun model(props: RepairMobileKeyBackupProps): ScreenModel {
+  override fun model(props: RepairAppKeyBackupProps): ScreenModel {
     var state: State by remember {
       // Do not force sign out, as we want to check if we are already signed in initially.
       mutableStateOf(SigningIntoCloudState(forceSignOut = false))
@@ -123,7 +124,7 @@ class RepairCloudBackupStateMachineImpl(
         preparingBackupModel(props)
       }
 
-      is CheckingMobileKeyCloudBackupState -> {
+      is CheckingAppKeyCloudBackupState -> {
         LaunchedEffect("check-cloud-backup") {
           cloudBackupRepository
             .readBackup(currentState.cloudAccount)
@@ -134,8 +135,8 @@ class RepairCloudBackupStateMachineImpl(
             .onFailure {
               state = ErrorCheckingCloudBackupState(
                 cloudAccount = currentState.cloudAccount,
-                mobileKeyBackup = currentState.mobileKeyBackup,
-                eakBackup = currentState.eakBackup
+                appKeyBackup = currentState.appKeyBackup,
+                eekBackup = currentState.eekBackup
               )
             }
         }
@@ -147,17 +148,17 @@ class RepairCloudBackupStateMachineImpl(
         errorConnectingToCloud(
           props,
           onTryAgain = {
-            state = CheckingMobileKeyCloudBackupState(
+            state = CheckingAppKeyCloudBackupState(
               cloudAccount = currentState.cloudAccount,
-              mobileKeyBackup = currentState.mobileKeyBackup,
-              eakBackup = currentState.eakBackup
+              appKeyBackup = currentState.appKeyBackup,
+              eekBackup = currentState.eekBackup
             )
           }
         )
 
       is GeneratingCsekState -> {
         LaunchedEffect("generating-csek") {
-          val csek = csekGenerator.generate()
+          val csek = sekGenerator.generate()
           state = SealingCsekWithHardwareState(
             cloudAccount = currentState.cloudAccount,
             csek = csek
@@ -171,12 +172,12 @@ class RepairCloudBackupStateMachineImpl(
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              commands.sealKey(session, currentState.csek)
+              commands.sealData(session, currentState.csek.key.raw)
             },
             onSuccess = { sealedCsek ->
               csekDao.set(sealedCsek, currentState.csek)
                 .onSuccess {
-                  state = CreatingMobileKeyBackupState(
+                  state = CreatingAppKeyBackupState(
                     cloudAccount = currentState.cloudAccount,
                     sealedCsek = sealedCsek
                   )
@@ -215,8 +216,8 @@ class RepairCloudBackupStateMachineImpl(
               onConfirm = {
                 state = UploadingBackupState(
                   cloudAccount = currentState.cloudAccount,
-                  mobileKeyBackup = currentState.mobileKeyBackup,
-                  eakBackup = currentState.eakBackup
+                  appKeyBackup = currentState.appKeyBackup,
+                  eekBackup = currentState.eekBackup
                 )
               },
               onCancel = {
@@ -243,18 +244,18 @@ class RepairCloudBackupStateMachineImpl(
         ).asScreen(props.presentationStyle)
       }
 
-      is CreatingMobileKeyBackupState -> {
-        LaunchedEffect("creating-mobile-key-backup") {
+      is CreatingAppKeyBackupState -> {
+        LaunchedEffect("creating-app-key-backup") {
           fullAccountCloudBackupCreator
             .create(
               keybox = props.account.keybox,
               sealedCsek = currentState.sealedCsek
             )
-            .onSuccess { mobileKeyBackup ->
-              state = CreatingEakBackupState(
+            .onSuccess { appKeyBackup ->
+              state = CreatingEekBackupState(
                 cloudAccount = currentState.cloudAccount,
                 sealedCsek = currentState.sealedCsek,
-                mobileKeyBackup = mobileKeyBackup
+                appKeyBackup = appKeyBackup
               )
             }
             .onFailure {
@@ -267,10 +268,10 @@ class RepairCloudBackupStateMachineImpl(
         creatingBackupModel(props)
       }
 
-      is CreatingEakBackupState -> {
+      is CreatingEekBackupState -> {
         LaunchedEffect("creating-EEK-backup") {
           // Create the Emergency Exit Kit.
-          emergencyAccessKitPdfGenerator
+          emergencyExitKitPdfGenerator
             .generate(
               keybox = props.account.keybox,
               sealedCsek = currentState.sealedCsek
@@ -280,11 +281,11 @@ class RepairCloudBackupStateMachineImpl(
                 cloudAccount = currentState.cloudAccount
               )
             }
-            .onSuccess { eakBackup ->
-              state = CheckingMobileKeyCloudBackupState(
+            .onSuccess { eekBackup ->
+              state = CheckingAppKeyCloudBackupState(
                 cloudAccount = currentState.cloudAccount,
-                mobileKeyBackup = currentState.mobileKeyBackup,
-                eakBackup = eakBackup
+                appKeyBackup = currentState.appKeyBackup,
+                eekBackup = eekBackup
               )
             }
         }
@@ -299,7 +300,7 @@ class RepairCloudBackupStateMachineImpl(
             .writeBackup(
               accountId = props.account.keybox.fullAccountId,
               cloudStoreAccount = currentState.cloudAccount,
-              backup = currentState.mobileKeyBackup,
+              backup = currentState.appKeyBackup,
               requireAuthRefresh = true
             )
             .logFailure { "Error saving cloud backup to cloud storage" }
@@ -309,30 +310,33 @@ class RepairCloudBackupStateMachineImpl(
                   SigningIntoCloudState(forceSignOut = false)
                 else -> ErrorUploadingBackupState(
                   currentState.cloudAccount,
-                  currentState.mobileKeyBackup,
-                  currentState.eakBackup
+                  currentState.appKeyBackup,
+                  currentState.eekBackup
                 )
               }
             }
             .onSuccess {
+              logInfo {
+                "Cloud backup uploaded via RepairCloudBackupUiStateMachine"
+              }
               // proceed to uploading EEK
             }
 
           // Uploading EEK backup to cloud
-          emergencyAccessKitRepository
+          emergencyExitKitRepository
             .write(
               account = currentState.cloudAccount,
-              emergencyAccessKitData = currentState.eakBackup
+              emergencyExitKitData = currentState.eekBackup
             )
             .logFailure { "Error saving Emergency Exit Kit to cloud file store" }
             .onFailure { error ->
               state = when (error) {
-                is EmergencyAccessKitRepositoryError.RectifiableCloudError ->
+                is EmergencyExitKitRepositoryError.RectifiableCloudError ->
                   SigningIntoCloudState(forceSignOut = false)
                 else -> ErrorUploadingBackupState(
                   currentState.cloudAccount,
-                  currentState.mobileKeyBackup,
-                  currentState.eakBackup
+                  currentState.appKeyBackup,
+                  currentState.eekBackup
                 )
               }
             }
@@ -358,8 +362,8 @@ class RepairCloudBackupStateMachineImpl(
         onTryAgain = {
           state = UploadingBackupState(
             currentState.cloudAccount,
-            currentState.mobileKeyBackup,
-            currentState.eakBackup
+            currentState.appKeyBackup,
+            currentState.eekBackup
           )
         }
       )
@@ -367,7 +371,7 @@ class RepairCloudBackupStateMachineImpl(
   }
 
   private fun errorUploadingBackupModel(
-    props: RepairMobileKeyBackupProps,
+    props: RepairAppKeyBackupProps,
     onTryAgain: () -> Unit,
   ): ScreenModel {
     return ErrorFormBodyModel(
@@ -379,7 +383,7 @@ class RepairCloudBackupStateMachineImpl(
     ).asScreen(props.presentationStyle)
   }
 
-  private fun preparingBackupModel(props: RepairMobileKeyBackupProps): ScreenModel {
+  private fun preparingBackupModel(props: RepairAppKeyBackupProps): ScreenModel {
     return LoadingBodyModel(
       message = "Preparing backup",
       onBack = props.onExit,
@@ -387,7 +391,7 @@ class RepairCloudBackupStateMachineImpl(
     ).asScreen(props.presentationStyle)
   }
 
-  private fun creatingBackupModel(props: RepairMobileKeyBackupProps): ScreenModel {
+  private fun creatingBackupModel(props: RepairAppKeyBackupProps): ScreenModel {
     return LoadingBodyModel(
       message = "Creating backup",
       onBack = props.onExit,
@@ -395,7 +399,7 @@ class RepairCloudBackupStateMachineImpl(
     ).asScreen(props.presentationStyle)
   }
 
-  private fun uploadingBackupToCloudModel(props: RepairMobileKeyBackupProps): ScreenModel {
+  private fun uploadingBackupToCloudModel(props: RepairAppKeyBackupProps): ScreenModel {
     return LoadingBodyModel(
       message = "Uploading backup to ${cloudServiceProvider().name}",
       onBack = props.onExit,
@@ -404,7 +408,7 @@ class RepairCloudBackupStateMachineImpl(
   }
 
   private fun errorConnectingToCloud(
-    props: RepairMobileKeyBackupProps,
+    props: RepairAppKeyBackupProps,
     onTryAgain: () -> Unit,
   ): ScreenModel {
     return ErrorFormBodyModel(
@@ -426,8 +430,8 @@ class RepairCloudBackupStateMachineImpl(
 
     data class ErrorUploadingBackupState(
       val cloudAccount: CloudStoreAccount,
-      val mobileKeyBackup: CloudBackup,
-      val eakBackup: EmergencyAccessKitData,
+      val appKeyBackup: CloudBackup,
+      val eekBackup: EmergencyExitKitData,
     ) : State
 
     /**
@@ -436,8 +440,8 @@ class RepairCloudBackupStateMachineImpl(
      */
     data class FoundBackupForDifferentAccountState(
       val cloudAccount: CloudStoreAccount,
-      val mobileKeyBackup: CloudBackup,
-      val eakBackup: EmergencyAccessKitData,
+      val appKeyBackup: CloudBackup,
+      val eekBackup: EmergencyExitKitData,
     ) : State
 
     /**
@@ -464,10 +468,10 @@ class RepairCloudBackupStateMachineImpl(
           }
           is CloudBackupV2 -> {
             if (foundLocalBackup.isFullAccount()) {
-              return CreatingEakBackupState(
+              return CreatingEekBackupState(
                 cloudAccount = cloudAccount,
                 sealedCsek = foundLocalBackup.fullAccountFields!!.sealedHwEncryptionKey,
-                mobileKeyBackup = foundLocalBackup
+                appKeyBackup = foundLocalBackup
               )
             } else {
               // Should not happen, let's create a new backup
@@ -485,38 +489,38 @@ class RepairCloudBackupStateMachineImpl(
      * Checking the state of the existing cloud backup. If any, make sure it belongs to
      * the current customer's account. If not, the customer will have an option to overwrite it.
      */
-    data class CheckingMobileKeyCloudBackupState(
+    data class CheckingAppKeyCloudBackupState(
       val cloudAccount: CloudStoreAccount,
-      val mobileKeyBackup: CloudBackup,
-      val eakBackup: EmergencyAccessKitData,
+      val appKeyBackup: CloudBackup,
+      val eekBackup: EmergencyExitKitData,
     ) : State {
       /**
        * Determine the next state based on the existing cloud backup found.
        *
-       * @param foundMobileKeyBackup the App Key backup that we found on cloud.
+       * @param foundAppKeyBackup the App Key backup that we found on cloud.
        */
       fun determineNextState(
-        props: RepairMobileKeyBackupProps,
-        foundMobileKeyBackup: CloudBackup?,
+        props: RepairAppKeyBackupProps,
+        foundAppKeyBackup: CloudBackup?,
       ): State {
-        if (foundMobileKeyBackup == null) {
+        if (foundAppKeyBackup == null) {
           logDebug { "No existing cloud backup found, uploading new backup." }
-          return UploadingBackupState(cloudAccount, mobileKeyBackup, eakBackup)
+          return UploadingBackupState(cloudAccount, appKeyBackup, eekBackup)
         } else {
-          when (foundMobileKeyBackup) {
+          when (foundAppKeyBackup) {
             is CloudBackupV2 -> {
-              val sameAccount = foundMobileKeyBackup.accountId == props.account.accountId.serverId
+              val sameAccount = foundAppKeyBackup.accountId == props.account.accountId.serverId
               return if (sameAccount) {
                 // Found a backup for the current account, okay to go ahead and overwrite it.
                 logDebug { "Found a backup for the current account." }
-                UploadingBackupState(cloudAccount, mobileKeyBackup, eakBackup)
+                UploadingBackupState(cloudAccount, appKeyBackup, eekBackup)
               } else {
                 // Found a backup for a different account, customer will have an option to overwrite it.
                 logWarn { "Found a backup for a different account." }
                 FoundBackupForDifferentAccountState(
                   cloudAccount = cloudAccount,
-                  mobileKeyBackup = mobileKeyBackup,
-                  eakBackup = eakBackup
+                  appKeyBackup = appKeyBackup,
+                  eekBackup = eekBackup
                 )
               }
             }
@@ -527,8 +531,8 @@ class RepairCloudBackupStateMachineImpl(
 
     data class ErrorCheckingCloudBackupState(
       val cloudAccount: CloudStoreAccount,
-      val mobileKeyBackup: CloudBackup,
-      val eakBackup: EmergencyAccessKitData,
+      val appKeyBackup: CloudBackup,
+      val eekBackup: EmergencyExitKitData,
     ) : State
 
     /**
@@ -554,7 +558,7 @@ class RepairCloudBackupStateMachineImpl(
     /**
      * Creating a new App Key backup.
      */
-    data class CreatingMobileKeyBackupState(
+    data class CreatingAppKeyBackupState(
       val cloudAccount: CloudStoreAccount,
       val sealedCsek: SealedCsek,
     ) : State
@@ -562,10 +566,10 @@ class RepairCloudBackupStateMachineImpl(
     /**
      * Creating a new EEK backup.
      */
-    data class CreatingEakBackupState(
+    data class CreatingEekBackupState(
       val cloudAccount: CloudStoreAccount,
       val sealedCsek: SealedCsek,
-      val mobileKeyBackup: CloudBackup,
+      val appKeyBackup: CloudBackup,
     ) : State
 
     /**
@@ -573,8 +577,8 @@ class RepairCloudBackupStateMachineImpl(
      */
     data class UploadingBackupState(
       val cloudAccount: CloudStoreAccount,
-      val mobileKeyBackup: CloudBackup,
-      val eakBackup: EmergencyAccessKitData,
+      val appKeyBackup: CloudBackup,
+      val eekBackup: EmergencyExitKitData,
     ) : State
 
     /**

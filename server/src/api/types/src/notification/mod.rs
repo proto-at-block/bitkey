@@ -3,7 +3,7 @@ use std::{collections::HashSet, hash::Hash};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display as StrumDisplay, EnumIter};
-use time::OffsetDateTime;
+use time::{serde::rfc3339, OffsetDateTime};
 use utoipa::ToSchema;
 
 #[derive(
@@ -210,6 +210,35 @@ impl From<NotificationsPreferencesState> for NotificationsPreferences {
             account_security: state.account_security,
             money_movement: state.money_movement,
             product_marketing: state.product_marketing,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum NotificationsTriggerType {
+    SecurityHubWalletAtRisk,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+pub struct NotificationsTrigger {
+    pub trigger_type: NotificationsTriggerType,
+    #[serde(with = "rfc3339")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "rfc3339")]
+    pub updated_at: OffsetDateTime,
+}
+
+impl NotificationsTrigger {
+    pub fn new(
+        trigger_type: NotificationsTriggerType,
+        created_at: OffsetDateTime,
+        updated_at: OffsetDateTime,
+    ) -> Self {
+        Self {
+            trigger_type,
+            created_at,
+            updated_at,
         }
     }
 }

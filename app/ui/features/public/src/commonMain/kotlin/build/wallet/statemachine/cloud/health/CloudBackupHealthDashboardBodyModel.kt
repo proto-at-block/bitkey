@@ -8,7 +8,7 @@ import build.wallet.ui.app.backup.health.CloudBackupHealthDashboardScreen
 
 data class CloudBackupHealthDashboardBodyModel(
   override val onBack: () -> Unit,
-  val mobileKeyBackupStatusCard: CloudBackupHealthStatusCardModel,
+  val appKeyBackupStatusCard: CloudBackupHealthStatusCardModel,
   val eekBackupStatusCard: CloudBackupHealthStatusCardModel? = null,
 ) : BodyModel() {
   // TODO(BKR-868): implement analytics

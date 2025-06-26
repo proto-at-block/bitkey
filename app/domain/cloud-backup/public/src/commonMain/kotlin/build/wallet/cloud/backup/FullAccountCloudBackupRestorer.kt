@@ -9,7 +9,6 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import com.github.michaelbull.result.Result
-import kotlinx.collections.immutable.ImmutableList
 
 interface FullAccountCloudBackupRestorer {
   /**
@@ -40,7 +39,6 @@ interface FullAccountCloudBackupRestorer {
 
   data class AccountRestoration(
     val activeSpendingKeyset: SpendingKeyset,
-    val inactiveKeysets: ImmutableList<SpendingKeyset>,
     val activeAppKeyBundle: AppKeyBundle,
     val activeHwKeyBundle: HwKeyBundle,
     val config: FullAccountConfig,
@@ -55,7 +53,6 @@ interface FullAccountCloudBackupRestorer {
       localId = keyboxId,
       fullAccountId = fullAccountId,
       activeSpendingKeyset = activeSpendingKeyset,
-      inactiveKeysets = inactiveKeysets,
       activeAppKeyBundle = activeAppKeyBundle,
       activeHwKeyBundle = activeHwKeyBundle,
       config = config,

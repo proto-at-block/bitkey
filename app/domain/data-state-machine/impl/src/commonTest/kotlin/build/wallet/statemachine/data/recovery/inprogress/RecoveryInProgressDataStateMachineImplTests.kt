@@ -14,8 +14,8 @@ import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.cloud.backup.csek.CsekDaoFake
-import build.wallet.cloud.backup.csek.CsekGeneratorMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
+import build.wallet.cloud.backup.csek.SekGeneratorMock
 import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -40,6 +40,7 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.AwaitingHardwareProofOfPossessionData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
+import build.wallet.time.ClockFake
 import build.wallet.time.MinimumLoadingDuration
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -56,9 +57,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class RecoveryInProgressDataStateMachineImplTests : FunSpec({
+  val clock = ClockFake()
   val lostHardwareRecoveryService = LostHardwareRecoveryServiceFake()
   val lostAppAndCloudRecoveryService = LostAppAndCloudRecoveryServiceFake()
-  val csekGenerator = CsekGeneratorMock()
+  val sekGenerator = SekGeneratorMock()
   val csekDao = CsekDaoFake()
   val recoveryAuthCompleter = RecoveryAuthCompleterMock(turbines::create)
   val f8eSpendingKeyRotator = F8eSpendingKeyRotatorMock()
@@ -67,7 +69,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val recoveryDao = RecoveryDaoMock(turbines::create)
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val relationshipsKeysRepository = RelationshipsKeysRepository(
     relationshipsCrypto = RelationshipsCryptoFake(),
     relationshipKeysDao = RelationshipsKeysDaoFake()
@@ -87,7 +89,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       lostHardwareRecoveryService = lostHardwareRecoveryService,
       lostAppAndCloudRecoveryService = lostAppAndCloudRecoveryService,
       clock = Clock.System,
-      csekGenerator = csekGenerator,
+      sekGenerator = sekGenerator,
       csekDao = csekDao,
       recoveryAuthCompleter = recoveryAuthCompleter,
       f8eSpendingKeyRotator = f8eSpendingKeyRotator,

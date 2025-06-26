@@ -103,8 +103,8 @@ class NoActiveAccountDataStateMachineImpl(
           startRecovery = {
             state = CheckCloudBackupAndRouteState(StartIntent.RestoreBitkey)
           },
-          startEmergencyAccessRecovery = {
-            state = EmergencyAccessAccountRecoveryState
+          startEmergencyExitRecovery = {
+            state = EmergencyExitAccountRecoveryState
           }
         )
 
@@ -114,7 +114,7 @@ class NoActiveAccountDataStateMachineImpl(
           inviteCode = dataState.inviteCode,
           onStartCloudRecovery = { state = FullAccountRecoveryState(it) },
           onStartLostAppRecovery = { state = FullAccountRecoveryState(null) },
-          onImportEmergencyAccessKit = { state = EmergencyAccessAccountRecoveryState },
+          onImportEmergencyExitKit = { state = EmergencyExitAccountRecoveryState },
           onExit = { state = GettingStartedState }
         )
 
@@ -133,8 +133,8 @@ class NoActiveAccountDataStateMachineImpl(
           }
         )
 
-      is EmergencyAccessAccountRecoveryState ->
-        RecoveringAccountWithEmergencyAccessKit(
+      is EmergencyExitAccountRecoveryState ->
+        RecoveringAccountWithEmergencyExitKit(
           onExit = { state = GettingStartedState }
         )
     }
@@ -174,7 +174,7 @@ private sealed interface State {
   /**
    * Application is in the process of recovering from the Emergency Exit Kit backup.
    */
-  data object EmergencyAccessAccountRecoveryState : State
+  data object EmergencyExitAccountRecoveryState : State
 
   /**
    * Loading a cloud backup to determine how to proceed with recovery or account creation.

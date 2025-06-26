@@ -25,7 +25,7 @@ kotlin {
         api(projects.domain.onboardingPublic)
         api(projects.domain.recoveryPublic)
         api(projects.libs.stateMachinePublic)
-        api(projects.domain.emergencyAccessKitPublic)
+        api(projects.domain.emergencyExitKitPublic)
       }
     }
   }

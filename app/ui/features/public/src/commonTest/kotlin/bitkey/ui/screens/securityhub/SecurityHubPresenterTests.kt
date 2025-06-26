@@ -1,10 +1,10 @@
 package bitkey.ui.screens.securityhub
 
-import bitkey.securitycenter.EakBackupHealthAction
-import bitkey.securitycenter.SecurityActionRecommendation
+import bitkey.securitycenter.EekBackupHealthAction
 import bitkey.securitycenter.SecurityActionRecommendation.*
 import bitkey.securitycenter.SecurityActionType
 import bitkey.securitycenter.SecurityActionsServiceFake
+import bitkey.securitycenter.SecurityRecommendationWithStatus
 import bitkey.ui.framework.test
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
 import build.wallet.availability.AppFunctionalityServiceFake
@@ -12,6 +12,8 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.database.SecurityInteractionStatus
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.navigation.v1.NavigationScreenId
@@ -24,8 +26,12 @@ import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
+import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetStatusCardUiProps
+import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetStatusCardUiStateMachine
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsProps
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsUiStateMachine
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -64,8 +70,19 @@ class SecurityHubPresenterTests : FunSpec({
       StateMachineMock<HardwareRecoveryStatusCardUiProps, CardModel?>(
         initialModel = null
       ) {},
+    fingerprintResetStatusCardUiStateMachine = object : FingerprintResetStatusCardUiStateMachine,
+      StateMachineMock<FingerprintResetStatusCardUiProps, CardModel?>(
+        initialModel = null
+      ) {},
+    resetFingerprintsUiStateMachine = object : ResetFingerprintsUiStateMachine,
+      StateMachineMock<ResetFingerprintsProps, CardModel?>(
+        initialModel = null
+      ) {},
     appFunctionalityService = AppFunctionalityServiceFake(),
-    haptics = haptics
+    haptics = haptics,
+    fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(
+      featureFlagDao = FeatureFlagDaoFake()
+    )
   )
 
   beforeTest {
@@ -102,10 +119,10 @@ class SecurityHubPresenterTests : FunSpec({
   }
 
   test("clicking EEK navigates to the setting when backed up") {
-    val action = EakBackupHealthAction(
+    val action = EekBackupHealthAction(
       cloudBackupStatus = EekBackupStatus.Healthy(lastUploaded = Clock.System.now())
     )
-    securityActionsService.actions.removeAll { it.type() == SecurityActionType.EAK_BACKUP }
+    securityActionsService.actions.removeAll { it.type() == SecurityActionType.EEK_BACKUP }
     securityActionsService.actions += action
     presenter.test(
       SecurityHubScreen(
@@ -161,13 +178,15 @@ class SecurityHubPresenterTests : FunSpec({
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE)
         UPDATE_FIRMWARE -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE)
+        ENABLE_TRANSACTION_VERIFICATION -> recommendation.navigationScreenId()
+          .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY)
       }
     }
   }
 
   test("markAllRecommendationsViewed marks all NEW recommendations as VIEWED with timestamps") {
-    securityActionsService.statuses = SecurityActionRecommendation.entries.mapIndexed { i, rec ->
-      bitkey.securitycenter.SecurityRecommendationWithStatus(
+    securityActionsService.statuses = entries.mapIndexed { i, rec ->
+      SecurityRecommendationWithStatus(
         recommendation = rec,
         interactionStatus = if (i % 2 == 0) SecurityInteractionStatus.NEW else SecurityInteractionStatus.VIEWED,
         lastRecommendationTriggeredAt = testClock.now(),

@@ -166,6 +166,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
               appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
               keyBundle = HwKeyBundleMock,
               sealedCsek = sealedCsekMock,
+              sealedSsek = sealedCsekMock,
               serial = ""
             )
           )

@@ -27,7 +27,7 @@ expect fun CloudBackupNotFoundBodyModel(
   onBack: () -> Unit,
   onCheckCloudAgain: () -> Unit,
   onCannotAccessCloud: () -> Unit,
-  onImportEmergencyAccessKit: (() -> Unit)?,
+  onImportEmergencyExitKit: (() -> Unit)?,
   onShowTroubleshootingSteps: () -> Unit,
 ): FormBodyModel
 
@@ -35,7 +35,7 @@ expect fun CloudNotSignedInBodyModel(
   onBack: () -> Unit,
   onCheckCloudAgain: () -> Unit,
   onCannotAccessCloud: () -> Unit,
-  onImportEmergencyAccessKit: (() -> Unit)?,
+  onImportEmergencyExitKit: (() -> Unit)?,
   onShowTroubleshootingSteps: () -> Unit,
 ): FormBodyModel
 
@@ -47,7 +47,7 @@ data class CloudWarningBodyModel(
   override val onBack: () -> Unit,
   val onCheckCloudAgain: () -> Unit,
   val onCannotAccessCloud: () -> Unit,
-  val onImportEmergencyAccessKit: (() -> Unit)?,
+  val onImportEmergencyExitKit: (() -> Unit)?,
 ) : FormBodyModel(
     id = id,
     onBack = onBack,
@@ -104,7 +104,7 @@ data class CloudWarningBodyModel(
                     onClick = onCannotAccessCloud,
                     trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
                   ),
-                  onImportEmergencyAccessKit?.let {
+                  onImportEmergencyExitKit?.let {
                     ListItemModel(
                       leadingAccessory =
                         ListItemAccessory.IconAccessory(

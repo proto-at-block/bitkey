@@ -1,5 +1,7 @@
 package build.wallet.cloud.backup.health
 
+import build.wallet.availability.AppFunctionalityService
+import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.CloudBackupRepository
@@ -9,7 +11,7 @@ import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
+import build.wallet.emergencyexitkit.EmergencyExitKitRepository
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.platform.app.AppSessionManager
@@ -28,14 +30,15 @@ class CloudBackupHealthRepositoryImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
   private val cloudBackupRepository: CloudBackupRepository,
   private val cloudBackupDao: CloudBackupDao,
-  private val emergencyAccessKitRepository: EmergencyAccessKitRepository,
+  private val emergencyExitKitRepository: EmergencyExitKitRepository,
   private val fullAccountCloudBackupRepairer: FullAccountCloudBackupRepairer,
   private val appSessionManager: AppSessionManager,
+  private val appFunctionalityService: AppFunctionalityService,
 ) : CloudBackupHealthRepository {
-  private val mobileKeyBackupStatus = MutableStateFlow<MobileKeyBackupStatus?>(null)
+  private val appKeyBackupStatus = MutableStateFlow<AppKeyBackupStatus?>(null)
 
-  override fun mobileKeyBackupStatus(): StateFlow<MobileKeyBackupStatus?> {
-    return mobileKeyBackupStatus
+  override fun appKeyBackupStatus(): StateFlow<AppKeyBackupStatus?> {
+    return appKeyBackupStatus
   }
 
   private val eekBackupStatus = MutableStateFlow<EekBackupStatus?>(null)
@@ -95,13 +98,13 @@ class CloudBackupHealthRepositoryImpl(
           failure = {
             // If we can't get the cloud account, we can't sync the backup status.
             CloudBackupStatus(
-              mobileKeyBackupStatus = MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
+              appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
               eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess
             )
           }
         )
         .also {
-          mobileKeyBackupStatus.value = it.mobileKeyBackupStatus
+          appKeyBackupStatus.value = it.appKeyBackupStatus
           eekBackupStatus.value = it.eekBackupStatus
         }
     }
@@ -118,14 +121,18 @@ class CloudBackupHealthRepositoryImpl(
     cloudAccount: CloudStoreAccount,
     account: FullAccount,
   ) = CloudBackupStatus(
-    mobileKeyBackupStatus = syncMobileKeyBackupStatus(cloudAccount, account),
+    appKeyBackupStatus = syncAppKeyBackupStatus(cloudAccount, account),
     eekBackupStatus = syncEekBackupStatus(cloudAccount)
   )
 
-  private suspend fun syncMobileKeyBackupStatus(
+  private suspend fun syncAppKeyBackupStatus(
     cloudAccount: CloudStoreAccount,
     account: FullAccount,
-  ): MobileKeyBackupStatus {
+  ): AppKeyBackupStatus {
+    if (appFunctionalityService.status.value.featureStates.cloudBackupHealth == Unavailable) {
+      return AppKeyBackupStatus.ProblemWithBackup.ConnectivityUnavailable
+    }
+
     val localCloudBackup = cloudBackupDao
       .get(account.accountId.serverId)
       .toErrorIfNull { Error("No local backup found") }
@@ -133,21 +140,21 @@ class CloudBackupHealthRepositoryImpl(
       .get()
       // We are missing a local backup, so we can't validate the integrity of the cloud backup.
       // Mark backup as missing to let the customer
-      ?: return MobileKeyBackupStatus.ProblemWithBackup.BackupMissing
+      ?: return AppKeyBackupStatus.ProblemWithBackup.BackupMissing
 
     return cloudBackupRepository
       .readBackup(cloudAccount)
       .fold(
         success = { cloudBackup ->
           when (cloudBackup) {
-            null -> MobileKeyBackupStatus.ProblemWithBackup.BackupMissing
+            null -> AppKeyBackupStatus.ProblemWithBackup.BackupMissing
             else -> {
               if (cloudBackup != localCloudBackup) {
                 logWarn { "Cloud backup does not match local backup" }
-                MobileKeyBackupStatus.ProblemWithBackup.InvalidBackup(cloudBackup)
+                AppKeyBackupStatus.ProblemWithBackup.InvalidBackup(cloudBackup)
               } else {
                 // TODO(BKR-1155): do we need to perform additional integrity checks?
-                MobileKeyBackupStatus.Healthy(
+                AppKeyBackupStatus.Healthy(
                   // TODO(BKR-1154): use actual timestamp from backup
                   lastUploaded = Clock.System.now()
                 )
@@ -158,13 +165,13 @@ class CloudBackupHealthRepositoryImpl(
         failure = {
           // TODO(BKR-1156): handle unknown loading errors
           logWarn { "Failed to read cloud backup during sync: $it" }
-          MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
+          AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
         }
       )
   }
 
   private suspend fun syncEekBackupStatus(cloudAccount: CloudStoreAccount): EekBackupStatus {
-    return emergencyAccessKitRepository
+    return emergencyExitKitRepository
       .read(cloudAccount)
       .fold(
         success = {

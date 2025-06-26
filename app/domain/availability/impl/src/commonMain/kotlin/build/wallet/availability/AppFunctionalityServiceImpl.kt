@@ -25,7 +25,7 @@ class AppFunctionalityServiceImpl(
 ) : AppFunctionalityService, AppFunctionalitySyncWorker {
   private val defaultStatus = when (appVariant) {
     // Immediately assume emergency mode if the app variant is emergency
-    Emergency -> LimitedFunctionality(EmergencyAccessMode)
+    Emergency -> LimitedFunctionality(EmergencyExitMode)
     // Otherwise, assume full functionality
     else -> FullFunctionality
   }
@@ -59,7 +59,7 @@ class AppFunctionalityServiceImpl(
           cause = InactiveApp
         )
         appVariant == Emergency -> LimitedFunctionality(
-          cause = EmergencyAccessMode
+          cause = EmergencyExitMode
         )
         f8eReachability == UNREACHABLE -> LimitedFunctionality(
           cause = F8eUnreachable(

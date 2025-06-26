@@ -14,7 +14,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.emergencyAccessKitPublic)
+        api(projects.domain.emergencyExitKitPublic)
         api(projects.libs.loggingPublic)
         api(projects.libs.keyValueStorePublic)
         api(projects.libs.platformPublic)

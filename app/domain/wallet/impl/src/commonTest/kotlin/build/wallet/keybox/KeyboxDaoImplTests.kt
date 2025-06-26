@@ -11,7 +11,6 @@ import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
-import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.sqldelight.inMemorySqlDriver
@@ -45,7 +44,6 @@ class KeyboxDaoImplTests : FunSpec({
       fullAccountId = FullAccountIdMock,
       activeSpendingKeyset = keyset1,
       activeAppKeyBundle = appKeyBundle1,
-      inactiveKeysets = emptyImmutableList(),
       activeHwKeyBundle = hwKeyBundle,
       appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
       config = config
@@ -63,7 +61,6 @@ class KeyboxDaoImplTests : FunSpec({
       activeSpendingKeyset = keyset2,
       activeAppKeyBundle = appKeyBundle2,
       activeHwKeyBundle = hwKeyBundle,
-      inactiveKeysets = emptyImmutableList(),
       appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
       config = config
     )
@@ -147,7 +144,6 @@ class KeyboxDaoImplTests : FunSpec({
           activeHwKeyBundle = hwKeyBundle,
           activeSpendingKeyset = keyset3,
           activeAppKeyBundle = keyBundle3,
-          inactiveKeysets = emptyImmutableList(),
           appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
           config = config
         )
@@ -162,7 +158,6 @@ class KeyboxDaoImplTests : FunSpec({
             activeHwKeyBundle = hwKeyBundle,
             activeSpendingKeyset = keyset3,
             activeAppKeyBundle = keyBundle3,
-            inactiveKeysets = emptyImmutableList(),
             appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             config = config
           )

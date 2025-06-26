@@ -9,6 +9,5 @@ public class DeviceTokenProviderImpl: DeviceTokenProvider {
 
     public func setDeviceToken(deviceToken: String) {
         self.deviceToken = deviceToken
-        log { "Device Token: \(self.deviceToken ?? "none")" }
     }
 }

@@ -225,13 +225,6 @@ public final class NfcCommandsImpl: NfcCommands {
             ))
     }
 
-    public func sealKey(session: NfcSession, unsealedKey: Csek) async throws -> OkioByteString {
-        let unsealedKey = unsealedKey.key.raw.toByteArray().asUInt8Array()
-        let sealedKey = try await SealKey(unsealedKey: unsealedKey)
-            .transceive(session: session)
-        return OkioKt.ByteString(data: Data(sealedKey))
-    }
-
     public func signChallenge(
         session: NfcSession,
         challenge: OkioByteString
@@ -271,15 +264,6 @@ public final class NfcCommandsImpl: NfcCommands {
         return try await .init(bool: StartFingerprintEnrollment(
             index: UInt32(fingerprintHandle.index), label: fingerprintHandle.label
         ).transceive(session: session))
-    }
-
-    public func unsealKey(
-        session: NfcSession,
-        sealedKey: [KotlinUByte]
-    ) async throws -> [KotlinUByte] {
-        return try await UnsealKey(sealedKey: sealedKey.map(\.uint8Value))
-            .transceive(session: session)
-            .map { KotlinUByte(value: $0) }
     }
 
     public func version(session: NfcSession) async throws -> KotlinUShort {

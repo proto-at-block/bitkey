@@ -27,9 +27,8 @@ import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
-import build.wallet.cloud.backup.csek.CsekGenerator
 import build.wallet.cloud.backup.csek.SealedCsek
-import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.cloud.backup.csek.SekGenerator
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SealedData
@@ -110,7 +109,7 @@ class RecoveryInProgressDataStateMachineImpl(
   private val lostHardwareRecoveryService: LostHardwareRecoveryService,
   private val lostAppAndCloudRecoveryService: LostAppAndCloudRecoveryService,
   private val clock: Clock,
-  private val csekGenerator: CsekGenerator,
+  private val sekGenerator: SekGenerator,
   private val csekDao: CsekDao,
   private val recoveryAuthCompleter: RecoveryAuthCompleter,
   private val f8eSpendingKeyRotator: F8eSpendingKeyRotator,
@@ -178,7 +177,7 @@ class RecoveryInProgressDataStateMachineImpl(
                       recovery = props.recovery.appRecoveryAuthKey,
                       hw = props.recovery.hardwareAuthKey
                     ),
-                  csek = csekGenerator.generate()
+                  csek = sekGenerator.generate()
                 )
             }
           },
@@ -797,8 +796,6 @@ class RecoveryInProgressDataStateMachineImpl(
       localId = uuidGenerator.random(),
       fullAccountId = recovery.fullAccountId,
       activeSpendingKeyset = spendingKeyset,
-      // TODO (W-9804): persist inactive keysets
-      inactiveKeysets = emptyImmutableList(),
       appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
       activeAppKeyBundle =
         AppKeyBundle(

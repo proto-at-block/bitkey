@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.StateFlow
 class CloudBackupHealthRepositoryMock(
   turbine: (String) -> Turbine<Any?>,
 ) : CloudBackupHealthRepository {
-  val mobileKeyBackupStatus = MutableStateFlow<MobileKeyBackupStatus?>(null)
+  val appKeyBackupStatus = MutableStateFlow<AppKeyBackupStatus?>(null)
 
-  override fun mobileKeyBackupStatus(): StateFlow<MobileKeyBackupStatus?> {
-    return mobileKeyBackupStatus
+  override fun appKeyBackupStatus(): StateFlow<AppKeyBackupStatus?> {
+    return appKeyBackupStatus
   }
 
   val eekBackupStatus = MutableStateFlow<EekBackupStatus?>(null)
@@ -33,7 +33,7 @@ class CloudBackupHealthRepositoryMock(
   override suspend fun performSync(account: FullAccount): CloudBackupStatus {
     performSyncCalls += Unit
     return CloudBackupStatus(
-      mobileKeyBackupStatus = MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
+      appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
       eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess
     )
   }
@@ -45,7 +45,7 @@ class CloudBackupHealthRepositoryMock(
   }
 
   fun reset() {
-    mobileKeyBackupStatus.value = null
+    appKeyBackupStatus.value = null
     eekBackupStatus.value = null
   }
 }

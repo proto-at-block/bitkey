@@ -1,6 +1,7 @@
 package build.wallet.inheritance
 
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
+import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.keybox.AppKeyBundleMock
@@ -11,6 +12,8 @@ import build.wallet.bitkey.relationships.PrivateKeyEncryptionKey
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
 import build.wallet.relationships.RelationshipsCrypto
 import build.wallet.relationships.RelationshipsCryptoError
 import build.wallet.relationships.RelationshipsCryptoFake
@@ -28,10 +31,15 @@ class InheritanceMaterialCreatorTests : FunSpec({
   val privateKeyDao = AppPrivateKeyDaoFake()
   val crypto = RelationshipsCryptoFake()
   val inheritanceRelationshipsProvider = InheritanceRelationshipsProviderFake()
+  val descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val inheritanceUseEncryptedDescriptorFeatureFlag = InheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao = featureFlagDao)
   val creator = InheritanceCryptoImpl(
     appPrivateKeyDao = privateKeyDao,
     relationships = inheritanceRelationshipsProvider,
-    crypto = crypto
+    crypto = crypto,
+    descriptorBuilder = descriptorBuilder,
+    inheritanceUseEncryptedDescriptorFeatureFlag = inheritanceUseEncryptedDescriptorFeatureFlag
   )
 
   test("Changing Spending Key should give a new hash") {
@@ -116,7 +124,9 @@ class InheritanceMaterialCreatorTests : FunSpec({
     val testCreator = InheritanceCryptoImpl(
       appPrivateKeyDao = privateKeyDao,
       relationships = inheritanceRelationshipsProvider,
-      crypto = failingCrypto
+      crypto = failingCrypto,
+      descriptorBuilder = descriptorBuilder,
+      inheritanceUseEncryptedDescriptorFeatureFlag = inheritanceUseEncryptedDescriptorFeatureFlag
     )
 
     val result = testCreator.createInheritanceMaterial(KeyboxMock)

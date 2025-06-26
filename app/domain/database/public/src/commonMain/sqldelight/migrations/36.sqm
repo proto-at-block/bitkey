@@ -1,0 +1,159 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.f8e.FullAccountId;
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
+import build.wallet.f8e.F8eEnvironment;
+import kotlin.Boolean;
+import kotlin.time.Duration;
+
+-- Create a new “keyboxEntity_tmp” table that mirrors the old keyboxEntity, but with the `inactiveKeysetIds` column
+-- removed. We retain all other columns and the same foreign‐key constraints, so that data can be copied over directly.
+CREATE TABLE keyboxEntity_tmp(
+  id                                    TEXT NOT NULL PRIMARY KEY,
+  account                               TEXT AS FullAccountId NOT NULL,
+  activeSpendingKeysetId                TEXT NOT NULL UNIQUE,
+  activeKeyBundleId                     TEXT NOT NULL UNIQUE,
+  networkType                           TEXT AS BitcoinNetworkType NOT NULL,
+  fakeHardware                          INTEGER AS Boolean NOT NULL,
+  f8eEnvironment                        TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount                         INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes                    INTEGER AS Boolean NOT NULL,
+  delayNotifyDuration                   TEXT AS Duration,
+  activeHwKeyBundleId                   TEXT NOT NULL UNIQUE,
+  appGlobalAuthKeyHwSignature           TEXT AS AppGlobalAuthKeyHwSignature NOT NULL,
+  FOREIGN KEY (activeSpendingKeysetId)  REFERENCES spendingKeysetEntity(id),
+  FOREIGN KEY (activeKeyBundleId)       REFERENCES appKeyBundleEntity(id),
+  FOREIGN KEY (activeHwKeyBundleId)     REFERENCES hwKeyBundleEntity(id)
+);
+
+-- Copy all rows from the old keyboxEntity into keyboxEntity_tmp. Because we omitted `inactiveKeysetIds`, we list only
+-- the columns we want to migrate. This ensures each “active” foreign‐key column still matches a valid parent row in its
+-- respective table.
+INSERT INTO keyboxEntity_tmp (
+  id,
+  account,
+  activeSpendingKeysetId,
+  activeKeyBundleId,
+  networkType,
+  fakeHardware,
+  f8eEnvironment,
+  isTestAccount,
+  isUsingSocRecFakes,
+  delayNotifyDuration,
+  activeHwKeyBundleId,
+  appGlobalAuthKeyHwSignature
+)
+SELECT
+  id,
+  account,
+  activeSpendingKeysetId,
+  activeKeyBundleId,
+  networkType,
+  fakeHardware,
+  f8eEnvironment,
+  isTestAccount,
+  isUsingSocRecFakes,
+  delayNotifyDuration,
+  activeHwKeyBundleId,
+  appGlobalAuthKeyHwSignature
+FROM keyboxEntity;
+
+-- Create a temporary “fullAccountEntity_tmp” table whose `keyboxId` column references the new keyboxEntity_tmp(id)
+-- instead of the old keyboxEntity. We will copy all existing fullAccountEntity data into this tmp version first.
+CREATE TABLE fullAccountEntity_tmp (
+  accountId TEXT AS FullAccountId NOT NULL PRIMARY KEY,
+  keyboxId  TEXT    NOT NULL,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity_tmp(id)
+);
+
+-- Copy all rows from the old fullAccountEntity into fullAccountEntity_tmp. At this moment, the old fullAccountEntity
+-- still exists (pointing at keyboxEntity), and the new fullAccountEntity_tmp points at keyboxEntity_tmp.
+INSERT INTO fullAccountEntity_tmp(accountId, keyboxId)
+SELECT * FROM fullAccountEntity;
+
+-- Create a temporary “activeFullAccountEntity_tmp” table. In schema v36, activeFullAccountEntity had a FK to
+-- fullAccountEntity(accountId). Now we want it to point at the newly created fullAccountEntity_tmp(accountId).
+CREATE TABLE activeFullAccountEntity_tmp(
+  rowId      INTEGER NOT NULL PRIMARY KEY,
+  accountId  TEXT AS FullAccountId NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES fullAccountEntity_tmp(accountId)
+);
+
+-- Copy all rows from the old activeFullAccountEntity into activeFullAccountEntity_tmp.
+INSERT INTO activeFullAccountEntity_tmp(rowId, accountId)
+SELECT * FROM activeFullAccountEntity;
+
+-- Create a temporary “onboardingFullAccountEntity_tmp” table. Similar to above, this table’s FK originally pointed at
+-- fullAccountEntity(accountId). We now redirect it to fullAccountEntity_tmp(accountId).
+CREATE TABLE onboardingFullAccountEntity_tmp(
+  rowId     INTEGER NOT NULL PRIMARY KEY,
+  accountId  TEXT AS FullAccountId NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES fullAccountEntity_tmp(accountId)
+);
+
+-- Copy all rows from the old onboardingFullAccountEntity into onboardingFullAccountEntity_tmp.
+INSERT INTO onboardingFullAccountEntity_tmp(rowId, accountId)
+SELECT * FROM onboardingFullAccountEntity;
+
+-- Drop old “activeFullAccountEntity” since its data now lives in the “_tmp” version, and then rename the tmp table into
+-- place. This preserves the same table name and ensures its FK now points at fullAccountEntity_tmp (soon to be renamed).
+DROP TABLE activeFullAccountEntity;
+PRAGMA legacy_alter_table = false;
+ALTER TABLE activeFullAccountEntity_tmp RENAME TO activeFullAccountEntity;
+
+-- Drop old “onboardingFullAccountEntity” and rename the tmp table into place
+DROP TABLE onboardingFullAccountEntity;
+ALTER TABLE onboardingFullAccountEntity_tmp RENAME TO onboardingFullAccountEntity;
+
+-- Drop the existing view “fullAccountView” because it depends on the old tables. We will recreate it at the end to
+-- reference the updated schema.
+DROP VIEW IF EXISTS fullAccountView;
+
+-- Drop the old “fullAccountEntity” now that we have recreated its data in the tmp table. Rename
+-- fullAccountEntity_tmp → fullAccountEntity so that its FK (keyboxId → keyboxEntity_tmp) will soon point at the final
+-- "keyboxEntity" table.
+DROP TABLE fullAccountEntity;
+ALTER TABLE fullAccountEntity_tmp RENAME TO fullAccountEntity;
+
+-- Drop the old “keyboxEntity” now that all dependencies have been switched to the tmp versions. Then rename
+-- keyboxEntity_tmp → keyboxEntity to restore the original table name (minus inactiveKeysetIds).
+DROP TABLE keyboxEntity;
+ALTER TABLE keyboxEntity_tmp RENAME TO keyboxEntity;
+
+-- Recreate the “fullAccountView” so that it joins the updated tables and exposes the necessary fields.
+CREATE VIEW fullAccountView AS
+SELECT
+  fullAccountEntity.accountId AS accountId,
+  keyboxEntity.id AS keyboxId,
+  keyboxEntity.networkType,
+  keyboxEntity.fakeHardware,
+  keyboxEntity.f8eEnvironment,
+  keyboxEntity.isTestAccount,
+  keyboxEntity.isUsingSocRecFakes,
+  keyboxEntity.delayNotifyDuration,
+  keyboxEntity.appGlobalAuthKeyHwSignature,
+  spendingKeysetEntity.id AS spendingPublicKeysetId,
+  spendingKeysetEntity.serverId AS spendingPublicKeysetServerId,
+  spendingKeysetEntity.appKey,
+  spendingKeysetEntity.hardwareKey,
+  spendingKeysetEntity.serverKey,
+  appKeyBundleEntity.id AS appKeyBundleId,
+  appKeyBundleEntity.globalAuthKey,
+  appKeyBundleEntity.recoveryAuthKey,
+  hwKeyBundleEntity.id AS hwKeyBundleId,
+  hwKeyBundleEntity.authKey AS hwAuthKey,
+  hwKeyBundleEntity.spendingKey AS hwSpendingKey
+FROM fullAccountEntity
+    -- keybox
+    INNER JOIN keyboxEntity
+        ON keyboxEntity.id = fullAccountEntity.keyboxId
+    -- spending public keyset
+    INNER JOIN spendingKeysetEntity
+        ON keyboxEntity.activeSpendingKeysetId = spendingKeysetEntity.id
+    -- app key bundle
+    INNER JOIN appKeyBundleEntity
+        ON keyboxEntity.activeKeyBundleId = appKeyBundleEntity.id
+    -- hw key bundle
+    INNER JOIN hwKeyBundleEntity
+        ON keyboxEntity.activeHwKeyBundleId = hwKeyBundleEntity.id;
+
+PRAGMA foreign_key_check;

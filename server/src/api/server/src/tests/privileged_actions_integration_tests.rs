@@ -156,6 +156,7 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
         &mut context,
         &bootstrap.services,
         vector.account_type.clone(),
+        false,
     )
     .await;
     create_phone_touchpoint(&bootstrap.services, account.get_id(), true).await;
@@ -390,7 +391,7 @@ async fn get_instances_cancel_instance_test() {
         gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
     let client = TestClient::new(bootstrap.router).await;
     let account = Account::Software(
-        create_software_account(&mut context, &bootstrap.services, None, true).await,
+        create_software_account(&mut context, &bootstrap.services, None, false).await,
     );
     create_phone_touchpoint(&bootstrap.services, account.get_id(), true).await;
 

@@ -36,7 +36,7 @@ data class SecurityHubEducationBodyModel(
 
 private fun SecurityActionType.icon(): Icon {
   return when (this) {
-    SecurityActionType.EAK_BACKUP -> Icon.SecurityHubEducationEmergencyAccess
+    SecurityActionType.EEK_BACKUP -> Icon.SecurityHubEducationEmergencyExit
     SecurityActionType.FINGERPRINTS -> Icon.SecurityHubEducationMultipleFingerprints
     SecurityActionType.SOCIAL_RECOVERY -> Icon.SecurityHubEducationTrustedContact
     SecurityActionType.CRITICAL_ALERTS -> Icon.SecurityHubEducationCriticalAlerts
@@ -46,7 +46,7 @@ private fun SecurityActionType.icon(): Icon {
 
 private fun SecurityActionType.headline(): String {
   return when (this) {
-    SecurityActionType.EAK_BACKUP -> "Emergency Exit Kit"
+    SecurityActionType.EEK_BACKUP -> "Emergency Exit Kit"
     SecurityActionType.FINGERPRINTS -> "Multiple fingerprints"
     SecurityActionType.SOCIAL_RECOVERY -> "Recovery Contacts"
     SecurityActionType.CRITICAL_ALERTS -> "Critical alerts"
@@ -68,7 +68,7 @@ private fun SecurityActionType.subline(): String {
       
       Adding multiple fingerprints is quick and can help avoid the hassle of a lockout.
     """.trimIndent()
-    SecurityActionType.EAK_BACKUP -> """
+    SecurityActionType.EEK_BACKUP -> """
       The Emergency Exit Kit is a pdf that links to a version of the Bitkey app stored on GitHub—not our servers.
       
       If Bitkey’s app or servers are ever blocked or go offline, you can still move your money using your Bitkey device and the key stored in your Emergency Exit Kit.
@@ -91,7 +91,7 @@ private fun SecurityActionType.primaryButton(onClick: () -> Unit): ButtonModel {
       size = ButtonModel.Size.Footer,
       onClick = onClick
     )
-    SecurityActionType.EAK_BACKUP -> ButtonModel(
+    SecurityActionType.EEK_BACKUP -> ButtonModel(
       text = "Got it",
       requiresBitkeyInteraction = false,
       treatment = ButtonModel.Treatment.Primary,
@@ -111,7 +111,7 @@ private fun SecurityActionType.secondaryButton(onClick: () -> Unit): ButtonModel
       size = ButtonModel.Size.Footer,
       onClick = onClick
     )
-    SecurityActionType.EAK_BACKUP -> null
+    SecurityActionType.EEK_BACKUP -> null
     else -> error("Unsupported action type: $this")
   }
 }

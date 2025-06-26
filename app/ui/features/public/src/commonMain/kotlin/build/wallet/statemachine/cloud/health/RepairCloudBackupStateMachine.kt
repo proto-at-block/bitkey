@@ -1,8 +1,8 @@
 package build.wallet.statemachine.cloud.health
 
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.CloudBackupStatus
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
@@ -14,14 +14,14 @@ import build.wallet.statemachine.core.StateMachine
  * the state machine will ask the customer to take different actions to fix the problem.
  */
 interface RepairCloudBackupStateMachine :
-  StateMachine<RepairMobileKeyBackupProps, ScreenModel>
+  StateMachine<RepairAppKeyBackupProps, ScreenModel>
 
 /**
- * @param mobileKeyBackupStatus current status.
+ * @param appKeyBackupStatus current status.
  */
-data class RepairMobileKeyBackupProps(
+data class RepairAppKeyBackupProps(
   val account: FullAccount,
-  val mobileKeyBackupStatus: MobileKeyBackupStatus.ProblemWithBackup,
+  val appKeyBackupStatus: AppKeyBackupStatus.ProblemWithBackup,
   val presentationStyle: ScreenPresentationStyle,
   val onExit: () -> Unit,
   val onRepaired: (status: CloudBackupStatus) -> Unit,

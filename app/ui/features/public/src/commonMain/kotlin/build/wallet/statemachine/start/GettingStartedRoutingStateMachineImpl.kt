@@ -46,7 +46,7 @@ class GettingStartedRoutingStateMachineImpl(
                   BackupLoaded(null)
                 }
             },
-            onImportEmergencyAccessKit = { props.onImportEmergencyAccessKit() }
+            onImportEmergencyExitKit = { props.onImportEmergencyExitKit() }
           )
         )
       is SignInFailure ->

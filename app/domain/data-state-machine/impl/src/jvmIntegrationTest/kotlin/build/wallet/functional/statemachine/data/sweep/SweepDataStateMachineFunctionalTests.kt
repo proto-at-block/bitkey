@@ -1,18 +1,12 @@
 package build.wallet.functional.statemachine.data.sweep
 
-import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.hardware.HwKeyBundle
-import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.encrypt.toSecp256k1PublicKey
 import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
-import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
@@ -23,7 +17,6 @@ import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
@@ -104,48 +97,3 @@ class SweepDataStateMachineFunctionalTests : FunSpec({
     app.returnFundsToTreasury()
   }
 })
-
-private suspend fun AppTester.createLostHardwareKeyset(account: FullAccount): SpendingKeyset {
-  // Since we use mock hardware, a keyset that we've lost hardware for is equivalent to
-  // a keyset that we've deleted the private keys for
-  val newKeyBundle = appKeysGenerator.generateKeyBundle().getOrThrow()
-  newKeyBundle.networkType.shouldBe(initialBitcoinNetworkType)
-  appPrivateKeyDao.remove(newKeyBundle.authKey)
-  appPrivateKeyDao.remove(newKeyBundle.spendingKey)
-
-  val hwKeyBundle =
-    HwKeyBundle(
-      localId = "fake-lost-hardware-key-bundle-id",
-      spendingKey = HwSpendingPublicKey(newKeyBundle.spendingKey.key),
-      authKey = HwAuthPublicKey(newKeyBundle.authKey.toSecp256k1PublicKey()),
-      networkType = newKeyBundle.networkType
-    )
-
-  val appKeyBundle = appKeysGenerator.generateKeyBundle().getOrThrow()
-  appKeyBundle.networkType.shouldBe(initialBitcoinNetworkType)
-
-  val f8eSpendingKeyset = createAccountKeysetF8eClient
-    .createKeyset(
-      f8eEnvironment = account.config.f8eEnvironment,
-      fullAccountId = account.accountId,
-      hardwareSpendingKey = HwSpendingPublicKey(hwKeyBundle.spendingKey.key),
-      appSpendingKey = appKeyBundle.spendingKey,
-      network = appKeyBundle.networkType,
-      appAuthKey = account.keybox.activeAppKeyBundle.authKey,
-      hardwareProofOfPossession = getHardwareFactorProofOfPossession()
-    )
-    .getOrThrow()
-
-  val keyset = SpendingKeyset(
-    localId = "fake-spending-keyset-id",
-    appKey = appKeyBundle.spendingKey,
-    networkType = appKeyBundle.networkType,
-    hardwareKey = hwKeyBundle.spendingKey,
-    f8eSpendingKeyset = f8eSpendingKeyset
-  )
-
-  keyboxDao.saveKeyboxAsActive(
-    account.keybox.copy(inactiveKeysets = (account.keybox.inactiveKeysets + keyset).toImmutableList())
-  ).getOrThrow()
-  return keyset
-}

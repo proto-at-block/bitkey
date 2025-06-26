@@ -569,5 +569,6 @@ void key_manager_task_create(void) {
 #undef REGIONS
   wallet_init(key_manager_priv.mempool);
 
-  policy_init(&wallet_get_w1_auth_path, true);
+  // Intentionally NOT enabled for this release.
+  policy_init(&wallet_get_w1_auth_path, false);
 }

@@ -13,7 +13,7 @@ use super::TransactionVerificationId;
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct TransactionVerificationViewSuccess {
     pub psbt: Psbt,
-    pub hw_grant: TransactionVerificationApprovalView,
+    pub hw_grant: TransactionVerificationGrantView,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -45,18 +45,20 @@ impl From<TransactionVerification> for TransactionVerificationView {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct InitiateTransactionVerificationViewSigned {
     pub psbt: Psbt,
-    pub hw_grant: TransactionVerificationApprovalView,
+    pub hw_grant: TransactionVerificationGrantView,
 }
 
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema, PartialEq)]
-pub struct TransactionVerificationApprovalView {
+pub struct TransactionVerificationGrantView {
     pub version: u8,
     pub hw_auth_public_key: PublicKey,
     #[serde_as(as = "Base64")]
-    pub allowed_hash: Vec<u8>,
+    pub commitment: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]
     pub signature: Signature,
+    #[serde_as(as = "Vec<Base64>")]
+    pub reverse_hash_chain: Vec<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]

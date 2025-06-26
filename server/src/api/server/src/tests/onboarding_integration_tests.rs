@@ -63,8 +63,8 @@ use ulid::Ulid;
 use super::{
     gen_services_with_overrides,
     lib::{
-        create_account, create_keypair, create_lite_account, generate_delay_and_notify_recovery,
-        OffsetClock,
+        create_keypair, create_lite_account, create_test_account,
+        generate_delay_and_notify_recovery, OffsetClock,
     },
 };
 use crate::{
@@ -296,7 +296,7 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
     let (mut context, bootstrap) =
         gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_account(&mut context, &bootstrap.services, vector.account_type).await;
+    let account = create_test_account(&mut context, &bootstrap.services, vector.account_type).await;
     let keys = context
         .get_authentication_keys_for_account_id(account.get_id())
         .unwrap();
@@ -2178,11 +2178,11 @@ fn test_create_bdk_wallet() {
 }
 
 #[rstest]
-#[case::pre_onboarding_happy_path(false, false, false, false, StatusCode::OK)]
-#[case::unknown_keyset_id(false, false, false, true, StatusCode::NOT_FOUND)]
-#[case::missing_keyset_id(false, false, true, false, StatusCode::BAD_REQUEST)]
-#[case::missing_hw_pop(true, false, false, false, StatusCode::FORBIDDEN)]
-#[case::post_onboarding_happy_path(true, true, false, false, StatusCode::OK)]
+#[case::pre_onboarding_happy_path(false, false, false, false, StatusCode::OK, false)]
+#[case::unknown_keyset_id(false, false, false, true, StatusCode::NOT_FOUND, false)]
+#[case::missing_keyset_id(false, false, true, false, StatusCode::BAD_REQUEST, false)]
+#[case::missing_hw_pop(true, false, false, false, StatusCode::FORBIDDEN, false)]
+#[case::post_onboarding_happy_path(true, true, false, false, StatusCode::OK, true)]
 #[tokio::test]
 async fn test_descriptor_backup(
     #[case] complete_onboarding: bool,
@@ -2190,7 +2190,10 @@ async fn test_descriptor_backup(
     #[case] omit_keyset_id: bool,
     #[case] unknown_keyset_id: bool,
     #[case] expected_status: StatusCode,
+    #[case] multiple_descriptors: bool,
 ) {
+    use onboarding::routes::CreateKeysetRequest;
+
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let account = create_full_account(
@@ -2239,7 +2242,8 @@ async fn test_descriptor_backup(
 
     let request = UpdateDescriptorBackupsRequest {
         descriptor_backups: keyset_ids
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|keyset_id| DescriptorBackup {
                 keyset_id,
                 sealed_descriptor: sealed_descriptor.clone(),
@@ -2270,7 +2274,7 @@ async fn test_descriptor_backup(
         .first()
         .map(|b| b.sealed_descriptor.clone());
     let expected_sealed_descriptor = if expected_status == StatusCode::OK {
-        Some(sealed_descriptor)
+        Some(sealed_descriptor.clone())
     } else {
         None
     };
@@ -2280,4 +2284,65 @@ async fn test_descriptor_backup(
         account_keysets_sealed_descriptor,
         expected_sealed_descriptor
     );
+
+    // Upload a new descriptor backup and make sure there are two descriptors backed up.
+    if multiple_descriptors {
+        let response = client
+        .create_keyset(
+            &account.id.to_string(),
+            &CreateKeysetRequest {
+                spending: SpendingKeysetRequest {
+                    network: AccountNetwork::BitcoinSignet.into(),
+                    app: DescriptorPublicKey::from_str("xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y").unwrap(),
+                    hardware: DescriptorPublicKey::from_str("xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y").unwrap(),
+                },
+            },
+            keys.as_ref().unwrap(),
+        )
+        .await;
+        assert_eq!(
+            response.status_code,
+            StatusCode::OK,
+            "{}",
+            response.body_string
+        );
+        let create_keyset_response = response.body.unwrap();
+        let sealed_descriptor2 = "sealed_descriptor2".to_string();
+        keyset_ids.push(create_keyset_response.keyset_id);
+
+        let request = UpdateDescriptorBackupsRequest {
+            descriptor_backups: vec![
+                DescriptorBackup {
+                    keyset_id: keyset_ids[0].clone(),
+                    sealed_descriptor: sealed_descriptor.clone(),
+                },
+                DescriptorBackup {
+                    keyset_id: keyset_ids[1].clone(),
+                    sealed_descriptor: sealed_descriptor2.clone(),
+                },
+            ],
+        };
+
+        assert_eq!(
+            client
+                .update_descriptor_backups(&account.id.to_string(), &request, keys.as_ref())
+                .await
+                .status_code,
+            StatusCode::OK
+        );
+
+        let account_keysets_sealed_descriptor = client
+            .get_account_keysets(&account.id.to_string())
+            .await
+            .body
+            .unwrap()
+            .descriptor_backups
+            .iter()
+            .map(|b| b.sealed_descriptor.clone())
+            .collect::<Vec<_>>();
+
+        assert_eq!(account_keysets_sealed_descriptor.len(), 2);
+        assert!(account_keysets_sealed_descriptor.contains(&sealed_descriptor));
+        assert!(account_keysets_sealed_descriptor.contains(&sealed_descriptor2));
+    }
 }

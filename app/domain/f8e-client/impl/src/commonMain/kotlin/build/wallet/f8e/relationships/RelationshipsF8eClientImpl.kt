@@ -298,7 +298,8 @@ private fun RetrieveTrustedContactInvitation.toIncomingInvitation(invitationCode
     relationshipId = relationshipId,
     code = invitationCode,
     protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakePubkey,
-    recoveryRelationshipRoles = recoveryRelationshipRoles
+    recoveryRelationshipRoles = recoveryRelationshipRoles,
+    expiresAt = expiresAt
   )
 
 private fun RelationshipInvitation.toInvitation() =

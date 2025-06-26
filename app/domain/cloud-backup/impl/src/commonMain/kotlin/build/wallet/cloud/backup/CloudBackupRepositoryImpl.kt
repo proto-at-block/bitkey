@@ -15,6 +15,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
@@ -93,6 +94,8 @@ class CloudBackupRepositoryImpl(
         .logFailure { "Error saving cloud backup locally" }
         .mapError { UnrectifiableCloudBackupError(it) }
         .bind()
+
+      logInfo { "Cloud backup uploaded successfully: ${backup.hashCode()}" }
     }
 
   override suspend fun clear(

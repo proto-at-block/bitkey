@@ -28,6 +28,18 @@ fun RetrievingInviteWithF8eFailureBodyModel(
           cause = error.cause
         )
       )
+    is RetrieveInvitationCodeError.ExpiredInvitationCode ->
+      ErrorFormBodyModel(
+        title = "This code has expired",
+        subline = "The invite code you entered has expired. Reach out to your contact to request a new code.",
+        primaryButton = ButtonDataModel(text = "Got it", onClick = onBack),
+        eventTrackerScreenId = eventTrackerScreenId,
+        errorData = ErrorData(
+          segment = RecoverySegment.SocRec.TrustedContact.Setup,
+          actionDescription = "Invitation expiration validation",
+          cause = error.cause
+        )
+      )
     is RetrieveInvitationCodeError.InvitationCodeVersionMismatch ->
       ErrorFormBodyModel(
         title = "Bitkey app out of date",

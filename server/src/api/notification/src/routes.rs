@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use types::{
     account::identifiers::AccountId,
-    notification::{NotificationChannel, NotificationsPreferences},
+    notification::{NotificationChannel, NotificationsPreferences, NotificationsTriggerType},
 };
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
@@ -31,7 +31,7 @@ use crate::{
     payloads::test_notification::TestNotificationPayload,
     service::{
         FetchNotificationsPreferencesInput, SendNotificationInput,
-        UpdateNotificationsPreferencesInput,
+        UpdateNotificationsPreferencesInput, UpdateNotificationsTriggersInput,
     },
     NotificationPayloadType,
 };
@@ -77,6 +77,10 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/notifications-preferences",
                 get(get_notifications_preferences),
             )
+            .route(
+                "/api/accounts/:account_id/notifications/triggers",
+                put(set_notifications_triggers),
+            )
             .route_layer(FACTORY.route_layer(FACTORY_NAME.to_owned()))
             .with_state(self.to_owned())
     }
@@ -98,11 +102,13 @@ impl From<RouteState> for SwaggerEndpoint {
         add_address,
         set_notifications_preferences,
         get_notifications_preferences,
+        set_notifications_triggers,
     ),
     components(
         schemas(SendTestPushData, SendTestPushResponse),
         schemas(RegisterWatchAddressRequest, RegisterWatchAddressResponse),
         schemas(NotificationsPreferences, NotificationChannel),
+        schemas(NotificationsTriggerType, SetNotificationsTriggersRequest, SetNotificationsTriggersResponse),
     ),
     tags(
         (name = "Notification", description = "Touchpoints with Users")
@@ -354,4 +360,41 @@ pub async fn get_notifications_preferences(
         .await?;
 
     Ok(Json(notifications_preferences))
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SetNotificationsTriggersRequest {
+    pub notifications_triggers: Vec<NotificationsTriggerType>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SetNotificationsTriggersResponse {}
+
+#[instrument(err, skip(notification_service))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/notifications/triggers",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = SetNotificationsTriggersRequest,
+    responses(
+        (status = 200, description = "Notifications triggers set", body=SetNotificationsTriggersResponse),
+    ),
+)]
+pub async fn set_notifications_triggers(
+    Path(account_id): Path<AccountId>,
+    State(notification_service): State<NotificationService>,
+    Json(request): Json<SetNotificationsTriggersRequest>,
+) -> Result<Json<SetNotificationsTriggersResponse>, ApiError> {
+    notification_service
+        .update_notifications_triggers(UpdateNotificationsTriggersInput {
+            account_id: &account_id,
+            trigger_types: request.notifications_triggers,
+        })
+        .await?;
+
+    Ok(Json(SetNotificationsTriggersResponse {}))
 }

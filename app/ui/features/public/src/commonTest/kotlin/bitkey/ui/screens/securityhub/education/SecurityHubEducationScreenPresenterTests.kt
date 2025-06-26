@@ -6,6 +6,8 @@ import bitkey.securitycenter.SocialRecoveryAction
 import bitkey.ui.framework.test
 import bitkey.ui.screens.securityhub.SecurityHubScreen
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
@@ -16,7 +18,11 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class SecurityHubEducationScreenPresenterTests : FunSpec({
 
-  val presenter = SecurityHubEducationScreenPresenter()
+  val presenter = SecurityHubEducationScreenPresenter(
+    fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(
+      featureFlagDao = FeatureFlagDaoFake()
+    )
+  )
 
   test("A valid action with education is presented") {
     presenter.test(

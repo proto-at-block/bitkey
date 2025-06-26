@@ -10,14 +10,12 @@ import build.wallet.bitkey.socrec.SocRecKeyPurpose
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.*
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.encrypt.SymmetricKeyEncryptorMock
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.platform.random.UuidGeneratorFake
@@ -42,7 +40,6 @@ class CloudBackupV2RestorerImplTests : FunSpec({
   val accountRestoration =
     AccountRestoration(
       activeSpendingKeyset = SpendingKeysetMock,
-      inactiveKeysets = immutableListOf(SpendingKeysetMock2),
       activeAppKeyBundle = AppKeyBundleMock.copy(
         localId = "uuid-0"
       ),

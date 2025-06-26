@@ -11,6 +11,7 @@ use time::{serde::rfc3339, OffsetDateTime};
 use utoipa::ToSchema;
 
 use super::errors::AccountError;
+use crate::notification::NotificationsTrigger;
 use crate::{
     account::{
         identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId},
@@ -266,6 +267,8 @@ pub struct CommonAccountFields {
     pub configured_privileged_action_delay_durations: Vec<PrivilegedActionDelayDuration>,
     #[serde(default)]
     pub comms_verification_claims: Vec<CommsVerificationClaim>,
+    #[serde(default)]
+    pub notifications_triggers: Vec<NotificationsTrigger>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, ToSchema)]
@@ -345,6 +348,7 @@ impl FullAccount {
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
                 comms_verification_claims: Default::default(),
+                notifications_triggers: Default::default(),
             },
         }
     }
@@ -421,6 +425,7 @@ impl LiteAccount {
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
                 comms_verification_claims: Default::default(),
+                notifications_triggers: Default::default(),
             },
         }
     }
@@ -504,6 +509,7 @@ impl SoftwareAccount {
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
                 comms_verification_claims: Default::default(),
+                notifications_triggers: Default::default(),
             },
         }
     }
@@ -853,6 +859,7 @@ mod tests {
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
                 comms_verification_claims: Default::default(),
+                notifications_triggers: Default::default(),
             },
         }
     }

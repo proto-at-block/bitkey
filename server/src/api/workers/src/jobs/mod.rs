@@ -10,6 +10,7 @@ use notification::service::Service as NotificationService;
 use notification_validation::NotificationValidationState;
 use queue::sqs::SqsQueue;
 use recovery::repository::RecoveryRepository;
+use repository::account::AccountRepository;
 use repository::privileged_action::PrivilegedActionRepository;
 use repository::recovery::inheritance::InheritanceRepository;
 use repository::recovery::social::SocialRecoveryRepository;
@@ -50,6 +51,7 @@ pub struct WorkerState {
     pub privileged_action_repository: PrivilegedActionRepository,
     pub inheritance_repository: InheritanceRepository,
     pub social_recovery_repository: SocialRecoveryRepository,
+    pub account_repository: AccountRepository,
 }
 
 impl From<WorkerState> for NotificationValidationState {
@@ -59,6 +61,7 @@ impl From<WorkerState> for NotificationValidationState {
             value.privileged_action_repository,
             value.inheritance_repository,
             value.social_recovery_repository,
+            value.account_repository,
         )
     }
 }

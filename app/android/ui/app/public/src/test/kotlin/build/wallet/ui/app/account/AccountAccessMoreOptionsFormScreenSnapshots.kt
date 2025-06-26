@@ -27,7 +27,7 @@ class AccountAccessMoreOptionsFormScreenSnapshots :
         FormScreen(
           EmergencyAccountAccessMoreOptionsFormBodyModel(
             onBack = {},
-            onRestoreEmergencyAccessKit = {}
+            onRestoreEmergencyExitKit = {}
           )
         )
       }

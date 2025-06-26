@@ -24,9 +24,9 @@ kotlin {
   val testDependencies = listOf(
     projects.domain.bitkeyPrimitivesFake,
     projects.domain.cloudBackupFake,
-    projects.domain.emergencyAccessKitFake,
-    projects.domain.emergencyAccessKitImpl,
-    projects.domain.emergencyAccessKitPublic,
+    projects.domain.emergencyExitKitFake,
+    projects.domain.emergencyExitKitImpl,
+    projects.domain.emergencyExitKitPublic,
     projects.libs.contactMethodImpl,
     projects.libs.timeImpl
   )

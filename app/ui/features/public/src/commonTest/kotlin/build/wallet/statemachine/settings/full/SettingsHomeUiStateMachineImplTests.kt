@@ -3,6 +3,8 @@ package build.wallet.statemachine.settings.full
 import app.cash.turbine.test
 import bitkey.ui.framework.NavigatorModelFake
 import bitkey.ui.framework.NavigatorPresenterFake
+import bitkey.ui.verification.TxVerificationPolicyProps
+import bitkey.ui.verification.TxVerificationPolicyStateMachine
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
@@ -97,7 +99,11 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       inheritanceManagementUiStateMachine = object : InheritanceManagementUiStateMachine,
         ScreenStateMachineMock<InheritanceManagementUiProps>("inheritance-management") {},
       exportToolsUiStateMachine = object : ExportToolsUiStateMachine,
-        ScreenStateMachineMock<ExportToolsUiProps>("export-tools") {}
+        ScreenStateMachineMock<ExportToolsUiProps>("export-tools") {},
+      transactionVerificationPolicyStateMachine = object : TxVerificationPolicyStateMachine,
+        ScreenStateMachineMock<TxVerificationPolicyProps>(
+          "tx-verification-policy"
+        ) {}
     )
 
   beforeTest {

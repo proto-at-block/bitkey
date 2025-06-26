@@ -4,6 +4,7 @@ import bitkey.f8e.verify.TxVerifyPolicyF8eClientFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
 import build.wallet.sqldelight.InMemorySqlDriverFactory
@@ -111,7 +112,7 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Update Policy - no auth") {
     accountService.setActiveAccount(FullAccountMock)
-    service.updateThreshold(VerificationThreshold.Always)
+    service.updateThreshold(VerificationThreshold.Always, HwFactorProofOfPossession("fake"))
       .shouldBeOk {
         it.shouldBeInstanceOf<TxVerificationPolicy.Active>()
       }
@@ -119,8 +120,8 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Update Policy - delay notify") {
     accountService.setActiveAccount(FullAccountMock)
-    service.updateThreshold(VerificationThreshold.Always).shouldBeOk()
-    service.updateThreshold(VerificationThreshold.Disabled).shouldBeOk {
+    service.updateThreshold(VerificationThreshold.Always, HwFactorProofOfPossession("fake")).shouldBeOk()
+    service.updateThreshold(VerificationThreshold.Disabled, HwFactorProofOfPossession("fake")).shouldBeOk {
       it.shouldBeInstanceOf<TxVerificationPolicy.Pending>()
     }
   }

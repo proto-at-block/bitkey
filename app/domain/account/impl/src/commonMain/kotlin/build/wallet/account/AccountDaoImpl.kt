@@ -1,10 +1,8 @@
 package build.wallet.account
 
-import app.cash.sqldelight.async.coroutines.awaitAsOne
 import bitkey.account.FullAccountConfig
 import bitkey.account.LiteAccountConfig
 import bitkey.account.SoftwareAccountConfig
-import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.account.*
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
@@ -26,7 +24,6 @@ import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
@@ -141,7 +138,7 @@ class AccountDaoImpl(
       database.fullAccountQueries
         .getActiveFullAccount()
         .asFlowOfOneOrNull()
-        .mapResult { it?.toFullAccount(database) }
+        .mapResult { it?.toFullAccount() }
         .collect(::emit)
     }
   }
@@ -174,7 +171,7 @@ class AccountDaoImpl(
       database.fullAccountQueries
         .getOnboardingFullAccount()
         .asFlowOfOneOrNull()
-        .mapResult { it?.toFullAccount(database) }
+        .mapResult { it?.toFullAccount() }
         .collect(::emit)
     }
   }
@@ -263,8 +260,8 @@ private fun GetOnboardingLiteAccount.toLiteAccount() =
     recoveryAuthKey = appRecoveryAuthKey
   )
 
-private suspend fun FullAccountView.toFullAccount(database: BitkeyDatabase): FullAccount {
-  val keybox = keybox(database)
+private suspend fun FullAccountView.toFullAccount(): FullAccount {
+  val keybox = keybox()
   return FullAccount(
     accountId = accountId,
     config = keybox.config,
@@ -272,14 +269,7 @@ private suspend fun FullAccountView.toFullAccount(database: BitkeyDatabase): Ful
   )
 }
 
-private suspend fun FullAccountView.keybox(database: BitkeyDatabase): Keybox {
-  // Get the inactive keysets
-  val inactiveKeysets =
-    inactiveKeysetIds.map {
-      val spendingPublicKeysetView = database.spendingKeysetQueries.keysetById(it).awaitAsOne()
-      spendingPublicKeysetView.spendingKeyset(networkType)
-    }
-
+private suspend fun FullAccountView.keybox(): Keybox {
   return Keybox(
     localId = keyboxId,
     fullAccountId = accountId,
@@ -309,7 +299,6 @@ private suspend fun FullAccountView.keybox(database: BitkeyDatabase): Keybox {
       authKey = hwAuthKey,
       networkType = networkType
     ),
-    inactiveKeysets = inactiveKeysets.toImmutableList(),
     appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
     config =
       FullAccountConfig(
@@ -322,19 +311,6 @@ private suspend fun FullAccountView.keybox(database: BitkeyDatabase): Keybox {
       )
   )
 }
-
-private fun SpendingKeysetEntity.spendingKeyset(networkType: BitcoinNetworkType): SpendingKeyset =
-  SpendingKeyset(
-    localId = id,
-    f8eSpendingKeyset =
-      F8eSpendingKeyset(
-        keysetId = serverId,
-        spendingPublicKey = serverKey
-      ),
-    appKey = appKey,
-    hardwareKey = hardwareKey,
-    networkType = networkType
-  )
 
 private fun LiteAccountQueries.insertLiteAccount(liteAccount: LiteAccount) =
   insertLiteAccount(

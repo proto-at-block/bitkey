@@ -17,6 +17,7 @@ import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.relationships.RelationshipsFake
 import build.wallet.relationships.*
 import build.wallet.testing.shouldBeErrOfType
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -25,6 +26,7 @@ import kotlin.collections.set
 
 class FullAccountCloudBackupCreatorImplTests : FunSpec({
 
+  val clock = ClockFake()
   val keybox = KeyboxMock
   val fullAccountFieldsCreator = FullAccountFieldsCreatorMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
@@ -35,7 +37,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
       EndorsedTrustedContactFake1,
       EndorsedTrustedContactFake2
     )
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
 
   val backupCreator =
     FullAccountCloudBackupCreatorImpl(

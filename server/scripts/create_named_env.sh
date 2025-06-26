@@ -42,7 +42,7 @@ if [[ -z $IS_CI_RUN ]] ; then
     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
 
     echo "🏗 building server container"
-    docker buildx bake --pull --set *.platform=linux/arm64 --set api.tags=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wallet-api:$IMAGE_TAG --set api.tags=api:latest api
+    docker buildx bake --pull --allow=fs.read=../core --set *.platform=linux/arm64 --set api.tags=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wallet-api:$IMAGE_TAG --set api.tags=api:latest api
     echo "➡️ pushing container into ECR"
     docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wallet-api:$IMAGE_TAG
 

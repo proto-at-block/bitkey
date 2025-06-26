@@ -39,20 +39,20 @@ abstract class FakeActionFactory(
   }
 }
 
-class MobileKeyCloudBackupHealthActionFactoryFake : MobileKeyBackupHealthActionFactory,
+class AppKeyCloudBackupHealthActionFactoryFake : AppKeyBackupHealthActionFactory,
   FakeActionFactory(
     recommendations = listOf(SecurityActionRecommendation.BACKUP_MOBILE_KEY),
     category = SecurityActionCategory.RECOVERY,
-    type = SecurityActionType.MOBILE_KEY_BACKUP
+    type = SecurityActionType.APP_KEY_BACKUP
   ) {
   override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
-class EakCloudBackupHealthActionFactoryFake : EakBackupHealthActionFactory,
+class EekCloudBackupHealthActionFactoryFake : EekBackupHealthActionFactory,
   FakeActionFactory(
     recommendations = listOf(SecurityActionRecommendation.BACKUP_EAK),
     category = SecurityActionCategory.RECOVERY,
-    type = SecurityActionType.EAK_BACKUP
+    type = SecurityActionType.EEK_BACKUP
   ) {
   override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
@@ -111,5 +111,15 @@ class HardwareDeviceActionFactoryFake : HardwareDeviceActionFactory,
     category = SecurityActionCategory.SECURITY,
     type = SecurityActionType.HARDWARE_DEVICE
   ) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+}
+
+class TxVerificationActionFactoryFake : TxVerificationActionFactory, FakeActionFactory(
+  recommendations = listOf(
+    SecurityActionRecommendation.ENABLE_TRANSACTION_VERIFICATION
+  ),
+  category = SecurityActionCategory.SECURITY,
+  type = SecurityActionType.TRANSACTION_VERIFICATION
+) {
   override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }

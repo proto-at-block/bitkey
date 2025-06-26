@@ -320,6 +320,7 @@ class BalanceHistoryServiceImpl(
         .listKeysets(environment, account.accountId)
         .logFailure { "Error fetching keysets for balance history tracking." }
         .bind()
+        .keysets
         .filter { it.f8eSpendingKeyset.keysetId != activeKeysetId }
         .map {
           val descriptor = it.toWalletDescriptor(account.config.bitcoinNetworkType)

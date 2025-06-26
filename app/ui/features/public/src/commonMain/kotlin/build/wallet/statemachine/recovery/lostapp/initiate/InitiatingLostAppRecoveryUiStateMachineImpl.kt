@@ -28,7 +28,7 @@ import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationRationale
 import build.wallet.statemachine.recovery.RecoverySegment
-import build.wallet.statemachine.recovery.inprogress.RecoverYourMobileKeyBodyModel
+import build.wallet.statemachine.recovery.inprogress.RecoverYourAppKeyBodyModel
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiStateMachineImpl.UiState.InitiatingViaNfcState
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiStateMachineImpl.UiState.ShowingInstructionsState
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
@@ -57,7 +57,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
       is AwaitingHwKeysData -> {
         when (uiState) {
           ShowingInstructionsState ->
-            RecoverYourMobileKeyBodyModel(
+            RecoverYourAppKeyBodyModel(
               onBack = recoveryData.rollback,
               onStartRecovery = {
                 uiState = InitiatingViaNfcState

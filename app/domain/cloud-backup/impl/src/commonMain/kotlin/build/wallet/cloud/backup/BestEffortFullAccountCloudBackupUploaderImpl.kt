@@ -76,7 +76,7 @@ class BestEffortFullAccountCloudBackupUploaderImpl(
         .logFailure(LogLevel.Warn) { "Could not upload cloud backup" }
         .mapError { IgnorableError("Error uploading cloud backup", it) }
         .onSuccess {
-          logDebug { "Cloud backup uploaded" }
+          logInfo { "Cloud backup uploaded via BestEffortFullAccountCloudBackupUploader" }
         }
         .bind()
     }

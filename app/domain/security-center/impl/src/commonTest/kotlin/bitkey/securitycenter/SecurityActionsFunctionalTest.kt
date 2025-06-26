@@ -10,9 +10,9 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.cloud.backup.health.EekBackupStatus
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
@@ -36,13 +36,13 @@ class SecurityActionsFunctionalTest :
     val accountService = AccountServiceFake()
     val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create).apply {
       eekBackupStatus.value = EekBackupStatus.ProblemWithBackup.BackupMissing
-      mobileKeyBackupStatus.value = MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
+      appKeyBackupStatus.value = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
     }
-    val mobileKeyBackupHealthActionFactory = MobileKeyBackupHealthActionFactoryImpl(
+    val appKeyBackupHealthActionFactory = AppKeyBackupHealthActionFactoryImpl(
       cloudBackupHealthRepository,
       accountService
     )
-    val eakBackupHealthActionFactory = EakBackupHealthActionFactoryImpl(
+    val eekBackupHealthActionFactory = EekBackupHealthActionFactoryImpl(
       cloudBackupHealthRepository,
       accountService
     )
@@ -84,6 +84,7 @@ class SecurityActionsFunctionalTest :
     val hardwareDeviceActionFactory = HardwareDeviceActionFactoryImpl(
       firmwareDataService
     )
+    val txVerificationFactory = TxVerificationActionFactoryFake()
 
     val eventTracker = EventTrackerMock(turbines::create)
 
@@ -93,13 +94,14 @@ class SecurityActionsFunctionalTest :
     val clock = Clock.System
 
     val securityActionsService = SecurityActionsServiceImpl(
-      mobileKeyBackupHealthActionFactory,
-      eakBackupHealthActionFactory,
+      appKeyBackupHealthActionFactory,
+      eekBackupHealthActionFactory,
       socialRecoveryActionFactory,
       biometricActionFactory,
       criticalAlertsActionFactory,
       fingerprintsActionFactory,
       hardwareDeviceActionFactory,
+      txVerificationFactory,
       eventTracker,
       metricTrackerService,
       securityRecommendationInteractionDao,
@@ -133,7 +135,7 @@ class SecurityActionsFunctionalTest :
         Triple(
           "App Key backup completed",
           {
-            cloudBackupHealthRepository.mobileKeyBackupStatus.value = MobileKeyBackupStatus.Healthy(lastUploaded = Clock.System.now())
+            cloudBackupHealthRepository.appKeyBackupStatus.value = AppKeyBackupStatus.Healthy(lastUploaded = Clock.System.now())
           },
           SecurityActionRecommendation.BACKUP_MOBILE_KEY
         ),
@@ -190,7 +192,8 @@ class SecurityActionsFunctionalTest :
         SecurityActionRecommendation.ADD_TRUSTED_CONTACTS,
         SecurityActionRecommendation.UPDATE_FIRMWARE,
         SecurityActionRecommendation.ENABLE_PUSH_NOTIFICATIONS,
-        SecurityActionRecommendation.SETUP_BIOMETRICS
+        SecurityActionRecommendation.SETUP_BIOMETRICS,
+        SecurityActionRecommendation.ENABLE_TRANSACTION_VERIFICATION
       )
       recommendations.test {
         awaitItem() shouldBe expectedRecommendations
@@ -218,6 +221,6 @@ class SecurityActionsFunctionalTest :
       recoveryActions.size shouldBe 4
 
       val accessActions = securityActionsService.getActions(SecurityActionCategory.SECURITY)
-      accessActions.size shouldBe 3
+      accessActions.size shouldBe 4
     }
   })

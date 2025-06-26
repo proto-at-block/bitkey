@@ -34,6 +34,8 @@ use thiserror::Error;
 use types::notification::NotificationCategory;
 use ulid::DecodeError;
 
+use crate::payloads::security_hub::SecurityHubPayload;
+
 use self::{email::EmailPayload, push::SNSPushPayload};
 use entities::NotificationCompositeKey;
 use types::{account::identifiers::AccountId, notification::NotificationChannel};
@@ -134,6 +136,7 @@ pub enum NotificationPayloadType {
     InheritanceClaimPeriodCompleted,
     RecoveryRelationshipBenefactorInvitationPending,
     TransactionVerification,
+    SecurityHub,
 }
 
 impl From<NotificationPayloadType> for NotificationCategory {
@@ -155,9 +158,8 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::InheritanceClaimPeriodInitiated
             | NotificationPayloadType::InheritanceClaimCanceled
             | NotificationPayloadType::InheritanceClaimPeriodCompleted
-            | NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending => {
-                NotificationCategory::AccountSecurity
-            }
+            | NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending
+            | NotificationPayloadType::SecurityHub => NotificationCategory::AccountSecurity,
             NotificationPayloadType::ConfirmedPaymentNotification
             | NotificationPayloadType::PendingPaymentNotification => {
                 NotificationCategory::MoneyMovement
@@ -305,6 +307,10 @@ impl NotificationPayloadType {
                     payload.transaction_verification_payload.clone(),
                 );
                 payload.transaction_verification_payload.is_some()
+            }
+            NotificationPayloadType::SecurityHub => {
+                builder.security_hub_payload(payload.security_hub_payload.clone());
+                payload.security_hub_payload.is_some()
             }
         };
         if valid_payload {
@@ -511,6 +517,12 @@ impl
                     .transaction_verification_payload
                     .ok_or(NotificationError::InvalidPayload(payload_type))?,
             )),
+            NotificationPayloadType::SecurityHub => NotificationMessage::try_from((
+                composite_key,
+                payload
+                    .security_hub_payload
+                    .ok_or(NotificationError::InvalidPayload(payload_type))?,
+            )),
         }
     }
 }
@@ -580,4 +592,6 @@ pub struct NotificationPayload {
         Option<RecoveryRelationshipBenefactorInvitationPendingPayload>,
     #[serde(default)]
     pub transaction_verification_payload: Option<TransactionVerificationPayload>,
+    #[serde(default)]
+    pub security_hub_payload: Option<SecurityHubPayload>,
 }

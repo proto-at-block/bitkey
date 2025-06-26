@@ -62,16 +62,16 @@ object RecoverySegment : AppSegment {
   /**
    * Recovery via Emergency Exit Kit flows
    */
-  object EmergencyAccess : AppSegment by RecoverySegment.childSegment("EmergencyAccess") {
+  object EmergencyExit : AppSegment by RecoverySegment.childSegment("EmergencyExit") {
     /**
      * Creation of an Emergency Exit Kit
      */
-    object Creation : AppSegment by EmergencyAccess.childSegment("Creation")
+    object Creation : AppSegment by EmergencyExit.childSegment("Creation")
 
     /**
      * Uploading an Emergency Exit Kit
      */
-    object Upload : AppSegment by EmergencyAccess.childSegment("Upload")
+    object Upload : AppSegment by EmergencyExit.childSegment("Upload")
   }
 
   /**

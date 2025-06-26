@@ -124,7 +124,8 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm() {
         ) => {
             // Transaction was approved by WSM without verification because it's under the threshold
             assert_eq!(hw_grant.version, 0);
-            assert!(!hw_grant.allowed_hash.is_empty());
+            assert!(!hw_grant.commitment.is_empty());
+            assert!(!hw_grant.reverse_hash_chain.is_empty());
             assert!(!hw_grant.signature.to_string().is_empty());
             assert_eq!(hw_grant.hw_auth_public_key, account.hardware_auth_pubkey);
         }

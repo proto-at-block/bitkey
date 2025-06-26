@@ -22,7 +22,7 @@ fun HeroAmountWithFullGhosted() {
             end = 9
           )
         },
-      secondaryAmountWithCurrency = "4,792,442 sats"
+      contextLine = "4,792,442 sats"
     )
   }
 }
@@ -41,7 +41,7 @@ fun HeroAmountWithSomeGhosted() {
             end = 9
           )
         },
-      secondaryAmountWithCurrency = "4,792,442 sats"
+      contextLine = "4,792,442 sats"
     )
   }
 }
@@ -52,7 +52,7 @@ fun HeroAmountWithNoGhosted() {
   PreviewWalletTheme {
     HeroAmount(
       primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = "4,792,442 sats"
+      contextLine = "4,792,442 sats"
     )
   }
 }
@@ -63,7 +63,7 @@ fun HeroAmountSwappable() {
   PreviewWalletTheme {
     HeroAmount(
       primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = "4,792,442 sats",
+      contextLine = "4,792,442 sats",
       onSwapClick = {}
     )
   }
@@ -75,7 +75,7 @@ fun HeroAmountDisabled() {
   PreviewWalletTheme {
     HeroAmount(
       primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = "4,792,442 sats",
+      contextLine = "4,792,442 sats",
       disabled = true,
       onSwapClick = {}
     )
@@ -88,7 +88,7 @@ fun HeroAmountNoSecondary() {
   PreviewWalletTheme {
     HeroAmount(
       primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = null,
+      contextLine = null,
       disabled = true,
       onSwapClick = {}
     )
@@ -101,7 +101,7 @@ fun HeroAmountHideAmount() {
   PreviewWalletTheme {
     HeroAmount(
       primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = "test",
+      contextLine = "test",
       disabled = true,
       hideBalance = true,
       onSwapClick = {}
@@ -115,7 +115,7 @@ fun HeroAmountLargeAmount() {
   PreviewWalletTheme {
     HeroAmount(
       primaryAmount = AnnotatedString("$88,888,888.88"),
-      secondaryAmountWithCurrency = "153,984,147,317 sats",
+      contextLine = "153,984,147,317 sats",
       onSwapClick = {}
     )
   }

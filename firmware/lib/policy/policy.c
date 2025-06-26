@@ -15,6 +15,9 @@ STATIC_VISIBLE_FOR_TESTING policy_ctx_t policy_ctx = {
 void policy_init(policy_fetch_path_cb_t fetch_path_cb, bool enabled) {
   policy_ctx.fetch_path_cb = fetch_path_cb;
   policy_ctx.enabled = enabled;
+  if (!enabled) {
+    LOGW("Policy signer is DISABLED");
+  }
 }
 
 static bool path_matches_allowed_path(const derivation_path_t path) {

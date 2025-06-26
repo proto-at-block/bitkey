@@ -8,7 +8,6 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.onboarding.UpgradeAccountF8eClient
@@ -99,7 +98,6 @@ class UpgradeLiteToFullAccountServiceImpl(
           activeSpendingKeyset = spendingKeyset,
           activeAppKeyBundle = adjustedKeyCross,
           activeHwKeyBundle = keyCrossDraft.hardwareKeyBundle,
-          inactiveKeysets = emptyImmutableList(),
           appGlobalAuthKeyHwSignature = keyCrossDraft.appGlobalAuthKeyHwSignature,
           config = fullAccountConfig
         )

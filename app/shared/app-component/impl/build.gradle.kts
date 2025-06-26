@@ -20,7 +20,7 @@ kotlin {
         api(projects.domain.coachmarkImpl)
         api(projects.domain.dataStateMachineImpl)
         api(projects.domain.debugImpl)
-        api(projects.domain.emergencyAccessKitImpl)
+        api(projects.domain.emergencyExitKitImpl)
         api(projects.domain.f8eClientImpl)
         api(projects.domain.featureFlagImpl)
         api(projects.domain.hardwareFake)
@@ -79,7 +79,7 @@ kotlin {
     val jvmMain by getting {
       dependencies {
         implementation(projects.libs.cloudStoreFake)
-        implementation(projects.domain.emergencyAccessKitFake)
+        implementation(projects.domain.emergencyExitKitFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.libs.moneyFake)
         implementation(projects.libs.platformFake)

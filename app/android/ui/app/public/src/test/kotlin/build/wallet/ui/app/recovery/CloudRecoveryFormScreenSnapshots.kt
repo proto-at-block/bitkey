@@ -35,7 +35,7 @@ class CloudRecoveryFormScreenSnapshots : FunSpec({
             onBack = {},
             onCheckCloudAgain = {},
             onCannotAccessCloud = {},
-            onImportEmergencyAccessKit = {},
+            onImportEmergencyExitKit = {},
             onShowTroubleshootingSteps = {}
           )
       )
@@ -50,7 +50,7 @@ class CloudRecoveryFormScreenSnapshots : FunSpec({
             onBack = {},
             onCheckCloudAgain = {},
             onCannotAccessCloud = {},
-            onImportEmergencyAccessKit = {},
+            onImportEmergencyExitKit = {},
             onShowTroubleshootingSteps = {}
           )
       )

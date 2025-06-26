@@ -115,5 +115,5 @@ val CloudBackupHealthStatusCardModelForPreview =
         treatment = ButtonModel.Treatment.Primary,
         onClick = StandardClick {}
       ),
-    type = CloudBackupHealthStatusCardType.MOBILE_KEY_BACKUP
+    type = CloudBackupHealthStatusCardType.APP_KEY_BACKUP
   )

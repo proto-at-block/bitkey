@@ -10,7 +10,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.inheritance.InheritanceClaimId
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContact
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
@@ -28,8 +28,8 @@ import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.pricechart.ChartType
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.socrec.SocRecService
+import build.wallet.statemachine.cloud.health.RepairAppKeyBackupProps
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
-import build.wallet.statemachine.cloud.health.RepairMobileKeyBackupProps
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -171,10 +171,10 @@ class MoneyHomeUiStateMachineImpl(
 
     return when (val state = uiState) {
       is FixingCloudBackupState -> repairCloudBackupStateMachine.model(
-        RepairMobileKeyBackupProps(
+        RepairAppKeyBackupProps(
           account = props.account as FullAccount,
           presentationStyle = Modal,
-          mobileKeyBackupStatus = state.status,
+          appKeyBackupStatus = state.status,
           onExit = { props.onDismissOrigin() },
           onRepaired = { props.onDismissOrigin() }
         )
@@ -598,7 +598,7 @@ sealed interface MoneyHomeUiState {
    * Indicates that we are in the process of fixing cloud backup state.
    */
   data class FixingCloudBackupState(
-    val status: MobileKeyBackupStatus.ProblemWithBackup,
+    val status: AppKeyBackupStatus.ProblemWithBackup,
   ) : MoneyHomeUiState
 
   /**

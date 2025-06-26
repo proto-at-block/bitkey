@@ -21,8 +21,8 @@ data class InheritanceMaterialPackage(
   @SerialName("recovery_relationship_id")
   val relationshipId: RelationshipId,
   /**
-   * A symmetric key used to encrypt the App Key, encrypted by the
-   * contact's public key.
+   * A symmetric key used to encrypt the App Key and descriptor,
+   * encrypted by the contact's public key.
    */
   @SerialName("sealed_dek")
   val sealedDek: XCiphertext,
@@ -31,4 +31,9 @@ data class InheritanceMaterialPackage(
    */
   @SerialName("sealed_mobile_key")
   val sealedMobileKey: XCiphertext,
+  /**
+   * The customer's descriptor, encrypted with [sealedDek].
+   */
+  @SerialName("sealed_descriptor")
+  val sealedDescriptor: XCiphertext?,
 )

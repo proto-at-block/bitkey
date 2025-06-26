@@ -33,7 +33,7 @@ fun HeroAmount(
   modifier: Modifier = Modifier,
   primaryAmount: AnnotatedString,
   primaryAmountLabelType: LabelType = LabelType.Display2,
-  secondaryAmountWithCurrency: String?,
+  contextLine: String?,
   hideBalance: Boolean = false,
   disabled: Boolean = false,
   onSwapClick: (() -> Unit)? = null,
@@ -55,10 +55,10 @@ fun HeroAmount(
           }
       )
     },
-    bottomContent = secondaryAmountWithCurrency?.let {
+    bottomContent = contextLine?.let {
       {
         HeroAmountBottom(
-          secondaryAmountWithCurrency = secondaryAmountWithCurrency,
+          contextLine = contextLine,
           disabled = disabled,
           onSwapClick = onSwapClick
         )
@@ -76,7 +76,7 @@ fun HeroAmount(
 
 @Composable
 private fun HeroAmountBottom(
-  secondaryAmountWithCurrency: String?,
+  contextLine: String?,
   disabled: Boolean = false,
   onSwapClick: (() -> Unit)? = null,
 ) {
@@ -94,7 +94,7 @@ private fun HeroAmountBottom(
       horizontalArrangement = Arrangement.Center
     ) {
       AutoResizedLabel(
-        text = secondaryAmountWithCurrency.orEmpty(),
+        text = contextLine.orEmpty(),
         type = LabelType.Body1Medium,
         treatment =
           if (disabled) {

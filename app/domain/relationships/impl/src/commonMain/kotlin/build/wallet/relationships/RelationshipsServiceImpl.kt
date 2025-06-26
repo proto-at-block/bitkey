@@ -28,6 +28,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.datetime.Clock
 import kotlin.random.Random
 
 @BitkeyInject(AppScope::class)
@@ -40,6 +41,7 @@ class RelationshipsServiceImpl(
   private val appSessionManager: AppSessionManager,
   private val accountService: AccountService,
   private val accountConfigService: AccountConfigService,
+  private val clock: Clock,
   appCoroutineScope: CoroutineScope,
   private val relationshipsSyncFrequency: RelationshipsSyncFrequency,
 ) : RelationshipsService, SyncRelationshipsWorker {
@@ -215,6 +217,17 @@ class RelationshipsServiceImpl(
           .mapError {
             RetrieveInvitationCodeError.F8ePropagatedError(it)
           }
+      }
+      .andThen { invitation ->
+        if (invitation.expiresAt < clock.now()) {
+          Err(
+            RetrieveInvitationCodeError.ExpiredInvitationCode(
+              cause = Error("Invitation expired at ${invitation.expiresAt}")
+            )
+          )
+        } else {
+          Ok(invitation)
+        }
       }
   }
 

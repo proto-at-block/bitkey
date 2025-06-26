@@ -35,6 +35,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.datetime.Instant
 
 class InheritanceServiceImplTests : FunSpec({
+  val clock = ClockFake()
   val accountService = AccountServiceFake()
   val inheritanceSyncDao = InheritanceSyncDaoFake(
     updateCalls = turbines.create("update calls")
@@ -53,7 +54,8 @@ class InheritanceServiceImplTests : FunSpec({
       InheritanceMaterialPackage(
         relationshipId = RelationshipId("fake-relationship-id"),
         sealedDek = XCiphertext("fake-sealed-dek"),
-        sealedMobileKey = XCiphertext("fake-encrypted-material")
+        sealedMobileKey = XCiphertext("fake-encrypted-material"),
+        sealedDescriptor = XCiphertext("fake-sealed-descriptor")
       )
     )
   )
@@ -68,7 +70,7 @@ class InheritanceServiceImplTests : FunSpec({
     spendingKey = SpendingKeysetMock.appKey,
     contacts = emptyList()
   )
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val appCoroutineScope = TestScope()
   val claimsRepository = InheritanceClaimsRepositoryMock(
     updateSingleClaimCalls = turbines.create("update single claim")
@@ -215,7 +217,7 @@ class InheritanceServiceImplTests : FunSpec({
           relationshipId = relationship
         ),
         // Invalid Claim: Different Relationship
-        BeneficiaryLockedClaimFake,
+        BeneficiaryLockedClaimBothDescriptorsFake,
         // Expected Claim Result
         BeneficiaryPendingClaimFake.copy(
           claimId = pendingClaimId,
@@ -227,7 +229,7 @@ class InheritanceServiceImplTests : FunSpec({
     )
     claimsRepository.fetchClaimsResult = Ok(claims)
     lockClaimF8eClient.response = Ok(
-      BeneficiaryLockedClaimFake.copy(
+      BeneficiaryLockedClaimBothDescriptorsFake.copy(
         claimId = pendingClaimId,
         relationshipId = relationship
       )
@@ -254,7 +256,7 @@ class InheritanceServiceImplTests : FunSpec({
           relationshipId = relationship
         ),
         // Invalid Claim: Different Relationship
-        BeneficiaryLockedClaimFake,
+        BeneficiaryLockedClaimBothDescriptorsFake,
         // Invalid Claim: Completed
         BeneficiaryCompleteClaimFake.copy(
           claimId = pendingClaimId,
@@ -284,7 +286,7 @@ class InheritanceServiceImplTests : FunSpec({
           relationshipId = relationship
         ),
         // Invalid Claim: Different Relationship
-        BeneficiaryLockedClaimFake,
+        BeneficiaryLockedClaimBothDescriptorsFake,
         // Expected Claim Result
         BeneficiaryPendingClaimFake.copy(
           claimId = pendingClaimId,
@@ -302,7 +304,7 @@ class InheritanceServiceImplTests : FunSpec({
     )
     claimsRepository.fetchClaimsResult = Ok(claims)
     lockClaimF8eClient.response = Ok(
-      BeneficiaryLockedClaimFake.copy(
+      BeneficiaryLockedClaimBothDescriptorsFake.copy(
         claimId = pendingClaimId,
         relationshipId = relationship
       )
@@ -323,7 +325,7 @@ class InheritanceServiceImplTests : FunSpec({
     val relationship = RelationshipId("test-load-claim-relationship")
     val pendingClaimId = InheritanceClaimId("test-load-claim-id")
     val details = InheritanceTransactionDetails(
-      claim = BeneficiaryLockedClaimFake.copy(
+      claim = BeneficiaryLockedClaimBothDescriptorsFake.copy(
         claimId = pendingClaimId,
         relationshipId = relationship
       ),
@@ -355,7 +357,7 @@ class InheritanceServiceImplTests : FunSpec({
 
     claimsRepository.fetchClaimsResult = InheritanceClaims(
       beneficiaryClaims = listOf(
-        BeneficiaryLockedClaimFake.copy(
+        BeneficiaryLockedClaimBothDescriptorsFake.copy(
           claimId = pendingClaimId,
           relationshipId = relationship
         )

@@ -5,10 +5,7 @@ package build.wallet.inheritance
 import app.cash.turbine.test
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
-import build.wallet.bitkey.inheritance.BenefactorPendingClaimFake
-import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimFake
-import build.wallet.bitkey.inheritance.BeneficiaryPendingClaimFake
-import build.wallet.bitkey.inheritance.InheritanceClaims
+import build.wallet.bitkey.inheritance.*
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.f8e.inheritance.RetrieveInheritanceClaimsF8EClientFake
@@ -119,7 +116,7 @@ class InheritanceClaimsRepositoryTests : FunSpec({
       }
 
       withClue("Update claim to locked state locally") {
-        val updatedClaim = BeneficiaryLockedClaimFake.copy(
+        val updatedClaim = BeneficiaryLockedClaimBothDescriptorsFake.copy(
           claimId = BeneficiaryPendingClaimFake.claimId
         )
         repository.updateSingleClaim(updatedClaim)

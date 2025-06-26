@@ -14,7 +14,6 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
-import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment.Development
 
@@ -41,7 +40,6 @@ val AccountRestorationMock =
             DescriptorPublicKeyMock(identifier = "hardware-spending-dpub")
           )
       ),
-    inactiveKeysets = emptyImmutableList(),
     activeAppKeyBundle =
       AppKeyBundle(
         localId = "fake-uuid",

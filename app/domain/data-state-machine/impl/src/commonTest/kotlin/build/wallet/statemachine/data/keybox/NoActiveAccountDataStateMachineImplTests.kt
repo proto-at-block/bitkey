@@ -3,7 +3,6 @@ package build.wallet.statemachine.data.keybox
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
-import build.wallet.bitkey.account.Account
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
@@ -35,7 +34,6 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
       ) {}
   val eventTracker = EventTrackerMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create)
-  val accountCreatedCalls = turbines.create<Account>("account created calls")
 
   val stateMachine =
     NoActiveAccountDataStateMachineImpl(
@@ -56,8 +54,7 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
 
   fun props(existingRecovery: Recovery.StillRecovering? = null) =
     NoActiveAccountDataProps(
-      existingRecovery = existingRecovery,
-      onAccountCreated = accountCreatedCalls::add
+      existingRecovery = existingRecovery
     )
 
   test("no recovery in progress") {
@@ -81,10 +78,10 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
       eventTracker.shouldLogAppKeyMissingEvent()
 
       awaitItem().shouldBeTypeOf<GettingStartedData>()
-        .startEmergencyAccessRecovery()
+        .startEmergencyExitRecovery()
 
       awaitItem()
-        .shouldBeTypeOf<AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit>()
+        .shouldBeTypeOf<AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyExitKit>()
     }
   }
 

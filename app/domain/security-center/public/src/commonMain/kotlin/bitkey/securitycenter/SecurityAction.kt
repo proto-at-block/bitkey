@@ -35,8 +35,8 @@ enum class SecurityActionCategory {
  */
 enum class SecurityActionRecommendation(val actionType: SecurityActionType) {
   PAIR_HARDWARE_DEVICE(actionType = SecurityActionType.HARDWARE_DEVICE),
-  BACKUP_MOBILE_KEY(actionType = SecurityActionType.MOBILE_KEY_BACKUP),
-  BACKUP_EAK(actionType = SecurityActionType.EAK_BACKUP),
+  BACKUP_MOBILE_KEY(actionType = SecurityActionType.APP_KEY_BACKUP),
+  BACKUP_EAK(actionType = SecurityActionType.EEK_BACKUP),
   ADD_FINGERPRINTS(actionType = SecurityActionType.FINGERPRINTS),
   ADD_TRUSTED_CONTACTS(actionType = SecurityActionType.SOCIAL_RECOVERY),
   UPDATE_FIRMWARE(actionType = SecurityActionType.HARDWARE_DEVICE),
@@ -46,6 +46,7 @@ enum class SecurityActionRecommendation(val actionType: SecurityActionType) {
   ENABLE_EMAIL_NOTIFICATIONS(actionType = SecurityActionType.CRITICAL_ALERTS),
   ADD_BENEFICIARY(actionType = SecurityActionType.INHERITANCE),
   SETUP_BIOMETRICS(actionType = SecurityActionType.BIOMETRIC),
+  ENABLE_TRANSACTION_VERIFICATION(actionType = SecurityActionType.TRANSACTION_VERIFICATION),
 }
 
 /**
@@ -55,9 +56,10 @@ enum class SecurityActionType(val hasEducation: Boolean) {
   HARDWARE_DEVICE(hasEducation = false),
   BIOMETRIC(hasEducation = false),
   CRITICAL_ALERTS(hasEducation = true),
-  EAK_BACKUP(hasEducation = true),
+  EEK_BACKUP(hasEducation = true),
   FINGERPRINTS(hasEducation = true),
   INHERITANCE(hasEducation = false),
-  MOBILE_KEY_BACKUP(hasEducation = false),
+  APP_KEY_BACKUP(hasEducation = false),
   SOCIAL_RECOVERY(hasEducation = true),
+  TRANSACTION_VERIFICATION(hasEducation = false),
 }

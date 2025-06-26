@@ -5,8 +5,8 @@ import bitkey.ui.framework.NavigatorModelFake
 import bitkey.ui.framework.NavigatorPresenterFake
 import bitkey.ui.screens.demo.DemoModeDisabledScreen
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
-import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProviderFake
+import build.wallet.emergencyexitkit.EmergencyExitKitAssociation
+import build.wallet.emergencyexitkit.EmergencyExitKitDataProviderFake
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.setFlagValue
@@ -28,7 +28,7 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
 
-  val emergencyAccessKitDataProvider = EmergencyAccessKitDataProviderFake()
+  val emergencyExitKitDataProvider = EmergencyExitKitDataProviderFake()
   val featureFlagDao = FeatureFlagDaoFake()
   val softwareWalletIsEnabledFeatureFlag = SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
   val createSoftwareWalletUiStateMachine = object : CreateSoftwareWalletUiStateMachine,
@@ -42,7 +42,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       appVariant = appVariant,
       navigatorPresenter = navigatorPresenter,
       deviceInfoProvider = DeviceInfoProviderMock(),
-      emergencyAccessKitDataProvider = emergencyAccessKitDataProvider,
+      emergencyExitKitDataProvider = emergencyExitKitDataProvider,
       softwareWalletIsEnabledFeatureFlag = softwareWalletIsEnabledFeatureFlag,
       createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine
     )
@@ -51,22 +51,22 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
 
   val startRecoveryCalls = turbines.create<Unit>("startRecovery calls")
   val startLiteAccountCreationCalls = turbines.create<Unit>("startLiteAccountCreation calls")
-  val startEmergencyAccessRecoveryCalls =
-    turbines.create<Unit>("startEmergencyAccessRecovery calls")
+  val startEmergencyExitRecoveryCalls =
+    turbines.create<Unit>("startEmergencyExitRecovery calls")
   val onCreateFullAccountCalls = turbines.create<Unit>("onCreateFullAccount calls")
 
   val props = ChooseAccountAccessUiProps(
     chooseAccountAccessData = GettingStartedData(
       startRecovery = { startRecoveryCalls.add(Unit) },
       startLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
-      startEmergencyAccessRecovery = { startEmergencyAccessRecoveryCalls.add(Unit) }
+      startEmergencyExitRecovery = { startEmergencyExitRecoveryCalls.add(Unit) }
     ),
     onSoftwareWalletCreated = {},
     onCreateFullAccount = { onCreateFullAccountCalls += Unit }
   )
 
   beforeTest {
-    emergencyAccessKitDataProvider.reset()
+    emergencyExitKitDataProvider.reset()
     featureFlagDao.reset()
   }
 
@@ -129,7 +129,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("Emergency Exit Kit recovery button shows in EEK builds") {
-    emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
+    emergencyExitKitDataProvider.eekAssociation = EmergencyExitKitAssociation.EekBuild
 
     stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
@@ -137,10 +137,10 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       }
 
       awaitBody<EmergencyAccountAccessMoreOptionsFormBodyModel> {
-        onRestoreEmergencyAccessKit()
+        onRestoreEmergencyExitKit()
       }
 
-      startEmergencyAccessRecoveryCalls.awaitItem()
+      startEmergencyExitRecoveryCalls.awaitItem()
     }
   }
 
@@ -173,7 +173,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("EEK disabled paths") {
-    emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
+    emergencyExitKitDataProvider.eekAssociation = EmergencyExitKitAssociation.EekBuild
 
     stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
@@ -185,9 +185,9 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
           .buttons[1].onClick()
       }
       awaitBody<EmergencyAccountAccessMoreOptionsFormBodyModel> {
-        onRestoreEmergencyAccessKit()
+        onRestoreEmergencyExitKit()
       }
-      startEmergencyAccessRecoveryCalls.awaitItem()
+      startEmergencyExitRecoveryCalls.awaitItem()
     }
   }
 })

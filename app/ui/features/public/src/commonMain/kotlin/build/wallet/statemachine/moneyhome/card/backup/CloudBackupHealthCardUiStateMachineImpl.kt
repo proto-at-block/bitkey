@@ -7,8 +7,8 @@ import androidx.compose.runtime.remember
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
 import build.wallet.cloud.backup.CloudBackupHealthRepository
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
+import build.wallet.cloud.backup.health.AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -24,12 +24,12 @@ class CloudBackupHealthCardUiStateMachineImpl(
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
     if (appFunctionalityStatus.featureStates.cloudBackupHealth == Unavailable) return null
 
-    val mobileKeyBackupStatus by
-      remember { cloudBackupHealthRepository.mobileKeyBackupStatus() }.collectAsState()
+    val appKeyBackupStatus by
+      remember { cloudBackupHealthRepository.appKeyBackupStatus() }.collectAsState()
 
-    return mobileKeyBackupStatus?.let { status ->
+    return appKeyBackupStatus?.let { status ->
       when (status) {
-        is MobileKeyBackupStatus.ProblemWithBackup ->
+        is AppKeyBackupStatus.ProblemWithBackup ->
           CloudBackupHealthCardModel(
             title = when (status) {
               NoCloudAccess -> "Problem with ${cloudServiceProvider().name}\naccount access"

@@ -66,7 +66,8 @@ suspend fun AppTester.createTcInvite(tcName: String): TrustedContactFullInvite {
       invitation.invitation.relationshipId,
       invitation.invitation.code,
       pakeData.protectedCustomerEnrollmentPakeKey.publicKey,
-      setOf(TrustedContactRole.SocialRecoveryContact)
+      setOf(TrustedContactRole.SocialRecoveryContact),
+      invitation.invitation.expiresAt
     )
   )
 }

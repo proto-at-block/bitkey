@@ -34,7 +34,7 @@ sealed interface AccountData {
     data class GettingStartedData(
       val startLiteAccountCreation: () -> Unit,
       val startRecovery: () -> Unit,
-      val startEmergencyAccessRecovery: () -> Unit,
+      val startEmergencyExitRecovery: () -> Unit,
     ) : NoActiveAccountData
 
     /**
@@ -47,7 +47,7 @@ sealed interface AccountData {
     /**
      * Indicates that the account is attempting recovery with the Emergency Exit Kit.
      */
-    data class RecoveringAccountWithEmergencyAccessKit(
+    data class RecoveringAccountWithEmergencyExitKit(
       val onExit: () -> Unit,
     ) : NoActiveAccountData
 
@@ -67,7 +67,7 @@ sealed interface AccountData {
       val inviteCode: String? = null,
       val onStartCloudRecovery: (CloudBackup) -> Unit,
       val onStartLostAppRecovery: () -> Unit,
-      val onImportEmergencyAccessKit: () -> Unit,
+      val onImportEmergencyExitKit: () -> Unit,
       val onExit: () -> Unit,
     ) : NoActiveAccountData
   }

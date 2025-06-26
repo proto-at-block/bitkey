@@ -17,12 +17,12 @@ import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudB
 import build.wallet.cloud.backup.FullAccountCloudBackupCreatorMock
 import build.wallet.cloud.backup.awaitBackup
 import build.wallet.cloud.backup.csek.CsekDaoFake
-import build.wallet.cloud.backup.csek.CsekGeneratorMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
+import build.wallet.cloud.backup.csek.SekGeneratorMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGeneratorFake
-import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryFake
+import build.wallet.emergencyexitkit.EmergencyExitKitPdfGeneratorFake
+import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryFake
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -58,15 +58,15 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     eventTracker = eventTracker,
     rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock(),
     deviceInfoProvider = DeviceInfoProviderMock(),
-    csekGenerator = CsekGeneratorMock(),
+    sekGenerator = SekGeneratorMock(),
     nfcSessionUIStateMachine =
       object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
         "nfc-session-mock"
       ) {},
     csekDao = CsekDaoFake(),
     inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create),
-    emergencyAccessKitPdfGenerator = EmergencyAccessKitPdfGeneratorFake(),
-    emergencyAccessKitRepository = EmergencyAccessKitRepositoryFake()
+    emergencyExitKitPdfGenerator = EmergencyExitKitPdfGeneratorFake(),
+    emergencyExitKitRepository = EmergencyExitKitRepositoryFake()
   )
 
   val onBackupSavedCalls = turbines.create<Unit>("backup saved")

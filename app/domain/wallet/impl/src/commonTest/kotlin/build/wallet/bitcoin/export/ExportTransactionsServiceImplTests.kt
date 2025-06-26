@@ -6,6 +6,7 @@ import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.bitcoin.wallet.WatchingWalletProviderMock
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
@@ -39,7 +40,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
 
     val activeKeyset =
       (accountService.activeAccount().first() as FullAccount).keybox.activeSpendingKeyset
-    listKeysetsF8eClient.result = Ok(listOf(activeKeyset))
+    listKeysetsF8eClient.result =
+      Ok(ListKeysetsF8eClient.ListKeysetsResponse(keysets = listOf(activeKeyset), descriptorBackups = null))
   }
 
   suspend fun onboardAndSendMoney(value: BigDecimal) {

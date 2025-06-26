@@ -31,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
@@ -62,6 +63,7 @@ class RelationshipsF8eClientFake(
   var fakeNetworkingError: NetworkingError? = null
 
   var acceptInvitationDelay: Duration = 10.seconds
+  var invitationExpirationOverride: Instant? = null
 
   private data class InvitationPair(
     val outgoing: Invitation,
@@ -101,7 +103,8 @@ class RelationshipsF8eClientFake(
         relationshipId = outgoing.relationshipId,
         code = outgoing.code,
         protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey,
-        recoveryRelationshipRoles = roles
+        recoveryRelationshipRoles = roles,
+        expiresAt = outgoing.expiresAt
       )
     )
     invitations += invitation
@@ -188,7 +191,8 @@ class RelationshipsF8eClientFake(
         relationshipId = uuidGenerator.random(),
         code = genServerInviteCode(),
         protectedCustomerEnrollmentPakeKey = PublicKey("deadbeef"),
-        recoveryRelationshipRoles = setOf()
+        recoveryRelationshipRoles = setOf(),
+        expiresAt = invitationExpirationOverride ?: clock.now().plus(7.days)
       )
     )
   }
@@ -275,6 +279,7 @@ class RelationshipsF8eClientFake(
     protectedCustomers.clear()
     keyCertificates.clear()
     fakeNetworkingError = null
+    invitationExpirationOverride = null
   }
 
   fun ddkReturnData(

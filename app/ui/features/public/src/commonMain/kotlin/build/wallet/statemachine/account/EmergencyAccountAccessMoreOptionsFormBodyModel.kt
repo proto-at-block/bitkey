@@ -22,7 +22,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  */
 data class EmergencyAccountAccessMoreOptionsFormBodyModel(
   override val onBack: () -> Unit,
-  val onRestoreEmergencyAccessKit: (() -> Unit),
+  val onRestoreEmergencyExitKit: (() -> Unit),
 ) : FormBodyModel(
     id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
     onBack = onBack,
@@ -44,7 +44,7 @@ data class EmergencyAccountAccessMoreOptionsFormBodyModel(
                 )
               ),
               title = "Import using Emergency Exit Kit",
-              onClick = onRestoreEmergencyAccessKit,
+              onClick = onRestoreEmergencyExitKit,
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
             )
           ),

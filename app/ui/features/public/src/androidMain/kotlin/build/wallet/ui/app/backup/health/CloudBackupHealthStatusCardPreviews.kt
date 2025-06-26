@@ -43,7 +43,7 @@ fun CloudBackupHealthStatusError() {
 
 @Preview
 @Composable
-fun CloudBackupHealthStatusEAKGood() {
+fun CloudBackupHealthStatusEEKGood() {
   PreviewWalletTheme {
     CloudBackupHealthStatusCard(
       model =
@@ -56,7 +56,7 @@ fun CloudBackupHealthStatusEAKGood() {
 
 @Preview
 @Composable
-fun CloudBackupHealthStatusEAKError() {
+fun CloudBackupHealthStatusEEKError() {
   PreviewWalletTheme {
     CloudBackupHealthStatusCard(
       model =
@@ -72,7 +72,7 @@ fun CloudBackupHealthStatusEAKError() {
             title = "Problem with Google account access",
             trailingAccessory = ListItemAccessory.IconAccessory(Icon.SmallIconWarning)
           ),
-          type = CloudBackupHealthStatusCardType.EAK_BACKUP
+          type = CloudBackupHealthStatusCardType.EEK_BACKUP
         )
     )
   }

@@ -1,5 +1,6 @@
 package build.wallet.bitcoin.descriptor
 
+import build.wallet.bitcoin.descriptor.BitcoinDescriptor.Watching
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
 
@@ -76,4 +77,21 @@ interface BitcoinMultiSigDescriptorBuilder {
     hardwareKey: DescriptorPublicKey,
     serverKey: DescriptorPublicKey,
   ): BitcoinDescriptor.Watching
+
+  /**
+   * Created 2-of-3 watching (with app public key) change-level multisig descriptor.
+   * Does not include the private key of the app, meaning the app cannot sign transactions
+   * associated with descriptor, only read them.
+   *
+   * Note: This is derived up to 84'/0'/0', and wildcarded at the change-level of the
+   * key tree (e.g. [fp/84h/0h/0h]xpub/\*). A more precise wallet descriptor would be
+   * [fp/84h/0h/0h]xpub/0;1/\*, especially for exposure externally.
+   *
+   * https://bitcoindevkit.org/descriptors/
+   */
+  fun watchingDescriptor(
+    appPublicKey: DescriptorPublicKey,
+    hardwareKey: DescriptorPublicKey,
+    serverKey: DescriptorPublicKey,
+  ): Watching
 }

@@ -104,7 +104,9 @@ data class SecurityHubBodyModel(
       )
 
       Column(
-        modifier = Modifier.verticalScroll(rememberScrollState())
+        modifier = Modifier
+          .fillMaxSize()
+          .verticalScroll(rememberScrollState())
       ) {
         Column(
           modifier = Modifier.fillMaxWidth()
@@ -119,7 +121,7 @@ data class SecurityHubBodyModel(
         ) {
           Spacer(modifier = Modifier.height(8.dp))
           Label(
-            model = LabelModel.StringModel("Security hub"),
+            model = LabelModel.StringModel("Security Hub"),
             style = WalletTheme.labelStyle(LabelType.Title1, textColor = WalletTheme.colors.foreground)
           )
 
@@ -533,24 +535,26 @@ private fun SecurityAction.title(): StringResource =
   when (this.type()) {
     BIOMETRIC -> Res.string.biometric_action_title
     CRITICAL_ALERTS -> Res.string.critical_alert_action_title
-    EAK_BACKUP -> Res.string.eak_backup_action_title
+    EEK_BACKUP -> Res.string.eak_backup_action_title
     FINGERPRINTS -> Res.string.fingerprints_action_title
     INHERITANCE -> Res.string.inheritance_action_title
-    MOBILE_KEY_BACKUP -> Res.string.mobile_key_backup_action_title
+    APP_KEY_BACKUP -> Res.string.mobile_key_backup_action_title
     SOCIAL_RECOVERY -> Res.string.social_recovery_action_title
     HARDWARE_DEVICE -> Res.string.hardware_device_action_title
+    TRANSACTION_VERIFICATION -> Res.string.transaction_verification_title
   }
 
 private fun SecurityAction.icon(): Icon =
   when (this.type()) {
     BIOMETRIC -> Icon.SmallIconLock
     CRITICAL_ALERTS -> Icon.SmallIconAnnouncement
-    EAK_BACKUP -> Icon.SmallIconRecovery
+    EEK_BACKUP -> Icon.SmallIconRecovery
     FINGERPRINTS -> Icon.SmallIconFingerprint
     INHERITANCE -> Icon.SmallIconInheritance
-    MOBILE_KEY_BACKUP -> Icon.SmallIconCloud
+    APP_KEY_BACKUP -> Icon.SmallIconCloud
     SOCIAL_RECOVERY -> Icon.SmallIconShieldPerson
     HARDWARE_DEVICE -> Icon.SmallIconBitkey
+    TRANSACTION_VERIFICATION -> Icon.SmallIconShieldCheck
   }
 
 private fun SecurityAction.statusColor(): Color =
@@ -575,6 +579,7 @@ private fun SecurityActionRecommendation.title(): StringResource =
     ENABLE_EMAIL_NOTIFICATIONS -> Res.string.enable_email_recommendation_title
     UPDATE_FIRMWARE -> Res.string.update_firmware_recommendation_title
     PAIR_HARDWARE_DEVICE -> Res.string.pair_device_recommendation_title
+    ENABLE_TRANSACTION_VERIFICATION -> Res.string.transaction_verification_recommendation_title
   }
 
 private fun SecurityActionRecommendation.icon(): Icon =
@@ -589,6 +594,7 @@ private fun SecurityActionRecommendation.icon(): Icon =
     ADD_BENEFICIARY -> Icon.SmallIconInheritance
     SETUP_BIOMETRICS -> Icon.SmallIconLock
     UPDATE_FIRMWARE, PAIR_HARDWARE_DEVICE -> Icon.SmallIconBitkey
+    ENABLE_TRANSACTION_VERIFICATION -> Icon.SmallIconShieldCheck
   }
 
 @Snapshot
@@ -611,7 +617,7 @@ val SnapshotHost.pendingRecommendations
         ENABLE_CRITICAL_ALERTS
       ),
       previewSecurityAction(
-        type = EAK_BACKUP,
+        type = EEK_BACKUP,
         category = SecurityActionCategory.SECURITY,
         BACKUP_EAK
       ),
@@ -633,7 +639,7 @@ val SnapshotHost.pendingRecommendations
         ADD_BENEFICIARY
       ),
       previewSecurityAction(
-        type = MOBILE_KEY_BACKUP,
+        type = APP_KEY_BACKUP,
         category = SecurityActionCategory.SECURITY,
         BACKUP_MOBILE_KEY
       ),
@@ -669,7 +675,7 @@ val SnapshotHost.pendingRecommendationsWithCards
         ENABLE_CRITICAL_ALERTS
       ),
       previewSecurityAction(
-        type = EAK_BACKUP,
+        type = EEK_BACKUP,
         category = SecurityActionCategory.SECURITY,
         BACKUP_EAK
       ),
@@ -691,7 +697,7 @@ val SnapshotHost.pendingRecommendationsWithCards
         ADD_BENEFICIARY
       ),
       previewSecurityAction(
-        type = MOBILE_KEY_BACKUP,
+        type = APP_KEY_BACKUP,
         category = SecurityActionCategory.SECURITY,
         BACKUP_MOBILE_KEY
       ),
@@ -739,7 +745,7 @@ val SnapshotHost.pendingAtRiskRecommendations
         ENABLE_CRITICAL_ALERTS
       ),
       previewSecurityAction(
-        type = EAK_BACKUP,
+        type = EEK_BACKUP,
         category = SecurityActionCategory.SECURITY,
         BACKUP_EAK
       ),
@@ -761,7 +767,7 @@ val SnapshotHost.pendingAtRiskRecommendations
         ADD_BENEFICIARY
       ),
       previewSecurityAction(
-        type = MOBILE_KEY_BACKUP,
+        type = APP_KEY_BACKUP,
         category = SecurityActionCategory.SECURITY,
         BACKUP_MOBILE_KEY
       ),
@@ -799,7 +805,7 @@ val SnapshotHost.completedRecommendations
         category = SecurityActionCategory.SECURITY
       ),
       previewSecurityAction(
-        type = EAK_BACKUP,
+        type = EEK_BACKUP,
         category = SecurityActionCategory.SECURITY
       ),
       previewSecurityAction(
@@ -817,7 +823,7 @@ val SnapshotHost.completedRecommendations
         category = SecurityActionCategory.SECURITY
       ),
       previewSecurityAction(
-        type = MOBILE_KEY_BACKUP,
+        type = APP_KEY_BACKUP,
         category = SecurityActionCategory.SECURITY
       ),
       previewSecurityAction(
@@ -856,7 +862,7 @@ val SnapshotHost.offline
         category = SecurityActionCategory.SECURITY
       ),
       previewSecurityAction(
-        type = EAK_BACKUP,
+        type = EEK_BACKUP,
         category = SecurityActionCategory.SECURITY
       ),
       previewSecurityAction(
@@ -874,7 +880,7 @@ val SnapshotHost.offline
         category = SecurityActionCategory.SECURITY
       ),
       previewSecurityAction(
-        type = MOBILE_KEY_BACKUP,
+        type = APP_KEY_BACKUP,
         category = SecurityActionCategory.SECURITY
       ),
       previewSecurityAction(

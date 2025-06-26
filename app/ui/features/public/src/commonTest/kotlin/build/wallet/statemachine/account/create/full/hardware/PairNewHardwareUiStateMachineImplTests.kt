@@ -64,11 +64,13 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   val onExitCalls = turbines.create<Unit>("on exit calls")
 
   val sealedCsekMock = "sealedCsek".encodeUtf8()
+  val sealedSsekMock = "sealedSsek".encodeUtf8()
 
   val fingerprintEnrolled = FingerprintEnrolled(
     appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
     keyBundle = HwKeyBundleMock,
     sealedCsek = sealedCsekMock,
+    sealedSsek = sealedSsekMock,
     serial = "123"
   )
 

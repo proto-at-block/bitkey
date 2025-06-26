@@ -114,7 +114,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
       awaitItem().shouldBeNull()
       appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
-          cause = build.wallet.availability.EmergencyAccessMode
+          cause = build.wallet.availability.EmergencyExitMode
         )
       )
 

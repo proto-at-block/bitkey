@@ -10,12 +10,13 @@ mod fetch;
 mod initiate;
 pub mod mock;
 pub mod tests;
+mod verify;
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
     // TODO: De-dupe against the version used in mobile_pay and move into exchange_rates.
     pub use_local_currency_exchange: bool,
-    pub secure_site_base_url: String,
+    pub ext_secure_site_base_url: String,
 }
 
 #[derive(Clone)]

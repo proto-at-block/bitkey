@@ -1,6 +1,6 @@
 package bitkey.recovery.fundslost
 
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.worker.AppWorker
 import kotlinx.coroutines.flow.StateFlow
 
@@ -23,7 +23,7 @@ interface FundsLostRiskSyncWorker : AppWorker
 
 sealed interface FundsLostRiskLevel {
   /**
-   * The customer is at risk of losing funds due to missing cloud backup, EAK, hardware or critical
+   * The customer is at risk of losing funds due to missing cloud backup, EEK, hardware or critical
    * contact method
    *
    * @param cause the reason the customer is at risk of losing funds
@@ -50,7 +50,7 @@ sealed interface AtRiskCause {
    *
    * @param problem the problem with the backup
    */
-  data class MissingCloudBackup(val problem: MobileKeyBackupStatus.ProblemWithBackup) : AtRiskCause
+  data class MissingCloudBackup(val problem: AppKeyBackupStatus.ProblemWithBackup) : AtRiskCause
 
   /**
    * The customer is missing a critical contact method, email or phone number.

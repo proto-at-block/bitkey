@@ -72,12 +72,12 @@ class HomeStatusBannerUiStateMachineImpl(
             when (appFunctionalityStatus.cause) {
               is F8eUnreachable -> "Unable to reach Bitkey services"
               is InternetUnreachable -> "Offline"
-              InactiveApp, EmergencyAccessMode -> "Limited Functionality"
+              InactiveApp, EmergencyExitMode -> "Limited Functionality"
             },
           subtitle =
             when (val cause = appFunctionalityStatus.cause) {
               is F8eUnreachable -> "Some features may not be available"
-              is EmergencyAccessMode -> "Emergency Exit Mode"
+              is EmergencyExitMode -> "Emergency Exit Mode"
               is InternetUnreachable -> {
                 cause.lastElectrumSyncReachableTime
                   ?.let { date ->

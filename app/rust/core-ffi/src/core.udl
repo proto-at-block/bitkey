@@ -1,5 +1,7 @@
 namespace core {
   WalletDescriptor compute_frost_wallet_descriptor(PublicKey agg_public_key, Network network);
+  [Throws=SignatureUtilsError]
+  DERSerializedSignature encode_signature_to_der([ByRef] bytes compact_signature);
 };
 
 [Error]
@@ -49,6 +51,9 @@ interface Invoice {
   boolean is_expired();
   u64? amount_msat();
 };
+
+[Custom]
+typedef sequence<u8> DERSerializedSignature;
 
 [Custom]
 typedef string Sha256;
@@ -327,4 +332,9 @@ enum SigningError {
   "CommitmentMismatch",
   "MissingCounterpartyNonces",
   "UnableToFinalizePsbt",
+};
+
+[Error]
+enum SignatureUtilsError {
+  "InvalidCompactSignature",
 };

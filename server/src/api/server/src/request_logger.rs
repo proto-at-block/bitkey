@@ -69,7 +69,7 @@ async fn log_request(request: Request) -> Result<Request, Response> {
         }
     };
 
-    tracing::info!(headers = ?parts.headers, body = ?body_bytes, "Request");
+    tracing::info!(headers = ?parts.headers, body = ?body_bytes, uri = ?parts.uri, "Request");
 
     Ok(Request::from_parts(parts, Body::from(body_bytes)))
 }

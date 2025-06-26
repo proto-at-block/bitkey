@@ -104,7 +104,7 @@ private fun CardImage(model: CardModel.CardImage) {
     is CardModel.CardImage.StaticImage ->
       IconImage(
         model = IconModel(
-          icon = SmallIconShieldPerson,
+          icon = model.icon,
           iconSize = Small,
           iconTint = IconTint.White,
           iconBackgroundType = IconBackgroundType.Circle(

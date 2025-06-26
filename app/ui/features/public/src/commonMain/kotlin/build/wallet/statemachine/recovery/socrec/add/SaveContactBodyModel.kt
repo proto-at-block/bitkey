@@ -26,6 +26,7 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * Prompt the user to save their Recovery Contact with bitkey.
@@ -34,6 +35,7 @@ data class SaveContactBodyModel(
   /**
    * Name of the Recovery Contact to be added.
    */
+  @Redacted
   val trustedContactName: String,
   /**
    * Boolean indicating whether we are saving an inheritance beneficiary

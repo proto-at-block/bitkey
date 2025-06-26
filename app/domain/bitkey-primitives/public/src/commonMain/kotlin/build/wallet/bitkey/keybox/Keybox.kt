@@ -6,7 +6,6 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.spending.SpendingKeyset
-import kotlinx.collections.immutable.ImmutableList
 
 /**
  * A keybox is a collection of keysets.
@@ -17,8 +16,6 @@ import kotlinx.collections.immutable.ImmutableList
  * creation or restoration on this app installation.
  * @property activeSpendingKeyset The current, active keyset which is being used by the application to track main balance, transaction
  * history, sign and receive transactions, etc.
- * @property inactiveKeysets The list of formerly active [SpendingKeyset]s that are now no longer in use.
- * Keysets become inactive during a key rotation which is used during recovery operations.
  * @property config Defines configuration of this keybox. All [SpendingKeyset]s in the
  * keybox will return the same network type as in the [config]'s, but there is currently no
  * validation that the keys within those keysets correspond to this network type – see [W-877].
@@ -31,7 +28,6 @@ data class Keybox(
   val config: FullAccountConfig,
   val fullAccountId: FullAccountId,
   val activeSpendingKeyset: SpendingKeyset,
-  val inactiveKeysets: ImmutableList<SpendingKeyset>,
   val activeAppKeyBundle: AppKeyBundle,
   val activeHwKeyBundle: HwKeyBundle,
   val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,

@@ -1,6 +1,6 @@
 package build.wallet.statemachine.moneyhome.card.backup
 
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.moneyhome.card.CardModel
 
@@ -18,5 +18,5 @@ interface CloudBackupHealthCardUiStateMachine :
  * @param onActionClick The action to take when the action button is clicked.
  */
 data class CloudBackupHealthCardUiProps(
-  val onActionClick: (status: MobileKeyBackupStatus.ProblemWithBackup) -> Unit,
+  val onActionClick: (status: AppKeyBackupStatus.ProblemWithBackup) -> Unit,
 )

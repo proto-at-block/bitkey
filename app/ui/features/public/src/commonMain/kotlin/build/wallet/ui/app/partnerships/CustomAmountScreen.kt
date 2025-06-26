@@ -58,7 +58,7 @@ fun CustomAmountScreen(
               }
             },
           primaryAmountLabelType = LabelType.Display1,
-          secondaryAmountWithCurrency = model.amountModel.secondaryAmount,
+          contextLine = model.amountModel.secondaryAmount,
           onSwapClick = {},
           disabled = false
         )

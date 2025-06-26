@@ -16,6 +16,7 @@ pub mod recovery_pending_delay_period;
 pub mod recovery_relationship_benefactor_invitation_pending;
 pub mod recovery_relationship_deleted;
 pub mod recovery_relationship_invitation_accepted;
+pub mod security_hub;
 pub mod social_challenge_response_received;
 pub mod test_notification;
 pub mod transaction_verification;

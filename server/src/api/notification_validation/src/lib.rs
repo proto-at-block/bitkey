@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use error::NotificationValidationError;
+use notification::payloads::security_hub::SecurityHubPayload;
 use notification::payloads::transaction_verification::TransactionVerificationPayload;
 use notification::{
     entities::NotificationCompositeKey,
@@ -27,6 +28,7 @@ use notification::{
 };
 use recovery::{entities::RecoveryStatus, repository::RecoveryRepository};
 use repository::{
+    account::AccountRepository,
     privileged_action::PrivilegedActionRepository,
     recovery::{inheritance::InheritanceRepository, social::SocialRecoveryRepository},
 };
@@ -45,6 +47,7 @@ pub struct NotificationValidationState {
     privileged_action_repository: PrivilegedActionRepository,
     inheritance_repository: InheritanceRepository,
     social_recovery_repository: SocialRecoveryRepository,
+    account_repository: AccountRepository,
 }
 
 impl NotificationValidationState {
@@ -53,12 +56,14 @@ impl NotificationValidationState {
         privileged_action_repository: PrivilegedActionRepository,
         inheritance_repository: InheritanceRepository,
         social_recovery_repository: SocialRecoveryRepository,
+        account_repository: AccountRepository,
     ) -> Self {
         Self {
             recovery_repository,
             privileged_action_repository,
             inheritance_repository,
             social_recovery_repository,
+            account_repository,
         }
     }
 }
@@ -67,9 +72,11 @@ impl NotificationValidationState {
 pub trait ValidateNotificationDelivery: Send + Sync {
     async fn validate_delivery(
         &self,
-        state: &NotificationValidationState,
-        composite_key: &NotificationCompositeKey,
-    ) -> bool;
+        _state: &NotificationValidationState,
+        _composite_key: &NotificationCompositeKey,
+    ) -> bool {
+        true
+    }
 }
 
 pub fn to_validator(
@@ -158,6 +165,10 @@ pub fn to_validator(
                 .transaction_verification_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::SecurityHub => payload
+                .security_hub_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
         };
     Ok(validator)
 }
@@ -227,48 +238,16 @@ impl ValidateNotificationDelivery for RecoveryPendingDelayPeriodPayload {
 }
 
 #[async_trait]
-impl ValidateNotificationDelivery for TestNotificationPayload {
-    async fn validate_delivery(
-        &self,
-        _state: &NotificationValidationState,
-        _: &NotificationCompositeKey,
-    ) -> bool {
-        true
-    }
-}
+impl ValidateNotificationDelivery for TestNotificationPayload {}
 
 #[async_trait]
-impl ValidateNotificationDelivery for CommsVerificationPayload {
-    async fn validate_delivery(
-        &self,
-        _state: &NotificationValidationState,
-        _: &NotificationCompositeKey,
-    ) -> bool {
-        true
-    }
-}
+impl ValidateNotificationDelivery for CommsVerificationPayload {}
 
 #[async_trait]
-impl ValidateNotificationDelivery for ConfirmedPaymentPayload {
-    async fn validate_delivery(
-        &self,
-        _state: &NotificationValidationState,
-        _composite_key: &NotificationCompositeKey,
-    ) -> bool {
-        true
-    }
-}
+impl ValidateNotificationDelivery for ConfirmedPaymentPayload {}
 
 #[async_trait]
-impl ValidateNotificationDelivery for PendingPaymentPayload {
-    async fn validate_delivery(
-        &self,
-        _state: &NotificationValidationState,
-        _composite_key: &NotificationCompositeKey,
-    ) -> bool {
-        true
-    }
-}
+impl ValidateNotificationDelivery for PendingPaymentPayload {}
 
 #[async_trait]
 impl ValidateNotificationDelivery for RecoveryRelationshipInvitationAcceptedPayload {
@@ -289,48 +268,16 @@ impl ValidateNotificationDelivery for RecoveryRelationshipInvitationAcceptedPayl
 }
 
 #[async_trait]
-impl ValidateNotificationDelivery for RecoveryRelationshipDeletedPayload {
-    async fn validate_delivery(
-        &self,
-        _state: &NotificationValidationState,
-        _composite_key: &NotificationCompositeKey,
-    ) -> bool {
-        true
-    }
-}
+impl ValidateNotificationDelivery for RecoveryRelationshipDeletedPayload {}
 
 #[async_trait]
-impl ValidateNotificationDelivery for SocialChallengeResponseReceivedPayload {
-    async fn validate_delivery(
-        &self,
-        _state: &NotificationValidationState,
-        _composite_key: &NotificationCompositeKey,
-    ) -> bool {
-        true
-    }
-}
+impl ValidateNotificationDelivery for SocialChallengeResponseReceivedPayload {}
 
 #[async_trait]
-impl ValidateNotificationDelivery for PushBlastPayload {
-    async fn validate_delivery(
-        &self,
-        _state: &NotificationValidationState,
-        _: &NotificationCompositeKey,
-    ) -> bool {
-        true
-    }
-}
+impl ValidateNotificationDelivery for PushBlastPayload {}
 
 #[async_trait]
-impl ValidateNotificationDelivery for PrivilegedActionCanceledDelayPeriodPayload {
-    async fn validate_delivery(
-        &self,
-        _state: &NotificationValidationState,
-        _: &NotificationCompositeKey,
-    ) -> bool {
-        true
-    }
-}
+impl ValidateNotificationDelivery for PrivilegedActionCanceledDelayPeriodPayload {}
 
 #[async_trait]
 impl ValidateNotificationDelivery for PrivilegedActionCompletedDelayPeriodPayload {
@@ -423,15 +370,7 @@ impl ValidateNotificationDelivery for InheritanceClaimPeriodAlmostOverPayload {
 }
 
 #[async_trait]
-impl ValidateNotificationDelivery for InheritanceClaimCanceledPayload {
-    async fn validate_delivery(
-        &self,
-        _state: &NotificationValidationState,
-        _: &NotificationCompositeKey,
-    ) -> bool {
-        true
-    }
-}
+impl ValidateNotificationDelivery for InheritanceClaimCanceledPayload {}
 
 #[async_trait]
 impl ValidateNotificationDelivery for InheritanceClaimPeriodCompletedPayload {
@@ -469,12 +408,32 @@ impl ValidateNotificationDelivery for RecoveryRelationshipBenefactorInvitationPe
 }
 
 #[async_trait]
-impl ValidateNotificationDelivery for TransactionVerificationPayload {
+impl ValidateNotificationDelivery for TransactionVerificationPayload {}
+
+#[async_trait]
+impl ValidateNotificationDelivery for SecurityHubPayload {
     async fn validate_delivery(
         &self,
-        _state: &NotificationValidationState,
-        _composite_key: &NotificationCompositeKey,
+        state: &NotificationValidationState,
+        composite_key: &NotificationCompositeKey,
     ) -> bool {
-        true
+        let (account_id, _) = composite_key;
+
+        // Validates if the trigger is still active for the account
+        // AND it's the same instance of the trigger (else a separate sequence of notifications will
+        // have been kicked off))
+        state
+            .account_repository
+            .fetch(account_id)
+            .await
+            .ok()
+            .map(|account| {
+                account
+                    .get_common_fields()
+                    .notifications_triggers
+                    .iter()
+                    .any(|t| t.trigger_type == self.trigger_type && t.created_at == self.created_at)
+            })
+            .unwrap_or_default()
     }
 }

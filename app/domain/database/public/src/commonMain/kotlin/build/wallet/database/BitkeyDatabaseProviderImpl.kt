@@ -108,7 +108,6 @@ class BitkeyDatabaseProviderImpl(
       keyboxEntityAdapter =
         KeyboxEntity.Adapter(
           accountAdapter = FullAccountColumnAdapter,
-          inactiveKeysetIdsAdapter = InactiveKeysetIdsColumnAdapter,
           networkTypeAdapter = EnumColumnAdapter(),
           f8eEnvironmentAdapter = F8eEnvironmentColumnAdapter,
           delayNotifyDurationAdapter = DurationColumnAdapter,

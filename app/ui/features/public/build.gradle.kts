@@ -50,7 +50,7 @@ kotlin {
         api(projects.domain.cloudBackupPublic)
         api(projects.libs.cloudStorePublic)
         api(projects.domain.coachmarkPublic)
-        api(projects.domain.emergencyAccessKitPublic)
+        api(projects.domain.emergencyExitKitPublic)
         api(projects.domain.featureFlagPublic)
         api(projects.libs.keyValueStoreImpl)
         api(projects.libs.ktorClientPublic)
@@ -78,6 +78,7 @@ kotlin {
         implementation(projects.domain.relationshipsPublic)
         implementation(projects.ui.snapshotGeneratorApiPublic)
         implementation(projects.domain.securityCenterPublic)
+        implementation(projects.domain.privilegedActionsImpl)
       }
     }
 
@@ -108,8 +109,8 @@ kotlin {
         implementation(projects.domain.cloudBackupFake)
         implementation(projects.libs.cloudStoreFake)
         implementation(projects.domain.debugFake)
-        implementation(projects.domain.emergencyAccessKitFake)
-        implementation(projects.domain.emergencyAccessKitImpl)
+        implementation(projects.domain.emergencyExitKitFake)
+        implementation(projects.domain.emergencyExitKitImpl)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.hardwareFake)
@@ -124,6 +125,8 @@ kotlin {
         implementation(projects.libs.timeFake)
         implementation(projects.libs.platformFake)
         implementation(projects.shared.priceChartFake)
+        implementation(projects.domain.privilegedActionsImpl)
+        implementation(projects.domain.privilegedActionsFake)
         implementation(projects.domain.recoveryFake)
         implementation(projects.domain.relationshipsFake)
         implementation(projects.domain.dataStateMachineFake)
@@ -160,13 +163,16 @@ kotlin {
         implementation(projects.domain.bootstrapFake)
         implementation(projects.domain.cloudBackupFake)
         implementation(projects.domain.walletFake)
+        implementation(projects.domain.privilegedActionsFake)
         implementation(projects.shared.integrationTestingPublic)
         implementation(projects.libs.moneyTesting)
         implementation(projects.libs.stateMachineTesting)
-        implementation(projects.ui.featuresTesting)
         implementation(projects.libs.encryptionFake)
         implementation(projects.libs.cloudStoreFake)
+        implementation(projects.ui.featuresTesting)
         implementation(projects.ui.frameworkTesting)
+        implementation(projects.ui.routerPublic)
+        implementation(projects.ui.featuresPublic)
       }
     }
   }

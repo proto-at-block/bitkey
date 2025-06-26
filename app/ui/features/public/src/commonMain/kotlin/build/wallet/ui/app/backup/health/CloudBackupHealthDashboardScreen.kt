@@ -30,7 +30,7 @@ fun CloudBackupHealthDashboardScreen(
       )
     },
     mainContent = {
-      CloudBackupHealthStatusCard(model = model.mobileKeyBackupStatusCard)
+      CloudBackupHealthStatusCard(model = model.appKeyBackupStatusCard)
       Spacer(modifier = Modifier.height(20.dp))
       model.eekBackupStatusCard?.let {
         CloudBackupHealthStatusCard(model = it)

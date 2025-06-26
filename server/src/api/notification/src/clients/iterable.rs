@@ -113,6 +113,7 @@ pub struct ClientConfig {
     pub money_movement_message_type_id: usize,
     pub product_marketing_message_type_id: usize,
     pub transaction_verification_campaign_id: usize,
+    pub security_hub_campaign_id: usize,
 }
 
 #[derive(Deserialize, EnumString, Clone)]
@@ -169,6 +170,7 @@ pub enum IterableCampaignType {
     RecoveryRelationshipDeletedByBeneficiaryReceivedByBeneficiary,
     SocialChallengeResponseReceived,
     TransactionVerification,
+    SecurityHub,
 }
 
 #[derive(Deserialize)]
@@ -353,6 +355,9 @@ impl IterableClient {
                     }
                     IterableCampaignType::TransactionVerification => {
                         config.transaction_verification_campaign_id
+                    }
+                    IterableCampaignType::SecurityHub => {
+                        config.security_hub_campaign_id
                     }
                 };
 

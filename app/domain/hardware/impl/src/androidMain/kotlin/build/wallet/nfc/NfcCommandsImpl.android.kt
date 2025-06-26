@@ -5,7 +5,6 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.cloud.backup.csek.Csek
 import build.wallet.crypto.SealedData
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -337,17 +336,6 @@ class NfcCommandsImpl(
     generateResult = { state: BytesState.Result -> state.value.toByteString() }
   )
 
-  override suspend fun sealKey(
-    session: NfcSession,
-    unsealedKey: Csek,
-  ) = executeCommand(
-    session = session,
-    generateCommand = { SealKey(unsealedKey.key.raw.toUByteList()) },
-    getNext = { command, data -> command.next(data) },
-    getResponse = { state: BytesState.Data -> state.response },
-    generateResult = { state: BytesState.Result -> state.value.toByteString() }
-  )
-
   override suspend fun signChallenge(
     session: NfcSession,
     challenge: ByteString,
@@ -395,17 +383,6 @@ class NfcCommandsImpl(
     getNext = { command, data -> command.next(data) },
     getResponse = { state: BooleanState.Data -> state.response },
     generateResult = { state: BooleanState.Result -> state.value }
-  )
-
-  override suspend fun unsealKey(
-    session: NfcSession,
-    sealedKey: List<UByte>,
-  ) = executeCommand(
-    session = session,
-    generateCommand = { UnsealKey(sealedKey) },
-    getNext = { command, data -> command.next(data) },
-    getResponse = { state: BytesState.Data -> state.response },
-    generateResult = { state: BytesState.Result -> state.value }
   )
 
   override suspend fun version(session: NfcSession) =

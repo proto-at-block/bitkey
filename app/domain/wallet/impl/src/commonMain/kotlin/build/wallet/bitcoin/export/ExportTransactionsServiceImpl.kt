@@ -91,6 +91,7 @@ class ExportTransactionsServiceImpl(
         .mapError { Error("Failed to fetch keysets") }
         .logFailure { "Error fetching keysets for an account when exporting transaction history." }
         .bind()
+        .keysets
         .filter {
           it.f8eSpendingKeyset.keysetId != account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
         }

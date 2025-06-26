@@ -9,9 +9,9 @@ import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Availab
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.cloud.backup.CloudBackupHealthRepository
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
+import build.wallet.cloud.backup.health.AppKeyBackupStatus.ProblemWithBackup.BackupMissing
 import build.wallet.cloud.backup.health.EekBackupStatus
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus.ProblemWithBackup.BackupMissing
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.navigation.v1.NavigationScreenId
@@ -20,8 +20,8 @@ import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.router.Route
 import build.wallet.router.Router
+import build.wallet.statemachine.cloud.health.RepairAppKeyBackupProps
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
-import build.wallet.statemachine.cloud.health.RepairMobileKeyBackupProps
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.home.full.HomeScreen.MoneyHome
 import build.wallet.statemachine.home.full.HomeScreen.Settings
@@ -165,6 +165,10 @@ class HomeUiStateMachineImpl(
                 uiState = uiState.copy(rootScreen = Settings(ShowingInheritanceUiState(ManagingInheritanceTab.Beneficiaries)))
                 true
               }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY -> {
+                uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingTransactionVerificationPolicyState))
+                true
+              }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE_BENEFACTOR -> {
                 uiState = uiState.copy(rootScreen = Settings(ShowingInheritanceUiState(ManagingInheritanceTab.Inheritance)))
                 true
@@ -268,7 +272,7 @@ class HomeUiStateMachineImpl(
                     problemWithBackup = it.problemWithBackup
                   )
                 )
-                is BannerType.MissingEak -> uiState.copy(
+                is BannerType.MissingEek -> uiState.copy(
                   presentedScreen = EmergencyExitKitRepair(
                     problemWithBackup = it.problemWithBackup
                   )
@@ -443,9 +447,9 @@ class HomeUiStateMachineImpl(
         )
       )
       is CloudBackupRepair -> repairCloudBackupStateMachine.model(
-        RepairMobileKeyBackupProps(
+        RepairAppKeyBackupProps(
           account = props.account as FullAccount,
-          mobileKeyBackupStatus = BackupMissing,
+          appKeyBackupStatus = BackupMissing,
           presentationStyle = ScreenPresentationStyle.Modal,
           onExit = {
             uiState = uiState.copy(presentedScreen = null)
@@ -456,9 +460,9 @@ class HomeUiStateMachineImpl(
         )
       )
       is EmergencyExitKitRepair -> repairCloudBackupStateMachine.model(
-        RepairMobileKeyBackupProps(
+        RepairAppKeyBackupProps(
           account = props.account as FullAccount,
-          mobileKeyBackupStatus = BackupMissing,
+          appKeyBackupStatus = BackupMissing,
           presentationStyle = ScreenPresentationStyle.Modal,
           onExit = {
             uiState = uiState.copy(presentedScreen = null)
@@ -552,7 +556,7 @@ private sealed interface PresentedScreen {
 
   /** Indicates the cloud back up repair process is being displayed */
   data class CloudBackupRepair(
-    val problemWithBackup: MobileKeyBackupStatus.ProblemWithBackup,
+    val problemWithBackup: AppKeyBackupStatus.ProblemWithBackup,
   ) : PresentedScreen
 
   /** Indicates that the EEK backup repair process is being displayed */

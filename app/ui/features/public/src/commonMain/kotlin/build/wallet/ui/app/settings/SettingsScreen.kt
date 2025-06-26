@@ -50,7 +50,7 @@ fun SettingsScreen(
             items = immutableListOf(
               ListItemModel(
                 title = "Looking for something?",
-                secondaryText = "Your Security & Recovery settings now live in the new Security hub.",
+                secondaryText = "Your Security & Recovery settings now live in the new Security Hub.",
                 leadingAccessory = ListItemAccessory.IconAccessory(
                   model = IconModel(
                     icon = Icon.SmallIconShield,

@@ -13,7 +13,6 @@ import build.wallet.bitkey.f8e.LiteAccountId
 import build.wallet.bitkey.f8e.SoftwareAccountId
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
-import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.frost.AppShareDetailsMock
 
@@ -24,7 +23,6 @@ val KeyboxMock =
     activeSpendingKeyset = SpendingKeysetMock,
     activeAppKeyBundle = AppKeyBundleMock,
     activeHwKeyBundle = HwKeyBundleMock,
-    inactiveKeysets = emptyImmutableList(),
     appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
     config =
       FullAccountConfig(
@@ -43,7 +41,6 @@ val KeyboxMock2 =
     activeSpendingKeyset = SpendingKeysetMock2,
     activeAppKeyBundle = AppKeyBundleMock2,
     activeHwKeyBundle = HwKeyBundleMock,
-    inactiveKeysets = emptyImmutableList(),
     appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
     config =
       FullAccountConfig(

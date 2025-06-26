@@ -26,7 +26,10 @@ fun TestScope.createBackgroundScope(
   val job = Job()
   val backgroundScope =
     CoroutineScope(job + Dispatchers.Default + CoroutineName("BackgroundScope-${Uuid.random()}") + context)
-  testCase.spec.afterTest {
+
+  // We cancel the scope after each invocation, as it is common to validate test flakes
+  // leveraging kotest's test case invocation config.
+  testCase.spec.afterInvocation { _, _ ->
     backgroundScope.cancel()
     job.cancelAndJoin()
   }

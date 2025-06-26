@@ -48,8 +48,6 @@ import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.*
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
-import build.wallet.toByteString
-import build.wallet.toUByteList
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.ImmutableList
@@ -189,7 +187,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             session = { session, commands ->
               Csek(
                 SymmetricKeyImpl(
-                  commands.unsealKey(session, sealedCsek.toUByteList()).toByteString()
+                  commands.unsealData(session, sealedCsek)
                 )
               )
             },

@@ -24,8 +24,10 @@ import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel.Warn
-import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.relationships.RelationshipsService
 import com.github.michaelbull.result.*
@@ -46,6 +48,7 @@ class SocRecCloudBackupSyncWorkerImpl(
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val eventTracker: EventTracker,
   private val clock: Clock,
+  private val appSessionManager: AppSessionManager,
 ) : SocRecCloudBackupSyncWorker {
   private val lastCheckState: MutableStateFlow<Instant> = MutableStateFlow(Instant.DISTANT_PAST)
 
@@ -73,12 +76,24 @@ class SocRecCloudBackupSyncWorkerImpl(
       val activeRecovery = recovery as? StillRecovering
       val hasHardwareRecovery = activeRecovery?.factorToRecover == PhysicalFactor.Hardware
       if (account is FullAccount && !hasHardwareRecovery) {
-        refreshCloudBackupsWhenNecessary(account)
+        account
+      } else {
+        null
       }
-    }.collectLatest {}
+    }
+      .distinctUntilChanged()
+      .flatMapLatest { account ->
+        account?.let {
+          refreshCloudBackupsWhenNecessary(account)
+        } ?: emptyFlow()
+      }
+      .collectLatest {
+        it.logFailure(Warn) { "Failed to refresh cloud backup" }
+        lastCheckState.value = clock.now()
+      }
   }
 
-  private suspend fun refreshCloudBackupsWhenNecessary(account: FullAccount) {
+  private fun refreshCloudBackupsWhenNecessary(account: FullAccount) =
     combine(
       relationshipsService.relationships
         .filterNotNull()
@@ -87,8 +102,9 @@ class SocRecCloudBackupSyncWorkerImpl(
         .distinctUntilChanged(),
       cloudBackupDao
         .backup(accountId = account.accountId.serverId)
-        .distinctUntilChanged()
-    ) { trustedContacts, cloudBackup ->
+        .distinctUntilChanged(),
+      appSessionManager.appSessionState.filter { AppSessionState.FOREGROUND == it }
+    ) { trustedContacts, cloudBackup, _ ->
       coroutineBinding {
         val storedBackupState =
           cloudBackup.getStoredBackupState(trustedContacts)
@@ -101,16 +117,14 @@ class SocRecCloudBackupSyncWorkerImpl(
               fullAccount = account,
               hwekEncryptedPkek = storedBackupState.hwekEncryptedPkek
             ).onSuccess {
-              logDebug { "Refreshed cloud backup RC count=${trustedContacts.size}" }
+              logInfo {
+                "Cloud backup uploaded via SocRecCloudBackupSyncWorkerImpl; RC count=${trustedContacts.size}"
+              }
             }.bind()
           }
         }
       }
-    }.collect {
-      it.logFailure(Warn) { "Failed to refresh cloud backup" }
-      lastCheckState.value = clock.now()
     }
-  }
 
   /** Type for determining what action to take regarding the stored cloud backup. */
   private sealed interface StoredBackupState {

@@ -133,6 +133,7 @@ pub struct Services {
     pub privileged_action_repository: PrivilegedActionRepository,
     pub inheritance_repository: InheritanceRepository,
     pub social_recovery_repository: SocialRecoveryRepository,
+    pub account_repository: AccountRepository,
 }
 
 #[derive(Debug, Error)]
@@ -243,7 +244,7 @@ struct Repositories {
 
 #[derive(Clone, Deserialize)]
 pub struct SecureSiteConfig {
-    pub(crate) secure_site_base_url: url::Url,
+    pub(crate) int_secure_site_base_url: url::Url,
 }
 
 impl BootstrapBuilder {
@@ -507,6 +508,7 @@ impl BootstrapBuilder {
             privileged_action_repository: repositories.privileged_action_repository.clone(),
             inheritance_repository: repositories.inheritance_repository.clone(),
             social_recovery_repository: repositories.social_recovery_repository.clone(),
+            account_repository: repositories.account_repository.clone(),
         })
     }
 
@@ -737,6 +739,7 @@ impl BootstrapBuilder {
             SwaggerEndpoint::from(experimentation_state),
             SwaggerEndpoint::from(promotion_state),
             SwaggerEndpoint::from(reset_fingerprint_state),
+            SwaggerEndpoint::from(transaction_verification_state.clone()),
         ];
 
         #[cfg(feature = "partnerships")]
@@ -777,7 +780,7 @@ impl BootstrapBuilder {
         // Merge the API and secure site routers into a single router.
         //
         let secure_site_config = config::extract::<SecureSiteConfig>(profile)?;
-        let app = match secure_site_config.secure_site_base_url.host_str() {
+        let app = match secure_site_config.int_secure_site_base_url.host_str() {
             // If the secure site is configured to localhost or left blank, merge the routers and
             // ignore HOST.
             None | Some("localhost") => Router::new().merge(api_router).merge(secure_site_router),
@@ -788,28 +791,32 @@ impl BootstrapBuilder {
             // Based on https://github.com/tokio-rs/axum/blob/769e4066b1f4da5662641d4097cb9f53f5b4406e/examples/http-proxy/src/main.rs
             Some(secure_site_host) => {
                 let secure_site_host = secure_site_host.to_string();
-                Router::new().route(
-                    "/*any",
-                    any_service(service_fn(move |req: Request<_>| {
-                        let host = req
-                            .headers()
-                            .get(HOST)
-                            .and_then(|v| v.to_str().ok())
-                            .unwrap_or_default()
-                            .to_string();
-                        let secure_site_router = secure_site_router.clone();
-                        let api_router = api_router.clone();
-                        let req = req.map(Body::new);
-                        let secure_site_host = secure_site_host.clone();
-                        async move {
-                            if host == secure_site_host {
-                                secure_site_router.oneshot(req).await
-                            } else {
-                                api_router.oneshot(req).await
-                            }
+                let svc = any_service(service_fn(move |req: Request<_>| {
+                    let host = req
+                        .headers()
+                        .get(HOST)
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or_default()
+                        .to_string();
+                    let secure_site_router = secure_site_router.clone();
+                    let api_router = api_router.clone();
+                    let req = req.map(Body::new);
+                    let secure_site_host = secure_site_host.clone();
+                    tracing::debug!(
+                        "current host: {} with configured secure site host: {}",
+                        host,
+                        secure_site_host
+                    );
+                    async move {
+                        if host == secure_site_host {
+                            secure_site_router.oneshot(req).await
+                        } else {
+                            api_router.oneshot(req).await
                         }
-                    })),
-                )
+                    }
+                }));
+
+                Router::new().fallback_service(svc)
             }
         };
 

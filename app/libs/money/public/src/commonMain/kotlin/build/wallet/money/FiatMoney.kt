@@ -39,7 +39,6 @@ data class FiatMoney(
 
   override fun equals(other: Any?): Boolean {
     return when {
-      isZero && other is Money && other.isZero -> true
       other is FiatMoney -> currency == other.currency && value == other.value
       else -> false
     }

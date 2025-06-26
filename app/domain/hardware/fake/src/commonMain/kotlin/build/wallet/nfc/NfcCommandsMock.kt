@@ -7,7 +7,6 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.cloud.backup.csek.Csek
 import build.wallet.crypto.SealedData
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EnrolledFingerprints
@@ -30,6 +29,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.nfc.platform.NfcCommands
 import io.ktor.utils.io.core.toByteArray
 import okio.ByteString
+import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 
 class NfcCommandsMock(
@@ -169,11 +169,6 @@ class NfcCommandsMock(
     sealedData: SealedData,
   ) = "unsealed-data".encodeUtf8()
 
-  override suspend fun sealKey(
-    session: NfcSession,
-    unsealedKey: Csek,
-  ) = "sealed-key".encodeUtf8()
-
   override suspend fun signChallenge(
     session: NfcSession,
     challenge: ByteString,
@@ -196,11 +191,6 @@ class NfcCommandsMock(
     session: NfcSession,
     fingerprintHandle: FingerprintHandle,
   ) = true.also { startFingerprintEnrollmentCalls.add(fingerprintHandle) }
-
-  override suspend fun unsealKey(
-    session: NfcSession,
-    sealedKey: List<UByte>,
-  ) = "unsealed-key".encodeUtf8().toByteArray().map { it.toUByte() }
 
   override suspend fun version(session: NfcSession): UShort = 1u
 
@@ -228,7 +218,7 @@ class NfcCommandsMock(
           deviceId = "mockDevice".toByteArray(),
           challenge = "mockChallenge".toByteArray(),
           action = action,
-          signature = "mockSignature".toByteArray()
+          signature = "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498".decodeHex().toByteArray()
         ).also { getGrantRequestCalls.add(action) }
       }
       else -> {

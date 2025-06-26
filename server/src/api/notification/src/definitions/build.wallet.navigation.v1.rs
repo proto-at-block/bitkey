@@ -52,6 +52,10 @@ pub enum NavigationScreenId {
     ManageBitkeyDevice = 17,
     /// * The security hub screen. *
     SecurityHub = 18,
+    /// * screen for repairing cloud back ups if there is an issue *
+    CloudRepair = 19,
+    /// * Transaction Verification Policy management screen. *
+    TxVerificationPolicy = 20,
 }
 impl NavigationScreenId {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -105,6 +109,10 @@ impl NavigationScreenId {
                 "NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE"
             }
             NavigationScreenId::SecurityHub => "NAVIGATION_SCREEN_ID_SECURITY_HUB",
+            NavigationScreenId::CloudRepair => "NAVIGATION_SCREEN_ID_CLOUD_REPAIR",
+            NavigationScreenId::TxVerificationPolicy => {
+                "NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -143,6 +151,10 @@ impl NavigationScreenId {
             "NAVIGATION_SCREEN_ID_PAIR_DEVICE" => Some(Self::PairDevice),
             "NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE" => Some(Self::ManageBitkeyDevice),
             "NAVIGATION_SCREEN_ID_SECURITY_HUB" => Some(Self::SecurityHub),
+            "NAVIGATION_SCREEN_ID_CLOUD_REPAIR" => Some(Self::CloudRepair),
+            "NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY" => {
+                Some(Self::TxVerificationPolicy)
+            }
             _ => None,
         }
     }

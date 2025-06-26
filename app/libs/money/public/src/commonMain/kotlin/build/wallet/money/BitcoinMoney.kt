@@ -30,7 +30,6 @@ data class BitcoinMoney(
 
   override fun equals(other: Any?): Boolean {
     return when {
-      isZero && other is Money && other.isZero -> true
       other is BitcoinMoney -> currency == other.currency && value == other.value
       else -> false
     }

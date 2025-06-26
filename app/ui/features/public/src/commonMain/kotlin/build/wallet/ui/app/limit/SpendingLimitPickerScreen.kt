@@ -62,7 +62,7 @@ fun SpendingLimitPickerScreen(
                 }
               },
             primaryAmountLabelType = LabelType.Display1,
-            secondaryAmountWithCurrency = entryMode.amountModel.secondaryAmount
+            contextLine = entryMode.amountModel.secondaryAmount
           )
 
           Spacer(Modifier.weight(1F))

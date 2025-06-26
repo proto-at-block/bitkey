@@ -52,6 +52,7 @@ import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.shouldBeOk
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
@@ -60,6 +61,7 @@ import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant
 
 class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
+  val clock = ClockFake()
   val cloudBackupDao = CloudBackupDaoFake()
   val backupRestorer =
     FullAccountCloudBackupRestorerMock().apply {
@@ -86,7 +88,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       recovery = NoActiveRecovery,
       turbines::create
     )
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val socRecChallengeRepository = SocRecChallengeRepositoryMock()
 
   val keyboxDao = KeyboxDaoMock(turbines::create)

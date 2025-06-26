@@ -5,13 +5,16 @@ use database::{
         error::ProvideErrorMetadata,
         types::{AttributeValue, PutRequest, WriteRequest},
     },
-    ddb::{try_to_item, DatabaseError, Repository},
+    ddb::{try_to_item, DatabaseError, DatabaseObject, Repository},
 };
+use time::{Duration, OffsetDateTime};
 use tracing::{event, instrument, Level};
 
 use crate::entities::Notification;
 
 use super::NotificationRepository;
+
+const TTL: Duration = Duration::days(31);
 
 impl NotificationRepository {
     /// Persists notification agnostic of type
@@ -24,10 +27,7 @@ impl NotificationRepository {
     pub async fn persist_notification(&self, n: &Notification) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
-        let item = match n {
-            Notification::Customer(n) => try_to_item(n.clone(), database_object)?,
-            Notification::Scheduled(n) => try_to_item(n.clone(), database_object)?,
-        };
+        let item = try_to_item_with_ttl(n, database_object)?;
         self.connection
             .client
             .put_item()
@@ -66,11 +66,8 @@ impl NotificationRepository {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
         let items = notifications
-            .into_iter()
-            .map(|n| match n {
-                Notification::Customer(n) => try_to_item(n, database_object),
-                Notification::Scheduled(n) => try_to_item(n, database_object),
-            })
+            .iter()
+            .map(|n| try_to_item_with_ttl(n, database_object))
             .collect::<Result<Vec<HashMap<String, AttributeValue>>, DatabaseError>>()?;
 
         let request_items = items
@@ -102,4 +99,24 @@ impl NotificationRepository {
             })?;
         Ok(())
     }
+}
+
+fn try_to_item_with_ttl(
+    notification: &Notification,
+    database_object: DatabaseObject,
+) -> Result<HashMap<String, AttributeValue>, DatabaseError> {
+    let (mut item, last_relevant): (HashMap<String, AttributeValue>, OffsetDateTime) =
+        match notification {
+            Notification::Customer(n) => (try_to_item(n, database_object)?, n.updated_at),
+            Notification::Scheduled(n) => (try_to_item(n, database_object)?, n.execution_date_time),
+        };
+
+    let expiring_at = last_relevant + TTL;
+
+    item.insert(
+        "expiring_at".to_string(),
+        AttributeValue::N(expiring_at.unix_timestamp().to_string()),
+    );
+
+    Ok(item)
 }

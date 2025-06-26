@@ -113,6 +113,7 @@ async fn main() -> Result<(), Error> {
                 privileged_action_repository: bootstrap.services.privileged_action_repository,
                 inheritance_repository: bootstrap.services.inheritance_repository,
                 social_recovery_repository: bootstrap.services.social_recovery_repository,
+                account_repository: bootstrap.services.account_repository,
             };
 
             match command {

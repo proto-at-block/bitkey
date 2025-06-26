@@ -7,6 +7,7 @@
     <string name="mobile_key_backup_action_title">Cloud backup</string>
     <string name="social_recovery_action_title">Recovery Contacts</string>
     <string name="hardware_device_action_title">Bitkey device</string>
+    <string name="transaction_verification_title">Transaction verification</string>
 
     <string name="backup_mobile_key_recommendation_title">Add cloud backup</string>
     <string name="backup_eak_recommendation_title">Back up Emergency Exit Kit</string>
@@ -20,4 +21,5 @@
     <string name="setup_biometric_recommendation_title">Set up biometric login</string>
     <string name="update_firmware_recommendation_title">Update firmware</string>
     <string name="pair_device_recommendation_title">Add Bitkey hardware</string>
+    <string name="transaction_verification_recommendation_title">Set up transaction verification</string>
 </resources>

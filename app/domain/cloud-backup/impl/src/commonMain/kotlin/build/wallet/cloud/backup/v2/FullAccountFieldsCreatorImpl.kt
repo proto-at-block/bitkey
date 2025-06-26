@@ -52,7 +52,6 @@ class FullAccountFieldsCreatorImpl(
           activeSpendingKeyset = keybox.activeSpendingKeyset,
           activeHwSpendingKey = keybox.activeHwKeyBundle.spendingKey,
           activeHwAuthKey = keybox.activeHwKeyBundle.authKey,
-          inactiveSpendingKeysets = keybox.inactiveKeysets,
           appGlobalAuthKeypair = appAuthKeypair,
           appSpendingKeys = appPrivateKeysMap,
           rotationAppGlobalAuthKeypair = null

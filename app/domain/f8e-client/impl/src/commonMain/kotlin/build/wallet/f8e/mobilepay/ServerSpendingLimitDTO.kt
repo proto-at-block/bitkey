@@ -1,6 +1,6 @@
 package build.wallet.f8e.mobilepay
 
-import build.wallet.f8e.mobilepay.ServerSpendingLimitDTO.MoneyDTO
+import build.wallet.f8e.money.MoneyDTO
 import build.wallet.limit.SpendingLimit
 import build.wallet.time.timeFromUtcInHms
 import kotlinx.datetime.Clock
@@ -14,14 +14,7 @@ data class ServerSpendingLimitDTO(
   val amount: MoneyDTO,
   @SerialName("time_zone_offset")
   val timeZoneOffset: String,
-) {
-  @Serializable
-  data class MoneyDTO(
-    val amount: Int,
-    @SerialName("currency_code")
-    val currencyCode: String,
-  )
-}
+)
 
 fun SpendingLimit.toServerSpendingLimit(clock: Clock): ServerSpendingLimitDTO =
   ServerSpendingLimitDTO(

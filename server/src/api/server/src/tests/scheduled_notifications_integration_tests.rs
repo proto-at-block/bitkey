@@ -161,6 +161,7 @@ async fn test_scheduled_handler() {
         privileged_action_repository: bootstrap.services.privileged_action_repository.clone(),
         inheritance_repository: bootstrap.services.inheritance_repository.clone(),
         social_recovery_repository: bootstrap.services.social_recovery_repository.clone(),
+        account_repository: bootstrap.services.account_repository.clone(),
     };
     let worker = TestWorker::new(state.clone()).await;
 

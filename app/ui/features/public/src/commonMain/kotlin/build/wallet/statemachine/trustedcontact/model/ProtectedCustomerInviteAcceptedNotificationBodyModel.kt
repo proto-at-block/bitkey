@@ -15,7 +15,7 @@ fun ProtectedCustomerInviteAcceptedNotificationBodyModel(
     title = "Your Recovery Contact is now active\n",
     message =
       "${trustedContact.recoveryAlias} is now set up as a Recovery Contact of your Bitkey wallet. " +
-        "You can manage your Recovery Contacts anytime in Settings.",
+        "You can manage your Recovery Contacts anytime in Security Hub.",
     primaryButtonModel = ButtonDataModel("Got it", onClick = onDone)
   )
 }

@@ -9,19 +9,21 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.f8e.F8eEnvironment
+import build.wallet.f8e.recovery.ListKeysetsF8eClient.ListKeysetsResponse
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.map
 
 class ListKeysetsF8eClientMock : ListKeysetsF8eClient {
   var numKeysets = 3
 
-  var result: Result<List<SpendingKeyset>, NetworkingError>? = null
+  var result: Result<ListKeysetsResponse, NetworkingError>? = null
 
   override suspend fun listKeysets(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-  ): Result<List<SpendingKeyset>, NetworkingError> {
+  ): Result<ListKeysetsResponse, NetworkingError> {
     if (result != null) {
       return result!!
     }
@@ -46,7 +48,7 @@ class ListKeysetsF8eClientMock : ListKeysetsF8eClient {
               )
           )
         }
-    )
+    ).map { ListKeysetsResponse(keysets = it, descriptorBackups = null) }
   }
 
   fun reset() {

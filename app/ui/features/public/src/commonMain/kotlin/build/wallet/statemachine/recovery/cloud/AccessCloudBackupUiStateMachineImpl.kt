@@ -86,7 +86,7 @@ class AccessCloudBackupUiStateMachineImpl(
             onCheckCloudAgain = {
               state = SigningIntoCloudUiState(forceSignOut = true)
             },
-            onImportEmergencyAccessKit = props.onImportEmergencyAccessKit,
+            onImportEmergencyExitKit = props.onImportEmergencyExitKit,
             onShowTroubleshootingSteps = {
               state = ShowingTroubleshootingSteps(fromState = currentState)
             }
@@ -156,7 +156,7 @@ class AccessCloudBackupUiStateMachineImpl(
           onCheckCloudAgain = {
             state = SigningIntoCloudUiState(forceSignOut = true)
           },
-          onImportEmergencyAccessKit = props.onImportEmergencyAccessKit,
+          onImportEmergencyExitKit = props.onImportEmergencyExitKit,
           onShowTroubleshootingSteps = {
             state = ShowingTroubleshootingSteps(fromState = currentState)
           }

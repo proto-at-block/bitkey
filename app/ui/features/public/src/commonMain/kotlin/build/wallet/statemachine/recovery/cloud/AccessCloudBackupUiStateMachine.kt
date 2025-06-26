@@ -28,6 +28,6 @@ data class AccessCloudBackupUiProps(
   val onExit: () -> Unit,
   val onBackupFound: (backup: CloudBackup) -> Unit,
   val onCannotAccessCloudBackup: (CloudStoreAccount?) -> Unit,
-  val onImportEmergencyAccessKit: () -> Unit,
+  val onImportEmergencyExitKit: () -> Unit,
   val showErrorOnBackupMissing: Boolean = true,
 )

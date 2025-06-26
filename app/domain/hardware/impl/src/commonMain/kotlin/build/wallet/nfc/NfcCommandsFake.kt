@@ -5,8 +5,6 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.cloud.backup.csek.Csek
-import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.SealedData
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -21,12 +19,12 @@ import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
+import build.wallet.grants.GRANT_CHALLENGE_LEN
+import build.wallet.grants.GRANT_DEVICE_ID_LEN
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.nfc.platform.NfcCommands
-import build.wallet.toByteString
-import build.wallet.toUByteList
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
 import io.ktor.utils.io.core.toByteArray
@@ -174,7 +172,11 @@ class NfcCommandsFake(
   private val sealKeySeparator = "---"
 
   /**
-   * "Seals" a ByteString using the same strategy as [NfcCommandsFake.sealKey]
+   * "Seals" some data using actual fake auth key. The sealing process is a simple concatenation of the
+   * auth private key and the unsealed key in following format: "unsealedData---authPrivateKey".
+   *
+   * Unsealing process is a simple split of the sealed key by the same separator and then checking if
+   * the auth private key is the same as the one used for sealing.
    */
   override suspend fun sealData(
     session: NfcSession,
@@ -188,52 +190,20 @@ class NfcCommandsFake(
     }.encodeUtf8()
   }
 
-  /**
-   * See [NfcCommandsFake.unsealKey] for implementation details.
-   */
   override suspend fun unsealData(
     session: NfcSession,
     sealedData: SealedData,
   ): ByteString {
-    return unsealKey(session, sealedData.toUByteList()).toByteString()
-  }
-
-  /**
-   * "Seals" a CSEK using actual fake auth key. The sealing process is a simple concatenation of the
-   * auth private key and the unsealed key in following format: "unsealedKey---authPrivateKey".
-   *
-   * Unsealing process is a simple split of the sealed key by the same separator and then checking if
-   * the auth private key is the same as the one used for sealing.
-   */
-  override suspend fun sealKey(
-    session: NfcSession,
-    unsealedKey: Csek,
-  ): SealedCsek {
-    val hwAuthPrivateKey = fakeHardwareKeyStore.getAuthKeypair().privateKey.key
-    return buildString {
-      append(unsealedKey.key.raw.hex())
-      append(sealKeySeparator)
-      append(hwAuthPrivateKey.bytes.hex())
-    }.encodeUtf8()
-  }
-
-  /**
-   * See [NfcCommandsFake.sealKey] for implementation details.
-   */
-  override suspend fun unsealKey(
-    session: NfcSession,
-    sealedKey: List<UByte>,
-  ): List<UByte> {
-    val (sealedCsekRaw, hwAuthPrivateKeyPart) = sealedKey.toByteString()
+    val (sealedSekRaw, hwAuthPrivateKeyPart) = sealedData
       .utf8()
       .split(sealKeySeparator)
     // Simulate the sealing process by checking if the private key is the same as the one.
-    // If hw auth private keys don't match, effectively means that the csek was not sealed with
+    // If hw auth private keys don't match, effectively means that the data was not sealed with
     // this fake hardware's auth private key.
     require(hwAuthPrivateKeyPart == fakeHardwareKeyStore.getAuthKeypair().privateKey.key.bytes.hex()) {
       "Appropriate fake hw auth private key missing"
     }
-    return sealedCsekRaw.decodeHex().toUByteList()
+    return sealedSekRaw.decodeHex()
   }
 
   override suspend fun signChallenge(
@@ -292,15 +262,20 @@ class NfcCommandsFake(
   override suspend fun getGrantRequest(
     session: NfcSession,
     action: GrantAction,
-  ): GrantRequest {
-    return GrantRequest(
-      version = 0x01,
-      deviceId = "fakeDevice".toByteArray(),
-      challenge = "fakeChallenge".toByteArray(),
-      action = action,
-      signature = "fakeSignature".toByteArray()
-    )
-  }
+  ) = GrantRequest(
+    version = 0x01,
+    deviceId = "test-device-12345"
+      .encodeUtf8()
+      .toByteArray()
+      .copyOf(GRANT_DEVICE_ID_LEN),
+    challenge = "random-challenge-98765"
+      .encodeUtf8()
+      .toByteArray()
+      .copyOf(GRANT_CHALLENGE_LEN),
+    action = action,
+    signature = "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498"
+      .decodeHex().toByteArray()
+  )
 
   override suspend fun provideGrant(
     session: NfcSession,

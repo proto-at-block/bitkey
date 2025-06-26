@@ -65,7 +65,6 @@ CREATE VIEW fullAccountView AS
 SELECT
   fullAccountEntity.accountId AS accountId,
   keyboxEntity.id AS keyboxId,
-  keyboxEntity.inactiveKeysetIds,
   keyboxEntity.networkType,
   keyboxEntity.fakeHardware,
   keyboxEntity.f8eEnvironment,

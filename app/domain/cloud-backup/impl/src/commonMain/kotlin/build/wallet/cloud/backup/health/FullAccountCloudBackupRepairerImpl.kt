@@ -9,8 +9,8 @@ import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
-import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
+import build.wallet.emergencyexitkit.EmergencyExitKitPdfGenerator
+import build.wallet.emergencyexitkit.EmergencyExitKitRepository
 import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.flatMap
@@ -24,8 +24,8 @@ import com.github.michaelbull.result.toErrorIfNull
 class FullAccountCloudBackupRepairerImpl(
   private val cloudBackupRepository: CloudBackupRepository,
   private val cloudBackupDao: CloudBackupDao,
-  private val emergencyAccessKitPdfGenerator: EmergencyAccessKitPdfGenerator,
-  private val emergencyAccessKitRepository: EmergencyAccessKitRepository,
+  private val emergencyExitKitPdfGenerator: EmergencyExitKitPdfGenerator,
+  private val emergencyExitKitRepository: EmergencyExitKitRepository,
 ) : FullAccountCloudBackupRepairer {
   override suspend fun attemptRepair(
     account: FullAccount,
@@ -49,21 +49,21 @@ class FullAccountCloudBackupRepairerImpl(
       return
     }
 
-    val (mobileKeyBackupStatus, eekBackupStatus) = cloudBackupStatus
+    val (appKeyBackupStatus, eekBackupStatus) = cloudBackupStatus
 
     // Attempt to fix App Key Backup
-    when (mobileKeyBackupStatus) {
-      MobileKeyBackupStatus.ProblemWithBackup.BackupMissing ->
-        uploadMobileKeyBackup(account, cloudStoreAccount, localBackup)
-      is MobileKeyBackupStatus.ProblemWithBackup.InvalidBackup -> {
-        if (localBackup.accountId != mobileKeyBackupStatus.cloudBackup.accountId) {
+    when (appKeyBackupStatus) {
+      AppKeyBackupStatus.ProblemWithBackup.BackupMissing ->
+        uploadAppKeyBackup(account, cloudStoreAccount, localBackup)
+      is AppKeyBackupStatus.ProblemWithBackup.InvalidBackup -> {
+        if (localBackup.accountId != appKeyBackupStatus.cloudBackup.accountId) {
           logWarn { "Local backup account id does not match invalid backup account id" }
           // We cannot safely assume that the customer would want to overwrite the cloud backup,
           // so let the customer resolve this manually.
           // No action taken here.
         } else {
           // The cloud backup belongs to the customer but is invalid. Attempt to re-upload backup.
-          uploadMobileKeyBackup(account, cloudStoreAccount, localBackup)
+          uploadAppKeyBackup(account, cloudStoreAccount, localBackup)
         }
       }
       // Cannot auto repair other problems with App Key Backup.
@@ -74,14 +74,14 @@ class FullAccountCloudBackupRepairerImpl(
     // Attempt to fix Emergency Exit Kit
     when (eekBackupStatus) {
       EekBackupStatus.ProblemWithBackup.BackupMissing ->
-        uploadEakBackup(account, cloudStoreAccount, localBackup)
+        uploadEekBackup(account, cloudStoreAccount, localBackup)
       // Cannot auto repair other problems with Emergency Exit Kit.
       // Customer will have to resolve this manually.
       else -> Unit
     }
   }
 
-  private suspend fun uploadMobileKeyBackup(
+  private suspend fun uploadAppKeyBackup(
     account: FullAccount,
     cloudStoreAccount: CloudStoreAccount,
     localBackup: CloudBackup,
@@ -90,13 +90,15 @@ class FullAccountCloudBackupRepairerImpl(
     cloudBackupRepository
       .writeBackup(account.accountId, cloudStoreAccount, localBackup, true)
       .onSuccess {
-        logDebug { "Successfully uploaded backup" }
+        logInfo {
+          "Cloud backup uploaded via FullAccountCloudBackupRepairer"
+        }
       }
       // Customer will have to resolve this manually
       .logFailure { "Error uploading cloud backup" }
   }
 
-  private suspend fun uploadEakBackup(
+  private suspend fun uploadEekBackup(
     account: FullAccount,
     cloudStoreAccount: CloudStoreAccount,
     localBackup: CloudBackup,
@@ -108,10 +110,10 @@ class FullAccountCloudBackupRepairerImpl(
           ?: return
     }
 
-    emergencyAccessKitPdfGenerator
+    emergencyExitKitPdfGenerator
       .generate(account.keybox, sealedCsek)
-      .flatMap { eakData ->
-        emergencyAccessKitRepository.write(cloudStoreAccount, eakData)
+      .flatMap { eekData ->
+        emergencyExitKitRepository.write(cloudStoreAccount, eekData)
       }
       .onSuccess {
         logDebug { "Successfully uploaded Emergency Exit Kit" }

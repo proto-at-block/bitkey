@@ -36,12 +36,18 @@ interface InheritanceCrypto {
   suspend fun createInheritanceMaterial(keybox: Keybox): Result<InheritanceMaterial, Error>
 
   /**
-   * Decrypt the sealed inheritance material using the user's delegated
-   * decryption key.
+   * Decrypt the sealed inheritance keyset and descriptor, if applicable,
+   * using the user's delegated decryption key.
    */
-  suspend fun decryptInheritanceMaterial(
+  suspend fun decryptInheritanceMaterialPackage(
     delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
     sealedDek: XCiphertext,
-    sealedMobileKey: XCiphertext,
-  ): Result<InheritanceKeyset, Error>
+    sealedAppKey: XCiphertext,
+    sealedDescriptor: XCiphertext?,
+  ): Result<DecryptInheritanceMaterialPackageOutput, Error>
 }
+
+data class DecryptInheritanceMaterialPackageOutput(
+  val inheritanceKeyset: InheritanceKeyset,
+  val descriptor: String?,
+)

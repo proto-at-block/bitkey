@@ -93,6 +93,13 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
         }
 
         DispatchQueue.main.async {
+            // W-11144: We can register for remote notifications twice: once by directly calling registerForRemoteNotifications in
+            // NotificationPermissionRequesterImpl when the user grants the permission, and again
+            // here when the app
+            // enters the foreground. If we've already registered, no need to do so again.
+            guard !UIApplication.shared.isRegisteredForRemoteNotifications else {
+                return
+            }
             UIApplication.shared.registerForRemoteNotifications()
         }
     }

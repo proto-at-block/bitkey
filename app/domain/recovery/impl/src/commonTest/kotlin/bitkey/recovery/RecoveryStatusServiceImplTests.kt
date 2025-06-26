@@ -70,6 +70,18 @@ class RecoveryStatusServiceImplTests : FunSpec({
     recoveryDao.clearCalls.awaitItem().shouldBe(Unit)
   }
 
+  test("recovery sync worker resets when account changes") {
+    accountService.setActiveAccount(FullAccountMock)
+
+    createBackgroundScope().launch {
+      recoveryStatusService.executeWork()
+    }
+    recoveryDao.setActiveServerRecoveryCalls.awaitItem().shouldBe(Unit)
+
+    accountService.setActiveAccount(LiteAccountMock)
+    recoveryDao.setActiveServerRecoveryCalls.awaitNoEvents(syncFrequency)
+  }
+
   test("recovery sync worker does not run in the background when there is active full account") {
     accountService.setActiveAccount(FullAccountMock)
     sessionProvider.appDidEnterBackground()
@@ -77,7 +89,7 @@ class RecoveryStatusServiceImplTests : FunSpec({
     createBackgroundScope().launch {
       recoveryStatusService.executeWork()
     }
-    recoveryDao.setLocalRecoveryProgressCalls.awaitNoEvents(syncFrequency)
+    recoveryDao.setActiveServerRecoveryCalls.awaitNoEvents(syncFrequency)
 
     sessionProvider.appDidEnterForeground()
     recoveryDao.setActiveServerRecoveryCalls.awaitItem().shouldBe(Unit)
@@ -93,7 +105,7 @@ class RecoveryStatusServiceImplTests : FunSpec({
       recoveryStatusService.executeWork()
     }
 
-    recoveryDao.setLocalRecoveryProgressCalls.awaitNoEvents(syncFrequency)
+    recoveryDao.setActiveServerRecoveryCalls.awaitNoEvents(syncFrequency)
 
     sessionProvider.appDidEnterForeground()
     recoveryDao.setActiveServerRecoveryCalls.awaitItem().shouldBe(Unit)

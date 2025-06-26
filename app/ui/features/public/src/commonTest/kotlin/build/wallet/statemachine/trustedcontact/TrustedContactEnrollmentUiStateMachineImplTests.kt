@@ -33,6 +33,7 @@ import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVaria
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.time.ClockFake
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -44,14 +45,15 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.http.*
 import io.ktor.http.HttpStatusCode
 import okio.ByteString.Companion.encodeUtf8
+import kotlin.time.Duration.Companion.hours
 
 class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
-
+  val clock = ClockFake()
   val relationshipsCrypto = RelationshipsCryptoFake()
   val relationshipsKeysRepository =
     RelationshipsKeysRepository(relationshipsCrypto, RelationshipsKeysDaoFake())
   val eventTracker = EventTrackerMock(turbines::create)
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val delegatedDecryptionService = DelegatedDecryptionKeyServiceMock()
   val nfcSessionUIStateMachine =
     object : NfcSessionUIStateMachine,
@@ -432,6 +434,62 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
           clickPrimaryButton() // Back button
         }
         awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+      }
+    }
+  }
+
+  context("expired invitation") {
+    test("expired recovery contact invitation - shows error and goes back to invite code entry") {
+      relationshipsService.retrieveInvitationResult = Ok(
+        IncomingRecoveryContactInvitationFake.copy(
+          expiresAt = clock.now().minus(1.hours)
+        )
+      )
+
+      stateMachine.test(props) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+          mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
+            .onValueChange("code", 0..0)
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+          clickPrimaryButton()
+        }
+        awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+          header?.headline?.shouldBe("This code has expired")
+          secondaryButton.shouldBeNull()
+          clickPrimaryButton()
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
+      }
+    }
+
+    test("expired beneficiary invitation - shows error and goes back to invite code entry") {
+      relationshipsService.retrieveInvitationResult = Ok(
+        IncomingBeneficiaryInvitationFake.copy(
+          expiresAt = clock.now().minus(1.hours)
+        )
+      )
+
+      stateMachine.test(props) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+          mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
+            .onValueChange("code", 0..0)
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+          clickPrimaryButton()
+        }
+        awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+          header?.headline?.shouldBe("This code has expired")
+          secondaryButton.shouldBeNull()
+          clickPrimaryButton()
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
       }
     }
   }

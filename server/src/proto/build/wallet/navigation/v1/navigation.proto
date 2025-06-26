@@ -67,5 +67,8 @@ enum NavigationScreenId {
     /** screen for repairing cloud back ups if there is an issue **/
     NAVIGATION_SCREEN_ID_CLOUD_REPAIR = 19;
 
-    /** The next tag is 20 **/
+    /** Transaction Verification Policy management screen. **/
+    NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY = 20;
+
+    /** The next tag is 21 **/
 }

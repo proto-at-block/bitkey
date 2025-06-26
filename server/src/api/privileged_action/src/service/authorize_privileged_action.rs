@@ -197,6 +197,7 @@ impl Service {
                             .initiate_delay_and_notify(
                                 input.account_id,
                                 account_type,
+                                account.get_common_fields().properties.is_test_account,
                                 privileged_action_definition.privileged_action_type,
                                 &delay_and_notify_definition,
                                 initial_request.clone(),
@@ -314,6 +315,7 @@ impl Service {
         &self,
         account_id: &AccountId,
         account_type: AccountType,
+        is_test_account: bool,
         privileged_action_type: PrivilegedActionType,
         delay_and_notify_definition: &DelayAndNotifyDefinition,
         initial_request: ReqT,
@@ -361,7 +363,11 @@ impl Service {
         }
 
         let delay_end_time = self.clock.now_utc()
-            + Duration::seconds(delay_and_notify_definition.delay_duration_secs.try_into()?);
+            + Duration::seconds(
+                delay_and_notify_definition
+                    .effective_delay_duration_secs(is_test_account)
+                    .try_into()?,
+            );
 
         let instance_record = PrivilegedActionInstanceRecord::new(
             account_id.clone(),

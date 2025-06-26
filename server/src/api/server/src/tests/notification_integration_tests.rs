@@ -2,14 +2,17 @@ use std::collections::{HashMap, HashSet};
 
 use http::StatusCode;
 use notification::clients::iterable::IterableClient;
-use notification::routes::SendTestPushData;
+use notification::routes::{SendTestPushData, SetNotificationsTriggersRequest};
 use notification::service::FetchForAccountInput;
+use notification::NotificationPayloadType;
 use onboarding::routes::{AccountAddDeviceTokenRequest, CompleteOnboardingRequest};
 use types::account::bitcoin::Network;
 use types::account::entities::TouchpointPlatform;
 use types::account::identifiers::AccountId;
 use types::consent::{Consent, NotificationConsentAction};
-use types::notification::{NotificationCategory, NotificationChannel, NotificationsPreferences};
+use types::notification::{
+    NotificationCategory, NotificationChannel, NotificationsPreferences, NotificationsTriggerType,
+};
 
 use crate::tests;
 use crate::tests::gen_services;
@@ -300,4 +303,192 @@ async fn test_notifications_preferences() {
         )
         .await;
     assert_eq!(set_response.status_code, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn test_notifications_triggers() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    assert_eq!(
+        client
+            .set_notifications_triggers(
+                &account.id.to_string(),
+                &SetNotificationsTriggersRequest {
+                    notifications_triggers: vec![NotificationsTriggerType::SecurityHubWalletAtRisk],
+                }
+            )
+            .await
+            .status_code,
+        StatusCode::OK
+    );
+
+    let triggers = bootstrap
+        .services
+        .account_repository
+        .fetch(&account.id)
+        .await
+        .unwrap()
+        .get_common_fields()
+        .notifications_triggers
+        .clone();
+
+    assert_eq!(triggers.len(), 1);
+    let (created_at, updated_at) = (triggers[0].created_at, triggers[0].updated_at);
+
+    let mut scheduled_notifications = bootstrap
+        .services
+        .notification_service
+        .fetch_scheduled_for_account(FetchForAccountInput {
+            account_id: account.id.clone(),
+        })
+        .await
+        .unwrap();
+    scheduled_notifications.sort_by_key(|n| n.execution_date_time);
+    let scheduled_notifications_types = scheduled_notifications
+        .iter()
+        .map(|n| n.payload_type)
+        .collect::<Vec<NotificationPayloadType>>();
+
+    assert_eq!(
+        scheduled_notifications_types,
+        vec![NotificationPayloadType::SecurityHub],
+    );
+
+    // Re-apply the same trigger
+    assert_eq!(
+        client
+            .set_notifications_triggers(
+                &account.id.to_string(),
+                &SetNotificationsTriggersRequest {
+                    notifications_triggers: vec![NotificationsTriggerType::SecurityHubWalletAtRisk],
+                }
+            )
+            .await
+            .status_code,
+        StatusCode::OK
+    );
+
+    let mut scheduled_notifications = bootstrap
+        .services
+        .notification_service
+        .fetch_scheduled_for_account(FetchForAccountInput {
+            account_id: account.id.clone(),
+        })
+        .await
+        .unwrap();
+    scheduled_notifications.sort_by_key(|n| n.execution_date_time);
+    let scheduled_notifications_types = scheduled_notifications
+        .iter()
+        .map(|n| n.payload_type)
+        .collect::<Vec<NotificationPayloadType>>();
+
+    // Should not create a new notification schedule
+    assert_eq!(
+        scheduled_notifications_types,
+        vec![NotificationPayloadType::SecurityHub],
+    );
+
+    let triggers = bootstrap
+        .services
+        .account_repository
+        .fetch(&account.id)
+        .await
+        .unwrap()
+        .get_common_fields()
+        .notifications_triggers
+        .clone();
+
+    assert_eq!(triggers.len(), 1);
+
+    // However, the existing trigger should be updated
+    assert_eq!(triggers[0].created_at, created_at);
+    assert_ne!(triggers[0].updated_at, updated_at);
+
+    // Un-apply the trigger
+    assert_eq!(
+        client
+            .set_notifications_triggers(
+                &account.id.to_string(),
+                &SetNotificationsTriggersRequest {
+                    notifications_triggers: vec![],
+                }
+            )
+            .await
+            .status_code,
+        StatusCode::OK
+    );
+
+    let triggers = bootstrap
+        .services
+        .account_repository
+        .fetch(&account.id)
+        .await
+        .unwrap()
+        .get_common_fields()
+        .notifications_triggers
+        .clone();
+
+    assert_eq!(triggers.len(), 0);
+
+    // Re-apply the trigger
+    assert_eq!(
+        client
+            .set_notifications_triggers(
+                &account.id.to_string(),
+                &SetNotificationsTriggersRequest {
+                    notifications_triggers: vec![NotificationsTriggerType::SecurityHubWalletAtRisk],
+                }
+            )
+            .await
+            .status_code,
+        StatusCode::OK
+    );
+
+    let mut scheduled_notifications = bootstrap
+        .services
+        .notification_service
+        .fetch_scheduled_for_account(FetchForAccountInput {
+            account_id: account.id.clone(),
+        })
+        .await
+        .unwrap();
+    scheduled_notifications.sort_by_key(|n| n.execution_date_time);
+    let scheduled_notifications_types = scheduled_notifications
+        .iter()
+        .map(|n| n.payload_type)
+        .collect::<Vec<NotificationPayloadType>>();
+
+    // Should create a new notification schedule (the old one will not validate)
+    assert_eq!(
+        scheduled_notifications_types,
+        vec![
+            NotificationPayloadType::SecurityHub,
+            NotificationPayloadType::SecurityHub
+        ],
+    );
+
+    let triggers = bootstrap
+        .services
+        .account_repository
+        .fetch(&account.id)
+        .await
+        .unwrap()
+        .get_common_fields()
+        .notifications_triggers
+        .clone();
+
+    assert_eq!(triggers.len(), 1);
+
+    // There should be a new trigger
+    assert_ne!(triggers[0].created_at, created_at);
+    assert_ne!(triggers[0].updated_at, updated_at);
 }

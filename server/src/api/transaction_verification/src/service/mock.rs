@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use wsm_common::bitcoin::hashes::{sha256, Hash, HashEngine};
 use wsm_common::bitcoin::secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
-use wsm_common::messages::api::TransactionVerificationApproval;
+use wsm_common::messages::api::TransactionVerificationGrant;
 use wsm_rust_client::{Error, GrantService};
 
 /// Mock implementation of GrantService for testing
@@ -31,23 +31,24 @@ impl GrantService for MockGrantService {
         &self,
         psbt: &str,
         hw_auth_public_key: PublicKey,
-    ) -> Result<TransactionVerificationApproval, Error> {
+    ) -> Result<TransactionVerificationGrant, Error> {
         // Create a deterministic signature based on the PSBT and public key
         let mut hasher = sha256::HashEngine::default();
         hasher.input(b"TVA1"); // Transaction Verification Approval version 1
         hasher.input(&hw_auth_public_key.serialize());
         hasher.input(psbt.as_bytes());
-        let allowed_hash = sha256::Hash::from_engine(hasher);
+        let commitment = sha256::Hash::from_engine(hasher);
 
         // Sign the hash
         let secp = Secp256k1::new();
-        let message = Message::from_slice(&allowed_hash.to_byte_array()).expect("valid message");
+        let message = Message::from_slice(&commitment.to_byte_array()).expect("valid message");
         let signature = secp.sign_ecdsa(&message, &self.secret_key);
 
-        Ok(TransactionVerificationApproval {
+        Ok(TransactionVerificationGrant {
             version: 0,
             hw_auth_public_key,
-            allowed_hash: allowed_hash.to_byte_array().to_vec(),
+            commitment: commitment.to_byte_array().to_vec(),
+            reverse_hash_chain: vec![commitment.to_byte_array().to_vec()],
             signature,
         })
     }

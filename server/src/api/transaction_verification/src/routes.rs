@@ -93,6 +93,10 @@ impl RouterBuilder for RouteState {
     fn secure_site_router(&self) -> Router {
         Router::new()
             .route("/tx-verify", get(get_transaction_verification_interface))
+            .route(
+                "/api/tx-verify/:verification_id",
+                put(process_transaction_verification_token),
+            )
             .route("/static/*file", get(static_handler))
             .with_state(self.to_owned())
     }
@@ -300,6 +304,37 @@ async fn initiate_transaction_verification(
     Ok(Json(tx_verification.to_response()))
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case", tag = "action")]
+pub enum ProcessTransactionVerificationTokenRequest {
+    Cancel { cancel_token: String },
+    Confirm { confirm_token: String },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProcessTransactionVerificationTokenResponse {}
+
+async fn process_transaction_verification_token(
+    State(transaction_verification_service): State<TransactionVerificationService>,
+    Path(verification_id): Path<TransactionVerificationId>,
+    Json(request): Json<ProcessTransactionVerificationTokenRequest>,
+) -> Result<Json<ProcessTransactionVerificationTokenResponse>, ApiError> {
+    match request {
+        ProcessTransactionVerificationTokenRequest::Confirm { confirm_token } => {
+            transaction_verification_service
+                .verify_with_confirmation_token(&verification_id, &confirm_token)
+                .await?;
+            Ok(Json(ProcessTransactionVerificationTokenResponse {}))
+        }
+        ProcessTransactionVerificationTokenRequest::Cancel { cancel_token } => {
+            transaction_verification_service
+                .verify_with_cancellation_token(&verification_id, &cancel_token)
+                .await?;
+            Ok(Json(ProcessTransactionVerificationTokenResponse {}))
+        }
+    }
+}
+
 #[derive(Deserialize)]
 pub struct TransactionVerificationInterfaceParams {
     web_auth_token: String,
@@ -353,6 +388,7 @@ pub async fn get_transaction_verification_interface(
 
     let html_template = get_template();
     let verification_params = serde_json::json!({
+        "verificationId": tx_verification.common_fields.id,
         "amountSats": amount_sats,
         "recipient": recipient,
         "confirmToken": confirm_token,

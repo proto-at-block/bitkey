@@ -41,7 +41,9 @@ sealed interface BeneficiaryClaim : InheritanceClaim {
     @Redacted
     val sealedMobileKey: XCiphertext,
     @Redacted
-    val benefactorKeyset: BenefactorDescriptorKeyset,
+    val sealedDescriptor: XCiphertext?,
+    @Redacted
+    val benefactorKeyset: BenefactorDescriptorKeyset?,
   ) : BeneficiaryClaim
 
   /**

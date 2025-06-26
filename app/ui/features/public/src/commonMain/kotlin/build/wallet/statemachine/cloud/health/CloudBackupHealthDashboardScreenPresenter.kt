@@ -8,13 +8,13 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.EekBackupStatus
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
+import build.wallet.emergencyexitkit.EmergencyExitKitPdfGenerator
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.platform.data.MimeType
@@ -59,7 +59,7 @@ class CloudBackupHealthDashboardScreenPresenter(
   private val timeZoneProvider: TimeZoneProvider,
   private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
   private val cloudBackupDao: CloudBackupDao,
-  private val emergencyAccessKitPdfGenerator: EmergencyAccessKitPdfGenerator,
+  private val emergencyExitKitPdfGenerator: EmergencyExitKitPdfGenerator,
   private val sharingManager: SharingManager,
 ) : ScreenPresenter<CloudBackupHealthDashboardScreen> {
   @Composable
@@ -82,13 +82,13 @@ class CloudBackupHealthDashboardScreenPresenter(
       }
 
       is ViewingDashboardState -> {
-        var shareEakUuid: String? by remember { mutableStateOf(null) }
-        shareEakUuid?.let {
+        var shareEekUuid: String? by remember { mutableStateOf(null) }
+        shareEekUuid?.let {
           // Use UUID to trigger sharing EEK PDF.
           // This is because we can't reliably tell if the Sharing sheet from previous click
           // is still open or not, so we need to trigger a new, unique one on click.
-          LaunchedEffect("share-EEK-pdf", shareEakUuid) {
-            shareEak(screen)
+          LaunchedEffect("share-EEK-pdf", shareEekUuid) {
+            shareEek(screen)
           }
         }
 
@@ -100,13 +100,13 @@ class CloudBackupHealthDashboardScreenPresenter(
               navigator.exit()
             }
           },
-          mobileKeyBackupStatusCard = mobileKeyBackupStatusCard(
+          appKeyBackupStatusCard = appKeyBackupStatusCard(
             timeZone = timeZone,
             cloudStoreName = cloudStoreName,
-            status = currentState.mobileKeyBackupStatus,
-            onBackUpNowClick = when (currentState.mobileKeyBackupStatus) {
-              is MobileKeyBackupStatus.ProblemWithBackup -> StandardClick {
-                state = RepairingMobileKeyBackupState(currentState.mobileKeyBackupStatus)
+            status = currentState.appKeyBackupStatus,
+            onBackUpNowClick = when (currentState.appKeyBackupStatus) {
+              is AppKeyBackupStatus.ProblemWithBackup -> StandardClick {
+                state = RepairingAppKeyBackupState(currentState.appKeyBackupStatus)
               }
 
               else -> null
@@ -116,8 +116,8 @@ class CloudBackupHealthDashboardScreenPresenter(
             timeZone = timeZone,
             cloudStoreName = cloudStoreName,
             status = currentState.eekBackupStatus,
-            onShareEakClick = StandardClick {
-              shareEakUuid = uuidGenerator.random()
+            onShareEekClick = StandardClick {
+              shareEekUuid = uuidGenerator.random()
             },
             onBackUpNowClick = when (currentState.eekBackupStatus) {
               // The "Back up now" option for EEK is intentionally only shown
@@ -125,7 +125,7 @@ class CloudBackupHealthDashboardScreenPresenter(
               is EekBackupStatus.ProblemWithBackup.InvalidBackup,
               is EekBackupStatus.ProblemWithBackup.BackupMissing,
               -> StandardClick {
-                state = State.UploadingEakBackupState
+                state = State.UploadingEekBackupState
               }
 
               else -> null
@@ -134,33 +134,33 @@ class CloudBackupHealthDashboardScreenPresenter(
         ).asRootScreen()
       }
 
-      is RepairingMobileKeyBackupState ->
+      is RepairingAppKeyBackupState ->
         repairCloudBackupStateMachine.model(
-          RepairMobileKeyBackupProps(
+          RepairAppKeyBackupProps(
             account = screen.account,
-            mobileKeyBackupStatus = currentState.mobileKeyBackupStatus,
+            appKeyBackupStatus = currentState.appKeyBackupStatus,
             presentationStyle = Root,
             onExit = {
               state = LoadingState
             },
             onRepaired = { status ->
-              state = ViewingDashboardState(status.mobileKeyBackupStatus, status.eekBackupStatus)
+              state = ViewingDashboardState(status.appKeyBackupStatus, status.eekBackupStatus)
             }
           )
         )
 
-      is State.UploadingEakBackupState ->
+      is State.UploadingEekBackupState ->
         repairCloudBackupStateMachine
           .model(
-            RepairMobileKeyBackupProps(
+            RepairAppKeyBackupProps(
               account = screen.account,
-              mobileKeyBackupStatus = MobileKeyBackupStatus.ProblemWithBackup.BackupMissing,
+              appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.BackupMissing,
               presentationStyle = Root,
               onExit = {
                 state = LoadingState
               },
               onRepaired = { status ->
-                state = ViewingDashboardState(status.mobileKeyBackupStatus, status.eekBackupStatus)
+                state = ViewingDashboardState(status.appKeyBackupStatus, status.eekBackupStatus)
               }
             )
           )
@@ -172,18 +172,18 @@ class CloudBackupHealthDashboardScreenPresenter(
    *
    * Allows customer to download or share the PDF.
    */
-  private suspend fun shareEak(props: CloudBackupHealthDashboardScreen) {
+  private suspend fun shareEek(props: CloudBackupHealthDashboardScreen) {
     // Retrieve sealed CSEK from last uploaded App Key backup in order to generate
     // EEK PDF.
-    val mobileKeyBackup = cloudBackupDao
+    val appKeyBackup = cloudBackupDao
       .get(props.account.accountId.serverId)
       .toErrorIfNull { Error("No backup found.") }
       .logFailure { "Error sharing EEK - could not retrieve App Key backup." }
       .get()
       ?: return
 
-    val sealedCsek: SealedCsek? = when (mobileKeyBackup) {
-      is CloudBackupV2 -> mobileKeyBackup.fullAccountFields?.sealedHwEncryptionKey
+    val sealedCsek: SealedCsek? = when (appKeyBackup) {
+      is CloudBackupV2 -> appKeyBackup.fullAccountFields?.sealedHwEncryptionKey
     }
 
     if (sealedCsek == null) {
@@ -191,7 +191,7 @@ class CloudBackupHealthDashboardScreenPresenter(
       return
     }
 
-    emergencyAccessKitPdfGenerator
+    emergencyExitKitPdfGenerator
       .generate(props.account.keybox, sealedCsek)
       .onSuccess { EEK ->
         sharingManager.shareData(
@@ -205,10 +205,10 @@ class CloudBackupHealthDashboardScreenPresenter(
   }
 
   @Composable
-  private fun mobileKeyBackupStatusCard(
+  private fun appKeyBackupStatusCard(
     timeZone: TimeZone,
     cloudStoreName: String,
-    status: MobileKeyBackupStatus,
+    status: AppKeyBackupStatus,
     onBackUpNowClick: Click?,
   ) = CloudBackupHealthStatusCardModel(
     toolbarModel = null,
@@ -221,13 +221,13 @@ class CloudBackupHealthDashboardScreenPresenter(
     ),
     backupStatus = ListItemModel(
       title = when (status) {
-        is MobileKeyBackupStatus.Healthy -> "$cloudStoreName backup"
-        MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess -> "Problem with $cloudStoreName\naccount access"
+        is AppKeyBackupStatus.Healthy -> "$cloudStoreName backup"
+        AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess -> "Problem with $cloudStoreName\naccount access"
         else -> "Problem with App Key\nBackup"
       },
       treatment = ListItemTreatment.PRIMARY,
       secondaryText = when (status) {
-        is MobileKeyBackupStatus.Healthy -> {
+        is AppKeyBackupStatus.Healthy -> {
           // TODO(BKR-877): use and display real date.
           @Suppress("UNUSED_VARIABLE")
           val formattedDate = remember {
@@ -236,21 +236,21 @@ class CloudBackupHealthDashboardScreenPresenter(
           "Successfully backed up"
         }
 
-        is MobileKeyBackupStatus.ProblemWithBackup.BackupMissing -> "No backup found"
+        is AppKeyBackupStatus.ProblemWithBackup.BackupMissing -> "No backup found"
         else -> null
       },
       trailingAccessory = ListItemAccessory.IconAccessory(
         model =
           IconModel(
             icon = when (status) {
-              is MobileKeyBackupStatus.Healthy -> Icon.SmallIconCheckFilled
+              is AppKeyBackupStatus.Healthy -> Icon.SmallIconCheckFilled
               else -> Icon.SmallIconWarning
             },
             iconSize = IconSize.Small,
             iconBackgroundType = IconBackgroundType.Transient,
             iconTint = when (status) {
-              is MobileKeyBackupStatus.Healthy -> IconTint.Primary
-              is MobileKeyBackupStatus.ProblemWithBackup -> IconTint.Foreground
+              is AppKeyBackupStatus.Healthy -> IconTint.Primary
+              is AppKeyBackupStatus.ProblemWithBackup -> IconTint.Foreground
               else ->
                 IconTint.Primary
             }
@@ -265,7 +265,7 @@ class CloudBackupHealthDashboardScreenPresenter(
         onClick = onBackUpNowClick
       )
     },
-    type = CloudBackupHealthStatusCardType.MOBILE_KEY_BACKUP
+    type = CloudBackupHealthStatusCardType.APP_KEY_BACKUP
   )
 
   @Composable
@@ -273,7 +273,7 @@ class CloudBackupHealthDashboardScreenPresenter(
     timeZone: TimeZone,
     cloudStoreName: String,
     status: EekBackupStatus,
-    onShareEakClick: Click,
+    onShareEekClick: Click,
     onBackUpNowClick: Click?,
   ) = CloudBackupHealthStatusCardModel(
     toolbarModel = ToolbarModel(
@@ -284,12 +284,12 @@ class CloudBackupHealthDashboardScreenPresenter(
             iconSize = IconSize.Small,
             iconBackgroundType = IconBackgroundType.Transient
           ),
-          onClick = onShareEakClick
+          onClick = onShareEekClick
         )
       )
     ),
     headerModel = FormHeaderModel(
-      iconModel = headerIconModel(Icon.CloudBackupEmergencyAccessKit),
+      iconModel = headerIconModel(Icon.CloudBackupEmergencyExitKit),
       headline = "Emergency Exit Kit",
       subline = "Ensures you still have access to your wallet if you can’t access the Bitkey App.",
       alignment = FormHeaderModel.Alignment.CENTER,
@@ -335,7 +335,7 @@ class CloudBackupHealthDashboardScreenPresenter(
         onClick = onBackUpNowClick
       )
     },
-    type = CloudBackupHealthStatusCardType.EAK_BACKUP
+    type = CloudBackupHealthStatusCardType.EEK_BACKUP
   )
 
   private fun headerIconModel(icon: Icon) =
@@ -350,14 +350,14 @@ class CloudBackupHealthDashboardScreenPresenter(
     )
 
   /**
-   * Determine exact [State] based on current state of [MobileKeyBackupStatus] and [EekBackupStatus]
+   * Determine exact [State] based on current state of [AppKeyBackupStatus] and [EekBackupStatus]
    */
   private fun determineState(): State {
-    val mobileKeyBackupStatus = cloudBackupHealthRepository.mobileKeyBackupStatus().value
+    val appKeyBackupStatus = cloudBackupHealthRepository.appKeyBackupStatus().value
     val eekBackupStatus = cloudBackupHealthRepository.eekBackupStatus().value
 
-    return if (mobileKeyBackupStatus != null && eekBackupStatus != null) {
-      ViewingDashboardState(mobileKeyBackupStatus, eekBackupStatus)
+    return if (appKeyBackupStatus != null && eekBackupStatus != null) {
+      ViewingDashboardState(appKeyBackupStatus, eekBackupStatus)
     } else {
       LoadingState
     }
@@ -367,14 +367,14 @@ class CloudBackupHealthDashboardScreenPresenter(
     data object LoadingState : State
 
     data class ViewingDashboardState(
-      val mobileKeyBackupStatus: MobileKeyBackupStatus,
+      val appKeyBackupStatus: AppKeyBackupStatus,
       val eekBackupStatus: EekBackupStatus,
     ) : State
 
-    data class RepairingMobileKeyBackupState(
-      val mobileKeyBackupStatus: MobileKeyBackupStatus.ProblemWithBackup,
+    data class RepairingAppKeyBackupState(
+      val appKeyBackupStatus: AppKeyBackupStatus.ProblemWithBackup,
     ) : State
 
-    data object UploadingEakBackupState : State
+    data object UploadingEekBackupState : State
   }
 }

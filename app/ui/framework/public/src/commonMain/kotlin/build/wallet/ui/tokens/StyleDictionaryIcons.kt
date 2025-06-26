@@ -26,7 +26,7 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       BitkeyDeviceRaisedSmall -> Res.drawable.bitkey_device_raised_small
       BitkeyLogo -> Res.drawable.bitkey_logo
       BuyOwnBitkeyHero -> Res.drawable.buy_own_bitkey_hero
-      CloudBackupEmergencyAccessKit -> Res.drawable.cloud_backup_emergency_access_kit
+      CloudBackupEmergencyExitKit -> Res.drawable.cloud_backup_emergency_access_kit
       CloudBackupMobileKey -> Res.drawable.cloud_backup_mobile_key
       InheritanceShowcase -> Res.drawable.inheritance_showcase
       InheritancePlanHero -> Res.drawable.inheritance_plan_hero
@@ -49,7 +49,7 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       MoneyHomeHero -> Res.drawable.money_home_hero
       SecurityHubEducationTrustedContact -> Res.drawable.hero_recovery_contacts
       SecurityHubEducationMultipleFingerprints -> Res.drawable.hero_multiple_fingerprints
-      SecurityHubEducationEmergencyAccess -> Res.drawable.hero_eak
+      SecurityHubEducationEmergencyExit -> Res.drawable.hero_eak
       SecurityHubEducationCriticalAlerts -> Res.drawable.hero_critical_alerts
       SmallIconAccount -> Res.drawable.small_icon_account
       SmallIconAnnouncement -> Res.drawable.small_icon_announcement

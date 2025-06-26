@@ -18,6 +18,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitSheet
+import build.wallet.time.ClockFake
 import build.wallet.ui.model.StandardClick
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -29,11 +30,12 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class RemovingRelationshipUiStateMachineTests : FunSpec({
+  val clock = ClockFake()
   val inheritanceService = InheritanceServiceMock(
     syncCalls = turbines.create("Sync Calls"),
     cancelClaimCalls = turbines.create("Cancel Claim Calls")
   )
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val stateMachine = RemovingRelationshipUiStateMachineImpl(
     inheritanceService = inheritanceService,
     relationshipsService = relationshipsService,

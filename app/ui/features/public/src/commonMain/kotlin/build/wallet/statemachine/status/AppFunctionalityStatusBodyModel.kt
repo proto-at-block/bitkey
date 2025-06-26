@@ -36,12 +36,12 @@ data class AppFunctionalityStatusBodyModel(
       headline = when (cause) {
         is F8eUnreachable -> "We’re having trouble reaching Bitkey services."
         is InternetUnreachable -> "It looks like you’re offline."
-        EmergencyAccessMode -> "You're in Emergency Exit Mode."
+        EmergencyExitMode -> "You're in Emergency Exit Mode."
       },
       subline = when (cause) {
         is F8eUnreachable -> "Some features may not be available:"
         is InternetUnreachable -> "Some functionality may not be available until you’re connected to the internet:"
-        EmergencyAccessMode -> "Some features may not be available."
+        EmergencyExitMode -> "Some features may not be available."
       }
     ),
     mainContentList = immutableListOf(

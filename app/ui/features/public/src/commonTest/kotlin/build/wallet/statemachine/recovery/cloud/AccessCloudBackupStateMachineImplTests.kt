@@ -37,7 +37,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   val exitCalls = turbines.create<Unit>("exit calls")
   val backupFoundCalls = turbines.create<CloudBackup>("backup found calls")
   val cannotAccessCloudCalls = turbines.create<Unit>("cannot access cloud calls")
-  val importEmergencyAccessKitCalls = turbines.create<Unit>("import Emergency Exit Kit calls")
+  val importEmergencyExitKitCalls = turbines.create<Unit>("import Emergency Exit Kit calls")
 
   val props =
     AccessCloudBackupUiProps(
@@ -51,8 +51,8 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
       onCannotAccessCloudBackup = {
         cannotAccessCloudCalls += Unit
       },
-      onImportEmergencyAccessKit = {
-        importEmergencyAccessKitCalls += Unit
+      onImportEmergencyExitKit = {
+        importEmergencyExitKitCalls += Unit
       }
     )
 
@@ -181,10 +181,10 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
       }
 
       awaitBody<CloudWarningBodyModel> {
-        onImportEmergencyAccessKit.shouldNotBeNull().invoke()
+        onImportEmergencyExitKit.shouldNotBeNull().invoke()
       }
 
-      importEmergencyAccessKitCalls.awaitItem().shouldBe(Unit)
+      importEmergencyExitKitCalls.awaitItem().shouldBe(Unit)
     }
   }
 })

@@ -111,7 +111,7 @@ fun MoneyHomeScreen(
               }
             ),
             primaryAmount = AnnotatedString(primaryAmount),
-            secondaryAmountWithCurrency = secondaryAmount,
+            contextLine = secondaryAmount,
             hideBalance = model.hideBalance
           )
         }

@@ -14,7 +14,6 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.catchingResult
-import build.wallet.cloud.backup.csek.Csek
 import build.wallet.crypto.SealedData
 import build.wallet.firmware.*
 import build.wallet.firmware.FirmwareFeatureFlagCfg
@@ -226,11 +225,6 @@ private class MetricsNfcCommandsImpl(
     sealedData: SealedData,
   ) = measure("unsealData") { commands.unsealData(session, sealedData) }
 
-  override suspend fun sealKey(
-    session: NfcSession,
-    unsealedKey: Csek,
-  ) = measure("sealKey") { commands.sealKey(session, unsealedKey) }
-
   override suspend fun signChallenge(
     session: NfcSession,
     challenge: ByteString,
@@ -248,11 +242,6 @@ private class MetricsNfcCommandsImpl(
   ) = measure("startFingerprintEnrollment") {
     commands.startFingerprintEnrollment(session, fingerprintHandle)
   }
-
-  override suspend fun unsealKey(
-    session: NfcSession,
-    sealedKey: List<UByte>,
-  ) = measure("unsealKey") { commands.unsealKey(session, sealedKey) }
 
   override suspend fun version(session: NfcSession) =
     measure("version") { commands.version(session) }

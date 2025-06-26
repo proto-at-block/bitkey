@@ -1,5 +1,6 @@
 package bitkey.verification
 
+import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -10,12 +11,12 @@ interface TxVerificationService {
   /**
    * The current transaction verification policy in effect.
    */
-  suspend fun getCurrentThreshold(): Flow<Result<VerificationThreshold, Error>>
+  fun getCurrentThreshold(): Flow<Result<VerificationThreshold, Error>>
 
   /**
    * Get an optional policy that is waiting for authorization to be completed.
    */
-  suspend fun getPendingPolicy(): Flow<Result<TxVerificationPolicy.Pending?, Error>>
+  fun getPendingPolicy(): Flow<Result<TxVerificationPolicy.Pending?, Error>>
 
   /**
    * Update the transaction limit to the specified threshold.
@@ -26,5 +27,6 @@ interface TxVerificationService {
    */
   suspend fun updateThreshold(
     verificationThreshold: VerificationThreshold,
+    hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<TxVerificationPolicy, Error>
 }

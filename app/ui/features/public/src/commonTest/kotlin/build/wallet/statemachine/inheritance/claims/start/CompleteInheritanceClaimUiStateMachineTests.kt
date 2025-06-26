@@ -4,7 +4,7 @@ import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.wallet.SpendingWalletFake
-import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimFake
+import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimBothDescriptorsFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.EndorsedBeneficiaryFake
 import build.wallet.coroutines.turbine.turbines
@@ -38,7 +38,7 @@ class CompleteInheritanceClaimUiStateMachineTests : FunSpec({
     amountSats = 20_000UL
   )
   val transactionDetails = InheritanceTransactionDetails(
-    claim = BeneficiaryLockedClaimFake,
+    claim = BeneficiaryLockedClaimBothDescriptorsFake,
     inheritanceWallet = inheritanceWallet,
     recipientAddress = BitcoinAddress("fake"),
     psbt = transferPbst

@@ -14,7 +14,7 @@ import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.platform.permissions.EnableNotificationsBodyModel
 import build.wallet.statemachine.recovery.cloud.CloudWarningBodyModel
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
-import build.wallet.statemachine.recovery.inprogress.RecoverYourMobileKeyBodyModel
+import build.wallet.statemachine.recovery.inprogress.RecoverYourAppKeyBodyModel
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
 import build.wallet.statemachine.recovery.sweep.SweepFundsPromptBodyModel
 import build.wallet.statemachine.recovery.sweep.SweepSuccessScreenBodyModel
@@ -75,7 +75,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .onCannotAccessCloud()
 
       // Initiate Delay & Notify recovery
-      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
@@ -129,7 +129,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       return@test
 
       // Initiate Delay & Notify recovery
-      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
@@ -176,7 +176,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .onCannotAccessCloud()
 
       // Initiate Delay & Notify recovery
-      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
@@ -235,7 +235,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .onCannotAccessCloud()
 
       // Initiate Delay & Notify recovery
-      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
@@ -293,7 +293,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .onCannotAccessCloud()
 
       // Initiate Delay & Notify recovery
-      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
@@ -352,7 +352,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .onCannotAccessCloud()
 
       // Initiate Delay & Notify recovery
-      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
@@ -403,7 +403,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .onCannotAccessCloud()
 
       // Initiate recovery
-      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
@@ -455,7 +455,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .onCannotAccessCloud()
 
       // Initiate Delay & Notify recovery
-      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
@@ -496,7 +496,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .onCannotAccessCloud()
 
       // Initiate Delay & Notify recovery
-      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()

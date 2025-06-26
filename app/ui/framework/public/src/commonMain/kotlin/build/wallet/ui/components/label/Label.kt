@@ -88,7 +88,7 @@ private fun Label(
     overflow = overflow,
     onTextLayout = onTextLayout,
     maxLines = maxLines,
-    allowFontScaling = allowFontScaling,
+    allowFontScaling = allowFontScaling
   )
 }
 

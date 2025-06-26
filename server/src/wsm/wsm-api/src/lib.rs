@@ -626,7 +626,7 @@ async fn evaluate_pin(
     Ok(Json(result))
 }
 
-#[instrument(err, skip(enclave_client), fields(version = request.version, action = request.action, device_id = request.device_id))]
+#[instrument(err, skip(enclave_client), fields(version = request.version, action = request.action))]
 async fn approve_grant(
     State(enclave_client): State<Arc<EnclaveClient>>,
     Json(request): Json<GrantRequest>,

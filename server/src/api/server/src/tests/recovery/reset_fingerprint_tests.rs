@@ -18,7 +18,7 @@ use types::privileged_action::{
     shared::{PrivilegedActionInstanceId, PrivilegedActionType},
 };
 
-use crate::tests::{gen_services, lib::create_account, requests::axum::TestClient};
+use crate::tests::{gen_services, lib::create_test_account, requests::axum::TestClient};
 
 #[rstest]
 #[case::with_existing_instance(true, StatusCode::CONFLICT)]
@@ -31,7 +31,7 @@ async fn test_initiate_reset_fingerprint(
     // arrange
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_account(&mut context, &bootstrap.services, AccountType::Full).await;
+    let account = create_test_account(&mut context, &bootstrap.services, AccountType::Full).await;
 
     let request = PrivilegedActionRequest::Initiate(get_pregenerated_request());
 
@@ -66,7 +66,7 @@ async fn test_complete_reset_fingerprint(
     // arrange
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_account(&mut context, &bootstrap.services, AccountType::Full).await;
+    let account = create_test_account(&mut context, &bootstrap.services, AccountType::Full).await;
 
     let privileged_action_instance_id = PrivilegedActionInstanceId::gen().unwrap();
     let instance = PrivilegedActionInstanceRecord {
@@ -139,7 +139,7 @@ fn get_pregenerated_request() -> ResetFingerprintRequest {
         hw_auth_public_key: PublicKey::from_str("03260c677bf1106ae4ca6baeadd9b1f45d9a50801c33674f3509ff3badadddeb6d").unwrap(),
         version: 1,
         action: 1,
-        device_id: "test-device-12345".to_string(),
+        device_id: "test-device-12345".as_bytes().to_vec(),
         signature: Signature::from_str("3045022100e9941e69c0b738b70ae67f17f99cc4cfa974544cb63fbe05142a13a6b35861f5022056939b16a79fccddc55807a605546586247b6e55ded6ee932415f53e84e4755f").unwrap(),
         challenge: "random-challenge-98765".as_bytes().to_vec(),
     }

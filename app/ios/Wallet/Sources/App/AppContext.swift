@@ -43,6 +43,7 @@ class AppContext {
             bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGeneratorImpl(),
             bdkMnemonicGenerator: BdkMnemonicGeneratorImpl(),
             bdkPartiallySignedTransactionBuilder: BdkPartiallySignedTransactionBuilderImpl(),
+            signatureUtils: SignatureUtilsImpl(),
             bdkTxBuilderFactory: BdkTxBuilderFactoryImpl(),
             bdkWalletFactory: BdkWalletFactoryImpl(),
             biometricPrompter: biometricsPrompter,

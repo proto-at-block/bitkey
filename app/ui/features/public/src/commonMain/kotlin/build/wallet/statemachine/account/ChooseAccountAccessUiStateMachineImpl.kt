@@ -5,8 +5,8 @@ import bitkey.ui.framework.NavigatorPresenter
 import bitkey.ui.screens.demo.DemoModeDisabledScreen
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation.EakBuild
-import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
+import build.wallet.emergencyexitkit.EmergencyExitKitAssociation.EekBuild
+import build.wallet.emergencyexitkit.EmergencyExitKitDataProvider
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.*
@@ -24,7 +24,7 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val navigatorPresenter: NavigatorPresenter,
   private val deviceInfoProvider: DeviceInfoProvider,
-  private val emergencyAccessKitDataProvider: EmergencyAccessKitDataProvider,
+  private val emergencyExitKitDataProvider: EmergencyExitKitDataProvider,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
   private val createSoftwareWalletUiStateMachine: CreateSoftwareWalletUiStateMachine,
 ) : ChooseAccountAccessUiStateMachine {
@@ -32,7 +32,7 @@ class ChooseAccountAccessUiStateMachineImpl(
   override fun model(props: ChooseAccountAccessUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(ShowingChooseAccountAccess) }
 
-    val isEakBuild = remember { emergencyAccessKitDataProvider.getAssociatedEakData() == EakBuild }
+    val isEekBuild = remember { emergencyExitKitDataProvider.getAssociatedEekData() == EekBuild }
     val softwareWalletFlag by remember {
       softwareWalletIsEnabledFeatureFlag.flagValue()
     }.collectAsState()
@@ -61,8 +61,8 @@ class ChooseAccountAccessUiStateMachineImpl(
             }
           },
           onSetUpNewWalletClick = {
-            if (isEakBuild) {
-              alert = featureUnavailableForEakAlert(onDismiss = { alert = null })
+            if (isEekBuild) {
+              alert = featureUnavailableForEekAlert(onDismiss = { alert = null })
             } else {
               if (softwareWalletFlag.value) {
                 state = ShowingCreateAccountOptions
@@ -78,10 +78,10 @@ class ChooseAccountAccessUiStateMachineImpl(
       }
 
       is ShowingAccountAccessMoreOptions -> {
-        if (isEakBuild) {
+        if (isEekBuild) {
           EmergencyAccountAccessMoreOptionsFormBodyModel(
             onBack = { state = ShowingChooseAccountAccess },
-            onRestoreEmergencyAccessKit = props.chooseAccountAccessData.startEmergencyAccessRecovery
+            onRestoreEmergencyExitKit = props.chooseAccountAccessData.startEmergencyExitRecovery
           ).asRootScreen()
         } else {
           AccountAccessMoreOptionsFormBodyModel(
@@ -126,7 +126,7 @@ class ChooseAccountAccessUiStateMachineImpl(
   /**
    * Alert shown when an action taken is disabled due to the app being in Emergency Exit Kit mode.
    */
-  private fun featureUnavailableForEakAlert(onDismiss: () -> Unit) =
+  private fun featureUnavailableForEekAlert(onDismiss: () -> Unit) =
     ButtonAlertModel(
       title = "Feature Unavailable",
       subline = "This feature is disabled in the Emergency Exit Kit app.",

@@ -12,6 +12,9 @@ use crypto::noise::{
     DhError, HardwareBackedDh, HardwareBackedKeyPair, NoiseContext, NoiseRole, NoiseWrapperError,
     PrivateKey,
 };
+use crypto::signature_utils::{
+    encode_signature_to_der, DERSerializedSignature, SignatureUtilsError,
+};
 use crypto::signature_verifier::{SignatureVerifier, SignatureVerifierError};
 use crypto::spake2::{Spake2Context, Spake2Error, Spake2Keys, Spake2Role};
 use frost::{

@@ -4,7 +4,6 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.cloud.backup.csek.Csek
 import build.wallet.crypto.SealedData
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
@@ -140,11 +139,6 @@ private class RetryingNfcCommandsImpl(
     sealedData: SealedData,
   ) = retry { commands.unsealData(session, sealedData) }
 
-  override suspend fun sealKey(
-    session: NfcSession,
-    unsealedKey: Csek,
-  ) = retry { commands.sealKey(session, unsealedKey) }
-
   override suspend fun signChallenge(
     session: NfcSession,
     challenge: ByteString,
@@ -160,11 +154,6 @@ private class RetryingNfcCommandsImpl(
     session: NfcSession,
     fingerprintHandle: FingerprintHandle,
   ) = retry { commands.startFingerprintEnrollment(session, fingerprintHandle) }
-
-  override suspend fun unsealKey(
-    session: NfcSession,
-    sealedKey: List<UByte>,
-  ) = retry { commands.unsealKey(session, sealedKey) }
 
   override suspend fun version(session: NfcSession) = retry { commands.version(session) }
 

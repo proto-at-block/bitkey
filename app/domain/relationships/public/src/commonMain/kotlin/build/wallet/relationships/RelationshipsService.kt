@@ -134,6 +134,10 @@ suspend fun RelationshipsService.syncAndVerifyRelationships(
 sealed interface RetrieveInvitationCodeError {
   val cause: Error
 
+  data class ExpiredInvitationCode(
+    override val cause: Error,
+  ) : RetrieveInvitationCodeError
+
   data class InvalidInvitationCode(
     override val cause: Error,
   ) : RetrieveInvitationCodeError

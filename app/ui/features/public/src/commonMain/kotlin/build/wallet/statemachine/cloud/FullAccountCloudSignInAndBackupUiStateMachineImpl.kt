@@ -15,17 +15,18 @@ import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.UnknownAppDataFoundError
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
-import build.wallet.cloud.backup.csek.CsekGenerator
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SekGenerator
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
-import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
-import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryError.RectifiableCloudError
+import build.wallet.emergencyexitkit.EmergencyExitKitPdfGenerator
+import build.wallet.emergencyexitkit.EmergencyExitKitRepository
+import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryError.RectifiableCloudError
 import build.wallet.logging.logDebug
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.*
@@ -50,12 +51,12 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val rectifiableErrorHandlingUiStateMachine: RectifiableErrorHandlingUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
-  private val csekGenerator: CsekGenerator,
+  private val sekGenerator: SekGenerator,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val csekDao: CsekDao,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
-  private val emergencyAccessKitPdfGenerator: EmergencyAccessKitPdfGenerator,
-  private val emergencyAccessKitRepository: EmergencyAccessKitRepository,
+  private val emergencyExitKitPdfGenerator: EmergencyExitKitPdfGenerator,
+  private val emergencyExitKitRepository: EmergencyExitKitRepository,
 ) : FullAccountCloudSignInAndBackupUiStateMachine {
   @Composable
   override fun model(props: FullAccountCloudSignInAndBackupProps): ScreenModel {
@@ -259,7 +260,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              commands.sealKey(session, state.csek)
+              commands.sealData(session, state.csek.key.raw)
             },
             onSuccess = { key ->
               csekDao.set(key, state.csek)
@@ -323,7 +324,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
   @Composable
   private fun GenerateCsek(onCsekGenerated: (csek: Csek) -> Unit) {
     LaunchedEffect("generating-csek") {
-      val csek = csekGenerator.generate()
+      val csek = sekGenerator.generate()
       onCsekGenerated(csek)
     }
   }
@@ -418,6 +419,11 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             backup = cloudBackup,
             requireAuthRefresh = props.requireAuthRefreshForCloudBackup
           )
+          .onSuccess {
+            logInfo {
+              "Cloud backup uploaded via FullAccountCloudSignInAndBackupUiStateMachine"
+            }
+          }
           .logFailure { "Error saving cloud backup to cloud storage" }
           .onFailure { cloudBackupFailure ->
             val errorData = ErrorData(
@@ -437,8 +443,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           .bind()
 
         // Create the Emergency Exit Kit.
-        val emergencyAccessKitData =
-          emergencyAccessKitPdfGenerator
+        val emergencyExitKitData =
+          emergencyExitKitPdfGenerator
             .generate(
               keybox = props.keybox,
               sealedCsek = sealedCsek
@@ -447,7 +453,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             .onFailure {
               onFailure(
                 ErrorData(
-                  segment = RecoverySegment.EmergencyAccess.Creation,
+                  segment = RecoverySegment.EmergencyExit.Creation,
                   cause = it,
                   actionDescription = "Creating Emergency Exit Kit"
                 )
@@ -456,15 +462,15 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             .bind()
 
         // Save the Emergency Exit Kit.
-        emergencyAccessKitRepository
+        emergencyExitKitRepository
           .write(
             account = state.cloudStoreAccount,
-            emergencyAccessKitData = emergencyAccessKitData
+            emergencyExitKitData = emergencyExitKitData
           )
           .logFailure { "Error saving Emergency Exit Kit to cloud file store" }
           .onFailure { writeFailure ->
             val errorData = ErrorData(
-              segment = RecoverySegment.EmergencyAccess.Upload,
+              segment = RecoverySegment.EmergencyExit.Upload,
               cause = writeFailure,
               actionDescription = "Uploading Emergency Exit Kit to cloud"
             )

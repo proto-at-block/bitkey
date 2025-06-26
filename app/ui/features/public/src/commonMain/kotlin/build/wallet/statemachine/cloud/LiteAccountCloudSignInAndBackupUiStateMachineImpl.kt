@@ -19,6 +19,7 @@ import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.logging.logInfo
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.CloudSignInFailedState
@@ -139,6 +140,9 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
                 }
             }
             .onSuccess {
+              logInfo {
+                "Cloud backup uploaded via LiteAccountCloudSignInAndBackupUiStateMachine"
+              }
               props.onBackupSaved()
             }
         }

@@ -153,6 +153,32 @@ class BitcoinWalletServiceImplTests : FunSpec({
     }
   }
 
+  test("zero balance should be updated when fiat currency preference is changed") {
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    service.transactionsData().test {
+      wallet.initializeCalls.awaitItem()
+      wallet.launchPeriodicSyncCalls.awaitItem()
+      wallet.syncCalls.awaitItem()
+
+      awaitUntilNotNull().apply {
+        balance.shouldBeZero()
+        transactions.shouldBeEmpty()
+        fiatBalance.shouldNotBeNull().shouldBe(FiatMoney.usd(0))
+      }
+
+      // Update the currency preference
+      fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = EUR
+      with(awaitItem().shouldNotBeNull()) {
+        balance.shouldBeZero()
+        transactions.shouldBeEmpty()
+        fiatBalance.shouldNotBeNull().shouldBe(FiatMoney.eur(0))
+      }
+    }
+  }
+
   test("no exchange rate returns null fiat balance") {
     // Fake a missing exchange rate
     currencyConverter.conversionRate = null

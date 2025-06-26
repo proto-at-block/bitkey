@@ -6,6 +6,7 @@ import build.wallet.bitkey.relationships.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.relationships.RelationshipsServiceMock
+import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -13,8 +14,9 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.test.TestScope
 
 class SocRecServiceImplTests : FunSpec({
+  val clock = ClockFake()
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
 
   val appScope = TestScope()
 

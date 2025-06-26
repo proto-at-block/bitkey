@@ -50,7 +50,7 @@ sealed interface LimitedFunctionalityCause {
             exportTools = Unavailable
           )
 
-        EmergencyAccessMode ->
+        EmergencyExitMode ->
           FunctionalityFeatureStates(
             send = Available,
             receive = Available,
@@ -108,7 +108,7 @@ data class F8eUnreachable(val lastReachableTime: Instant?) : ConnectivityCause
  * This mode is used for the Emergency Exit Kit, where the app may have
  * an internet connection, but no valid tokens to use with F8e.
  */
-data object EmergencyAccessMode : ConnectivityCause
+data object EmergencyExitMode : ConnectivityCause
 
 /**
  * There is limited functionality in the app because there is no internet connection.

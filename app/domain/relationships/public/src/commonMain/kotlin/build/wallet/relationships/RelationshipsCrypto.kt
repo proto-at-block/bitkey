@@ -119,6 +119,14 @@ interface RelationshipsCrypto {
   ): Result<EncryptPrivateKeyMaterialOutput, RelationshipsCryptoError>
 
   /**
+   * Encrypts the descriptor with the input symmetric key and returns the ciphertext
+   */
+  fun encryptDescriptor(
+    dek: PrivateKeyEncryptionKey,
+    descriptor: ByteString,
+  ): Result<XCiphertext, RelationshipsCryptoError>
+
+  /**
    * Encrypts the private key encryption key with a shared secret derived from
    * the delegated decryption public key.
    */

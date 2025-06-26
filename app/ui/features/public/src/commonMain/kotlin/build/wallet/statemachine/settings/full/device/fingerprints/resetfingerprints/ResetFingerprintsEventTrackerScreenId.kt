@@ -11,4 +11,22 @@ enum class ResetFingerprintsEventTrackerScreenId : EventTrackerScreenId {
 
   /** Progress screen showing the 7-day waiting period */
   RESET_FINGERPRINTS_PROGRESS,
+
+  /** Loading screen when checking fingerprint reset status */
+  LOADING_FINGERPRINT_RESET_STATUS,
+
+  /** Loading screen when cancelling the fingerprint reset */
+  CANCEL_FINGERPRINT_RESET_LOADING,
+
+  /** Error shown when starting the reset process fails. */
+  ERROR_STARTING_RESET,
+
+  /** Error shown when finalizing the reset process fails. */
+  ERROR_FINALIZING_RESET,
+
+  /** Error shown when cancelling the reset process fails. */
+  ERROR_CANCELLING_RESET,
+
+  /** Error shown when an NFC operation fails unexpectedly. */
+  ERROR_NFC_OPERATION_FAILED,
 }

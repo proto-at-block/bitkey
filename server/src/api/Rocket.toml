@@ -4,7 +4,8 @@ dynamodb = { test = false }
 launchdarkly = "environment"
 use_local_wallet_id = false
 override_current_time = false
-secure_site_base_url = "http://localhost:8080"
+int_secure_site_base_url = "http://localhost:8080"
+ext_secure_site_base_url = "http://localhost:8080"
 wsm_endpoint = "https://wsm-main.dev.wallet.build"
 wallet_telemetry = { service_name = "fromagerie" }
 use_local_currency_exchange = false
@@ -125,6 +126,7 @@ iterable.money_movement_message_type_id = 125366
 iterable.product_marketing_message_type_id = 125367
 iterable.recovery_relationship_benefactor_invitation_pending_campaign_id = 12397809
 iterable.transaction_verification_campaign_id = 13512543
+iterable.security_hub_campaign_id = 13770103
 # Twilio
 twilio.mode = "environment"
 twilio.default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c"
@@ -148,7 +150,8 @@ port = 80
 dynamodb = "environment"
 sql = "environment"
 use_local_sns = false
-secure_site_base_url = "https://secure.bitkeystaging.world"
+int_secure_site_base_url = "https://secure.bitkeystaging.com"
+ext_secure_site_base_url = "https://secure.bitkeystaging.world"
 wsm_endpoint = "https://wsm-main.dev.wallet.build"
 wallet_telemetry = { mode = "datadog" }
 cognito = "environment"
@@ -193,6 +196,7 @@ iterable.money_movement_message_type_id = 125366
 iterable.product_marketing_message_type_id = 125367
 iterable.recovery_relationship_benefactor_invitation_pending_campaign_id = 12397809
 iterable.transaction_verification_campaign_id = 13512543
+iterable.security_hub_campaign_id = 13770103
 # Twilio
 twilio.mode = "environment"
 twilio.default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c"
@@ -217,7 +221,8 @@ port = 80
 dynamodb = "environment"
 sql = "environment"
 use_local_sns = false
-secure_site_base_url = "https://secure.bitkey.world"
+int_secure_site_base_url = "https://secure.bitkeyproduction.com"
+ext_secure_site_base_url = "https://secure.bitkey.world"
 wsm_endpoint = "https://wsm-main.dev.wallet.build"
 wallet_telemetry = { mode = "datadog" }
 cognito = "environment"
@@ -262,6 +267,7 @@ iterable.money_movement_message_type_id = 125507
 iterable.product_marketing_message_type_id = 125505
 iterable.recovery_relationship_benefactor_invitation_pending_campaign_id = 12610561
 iterable.transaction_verification_campaign_id = 13509717
+iterable.security_hub_campaign_id = 13769914
 # Twilio
 twilio.mode = "environment"
 twilio.default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c"

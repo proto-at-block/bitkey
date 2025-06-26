@@ -404,7 +404,7 @@ class AddingTrustedContactUiStateMachineImpl(
           message = if (isInheritance) {
             "We'll let you know when your contact accepts their invite."
           } else {
-            "You can manage your Recovery Contacts in your settings."
+            "You can manage your Recovery Contacts in your Security Hub."
           }
         ).asModalScreen()
       }

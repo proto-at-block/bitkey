@@ -10,6 +10,7 @@ import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.Capitalization
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * Form body that prompts the user to enter a name.
@@ -25,6 +26,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 data class NameInputBodyModel(
   val title: String,
   val subline: String? = null,
+  @Redacted
   val value: String = "",
   val placeholder: String = "Name",
   override val primaryButton: ButtonModel,

@@ -5,7 +5,7 @@ import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.cloud.backup.CloudBackupHealthRepository
-import build.wallet.cloud.backup.health.MobileKeyBackupStatus
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
@@ -134,17 +134,17 @@ class SettingsListUiStateMachineImpl(
     @Suppress("UnstableCollections")
     rowTypes: List<KClass<out SettingsListRow>>,
   ): SettingsBodyModel.SectionModel? {
-    val mobileKeyBackupStatus by remember {
-      cloudBackupHealthRepository.mobileKeyBackupStatus()
+    val appKeyBackupStatus by remember {
+      cloudBackupHealthRepository.appKeyBackupStatus()
     }.collectAsState()
 
     // Build the row models based on if the parent wants to show the row for the section
     val rowModels =
-      remember(appFunctionalityStatus, mobileKeyBackupStatus) {
+      remember(appFunctionalityStatus, appKeyBackupStatus) {
         rowTypes.mapNotNull { rowType ->
           props.supportedRows
             .firstOrNull { rowType.isInstance(it) }
-            ?.rowModel(appFunctionalityStatus, props, mobileKeyBackupStatus)
+            ?.rowModel(appFunctionalityStatus, props, appKeyBackupStatus)
         }
       }
 
@@ -159,7 +159,7 @@ class SettingsListUiStateMachineImpl(
   private fun SettingsListRow.rowModel(
     appFunctionalityStatus: AppFunctionalityStatus,
     props: SettingsListUiProps,
-    mobileKeyBackupStatus: MobileKeyBackupStatus?,
+    appKeyBackupStatus: AppKeyBackupStatus?,
   ): RowModel {
     val (icon: Icon, title: String) =
       when (this) {
@@ -185,7 +185,7 @@ class SettingsListUiStateMachineImpl(
       icon = icon,
       title = title,
       isDisabled = !isRowEnabled,
-      specialTrailingIconModel = getSpecialTrailingIconModel(mobileKeyBackupStatus),
+      specialTrailingIconModel = getSpecialTrailingIconModel(appKeyBackupStatus),
       onClick = {
         if (isRowEnabled) {
           onClick()
@@ -206,7 +206,7 @@ class SettingsListUiStateMachineImpl(
   }
 
   private fun SettingsListRow.getSpecialTrailingIconModel(
-    mobileKeyBackupStatus: MobileKeyBackupStatus?,
+    appKeyBackupStatus: AppKeyBackupStatus?,
   ): IconModel? {
     return when (this) {
       is CloudBackupHealth -> {
@@ -215,8 +215,8 @@ class SettingsListUiStateMachineImpl(
           iconSize = IconSize.Small,
           iconTint = IconTint.Warning
         ).takeIf {
-          mobileKeyBackupStatus != null &&
-            mobileKeyBackupStatus is MobileKeyBackupStatus.ProblemWithBackup
+          appKeyBackupStatus != null &&
+            appKeyBackupStatus is AppKeyBackupStatus.ProblemWithBackup
         }
       }
       else -> null

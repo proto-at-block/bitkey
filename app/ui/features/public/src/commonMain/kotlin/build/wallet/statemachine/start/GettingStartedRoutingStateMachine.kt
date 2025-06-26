@@ -24,6 +24,6 @@ data class GettingStartedRoutingProps(
   val onStartLiteAccountRecovery: (CloudBackup) -> Unit,
   val onStartCloudRecovery: (CloudBackup) -> Unit,
   val onStartLostAppRecovery: () -> Unit,
-  val onImportEmergencyAccessKit: () -> Unit,
+  val onImportEmergencyExitKit: () -> Unit,
   val onExit: () -> Unit,
 )

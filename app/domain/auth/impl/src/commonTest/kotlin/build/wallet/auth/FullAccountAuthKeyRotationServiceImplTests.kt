@@ -27,6 +27,7 @@ import build.wallet.relationships.EndorseTrustedContactsServiceMock
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -41,13 +42,14 @@ import io.ktor.http.HttpStatusCode
 
 class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
 
+  val clock = ClockFake()
   val authKeyRotationAttemptDao = AuthKeyRotationAttemptDaoMock(turbines::create)
   val rotateAuthKeysF8eClient = RotateAuthKeysF8eClientMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
   val bestEffortFullAccountCloudBackupUploader =
     BestEffortFullAccountCloudBackupUploaderMock(turbines::create)
-  val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val trustedContactKeyAuthenticator = EndorseTrustedContactsServiceMock(turbines::create)
 
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceImpl(

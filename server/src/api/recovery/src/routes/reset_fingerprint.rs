@@ -21,8 +21,7 @@ use privileged_action::service::{
     Service as PrivilegedActionService,
 };
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
-use serde_with::DisplayFromStr;
+use serde_with::{base64::Base64, serde_as, DisplayFromStr};
 use tracing::instrument;
 use types::{
     account::identifiers::AccountId,
@@ -86,7 +85,9 @@ pub struct ResetFingerprintRequest {
     pub hw_auth_public_key: PublicKey,
     pub version: u8,
     pub action: u8,
-    pub device_id: String,
+    #[serde_as(as = "Base64")]
+    pub device_id: Vec<u8>,
+    #[serde_as(as = "Base64")]
     pub challenge: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]
     pub signature: Signature,

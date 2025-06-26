@@ -6,20 +6,32 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
+import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
+import build.wallet.f8e.money.MoneyDTO
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.setRedactedBody
-import build.wallet.money.Money
+import build.wallet.money.BitcoinMoney
+import build.wallet.money.FiatMoney
+import build.wallet.money.currency.BTC
+import build.wallet.money.currency.FiatCurrencyDao
+import build.wallet.money.currency.code.IsoCurrencyTextCode
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
+import com.ionspin.kotlin.bignum.integer.toBigInteger
 import dev.zacsweers.redacted.annotations.Unredacted
 import io.ktor.client.request.get
 import io.ktor.client.request.put
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -27,28 +39,36 @@ import kotlinx.serialization.Serializable
 @BitkeyInject(AppScope::class)
 class TxVerifyPolicyF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
+  private val fiatCurrencyDao: FiatCurrencyDao,
 ) : TxVerifyPolicyF8eClient {
   override suspend fun setPolicy(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     threshold: VerificationThreshold,
+    hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<TxVerificationPolicy.DelayNotifyAuthorization?, Error> {
     return f8eHttpClient.authenticated()
       .bodyResult<PolicyChangeResponse> {
         put("/api/accounts/${fullAccountId.serverId}/tx-verify/policy") {
+          withHardwareFactor(hwFactorProofOfPossession)
           withDescription("Set Tx Verification Policy")
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
           setRedactedBody(
             PolicyChangeRequest(
               state = when (threshold) {
-                VerificationThreshold.Disabled -> VerificationState.DISABLED
+                VerificationThreshold.Disabled -> VerificationState.NEVER
                 VerificationThreshold.Always -> VerificationState.ALWAYS
                 else -> VerificationState.THRESHOLD
               },
-              threshold = threshold.amount.takeIf {
-                threshold != VerificationThreshold.Always
-              }
+              threshold = threshold.amount
+                .takeIf { threshold != VerificationThreshold.Always }
+                ?.let {
+                  MoneyDTO(
+                    amount = it.fractionalUnitValue.intValue(),
+                    currencyCode = it.currency.textCode.code
+                  )
+                }
             )
           )
         }
@@ -77,11 +97,25 @@ class TxVerifyPolicyF8eClientImpl(
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
         }
-      }.map { response ->
+      }.flatMap { response ->
         when (response.threshold) {
           null -> VerificationThreshold.Disabled
-          else -> VerificationThreshold.Enabled(response.threshold)
-        }
+          else -> VerificationThreshold.Enabled(
+            response.threshold.let { threshold ->
+              when (threshold.currencyCode) {
+                BTC.textCode.code -> BitcoinMoney(
+                  fractionalUnitAmount = threshold.amount.toBigInteger()
+                )
+                else -> FiatMoney(
+                  currency = fiatCurrencyDao.fiatCurrency(
+                    textCode = IsoCurrencyTextCode(threshold.currencyCode)
+                  ).first() ?: return@flatMap Err(Error("Unsupported currency: ${threshold.currencyCode}")),
+                  fractionalUnitAmount = threshold.amount.toBigInteger()
+                )
+              }
+            }
+          )
+        }.let { Ok(it) }
       }
   }
 }
@@ -90,7 +124,7 @@ class TxVerifyPolicyF8eClientImpl(
 private data class PolicyChangeRequest(
   @Unredacted
   val state: VerificationState,
-  val threshold: Money?,
+  val threshold: MoneyDTO?,
 ) : RedactedRequestBody
 
 @Serializable
@@ -113,12 +147,12 @@ private data class PolicyChangeResponse(
 
 @Serializable
 private data class ThresholdResponse(
-  val threshold: Money?,
+  val threshold: MoneyDTO?,
 ) : RedactedResponseBody
 
 @Serializable
 private enum class VerificationState {
-  DISABLED,
+  NEVER,
   THRESHOLD,
   ALWAYS,
 }

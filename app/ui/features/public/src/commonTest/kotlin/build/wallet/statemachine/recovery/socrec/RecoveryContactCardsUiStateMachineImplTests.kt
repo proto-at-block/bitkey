@@ -21,8 +21,10 @@ import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
 import kotlinx.datetime.Instant.Companion.DISTANT_PAST
 
 class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
+  val clock = ClockFake()
   val relationshipsService = RelationshipsServiceMock(
-    turbine = turbines::create
+    turbine = turbines::create,
+    clock = clock
   )
 
   val recoveryContactCardsUiStateMachine =

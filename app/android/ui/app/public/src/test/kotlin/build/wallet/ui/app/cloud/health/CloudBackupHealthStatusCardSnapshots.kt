@@ -67,7 +67,7 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
               title = "Problem with Google account access",
               trailingAccessory = ListItemAccessory.IconAccessory(Icon.SmallIconWarning)
             ),
-            type = CloudBackupHealthStatusCardType.EAK_BACKUP
+            type = CloudBackupHealthStatusCardType.EEK_BACKUP
           )
       )
     }

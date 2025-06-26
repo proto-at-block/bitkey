@@ -59,7 +59,7 @@ class AppFunctionalityStatusScreenPresenter(
               screen.originScreen?.let { navigator.goTo(it) } ?: navigator.exit()
             }
           )
-          is F8eUnreachable, is InternetUnreachable, is EmergencyAccessMode -> AppFunctionalityStatusBodyModel(
+          is F8eUnreachable, is InternetUnreachable, is EmergencyExitMode -> AppFunctionalityStatusBodyModel(
             status = status,
             cause = cause,
             dateFormatter = { date ->

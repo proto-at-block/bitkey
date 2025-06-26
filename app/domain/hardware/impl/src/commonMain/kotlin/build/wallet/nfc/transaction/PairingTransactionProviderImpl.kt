@@ -8,7 +8,9 @@ import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.catchingResult
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
-import build.wallet.cloud.backup.csek.CsekGenerator
+import build.wallet.cloud.backup.csek.SekGenerator
+import build.wallet.cloud.backup.csek.Ssek
+import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -27,8 +29,9 @@ import com.github.michaelbull.result.getOrThrow
 
 @BitkeyInject(AppScope::class)
 class PairingTransactionProviderImpl(
-  private val csekGenerator: CsekGenerator,
+  private val sekGenerator: SekGenerator,
   private val csekDao: CsekDao,
+  private val ssekDao: SsekDao,
   private val uuidGenerator: UuidGenerator,
   private val appInstallationDao: AppInstallationDao,
   private val hardwareAttestation: HardwareAttestation,
@@ -40,6 +43,7 @@ class PairingTransactionProviderImpl(
     onCancel: () -> Unit,
   ) = object : NfcTransaction<PairingTransactionResponse> {
     private lateinit var unsealedCsek: Csek
+    private lateinit var unsealedSsek: Ssek
 
     override val needsAuthentication = false
     override val shouldLock = true
@@ -50,7 +54,8 @@ class PairingTransactionProviderImpl(
     ) = when (commands.getFingerprintEnrollmentStatus(session).status) {
       COMPLETE -> {
         val bitcoinNetwork = accountConfigService.activeOrDefaultConfig().value.bitcoinNetworkType
-        unsealedCsek = csekGenerator.generate()
+        unsealedCsek = sekGenerator.generate()
+        unsealedSsek = sekGenerator.generate()
 
         FingerprintEnrolled(
           appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
@@ -62,7 +67,8 @@ class PairingTransactionProviderImpl(
             authKey = commands.getAuthenticationKey(session),
             networkType = bitcoinNetwork
           ),
-          sealedCsek = commands.sealKey(session, unsealedCsek),
+          sealedCsek = commands.sealData(session, unsealedCsek.key.raw),
+          sealedSsek = commands.sealData(session, unsealedSsek.key.raw),
           serial = commands.getDeviceInfo(session).serial
         )
       }
@@ -91,6 +97,7 @@ class PairingTransactionProviderImpl(
       when (response) {
         is FingerprintEnrolled -> {
           csekDao.set(key = response.sealedCsek, value = unsealedCsek).getOrThrow()
+          ssekDao.set(key = response.sealedSsek, value = unsealedSsek).getOrThrow()
 
           val serialNumber = response.serial
           appInstallationDao.updateAppInstallationHardwareSerialNumber(serialNumber)

@@ -432,7 +432,6 @@ private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
     activeSpendingKeysetId = keybox.activeSpendingKeyset.localId,
     activeKeyBundleId = keybox.activeAppKeyBundle.localId,
     activeHwKeyBundleId = keybox.activeHwKeyBundle.localId,
-    inactiveKeysetIds = emptySet(),
     appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
     networkType = keybox.config.bitcoinNetworkType,
     fakeHardware = keybox.config.isHardwareFake,

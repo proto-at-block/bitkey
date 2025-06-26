@@ -25,6 +25,7 @@ services:
       file: docker-compose-services.base.yml
       service: fromagerie
     environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       REGTEST_ELECTRUM_SERVER_URI: tcp://toxiproxy:8102
       REGTEST_ELECTRUM_SERVER_EXTERNAL_URI: tcp://localhost:8101
       PARTNER_SECRET_OVERRIDE_TESTNETFAUCET: |

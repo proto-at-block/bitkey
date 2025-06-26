@@ -3,8 +3,6 @@ import build.wallet.bitkey.f8e.FullAccountId;
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
 import build.wallet.f8e.F8eEnvironment;
 import kotlin.Boolean;
-import kotlin.String;
-import kotlin.collections.Set;
 import kotlin.time.Duration;
 
 -- Table for Full Account's Keybox data, contains spending keysets.
@@ -13,7 +11,6 @@ CREATE TABLE keyboxEntity(
   account                               TEXT AS FullAccountId NOT NULL,
   activeSpendingKeysetId                TEXT NOT NULL UNIQUE,
   activeKeyBundleId                     TEXT NOT NULL UNIQUE,
-  inactiveKeysetIds                     TEXT AS Set<String> NOT NULL,
   networkType                           TEXT AS BitcoinNetworkType NOT NULL,
   fakeHardware                          INTEGER AS Boolean NOT NULL,
   f8eEnvironment                        TEXT AS F8eEnvironment NOT NULL,
@@ -28,8 +25,8 @@ CREATE TABLE keyboxEntity(
 );
 
 insertKeybox:
-INSERT OR REPLACE INTO keyboxEntity(id, account, activeSpendingKeysetId, activeKeyBundleId, inactiveKeysetIds, networkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, activeHwKeyBundleId, appGlobalAuthKeyHwSignature)
-VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO keyboxEntity(id, account, activeSpendingKeysetId, activeKeyBundleId, networkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, activeHwKeyBundleId, appGlobalAuthKeyHwSignature)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 rotateAppGlobalAuthKeyHwSignature:
 UPDATE keyboxEntity

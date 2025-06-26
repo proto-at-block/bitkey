@@ -87,7 +87,7 @@ class InheritanceCardServiceTests : FunSpec({
       claims = InheritanceClaims(
         benefactorClaims = immutableListOf(),
         beneficiaryClaims = immutableListOf(
-          BeneficiaryLockedClaimFake
+          BeneficiaryLockedClaimBothDescriptorsFake
         )
       )
     )
@@ -96,7 +96,7 @@ class InheritanceCardServiceTests : FunSpec({
     inheritanceCardService.cardsToDisplay.test {
       awaitItem().shouldBe(
         listOf(
-          BeneficiaryLockedClaimFake
+          BeneficiaryLockedClaimBothDescriptorsFake
         )
       )
     }

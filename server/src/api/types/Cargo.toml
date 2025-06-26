@@ -55,5 +55,8 @@ serde = []
 time = []
 transaction_verification = []
 
+[dev-dependencies]
+rstest = { workspace = true }
+
 [lints]
 workspace = true

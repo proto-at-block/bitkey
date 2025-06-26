@@ -11,7 +11,6 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
@@ -31,7 +30,6 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNot
-import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
 class AccountDataStateMachineImpl(
@@ -63,14 +61,12 @@ class AccountDataStateMachineImpl(
                     // First, try to create [KeyboxData] based on recovery state.
                     fullAccountDataBasedOnRecovery(
                       activeAccount = account,
-                      activeRecovery = activeRecoveryResult.value,
-                      onLiteAccountCreated = props.onLiteAccountCreated
+                      activeRecovery = activeRecoveryResult.value
                     )
                   },
                   failure = {
                     NoActiveAccountData(
-                      activeRecovery = null,
-                      onLiteAccountCreated = props.onLiteAccountCreated
+                      activeRecovery = null
                     )
                   }
                 )
@@ -78,16 +74,14 @@ class AccountDataStateMachineImpl(
 
               else -> {
                 NoActiveAccountData(
-                  activeRecovery = null,
-                  onLiteAccountCreated = props.onLiteAccountCreated
+                  activeRecovery = null
                 )
               }
             }
           },
           failure = {
             NoActiveAccountData(
-              activeRecovery = null,
-              onLiteAccountCreated = props.onLiteAccountCreated
+              activeRecovery = null
             )
           }
         )
@@ -98,7 +92,6 @@ class AccountDataStateMachineImpl(
   private fun fullAccountDataBasedOnRecovery(
     activeAccount: FullAccount?,
     activeRecovery: Recovery,
-    onLiteAccountCreated: (LiteAccount) -> Unit,
   ): AccountData {
     /*
     [shouldShowSomeoneElseIsRecoveringIfPresent] tracks whether we are showing an app-level notice
@@ -138,8 +131,7 @@ class AccountDataStateMachineImpl(
           // Otherwise, create [KeyboxData] solely based on keybox state.
           accountDataBasedOnAccount(
             activeAccount = activeAccount,
-            activeRecovery = activeRecovery,
-            onLiteAccountCreated = onLiteAccountCreated
+            activeRecovery = activeRecovery
           )
         }
       }
@@ -148,8 +140,7 @@ class AccountDataStateMachineImpl(
         // Otherwise, create [KeyboxData] solely based on Full account state.
         accountDataBasedOnAccount(
           activeAccount = activeAccount,
-          activeRecovery = activeRecovery,
-          onLiteAccountCreated = onLiteAccountCreated
+          activeRecovery = activeRecovery
         )
       }
     }
@@ -159,13 +150,11 @@ class AccountDataStateMachineImpl(
   private fun accountDataBasedOnAccount(
     activeAccount: FullAccount?,
     activeRecovery: Recovery,
-    onLiteAccountCreated: (LiteAccount) -> Unit,
   ): AccountData {
     return when (activeAccount) {
       null -> {
         NoActiveAccountData(
-          activeRecovery = activeRecovery as? StillRecovering,
-          onLiteAccountCreated = onLiteAccountCreated
+          activeRecovery = activeRecovery as? StillRecovering
         )
       }
 
@@ -232,22 +221,10 @@ class AccountDataStateMachineImpl(
   }
 
   @Composable
-  private fun NoActiveAccountData(
-    activeRecovery: StillRecovering?,
-    onLiteAccountCreated: (LiteAccount) -> Unit,
-  ): AccountData {
-    val scope = rememberStableCoroutineScope()
+  private fun NoActiveAccountData(activeRecovery: StillRecovering?): AccountData {
     return noActiveAccountDataStateMachine.model(
       NoActiveAccountDataProps(
-        existingRecovery = activeRecovery,
-        onAccountCreated = { account ->
-          scope.launch {
-            accountService.setActiveAccount(account)
-            if (account is LiteAccount) {
-              onLiteAccountCreated(account)
-            }
-          }
-        }
+        existingRecovery = activeRecovery
       )
     )
   }

@@ -27,7 +27,7 @@ data class ResetFingerprintsConfirmationBodyModel(
     ),
     header = FormHeaderModel(
       headline = "Start fingerprint reset",
-      subline = "If you're unable to unlock your Bitkey device, you can reset your fingerprints and add new ones."
+      subline = "If you're unable to unlock your Bitkey device, you can reset your fingerprints."
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(

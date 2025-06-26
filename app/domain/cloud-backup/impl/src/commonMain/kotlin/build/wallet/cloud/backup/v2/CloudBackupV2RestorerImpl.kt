@@ -21,7 +21,6 @@ import build.wallet.relationships.RelationshipsKeysDao
 import build.wallet.relationships.saveKey
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.Json
 
 @BitkeyInject(AppScope::class)
@@ -95,7 +94,6 @@ class CloudBackupV2RestorerImpl(
 
     AccountRestoration(
       activeSpendingKeyset = keysInfo.activeSpendingKeyset,
-      inactiveKeysets = keysInfo.inactiveSpendingKeysets.toImmutableList(),
       activeAppKeyBundle =
         AppKeyBundle(
           localId = uuidGenerator.random(),

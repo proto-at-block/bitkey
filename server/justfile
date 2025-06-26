@@ -219,7 +219,7 @@ start-backend-local-build $PRINT_LOGS="0":
   set -e
   echo "⚙️ Building images. This will take a while (>10 minutes)"
   echo ""
-  docker buildx bake api wsm-api wsm-enclave
+  docker buildx bake --allow=fs.read=../core api wsm-api wsm-enclave
 
   export WALLET_API_IMAGE_REPO="api"
   export WSM_ENCLAVE_IMAGE_REPO="wsm-enclave"

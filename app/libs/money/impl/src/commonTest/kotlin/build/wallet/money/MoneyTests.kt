@@ -124,8 +124,17 @@ class MoneyTests : FunSpec({
   test("Equality") {
     BitcoinMoney.btc(1.23).shouldBeEqual(BitcoinMoney.btc(1.23))
     FiatMoney.usd(123).shouldBeEqual(FiatMoney.usd(123))
-    BitcoinMoney.zero().shouldBeEqual(FiatMoney.zeroUsd())
     BitcoinMoney.sats(123).shouldNotBeEqual(FiatMoney.usd(123))
+  }
+
+  test("zero equality") {
+    BitcoinMoney.zero().shouldBeEqual(BitcoinMoney.zero())
+    FiatMoney.zeroUsd().shouldBeEqual(FiatMoney.zeroUsd())
+  }
+
+  test("zero inequality") {
+    FiatMoney.zeroEur().shouldNotBeEqual(FiatMoney.zeroUsd())
+    BitcoinMoney.zero().shouldNotBeEqual(FiatMoney.zeroUsd())
   }
 
   test("Fractional Unit Constructor") {

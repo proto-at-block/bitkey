@@ -13,7 +13,6 @@ import bitkey.ui.framework.ScreenPresenter
 import bitkey.ui.screens.device.DeviceSettingsScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
-import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen.ActionEducation
 import bitkey.ui.sheets.ViewInvitationSheet
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
@@ -25,6 +24,7 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.navigation.v1.NavigationScreenId
@@ -40,11 +40,16 @@ import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
+import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetStatusCardUiProps
+import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetStatusCardUiStateMachine
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiStateMachine
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
+import build.wallet.statemachine.settings.full.device.fingerprints.ManageFingerprintsOptionsSheet
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsProps
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsUiStateMachine
 import build.wallet.statemachine.settings.full.notifications.Source
 import build.wallet.statemachine.status.AppFunctionalityStatusScreen
 import build.wallet.statemachine.status.BannerContext
@@ -61,6 +66,7 @@ import kotlinx.coroutines.launch
 data class SecurityHubScreen(
   val account: FullAccount,
   val hardwareRecoveryData: LostHardwareRecoveryData,
+  val initialState: SecurityHubUiState = SecurityHubUiState.ViewingSecurityHub,
 ) : Screen
 
 @BitkeyInject(ActivityScope::class)
@@ -71,8 +77,11 @@ class SecurityHubPresenter(
   private val firmwareDataService: FirmwareDataService,
   private val recoveryContactCardsUiStateMachine: RecoveryContactCardsUiStateMachine,
   private val hardwareRecoveryStatusCardUiStateMachine: HardwareRecoveryStatusCardUiStateMachine,
+  private val fingerprintResetStatusCardUiStateMachine: FingerprintResetStatusCardUiStateMachine,
+  private val resetFingerprintsUiStateMachine: ResetFingerprintsUiStateMachine,
   private val appFunctionalityService: AppFunctionalityService,
   private val haptics: Haptics,
+  private val fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
 ) : ScreenPresenter<SecurityHubScreen> {
   @Composable
   override fun model(
@@ -81,12 +90,21 @@ class SecurityHubPresenter(
   ): ScreenModel {
     val scope = rememberStableCoroutineScope()
 
+    var uiState: SecurityHubUiState by remember {
+      mutableStateOf(screen.initialState)
+    }
+    val onCannotUnlockFingerprints = {
+      uiState = SecurityHubUiState.ResetFingerprintsState
+    }
+
     var securityActions by remember { mutableStateOf(emptyList<SecurityAction>()) }
     var recoveryActions by remember { mutableStateOf(emptyList<SecurityAction>()) }
 
     val recommendationsWithStatus by remember {
       securityActionsService.getRecommendationsWithInteractionStatus()
     }.collectAsState(emptyList())
+
+    val isFingerprintResetEnabled by fingerprintResetFeatureFlag.flagValue().collectAsState()
 
     var isRefreshing by remember { mutableStateOf(true) }
 
@@ -140,6 +158,16 @@ class SecurityHubPresenter(
           )
         ).also { add(it) }
 
+        // Add Fingerprint Reset Status Card
+        fingerprintResetStatusCardUiStateMachine.model(
+          props = FingerprintResetStatusCardUiProps(
+            account = screen.account,
+            onClick = { actionId ->
+              uiState = SecurityHubUiState.ResetFingerprintsState
+            }
+          )
+        ).also { add(it) }
+
         // Add RC invitation cards
         recoveryContactCardsUiStateMachine.model(
           RecoveryContactCardsUiProps(
@@ -188,65 +216,71 @@ class SecurityHubPresenter(
       recommendationsWithStatus.map { it.recommendation }.toImmutableList()
     }
 
-    return SecurityHubBodyModel(
-      isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
-      // TODO W-11412 filter this in the service
-      atRiskRecommendations = recommendations.filter {
-        it == BACKUP_MOBILE_KEY || it == PAIR_HARDWARE_DEVICE
-      }.toImmutableList(),
-      // TODO W-11412 filter this in the service
-      recommendations = recommendations.filter {
-        it != BACKUP_MOBILE_KEY && it != PAIR_HARDWARE_DEVICE
-      }.toImmutableList(),
-      cardsModel = cardsModel,
-      securityActions = securityActions,
-      recoveryActions = recoveryActions,
-      onRecommendationClick = { recommendation ->
-        if (recommendation.shouldShowEducation()) {
-          navigator.goTo(
-            screen = SecurityHubEducationScreen.RecommendationEducation(
-              recommendation = recommendation,
+    return when (uiState) {
+      is SecurityHubUiState.ViewingSecurityHub -> {
+        SecurityHubBodyModel(
+          isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
+          // TODO W-11412 filter this in the service
+          atRiskRecommendations = recommendations.filter {
+            it == BACKUP_MOBILE_KEY || it == PAIR_HARDWARE_DEVICE
+          }.toImmutableList(),
+          // TODO W-11412 filter this in the service
+          recommendations = recommendations.filter {
+            it != BACKUP_MOBILE_KEY && it != PAIR_HARDWARE_DEVICE
+          }.toImmutableList(),
+          cardsModel = cardsModel,
+          securityActions = securityActions,
+          recoveryActions = recoveryActions,
+          onRecommendationClick = { recommendation ->
+            if (recommendation.shouldShowEducation()) {
+              navigator.goTo(
+                screen = SecurityHubEducationScreen.RecommendationEducation(
+                  recommendation = recommendation,
+                  originScreen = screen,
+                  firmwareData = firmwareUpdateData.firmwareUpdateState
+                )
+              )
+            } else {
+              navigator.navigateToScreen(
+                id = recommendation.navigationScreenId(),
+                originScreen = screen,
+                firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+                onCannotUnlockFingerprints = onCannotUnlockFingerprints
+              )
+            }
+          },
+          onSecurityActionClick = { securityAction ->
+            navigator.navigateToScreen(
+              id = securityAction.navigationScreenId(),
               originScreen = screen,
-              firmwareData = firmwareUpdateData.firmwareUpdateState
+              firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+              isFingerprintResetEnabled = isFingerprintResetEnabled.value,
+              onCannotUnlockFingerprints = onCannotUnlockFingerprints
             )
-          )
-        } else {
-          navigator.navigateToScreen(
-            recommendation.navigationScreenId(),
-            screen,
-            firmwareUpdateData.firmwareUpdateState
-          )
-        }
-      },
-      onSecurityActionClick = { securityAction ->
-        if (securityAction.shouldShowEducation()) {
-          navigator.goTo(
-            screen = ActionEducation(
-              action = securityAction,
-              originScreen = screen,
-              firmwareData = firmwareUpdateData.firmwareUpdateState
-            )
-          )
-        } else {
-          navigator.navigateToScreen(
-            securityAction.navigationScreenId(),
-            screen,
-            firmwareUpdateData.firmwareUpdateState
-          )
-        }
-      },
-      onHomeTabClick = {
-        scope.launch {
-          haptics.vibrate(effect = HapticsEffect.LightClick)
-          navigator.exit()
-        }
+          },
+          onHomeTabClick = {
+            scope.launch {
+              haptics.vibrate(effect = HapticsEffect.LightClick)
+              navigator.exit()
+            }
+          }
+        ).asRootScreen(statusBannerModel = homeStatusBannerModel)
       }
-    ).asRootScreen(statusBannerModel = homeStatusBannerModel)
-  }
-}
 
-private fun SecurityAction.shouldShowEducation(): Boolean {
-  return type().hasEducation && requiresAction()
+      is SecurityHubUiState.ResetFingerprintsState -> {
+        resetFingerprintsUiStateMachine.model(
+          props = ResetFingerprintsProps(
+            onComplete = {
+              uiState = SecurityHubUiState.ViewingSecurityHub
+            },
+            onCancel = {
+              uiState = SecurityHubUiState.ViewingSecurityHub
+            }
+          )
+        )
+      }
+    }
+  }
 }
 
 private fun SecurityActionRecommendation.shouldShowEducation(): Boolean {
@@ -257,23 +291,26 @@ fun Navigator.navigateToScreen(
   id: NavigationScreenId,
   originScreen: SecurityHubScreen,
   firmwareUpdateData: FirmwareData.FirmwareUpdateState,
+  isFingerprintResetEnabled: Boolean = false,
+  onCannotUnlockFingerprints: (() -> Unit)? = null,
 ) {
   when (id) {
-    NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS -> goTo(
-      ManagingFingerprintsScreen(
-        account = originScreen.account,
-        onFwUpRequired = {
-          goTo(
-            FwupScreen(
-              firmwareUpdateData = firmwareUpdateData,
-              onExit = { goTo(originScreen) }
-            )
-          )
-        },
-        entryPoint = EntryPoint.SECURITY_HUB,
-        origin = originScreen
+    NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS ->
+      showSheet(
+        ManageFingerprintsOptionsSheet(
+          fingerprintResetEnabled = isFingerprintResetEnabled,
+          onDismiss = {
+            closeSheet()
+          },
+          onEditFingerprints = {
+            onEditFingerprints(originScreen, firmwareUpdateData)
+          },
+          onCannotUnlock = {
+            onCannotUnlock(onCannotUnlockFingerprints, originScreen)
+          },
+          origin = originScreen
+        )
       )
-    )
     NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS -> goTo(
       TrustedContactManagementScreen(
         account = originScreen.account,
@@ -316,16 +353,66 @@ fun Navigator.navigateToScreen(
   }
 }
 
+private fun Navigator.onCannotUnlock(
+  onCannotUnlockFingerprints: (() -> Unit)?,
+  originScreen: SecurityHubScreen,
+) {
+  if (onCannotUnlockFingerprints != null) {
+    closeSheet()
+    onCannotUnlockFingerprints()
+  } else {
+    goTo(
+      SecurityHubScreen(
+        account = originScreen.account,
+        hardwareRecoveryData = originScreen.hardwareRecoveryData,
+        initialState = SecurityHubUiState.ResetFingerprintsState
+      )
+    )
+  }
+}
+
+private fun Navigator.onEditFingerprints(
+  originScreen: SecurityHubScreen,
+  firmwareUpdateData: FirmwareData.FirmwareUpdateState,
+) {
+  goTo(
+    ManagingFingerprintsScreen(
+      account = originScreen.account,
+      onFwUpRequired = {
+        goTo(
+          FwupScreen(
+            firmwareUpdateData = firmwareUpdateData,
+            onExit = {
+              goTo(
+                SecurityHubScreen(
+                  account = originScreen.account,
+                  hardwareRecoveryData = originScreen.hardwareRecoveryData
+                )
+              )
+            }
+          )
+        )
+      },
+      entryPoint = EntryPoint.SECURITY_HUB,
+      origin = SecurityHubScreen(
+        account = originScreen.account,
+        hardwareRecoveryData = originScreen.hardwareRecoveryData
+      )
+    )
+  )
+}
+
 fun SecurityAction.navigationScreenId(): NavigationScreenId =
   when (this.type()) {
     BIOMETRIC -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC
     CRITICAL_ALERTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS
-    EAK_BACKUP -> NavigationScreenId.NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH
+    EEK_BACKUP -> NavigationScreenId.NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH
     FINGERPRINTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS
     INHERITANCE -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE
-    MOBILE_KEY_BACKUP -> NavigationScreenId.NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP
+    APP_KEY_BACKUP -> NavigationScreenId.NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP
     SOCIAL_RECOVERY -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS
     HARDWARE_DEVICE -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE
+    TRANSACTION_VERIFICATION -> NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY
   }
 
 fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =
@@ -341,4 +428,17 @@ fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =
     SETUP_BIOMETRICS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC
     PAIR_HARDWARE_DEVICE -> NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
     UPDATE_FIRMWARE -> NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE
+    ENABLE_TRANSACTION_VERIFICATION -> NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY
   }
+
+sealed interface SecurityHubUiState {
+  /**
+   * Viewing the main Security Hub screen
+   */
+  data object ViewingSecurityHub : SecurityHubUiState
+
+  /**
+   * State for resetting fingerprints
+   */
+  data object ResetFingerprintsState : SecurityHubUiState
+}

@@ -26,7 +26,7 @@ import build.wallet.statemachine.recovery.conflict.model.ShowingNoLongerRecoveri
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionBodyModel
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
-import build.wallet.statemachine.recovery.inprogress.RecoverYourMobileKeyBodyModel
+import build.wallet.statemachine.recovery.inprogress.RecoverYourAppKeyBodyModel
 import build.wallet.statemachine.recovery.lostapp.initiate.RecoveryConflictBodyModel
 import build.wallet.statemachine.recovery.sweep.ZeroBalancePromptBodyModel
 import build.wallet.statemachine.recovery.verification.ChooseRecoveryNotificationVerificationMethodModel
@@ -234,7 +234,7 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.navigateToLostAppRecov
   // Cloud sign in missing backup
   awaitUntilBody<CloudWarningBodyModel>(CLOUD_BACKUP_NOT_FOUND)
     .onCannotAccessCloud()
-  awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+  awaitUntilBody<RecoverYourAppKeyBodyModel>()
     .onStartRecovery()
   awaitUntilBody<EnableNotificationsBodyModel>()
     .clickPrimaryButton()
