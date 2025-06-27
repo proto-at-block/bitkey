@@ -1,6 +1,6 @@
 steps:
   - label: "Build customer app for verification"
-    timeout_in_minutes: 30
+    timeout_in_minutes: 60
     command: ".buildkite/build-customer-release-aab.sh"
     notify:
       - slack:
@@ -8,7 +8,7 @@ steps:
             - "#bitkey-releases"
 
   - label: "Build emergency exit kit for verification"
-    timeout_in_minutes: 30
+    timeout_in_minutes: 60
     command: ".buildkite/build-emergency-release-apk.sh"
     notify:
       - slack:

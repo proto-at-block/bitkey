@@ -17,13 +17,20 @@ pluginManagement {
 
   includeBuild("gradle/build-logic")
   includeBuild("gradle/dependency-locking")
-}
 
-buildscript {
-  repositories {
-    google()
-    mavenCentral()
-    gradlePluginPortal()
+  buildscript {
+    repositories {
+      google()
+      mavenCentral()
+      maven {
+        url = uri("https://storage.googleapis.com/r8-releases/raw")
+      }
+      gradlePluginPortal()
+    }
+
+    dependencies {
+      classpath("com.android.tools:r8:8.10.24")
+    }
   }
 }
 
