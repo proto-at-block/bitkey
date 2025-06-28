@@ -1,17 +1,41 @@
 #!/bin/bash
-
 # Verifies that an APK installed on a real device was build from the given source code.
 # The script assumes that there is an established ADB session with a phone that contains the app to verify.
 # The build directory is used for temporary storage and is not deleted afterwards so that the user can inspect the outputs of each verification step or do certain steps manually.
+# Option to run script and compare from pre-downloaded apks and specify a device-spec.json file.
+# ./verify-android-apk -d /path/to/apk/directory -s /path/to/device-spec.json /path/to/bitkey/repo /path/to/build/directory
+
+apkSourceDir=""
+deviceSpecFile=""
+
+# Parse the new options first
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    -d|--apk-dir)
+      apkSourceDir="$2"
+      shift 2
+      ;;
+    -s|--device-spec)
+      deviceSpecFile="$2"
+      shift 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 
 if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
+    echo "Usage: $0 [-d|--apk-dir <directory>] [-s|--device-spec <file>] <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
+    echo "Options:" >&2
+    echo "  -d|--apk-dir      Directory containing pre-downloaded APKs" >&2
+    echo "  -s|--device-spec  Path to device-spec.json file" >&2
     exit 1
 fi
 
 if [ ! -f "$1/app/verifiable-build/android/Dockerfile" ]; then
     echo "Cannot find the Dockerfile used for building the AAB. Ensure the path points to the root directory of the Bitkey repository." >&2
-    echo "Usage: $0 <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
+    echo "Usage: $0 [-d|--apk-dir <directory>] [-s|--device-spec <file>] <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
     exit 2
 fi
 
@@ -26,8 +50,15 @@ mkdir -p "$2"
 
 steps_path="$1/app/verifiable-build/android/verification/steps"
 
-printf "Downloading APK from phone:\n\n"
-"$steps_path/download-apk-from-phone" "$package_name" "$2/from-device/downloaded" || exit $?
+if [ -n "$apkSourceDir" ]; then
+  printf "Copying APKs from specified directory:\n\n"
+  mkdir -p "$2/from-device/downloaded"
+  cp "$apkSourceDir"/* "$2/from-device/downloaded/" || exit $?
+  echo "APKs copied successfully."
+else
+  printf "Downloading APK from phone:\n\n"
+  "$steps_path/download-apk-from-phone" "$package_name" "$2/from-device/downloaded" || exit $?
+fi
 
 printf "Normalizing names of downloaded APKs:\n\n"
 "$steps_path/normalize-apk-names-new" "$2/from-device/downloaded" "$2/from-device/normalized-names" "device" || exit $?
@@ -46,7 +77,11 @@ printf "Building AAB from source code:\n\n"
 aab_path=$(find "$2/locally-built/aab" -type f -name "*.aab")
 
 printf "Converting AAB to APKs:\n\n"
-"$steps_path/convert-aab-to-apks" "$aab_path" "$2/locally-built/apks" || exit $?
+if [ -n "$deviceSpecFile" ]; then
+  "$steps_path/convert-aab-to-apks" "$aab_path" "$2/locally-built/apks" "$deviceSpecFile" || exit $?
+else
+  "$steps_path/convert-aab-to-apks" "$aab_path" "$2/locally-built/apks" || exit $?
+fi
 
 printf "Normalizing names of locally built APKs:\n\n"
 "$steps_path/normalize-apk-names-new" "$2/locally-built/apks" "$2/locally-built/normalized-names" "bundletool" || exit $?
