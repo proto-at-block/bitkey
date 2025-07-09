@@ -2,6 +2,7 @@ package build.wallet.pricechart.ui
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
+import build.wallet.pricechart.ChartRange
 import build.wallet.pricechart.DataPoint
 import kotlinx.collections.immutable.ImmutableList
 import kotlin.math.*
@@ -14,6 +15,7 @@ internal data class ChartDataState(
   val data: ImmutableList<DataPoint>,
   val intervals: Int,
   val pathSize: Float,
+  val chartRange: ChartRange,
 ) {
   private val yMin: Double
   private val yMax: Double
@@ -102,14 +104,20 @@ internal data class ChartDataState(
     // a Stroke with the path does not draw outside the parent
     val baseOffset = pathSize
     val stopAtIndex = stopAtDataPoint?.let { data.indexOf(it) }
-    val normalizedData = data.map {
-      canvasHeight - ((it.y - yFloor) / range * canvasHeight).toFloat()
+    val normalizedData = data.map { point ->
+      canvasHeight - ((point.y - yFloor) / range * canvasHeight).toFloat()
     }
-    val xInterval = canvasWidth / normalizedData.lastIndex
-    path.moveTo(baseOffset, normalizedData[0])
 
-    for (index in 1 until normalizedData.size) {
-      val startIndex = index - 1
+    if (data.size == 1) {
+      path.moveTo(baseOffset, normalizedData[0])
+      path.lineTo(baseOffset + 1, normalizedData[0])
+      return path
+    }
+
+    path.moveTo(baseOffset, normalizedData[0])
+    val scaleX = canvasWidth / data.size
+    for (targetIndex in 1 until normalizedData.lastIndex) {
+      val startIndex = targetIndex - 1
       if (startIndex == stopAtIndex) {
         if (stopAtIndex == 0) {
           // if we stop drawing before creating a line,
@@ -119,10 +127,10 @@ internal data class ChartDataState(
         return path
       }
 
-      val startPointX = (startIndex * xInterval) + baseOffset
+      val startPointX = baseOffset + (startIndex * scaleX)
       val startPointY = normalizedData[startIndex]
-      val targetPointX = (index * xInterval) + baseOffset
-      val targetPointY = normalizedData[index]
+      val targetPointX = baseOffset + (targetIndex * scaleX)
+      val targetPointY = normalizedData[targetIndex]
       path.quadraticTo(
         x1 = startPointX,
         y1 = startPointY,

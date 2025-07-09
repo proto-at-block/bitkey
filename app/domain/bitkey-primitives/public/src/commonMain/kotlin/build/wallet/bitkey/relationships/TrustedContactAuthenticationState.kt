@@ -1,7 +1,7 @@
 package build.wallet.bitkey.relationships
 
 /**
- * States of authentication that a Recovery Contact can be in.
+ * States of authentication that a Trusted Contact can be in.
  */
 enum class TrustedContactAuthenticationState {
   /**

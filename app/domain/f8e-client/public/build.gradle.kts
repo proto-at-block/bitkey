@@ -21,6 +21,7 @@ kotlin {
         api(projects.libs.frostPublic)
         api(projects.libs.ktorClientPublic)
         api(projects.libs.loggingPublic)
+        api(projects.domain.cloudBackupPublic)
         api(projects.domain.mobilePayPublic)
         api(projects.domain.partnershipsPublic)
         api(projects.domain.txVerificationPublic)

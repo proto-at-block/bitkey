@@ -18,6 +18,18 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
+sealed interface CloudBackupFailure {
+  data object HWCantDecryptCSEK : CloudBackupFailure
+
+  data object AppCantRestoreCloudBackup : CloudBackupFailure
+
+  data object AppCantPerformPostRestorationSteps : CloudBackupFailure
+
+  data object AppCantSetActiveKeybox : CloudBackupFailure
+
+  data object CantFindCloudAccount : CloudBackupFailure
+}
+
 /**
  * Screen shown to customer when we found cloud backup but were not able to use it
  * (for example, due to schema serialization error, or expired auth keys).
@@ -25,14 +37,28 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 data class ProblemWithCloudBackupModel(
   override val onBack: () -> Unit,
   val onRecoverAppKey: () -> Unit,
+  val failure: CloudBackupFailure,
 ) : FormBodyModel(
     id = FAILURE_RESTORE_FROM_CLOUD_BACKUP,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
-    header = FormHeaderModel(
-      headline = "Problem with cloud backup",
-      subline = "There was an issue accessing your cloud backup."
-    ),
+    header = when (failure) {
+      CloudBackupFailure.HWCantDecryptCSEK -> FormHeaderModel(
+        headline = "Problem with cloud backup",
+        subline = "The Bitkey you tapped isn’t linked to the cloud backup we found. " +
+          "Please double-check that you're using the Bitkey device associated with your wallet. " +
+          "If you are, you can still recover your wallet by starting a 7-day security period which " +
+          "will overwrite the existing backup in your cloud account."
+      )
+      CloudBackupFailure.CantFindCloudAccount,
+      CloudBackupFailure.AppCantRestoreCloudBackup,
+      CloudBackupFailure.AppCantPerformPostRestorationSteps,
+      CloudBackupFailure.AppCantSetActiveKeybox,
+      -> FormHeaderModel(
+        headline = "Problem with cloud backup",
+        subline = "There was an issue accessing your cloud backup."
+      )
+    },
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
         listGroupModel = ListGroupModel(

@@ -1,6 +1,7 @@
 package build.wallet.grants
 
 // Constants based on `firmware/python/bitkey/grant_protocol.py`
+const val GRANT_MESSAGE_PREFIX = "BKGrantReq"
 const val GRANT_VERSION_LEN = 1
 const val GRANT_DEVICE_ID_LEN = 8
 const val GRANT_CHALLENGE_LEN = 16

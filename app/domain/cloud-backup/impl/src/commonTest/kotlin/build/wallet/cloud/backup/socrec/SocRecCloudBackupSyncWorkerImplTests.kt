@@ -210,7 +210,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
     relationshipsService.relationships.emit(RelationshipsFake)
   }
 
-  test("success - equal Recovery Contacts sets ignored") {
+  test("success - equal trusted contacts sets ignored") {
     cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
 
     createBackgroundScope().launch {
@@ -218,7 +218,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
     }
   }
 
-  test("failure - equal Recovery Contacts maps ignored") {
+  test("failure - equal trusted contacts maps ignored") {
     cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
     createBackgroundScope().launch {
       socRecCloudBackupSyncWorker.executeWork()
@@ -227,7 +227,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
 
   test("success - cloud backup v1 always accepted") {
     // Setting this to empty to match what would be found in an old backup.
-    // An upload should be triggered even if no Recovery Contacts are known.
+    // An upload should be triggered even if no trusted contacts are known.
     relationshipsService.relationships.emit(Relationships.EMPTY)
     cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
     createBackgroundScope().launch {

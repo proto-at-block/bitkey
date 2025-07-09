@@ -14,6 +14,7 @@ import build.wallet.bitkey.spending.SpendingKeyset
  *
  * @property localId Unique local identifier for this keybox. Generated at the time of keybox's
  * creation or restoration on this app installation.
+ * @property fullAccountId
  * @property activeSpendingKeyset The current, active keyset which is being used by the application to track main balance, transaction
  * history, sign and receive transactions, etc.
  * @property config Defines configuration of this keybox. All [SpendingKeyset]s in the
@@ -31,4 +32,5 @@ data class Keybox(
   val activeAppKeyBundle: AppKeyBundle,
   val activeHwKeyBundle: HwKeyBundle,
   val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+  val keysets: List<SpendingKeyset>,
 )

@@ -54,7 +54,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
-    // PC: Invite a Recovery Contact
+    // PC: Invite a Trusted Contact
     customerApp.trustedContactManagementScreenPresenter.test(
       screen = buildTrustedContactManagementUiStateMachineProps(customerApp)
     ) {
@@ -63,7 +63,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     }
     val inviteCode = customerApp.getSharedInviteCode()
 
-    // RC: Onboard as Lite Account and accept invite
+    // TC: Onboard as Lite Account and accept invite
     // TODO(W-9704): execute workers by default
     val tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     lateinit var relationshipId: String
@@ -82,7 +82,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // PC: Wait for the cloud backup to contain the RC's SocRec PKEK
+    // PC: Wait for the cloud backup to contain the TC's SocRec PKEK
     customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
 
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
@@ -133,7 +133,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
-    // PC: Invite a Recovery Contact
+    // PC: Invite a Trusted Contact
     customerApp.trustedContactManagementScreenPresenter.test(
       screen = buildTrustedContactManagementUiStateMachineProps(customerApp)
     ) {
@@ -142,7 +142,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     }
     val inviteCode = customerApp.getSharedInviteCode()
 
-    // RC: Onboard as Lite Account and accept invite
+    // TC: Onboard as Lite Account and accept invite
     // TODO(W-9704): execute workers by default
     val tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     tcApp.appUiStateMachine.test(
@@ -157,7 +157,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // Attacker impersonating as PC: Endorse RC with a tampered key certificate
+    // Attacker impersonating as PC: Endorse TC with a tampered key certificate
     val customerAccount = customerApp.getActiveFullAccount()
     val relationshipsClient = customerApp.relationshipsF8eClientProvider.get()
     val relationships = relationshipsClient.getRelationships(
@@ -185,7 +185,7 @@ class SocRecE2eFunctionalTests : FunSpec({
         )
       )
     ).getOrThrow()
-    // Sanity check that the RC has been successfully endorsed with the tampered key certificate
+    // Sanity check that the TC has been successfully endorsed with the tampered key certificate
     relationshipsClient.getRelationships(
       customerAccount.accountId,
       customerAccount.config.f8eEnvironment
@@ -193,9 +193,9 @@ class SocRecE2eFunctionalTests : FunSpec({
       .endorsedTrustedContacts
       .shouldBeSingleton()
 
-    // Detect whether the Recovery Contact gets written to cloud backup even though it's in the
-    // TAMPERED state. Since the Recovery Contact verification check is running in the background,
-    // we may not catch a potential issue where the tampered Recovery Contact does get backed up
+    // Detect whether the Trusted Contact gets written to cloud backup even though it's in the
+    // TAMPERED state. Since the Trusted Contact verification check is running in the background,
+    // we may not catch a potential issue where the tampered Trusted Contact does get backed up
     // and then immediately removed. If that does happen, this test may likely flake, but
     // point to a real issue.
     val backupJob = launch {
@@ -203,12 +203,12 @@ class SocRecE2eFunctionalTests : FunSpec({
         .filterNotNull()
         .collect { backup ->
           if (backup.socRecDataAvailable) {
-            fail { "Recovery Contact with tampered certificate should not have been backed up" }
+            fail { "Trusted Contact with tampered certificate should not have been backed up" }
           }
         }
     }
 
-    // PC: Wait for the RC to end up in the tampered state.
+    // PC: Wait for the TC to end up in the tampered state.
     // Use turbineScope since we need to use testIn() when working with multiple turbines
     customerApp.appUiStateMachine.test(
       turbineTimeout = 60.seconds,
@@ -278,7 +278,7 @@ class SocRecE2eFunctionalTests : FunSpec({
         cancelAndIgnoreRemainingEvents()
       }
 
-      // Expect the cloud backup to continue to contain the RC backup.
+      // Expect the cloud backup to continue to contain the TC backup.
       customerApp.socRecCloudBackupSyncWorker.lastCheck.value.shouldBeGreaterThan(Instant.DISTANT_PAST)
       customerApp.readCloudBackup()
         .shouldNotBeNull()
@@ -351,7 +351,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
 
-  test("Lost App Cloud Recovery should succeed after PC does Lost Hardware D&N with Recovery Contact") {
+  test("Lost App Cloud Recovery should succeed after PC does Lost Hardware D&N with Trusted Contact") {
     // Onboard the protected customer
     // TODO(W-9704): execute workers by default
     val customerApp = launchNewApp(executeWorkers = false)
@@ -449,7 +449,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
 
-  test("social recovery should not be possible after RC does lost app D&N") {
+  test("social recovery should not be possible after TC does lost app D&N") {
     // Onboard the protected customer
     // TODO(W-9704): execute workers by default
     val customerApp = launchNewApp(executeWorkers = false)
@@ -463,7 +463,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       cloudStoreAccountForBackup = CloudStoreAccountFake(identifier = "cloud-store-protected-customer2-fake")
     )
 
-    // PC: Invite a Recovery Contact
+    // PC: Invite a Trusted Contact
     customerApp.trustedContactManagementScreenPresenter.test(
       screen = buildTrustedContactManagementUiStateMachineProps(customerApp)
     ) {
@@ -472,7 +472,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     }
     val inviteCode = customerApp.getSharedInviteCode()
 
-    // RC: accepts invite
+    // TC: accepts invite
     lateinit var relationshipId: String
     tcApp.appUiStateMachine.test(
       turbineTimeout = 60.seconds,
@@ -490,10 +490,10 @@ class SocRecE2eFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // PC: Wait for the cloud backup to contain the RC's SocRec PKEK
+    // PC: Wait for the cloud backup to contain the TC's SocRec PKEK
     customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
 
-    // RC: lost app & cloud D+N
+    // TC: lost app & cloud D+N
     val hardwareSeed = tcApp.fakeHardwareKeyStore.getSeed()
     tcApp.deleteBackupsFromFakeCloud()
     tcApp.fakeNfcCommands.wipeDevice()
@@ -509,7 +509,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // PC: Wait for the cloud backup to be updated with no Recovery Contacts
+    // PC: Wait for the cloud backup to be updated with no trusted contacts
     customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
   }
 
@@ -610,7 +610,7 @@ suspend fun TestScope.shouldSucceedSocialRestore(
     cancelAndIgnoreRemainingEvents()
   }
 
-  // RC: Enter the challenge code and upload ciphertext
+  // TC: Enter the challenge code and upload ciphertext
   tcApp.appUiStateMachine.test(
     turbineTimeout = 60.seconds,
     props = Unit
@@ -661,7 +661,7 @@ suspend fun verifyKeyCertificatesAreRefreshed(app: AppTester) {
     .relationships().first().getOrThrow()
     .endorsedTrustedContacts
 
-  withClue("Server and DB Recovery Contacts should match") {
+  withClue("Server and DB Trusted Contacts should match") {
     serverTcs.shouldContainExactlyInAnyOrder(
       dbTcs.map {
         // The authenticationState is @Transient and defaults to AWAITING_VERIFY when returned by

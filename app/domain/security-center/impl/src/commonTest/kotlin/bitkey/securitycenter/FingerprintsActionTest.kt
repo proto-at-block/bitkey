@@ -11,7 +11,8 @@ class FingerprintsActionTest : FunSpec({
     val fingerprintsAction = FingerprintsAction(
       gettingStartedTasks = emptyList(),
       fingerprintCount = 0,
-      firmwareDeviceInfo = null
+      firmwareDeviceInfo = null,
+      fingerprintResetReady = false
     )
 
     fingerprintsAction.getRecommendations()
@@ -22,7 +23,8 @@ class FingerprintsActionTest : FunSpec({
     val fingerprintsAction = FingerprintsAction(
       gettingStartedTasks = emptyList(),
       fingerprintCount = 0,
-      firmwareDeviceInfo = FirmwareDeviceInfoMock
+      firmwareDeviceInfo = FirmwareDeviceInfoMock,
+      fingerprintResetReady = false
     )
 
     fingerprintsAction.getRecommendations().shouldBeEmpty()
@@ -37,7 +39,8 @@ class FingerprintsActionTest : FunSpec({
     val fingerprintsAction = FingerprintsAction(
       gettingStartedTasks = listOf(additionalFingerprintTask),
       fingerprintCount = 0,
-      firmwareDeviceInfo = FirmwareDeviceInfoMock
+      firmwareDeviceInfo = FirmwareDeviceInfoMock,
+      fingerprintResetReady = false
     )
 
     fingerprintsAction.getRecommendations()
@@ -53,7 +56,8 @@ class FingerprintsActionTest : FunSpec({
     val fingerprintsAction = FingerprintsAction(
       gettingStartedTasks = listOf(additionalFingerprintTask),
       fingerprintCount = 0,
-      firmwareDeviceInfo = FirmwareDeviceInfoMock
+      firmwareDeviceInfo = FirmwareDeviceInfoMock,
+      fingerprintResetReady = false
     )
 
     fingerprintsAction.getRecommendations().shouldBeEmpty()
@@ -63,7 +67,8 @@ class FingerprintsActionTest : FunSpec({
     val fingerprintsAction = FingerprintsAction(
       gettingStartedTasks = emptyList(),
       fingerprintCount = 1,
-      firmwareDeviceInfo = FirmwareDeviceInfoMock
+      firmwareDeviceInfo = FirmwareDeviceInfoMock,
+      fingerprintResetReady = false
     )
 
     fingerprintsAction.getRecommendations()
@@ -74,7 +79,8 @@ class FingerprintsActionTest : FunSpec({
     val fingerprintsAction = FingerprintsAction(
       gettingStartedTasks = emptyList(),
       fingerprintCount = 2,
-      firmwareDeviceInfo = FirmwareDeviceInfoMock
+      firmwareDeviceInfo = FirmwareDeviceInfoMock,
+      fingerprintResetReady = false
     )
 
     fingerprintsAction.getRecommendations().shouldBeEmpty()
@@ -82,9 +88,25 @@ class FingerprintsActionTest : FunSpec({
     val fingerprintsActionWithMore = FingerprintsAction(
       gettingStartedTasks = emptyList(),
       fingerprintCount = 5,
-      firmwareDeviceInfo = FirmwareDeviceInfoMock
+      firmwareDeviceInfo = FirmwareDeviceInfoMock,
+      fingerprintResetReady = false
     )
 
     fingerprintsActionWithMore.getRecommendations().shouldBeEmpty()
+  }
+
+  test("with fingerprint reset ready - should recommend completing reset") {
+    val fingerprintsAction = FingerprintsAction(
+      gettingStartedTasks = emptyList(),
+      fingerprintCount = 0,
+      firmwareDeviceInfo = null,
+      fingerprintResetReady = true
+    )
+
+    fingerprintsAction.getRecommendations()
+      .shouldContainExactly(
+        SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET,
+        SecurityActionRecommendation.ADD_FINGERPRINTS
+      )
   }
 })

@@ -16,7 +16,6 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.types.shouldBeTypeOf
-import okio.ByteString.Companion.encodeUtf8
 import kotlin.time.Duration.Companion.seconds
 
 class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
@@ -25,8 +24,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
   val lostHardwareRecoveryService = LostHardwareRecoveryServiceFake()
 
   val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
-
-  val sealedCsekMock = "sealedCsek".encodeUtf8()
 
   val stateMachine =
     InitiatingLostHardwareRecoveryDataStateMachineImpl(
@@ -48,7 +45,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingNewHardwareData>()
-        it.addHardwareKeys(sealedCsekMock, HwKeyBundleMock, AppGlobalAuthKeyHwSignatureMock)
+        it.addHardwareKeys(HwKeyBundleMock, AppGlobalAuthKeyHwSignatureMock)
       }
 
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
@@ -63,7 +60,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingNewHardwareData>()
-        it.addHardwareKeys(sealedCsekMock, HwKeyBundleMock, AppGlobalAuthKeyHwSignatureMock)
+        it.addHardwareKeys(HwKeyBundleMock, AppGlobalAuthKeyHwSignatureMock)
       }
 
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
@@ -80,7 +77,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingNewHardwareData>()
-        it.addHardwareKeys(sealedCsekMock, HwKeyBundleMock, AppGlobalAuthKeyHwSignatureMock)
+        it.addHardwareKeys(HwKeyBundleMock, AppGlobalAuthKeyHwSignatureMock)
       }
 
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()

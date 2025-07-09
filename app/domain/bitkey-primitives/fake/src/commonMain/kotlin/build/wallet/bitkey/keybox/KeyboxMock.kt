@@ -24,6 +24,7 @@ val KeyboxMock =
     activeAppKeyBundle = AppKeyBundleMock,
     activeHwKeyBundle = HwKeyBundleMock,
     appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+    keysets = listOf(SpendingKeysetMock),
     config =
       FullAccountConfig(
         bitcoinNetworkType = SIGNET,
@@ -42,6 +43,7 @@ val KeyboxMock2 =
     activeAppKeyBundle = AppKeyBundleMock2,
     activeHwKeyBundle = HwKeyBundleMock,
     appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+    keysets = listOf(SpendingKeysetMock2),
     config =
       FullAccountConfig(
         bitcoinNetworkType = SIGNET,

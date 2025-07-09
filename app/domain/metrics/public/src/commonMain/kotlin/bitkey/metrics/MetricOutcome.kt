@@ -26,6 +26,11 @@ enum class MetricOutcome {
   Failed,
 
   /**
+   * The operation required a firmware update to complete.
+   */
+  FwUpdateRequired,
+
+  /**
    * The metric was restarted. This could happen if the app is killed then the user re-enters the
    * same flow before the Timeout, or a developer bug that fails to complete the metric in some exit flow.
    */

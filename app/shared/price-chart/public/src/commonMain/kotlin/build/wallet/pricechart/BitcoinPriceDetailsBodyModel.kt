@@ -17,7 +17,6 @@ data class BitcoinPriceDetailsBodyModel(
   val data: ImmutableList<DataPoint> = immutableListOf(),
   val range: ChartRange = ChartRange.YEAR,
   val type: ChartType = ChartType.BTC_PRICE,
-  val isBalanceHistoryEnabled: Boolean = false,
   val isLoading: Boolean = true,
   val failedToLoad: Boolean = false,
   val fiatCurrencyCode: String? = null,

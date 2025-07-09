@@ -9,10 +9,10 @@ import build.wallet.platform.config.DeviceTokenConfigProvider
 import build.wallet.platform.config.TouchpointPlatform.*
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 @BitkeyInject(AppScope::class)
 class DeviceTokenConfigProviderImpl(
@@ -34,15 +34,17 @@ class DeviceTokenConfigProviderImpl(
 
   private suspend fun getToken(): String {
     return withContext(Dispatchers.IO) {
-      suspendCoroutine { continuation ->
+      suspendCancellableCoroutine { continuation ->
         FirebaseMessaging.getInstance()
           .token
-          .addOnCompleteListener { task ->
-            if (!task.isSuccessful) {
-              continuation.resumeWithException(task.exception ?: IllegalStateException(task.result))
-            } else {
-              continuation.resume(task.result)
-            }
+          .addOnSuccessListener { token ->
+            continuation.resume(token)
+          }
+          .addOnFailureListener {
+            continuation.resumeWithException(it)
+          }
+          .addOnCanceledListener {
+            continuation.cancel()
           }
       }
     }

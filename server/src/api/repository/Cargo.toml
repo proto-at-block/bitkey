@@ -15,10 +15,23 @@ bdk_utils = { workspace = true }
 database = { workspace = true }
 types = { workspace = true }
 
+[dev-dependencies]
+external_identifier = { workspace = true }
+http_server = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
+ulid = { workspace = true }
+
 [features]
 account = ["types/account"]
-all = ["account", "consent", "privileged_action", "recovery"]
+all = [
+  "account",
+  "consent",
+  "encrypted_attachment",
+  "privileged_action",
+  "recovery",
+]
 consent = ["types/consent"]
+encrypted_attachment = ["types/encrypted_attachment"]
 privileged_action = ["types/privileged_action"]
 recovery = ["types/recovery"]
 

@@ -98,7 +98,8 @@ class CreateFullAccountServiceImpl(
         activeAppKeyBundle = keyCrossDraft.appKeyBundle,
         activeHwKeyBundle = keyCrossDraft.hardwareKeyBundle,
         appGlobalAuthKeyHwSignature = keyCrossDraft.appGlobalAuthKeyHwSignature,
-        config = keyCrossDraft.config
+        config = keyCrossDraft.config,
+        keysets = listOf(spendingKeyset)
       )
 
       // Get notification touchpoints in the event that this is an existing account

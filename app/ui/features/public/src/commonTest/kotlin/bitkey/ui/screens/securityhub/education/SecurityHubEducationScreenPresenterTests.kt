@@ -5,6 +5,7 @@ import bitkey.securitycenter.SecurityActionRecommendation
 import bitkey.securitycenter.SocialRecoveryAction
 import bitkey.ui.framework.test
 import bitkey.ui.screens.securityhub.SecurityHubScreen
+import build.wallet.availability.FunctionalityFeatureStates.FeatureState
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.FingerprintResetFeatureFlag
@@ -28,7 +29,8 @@ class SecurityHubEducationScreenPresenterTests : FunSpec({
     presenter.test(
       screen = SecurityHubEducationScreen.ActionEducation(
         action = SocialRecoveryAction(
-          relationships = null
+          relationships = null,
+          featureState = FeatureState.Available
         ),
         originScreen = SecurityHubScreen(
           account = FullAccountMock,

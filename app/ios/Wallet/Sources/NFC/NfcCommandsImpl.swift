@@ -412,6 +412,10 @@ private extension firmware.FirmwareFeatureFlagCfg {
                 flag: Shared.FirmwareFeatureFlag.signingOptimizations,
                 enabled: self.enabled
             )
+        case .fingerprintReset: return Shared.FirmwareFeatureFlagCfg(
+                flag: Shared.FirmwareFeatureFlag.fingerprintReset,
+                enabled: self.enabled
+            )
         }
     }
 }

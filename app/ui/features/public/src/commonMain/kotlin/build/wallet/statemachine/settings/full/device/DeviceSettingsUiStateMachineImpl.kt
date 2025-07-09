@@ -236,7 +236,18 @@ class DeviceSettingsUiStateMachineImpl(
         resetFingerprintsUiStateMachine.model(
           props = ResetFingerprintsProps(
             onComplete = { uiState = ViewingDeviceDataUiState() },
-            onCancel = { uiState = ViewingDeviceDataUiState() }
+            onCancel = { uiState = ViewingDeviceDataUiState() },
+            onFwUpRequired = {
+              uiState = when (val firmwareUpdateState = firmwareData?.firmwareUpdateState) {
+                is FirmwareData.FirmwareUpdateState.PendingUpdate -> {
+                  UpdatingFirmwareUiState(firmwareUpdateState)
+                }
+                else -> {
+                  ViewingDeviceDataUiState()
+                }
+              }
+            },
+            account = props.account
           )
         )
       }

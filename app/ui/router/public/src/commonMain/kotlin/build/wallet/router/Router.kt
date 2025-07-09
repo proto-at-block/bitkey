@@ -19,7 +19,7 @@ object Router {
 
   /**
    * This is a lambda that is called from the usage site.
-   * This implementation is admittedly naive, but for our one deep link (RC Invite) it is sufficient
+   * This implementation is admittedly naive, but for our one deep link (TC Invite) it is sufficient
    * because all three callsites are unique so we don't need to worry about overwriting the callback.
    */
   private var callback: ((Route) -> Boolean)? = null

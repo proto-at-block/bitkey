@@ -11,7 +11,7 @@ import build.wallet.statemachine.core.ScreenModel
 
 /**
  * Options for accessing an existing account (recovery), or becoming
- * a Recovery Contact.
+ * a trusted contact.
  */
 data object AccountAccessOptionsScreen : Screen
 

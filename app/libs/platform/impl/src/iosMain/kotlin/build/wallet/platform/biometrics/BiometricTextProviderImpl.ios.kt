@@ -36,4 +36,17 @@ class BiometricTextProviderImpl : BiometricTextProvider {
       else -> "Use Biometrics to unlock app"
     }
   }
+
+  override fun getAppSecurityDescriptionText(): String {
+    val context = LAContext()
+      .apply {
+        // policy has to be evaluated in order to determine biometry type
+        canEvaluatePolicy(LAPolicyDeviceOwnerAuthenticationWithBiometrics, error = null)
+      }
+    return when (context.biometryType) {
+      LABiometryTypeTouchID -> "Unlock the app using Touch ID."
+      LABiometryTypeFaceID -> "Unlock the app using Face ID."
+      else -> "Unlock the app using biometrics."
+    }
+  }
 }

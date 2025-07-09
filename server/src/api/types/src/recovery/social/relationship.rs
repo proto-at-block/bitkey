@@ -79,7 +79,7 @@ impl RecoveryRelationshipCommonFields {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Builder)]
 pub struct RecoveryRelationshipConnectionFields {
-    pub customer_alias: String, // This is the Recovery Contact's alias for the customer
+    pub customer_alias: String, // This is the trusted contact's alias for the customer
     pub trusted_contact_account_id: AccountId,
 }
 
@@ -92,7 +92,7 @@ pub struct RecoveryRelationshipInvitation {
     #[serde(with = "rfc3339")]
     pub expires_at: OffsetDateTime,
     // The enrollment fields are thrown away once the customer has
-    // endorsed the Recovery Contact
+    // endorsed the Trusted Contact
     pub protected_customer_enrollment_pake_pubkey: String,
 }
 

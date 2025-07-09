@@ -6,7 +6,7 @@ ENV ANDROID_NDK_VERSION="25.2.9519653"
 RUN apt update
 
 RUN apt install -y --no-install-recommends --no-install-suggests \
-  git=1:2.34.1-1ubuntu1.12 \
+  git=1:2.34.1-1ubuntu1.13 \
   build-essential=12.9ubuntu3 \
   libclang1=1:14.0-55~exp2 \
   openjdk-17-jdk=17.0.15+6~us1-0ubuntu1~22.04 \

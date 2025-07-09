@@ -23,9 +23,16 @@ import build.wallet.grants.GrantRequest
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
+import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.datetime.Clock
 import okio.ByteString
+import okio.ByteString.Companion.decodeBase64
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.toByteString
 
@@ -34,7 +41,13 @@ class FingerprintResetServiceImpl(
   override val privilegedActionF8eClient: FingerprintResetF8eClient,
   override val accountService: AccountService,
   private val signatureUtils: SignatureUtils,
+  override val clock: Clock,
 ) : FingerprintResetService {
+  private val fingerprintResetActionCache = MutableStateFlow<PrivilegedActionInstance?>(null)
+
+  override fun fingerprintResetAction(): StateFlow<PrivilegedActionInstance?> =
+    fingerprintResetActionCache
+
   /**
    * Create a fingerprint reset privileged action using a GrantRequest
    */
@@ -63,72 +76,83 @@ class FingerprintResetServiceImpl(
           action = grantRequest.action.value,
           deviceId = grantRequest.deviceId.toByteString().base64(),
           challenge = grantRequest.challenge.toByteString().base64(),
-          signature = derEncodedSignature.base64(),
+          signature = derEncodedSignature.hex(),
           hwAuthPublicKey = hwAuthPublicKey.pubKey.value
         )
         createAction(request)
+      }
+      .also { result ->
+        result.onSuccess { instance -> fingerprintResetActionCache.value = instance }
       }
   }
 
   override suspend fun completeFingerprintResetAndGetGrant(
     actionId: String,
-  ): Result<Grant, PrivilegedActionError> {
-    return accountService.getAccount<FullAccount>()
-      .mapError { err: Error ->
-        PrivilegedActionError.IncorrectAccountType
+    completionToken: String,
+  ): Result<Grant, PrivilegedActionError> =
+    coroutineBinding {
+      val account = accountService.getAccount<FullAccount>()
+        .mapError { PrivilegedActionError.IncorrectAccountType }
+        .bind()
+
+      val instances = privilegedActionF8eClient.getPrivilegedActionInstances(
+        f8eEnvironment = account.config.f8eEnvironment,
+        fullAccountId = account.accountId
+      ).mapError { throwable: Throwable -> PrivilegedActionError.ServerError(throwable) }
+        .bind()
+
+      val actionInstance = instances.find { it.id == actionId }
+        ?: Err(PrivilegedActionError.NotAuthorized).bind()
+
+      actionInstance.takeIf { it.privilegedActionType == PrivilegedActionType.RESET_FINGERPRINT }
+        ?.authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
+        ?: Err(PrivilegedActionError.UnsupportedActionType).bind()
+
+      val auth = Authorization(
+        authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
+        completionToken = completionToken
+      )
+
+      val actionRef = PrivilegedActionInstanceRef(
+        id = actionInstance.id,
+        authorizationStrategy = auth
+      )
+
+      val request = ContinuePrivilegedActionRequest(
+        privilegedActionInstance = actionRef
+      )
+
+      val fingerprintResetResponse = privilegedActionF8eClient.continuePrivilegedAction(
+        f8eEnvironment = account.config.f8eEnvironment,
+        fullAccountId = account.accountId,
+        request = request
+      ).mapError { throwable: Throwable -> PrivilegedActionError.ServerError(throwable) }
+        .bind()
+
+      // Clear the cached action after completing the fingerprint reset - we can only fetch the
+      // grant once, so as soon as that completes successfully, we reset the cache.
+      fingerprintResetActionCache.value = null
+
+      try {
+        val serializedRequest = fingerprintResetResponse.serializedRequest.decodeBase64()
+          ?: Err(
+            PrivilegedActionError.InvalidResponse(
+              IllegalArgumentException("Invalid base64 serializedRequest")
+            )
+          ).bind()
+
+        val derEncodedSignature = fingerprintResetResponse.signature.decodeHex()
+        val compactSignature = signatureUtils.decodeSignatureFromDer(derEncodedSignature)
+
+        Grant(
+          version = fingerprintResetResponse.version.toByte(),
+          serializedRequest = serializedRequest.toByteArray(),
+          signature = compactSignature
+        )
+      } catch (e: IllegalArgumentException) {
+        Err(PrivilegedActionError.InvalidResponse(e)).bind()
       }
-      .flatMap { account: FullAccount ->
-        privilegedActionF8eClient.getPrivilegedActionInstances(
-          f8eEnvironment = account.config.f8eEnvironment,
-          fullAccountId = account.accountId
-        ).mapError { throwable: Throwable -> PrivilegedActionError.ServerError(throwable) }
-          .flatMap { instances: List<PrivilegedActionInstance> ->
-            val actionInstance = instances.find { it.id == actionId }
-              ?: return@flatMap Err(PrivilegedActionError.NotAuthorized)
-
-            val completionToken = (
-              actionInstance
-                .takeIf { it.privilegedActionType == PrivilegedActionType.RESET_FINGERPRINT }
-                ?.authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
-            )
-              ?.completionToken
-              ?: return@flatMap Err(PrivilegedActionError.UnsupportedActionType)
-
-            val auth = Authorization(
-              authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
-              completionToken = completionToken
-            )
-
-            val actionRef = PrivilegedActionInstanceRef(
-              id = actionInstance.id,
-              authorizationStrategy = auth
-            )
-
-            val request = ContinuePrivilegedActionRequest(
-              privilegedActionInstance = actionRef
-            )
-
-            privilegedActionF8eClient.continuePrivilegedAction(
-              f8eEnvironment = account.config.f8eEnvironment,
-              fullAccountId = account.accountId,
-              request = request
-            ).mapError { throwable: Throwable -> PrivilegedActionError.ServerError(throwable) }
-              .flatMap { fingerprintResetResponse ->
-                try {
-                  Ok(
-                    Grant(
-                      version = fingerprintResetResponse.version.toByte(),
-                      serializedRequest = fingerprintResetResponse.serializedRequest.decodeHex().toByteArray(),
-                      signature = fingerprintResetResponse.signature.decodeHex().toByteArray()
-                    )
-                  )
-                } catch (e: IllegalArgumentException) {
-                  Err(PrivilegedActionError.InvalidResponse(e))
-                }
-              }
-          }
-      }
-  }
+    }
 
   override suspend fun cancelFingerprintReset(
     cancellationToken: String,
@@ -146,6 +170,9 @@ class FingerprintResetServiceImpl(
           PrivilegedActionError.ServerError(error)
         }
       }.flatMap { Ok(Unit) }
+      .also { result ->
+        result.onSuccess { fingerprintResetActionCache.value = null }
+      }
   }
 
   override suspend fun getLatestFingerprintResetAction(): Result<PrivilegedActionInstance?, PrivilegedActionError> {
@@ -157,6 +184,12 @@ class FingerprintResetServiceImpl(
           1 -> Ok(actions.first().instance)
           else -> Err(PrivilegedActionError.MultiplePendingActionsFound)
         }
+      }
+      .also { result ->
+        result.mapBoth(
+          success = { instance -> fingerprintResetActionCache.value = instance },
+          failure = {}
+        )
       }
   }
 

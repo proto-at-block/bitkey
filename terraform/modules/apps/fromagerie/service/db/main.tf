@@ -350,6 +350,7 @@ module "privileged_action_table" {
     { name = "account_id", type = "S" },
     { name = "created_at", type = "S" },
     { name = "cancellation_token", type = "S" },
+    { name = "web_auth_token", type = "S" },
   ]
 
   global_secondary_indexes = [
@@ -362,6 +363,11 @@ module "privileged_action_table" {
     {
       name            = "by_cancellation_token"
       hash_key        = "cancellation_token"
+      projection_type = "ALL"
+    },
+    {
+      name            = "by_web_auth_token"
+      hash_key        = "web_auth_token"
       projection_type = "ALL"
     },
   ]

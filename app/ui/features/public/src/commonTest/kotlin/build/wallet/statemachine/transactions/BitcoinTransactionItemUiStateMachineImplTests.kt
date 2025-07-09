@@ -10,6 +10,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionUtxoConsolidation
 import build.wallet.money.currency.USD
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.test
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
@@ -59,7 +60,9 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
   test("pending receive transaction model") {
     stateMachine.test(makeProps(BitcoinTransactionReceive.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
-        it.title.shouldBe("bc1z...xpcs")
+        it.title.shouldBe("")
+        val label = it.titleLabel.shouldBeTypeOf<LabelModel.StringWithStyledSubstringModel>()
+        label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("~~")
         it.secondarySideText.shouldBe("100,000,000 sats")
@@ -70,51 +73,48 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
           .shouldBe(BadgeType.Loading)
       }
 
-      awaitItem().let { // after currency conversion
-        // Should use the current exchange rate
-        it.sideText.shouldBe("+ \$3.00")
-      }
+      awaitItem().sideText.shouldBe("+ $3.00")
     }
   }
 
   test("confirmed receive transaction model") {
     stateMachine.test(makeProps(BitcoinTransactionReceive)) {
       awaitItem().let { // before currency conversion
-        it.title.shouldBe("bc1z...xpcs")
+        it.title.shouldBe("")
+        val label = it.titleLabel.shouldBeTypeOf<LabelModel.StringWithStyledSubstringModel>()
+        label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("confirmed-time")
         it.sideText.shouldBe("~~")
         it.secondarySideText.shouldBe("100,000,000 sats")
         it.sideTextTint.shouldBe(GREEN)
       }
 
-      awaitItem().let { // after currency conversion
-        // Should use the historical exchange rate
-        it.sideText.shouldBe("+ \$4.00")
-      }
+      awaitItem().sideText.shouldBe("+ $4.00")
     }
   }
 
   test("pending send transaction model") {
     stateMachine.test(makeProps(BitcoinTransactionSend.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
-        it.title.shouldBe("bc1z...xpcs")
+        it.title.shouldBe("")
+        val label = it.titleLabel.shouldBeTypeOf<LabelModel.StringWithStyledSubstringModel>()
+        label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("~~")
         it.secondarySideText.shouldBe("101,000,000 sats")
         it.sideTextTint.shouldBe(PRIMARY)
       }
 
-      awaitItem().let { // after currency conversion
-        // Should use the exchange rate at broadcast time
-        it.sideText.shouldBe("\$5.05")
-      }
+      awaitItem().sideText.shouldBe("$5.05")
     }
   }
 
   test("confirmed send transaction model") {
     stateMachine.test(makeProps(BitcoinTransactionSend)) {
       awaitItem().let { // before currency conversion
-        it.title.shouldBe("bc1z...xpcs")
+        it.title.shouldBe("")
+        val label = it.titleLabel.shouldBeTypeOf<LabelModel.StringWithStyledSubstringModel>()
+        label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("confirmed-time")
         it.sideText.shouldBe("~~")
         it.secondarySideText.shouldBe("101,000,000 sats")
@@ -125,10 +125,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
           .shouldBeNull()
       }
 
-      awaitItem().let { // after currency conversion
-        // Should use the historical exchange rate at broadcast time
-        it.sideText.shouldBe("\$5.05")
-      }
+      awaitItem().sideText.shouldBe("$5.05")
     }
   }
 
@@ -142,10 +139,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
         it.sideTextTint.shouldBe(PRIMARY)
       }
 
-      awaitItem().let { // after currency conversion
-        // Should use the current exchange rate
-        it.sideText.shouldBe("\$3.00")
-      }
+      awaitItem().sideText.shouldBe("$3.00")
     }
   }
 
@@ -159,10 +153,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
         it.sideTextTint.shouldBe(PRIMARY)
       }
 
-      awaitItem().let { // after currency conversion
-        // Should use the historical exchange rate
-        it.sideText.shouldBe("\$4.00")
-      }
+      awaitItem().sideText.shouldBe("$4.00")
     }
   }
 
@@ -171,7 +162,9 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(makeProps(BitcoinTransactionSend.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
-        it.title.shouldBe("bc1z...xpcs")
+        it.title.shouldBe("")
+        val label = it.titleLabel.shouldBeTypeOf<LabelModel.StringWithStyledSubstringModel>()
+        label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("~~")
         it.secondarySideText.shouldBe("101,000,000 sats")
@@ -182,10 +175,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
           .shouldBe(BadgeType.Error)
       }
 
-      awaitItem().let { // after currency conversion
-        // Should use the exchange rate at broadcast time
-        it.sideText.shouldBe("\$5.05")
-      }
+      awaitItem().sideText.shouldBe("$5.05")
     }
   }
 })

@@ -18,6 +18,7 @@ interface ListKeysetsF8eClient {
    */
   data class ListKeysetsResponse(
     val keysets: List<SpendingKeyset>,
+    val wrappedSsek: String?,
     val descriptorBackups: List<DescriptorBackup>?,
   )
 }

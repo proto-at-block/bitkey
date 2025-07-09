@@ -60,7 +60,7 @@ class EmergencyExitRecoveryFunctionalTests : FunSpec({
       // TODO (BKR-923): There is no PDF creation implementation for the JVM, preventing the real
       //      creation of an Emergency Exit Kit PDF. This simulates the same creation so that
       //      the account that restores from it can validate it's the same spending keys.
-      val sealedSpendingKeys = SymmetricKeyEncryptorImpl().seal(
+      val sealedSpendingKeys = SymmetricKeyEncryptorImpl().sealNoMetadata(
         unsealedData = EmergencyExitKitPayloadDecoderImpl().encodeBackup(
           EmergencyExitKitBackup.EmergencyExitKitBackupV1(
             spendingKeyset = spendingKeys,

@@ -10,6 +10,9 @@ CREATE TABLE spendingKeysetEntity(
   serverKey   TEXT AS F8eSpendingPublicKey NOT NULL UNIQUE
 );
 
+allKeysets:
+SELECT * FROM spendingKeysetEntity;
+
 insertKeyset:
 INSERT OR REPLACE INTO spendingKeysetEntity(id, serverId, appKey, hardwareKey, serverKey)
 VALUES(?, ?, ?, ?, ?);

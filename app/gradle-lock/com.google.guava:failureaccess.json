@@ -2,19 +2,6 @@
     "module-identifier": "com.google.guava:failureaccess",
     "components": [
         {
-            "version": "1.0.1",
-            "variants": [
-                {
-                    "artifacts": {
-                        "failureaccess-1.0.1.jar": "a171ee4c734dd2da837e4b16be9df4661afab72a41adaf31eb84dfdaf936ca26"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
-            ]
-        },
-        {
             "version": "1.0.2",
             "variants": [
                 {
@@ -24,7 +11,8 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath"
+                "build-classpath",
+                "gradle-plugins[bitkey]"
             ]
         }
     ]

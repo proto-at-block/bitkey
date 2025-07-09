@@ -12,6 +12,8 @@ use super::{
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct DelayAndNotify {
     #[serde(with = "rfc3339")]
+    pub delay_start_time: OffsetDateTime,
+    #[serde(with = "rfc3339")]
     pub delay_end_time: OffsetDateTime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cancellation_token: Option<String>,
@@ -48,6 +50,7 @@ impl<T> From<PrivilegedActionInstanceRecord<T>> for PrivilegedActionInstance {
                 }
                 AuthorizationStrategyRecord::DelayAndNotify(d) => {
                     AuthorizationStrategy::DelayAndNotify(DelayAndNotify {
+                        delay_start_time: value.created_at,
                         delay_end_time: d.delay_end_time,
                         cancellation_token: if expose_tokens_on_fetch {
                             Some(d.cancellation_token)
@@ -115,6 +118,8 @@ pub mod generic {
     #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
     pub struct DelayAndNotifyOutput {
         #[serde(with = "rfc3339")]
+        pub delay_start_time: OffsetDateTime,
+        #[serde(with = "rfc3339")]
         pub delay_end_time: OffsetDateTime,
         pub cancellation_token: String,
         pub completion_token: String,
@@ -146,6 +151,7 @@ pub mod generic {
                     }
                     AuthorizationStrategyRecord::DelayAndNotify(d) => {
                         AuthorizationStrategyOutput::DelayAndNotify(DelayAndNotifyOutput {
+                            delay_start_time: value.created_at,
                             delay_end_time: d.delay_end_time,
                             cancellation_token: d.cancellation_token,
                             completion_token: d.completion_token,

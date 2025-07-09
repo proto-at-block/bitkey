@@ -27,6 +27,7 @@ import build.wallet.statemachine.recovery.inprogress.waiting.HardwareDelayNotify
 import build.wallet.statemachine.recovery.inprogress.waiting.cancelRecoveryAlertModel
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
+import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
 import build.wallet.time.DurationFormatter
 import kotlinx.datetime.Clock
 
@@ -52,6 +53,8 @@ class RecoveryInProgressUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val recoveryNotificationVerificationUiStateMachine:
     RecoveryNotificationVerificationUiStateMachine,
+  private val remainingRecoveryDelayWordsUpdateFrequency:
+    RemainingRecoveryDelayWordsUpdateFrequency,
 ) : RecoveryInProgressUiStateMachine {
   @Composable
   override fun model(props: RecoveryInProgressUiProps): ScreenModel {
@@ -70,7 +73,7 @@ class RecoveryInProgressUiStateMachineImpl(
 
         // Periodically update [remainingDelayPeriod] so that the formatted words update accordingly
         LaunchedEffect("update-delay-progress") {
-          launchTicker(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE) {
+          launchTicker(remainingRecoveryDelayWordsUpdateFrequency.value) {
             remainingDelayPeriod = recoveryInProgressData.remainingDelayPeriod(clock)
           }
         }

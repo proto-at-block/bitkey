@@ -6,10 +6,13 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.crypto.SealedData
+import build.wallet.crypto.random.SecureRandom
+import build.wallet.crypto.random.nextBytes
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.di.Fake
 import build.wallet.encrypt.MessageSigner
+import build.wallet.encrypt.SignatureUtils
 import build.wallet.encrypt.signResult
 import build.wallet.firmware.*
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
@@ -21,22 +24,25 @@ import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.GRANT_CHALLENGE_LEN
 import build.wallet.grants.GRANT_DEVICE_ID_LEN
+import build.wallet.grants.GRANT_MESSAGE_PREFIX
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.nfc.platform.NfcCommands
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
-import io.ktor.utils.io.core.toByteArray
 import kotlinx.datetime.Instant
+import okio.Buffer
 import okio.ByteString
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
+import okio.ByteString.Companion.toByteString
 
 @Fake
 @BitkeyInject(AppScope::class)
 class NfcCommandsFake(
   private val messageSigner: MessageSigner,
+  private val signatureUtils: SignatureUtils,
   val fakeHardwareKeyStore: FakeHardwareKeyStore,
   private val fakeHardwareSpendingWalletProvider: FakeHardwareSpendingWalletProvider,
 ) : NfcCommands {
@@ -100,6 +106,10 @@ class NfcCommandsFake(
       ),
       FirmwareFeatureFlagCfg(
         flag = FirmwareFeatureFlag.MULTIPLE_FINGERPRINTS,
+        enabled = true
+      ),
+      FirmwareFeatureFlagCfg(
+        flag = FirmwareFeatureFlag.FINGERPRINT_RESET,
         enabled = true
       )
     )
@@ -262,20 +272,49 @@ class NfcCommandsFake(
   override suspend fun getGrantRequest(
     session: NfcSession,
     action: GrantAction,
-  ) = GrantRequest(
-    version = 0x01,
-    deviceId = "test-device-12345"
-      .encodeUtf8()
-      .toByteArray()
-      .copyOf(GRANT_DEVICE_ID_LEN),
-    challenge = "random-challenge-98765"
-      .encodeUtf8()
-      .toByteArray()
-      .copyOf(GRANT_CHALLENGE_LEN),
-    action = action,
-    signature = "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498"
-      .decodeHex().toByteArray()
-  )
+  ): GrantRequest {
+    // Generate 16-byte challenge
+    val challengeBytes = SecureRandom().nextBytes(GRANT_CHALLENGE_LEN)
+
+    // Get device ID - use first 8 bytes of device serial converted to bytes
+    val deviceIdBytes = FakeFirmwareDeviceInfo.serial.encodeUtf8().toByteArray()
+    val deviceId = if (deviceIdBytes.size >= GRANT_DEVICE_ID_LEN) {
+      deviceIdBytes.sliceArray(0 until GRANT_DEVICE_ID_LEN)
+    } else {
+      deviceIdBytes + ByteArray(GRANT_DEVICE_ID_LEN - deviceIdBytes.size)
+    }
+
+    val version = 1.toByte()
+
+    // Build the raw message for signing
+    val messageToSign = Buffer().apply {
+      write(GRANT_MESSAGE_PREFIX.encodeUtf8())
+      writeByte(version.toInt())
+      write(deviceId)
+      write(challengeBytes)
+      writeByte(action.value)
+    }.readByteString().toByteArray()
+
+    // Sign the message using the hardware auth key
+    val authKey = fakeHardwareKeyStore.getAuthKeypair().privateKey.key
+    val derSignatureHex = messageSigner.sign(messageToSign.toByteString(), authKey)
+    val derSignatureByteString = derSignatureHex.decodeHex().toByteArray().toByteString()
+    val compactSignature = signatureUtils.decodeSignatureFromDer(derSignatureByteString)
+
+    // Serialize the GrantRequest fields into a single ByteString
+    val buffer = Buffer().apply {
+      writeByte(version.toInt())
+      write(deviceId)
+      write(challengeBytes)
+      writeByte(action.value)
+      write(compactSignature)
+    }
+    val serialized = buffer.readByteString()
+
+    // Construct GrantRequest via deserialization
+    return GrantRequest.fromBytes(serialized)
+      ?: throw NfcException.CommandError("Failed to create GrantRequest from serialized data")
+  }
 
   override suspend fun provideGrant(
     session: NfcSession,

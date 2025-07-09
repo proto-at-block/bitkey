@@ -638,6 +638,7 @@ private fun CoreFirmwareFeatureFlag.toFeatureFlag() =
     CoreFirmwareFeatureFlag.IMPROVED_FINGERPRINT_ENROLLMENT -> FirmwareFeatureFlag.IMPROVED_FINGERPRINT_ENROLLMENT
     CoreFirmwareFeatureFlag.ASYNC_SIGNING -> FirmwareFeatureFlag.ASYNC_SIGNING
     CoreFirmwareFeatureFlag.SIGNING_OPTIMIZATIONS -> FirmwareFeatureFlag.SIGNING_OPTIMIZATIONS
+    CoreFirmwareFeatureFlag.FINGERPRINT_RESET -> FirmwareFeatureFlag.FINGERPRINT_RESET
   }
 
 private fun convertFirmwareFeatureFlags(firmwareFeatureFlags: List<CoreFirmwareFeatureFlagCfg>) =

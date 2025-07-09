@@ -29,7 +29,7 @@ class SecurityActionsServiceImpl(
   private val metricTrackerService: MetricTrackerService,
   private val securityRecommendationInteractionDao: SecurityRecommendationInteractionDao,
   private val clock: Clock,
-) : SecurityActionsService {
+) : SecurityActionsService, SecurityActionsWorker {
   /**
    * Order of the list is important as it will be used to determine the order of the actions in the UI.
    */
@@ -45,22 +45,42 @@ class SecurityActionsServiceImpl(
     SecurityActionType.TRANSACTION_VERIFICATION to txVerificationActionFactory::create
   )
 
-  override suspend fun getActions(category: SecurityActionCategory): List<SecurityAction> {
-    return allActions().first().filter { it.category() == category }
-  }
-
-  override fun getRecommendations(): Flow<List<SecurityActionRecommendation>> {
-    return flow {
-      allActions().map { actions ->
-        actions.flatMap { action ->
-          action.getRecommendations().also {
+  override suspend fun executeWork() {
+    combine(
+      factories.map { (actionType, factoryMethod) ->
+        factoryMethod().map { action ->
+          metricTrackerService.startMetric(
+            metricDefinition = SecurityActionMetricDefinition(actionType)
+          )
+          if (action == null) {
             metricTrackerService.completeMetric(
-              metricDefinition = SecurityActionMetricDefinition(action.type()),
-              outcome = MetricOutcome.Succeeded
+              metricDefinition = SecurityActionMetricDefinition(actionType),
+              outcome = MetricOutcome.Failed
             )
           }
+          action
         }
-          .sortedBy { it.ordinal }
+      }
+    ) {
+      it.filterNotNull()
+    }.distinctUntilChanged()
+      .onEach { actions ->
+        val securityActions = actions.filter { action ->
+          action.category() == SecurityActionCategory.SECURITY
+        }
+        val recoveryActions = actions.filter { action ->
+          action.category() == SecurityActionCategory.RECOVERY
+        }
+
+        val recommendations = actions.flatMap { action ->
+          action.getRecommendations()
+            .also {
+              metricTrackerService.completeMetric(
+                metricDefinition = SecurityActionMetricDefinition(action.type()),
+                outcome = MetricOutcome.Succeeded
+              )
+            }
+        }.sortedBy { it.ordinal }
           .also { recommendations ->
             SecurityActionRecommendation.entries.forEach { entry ->
               if (entry == SecurityActionRecommendation.ADD_BENEFICIARY) {
@@ -72,12 +92,36 @@ class SecurityActionsServiceImpl(
               )
             }
           }
-      }.collect(::emit)
-    }
+
+        val atRiskRecommendations = recommendations.filter {
+          it == SecurityActionRecommendation.PAIR_HARDWARE_DEVICE ||
+            it == SecurityActionRecommendation.BACKUP_MOBILE_KEY ||
+            it == SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS
+        }
+
+        securityActionsWithRecommendations.update {
+          SecurityActionsWithRecommendations(
+            securityActions = securityActions,
+            recoveryActions = recoveryActions,
+            recommendations = recommendations.takeIf { atRiskRecommendations.isEmpty() } ?: emptyList(),
+            atRiskRecommendations = atRiskRecommendations
+          )
+        }
+      }
+      .collect()
   }
 
+  override val securityActionsWithRecommendations = MutableStateFlow<SecurityActionsWithRecommendations>(
+    SecurityActionsWithRecommendations(
+      securityActions = emptyList(),
+      recoveryActions = emptyList(),
+      recommendations = emptyList(),
+      atRiskRecommendations = emptyList()
+    )
+  )
+
   override fun getRecommendationsWithInteractionStatus(): Flow<List<SecurityRecommendationWithStatus>> {
-    val activeSystemRecsFlow = getRecommendations()
+    val activeSystemRecsFlow = securityActionsWithRecommendations.map { it.recommendations }
     return activeSystemRecsFlow.transformLatest { activeSystemRecs ->
       val currentTime = clock.now()
       activeSystemRecs.forEach { recommendation ->
@@ -95,7 +139,7 @@ class SecurityActionsServiceImpl(
           interactionMap.keys
             .filter { id -> activeSystemRecs.none { it.name == id } }
             .forEach { idToRemove ->
-              securityRecommendationInteractionDao.deleteRecommendation(SecurityActionRecommendation.valueOf(idToRemove))
+              securityRecommendationInteractionDao.deleteRecommendation(idToRemove)
             }
 
           SecurityActionRecommendation.entries.mapNotNull { possibleRecommendation ->
@@ -141,27 +185,6 @@ class SecurityActionsServiceImpl(
       currentTime = clock.now()
     )
     return Result.success(Unit)
-  }
-
-  private suspend fun allActions(): Flow<List<SecurityAction>> {
-    return combine(
-      factories.map { (actionType, factoryMethod) ->
-        factoryMethod().map { action ->
-          metricTrackerService.startMetric(
-            metricDefinition = SecurityActionMetricDefinition(actionType)
-          )
-          if (action == null) {
-            metricTrackerService.completeMetric(
-              metricDefinition = SecurityActionMetricDefinition(actionType),
-              outcome = MetricOutcome.Failed
-            )
-          }
-          action
-        }
-      }
-    ) {
-      it.filterNotNull().toList()
-    }
   }
 
   override suspend fun markAllRecommendationsViewed() {

@@ -16,7 +16,7 @@ import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestorati
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
-import build.wallet.encrypt.SymmetricKeyEncryptorMock
+import build.wallet.encrypt.SymmetricKeyEncryptorFake
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.relationships.DelegatedDecryptionKeyFake
@@ -33,7 +33,7 @@ import okio.ByteString.Companion.encodeUtf8
 class CloudBackupV2RestorerImplTests : FunSpec({
 
   val csekDao = CsekDaoFake()
-  val symmetricKeyEncryptor = SymmetricKeyEncryptorMock()
+  val symmetricKeyEncryptor = SymmetricKeyEncryptorFake()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val relationshipKeysDao = RelationshipsKeysDaoFake()
 
@@ -74,7 +74,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
 
   test("test restoration from backup to an AccountRestoration") {
     csekDao.set(SealedCsekFake, CsekFake)
-    symmetricKeyEncryptor.unsealResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
+    symmetricKeyEncryptor.unsealNoMetadataResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
     val accountRestorationResult = restorer.restore(CloudBackupV2WithFullAccountMock)
     accountRestorationResult.shouldBeOk(accountRestoration)
     appPrivateKeyDao.asymmetricKeys.shouldBeEqual(
@@ -102,7 +102,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
 
   test("test restoration from backup fails with AccountBackupDecodingError") {
     csekDao.set(SealedCsekFake, CsekFake)
-    symmetricKeyEncryptor.unsealResult = "".encodeUtf8()
+    symmetricKeyEncryptor.unsealNoMetadataResult = "".encodeUtf8()
     restorer.restore(CloudBackupV2WithFullAccountMock)
       .shouldBeErrOfType<AccountBackupDecodingError>()
   }
@@ -110,7 +110,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
   test("test restoration from backup fails with AppSpendingKeypairStorageError") {
     val throwable = Throwable("foo")
     csekDao.set(SealedCsekFake, CsekFake)
-    symmetricKeyEncryptor.unsealResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
+    symmetricKeyEncryptor.unsealNoMetadataResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
     appPrivateKeyDao.storeAppSpendingKeyPairResult = Err(throwable)
 
     restorer.restore(CloudBackupV2WithFullAccountMock)
@@ -122,7 +122,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
   test("test restoration from backup fails with AppAuthKeypairStorageError") {
     val throwable = Throwable("foo")
     csekDao.set(SealedCsekFake, CsekFake)
-    symmetricKeyEncryptor.unsealResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
+    symmetricKeyEncryptor.unsealNoMetadataResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
     appPrivateKeyDao.storeAppAuthKeyPairResult = Err(throwable)
 
     restorer.restore(CloudBackupV2WithFullAccountMock)

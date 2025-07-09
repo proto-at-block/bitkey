@@ -21,12 +21,16 @@ import build.wallet.frost.ShareDetails
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
+import build.wallet.sqldelight.awaitAsListResult
 import build.wallet.sqldelight.awaitTransaction
+import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.flatMap
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 
 @BitkeyInject(AppScope::class)
 class AccountDaoImpl(
@@ -138,7 +142,7 @@ class AccountDaoImpl(
       database.fullAccountQueries
         .getActiveFullAccount()
         .asFlowOfOneOrNull()
-        .mapResult { it?.toFullAccount() }
+        .map { it.flatMap { it?.toFullAccount() ?: Ok(null) } }
         .collect(::emit)
     }
   }
@@ -171,7 +175,7 @@ class AccountDaoImpl(
       database.fullAccountQueries
         .getOnboardingFullAccount()
         .asFlowOfOneOrNull()
-        .mapResult { it?.toFullAccount() }
+        .map { it.flatMap { it?.toFullAccount() ?: Ok(null) } }
         .collect(::emit)
     }
   }
@@ -186,6 +190,76 @@ class AccountDaoImpl(
         .collect(::emit)
     }
   }
+
+  private suspend fun FullAccountView.toFullAccount(): Result<FullAccount, DbError> =
+    coroutineBinding {
+      val keybox = keybox().bind()
+
+      FullAccount(
+        accountId = accountId,
+        config = keybox.config,
+        keybox = keybox
+      )
+    }
+
+  private suspend fun FullAccountView.keybox(): Result<Keybox, DbError> =
+    coroutineBinding {
+      val keysets = databaseProvider.database().spendingKeysetQueries.allKeysets()
+        .awaitAsListResult()
+        .bind()
+        .map {
+          SpendingKeyset(
+            localId = it.id,
+            f8eSpendingKeyset = F8eSpendingKeyset(
+              keysetId = it.serverId,
+              spendingPublicKey = it.serverKey
+            ),
+            appKey = it.appKey,
+            hardwareKey = it.hardwareKey,
+            networkType = networkType
+          )
+        }
+
+      Keybox(
+        localId = keyboxId,
+        fullAccountId = accountId,
+        keysets = keysets,
+        activeSpendingKeyset = SpendingKeyset(
+          localId = spendingPublicKeysetId,
+          f8eSpendingKeyset =
+            F8eSpendingKeyset(
+              keysetId = spendingPublicKeysetServerId,
+              spendingPublicKey = serverKey
+            ),
+          appKey = appKey,
+          hardwareKey = hardwareKey,
+          networkType = networkType
+        ),
+        activeAppKeyBundle = AppKeyBundle(
+          localId = appKeyBundleId,
+          spendingKey = appKey,
+          authKey = globalAuthKey,
+          networkType = networkType,
+          recoveryAuthKey = recoveryAuthKey
+        ),
+        activeHwKeyBundle = HwKeyBundle(
+          localId = hwKeyBundleId,
+          spendingKey = hwSpendingKey,
+          authKey = hwAuthKey,
+          networkType = networkType
+        ),
+        appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+        config =
+          FullAccountConfig(
+            bitcoinNetworkType = networkType,
+            isHardwareFake = fakeHardware,
+            f8eEnvironment = f8eEnvironment,
+            isTestAccount = isTestAccount,
+            isUsingSocRecFakes = isUsingSocRecFakes,
+            delayNotifyDuration = delayNotifyDuration
+          )
+      )
+    }
 }
 
 private fun GetOnboardingSoftwareAccount.toOnboardingSoftwareAccount() =
@@ -259,58 +333,6 @@ private fun GetOnboardingLiteAccount.toLiteAccount() =
       ),
     recoveryAuthKey = appRecoveryAuthKey
   )
-
-private suspend fun FullAccountView.toFullAccount(): FullAccount {
-  val keybox = keybox()
-  return FullAccount(
-    accountId = accountId,
-    config = keybox.config,
-    keybox = keybox
-  )
-}
-
-private suspend fun FullAccountView.keybox(): Keybox {
-  return Keybox(
-    localId = keyboxId,
-    fullAccountId = accountId,
-    activeSpendingKeyset =
-      SpendingKeyset(
-        localId = spendingPublicKeysetId,
-        f8eSpendingKeyset =
-          F8eSpendingKeyset(
-            keysetId = spendingPublicKeysetServerId,
-            spendingPublicKey = serverKey
-          ),
-        appKey = appKey,
-        hardwareKey = hardwareKey,
-        networkType = networkType
-      ),
-    activeAppKeyBundle =
-      AppKeyBundle(
-        localId = appKeyBundleId,
-        spendingKey = appKey,
-        authKey = globalAuthKey,
-        networkType = networkType,
-        recoveryAuthKey = recoveryAuthKey
-      ),
-    activeHwKeyBundle = HwKeyBundle(
-      localId = hwKeyBundleId,
-      spendingKey = hwSpendingKey,
-      authKey = hwAuthKey,
-      networkType = networkType
-    ),
-    appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
-    config =
-      FullAccountConfig(
-        bitcoinNetworkType = networkType,
-        isHardwareFake = fakeHardware,
-        f8eEnvironment = f8eEnvironment,
-        isTestAccount = isTestAccount,
-        isUsingSocRecFakes = isUsingSocRecFakes,
-        delayNotifyDuration = delayNotifyDuration
-      )
-  )
-}
 
 private fun LiteAccountQueries.insertLiteAccount(liteAccount: LiteAccount) =
   insertLiteAccount(

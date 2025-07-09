@@ -18,8 +18,7 @@ import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.StandardClick
 import com.github.michaelbull.result.getOrElse
-import com.russhwolf.settings.coroutines.SuspendSettings
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
@@ -33,8 +32,6 @@ class InheritanceCardUiStateMachineImpl(
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
 ) : InheritanceCardUiStateMachine {
-  lateinit var store: SuspendSettings
-
   @Composable
   override fun model(props: InheritanceCardUiProps): List<CardModel> {
     val scope = rememberStableCoroutineScope()

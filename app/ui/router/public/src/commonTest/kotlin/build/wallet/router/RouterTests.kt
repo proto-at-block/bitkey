@@ -67,11 +67,11 @@ class RouterTests : DescribeSpec({
       ).shouldBe(Route.InheritanceClaimNavigationDeeplink(NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_DECLINE_CLAIM, "foo:aaaaaa"))
     }
 
-    describe("Recovery Contact routing") {
+    describe("trusted contact routing") {
       val stagingRoute = "https://web-site.bitkeystaging.com/links/downloads/trusted-contact#1234"
       val prodRoute = "https://bitkey.world/links/downloads/trusted-contact#1234"
 
-      it("works for invite Recovery Contact route") {
+      it("works for invite trusted contact route") {
         Route.from(stagingRoute).shouldNotBeNull().shouldBe(Route.TrustedContactInvite("1234"))
         Route.from(prodRoute).shouldNotBeNull().shouldBe(Route.TrustedContactInvite("1234"))
       }

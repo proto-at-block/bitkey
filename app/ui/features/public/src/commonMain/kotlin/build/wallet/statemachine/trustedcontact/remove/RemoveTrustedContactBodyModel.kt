@@ -10,10 +10,10 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
- * Builds a model prompting the removal of a Recovery Contact.
+ * Builds a model prompting the removal of a Trusted Contact.
  *
- * @param trustedContactAlias The alias for the RC we're removing.
- * @param onRemove Invoked when the user confirms they want to try and  remove the Recovery Contact.
+ * @param trustedContactAlias The alias for the TC we're removing.
+ * @param onRemove Invoked when the user confirms they want to try and  remove the trusted contact.
  * @param onClosed Invoked when the user closes the sheet.
  */
 data class RemoveTrustedContactBodyModel(

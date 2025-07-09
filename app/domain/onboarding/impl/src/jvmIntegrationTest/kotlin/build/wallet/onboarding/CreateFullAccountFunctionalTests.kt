@@ -213,14 +213,16 @@ class CreateFullAccountFunctionalTests : FunSpec({
       keybox = account1.keybox.copy(
         localId = "",
         activeSpendingKeyset = account1.keybox.activeSpendingKeyset.copy(localId = ""),
-        activeHwKeyBundle = account1.keybox.activeHwKeyBundle.copy(localId = "")
+        activeHwKeyBundle = account1.keybox.activeHwKeyBundle.copy(localId = ""),
+        keysets = listOf(account1.keybox.activeSpendingKeyset.copy(localId = ""))
       )
     ).shouldBe(
       account2.copy(
         keybox = account2.keybox.copy(
           localId = "",
           activeSpendingKeyset = account2.keybox.activeSpendingKeyset.copy(localId = ""),
-          activeHwKeyBundle = account2.keybox.activeHwKeyBundle.copy(localId = "")
+          activeHwKeyBundle = account2.keybox.activeHwKeyBundle.copy(localId = ""),
+          keysets = listOf(account2.keybox.activeSpendingKeyset.copy(localId = ""))
         )
       )
     )

@@ -9,11 +9,11 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
- * Prompt the user to save their Recovery Contact with bitkey.
+ * Prompt the user to save their trusted contact with bitkey.
  */
 data class ReinviteContactBodyModel(
   /**
-   * Name of the Recovery Contact to be added.
+   * Name of the trusted contact to be added.
    */
   val trustedContactName: String,
   /**

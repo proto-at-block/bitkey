@@ -50,7 +50,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   val eventTracker = EventTrackerMock(turbines::create)
   val onAddBitcoinCalls = turbines.create<Unit>("add bitcoin calls")
   val onEnableSpendingLimitCalls = turbines.create<Unit>("enable spending limit calls")
-  val onInviteTrustedContactCalls = turbines.create<Unit>("invite Recovery Contact calls")
+  val onInviteTrustedContactCalls = turbines.create<Unit>("invite trusted contact calls")
   val onAddAdditionalFingerprintCalls = turbines.create<Unit>("add additional fingerprint calls")
   val securityHubFeatureFlag = SecurityHubFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
 

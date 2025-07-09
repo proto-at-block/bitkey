@@ -235,7 +235,7 @@ pub struct GetInheritanceClaimsResponse {
 /// For Benefactors, we will show:
 /// - All the inheritance claims for which they are a benefactor
 ///
-/// For Recovery Contacts, we will show:
+/// For Trusted Contacts, we will show:
 /// - All the inheritance claims for which they are a beneficiary
 ///
 #[instrument(err, skip(inheritance_service))]

@@ -8,11 +8,14 @@ pub mod keys;
 pub mod signature_utils;
 pub mod signature_verifier;
 
-#[cfg(feature = "spake2")]
-pub mod spake2;
-
 #[cfg(feature = "noise")]
 pub mod noise;
+
+#[cfg(feature = "p256_box")]
+pub mod p256_box;
+
+#[cfg(feature = "spake2")]
+pub mod spake2;
 
 #[cfg(feature = "ssb")]
 pub mod ssb;

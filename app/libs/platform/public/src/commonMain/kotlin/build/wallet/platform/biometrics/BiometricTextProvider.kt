@@ -18,4 +18,10 @@ interface BiometricTextProvider {
    * Provides the descriptive text for the biometric feature within the settings menu
    */
   fun getSettingsSecondaryText(): String
+
+  /**
+   * Provides the descriptive text for the biometric feature within the
+   * App Security screen header.
+   */
+  fun getAppSecurityDescriptionText(): String
 }

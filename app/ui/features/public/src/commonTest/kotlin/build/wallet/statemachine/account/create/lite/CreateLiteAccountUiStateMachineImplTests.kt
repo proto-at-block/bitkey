@@ -141,7 +141,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("RC enrollment on retreat calls props.onBack") {
+  test("TC enrollment on retreat calls props.onBack") {
     stateMachine.test(props) {
       awaitBody<EnteringInviteCodeBodyModel> {
         onValueChange("code")

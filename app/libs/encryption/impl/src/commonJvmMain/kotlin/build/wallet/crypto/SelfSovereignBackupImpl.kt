@@ -121,7 +121,7 @@ class SelfSovereignBackupImpl(
       ).raw
 
     return symmetricKeyEncryptor
-      .unseal(
+      .unsealNoMetadata(
         bundle.sealedServerKeyShare,
         SymmetricKeyImpl(raw = okm)
       ).toByteArray()

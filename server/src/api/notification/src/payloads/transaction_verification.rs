@@ -12,7 +12,7 @@ const TRANSACTION_VERIFICATION_URL_FIELD: &str = "transactionVerificationURL";
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
 pub struct TransactionVerificationPayload {
     pub base_verification_url: String,
-    pub auth_token: String,
+    pub web_auth_token: String,
 }
 
 impl TryFrom<(NotificationCompositeKey, TransactionVerificationPayload)> for NotificationMessage {
@@ -25,8 +25,8 @@ impl TryFrom<(NotificationCompositeKey, TransactionVerificationPayload)> for Not
         let (account_id, _) = composite_key.clone();
 
         let transaction_verification_url = format!(
-            "{}/transaction-verification?auth_token={}",
-            payload.base_verification_url, payload.auth_token
+            "{}/tx-verify?web_auth_token={}",
+            payload.base_verification_url, payload.web_auth_token
         );
 
         let email_payload = Some(EmailPayload::Iterable {
@@ -68,7 +68,7 @@ mod tests {
         let auth_token = "abc123xyz789".to_string();
         let payload = TransactionVerificationPayload {
             base_verification_url: base_url.clone(),
-            auth_token: auth_token.clone(),
+            web_auth_token: auth_token.clone(),
         };
 
         // Execute
@@ -88,8 +88,7 @@ mod tests {
             assert_eq!(campaign_type, IterableCampaignType::TransactionVerification);
             assert!(data_fields.contains_key(TRANSACTION_VERIFICATION_URL_FIELD));
 
-            let expected_url =
-                "https://example.com/transaction-verification?auth_token=abc123xyz789";
+            let expected_url = "https://example.com/tx-verify?web_auth_token=abc123xyz789";
             assert_eq!(
                 data_fields.get(TRANSACTION_VERIFICATION_URL_FIELD).unwrap(),
                 &expected_url
@@ -107,6 +106,6 @@ mod tests {
     fn test_default_transaction_verification_payload() {
         let default_payload = TransactionVerificationPayload::default();
         assert_eq!(default_payload.base_verification_url, "");
-        assert_eq!(default_payload.auth_token, "");
+        assert_eq!(default_payload.web_auth_token, "");
     }
 }

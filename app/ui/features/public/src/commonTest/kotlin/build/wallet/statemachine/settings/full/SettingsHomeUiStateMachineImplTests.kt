@@ -214,7 +214,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("open and close Recovery Contacts settings") {
+  test("open and close trusted contacts settings") {
     stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.TrustedContacts }.onClick()

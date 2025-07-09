@@ -228,7 +228,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     }
   }
 
-  test("RC Verification Code") {
+  test("TC Verification Code") {
     launchAndPrepareApp()
     val account = app.onboardFullAccountWithFakeHardware()
     app.recoveryChallengeUiStateMachine.test(

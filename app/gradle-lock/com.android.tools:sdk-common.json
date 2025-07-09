@@ -2,6 +2,19 @@
     "module-identifier": "com.android.tools:sdk-common",
     "components": [
         {
+            "version": "31.10.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "sdk-common-31.10.1.jar": "c8408df75e04498a878f349ea8660ed84d1a4c15e971a021d73810d921279c11"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
             "version": "31.4.2",
             "variants": [
                 {
@@ -12,19 +25,6 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
-            ]
-        },
-        {
-            "version": "31.9.1",
-            "variants": [
-                {
-                    "artifacts": {
-                        "sdk-common-31.9.1.jar": "8943a58b67ac7fb1a0321e7a52a87cfaaec248d3912536c3d728a8dc071fff24"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
             ]
         }
     ]

@@ -3,6 +3,8 @@ package build.wallet.statemachine.root
 import androidx.compose.runtime.*
 import bitkey.datadog.DatadogRumMonitor
 import bitkey.ui.framework.NavigatorPresenter
+import bitkey.ui.statemachine.interstitial.InterstitialUiProps
+import bitkey.ui.statemachine.interstitial.InterstitialUiStateMachine
 import build.wallet.account.AccountService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
@@ -91,6 +93,7 @@ class AppUiStateMachineImpl(
   private val splashScreenDelay: SplashScreenDelay,
   private val welcomeToBitkeyScreenDuration: WelcomeToBitkeyScreenDuration,
   private val deviceInfoProvider: DeviceInfoProvider,
+  private val interstitialUiStateMachine: InterstitialUiStateMachine,
 ) : AppUiStateMachine {
   /**
    * The last screen model emitted, if any.
@@ -149,7 +152,7 @@ class AppUiStateMachineImpl(
               onboardingAccount = currentState.onboardingAccount
             )
           )
-          AppState.Undetermined -> mutableStateOf<State>(State.RenderingViaAccountData(false))
+          AppState.Undetermined -> mutableStateOf<State>(State.RenderingViaAccountData)
           null -> mutableStateOf<State>(State.LoadingApp)
         }
       }
@@ -170,7 +173,7 @@ class AppUiStateMachineImpl(
           onUpgradeComplete = { fullAccount ->
             uiState = State.ViewingFullAccount(
               account = fullAccount,
-              isNewlyCreatedAccount = false
+              isNewlyCreatedAccount = true
             )
           }
         )
@@ -197,7 +200,9 @@ class AppUiStateMachineImpl(
           },
           onCreateFullAccount = {
             uiState = State.CreatingFullAccount
-          }
+          },
+          isNewlyCreatedAccount = false,
+          isRenderingViaAccountData = true
         )
       }
       is State.ViewingFullAccount -> {
@@ -239,7 +244,9 @@ class AppUiStateMachineImpl(
               },
               onCreateFullAccount = {
                 uiState = State.CreatingFullAccount
-              }
+              },
+              isNewlyCreatedAccount = state.isNewlyCreatedAccount,
+              isRenderingViaAccountData = false
             )
           }
         }
@@ -276,7 +283,7 @@ class AppUiStateMachineImpl(
             }
           },
           onExit = {
-            uiState = State.RenderingViaAccountData(isNewlyCreatedAccount = false)
+            uiState = State.RenderingViaAccountData
           }
         )
       )
@@ -295,9 +302,7 @@ class AppUiStateMachineImpl(
             }
           },
           onBack = {
-            uiState = State.RenderingViaAccountData(
-              isNewlyCreatedAccount = false
-            )
+            uiState = State.RenderingViaAccountData
           },
           showBeTrustedContactIntroduction = state.inviteCode != null && state.startIntent == StartIntent.BeTrustedContact
         )
@@ -325,9 +330,7 @@ class AppUiStateMachineImpl(
           context = CreateFullAccountContext.NewFullAccount,
           fullAccount = null,
           rollback = {
-            uiState = State.RenderingViaAccountData(
-              isNewlyCreatedAccount = false
-            )
+            uiState = State.RenderingViaAccountData
           },
           onOnboardingComplete = { account ->
             scope.launch {
@@ -422,6 +425,8 @@ class AppUiStateMachineImpl(
     onStartLiteAccountRecovery: (CloudBackup) -> Unit,
     onStartLiteAccountCreation: (String?, StartIntent) -> Unit,
     onCreateFullAccount: () -> Unit,
+    isNewlyCreatedAccount: Boolean,
+    isRenderingViaAccountData: Boolean,
   ): ScreenModel {
     // Keep track of when to show the "Welcome to Bitkey" screen.
     // We want to show it when we transition from NoActiveAccount -> HasActiveFullAccount
@@ -446,7 +451,9 @@ class AppUiStateMachineImpl(
 
       is HasActiveFullAccountData ->
         HasActiveFullAccountDataScreenModel(
-          accountData = accountData
+          accountData = accountData,
+          isNewlyCreatedAccount = isNewlyCreatedAccount,
+          isRenderingViaAccountData = isRenderingViaAccountData
         )
 
       is NoLongerRecoveringFullAccountData ->
@@ -524,6 +531,8 @@ class AppUiStateMachineImpl(
   @Composable
   private fun HasActiveFullAccountDataScreenModel(
     accountData: HasActiveFullAccountData,
+    isNewlyCreatedAccount: Boolean,
+    isRenderingViaAccountData: Boolean,
   ): ScreenModel {
     val shouldPromptForAuth by remember { biometricAuthService.isBiometricAuthRequired() }
       .collectAsState()
@@ -537,6 +546,14 @@ class AppUiStateMachineImpl(
         biometricPromptUiStateMachine.model(
           props = BiometricPromptProps(
             shouldPromptForAuth = shouldPromptForAuth
+          )
+        ) ?: interstitialUiStateMachine.model(
+          props = InterstitialUiProps(
+            account = accountData.account,
+            // if we are rendering via account data, we are coming from onboarding since the
+            // only time we render ActiveFullAccountLoadedData via "RenderingViaAccountData" is
+            // when we are coming from onboarding.
+            isComingFromOnboarding = isNewlyCreatedAccount || isRenderingViaAccountData
           )
         ) ?: homeScreenModel
       }
@@ -711,7 +728,7 @@ private sealed interface State {
     val account: LiteAccount,
   ) : State
 
-  data class RenderingViaAccountData(val isNewlyCreatedAccount: Boolean) : State
+  data object RenderingViaAccountData : State
 
   data class RecoveringLiteAccount(val cloudBackup: CloudBackup) : State
 

@@ -52,6 +52,8 @@ interface EmergencyExitPayloadRestorer {
         authKey = HwAuthPublicKey(pubKey = Secp256k1PublicKey("EEK Recovery: Invalid key")),
         networkType = activeSpendingKeyset.networkType
       ),
+      // TODO [W-11632] EEK recovery of encrypted backups is not supported yet
+      keysets = listOf(activeSpendingKeyset),
       config = fullAccountConfig
     )
   }

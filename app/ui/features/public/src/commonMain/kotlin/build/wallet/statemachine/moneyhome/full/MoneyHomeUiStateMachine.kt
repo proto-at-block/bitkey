@@ -11,7 +11,7 @@ import build.wallet.ui.model.status.StatusBannerModel
 /**
  * State machine for managing the Money Home experience for full (as opposed to lite)
  * customers. "Full" customers are customers that have a hardware device (and wallet),
- * and optionally are also a Recovery Contact for other "full" customers.
+ * and optionally are also a trusted contact for other "full" customers.
  */
 interface MoneyHomeUiStateMachine : StateMachine<MoneyHomeUiProps, ScreenModel>
 

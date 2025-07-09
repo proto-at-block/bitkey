@@ -1,15 +1,15 @@
 package build.wallet.ui.components.tabbar
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -34,22 +34,9 @@ fun TabBar(
         drawRect(Brush.verticalGradient(listOf(Color.Transparent, gradientBackground)))
       }
     )
-    Row(
+    TabBarPill(
       modifier = Modifier.align(Alignment.TopCenter)
-        .height(60.dp)
-        .width(130.dp)
-        .shadow(
-          elevation = 6.dp,
-          shape = RoundedCornerShape(30.dp),
-          ambientColor = Color.Black.copy(.1f)
-        )
-        .background(
-          color = WalletTheme.colors.tabBarBackground,
-          shape = RoundedCornerShape(30.dp)
-        )
-        .clickable(false) { },
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.SpaceEvenly
+        .clickable(false) {}
     ) {
       tabs()
     }

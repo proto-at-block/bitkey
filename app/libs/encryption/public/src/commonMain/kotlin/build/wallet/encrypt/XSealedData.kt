@@ -2,6 +2,7 @@ package build.wallet.encrypt
 
 import bitkey.serialization.json.decodeFromStringResult
 import build.wallet.crypto.PublicKey
+import build.wallet.encrypt.XSealedData.Format
 import com.github.michaelbull.result.getOrElse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -31,19 +32,18 @@ data class XSealedData(
    * individually base64 encoded and concatenated using a period (`.`) as a separator.
    */
   fun toOpaqueCiphertext(): XCiphertext {
-    // Validate that the version and publicKey presence are consistent using require
-    require((header.version == 1 && publicKey == null) || (header.version == 2 && publicKey != null)) {
-      when (header.version) {
-        1 -> "Public key must be null for version 1"
-        2 -> "Public key must not be null for version 2"
-        else -> "Unsupported version: ${header.version}"
+    // Validate that the format and publicKey presence are consistent using require
+    require((header.format == Format.Standard && publicKey == null) || (header.format == Format.WithPubkey && publicKey != null)) {
+      when (header.format) {
+        Format.Standard -> "Public key must be null for Standard format"
+        Format.WithPubkey -> "Public key must not be null for WithPubkey format"
       }
     }
 
     val encodedHeader = Json.encodeToString(header).encodeUtf8().base64NoPad()
     val baseCiphertext = "$encodedHeader.${ciphertext.base64NoPad()}.${nonce.bytes.base64NoPad()}"
-    // Only append the publicKey part if the version indicates its presence
-    val publicKeyPart = if (header.version >= 2) ".${publicKey!!.value.decodeHex().base64NoPad()}" else ""
+    // Only append the publicKey part if the format indicates its presence
+    val publicKeyPart = if (header.format == Format.WithPubkey) ".${publicKey!!.value.decodeHex().base64NoPad()}" else ""
     return XCiphertext(baseCiphertext + publicKeyPart)
   }
 
@@ -55,10 +55,25 @@ data class XSealedData(
   @Serializable
   data class Header(
     @SerialName("v")
-    val version: Int = 1,
+    @Serializable(with = XSealedDataFormatSerializer::class)
+    val format: Format = Format.Standard,
     @SerialName("alg")
     val algorithm: String,
   )
+
+  /**
+   * Represents the format of the sealed data.
+   *
+   * Historically, this was called "version" and was serialized as "v" in the JSON header.
+   * The numeric values (1 and 2) are preserved for backwards compatibility.
+   */
+  enum class Format(val formatCode: Int) {
+    /** header.ciphertext.nonce */
+    Standard(1),
+
+    /** header.ciphertext.nonce.publicKey */
+    WithPubkey(2),
+  }
 }
 
 /**
@@ -75,25 +90,26 @@ fun XCiphertext.toXSealedData(): XSealedData {
     throw IllegalArgumentException(it)
   }
 
-  // Basic checks on parts size based on version
-  if (decodedHeader.version == 1) {
-    require(parts.size == 3) {
-      "Expected format for version 1: header.ciphertext.nonce"
+  // Basic checks on parts size based on format
+  when (decodedHeader.format) {
+    Format.Standard -> {
+      require(parts.size == 3) {
+        "Expected format for Standard format: header.ciphertext.nonce"
+      }
     }
-  }
-  if (decodedHeader.version >= 2) {
-    require(parts.size == 4) {
-      "Expected format for version 2 or higher: header.ciphertext.nonce.publicKey"
+    Format.WithPubkey -> {
+      require(parts.size == 4) {
+        "Expected format for WithPubkey format: header.ciphertext.nonce.publicKey"
+      }
     }
   }
 
   val ciphertext = parts[1].decodeBase64() ?: throw IllegalArgumentException("Invalid base64 ciphertext: ${parts[1]}")
   val nonce = XNonce(parts[2].decodeBase64() ?: throw IllegalArgumentException("Invalid base64 nonce: ${parts[2]}"))
-  val publicKey = if (decodedHeader.version >= 2) {
-    parts[3].decodeBase64()?.hex()
+  val publicKey = when (decodedHeader.format) {
+    Format.Standard -> null
+    Format.WithPubkey -> parts[3].decodeBase64()?.hex()
       ?.let { PublicKey<Nothing>(it) }
-  } else {
-    null
   }
 
   return XSealedData(

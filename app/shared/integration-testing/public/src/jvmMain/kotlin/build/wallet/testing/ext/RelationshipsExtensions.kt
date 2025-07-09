@@ -21,26 +21,26 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Wait for the app to sync and verify RC [relationshipId], and include it in cloud backup.
+ * Wait for the app to sync and verify TC [relationshipId], and include it in cloud backup.
  */
 suspend fun AppTester.awaitTcIsVerifiedAndBackedUp(relationshipId: String) =
-  withClue("await RC is verified and backed up") {
+  withClue("await TC is verified and backed up") {
     appUiStateMachine.test(props = Unit) {
-      // Wait until RC is synced and verified
+      // Wait until TC is synced and verified
       awaitRelationships { relationships ->
         relationships.endorsedTrustedContacts.any {
           it.relationshipId == relationshipId && it.authenticationState == TrustedContactAuthenticationState.VERIFIED
         }
       }
 
-      // Wait for the RC to be included in the cloud backup
+      // Wait for the TC to be included in the cloud backup
       awaitCloudBackupRefreshed(relationshipId)
       cancelAndIgnoreRemainingEvents()
     }
   }
 
 /**
- * Full Account creates a Recovery Contact [Invitation].
+ * Full Account creates a Trusted Contact [Invitation].
  */
 suspend fun AppTester.createTcInvite(tcName: String): TrustedContactFullInvite {
   val account = getActiveFullAccount()

@@ -14,9 +14,9 @@ import build.wallet.ui.model.button.ButtonModel
  *
  * @param invitation The invitation to show information and actions for.
  * @param isExpired Whether the invitation is expired.
- * @param onRemove Invoked when the user wants to remove the Recovery Contact.
+ * @param onRemove Invoked when the user wants to remove the trusted contact.
  * @param onShare Invoked when the user wants to reshare an existing invite.
- * @param onReinvite Invoke when the user wants to reinvite the Recovery Contact.
+ * @param onReinvite Invoke when the user wants to reinvite the trusted contact.
  * @param onBack Invoked when the user navigates back.
  */
 data class ViewingInvitationBodyModel(

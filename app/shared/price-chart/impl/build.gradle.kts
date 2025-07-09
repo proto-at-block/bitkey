@@ -13,6 +13,7 @@ kotlin {
       dependencies {
         api(projects.domain.databasePublic)
         api(projects.libs.moneyPublic)
+        api(projects.shared.balanceUtilsImpl)
       }
     }
 
@@ -22,6 +23,7 @@ kotlin {
         implementation(projects.domain.analyticsFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)
+        implementation(projects.libs.timeFake)
       }
     }
   }

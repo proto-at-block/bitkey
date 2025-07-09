@@ -4,7 +4,7 @@ import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Provides access to the Recovery Contacts related to inheritance.
+ * Provides access to the Trusted Contacts related to inheritance.
  */
 interface InheritanceRelationshipsProvider {
   /**

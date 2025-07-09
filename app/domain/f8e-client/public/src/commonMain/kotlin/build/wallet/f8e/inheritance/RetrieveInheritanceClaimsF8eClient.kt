@@ -10,7 +10,7 @@ interface RetrieveInheritanceClaimsF8eClient {
    * Retrieves inheritance claims from f8e.
    *
    * For Benefactors, we will show all the inheritance claims for which they are a benefactor
-   * For Recovery Contacts, we will show all the inheritance claims for which they are a beneficiary
+   * For Trusted Contacts, we will show all the inheritance claims for which they are a beneficiary
    */
   suspend fun retrieveInheritanceClaims(
     f8eEnvironment: F8eEnvironment,

@@ -57,7 +57,10 @@ public final class CryptoBoxImpl: Shared.CryptoBox {
         )
 
         return XSealedData(
-            header: XSealedData.Header(version: 1, algorithm: CryptoBoxCompanion().ALGORITHM),
+            header: XSealedData.Header(
+                format: .standard,
+                algorithm: CryptoBoxCompanion().ALGORITHM
+            ),
             ciphertext: OkioKt.ByteString(data: ciphertext),
             nonce: nonce,
             publicKey: nil

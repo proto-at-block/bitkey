@@ -22,19 +22,25 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.utils.io.core.toByteArray
 import okio.ByteString.Companion.decodeHex
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 
 class FingerprintResetServiceImplTests : FunSpec({
-  val fingerprintResetF8eClient = FingerprintResetF8eClientFake(turbines::create)
-
   val clock = ClockFake()
+
+  val fingerprintResetF8eClient = FingerprintResetF8eClientFake(
+    turbines::create,
+    clock
+  )
+
   val accountService = AccountServiceFake()
   val signatureUtils = SignatureUtilsMock()
 
   val service = FingerprintResetServiceImpl(
     privilegedActionF8eClient = fingerprintResetF8eClient,
     accountService = accountService,
-    signatureUtils = signatureUtils
+    signatureUtils = signatureUtils,
+    clock = clock
   )
 
   beforeTest { accountService.setActiveAccount(FullAccountMock) }
@@ -57,6 +63,7 @@ class FingerprintResetServiceImplTests : FunSpec({
       privilegedActionType = PrivilegedActionType.RESET_FINGERPRINT,
       authorizationStrategy = AuthorizationStrategy.DelayAndNotify(
         authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
+        delayStartTime = clock.now(),
         delayEndTime = clock.now(),
         cancellationToken = "test-token",
         completionToken = "test-token"
@@ -74,17 +81,18 @@ class FingerprintResetServiceImplTests : FunSpec({
     request.action shouldBe GrantAction.FINGERPRINT_RESET.value
     request.deviceId shouldBe "tDUi//7sUMM="
     request.challenge shouldBe "DP8AgA=="
-    request.signature shouldBe "MEQCICGhqhLvyFEnJ4VqnMxCilEc8IshHyZVF4GuCjdmHegGAiAMVm3tlIZQD2kn6cnfYgxlZTxoMW5hkwpJ7Ksxs77EmA=="
+    request.signature shouldBe "abababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab"
     request.hwAuthPublicKey shouldBe hwAuthPublicKey.pubKey.value
   }
 
-  xtest("getPrivilegedActions should return PrivilegedActions with their statuses") {
+  test("getPrivilegedActions should return PrivilegedActions with their statuses") {
     val allInstances = listOf(
       PrivilegedActionInstance(
         id = "test-id",
         privilegedActionType = PrivilegedActionType.RESET_FINGERPRINT,
         authorizationStrategy = AuthorizationStrategy.DelayAndNotify(
           authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
+          delayStartTime = clock.now().minus(5.days),
           delayEndTime = clock.now().minus(10.hours),
           cancellationToken = "test-token",
           completionToken = "test-token"
@@ -95,6 +103,7 @@ class FingerprintResetServiceImplTests : FunSpec({
         privilegedActionType = PrivilegedActionType.RESET_FINGERPRINT,
         authorizationStrategy = AuthorizationStrategy.DelayAndNotify(
           authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
+          delayStartTime = clock.now(),
           delayEndTime = clock.now().plus(10.hours),
           cancellationToken = "test-token",
           completionToken = "test-token"
@@ -112,12 +121,13 @@ class FingerprintResetServiceImplTests : FunSpec({
     result.value[1].status shouldBe PrivilegedActionStatus.PENDING
   }
 
-  xtest("continueAction should return NotAuthorizedYet when delay period is not complete") {
+  test("continueAction should return NotAuthorizedYet when delay period is not complete") {
     val actionInstance = PrivilegedActionInstance(
       id = "test-id",
       privilegedActionType = PrivilegedActionType.RESET_FINGERPRINT,
       authorizationStrategy = AuthorizationStrategy.DelayAndNotify(
         authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
+        delayStartTime = clock.now(),
         delayEndTime = clock.now().plus(10.hours),
         cancellationToken = "test-token",
         completionToken = "test-token"
@@ -142,6 +152,7 @@ class FingerprintResetServiceImplTests : FunSpec({
       privilegedActionType = PrivilegedActionType.RESET_FINGERPRINT,
       authorizationStrategy = AuthorizationStrategy.DelayAndNotify(
         authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
+        delayStartTime = clock.now().minus(5.days),
         delayEndTime = clock.now().minus(10.hours),
         cancellationToken = "test-token",
         completionToken = "test-token"
@@ -172,6 +183,7 @@ class FingerprintResetServiceImplTests : FunSpec({
       privilegedActionType = PrivilegedActionType.RESET_FINGERPRINT,
       authorizationStrategy = AuthorizationStrategy.DelayAndNotify(
         authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
+        delayStartTime = clock.now().minus(5.days),
         delayEndTime = clock.now().minus(10.hours),
         cancellationToken = "test-token",
         completionToken = "test-token"
@@ -186,7 +198,10 @@ class FingerprintResetServiceImplTests : FunSpec({
     fingerprintResetF8eClient.getPrivilegedActionInstancesResult = Ok(listOf(actionInstance))
     fingerprintResetF8eClient.continuePrivilegedActionResult = Ok(invalidResponse)
 
-    val result = service.completeFingerprintResetAndGetGrant("test-id")
+    val result = service.completeFingerprintResetAndGetGrant(
+      "test-id",
+      "completion-token"
+    )
 
     // Consume the expected calls
     fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.awaitItem()

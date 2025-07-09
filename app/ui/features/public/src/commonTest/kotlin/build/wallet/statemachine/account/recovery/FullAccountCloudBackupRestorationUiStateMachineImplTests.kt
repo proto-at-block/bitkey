@@ -46,6 +46,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiStateMachineImpl
 import build.wallet.statemachine.recovery.cloud.ProblemWithCloudBackupModel
+import build.wallet.nfc.NfcException
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -244,6 +245,20 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       }
 
       onRecoverAppKeyCalls.awaitItem()
+    }
+  }
+
+  test("nfc unseal failure surfaces problem with cloud backup screen") {
+    stateMachineActiveDeviceFlagOn.test(props) {
+      awaitBody<FormBodyModel> {
+        clickPrimaryButton()
+      }
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(id = nfcSessionUIStateMachine.id) {
+        onError(NfcException.CommandErrorSealCsekResponseUnsealException())
+      }
+
+      awaitBody<ProblemWithCloudBackupModel>()
     }
   }
 })

@@ -10,13 +10,13 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
- * Screen to prompt the user to share their invite with their Recovery Contact.
+ * Screen to prompt the user to share their invite with their trusted contact.
  *
  * This should use the platform share sheet to share the invitation token.
  */
 data class ShareInviteBodyModel(
   /**
-   * The name of the Recovery Contact to use in the invitation.
+   * The name of the trusted contact to use in the invitation.
    */
   val trustedContactName: String,
   /**

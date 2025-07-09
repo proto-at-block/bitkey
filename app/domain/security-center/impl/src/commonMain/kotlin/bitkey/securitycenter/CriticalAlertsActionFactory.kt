@@ -2,13 +2,14 @@ package bitkey.securitycenter
 
 import bitkey.notifications.NotificationsService
 import build.wallet.account.AccountService
+import build.wallet.availability.AppFunctionalityService
+import build.wallet.availability.FunctionalityFeatureStates
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.logging.logError
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
 
 interface CriticalAlertsActionFactory {
   suspend fun create(): Flow<SecurityAction?>
@@ -18,15 +19,29 @@ interface CriticalAlertsActionFactory {
 class CriticalAlertsActionFactoryImpl(
   private val accountService: AccountService,
   private val notificationsService: NotificationsService,
+  private val appFunctionalityService: AppFunctionalityService,
 ) : CriticalAlertsActionFactory {
   override suspend fun create(): Flow<SecurityAction?> {
-    val account = accountService.activeAccount().first()
-    if (account == null) {
-      logError { "No active account found when checking critical alerts." }
-      return flowOf(null)
-    }
-    return notificationsService.getCriticalNotificationStatus().map {
-      CriticalAlertsAction(it)
+    return combine(
+      accountService.activeAccount(),
+      notificationsService.getCriticalNotificationStatus(),
+      appFunctionalityService.status
+    ) { account, notificationStatus, featureState ->
+      if (account !is FullAccount) {
+        null
+      } else {
+        CriticalAlertsAction(
+          notificationStatus = notificationStatus,
+          featureState = featureState.featureStates.notifications
+        )
+      }
+    }.onStart {
+      emit(
+        CriticalAlertsAction(
+          notificationStatus = NotificationsService.NotificationStatus.Enabled,
+          featureState = FunctionalityFeatureStates.FeatureState.Unavailable
+        )
+      )
     }
   }
 }

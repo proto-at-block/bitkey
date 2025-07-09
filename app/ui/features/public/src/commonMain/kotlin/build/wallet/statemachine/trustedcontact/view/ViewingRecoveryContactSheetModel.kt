@@ -13,10 +13,10 @@ import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
 
 /**
- * Builds a sheet model to show details about a Recovery Contact.
+ * Builds a sheet model to show details about a Trusted Contact.
  *
  * @param contact The contact to show information and actions for.
- * @param onRemove Invoked when the user wants to remove the Recovery Contact.
+ * @param onRemove Invoked when the user wants to remove the trusted contact.
  * @param onClosed Invoked when the user closes the sheet.
  */
 fun ViewingTrustedContactSheetModel(
@@ -35,7 +35,7 @@ fun ViewingTrustedContactSheetModel(
  * Builds a sheet model to show details about a Recovery Contact that is in a tampered state.
  *
  * @param contact The contact to show information and actions for.
- * @param onRemove Invoked when the user wants to remove the Recovery Contact.
+ * @param onRemove Invoked when the user wants to remove the trusted contact.
  * @param onClosed Invoked when the user closes the sheet.
  */
 fun ViewingTamperedContactSheetModel(
@@ -84,7 +84,7 @@ private val UnendorsedTrustedContact.label: String get() = when {
 }
 
 /**
- * Generic sheet model for viewing a Recovery Contact.
+ * Generic sheet model for viewing a recovery contact.
  *
  * @param headline The headline to display in the sheet.
  * @param subline The subline to display, optional.

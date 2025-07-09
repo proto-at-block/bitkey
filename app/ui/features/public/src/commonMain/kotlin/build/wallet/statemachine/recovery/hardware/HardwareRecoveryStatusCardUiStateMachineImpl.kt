@@ -13,6 +13,7 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
 import build.wallet.time.DurationFormatter
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.filterIsInstance
@@ -25,6 +26,8 @@ class HardwareRecoveryStatusCardUiStateMachineImpl(
   private val durationFormatter: DurationFormatter,
   private val lostHardwareRecoveryDataStateMachine: LostHardwareRecoveryDataStateMachine,
   private val recoveryStatusService: RecoveryStatusService,
+  private val remainingRecoveryDelayWordsUpdateFrequency:
+    RemainingRecoveryDelayWordsUpdateFrequency,
 ) : HardwareRecoveryStatusCardUiStateMachine {
   @Composable
   override fun model(props: HardwareRecoveryStatusCardUiProps): CardModel? {
@@ -65,7 +68,7 @@ class HardwareRecoveryStatusCardUiStateMachineImpl(
 
             // Periodically update [remainingDelayPeriod] so that the formatted words update accordingly
             LaunchedEffect("update-delay-progress") {
-              launchTicker(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE) {
+              launchTicker(remainingRecoveryDelayWordsUpdateFrequency.value) {
                 remainingDelayPeriod = recoveryInProgressData.remainingDelayPeriod(clock)
               }
             }

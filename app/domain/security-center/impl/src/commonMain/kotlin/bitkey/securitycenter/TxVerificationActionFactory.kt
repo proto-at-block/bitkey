@@ -1,6 +1,7 @@
 package bitkey.securitycenter
 
 import bitkey.verification.TxVerificationService
+import build.wallet.availability.AppFunctionalityService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.TxVerificationFeatureFlag
@@ -15,15 +16,17 @@ interface TxVerificationActionFactory {
 class TxVerificationActionFactoryImpl(
   private val flag: TxVerificationFeatureFlag,
   private val txVerificationService: TxVerificationService,
+  private val appFunctionalityService: AppFunctionalityService,
 ) : TxVerificationActionFactory {
   override suspend fun create(): Flow<SecurityAction?> {
     return combine(
       flag.flagValue(),
-      txVerificationService.getCurrentThreshold()
-    ) { flag, threshold ->
+      txVerificationService.getCurrentThreshold(),
+      appFunctionalityService.status
+    ) { flag, threshold, status ->
       when {
         !flag.value || !threshold.isOk -> null
-        else -> TxVerificationAction(threshold.value)
+        else -> TxVerificationAction(threshold.value, status.featureStates.send)
       }
     }
   }

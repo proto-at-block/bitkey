@@ -13,7 +13,6 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
-import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -63,8 +62,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
         id = "proof of possesion"
       ) {}
 
-  val addHardwareKeysCalls =
-    turbines.create<Pair<SealedCsek, HwKeyBundle>>("add hardware keys calls")
+  val addHardwareKeysCalls = turbines.create<HwKeyBundle>("add hardware keys calls")
 
   val onExitCalls = turbines.create<Unit>("on exit calls")
 
@@ -91,11 +89,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     initiatingLostHardwareRecoveryData = AwaitingNewHardwareData(
       newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
       addHardwareKeys = {
-          sealedCsek: SealedCsek,
           keyBundle: HwKeyBundle,
           _: AppGlobalAuthKeyHwSignature,
         ->
-        addHardwareKeysCalls += sealedCsek to keyBundle
+        addHardwareKeysCalls += keyBundle
       }
     ),
     onFoundHardware = {},
@@ -172,10 +169,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           )
       }
 
-      addHardwareKeysCalls.awaitItem().let { (sealedCsek, keyBundle) ->
-        sealedCsek.shouldBeEqual(sealedCsekMock)
-        keyBundle.shouldBeEqual(HwKeyBundleMock)
-      }
+      addHardwareKeysCalls.awaitItem().shouldBeEqual(HwKeyBundleMock)
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_HW_RECOVERY_STARTED))
     }

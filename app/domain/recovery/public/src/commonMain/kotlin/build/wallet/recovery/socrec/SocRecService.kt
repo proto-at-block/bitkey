@@ -22,7 +22,7 @@ interface SocRecService {
 
   /**
    * Emits true if the Customer just completed Social Recovery through
-   * a Recovery Contact, in the same app session (without closing the app).
+   * a Trusted Contact, in the same app session (without closing the app).
    * At this point, the Customer needs to complete the hardware replacement, unless
    * they have found their existing hardware.
    */

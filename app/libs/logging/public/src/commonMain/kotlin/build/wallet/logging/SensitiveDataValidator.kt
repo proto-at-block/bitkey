@@ -20,6 +20,8 @@ object SensitiveDataValidator {
   private val indicators: List<Regex> = listOf(
     // bitcoin private keys
     Regex("[tx]prv\\w{78,112}", IGNORE_CASE),
+    // bitcoin addresses
+    Regex("\\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}\\b", IGNORE_CASE),
     // naive check for names/aliases
     Regex("(alice|bob|aunt|uncle|cousin)", IGNORE_CASE)
   )

@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Instant
 
 /**
- * Performs background cloud backup when information about Recovery Contacts changes, i.e.
+ * Performs background cloud backup when information about Trusted Contacts changes, i.e.
  * some are added/removed.
  *
  * Monitors locally stored cloud backups and synced Relationships to determine

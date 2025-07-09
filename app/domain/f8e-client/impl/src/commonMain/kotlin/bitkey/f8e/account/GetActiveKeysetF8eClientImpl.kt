@@ -1,7 +1,6 @@
 package bitkey.f8e.account
 
 import bitkey.backup.DescriptorBackup
-import bitkey.serialization.base64.ByteStringAsBase64Serializer
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
@@ -11,6 +10,7 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withAccountId
@@ -26,7 +26,6 @@ import com.github.michaelbull.result.map
 import io.ktor.client.request.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import okio.ByteString
 
 @BitkeyInject(AppScope::class)
 class GetActiveKeysetF8eClientImpl(
@@ -90,7 +89,6 @@ class GetActiveKeysetF8eClientImpl(
     @SerialName("spending")
     val spendingKeyset: SpendingKeyset,
     @SerialName("sealed_descriptor")
-    @Serializable(with = ByteStringAsBase64Serializer::class)
-    val sealedDescriptor: ByteString?,
+    val sealedDescriptor: XCiphertext?,
   ) : RedactedResponseBody
 }

@@ -1,9 +1,7 @@
 package bitkey.securitycenter
 
 import build.wallet.database.SecurityInteractionStatus
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
 
 class SecurityActionsServiceFake(
@@ -13,23 +11,13 @@ class SecurityActionsServiceFake(
   }.flatten().toMutableList(),
   var statuses: List<SecurityRecommendationWithStatus> = emptyList(),
 ) : SecurityActionsService {
-  /**
-   * Returns a list of security actions for the given category.
-   *
-   * @param category the category of the action.
-   */
-  override suspend fun getActions(category: SecurityActionCategory): List<SecurityAction> {
-    return actions
-  }
-
-  /**
-   * Returns a list of recommended security actions for the customer.
-   *
-   */
-
-  override fun getRecommendations(): Flow<List<SecurityActionRecommendation>> {
-    return flowOf(recommendations)
-  }
+  override val securityActionsWithRecommendations: StateFlow<SecurityActionsWithRecommendations> = MutableStateFlow(
+    SecurityActionsWithRecommendations(
+      securityActions = actions.filter { it.category() == SecurityActionCategory.SECURITY },
+      recoveryActions = actions.filter { it.category() == SecurityActionCategory.RECOVERY },
+      recommendations = recommendations
+    )
+  )
 
   override fun getRecommendationsWithInteractionStatus(): Flow<List<SecurityRecommendationWithStatus>> {
     return flowOf(statuses)

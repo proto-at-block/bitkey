@@ -51,7 +51,7 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
       lostHardwareRecoveryData =
         AwaitingNewHardwareData(
           newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-          addHardwareKeys = { _, _, _ -> }
+          addHardwareKeys = { _, _ -> }
         ),
       screenPresentationStyle = Modal,
       instructionsStyle = InstructionsStyle.Independent,

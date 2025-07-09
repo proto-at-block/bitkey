@@ -14,6 +14,7 @@ import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecove
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
+import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.time.ClockFake
@@ -22,6 +23,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.milliseconds
 
 class RecoveryInProgressUiStateMachineTests : FunSpec({
   val stateMachine =
@@ -43,7 +45,8 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
         object : RecoveryNotificationVerificationUiStateMachine,
           ScreenStateMachineMock<RecoveryNotificationVerificationUiProps>(
             "recovery-notification-verification"
-          ) {}
+          ) {},
+      remainingRecoveryDelayWordsUpdateFrequency = RemainingRecoveryDelayWordsUpdateFrequency(1.milliseconds)
     )
 
   val failedToCancelDoneCalls = turbines.create<Unit>("FailedToCancelRecoveryData back calls")

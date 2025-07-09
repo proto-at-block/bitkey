@@ -1,6 +1,7 @@
 package build.wallet.statemachine.trustedcontact
 
 import build.wallet.bitkey.account.Account
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -8,11 +9,11 @@ import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant
 
 /**
- * A state machine for enrolling as a Recovery Contact for a customer.
+ * A state machine for enrolling as a trusted contact for a customer.
  *
  * Note: this flow can be used for net-new customers, for already-established lite
  * customers, or for already-established full customers. It is the process to be
- * added as as Recovery Contact for some other full customer.
+ * added as as trusted contact for some other full customer.
  *
  * It involves:
  * - Entering invite code (this step is optional and is skipped if the app is launched from
@@ -32,4 +33,5 @@ data class TrustedContactEnrollmentUiProps(
   val screenPresentationStyle: ScreenPresentationStyle,
   val onDone: (Account) -> Unit,
   val variant: TrustedContactFeatureVariant,
+  val onAccountUpgraded: ((FullAccount) -> Unit)? = null,
 )

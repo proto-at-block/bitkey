@@ -2,6 +2,7 @@ package build.wallet.debug
 
 import bitkey.firmware.HardwareUnlockInfoService
 import bitkey.metrics.MetricTrackerService
+import bitkey.securitycenter.SecurityRecommendationInteractionDao
 import build.wallet.account.AccountService
 import build.wallet.auth.AuthKeyRotationAttemptDao
 import build.wallet.auth.AuthTokensService
@@ -11,6 +12,7 @@ import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.local.CloudBackupDao
+import build.wallet.coachmark.CoachmarkService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
@@ -72,6 +74,8 @@ class AppDataDeleterImpl(
   private val inheritanceClaimsDao: InheritanceClaimsDao,
   private val metricTrackerService: MetricTrackerService,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
+  private val securityRecommendationInteractionDao: SecurityRecommendationInteractionDao,
+  private val coachmarkService: CoachmarkService,
 ) : AppDataDeleter {
   override suspend fun deleteAll() =
     coroutineBinding {
@@ -107,6 +111,8 @@ class AppDataDeleterImpl(
       inheritanceClaimsDao.clear()
       metricTrackerService.clearMetrics()
       hardwareUnlockInfoService.clear()
+      securityRecommendationInteractionDao.clear()
+      coachmarkService.resetCoachmarks()
 
       // Make sure we clear Account data last because this will transition the UI
       accountService.clear().bind()

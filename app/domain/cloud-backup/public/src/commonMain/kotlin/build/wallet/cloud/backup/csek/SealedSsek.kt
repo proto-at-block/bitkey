@@ -1,6 +1,6 @@
 package build.wallet.cloud.backup.csek
 
-import bitkey.serialization.hex.ByteStringAsHexSerializer
+import bitkey.serialization.base64.ByteStringAsBase64Serializer
 import kotlinx.serialization.Serializable
 import okio.ByteString
 
@@ -16,5 +16,5 @@ import okio.ByteString
  * older backups where sealed CSEK was encoded as an inlined field instead of wrapped object.
  */
 typealias SealedSsek =
-  @Serializable(with = ByteStringAsHexSerializer::class)
+  @Serializable(with = ByteStringAsBase64Serializer::class)
   ByteString

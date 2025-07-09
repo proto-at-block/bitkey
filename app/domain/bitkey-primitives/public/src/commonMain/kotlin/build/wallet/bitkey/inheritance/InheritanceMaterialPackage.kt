@@ -9,14 +9,14 @@ import kotlinx.serialization.Serializable
  * Inheritance data needed for a beneficiary to perform an inheritance claim.
  *
  * This data is uploaded by a customer to be stored in the backend and only
- * released to the Recovery Contact after a delay period. Sensitive data is
- * encrypted with the RC's public key, so no data is accessible until
- * released by the backend to the Recovery Contact.
+ * released to the trusted contact after a delay period. Sensitive data is
+ * encrypted with the TC's public key, so no data is accessible until
+ * released by the backend to the Trusted Contact.
  */
 @Serializable
 data class InheritanceMaterialPackage(
   /**
-   * The ID of the Recovery Contact relationship for which this is encrypted.
+   * The ID of the Trusted Contact relationship for which this is encrypted.
    */
   @SerialName("recovery_relationship_id")
   val relationshipId: RelationshipId,

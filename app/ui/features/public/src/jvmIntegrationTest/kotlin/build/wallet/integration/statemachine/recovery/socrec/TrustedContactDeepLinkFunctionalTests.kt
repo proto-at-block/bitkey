@@ -27,7 +27,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     Router.reset()
   }
 
-  test("Recovery Contact deep link full account") {
+  test("trusted contact deep link full account") {
     // full account creates invite
     val inviteApp = launchNewApp()
     inviteApp.onboardFullAccountWithFakeHardware()
@@ -51,13 +51,13 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     }
   }
 
-  test("Recovery Contact deep link lite account") {
+  test("trusted contact deep link lite account") {
     // full account creates invite
     val inviterApp = launchNewApp()
     inviterApp.onboardFullAccountWithFakeHardware()
     val tcInvite = inviterApp.createTcInvite("app")
 
-    // tester onboard as RC
+    // tester onboard as TC
     val app = launchNewApp()
     app.onboardLiteAccountFromInvitation(tcInvite.inviteCode, "inviterApp")
 
@@ -82,7 +82,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     }
   }
 
-  test("Recovery Contact deep link onboard new lite account instructions") {
+  test("trusted contact deep link onboard new lite account instructions") {
     // full account creates invite
     val inviteApp = launchNewApp()
     inviteApp.onboardFullAccountWithFakeHardware()
@@ -113,7 +113,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     }
   }
 
-  test("Recovery Contact deep link restore lite account") {
+  test("trusted contact deep link restore lite account") {
     // full account creates invite
     val inviteApp = launchNewApp()
     inviteApp.onboardFullAccountWithFakeHardware()

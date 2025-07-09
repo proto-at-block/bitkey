@@ -10,7 +10,7 @@ import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
 
 class RetrieveTrustedContactInvitationF8eClientTests : FunSpec({
-  test("Retrieve RC Invite - Response Deserialization") {
+  test("Retrieve TC Invite - Response Deserialization") {
     val response =
       """
       {

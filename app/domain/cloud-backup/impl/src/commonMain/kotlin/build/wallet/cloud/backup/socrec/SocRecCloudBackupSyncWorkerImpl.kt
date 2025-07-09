@@ -97,7 +97,7 @@ class SocRecCloudBackupSyncWorkerImpl(
     combine(
       relationshipsService.relationships
         .filterNotNull()
-        // Only endorsed and verified Recovery Contacts are interesting for cloud backups.
+        // Only endorsed and verified trusted contacts are interesting for cloud backups.
         .map { it.endorsedTrustedContacts }
         .distinctUntilChanged(),
       cloudBackupDao
@@ -145,7 +145,7 @@ class SocRecCloudBackupSyncWorkerImpl(
       is CloudBackupV2 -> {
         val fields =
           fullAccountFields
-            ?: return Err(Error("Lite Account Backups have no Recovery Contacts to refresh"))
+            ?: return Err(Error("Lite Account Backups have no trusted contacts to refresh"))
 
         val backedUpRelationshipIds = fields.socRecSealedDekMap.keys
         val newRelationshipIds = endorsedTrustedContacts.map { it.relationshipId }.toSet()

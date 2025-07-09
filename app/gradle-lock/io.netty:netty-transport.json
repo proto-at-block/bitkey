@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-transport",
     "components": [
         {
-            "version": "4.1.93.Final",
+            "version": "4.1.110.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-transport-4.1.93.Final.jar": "a5a78019bc1cd43dbc3c7b7cdd3801912ca26d1f498fb560514fee497864ba96"
+                        "netty-transport-4.1.110.Final.jar": "a42dd68390ca14b4ff2d40628a096c76485b4adb7c19602d5289321a0669e704"
                     }
                 }
             ],

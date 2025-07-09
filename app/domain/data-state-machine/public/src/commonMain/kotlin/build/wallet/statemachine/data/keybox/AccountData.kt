@@ -10,7 +10,7 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 
 /**
- * Describes Account state in the app. This could be Customer or Recovery Contact
+ * Describes Account state in the app. This could be Customer or Trusted Contact
  * account.
  */
 sealed interface AccountData {
@@ -85,7 +85,7 @@ sealed interface AccountData {
 
     /**
      * Indicates that the user started onboarding with the intent to
-     * become a Recovery Contact.
+     * become a trusted contact.
      */
     BeTrustedContact,
 

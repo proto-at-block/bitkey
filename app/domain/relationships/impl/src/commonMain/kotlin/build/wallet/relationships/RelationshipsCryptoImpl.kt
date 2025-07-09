@@ -15,6 +15,7 @@ import build.wallet.crypto.*
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.*
+import build.wallet.encrypt.XSealedData.Format.WithPubkey
 import build.wallet.ensure
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -38,7 +39,6 @@ class RelationshipsCryptoImpl(
     const val PKMAT_AAD = "Bitkey Social Recovery PKMat Encryption Version 1.0"
     const val PAKE_ENROLLMENT_AAD = "Bitkey Social Recovery PAKE Enrollment Version 1.0"
     const val PAKE_RECOVERY_AAD = "Bitkey Social Recovery PAKE Recovery Version 1.0"
-    const val XCIPHERTEXT_VERSION = 2
   }
 
   private fun generateProtectedCustomerIdentityKey():
@@ -292,7 +292,7 @@ class RelationshipsCryptoImpl(
       // Step 2: Embed the public key in the ciphertext
       val xSealedData = sealedPrivateKeyEncryptionKey.toXSealedData()
       XSealedData(
-        xSealedData.header.copy(version = 2, algorithm = CryptoBox.ALGORITHM),
+        xSealedData.header.copy(format = WithPubkey, algorithm = CryptoBox.ALGORITHM),
         xSealedData.ciphertext,
         xSealedData.nonce,
         protectedCustomerIdentityKey.publicKey
@@ -305,8 +305,8 @@ class RelationshipsCryptoImpl(
     sealedPrivateKeyEncryptionKey: XCiphertext,
   ): PrivateKeyEncryptionKey {
     val sealedPrivateKeyEncryptionKeyData = sealedPrivateKeyEncryptionKey.toXSealedData()
-    if (sealedPrivateKeyEncryptionKeyData.header.version != XCIPHERTEXT_VERSION) {
-      throw RelationshipsCryptoError.UnsupportedXCiphertextVersion
+    if (sealedPrivateKeyEncryptionKeyData.header.format != WithPubkey) {
+      throw RelationshipsCryptoError.UnsupportedXCiphertextFormat
     }
     val protectedCustomerIdentityPublicKey = sealedPrivateKeyEncryptionKeyData.publicKey
       ?: throw RelationshipsCryptoError.PublicKeyMissing

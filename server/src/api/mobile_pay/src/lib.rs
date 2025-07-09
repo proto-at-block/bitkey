@@ -5,12 +5,12 @@ use crate::routes::Config;
 use exchange_rate::currency_conversion::sats_for;
 use exchange_rate::error::ExchangeRateError;
 use exchange_rate::service::Service as ExchangeRateService;
+use exchange_rate::{select_exchange_rate_provider, ExchangeRateConfig};
 use feature_flags::flag::Flag;
 use time::{Duration, OffsetDateTime};
 use types::account::identifiers::AccountId;
 use types::account::spend_limit::SpendingLimit;
-use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
-use types::exchange_rate::local_rate_provider::LocalRateProvider;
+use types::exchange_rate::RateProvider;
 
 pub mod daily_spend_record;
 pub mod entities;
@@ -24,11 +24,6 @@ pub mod spend_rules;
 pub(crate) mod util;
 
 pub(crate) const SERVER_SIGNING_ENABLED: Flag<bool> = Flag::new("f8e-mobile-pay-enabled");
-
-pub(crate) enum RateProvider {
-    Local(LocalRateProvider),
-    Coingecko(CoingeckoRateProvider),
-}
 
 /// Data structure used to represent [`DailySpendingRecord`]s that are relevant to Mobile Pay.
 ///
@@ -78,6 +73,12 @@ async fn get_mobile_pay_spending_record(
     })
 }
 
+impl ExchangeRateConfig for Config {
+    fn use_local_currency_exchange(&self) -> bool {
+        self.use_local_currency_exchange
+    }
+}
+
 async fn sats_for_limit(
     limit: &SpendingLimit,
     config: &Config,
@@ -93,19 +94,12 @@ async fn sats_for_limit(
     }
 }
 
-fn select_exchange_rate_provider(config: &Config) -> RateProvider {
-    if config.use_local_currency_exchange {
-        RateProvider::Local(LocalRateProvider::new())
-    } else {
-        RateProvider::Coingecko(CoingeckoRateProvider::new())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::routes::Config;
-    use crate::{select_exchange_rate_provider, RateProvider};
+    use exchange_rate::select_exchange_rate_provider;
     use std::env;
+    use types::exchange_rate::RateProvider;
 
     #[test]
     fn test_select_exchange_rate_provider() {

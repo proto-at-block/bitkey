@@ -3,6 +3,7 @@ package build.wallet.statemachine.app
 import androidx.compose.runtime.Composable
 import bitkey.datadog.DatadogRumMonitorFake
 import bitkey.ui.framework.NavigatorPresenterFake
+import bitkey.ui.statemachine.interstitial.InterstitialUiProps
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
@@ -135,6 +136,8 @@ class AppUiStateMachineImplTests : FunSpec({
 
   val datadogRumMonitor = DatadogRumMonitorFake(turbines::create)
 
+  val interstitialUiStateMachine = InterstitialUiStateMachineFake()
+
   // Fakes are stateful, need to reinitialize before each test to reset the state.
   beforeTest {
     loadAppService.reset()
@@ -182,8 +185,10 @@ class AppUiStateMachineImplTests : FunSpec({
         datadogRumMonitor = datadogRumMonitor,
         splashScreenDelay = SplashScreenDelay(10.milliseconds),
         welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
-        deviceInfoProvider = DeviceInfoProviderMock()
+        deviceInfoProvider = DeviceInfoProviderMock(),
+        interstitialUiStateMachine = interstitialUiStateMachine
       )
+    interstitialUiStateMachine.reset()
   }
 
   afterTest {
@@ -471,6 +476,169 @@ class AppUiStateMachineImplTests : FunSpec({
       // This is a quirk in mocking the DSM, since once we create the full acount we go back to
       // rendering via the DSM. Once the DSM is done being refactored, this will be Money Home
       awaitBodyMock<ChooseAccountAccessUiProps>()
+    }
+  }
+
+  test("no interstitial shown after onboarding from existing full account when interstitials are set to show") {
+    loadAppService.appState.value = AppState.OnboardingFullAccount(account = FullAccountMock)
+    interstitialUiStateMachine.shouldShowInterstitial = true
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      awaitBodyMock<CreateAccountUiProps> {
+        onOnboardingComplete(FullAccountMock)
+      }
+
+      accountDataStateMachine.emitModel(
+        ActiveKeyboxLoadedDataMock
+      )
+
+      awaitBody<LoadingSuccessBodyModel> {
+        message.shouldBe("Welcome to Bitkey")
+      }
+
+      awaitBodyMock<HomeUiProps> {
+        account.shouldBe(FullAccountMock)
+      }
+    }
+  }
+
+  test("no interstitial shown after upgrading lite account when interstitials are set to show") {
+    loadAppService.appState.value = AppState.HasActiveLiteAccount(
+      account = LiteAccountMock
+    )
+    interstitialUiStateMachine.shouldShowInterstitial = true
+
+    accountDataStateMachine.emitModel(
+      ActiveKeyboxLoadedDataMock
+    )
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      awaitBodyMock<LiteHomeUiProps>("lite-home") {
+        onUpgradeComplete(FullAccountMock)
+      }
+
+      awaitBody<LoadingSuccessBodyModel> {
+        message.shouldBe("Welcome to Bitkey")
+      }
+
+      awaitBodyMock<HomeUiProps> {
+        account.shouldBe(FullAccountMock)
+      }
+    }
+  }
+
+  test("no interstitial shown after onboarding lite account to full when interstitials are set to show") {
+    loadAppService.appState.value = AppState.LiteAccountOnboardingToFullAccount(
+      activeAccount = LiteAccountMock,
+      onboardingAccount = FullAccountMock
+    )
+    interstitialUiStateMachine.shouldShowInterstitial = true
+
+    accountDataStateMachine.emitModel(
+      ActiveKeyboxLoadedDataMock
+    )
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      awaitBodyMock<CreateAccountUiProps> {
+        onOnboardingComplete(FullAccountMock)
+      }
+
+      accountDataStateMachine.emitModel(
+        ActiveKeyboxLoadedDataMock
+      )
+
+      awaitBody<LoadingSuccessBodyModel> {
+        message.shouldBe("Welcome to Bitkey")
+      }
+
+      awaitBodyMock<HomeUiProps> {
+        account.shouldBe(FullAccountMock)
+      }
+    }
+  }
+
+  test("interstitial is shown after launching from existing full account when interstitials are set to show") {
+    loadAppService.appState.value = AppState.HasActiveFullAccount(
+      account = FullAccountMock,
+      pendingAuthKeyRotation = null
+    )
+    interstitialUiStateMachine.shouldShowInterstitial = true
+
+    accountDataStateMachine.emitModel(
+      ActiveKeyboxLoadedDataMock
+    )
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      awaitBodyMock<InterstitialUiProps>(InterstitialUiStateMachineFake.BODY_MODEL_ID) {
+        account.shouldBe(FullAccountMock)
+        isComingFromOnboarding.shouldBe(false)
+      }
+    }
+  }
+
+  test("interstitial is not shown after launching from existing full account") {
+    loadAppService.appState.value = AppState.HasActiveFullAccount(
+      account = FullAccountMock,
+      pendingAuthKeyRotation = null
+    )
+    interstitialUiStateMachine.shouldShowInterstitial = false
+
+    accountDataStateMachine.emitModel(
+      ActiveKeyboxLoadedDataMock
+    )
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      awaitBodyMock<HomeUiProps> {
+        account.shouldBe(FullAccountMock)
+      }
+    }
+  }
+
+  test("no interstitial shown after onboarding from null app state when interstitials are set to show") {
+    loadAppService.appState.value = null
+    interstitialUiStateMachine.shouldShowInterstitial = true
+    accountDataStateMachine.emitModel(gettingStartedData)
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      loadAppService.appState.value = AppState.Undetermined
+
+      awaitBodyMock<ChooseAccountAccessUiProps> {
+        onCreateFullAccount()
+      }
+
+      awaitBodyMock<CreateAccountUiProps> {
+        onOnboardingComplete(FullAccountMock)
+      }
+
+      accountDataStateMachine.emitModel(
+        ActiveKeyboxLoadedDataMock
+      )
+
+      awaitBody<LoadingSuccessBodyModel> {
+        message.shouldBe("Welcome to Bitkey")
+      }
+
+      awaitBodyMock<HomeUiProps> {
+        account.shouldBe(FullAccountMock)
+      }
     }
   }
 })

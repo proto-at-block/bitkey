@@ -40,7 +40,7 @@ android-bugsnag = "6.10.0"
 android-bugsnag-plugin = "8.1.0"
 # Before upgrading the following, please make sure this runs successfully on a physical device.
 # Please also the locked (min + max) Android Studio version in `app/.idea/externalDependencies.xml`.
-android-gradle-plugin = "8.9.1"
+android-gradle-plugin = "8.10.1"
 android-compose-ui = "1.8.0"
 android-datastore = "1.1.1"
 android-lib-phone-number = "8.13.52"

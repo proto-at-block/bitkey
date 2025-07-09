@@ -41,7 +41,7 @@ class EmergencyExitPayloadRestorerImpl(
 
           val encodedBackup =
             catchingResult {
-              symmetricKeyEncryptor.unseal(
+              symmetricKeyEncryptor.unsealNoMetadata(
                 sealedData = payload.sealedActiveSpendingKeys,
                 key = pkek.key
               )

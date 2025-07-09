@@ -88,5 +88,7 @@ sealed interface ListItemAccessory {
           iconTint = tint
         )
       )
+
+    fun checkIcon(): ListItemAccessory = CheckAccessory(isChecked = true)
   }
 }

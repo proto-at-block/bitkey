@@ -19,10 +19,13 @@ import com.github.michaelbull.result.Result
 import kotlinx.datetime.Clock
 import kotlin.time.Duration.Companion.days
 
-class FingerprintResetF8eClientFake(turbine: (String) -> Turbine<Any>) : FingerprintResetF8eClient, PrivilegedActionsF8eClientFake<FingerprintResetRequest, FingerprintResetResponse>(
-  turbine
-) {
-  val cancelFingerprintResetCalls = turbine("cancelFingerprintReset calls") as Turbine<CancelPrivilegedActionRequest>
+class FingerprintResetF8eClientFake(
+  turbine: (String) -> Turbine<Any>,
+  clock: Clock,
+) : FingerprintResetF8eClient, PrivilegedActionsF8eClientFake<FingerprintResetRequest, FingerprintResetResponse>(
+    turbine
+  ) {
+  val cancelFingerprintResetCalls = turbine("cancelFingerprintReset calls")
   var cancelFingerprintResetResult: Result<EmptyResponseBody, Throwable> = Ok(EmptyResponseBody)
 
   init {
@@ -32,7 +35,8 @@ class FingerprintResetF8eClientFake(turbine: (String) -> Turbine<Any>) : Fingerp
         privilegedActionType = PrivilegedActionType.RESET_FINGERPRINT,
         authorizationStrategy = AuthorizationStrategy.DelayAndNotify(
           authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
-          delayEndTime = Clock.System.now().plus(7.days),
+          delayStartTime = clock.now(),
+          delayEndTime = clock.now().plus(7.days),
           cancellationToken = "mockCancellationToken",
           completionToken = "mockCompletionToken"
         )

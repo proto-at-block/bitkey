@@ -2,19 +2,6 @@
     "module-identifier": "com.google.j2objc:j2objc-annotations",
     "components": [
         {
-            "version": "1.3",
-            "variants": [
-                {
-                    "artifacts": {
-                        "j2objc-annotations-1.3.jar": "21af30c92267bd6122c0e0b4d20cccb6641a37eaf956c6540ec471d584e64a7b"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
-            ]
-        },
-        {
             "version": "3.0.0",
             "variants": [
                 {
@@ -24,7 +11,8 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath"
+                "build-classpath",
+                "gradle-plugins[bitkey]"
             ]
         }
     ]

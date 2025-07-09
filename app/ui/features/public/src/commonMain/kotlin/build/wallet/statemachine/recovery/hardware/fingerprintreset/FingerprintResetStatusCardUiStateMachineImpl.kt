@@ -9,49 +9,42 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
-import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.privilegedactions.FingerprintResetService
 import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
 import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.time.DurationFormatter
+import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
 import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.time.Duration
 
 @BitkeyInject(ActivityScope::class)
 class FingerprintResetStatusCardUiStateMachineImpl(
   private val clock: Clock,
   private val fingerprintResetService: FingerprintResetService,
+  private val remainingRecoveryDelayWordsUpdateFrequency:
+    RemainingRecoveryDelayWordsUpdateFrequency,
 ) : FingerprintResetStatusCardUiStateMachine {
-  private val pendingActionFlow = MutableStateFlow<PrivilegedActionInstance?>(null)
-
   @Composable
   override fun model(props: FingerprintResetStatusCardUiProps): CardModel? {
     LaunchedEffect(props.account) {
       fingerprintResetService.getLatestFingerprintResetAction()
-        .onSuccess { action ->
-          pendingActionFlow.update { action }
-        }
         .onFailure { error ->
           logError { "Failed to fetch fingerprint reset action for card: $error" }
-          pendingActionFlow.update { null }
         }
     }
 
-    val pendingAction by pendingActionFlow.collectAsState()
+    val pendingAction by fingerprintResetService.fingerprintResetAction().collectAsState()
 
     return pendingAction?.let { action ->
-      val delayAndNotifyStrategy = action.authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
-        ?: return@let null // Should not happen for fingerprint reset
+      val delayAndNotifyStrategy =
+        action.authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
+          ?: return@let null // Should not happen for fingerprint reset
 
-      val actualEndTime: Instant = delayAndNotifyStrategy.delayEndTime
+      val actualEndTime = delayAndNotifyStrategy.delayEndTime
 
       var remainingDuration by remember(actualEndTime) {
         mutableStateOf(actualEndTime - clock.now())
@@ -64,10 +57,25 @@ class FingerprintResetStatusCardUiStateMachineImpl(
       }
 
       LaunchedEffect(action.id, actualEndTime) {
-        launchTicker(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE) {
+        // 1) Periodically refresh the displayed remaining time
+        launchTicker(remainingRecoveryDelayWordsUpdateFrequency.value) {
           val newRemaining = actualEndTime - clock.now()
           remainingDuration = if (newRemaining.isPositive()) newRemaining else Duration.ZERO
         }
+
+        // 2) Also schedule a single wake-up exactly at the end of the delay and notify period so
+        //    the card disappears promptly without polling more frequently than necessary.
+        val delayUntilEnd = actualEndTime - clock.now()
+        if (delayUntilEnd.isPositive()) {
+          delay(delayUntilEnd)
+          remainingDuration = Duration.ZERO
+        }
+      }
+
+      // Don't show the card when the fingerprint reset is ready to be approved
+      // It will be shown as a recommendation to complete instead
+      if (!remainingDuration.isPositive()) {
+        return@let null
       }
 
       FingerprintResetCardModel(

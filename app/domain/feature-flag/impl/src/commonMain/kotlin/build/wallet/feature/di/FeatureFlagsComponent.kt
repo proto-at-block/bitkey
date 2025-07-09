@@ -83,11 +83,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun provideBalanceHistoryFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    BalanceHistoryFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun usSmsFeatureFlag(featureFlagDao: FeatureFlagDao) = UsSmsFeatureFlag(featureFlagDao)
 
   @Provides
@@ -128,7 +123,6 @@ interface FeatureFlagsComponent {
     utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
     mobileRealTimeMetricsFeatureFlag: MobileRealTimeMetricsFeatureFlag,
     securityHubFeatureFlag: SecurityHubFeatureFlag,
-    balanceHistoryFeatureFlag: BalanceHistoryFeatureFlag,
     usSmsFeatureFlag: UsSmsFeatureFlag,
     checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
     fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
@@ -138,7 +132,6 @@ interface FeatureFlagsComponent {
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
-      balanceHistoryFeatureFlag,
       softwareWalletIsEnabledFeatureFlag,
       expectedTransactionsPhase2FeatureFlag,
       mobileRealTimeMetricsFeatureFlag,

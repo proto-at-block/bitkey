@@ -75,7 +75,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("no Recovery Contacts") {
+  test("no trusted contacts") {
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
         header?.headline.shouldBe("Recovery Contacts")
@@ -91,7 +91,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("Recovery Contacts loaded") {
+  test("trusted contacts loaded") {
     val testContact =
       EndorsedTrustedContact(
         relationshipId = "test-id",
@@ -149,7 +149,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("start add new Recovery Contact flow") {
+  test("start add new trusted contact flow") {
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
         mainContentList.first()

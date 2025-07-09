@@ -3,21 +3,25 @@ package build.wallet.statemachine.settings.full.device.fingerprints.resetfingerp
 import androidx.compose.runtime.*
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
+import bitkey.f8e.privilegedactions.isDelayAndNotifyReadyToComplete
+import bitkey.metrics.MetricOutcome
+import bitkey.metrics.MetricTrackerService
 import bitkey.privilegedactions.FingerprintResetService
 import bitkey.privilegedactions.PrivilegedActionError
 import build.wallet.Progress
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
-import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.firmware.FirmwareFeatureFlag
+import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.logging.logError
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
 import build.wallet.statemachine.core.AppSegment
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -25,6 +29,8 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
+import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
+import build.wallet.statemachine.settings.full.device.fingerprints.metrics.FingerprintResetMetricDefinition
 import build.wallet.time.DurationFormatter
 import build.wallet.time.durationProgress
 import build.wallet.time.nonNegativeDurationBetween
@@ -32,6 +38,7 @@ import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -43,49 +50,22 @@ class ResetFingerprintsUiStateMachineImpl(
   private val clock: Clock,
   private val durationFormatter: DurationFormatter,
   private val fingerprintResetService: FingerprintResetService,
+  private val remainingRecoveryDelayWordsUpdateFrequency:
+    RemainingRecoveryDelayWordsUpdateFrequency,
+  private val pairNewHardwareUiStateMachine: PairNewHardwareUiStateMachine,
+  private val metricTrackerService: MetricTrackerService,
 ) : ResetFingerprintsUiStateMachine {
   @Composable
   override fun model(props: ResetFingerprintsProps): ScreenModel {
-    var uiState: ResetFingerprintsUiState by remember(props.initialPendingActionInfo) {
-      val initialState = props.initialPendingActionInfo?.let {
-        ResetFingerprintsUiState.ShowingProgress(
-          actionId = it.actionId,
-          startTime = it.startTime,
-          endTime = it.endTime,
-          completionToken = it.completionToken,
-          cancellationToken = it.cancellationToken
-        )
-      } ?: ResetFingerprintsUiState.Loading
-      mutableStateOf(initialState)
+    var uiState: ResetFingerprintsUiState by remember {
+      mutableStateOf(ResetFingerprintsUiState.Loading)
     }
+
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(props.initialPendingActionInfo == null && uiState == ResetFingerprintsUiState.Loading) {
+    LaunchedEffect(uiState == ResetFingerprintsUiState.Loading) {
       if (uiState == ResetFingerprintsUiState.Loading) {
-        coroutineScope.launch {
-          fingerprintResetService.getLatestFingerprintResetAction()
-            .onSuccess { pendingAction: PrivilegedActionInstance? ->
-              if (pendingAction != null && pendingAction.authorizationStrategy is AuthorizationStrategy.DelayAndNotify) {
-                val authStrategy = pendingAction.authorizationStrategy as AuthorizationStrategy.DelayAndNotify
-                // TODO: remove this when we get delay_start_time from f8e
-                val effectiveStartTime = authStrategy.delayEndTime - Duration.parse("7d")
-
-                uiState = ResetFingerprintsUiState.ShowingProgress(
-                  actionId = pendingAction.id,
-                  startTime = effectiveStartTime,
-                  endTime = authStrategy.delayEndTime,
-                  completionToken = authStrategy.completionToken,
-                  cancellationToken = authStrategy.cancellationToken
-                )
-              } else {
-                uiState = ResetFingerprintsUiState.ShowingConfirmation()
-              }
-            }
-            .onFailure { error ->
-              logError { "Failed to get latest fingerprint reset action: $error" }
-              uiState = ResetFingerprintsUiState.ShowingConfirmation()
-            }
-        }
+        handleInitialLoading(coroutineScope) { newState -> uiState = newState }
       }
     }
 
@@ -94,7 +74,6 @@ class ResetFingerprintsUiStateMachineImpl(
         ScreenModel(
           body = LoadingBodyModel(
             id = ResetFingerprintsEventTrackerScreenId.LOADING_FINGERPRINT_RESET_STATUS,
-            message = "Loading fingerprint reset status...",
             onBack = props.onCancel
           ),
           presentationStyle = ScreenPresentationStyle.Modal
@@ -104,20 +83,68 @@ class ResetFingerprintsUiStateMachineImpl(
       is ResetFingerprintsUiState.ShowingConfirmation ->
         handleShowingConfirmation(state, props) { newState -> uiState = newState }
 
-      is ResetFingerprintsUiState.ReadyForNfcScan ->
-        handleReadyForNfcScan(coroutineScope) { newState -> uiState = newState }
+      is ResetFingerprintsUiState.CreatingGrantRequestViaNfc ->
+        handleCreatingGrantRequestViaNfc(props, coroutineScope) { newState -> uiState = newState }
 
-      is ResetFingerprintsUiState.ShowingProgress ->
-        handleShowingProgress(state, props) { newState -> uiState = newState }
+      is ResetFingerprintsUiState.ShowingDelayAndNotifyProgress ->
+        handleShowingDelayAndNotifyProgress(state, props) { newState -> uiState = newState }
 
-      is ResetFingerprintsUiState.Finishing ->
-        handleFinishing(state, props) { newState -> uiState = newState }
+      is ResetFingerprintsUiState.DelayAndNotifyComplete ->
+        handleDelayAndNotifyComplete(state, props) { newState -> uiState = newState }
+
+      is ResetFingerprintsUiState.RequestingSignedGrantFromServer ->
+        handleRequestingSignedGrantFromServer(state) { newState -> uiState = newState }
+
+      is ResetFingerprintsUiState.ProvidingGrantViaNfc ->
+        handleProvidingGrantViaNfc(state, props) { newState -> uiState = newState }
+
+      is ResetFingerprintsUiState.EnrollingFingerprints ->
+        handleEnrollingFingerprints(props)
 
       is ResetFingerprintsUiState.Cancelling ->
         handleCancelling(state, props) { newState -> uiState = newState }
 
       is ResetFingerprintsUiState.Error ->
         handleError(state, props) { newState -> uiState = newState }
+    }
+  }
+
+  private fun handleInitialLoading(
+    coroutineScope: CoroutineScope,
+    updateState: (ResetFingerprintsUiState) -> Unit,
+  ) {
+    coroutineScope.launch {
+      fingerprintResetService.getLatestFingerprintResetAction()
+        .onSuccess { pendingAction: PrivilegedActionInstance? ->
+          when (val authStrategy = pendingAction?.authorizationStrategy) {
+            is AuthorizationStrategy.DelayAndNotify -> {
+              updateState(
+                if (pendingAction.isDelayAndNotifyReadyToComplete(clock)) {
+                  ResetFingerprintsUiState.DelayAndNotifyComplete(
+                    actionId = pendingAction.id,
+                    completionToken = authStrategy.completionToken,
+                    cancellationToken = authStrategy.cancellationToken
+                  )
+                } else {
+                  ResetFingerprintsUiState.ShowingDelayAndNotifyProgress(
+                    actionId = pendingAction.id,
+                    startTime = authStrategy.delayStartTime,
+                    endTime = authStrategy.delayEndTime,
+                    completionToken = authStrategy.completionToken,
+                    cancellationToken = authStrategy.cancellationToken
+                  )
+                }
+              )
+            }
+            else -> {
+              updateState(ResetFingerprintsUiState.ShowingConfirmation())
+            }
+          }
+        }
+        .onFailure { error ->
+          logError { "Failed to get latest fingerprint reset action: $error" }
+          updateState(ResetFingerprintsUiState.ShowingConfirmation())
+        }
     }
   }
 
@@ -139,7 +166,10 @@ class ResetFingerprintsUiStateMachineImpl(
               bottomSheetModel = ResetFingerprintsConfirmationSheetModel(
                 onDismiss = onDismiss,
                 onConfirmReset = {
-                  updateState(ResetFingerprintsUiState.ReadyForNfcScan)
+                  metricTrackerService.startMetric(
+                    metricDefinition = FingerprintResetMetricDefinition
+                  )
+                  updateState(ResetFingerprintsUiState.CreatingGrantRequestViaNfc)
                 }
               ).asSheetModalScreen(onClosed = onDismiss)
             )
@@ -152,15 +182,25 @@ class ResetFingerprintsUiStateMachineImpl(
   }
 
   @Composable
-  private fun handleReadyForNfcScan(
+  private fun handleCreatingGrantRequestViaNfc(
+    props: ResetFingerprintsProps,
     coroutineScope: CoroutineScope,
     updateState: (ResetFingerprintsUiState) -> Unit,
   ): ScreenModel {
     return nfcSessionUIStateMachine.model(
-      props = NfcSessionUIStateMachineProps<ResetFingerprintsNfcResult>(
+      props = NfcSessionUIStateMachineProps(
         session = { session, commands ->
-          val grantRequest = commands.getGrantRequest(session, GrantAction.FINGERPRINT_RESET)
-          ResetFingerprintsNfcResult.GrantRequestRetrieved(grantRequest)
+          // Check that the firmware supports fingerprint reset
+          val enabled = commands.getFirmwareFeatureFlags(session)
+            .find { it.flag == FirmwareFeatureFlag.FINGERPRINT_RESET }
+            ?.enabled ?: false
+
+          if (enabled) {
+            val grantRequest = commands.getGrantRequest(session, GrantAction.FINGERPRINT_RESET)
+            ResetFingerprintsNfcResult.GrantRequestRetrieved(grantRequest)
+          } else {
+            ResetFingerprintsNfcResult.FwUpRequired
+          }
         },
         onSuccess = { result ->
           when (result) {
@@ -173,25 +213,33 @@ class ResetFingerprintsUiStateMachineImpl(
 
                 serviceResult
                   .onSuccess { actionInstance ->
-                    val startTime = clock.now()
-                    val authStrategy = actionInstance.authorizationStrategy as AuthorizationStrategy.DelayAndNotify
-                    updateState(
-                      ResetFingerprintsUiState.ShowingProgress(
-                        actionId = actionInstance.id,
-                        startTime = startTime,
-                        endTime = authStrategy.delayEndTime,
-                        completionToken = authStrategy.completionToken,
-                        cancellationToken = authStrategy.cancellationToken
-                      )
-                    )
+                    when (val authStrategy = actionInstance.authorizationStrategy) {
+                      is AuthorizationStrategy.DelayAndNotify -> {
+                        updateState(
+                          ResetFingerprintsUiState.ShowingDelayAndNotifyProgress(
+                            actionId = actionInstance.id,
+                            startTime = authStrategy.delayStartTime,
+                            endTime = authStrategy.delayEndTime,
+                            completionToken = authStrategy.completionToken,
+                            cancellationToken = authStrategy.cancellationToken
+                          )
+                        )
+                      }
+                    }
                   }
                   .onFailure { error ->
                     logError { "Failed to create fingerprint reset privileged action: $error" }
+                    completeResetMetric(MetricOutcome.Failed)
                     updateState(ResetFingerprintsUiState.Error.CreatePrivilegedActionError(error))
                   }
               }
             }
+            ResetFingerprintsNfcResult.FwUpRequired -> {
+              completeResetMetric(MetricOutcome.FwUpdateRequired)
+              props.onFwUpRequired()
+            }
             else -> {
+              completeResetMetric(MetricOutcome.Failed)
               updateState(
                 ResetFingerprintsUiState.Error.GenericError(
                   title = "NFC Operation Failed",
@@ -204,10 +252,11 @@ class ResetFingerprintsUiStateMachineImpl(
           }
         },
         onCancel = {
+          completeResetMetric(MetricOutcome.UserCanceled)
           updateState(ResetFingerprintsUiState.ShowingConfirmation())
         },
         screenPresentationStyle = ScreenPresentationStyle.Modal,
-        eventTrackerContext = NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS,
+        eventTrackerContext = NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_CREATE_GRANT_REQUEST,
         needsAuthentication = false,
         hardwareVerification = NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
       )
@@ -215,8 +264,8 @@ class ResetFingerprintsUiStateMachineImpl(
   }
 
   @Composable
-  private fun handleShowingProgress(
-    state: ResetFingerprintsUiState.ShowingProgress,
+  private fun handleShowingDelayAndNotifyProgress(
+    state: ResetFingerprintsUiState.ShowingDelayAndNotifyProgress,
     props: ResetFingerprintsProps,
     updateState: (ResetFingerprintsUiState) -> Unit,
   ): ScreenModel {
@@ -236,17 +285,28 @@ class ResetFingerprintsUiStateMachineImpl(
       }
     }
 
-    LaunchedEffect("update-reset-progress") {
-      launchTicker(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE) {
+    LaunchedEffect("update-reset-progress", state.endTime) {
+      // Update countdown display every minute for UX, but transition
+      // immediately when delay period completes
+      while (true) {
         remainingDelayPeriod = nonNegativeDurationBetween(clock.now(), state.endTime)
         if (remainingDelayPeriod <= Duration.ZERO) {
           updateState(
-            ResetFingerprintsUiState.Finishing(
-              state.completionToken,
-              state.cancellationToken
+            ResetFingerprintsUiState.DelayAndNotifyComplete(
+              actionId = state.actionId,
+              completionToken = state.completionToken,
+              cancellationToken = state.cancellationToken
             )
           )
+          break
         }
+
+        val nextUpdateDelay = minOf(
+          remainingDelayPeriod,
+          remainingRecoveryDelayWordsUpdateFrequency.value
+        )
+
+        delay(nextUpdateDelay)
       }
     }
 
@@ -278,17 +338,39 @@ class ResetFingerprintsUiStateMachineImpl(
   }
 
   @Composable
-  private fun handleFinishing(
-    state: ResetFingerprintsUiState.Finishing,
+  private fun handleDelayAndNotifyComplete(
+    state: ResetFingerprintsUiState.DelayAndNotifyComplete,
     props: ResetFingerprintsProps,
     updateState: (ResetFingerprintsUiState) -> Unit,
   ): ScreenModel {
     return ScreenModel(
       body = FinishResetFingerprintsBodyModel(
-        onClose = props.onComplete,
+        onClose = props.onCancel,
         onConfirmReset = {
-          // TODO: W-11569 finish fingerprint reset
-          props.onComplete()
+          val onDismiss = {
+            updateState(
+              ResetFingerprintsUiState.DelayAndNotifyComplete(
+                actionId = state.actionId,
+                completionToken = state.completionToken,
+                cancellationToken = state.cancellationToken
+              )
+            )
+          }
+          updateState(
+            state.copy(
+              bottomSheetModel = ResetFingerprintsConfirmationSheetModel(
+                onDismiss = onDismiss,
+                onConfirmReset = {
+                  updateState(
+                    ResetFingerprintsUiState.RequestingSignedGrantFromServer(
+                      actionId = state.actionId,
+                      completionToken = state.completionToken
+                    )
+                  )
+                }
+              ).asSheetModalScreen(onClosed = onDismiss)
+            )
+          )
         },
         onCancelReset = {
           updateState(
@@ -298,7 +380,93 @@ class ResetFingerprintsUiStateMachineImpl(
           )
         }
       ),
+      bottomSheetModel = state.bottomSheetModel,
       presentationStyle = ScreenPresentationStyle.Modal
+    )
+  }
+
+  @Composable
+  private fun handleRequestingSignedGrantFromServer(
+    state: ResetFingerprintsUiState.RequestingSignedGrantFromServer,
+    updateState: (ResetFingerprintsUiState) -> Unit,
+  ): ScreenModel {
+    LaunchedEffect("complete-fingerprint-reset") {
+      fingerprintResetService.completeFingerprintResetAndGetGrant(
+        actionId = state.actionId,
+        completionToken = state.completionToken
+      ).onSuccess { grant ->
+        updateState(
+          ResetFingerprintsUiState.ProvidingGrantViaNfc(
+            actionId = state.actionId,
+            grant = grant
+          )
+        )
+      }.onFailure { error ->
+        logError { "Failed to complete fingerprint reset: $error" }
+        completeResetMetric(MetricOutcome.Failed)
+        updateState(
+          ResetFingerprintsUiState.Error.CompletePrivilegedActionError(error)
+        )
+      }
+    }
+
+    return LoadingBodyModel(
+      id = ResetFingerprintsEventTrackerScreenId.LOADING_GRANT,
+      message = "Completing fingerprint reset..."
+    ).asModalScreen()
+  }
+
+  @Composable
+  private fun handleProvidingGrantViaNfc(
+    state: ResetFingerprintsUiState.ProvidingGrantViaNfc,
+    props: ResetFingerprintsProps,
+    updateState: (ResetFingerprintsUiState) -> Unit,
+  ): ScreenModel {
+    return nfcSessionUIStateMachine.model(
+      props = NfcSessionUIStateMachineProps(
+        session = { session, commands ->
+          commands.provideGrant(session, state.grant)
+          commands.startFingerprintEnrollment(session)
+          ResetFingerprintsNfcResult.ProvideGrantSuccess
+        },
+        onSuccess = { result ->
+          updateState(ResetFingerprintsUiState.EnrollingFingerprints)
+        },
+        onCancel = {
+          completeResetMetric(MetricOutcome.UserCanceled)
+          props.onCancel()
+        },
+        screenPresentationStyle = ScreenPresentationStyle.Modal,
+        eventTrackerContext = NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT,
+        needsAuthentication = false,
+        shouldLock = false,
+        hardwareVerification = NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+      )
+    )
+  }
+
+  @Composable
+  private fun handleEnrollingFingerprints(props: ResetFingerprintsProps): ScreenModel {
+    val appGlobalAuthPublicKey = props.account.keybox.activeAppKeyBundle.authKey
+
+    return pairNewHardwareUiStateMachine.model(
+      PairNewHardwareProps(
+        request = PairNewHardwareProps.Request.Ready(
+          appGlobalAuthPublicKey = appGlobalAuthPublicKey,
+          onSuccess = { response ->
+            completeResetMetric(MetricOutcome.Succeeded)
+            props.onComplete()
+          }
+        ),
+        onExit = {
+          completeResetMetric(MetricOutcome.UserCanceled)
+          props.onCancel()
+        },
+        segment = ResetFingerprintsSegment,
+        eventTrackerContext = PairHardwareEventTrackerScreenIdContext.RESET_FINGERPRINTS,
+        screenPresentationStyle = ScreenPresentationStyle.Modal,
+        isResettingFingerprints = true
+      )
     )
   }
 
@@ -312,9 +480,11 @@ class ResetFingerprintsUiStateMachineImpl(
       fingerprintResetService.cancelFingerprintReset(
         cancellationToken = state.cancellationToken
       ).onSuccess {
+        completeResetMetric(MetricOutcome.UserCanceled)
         props.onCancel()
       }.onFailure { error ->
         logError { "Failed to cancel fingerprint reset: $error" }
+        completeResetMetric(MetricOutcome.Failed)
         updateState(
           ResetFingerprintsUiState.Error.GenericError(
             title = "Cancellation Failed",
@@ -338,48 +508,33 @@ class ResetFingerprintsUiStateMachineImpl(
     props: ResetFingerprintsProps,
     updateState: (ResetFingerprintsUiState) -> Unit,
   ): ScreenModel {
-    val errorTitle: String
-    val errorMessage: String
-    val onRetry: () -> Unit
-    val errorData: ErrorData
-
-    when (state) {
-      is ResetFingerprintsUiState.Error.CreatePrivilegedActionError -> {
-        errorTitle = "Error Starting Reset"
-        errorMessage = "We couldn't start the fingerprint reset process. Error: ${state.error}. Please try again."
-        onRetry = { updateState(ResetFingerprintsUiState.ShowingConfirmation()) }
-        errorData = ErrorData(ResetFingerprintsSegment, "Starting fingerprint reset", PrivilegedActionThrowable(state.error))
-      }
-      is ResetFingerprintsUiState.Error.CompletePrivilegedActionError -> {
-        errorTitle = "Error Completing Reset"
-        errorMessage = "We couldn't finalize the fingerprint reset process. Error: ${state.error}. Please try again."
-        onRetry = { updateState(ResetFingerprintsUiState.ShowingConfirmation()) }
-        errorData = ErrorData(ResetFingerprintsSegment, "Completing fingerprint reset", PrivilegedActionThrowable(state.error))
-      }
-      is ResetFingerprintsUiState.Error.GenericError -> {
-        errorTitle = state.title
-        errorMessage = state.message
-        onRetry = { updateState(ResetFingerprintsUiState.ShowingConfirmation()) }
-        errorData = ErrorData(ResetFingerprintsSegment, "Generic error in flow", state.cause ?: RuntimeException(state.message))
-      }
+    val errorBodyModel = when (state) {
+      is ResetFingerprintsUiState.Error.CreatePrivilegedActionError ->
+        ResetFingerprintsErrorBodyModel.CreatePrivilegedActionError(state.error)
+      is ResetFingerprintsUiState.Error.CompletePrivilegedActionError ->
+        ResetFingerprintsErrorBodyModel.CompletePrivilegedActionError(state.error)
+      is ResetFingerprintsUiState.Error.GenericError ->
+        ResetFingerprintsErrorBodyModel.GenericError(
+          title = state.title,
+          message = state.message,
+          cause = state.cause,
+          eventTrackerScreenId = state.eventTrackerScreenId
+        )
     }
 
     return ScreenModel(
-      body = ErrorFormBodyModel(
-        title = errorTitle,
-        subline = errorMessage,
-        primaryButton = ButtonDataModel(
-          text = "Retry",
-          onClick = onRetry
-        ),
-        secondaryButton = ButtonDataModel(
-          text = "Cancel",
-          onClick = props.onCancel
-        ),
-        errorData = errorData,
-        eventTrackerScreenId = state.eventTrackerScreenId
+      body = errorBodyModel.toFormBodyModel(
+        onRetry = { updateState(ResetFingerprintsUiState.ShowingConfirmation()) },
+        onCancel = props.onCancel
       ),
       presentationStyle = ScreenPresentationStyle.Modal
+    )
+  }
+
+  private fun completeResetMetric(outcome: MetricOutcome) {
+    metricTrackerService.completeMetric(
+      metricDefinition = FingerprintResetMetricDefinition,
+      outcome = outcome
     )
   }
 
@@ -394,12 +549,12 @@ class ResetFingerprintsUiStateMachineImpl(
     /**
      * Ready for NFC scan to create a grant request.
      */
-    object ReadyForNfcScan : ResetFingerprintsUiState
+    object CreatingGrantRequestViaNfc : ResetFingerprintsUiState
 
     /**
      * Showing the progress of the fingerprint reset, indicating the delay & notify period.
      */
-    data class ShowingProgress(
+    data class ShowingDelayAndNotifyProgress(
       val actionId: String,
       val startTime: Instant,
       val endTime: Instant,
@@ -415,11 +570,22 @@ class ResetFingerprintsUiStateMachineImpl(
     ) : ResetFingerprintsUiState
 
     /**
-     * Finishing the reset process, indicating that the user can now reset their fingerprints.
+     * Represents the state when the delay and notify period is complete,
+     * and the grant is ready to be retrieved.
      */
-    data class Finishing(
+    data class DelayAndNotifyComplete(
+      val actionId: String,
       val completionToken: String,
       val cancellationToken: String,
+      val bottomSheetModel: SheetModel? = null,
+    ) : ResetFingerprintsUiState
+
+    /**
+     * Completing the fingerprint reset by fetching the grant and providing to the hardware.
+     */
+    data class RequestingSignedGrantFromServer(
+      val actionId: String,
+      val completionToken: String,
     ) : ResetFingerprintsUiState
 
     /**
@@ -450,13 +616,22 @@ class ResetFingerprintsUiStateMachineImpl(
      * Represents the initial loading state of the flow.
      */
     object Loading : ResetFingerprintsUiState
+
+    /**
+     * Represents the state when the fingerprint enrollment is in progress.
+     */
+    object EnrollingFingerprints : ResetFingerprintsUiState
+
+    /**
+     * Represents the state when the grant is being provided via NFC.
+     */
+    data class ProvidingGrantViaNfc(
+      val actionId: String,
+      val grant: Grant,
+    ) : ResetFingerprintsUiState
   }
 }
 
-private object ResetFingerprintsSegment : AppSegment {
+internal object ResetFingerprintsSegment : AppSegment {
   override val id: String = "ResetFingerprintsFlow"
 }
-
-private class PrivilegedActionThrowable(
-  paError: PrivilegedActionError,
-) : Throwable("PrivilegedActionError: $paError")

@@ -2,7 +2,6 @@ package build.wallet.coachmark
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.BalanceHistoryFeatureFlag
 import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.feature.isEnabled
 import kotlinx.datetime.Clock
@@ -14,13 +13,10 @@ import kotlinx.datetime.Clock
 @BitkeyInject(AppScope::class)
 class CoachmarkVisibilityDecider(
   val clock: Clock,
-  val balanceHistoryFeatureFlag: BalanceHistoryFeatureFlag,
   val securityHubFeatureFlag: SecurityHubFeatureFlag,
 ) {
   fun shouldShow(coachmark: Coachmark): Boolean {
     val featureFlagged = when (coachmark.id) {
-      CoachmarkIdentifier.BalanceGraphCoachmark ->
-        balanceHistoryFeatureFlag.isEnabled()
       CoachmarkIdentifier.SecurityHubSettingsCoachmark, CoachmarkIdentifier.SecurityHubHomeCoachmark ->
         securityHubFeatureFlag.isEnabled()
       else -> {

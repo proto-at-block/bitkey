@@ -8,4 +8,7 @@ class BiometricTextProviderImpl : BiometricTextProvider {
   override fun getSettingsTitleText(): String = "Noop Biometrics"
 
   override fun getSettingsSecondaryText(): String = "Noop Biometrics Description"
+
+  override fun getAppSecurityDescriptionText(): String =
+    "Unlock the app using fingerprint or facial recognition."
 }

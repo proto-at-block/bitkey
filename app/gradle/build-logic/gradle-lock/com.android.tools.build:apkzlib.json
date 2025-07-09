@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:apkzlib",
     "components": [
         {
-            "version": "8.9.1",
+            "version": "8.10.1",
             "variants": [
                 {
                     "artifacts": {
-                        "apkzlib-8.9.1.jar": "1c1a67d6f4f186427ac166ebaa0dd867f595d5144fc925252b05ffb9d1a156b7"
+                        "apkzlib-8.10.1.jar": "29091c9457252f997ddfeafb33dd65a373ad45840128f945832d8eafd9118561"
                     }
                 }
             ],

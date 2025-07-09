@@ -72,7 +72,11 @@ class SecurityRecommendationInteractionDaoMock : SecurityRecommendationInteracti
     }
   }
 
-  override suspend fun deleteRecommendation(id: SecurityActionRecommendation) {
-    interactions.remove(id)
+  override suspend fun deleteRecommendation(id: String) {
+    interactions.remove(SecurityActionRecommendation.entries.firstOrNull { it.name == id })
+  }
+
+  override suspend fun clear() {
+    interactions.clear()
   }
 }

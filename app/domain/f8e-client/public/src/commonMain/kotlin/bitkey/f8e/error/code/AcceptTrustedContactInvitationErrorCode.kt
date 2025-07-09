@@ -19,6 +19,6 @@ enum class AcceptTrustedContactInvitationErrorCode : F8eClientErrorCode {
   /** Indicates the account attempting to accept the invite is the same account that send the invite. **/
   CUSTOMER_IS_TRUSTED_CONTACT,
 
-  /** Indicates the account attempting to accept the invite is already a Recovery Contact for the requesting account. **/
+  /** Indicates the account attempting to accept the invite is already a Trusted Contact for the requesting account. **/
   ACCOUNT_ALREADY_TRUSTED_CONTACT,
 }

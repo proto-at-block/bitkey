@@ -5,7 +5,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
 /**
- * State machine for adding a new Recovery Contact.
+ * State machine for adding a new Trusted Contact.
  */
 interface ListingTrustedContactsUiStateMachine :
   StateMachine<ListingTrustedContactsUiProps, ScreenModel>

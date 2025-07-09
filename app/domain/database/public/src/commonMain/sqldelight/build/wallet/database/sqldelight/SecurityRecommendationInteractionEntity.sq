@@ -42,3 +42,4 @@ getById: SELECT * FROM securityRecommendationInteractionEntity WHERE recommendat
 getByIds: SELECT * FROM securityRecommendationInteractionEntity WHERE recommendationId IN ?;
 getAll: SELECT * FROM securityRecommendationInteractionEntity;
 deleteByIds: DELETE FROM securityRecommendationInteractionEntity WHERE recommendationId IN ?;
+deleteAll: DELETE FROM securityRecommendationInteractionEntity;

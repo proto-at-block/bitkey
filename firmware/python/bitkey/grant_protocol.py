@@ -69,10 +69,10 @@ class GrantRequest(ctypes.Structure):
             raise ValueError(f"Incorrect data size for GrantRequest: got {len(data)}, expected {ctypes.sizeof(cls)}")
         return cls.from_buffer_copy(data)
 
-    def get_signable_part_bytes(self) -> bytes:
+    def get_signing_input(self) -> bytes:
         """Returns the bytes of the request excluding the signature field."""
         size_excluding_sig = ctypes.sizeof(self) - GRANT_SIGNATURE_LEN
-        return self.serialize()[:size_excluding_sig]
+        return b"BKGrantReq" + self.serialize()[:size_excluding_sig]
 
     def __repr__(self):
         return f"GrantRequest(version={self.version}," \
@@ -143,15 +143,22 @@ class MockServer:
 
         return r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
 
-    def sign_grant_for_request(self, request: GrantRequest) -> Grant:
-        # IMPORTANT: Server would verify the request signature here.
+    def sign_grant_for_request(self, request: GrantRequest, verify_request_signature: bool = True, hw_auth_pubkey: bytes = None) -> Grant:
+        if verify_request_signature:
+            assert hw_auth_pubkey is not None, "hw_auth_pubkey is required to verify the request signature"
+            verifying_key = ecdsa.VerifyingKey.from_string(
+                hw_auth_pubkey,
+                curve=ecdsa.SECP256k1
+            )
+            print("Verifying request signature...")
+            verifying_key.verify(request.signature, request.get_signing_input(), hashfunc=hashlib.sha256)
+            print("Request signature verified")
 
         grant = Grant(
             version=GRANT_PROTOCOL_VERSION,
             serialized_request=request.serialize(),
             signature=b'\x00'*GRANT_SIGNATURE_LEN
         )
-
 
         signing_input = grant.get_signing_input()
 

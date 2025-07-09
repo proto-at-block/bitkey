@@ -13,7 +13,7 @@ use types::currencies::CurrencyCode::USD;
 use types::transaction_verification::entities::BitcoinDisplayUnit;
 use types::transaction_verification::router::{
     InitiateTransactionVerificationView, InitiateTransactionVerificationViewRequested,
-    InitiateTransactionVerificationViewSigned,
+    InitiateTransactionVerificationViewSigned, TransactionVerificationView,
 };
 
 #[tokio::test]
@@ -183,7 +183,7 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
         .await;
 
     // Verify the response
-    match resp.body.unwrap() {
+    let verification_id = match resp.body.unwrap() {
         InitiateTransactionVerificationView::VerificationRequested(
             InitiateTransactionVerificationViewRequested {
                 verification_id,
@@ -193,7 +193,16 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
             // Transaction requires verification because it's over the threshold
             assert!(!verification_id.to_string().is_empty());
             assert!(expiration > OffsetDateTime::now_utc());
+            verification_id
         }
         _ => panic!("Expected transaction to require verification"),
+    };
+
+    let check_resp = client
+        .check_transaction_verification(&account.id, &verification_id, &keys)
+        .await;
+    match check_resp.body.unwrap() {
+        TransactionVerificationView::Pending => (),
+        _ => panic!("Expected transaction to be pending"),
     }
 }

@@ -1,12 +1,12 @@
 {
-    "module-identifier": "com.android.tools.utp:android-test-plugin-host-retention-proto",
+    "module-identifier": "io.grpc:grpc-inprocess",
     "components": [
         {
-            "version": "31.9.1",
+            "version": "1.69.1",
             "variants": [
                 {
                     "artifacts": {
-                        "android-test-plugin-host-retention-proto-31.9.1.jar": "08f1af96115b2bd02cd4b684e194f5c5c2763f01c8f59e011d9aeccb3fef1863"
+                        "grpc-inprocess-1.69.1.jar": "b7c6ac0e3abf4b8d582610d632d79417bc3da81254e1a4bcf7f01e8db7bd55ef"
                     }
                 }
             ],

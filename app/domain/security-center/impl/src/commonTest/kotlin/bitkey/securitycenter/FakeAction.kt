@@ -17,6 +17,14 @@ data class FakeAction(
   }
 
   override fun type(): SecurityActionType = type
+
+  override fun state(): SecurityActionState {
+    return if (recommendations.isEmpty()) {
+      SecurityActionState.Secure
+    } else {
+      SecurityActionState.HasRecommendationActions
+    }
+  }
 }
 
 abstract class FakeActionFactory(
@@ -95,7 +103,10 @@ class CriticalAlertsActionFactoryFake : CriticalAlertsActionFactory,
 
 class FingerprintsActionFactoryFake : FingerprintsActionFactory,
   FakeActionFactory(
-    recommendations = listOf(SecurityActionRecommendation.ADD_FINGERPRINTS),
+    recommendations = listOf(
+      SecurityActionRecommendation.ADD_FINGERPRINTS,
+      SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET
+    ),
     category = SecurityActionCategory.SECURITY,
     type = SecurityActionType.FINGERPRINTS
   ) {

@@ -48,7 +48,7 @@ class EmergencyExitPayloadCreatorImpl(
       val encodedBackup = emergencyExitKitPayloadDecoder.encodeBackup(backup)
 
       val sealedData =
-        symmetricKeyEncryptor.seal(
+        symmetricKeyEncryptor.sealNoMetadata(
           unsealedData = encodedBackup,
           key = pkek.key
         )

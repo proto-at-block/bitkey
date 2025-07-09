@@ -1,0 +1,17 @@
+-- Migration 37: Refactor walletBalanceEntity to cache only Bitcoin balances and add cachedAt.
+-- All existing data will be cleared to ensure a clean state with the new schema.
+
+CREATE TABLE walletBalanceEntity_tmp (
+  date              TEXT AS Instant NOT NULL,
+  btcBalance        REAL NOT NULL,
+  range             TEXT AS ChartRange NOT NULL,
+  cachedAt          TEXT AS Instant NOT NULL
+);
+
+-- This clears all existing data.
+DROP TABLE IF EXISTS walletBalanceEntity;
+
+-- Rename the temporary table to the original name.
+ALTER TABLE walletBalanceEntity_tmp RENAME TO walletBalanceEntity;
+
+PRAGMA foreign_key_check;

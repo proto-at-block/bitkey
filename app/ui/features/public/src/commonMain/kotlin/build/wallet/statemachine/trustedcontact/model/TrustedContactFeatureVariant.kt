@@ -1,7 +1,7 @@
 package build.wallet.statemachine.trustedcontact.model
 
 /**
- * Different scenario context that Recovery Contacts may be used in.
+ * Different scenario context that trusted contacts may be used in.
  *
  * This structure is useful for copy variants in screens where a screen
  * identical in functionality may be used for either inheritance or recovery.

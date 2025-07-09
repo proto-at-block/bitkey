@@ -12,7 +12,7 @@ interface FullAccountCloudBackupCreator {
    * @param keybox to backup.
    * @param sealedCsek the sealed CSEK to use to encrypt the backup. Expected that at this point,
    * unsealed [Csek] is persisted in [CsekDao]. If not, returns [CsekMissing] error.
-   * @param endorsedTrustedContacts: list of Recovery Contacts to backup.
+   * @param endorsedTrustedContacts: list of trusted contacts to backup.
    */
   suspend fun create(
     keybox: Keybox,

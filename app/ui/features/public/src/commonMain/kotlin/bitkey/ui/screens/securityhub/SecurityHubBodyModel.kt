@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -22,11 +23,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import bitkey.securitycenter.SecurityAction
-import bitkey.securitycenter.SecurityActionCategory
-import bitkey.securitycenter.SecurityActionRecommendation
+import bitkey.securitycenter.*
 import bitkey.securitycenter.SecurityActionRecommendation.*
-import bitkey.securitycenter.SecurityActionType
 import bitkey.securitycenter.SecurityActionType.*
 import bitkey.ui.Snapshot
 import bitkey.ui.SnapshotHost
@@ -48,6 +46,7 @@ import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.tabbar.Tab
 import build.wallet.ui.components.tabbar.TabBar
 import build.wallet.ui.compose.scalingClickable
+import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
@@ -63,6 +62,7 @@ import kotlin.math.sin
 private val DestructiveRed = Color(0xffca0000)
 private val WarningOrange = Color(0xffbf46e38)
 private val SuccessGreen = Color(0xff3aba5a)
+private val DisabledGrey = Color(0xffc6c6c6)
 
 data class SecurityHubBodyModel(
   val isOffline: Boolean = false,
@@ -494,13 +494,18 @@ private fun ActionTile(
   Box(
     modifier = modifier.fillMaxWidth()
       .height(116.dp)
-      .scalingClickable {
-        onClick(action)
+      .thenIf(action.state() != SecurityActionState.Disabled) {
+        Modifier.scalingClickable {
+          onClick(action)
+        }
       }
       .background(
         color = WalletTheme.colors.secondary,
         shape = RoundedCornerShape(16.dp)
       )
+      .thenIf(action.state() == SecurityActionState.Disabled) {
+        Modifier.alpha(0.3f)
+      }
   ) {
     Row(
       modifier = Modifier.fillMaxWidth()
@@ -558,11 +563,11 @@ private fun SecurityAction.icon(): Icon =
   }
 
 private fun SecurityAction.statusColor(): Color =
-  when {
-    this.getRecommendations().contains(PAIR_HARDWARE_DEVICE) ->
-      DestructiveRed
-    requiresAction() -> WarningOrange
-    else -> SuccessGreen
+  when (state()) {
+    SecurityActionState.Secure -> SuccessGreen
+    SecurityActionState.HasRecommendationActions -> WarningOrange
+    SecurityActionState.HasCriticalActions -> DestructiveRed
+    SecurityActionState.Disabled -> DisabledGrey
   }
 
 private fun SecurityActionRecommendation.title(): StringResource =
@@ -570,6 +575,7 @@ private fun SecurityActionRecommendation.title(): StringResource =
     BACKUP_MOBILE_KEY -> Res.string.backup_mobile_key_recommendation_title
     BACKUP_EAK -> Res.string.backup_eak_recommendation_title
     ADD_FINGERPRINTS -> Res.string.add_fingerprints_recommendation_title
+    COMPLETE_FINGERPRINT_RESET -> Res.string.complete_fingerprint_reset_recommendation_title
     ADD_TRUSTED_CONTACTS -> Res.string.add_recovery_contacts_recommendation_title
     ENABLE_CRITICAL_ALERTS -> Res.string.enable_critical_alerts_recommendation_title
     ADD_BENEFICIARY -> Res.string.add_beneficiary_recommendation_title
@@ -587,6 +593,7 @@ private fun SecurityActionRecommendation.icon(): Icon =
     BACKUP_MOBILE_KEY -> Icon.SmallIconCloud
     BACKUP_EAK -> Icon.SmallIconRecovery
     ADD_FINGERPRINTS -> Icon.SmallIconFingerprint
+    COMPLETE_FINGERPRINT_RESET -> Icon.SmallIconFingerprint
     ADD_TRUSTED_CONTACTS -> Icon.SmallIconShieldPerson
     ENABLE_CRITICAL_ALERTS, ENABLE_SMS_NOTIFICATIONS, ENABLE_EMAIL_NOTIFICATIONS,
     ENABLE_PUSH_NOTIFICATIONS,
@@ -614,39 +621,46 @@ val SnapshotHost.pendingRecommendations
       previewSecurityAction(
         type = CRITICAL_ALERTS,
         category = SecurityActionCategory.SECURITY,
-        ENABLE_CRITICAL_ALERTS
+        ENABLE_CRITICAL_ALERTS,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = EEK_BACKUP,
         category = SecurityActionCategory.SECURITY,
-        BACKUP_EAK
+        BACKUP_EAK,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = CRITICAL_ALERTS,
         category = SecurityActionCategory.SECURITY,
-        ENABLE_CRITICAL_ALERTS
+        ENABLE_CRITICAL_ALERTS,
+        state = SecurityActionState.HasRecommendationActions
       )
     ),
     recoveryActions = listOf(
       previewSecurityAction(
         type = FINGERPRINTS,
         category = SecurityActionCategory.SECURITY,
-        ADD_FINGERPRINTS
+        ADD_FINGERPRINTS,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = INHERITANCE,
         category = SecurityActionCategory.SECURITY,
-        ADD_BENEFICIARY
+        ADD_BENEFICIARY,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = APP_KEY_BACKUP,
         category = SecurityActionCategory.SECURITY,
-        BACKUP_MOBILE_KEY
+        BACKUP_MOBILE_KEY,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = SOCIAL_RECOVERY,
         category = SecurityActionCategory.SECURITY,
-        ADD_TRUSTED_CONTACTS
+        ADD_TRUSTED_CONTACTS,
+        state = SecurityActionState.HasRecommendationActions
       )
     ),
     onRecommendationClick = {},
@@ -672,39 +686,46 @@ val SnapshotHost.pendingRecommendationsWithCards
       previewSecurityAction(
         type = CRITICAL_ALERTS,
         category = SecurityActionCategory.SECURITY,
-        ENABLE_CRITICAL_ALERTS
+        ENABLE_CRITICAL_ALERTS,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = EEK_BACKUP,
         category = SecurityActionCategory.SECURITY,
-        BACKUP_EAK
+        BACKUP_EAK,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = CRITICAL_ALERTS,
         category = SecurityActionCategory.SECURITY,
-        ENABLE_CRITICAL_ALERTS
+        ENABLE_CRITICAL_ALERTS,
+        state = SecurityActionState.HasRecommendationActions
       )
     ),
     recoveryActions = listOf(
       previewSecurityAction(
         type = FINGERPRINTS,
         category = SecurityActionCategory.SECURITY,
-        ADD_FINGERPRINTS
+        ADD_FINGERPRINTS,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = INHERITANCE,
         category = SecurityActionCategory.SECURITY,
-        ADD_BENEFICIARY
+        ADD_BENEFICIARY,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = APP_KEY_BACKUP,
         category = SecurityActionCategory.SECURITY,
-        BACKUP_MOBILE_KEY
+        BACKUP_MOBILE_KEY,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = SOCIAL_RECOVERY,
         category = SecurityActionCategory.SECURITY,
-        ADD_TRUSTED_CONTACTS
+        ADD_TRUSTED_CONTACTS,
+        state = SecurityActionState.HasRecommendationActions
       )
     ),
     onRecommendationClick = {},
@@ -742,39 +763,46 @@ val SnapshotHost.pendingAtRiskRecommendations
       previewSecurityAction(
         type = CRITICAL_ALERTS,
         category = SecurityActionCategory.SECURITY,
-        ENABLE_CRITICAL_ALERTS
+        ENABLE_CRITICAL_ALERTS,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = EEK_BACKUP,
         category = SecurityActionCategory.SECURITY,
-        BACKUP_EAK
+        BACKUP_EAK,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = CRITICAL_ALERTS,
         category = SecurityActionCategory.SECURITY,
-        ENABLE_CRITICAL_ALERTS
+        ENABLE_CRITICAL_ALERTS,
+        state = SecurityActionState.HasRecommendationActions
       )
     ),
     recoveryActions = listOf(
       previewSecurityAction(
         type = FINGERPRINTS,
         category = SecurityActionCategory.SECURITY,
-        ADD_FINGERPRINTS
+        ADD_FINGERPRINTS,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = INHERITANCE,
         category = SecurityActionCategory.SECURITY,
-        ADD_BENEFICIARY
+        ADD_BENEFICIARY,
+        state = SecurityActionState.HasRecommendationActions
       ),
       previewSecurityAction(
         type = APP_KEY_BACKUP,
         category = SecurityActionCategory.SECURITY,
-        BACKUP_MOBILE_KEY
+        BACKUP_MOBILE_KEY,
+        state = SecurityActionState.HasCriticalActions
       ),
       previewSecurityAction(
         type = SOCIAL_RECOVERY,
         category = SecurityActionCategory.SECURITY,
-        ADD_TRUSTED_CONTACTS
+        ADD_TRUSTED_CONTACTS,
+        state = SecurityActionState.HasRecommendationActions
       )
     ),
     onRecommendationClick = {},
@@ -802,33 +830,40 @@ val SnapshotHost.completedRecommendations
     securityActions = listOf(
       previewSecurityAction(
         type = CRITICAL_ALERTS,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Secure
       ),
       previewSecurityAction(
         type = EEK_BACKUP,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Secure
       ),
       previewSecurityAction(
         type = CRITICAL_ALERTS,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Secure
       )
     ),
     recoveryActions = listOf(
       previewSecurityAction(
         type = FINGERPRINTS,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Secure
       ),
       previewSecurityAction(
         type = INHERITANCE,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Secure
       ),
       previewSecurityAction(
         type = APP_KEY_BACKUP,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Secure
       ),
       previewSecurityAction(
         type = SOCIAL_RECOVERY,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Secure
       )
     ),
     onRecommendationClick = {},
@@ -859,33 +894,40 @@ val SnapshotHost.offline
     securityActions = listOf(
       previewSecurityAction(
         type = CRITICAL_ALERTS,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Disabled
       ),
       previewSecurityAction(
         type = EEK_BACKUP,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Disabled
       ),
       previewSecurityAction(
         type = CRITICAL_ALERTS,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Disabled
       )
     ),
     recoveryActions = listOf(
       previewSecurityAction(
         type = FINGERPRINTS,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Disabled
       ),
       previewSecurityAction(
         type = INHERITANCE,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Disabled
       ),
       previewSecurityAction(
         type = APP_KEY_BACKUP,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Disabled
       ),
       previewSecurityAction(
         type = SOCIAL_RECOVERY,
-        category = SecurityActionCategory.SECURITY
+        category = SecurityActionCategory.SECURITY,
+        state = SecurityActionState.Disabled
       )
     ),
     onRecommendationClick = {},
@@ -897,10 +939,13 @@ private fun previewSecurityAction(
   type: SecurityActionType,
   category: SecurityActionCategory,
   vararg recommendations: SecurityActionRecommendation,
+  state: SecurityActionState = SecurityActionState.Secure,
 ) = object : SecurityAction {
   override fun getRecommendations(): List<SecurityActionRecommendation> = recommendations.toList()
 
   override fun category(): SecurityActionCategory = category
 
   override fun type(): SecurityActionType = type
+
+  override fun state(): SecurityActionState = state
 }

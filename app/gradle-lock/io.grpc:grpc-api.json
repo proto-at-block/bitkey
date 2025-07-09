@@ -2,19 +2,6 @@
     "module-identifier": "io.grpc:grpc-api",
     "components": [
         {
-            "version": "1.61.0",
-            "variants": [
-                {
-                    "artifacts": {
-                        "grpc-api-1.61.0.jar": "30f314fd84e03053d07b4ddf84bcc5889cf30aac219bb1d08d8fc2f8c54f4255"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
-            ]
-        },
-        {
             "version": "1.68.2",
             "variants": [
                 {
@@ -25,6 +12,19 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
+            ]
+        },
+        {
+            "version": "1.69.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "grpc-api-1.69.1.jar": "a8d3d6dcc71f3ab613d668842282b488bdd93d3e99a0ef5dca7eee6fa734c283"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
             ]
         }
     ]

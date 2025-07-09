@@ -208,7 +208,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       .testRowOnClickCallsProps<NotificationPreferences>("Notifications", props, propsOnClickCalls)
   }
 
-  test("Recovery Contacts updates state") {
+  test("Trusted Contacts updates state") {
     stateMachine
       .testRowOnClickCallsProps<TrustedContacts>("Recovery Contacts", props, propsOnClickCalls)
   }

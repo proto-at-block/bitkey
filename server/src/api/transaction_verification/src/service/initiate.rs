@@ -139,7 +139,7 @@ impl Service {
         let payload = NotificationPayloadBuilder::default()
             .transaction_verification_payload(Some(TransactionVerificationPayload {
                 base_verification_url: self.config.ext_secure_site_base_url.clone(),
-                auth_token: tx_verification.web_auth_token.clone(),
+                web_auth_token: tx_verification.web_auth_token.clone(),
             }))
             .build()?;
         self.notification_service

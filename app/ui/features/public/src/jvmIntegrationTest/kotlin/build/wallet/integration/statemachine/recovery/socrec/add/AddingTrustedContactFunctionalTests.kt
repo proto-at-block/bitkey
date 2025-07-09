@@ -46,7 +46,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
     )
   }
 
-  test("Enter RC Name") {
+  test("Enter TC Name") {
     val app = launchNewApp()
     val account = app.onboardFullAccountWithFakeHardware()
     app.addingTcsUiStateMachine.test(

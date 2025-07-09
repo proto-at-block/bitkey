@@ -24,7 +24,7 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
   val protectedCustomerName = "kiki"
   val trustedContactName = "lala"
 
-  test("lite account recovery via Be a Recovery Contact button") {
+  test("lite account recovery via Be a Trusted Contact button") {
 
     // Protected Customer onboards and sends out an invite
     val protectedCustomerApp = launchNewApp()
@@ -34,7 +34,7 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
         tcName = trustedContactName
       )
 
-    // Recovery Contact onboards by accepting Invitation
+    // Trusted Contact onboards by accepting Invitation
     val trustedContactApp = launchNewApp()
     trustedContactApp.onboardLiteAccountFromInvitation(
       inviteCode = inviteCode,
@@ -74,7 +74,7 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
         tcName = trustedContactName
       )
 
-    // Recovery Contact onboards by accepting Invitation
+    // Trusted Contact onboards by accepting Invitation
     val trustedContactApp = launchNewApp()
     trustedContactApp.onboardLiteAccountFromInvitation(
       inviteCode = inviteCode,

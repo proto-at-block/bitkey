@@ -3,6 +3,7 @@ package build.wallet.nfc.interceptors
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.encrypt.MessageSignerFake
+import build.wallet.encrypt.SignatureUtilsMock
 import build.wallet.nfc.FakeHardwareKeyStoreFake
 import build.wallet.nfc.FakeHardwareSpendingWalletProvider
 import build.wallet.nfc.NfcCommandsFake
@@ -19,14 +20,19 @@ import okio.ByteString.Companion.encodeUtf8
 
 class CheckHardwareIsPairedInterceptorTests : FunSpec({
   val messageSigner = MessageSignerFake()
+  val signatureUtils = SignatureUtilsMock()
   val fakeHardwareKeyStore = FakeHardwareKeyStoreFake()
   val fakeHardwareSpendingWalletProvider = FakeHardwareSpendingWalletProvider(
     spendingWalletProvider = { Ok(SpendingWalletFake()) },
     fakeHardwareKeyStore = fakeHardwareKeyStore,
     descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock()
   )
-  val nfcCommands =
-    NfcCommandsFake(messageSigner, fakeHardwareKeyStore, fakeHardwareSpendingWalletProvider)
+  val nfcCommands = NfcCommandsFake(
+    messageSigner,
+    signatureUtils,
+    fakeHardwareKeyStore,
+    fakeHardwareSpendingWalletProvider
+  )
 
   test("does nothing when hardware validation not required") {
     var nextCalled = false

@@ -2,11 +2,11 @@
     "module-identifier": "com.google.api.grpc:proto-google-common-protos",
     "components": [
         {
-            "version": "2.17.0",
+            "version": "2.48.0",
             "variants": [
                 {
                     "artifacts": {
-                        "proto-google-common-protos-2.17.0.jar": "4ef1fe0c327fc1521d1d753b0b1c4a875a54bd14ebded3afff0ca395320b6ea9"
+                        "proto-google-common-protos-2.48.0.jar": "43ec7807459aaa4012e838a1be4ef2d590cf233305da60af5b54f08ec8cf2302"
                     }
                 }
             ],

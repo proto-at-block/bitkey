@@ -19,8 +19,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2025.12.0
-        PROJECT_BUNDLE_VERSION: 2
+        PROJECT_BUNDLE_SHORT_VERSION: 2025.13.0
+        PROJECT_BUNDLE_VERSION: 7
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -252,7 +252,7 @@ packages:
     exactVersion: 6.28.0
   dd-sdk-ios:
     url: https://github.com/Datadog/dd-sdk-ios
-    exactVersion: 2.18.0
+    exactVersion: 2.24.0
   PhoneNumberKit:
     url: https://github.com/marmelroy/PhoneNumberKit
     exactVersion: 3.7.6

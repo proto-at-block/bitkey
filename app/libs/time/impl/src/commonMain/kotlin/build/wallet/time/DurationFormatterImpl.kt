@@ -32,7 +32,7 @@ class DurationFormatterImpl : DurationFormatter {
         hoursFormatted != null -> {
           when {
             minutesFormatted != null -> "$hoursFormatted, $minutesFormatted"
-            else -> "$minutesFormatted"
+            else -> "$hoursFormatted"
           }
         }
         minutes > 0 -> "$minutesFormatted"

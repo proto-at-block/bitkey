@@ -30,6 +30,7 @@ import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle
+import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.FontFeatureStyle
 import build.wallet.statemachine.core.form.BackgroundTreatment
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
@@ -373,6 +374,7 @@ private fun Explainer(statements: ImmutableList<Statement>) {
                       when (val substringStyle = styledSubstring.style) {
                         is ColorStyle -> SpanStyle(color = substringStyle.color.toWalletTheme())
                         is BoldStyle -> SpanStyle(fontWeight = FontWeight.W600)
+                        is FontFeatureStyle -> SpanStyle(fontFeatureSettings = substringStyle.fontFeatureSettings)
                       },
                     start = styledSubstring.range.first,
                     end = styledSubstring.range.last + 1

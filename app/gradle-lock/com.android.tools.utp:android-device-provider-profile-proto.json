@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-device-provider-profile-proto",
     "components": [
         {
-            "version": "31.9.1",
+            "version": "31.10.1",
             "variants": [
                 {
                     "artifacts": {
-                        "android-device-provider-profile-proto-31.9.1.jar": "3e7b098f6e3ecae31b6f7909c343b4ec09aa18d8a89f41bf92077ba4b056f453"
+                        "android-device-provider-profile-proto-31.10.1.jar": "3e7b098f6e3ecae31b6f7909c343b4ec09aa18d8a89f41bf92077ba4b056f453"
                     }
                 }
             ],

@@ -1,6 +1,7 @@
 use crate::error::TransactionVerificationError;
 use crate::service::Service as TransactionVerificationService;
 use crate::static_handler::{get_template, static_handler};
+
 use account::service::{
     tests::default_electrum_rpc_uris, FetchAccountInput, Service as AccountService,
 };
@@ -12,11 +13,14 @@ use axum::{
     Json, Router,
 };
 use bdk_utils::{
-    bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, get_outflow_addresses_for_psbt,
-    get_total_outflow_for_psbt,
+    bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, generate_electrum_rpc_uris,
+    get_outflow_addresses_for_psbt, get_total_outflow_for_psbt, DescriptorKeyset,
 };
-use bdk_utils::{generate_electrum_rpc_uris, DescriptorKeyset};
 use errors::ApiError;
+use exchange_rate::{
+    currency_conversion::money_for_sats, select_exchange_rate_provider,
+    service::Service as ExchangeRateService, ExchangeRateConfig,
+};
 use experimentation::claims::ExperimentationClaims;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::{
@@ -28,15 +32,20 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::str::FromStr;
 use tracing::instrument;
-use types::account::entities::TransactionVerificationPolicy;
-use types::account::identifiers::{AccountId, KeysetId};
-use types::currencies::CurrencyCode;
-use types::transaction_verification::entities::BitcoinDisplayUnit;
-use types::transaction_verification::router::{
-    InitiateTransactionVerificationView, TransactionVerificationView,
+use types::{
+    account::{
+        entities::TransactionVerificationPolicy,
+        identifiers::{AccountId, KeysetId},
+    },
+    currencies::CurrencyCode,
+    exchange_rate::RateProvider,
+    transaction_verification::{
+        entities::BitcoinDisplayUnit,
+        router::{InitiateTransactionVerificationView, TransactionVerificationView},
+        service::DescriptorKeysetWalletProvider,
+        TransactionVerificationId,
+    },
 };
-use types::transaction_verification::service::DescriptorKeysetWalletProvider;
-use types::transaction_verification::TransactionVerificationId;
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 
@@ -60,12 +69,25 @@ fn html_error<E: std::fmt::Display>(
     )
 }
 
+#[derive(Clone, Deserialize)]
+pub struct Config {
+    pub(crate) use_local_currency_exchange: bool,
+}
+
+impl ExchangeRateConfig for Config {
+    fn use_local_currency_exchange(&self) -> bool {
+        self.use_local_currency_exchange
+    }
+}
+
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(
+    pub Config,
     pub AccountService,
     pub FeatureFlagsService,
     pub UserPoolService,
     pub TransactionVerificationService,
+    pub ExchangeRateService,
 );
 
 impl RouterBuilder for RouteState {
@@ -81,7 +103,7 @@ impl RouterBuilder for RouteState {
             )
             .route(
                 "/api/accounts/:account_id/tx-verify/requests/:verification_id",
-                post(check_transaction_verification),
+                get(check_transaction_verification),
             )
             .route(
                 "/api/accounts/:account_id/tx-verify/requests",
@@ -117,15 +139,16 @@ impl From<RouteState> for SwaggerEndpoint {
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        get_transaction_verification_policy,
         put_transaction_verification_policy,
         check_transaction_verification,
         initiate_transaction_verification,
     ),
     components(
         schemas(
+            GetTransactionVerificationPolicyResponse,
             PutTransactionVerificationPolicyRequest,
             PutTransactionVerificationPolicyResponse,
-            CheckTransactionVerificationRequest,
             InitiateTransactionVerificationRequest,
             InitiateTransactionVerificationView,
             TransactionVerificationView,
@@ -204,18 +227,10 @@ async fn put_transaction_verification_policy(
     Ok(Json(PutTransactionVerificationPolicyResponse {}))
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct CheckTransactionVerificationRequest {
-    pub psbt: String,
-    pub hw_grant: String,
-    pub should_prompt_user: bool,
-}
-
 #[instrument(skip(transaction_verification_service), fields(account_id = %account_id))]
 #[utoipa::path(
-    post,
+    get,
     path = "/api/accounts/:account_id/tx-verify/requests/:verification_id",
-    request_body = CheckTransactionVerificationRequest,
     responses(
         (status = 200, description = "Transaction verification request processed successfully", body = CheckTransactionVerificationResponse),
         (status = 400, description = "Bad Request - missing or invalid request"),
@@ -227,7 +242,6 @@ pub struct CheckTransactionVerificationRequest {
 async fn check_transaction_verification(
     Path((account_id, verification_id)): Path<(AccountId, TransactionVerificationId)>,
     State(transaction_verification_service): State<TransactionVerificationService>,
-    Json(request): Json<CheckTransactionVerificationRequest>,
 ) -> Result<Json<TransactionVerificationView>, ApiError> {
     let tx_verification = transaction_verification_service
         .fetch(&account_id, &verification_id)
@@ -251,8 +265,8 @@ pub struct InitiateTransactionVerificationRequest {
         transaction_verification_service,
         experimentation_claims
     ),
-    fields(account_id = %account_id))
-]
+    fields(account_id = %account_id)
+)]
 #[utoipa::path(
     post,
     path = "/api/accounts/:account_id/tx-verify/requests",
@@ -343,6 +357,8 @@ pub struct TransactionVerificationInterfaceParams {
 pub async fn get_transaction_verification_interface(
     State(transaction_verification_service): State<TransactionVerificationService>,
     State(account_service): State<AccountService>,
+    State(config): State<Config>,
+    State(exchange_rate_service): State<ExchangeRateService>,
     Query(params): Query<TransactionVerificationInterfaceParams>,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
     let tx_verification = transaction_verification_service
@@ -364,7 +380,16 @@ pub async fn get_transaction_verification_interface(
         .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     let psbt = &tx_verification.common_fields.psbt;
 
+    let to_currency_code = CurrencyCode::USD;
     let amount_sats = get_total_outflow_for_psbt(&wallet, psbt);
+    let amount_fiat = cents_for_sats(
+        &config,
+        &exchange_rate_service,
+        amount_sats,
+        &to_currency_code,
+    )
+    .await
+    .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     let recipient = match get_outflow_addresses_for_psbt(&wallet, psbt, wallet.network())
         .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?
     {
@@ -390,6 +415,8 @@ pub async fn get_transaction_verification_interface(
     let verification_params = serde_json::json!({
         "verificationId": tx_verification.common_fields.id,
         "amountSats": amount_sats,
+        "amountFiat": amount_fiat,
+        "amountCurrency": to_currency_code.to_string(),
         "recipient": recipient,
         "confirmToken": confirm_token,
         "cancelToken": cancel_token
@@ -418,6 +445,23 @@ pub async fn get_transaction_verification_interface(
         [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
         Html(html),
     ))
+}
+
+async fn cents_for_sats(
+    config: &Config,
+    exchange_rate_service: &ExchangeRateService,
+    sats: u64,
+    to_currency: &CurrencyCode,
+) -> Result<u64, TransactionVerificationError> {
+    let money = match select_exchange_rate_provider(config) {
+        RateProvider::Local(provider) => {
+            money_for_sats(exchange_rate_service, provider, sats, to_currency).await?
+        }
+        RateProvider::Coingecko(provider) => {
+            money_for_sats(exchange_rate_service, provider, sats, to_currency).await?
+        }
+    };
+    Ok(money.amount)
 }
 
 #[cfg(test)]

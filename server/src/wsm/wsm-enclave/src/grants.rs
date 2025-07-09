@@ -174,4 +174,44 @@ mod tests {
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains(&format!("expected {}", GRANT_PROTOCOL_VERSION)));
     }
+
+    #[test]
+    fn test_request_from_real_firmware() {
+        // GrantRequest(version=1,
+        //              device_id=38398ffffed081b6,
+        //              challenge=ba98c16cee90ad43cf97e0a33084edc3,
+        //              action=1,
+        //              signature=13d6b20cd5d741dff6ecc5af5cd9bbc5168b7f70af01dced8e3b3c761e1d710f021699b84231b38ead81ee22b9bb908a26b2c0652d9bd68beefb7e4532ed5879)
+        // Hw auth key:
+        // 02f842a7e390c222637190950d797f3677d52601fdb8bb2084da805a67cc4a30f7
+
+        let (wik_private_key, _, _) = setup_test_keys();
+
+        let hw_auth_public_key = PublicKey::from_slice(
+            &hex::decode("02f842a7e390c222637190950d797f3677d52601fdb8bb2084da805a67cc4a30f7")
+                .unwrap(),
+        )
+        .unwrap();
+
+        let request = GrantRequest {
+            version: GRANT_PROTOCOL_VERSION,
+            action: 1,
+            device_id: hex::decode("38398ffffed081b6").unwrap(),
+            challenge: hex::decode("ba98c16cee90ad43cf97e0a33084edc3").unwrap(),
+            signature: Signature::from_compact(&hex::decode("13d6b20cd5d741dff6ecc5af5cd9bbc5168b7f70af01dced8e3b3c761e1d710f021699b84231b38ead81ee22b9bb908a26b2c0652d9bd68beefb7e4532ed5879").unwrap()).unwrap(),
+        };
+
+        let processor = GrantCreator {
+            wik_private_key,
+            hw_auth_public_key,
+        };
+
+        let result = processor.create_signed_grant(request.clone());
+
+        assert!(result.is_ok());
+
+        let grant = result.unwrap();
+        assert_eq!(grant.version, GRANT_PROTOCOL_VERSION);
+        assert_eq!(grant.serialized_request, request.serialize(true));
+    }
 }

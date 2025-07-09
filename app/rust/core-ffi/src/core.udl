@@ -1,7 +1,9 @@
 namespace core {
   WalletDescriptor compute_frost_wallet_descriptor(PublicKey agg_public_key, Network network);
   [Throws=SignatureUtilsError]
-  DERSerializedSignature encode_signature_to_der([ByRef] bytes compact_signature);
+  DERSignature compact_signature_to_der([ByRef] CompactSignature compact_signature);
+  [Throws=SignatureUtilsError]
+  CompactSignature compact_signature_from_der([ByRef] DERSignature der_signature);
 };
 
 [Error]
@@ -53,7 +55,10 @@ interface Invoice {
 };
 
 [Custom]
-typedef sequence<u8> DERSerializedSignature;
+typedef sequence<u8> DERSignature;
+
+[Custom]
+typedef sequence<u8> CompactSignature;
 
 [Custom]
 typedef string Sha256;
@@ -187,6 +192,45 @@ interface CryptoBoxKeyPair {
 
   // secret_bytes are SecretKey.to_bytes() ([u8; 32])
   [Name=from_secret_bytes, Throws=CryptoBoxKeyPairError]
+  constructor(bytes secret_bytes);
+
+  bytes public_key();
+
+  bytes secret_key();
+};
+
+[Error]
+enum P256BoxError {
+  "PublicKeyError",
+  "SecretKeyError",
+  "EncryptError",
+  "DecryptError",
+  "HkdfError",
+  "CipherInstantiationError",
+  "InvalidNonceLengthError",
+};
+
+interface P256Box {
+  [Throws=P256BoxError]
+  constructor([ByRef] bytes public_key, [ByRef] bytes secret_key);
+
+  [Throws=P256BoxError]
+  bytes encrypt([ByRef] bytes nonce, [ByRef] bytes plaintext);
+
+  [Throws=P256BoxError]
+  bytes decrypt([ByRef] bytes nonce, [ByRef] bytes ciphertext);
+};
+
+[Error]
+enum P256BoxKeyPairError {
+  "InstantiationError",
+};
+
+interface P256BoxKeyPair {
+  constructor();
+
+  // secret_bytes are SecretKey.to_bytes() ([u8; 32])
+  [Name=from_secret_bytes, Throws=P256BoxKeyPairError]
   constructor(bytes secret_bytes);
 
   bytes public_key();
@@ -337,4 +381,5 @@ enum SigningError {
 [Error]
 enum SignatureUtilsError {
   "InvalidCompactSignature",
+  "InvalidDerSignature",
 };

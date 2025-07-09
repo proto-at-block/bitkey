@@ -3,6 +3,8 @@ package build.wallet.debug
 import app.cash.turbine.test
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.metrics.MetricTrackerServiceFake
+import bitkey.securitycenter.SecurityActionRecommendation
+import bitkey.securitycenter.SecurityRecommendationInteractionDaoMock
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.auth.AccountAuthTokensMock
@@ -26,6 +28,8 @@ import build.wallet.bitkey.spending.AppSpendingKeypair
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
+import build.wallet.coachmark.CoachmarkIdentifier
+import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
@@ -56,9 +60,12 @@ import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.maps.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.flow.first
+import kotlinx.datetime.Instant
 
 class AppDataDeleterImplTests : FunSpec({
 
@@ -92,6 +99,10 @@ class AppDataDeleterImplTests : FunSpec({
   val authSignatureStatusProvider = F8eAuthSignatureStatusProviderFake()
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
   val fwupDataDaoProvider = FwupDataDaoProviderMock(turbines::create)
+  val securityRecommendationInteractionDao = SecurityRecommendationInteractionDaoMock()
+  val coachmarkService = CoachmarkServiceMock(
+    turbineFactory = turbines::create
+  )
 
   fun appDataDeleter(appVariant: AppVariant) =
     AppDataDeleterImpl(
@@ -126,7 +137,9 @@ class AppDataDeleterImplTests : FunSpec({
       biometricPreference = BiometricPreferenceFake(),
       inheritanceClaimsDao = InheritanceClaimsDaoFake(),
       metricTrackerService = MetricTrackerServiceFake(),
-      hardwareUnlockInfoService = hardwareUnlockInfoService
+      hardwareUnlockInfoService = hardwareUnlockInfoService,
+      securityRecommendationInteractionDao = securityRecommendationInteractionDao,
+      coachmarkService = coachmarkService
     )
 
   beforeTest {
@@ -137,6 +150,8 @@ class AppDataDeleterImplTests : FunSpec({
     transactionPriorityPreference.reset()
     appPrivateKeyDao.reset()
     cloudBackupDao.reset()
+    securityRecommendationInteractionDao.clear()
+    coachmarkService.defaultCoachmarks = listOf(CoachmarkIdentifier.InheritanceCoachmark)
   }
 
   test("not allowed to delete app data in Customer builds") {
@@ -167,6 +182,11 @@ class AppDataDeleterImplTests : FunSpec({
       socRecStartedChallengeDao.set("fake")
       authSignatureStatusProvider.updateAuthSignatureStatus(AuthSignatureStatus.Unauthenticated)
       authTokensService.setTokens(FullAccountIdMock, AccountAuthTokensMock, Global)
+      securityRecommendationInteractionDao.recordRecommendationActive(
+        id = SecurityActionRecommendation.BACKUP_MOBILE_KEY,
+        triggeredAt = Instant.DISTANT_PAST,
+        currentTime = Instant.DISTANT_FUTURE
+      )
 
       appDataDeleter(variant).deleteAll()
 
@@ -193,8 +213,10 @@ class AppDataDeleterImplTests : FunSpec({
       recoveryDaoMock.clearCalls.awaitItem()
       authSignatureStatusProvider.authSignatureStatus().value.shouldBe(AuthSignatureStatus.Authenticated)
       hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 0 }
+      coachmarkService.defaultCoachmarks.shouldBeEmpty()
 
       cloudBackupDao.shouldBeEmpty()
+      securityRecommendationInteractionDao.getAllInteractions().first().shouldBeEmpty()
     }
   }
 })

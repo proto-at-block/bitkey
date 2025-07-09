@@ -46,7 +46,7 @@ class SelfSovereignBackupInstrumentedTest {
         null, null, 32
       )
 
-      val wrappedKey = symmetricKeyEncryptor.seal(
+      val wrappedKey = symmetricKeyEncryptor.sealNoMetadata(
         unsealedData = serverPrivateKey,
         key = key
       )

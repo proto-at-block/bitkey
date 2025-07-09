@@ -27,6 +27,7 @@ kotlin {
       dependencies {
         implementation(projects.domain.accountFake)
         implementation(projects.domain.debugFake)
+        implementation(projects.libs.encryptionImpl)
         implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.f8eClientImpl)
@@ -42,6 +43,7 @@ kotlin {
         implementation(projects.domain.analyticsFake)
         implementation(projects.domain.relationshipsFake)
         implementation(projects.domain.walletFake)
+        implementation(projects.domain.walletImpl)
         implementation(projects.domain.cloudBackupFake)
         implementation(projects.domain.notificationsFake)
         implementation(projects.domain.hardwareFake)

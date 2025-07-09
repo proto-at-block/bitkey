@@ -40,6 +40,7 @@ private fun SecurityActionType.icon(): Icon {
     SecurityActionType.FINGERPRINTS -> Icon.SecurityHubEducationMultipleFingerprints
     SecurityActionType.SOCIAL_RECOVERY -> Icon.SecurityHubEducationTrustedContact
     SecurityActionType.CRITICAL_ALERTS -> Icon.SecurityHubEducationCriticalAlerts
+    SecurityActionType.TRANSACTION_VERIFICATION -> Icon.SecurityHubEducationTransactionVerification
     else -> error("Unsupported action type: $this")
   }
 }
@@ -50,6 +51,7 @@ private fun SecurityActionType.headline(): String {
     SecurityActionType.FINGERPRINTS -> "Multiple fingerprints"
     SecurityActionType.SOCIAL_RECOVERY -> "Recovery Contacts"
     SecurityActionType.CRITICAL_ALERTS -> "Critical alerts"
+    SecurityActionType.TRANSACTION_VERIFICATION -> "Transaction verification"
     else -> error("Unsupported action type: $this")
   }
 }
@@ -78,13 +80,18 @@ private fun SecurityActionType.subline(): String {
       
       The more alert channels you enable, the easier it is to stay informed and in control of your money.
     """.trimIndent()
+    SecurityActionType.TRANSACTION_VERIFICATION -> """
+      Add an extra layer of protection by confirming the amount and recipient of a transaction before it's sent.
+      
+      We'll guide you through a quick step to ensure your app hasn't been tampered with.
+    """.trimIndent()
     else -> error("Unsupported action type: $this")
   }
 }
 
 private fun SecurityActionType.primaryButton(onClick: () -> Unit): ButtonModel {
   return when (this) {
-    SecurityActionType.SOCIAL_RECOVERY, SecurityActionType.FINGERPRINTS, SecurityActionType.CRITICAL_ALERTS -> ButtonModel(
+    SecurityActionType.SOCIAL_RECOVERY, SecurityActionType.FINGERPRINTS, SecurityActionType.CRITICAL_ALERTS, SecurityActionType.TRANSACTION_VERIFICATION -> ButtonModel(
       text = "Continue",
       requiresBitkeyInteraction = false,
       treatment = ButtonModel.Treatment.Primary,
@@ -104,7 +111,7 @@ private fun SecurityActionType.primaryButton(onClick: () -> Unit): ButtonModel {
 
 private fun SecurityActionType.secondaryButton(onClick: () -> Unit): ButtonModel? {
   return when (this) {
-    SecurityActionType.SOCIAL_RECOVERY, SecurityActionType.FINGERPRINTS, SecurityActionType.CRITICAL_ALERTS -> ButtonModel(
+    SecurityActionType.SOCIAL_RECOVERY, SecurityActionType.FINGERPRINTS, SecurityActionType.CRITICAL_ALERTS, SecurityActionType.TRANSACTION_VERIFICATION -> ButtonModel(
       text = "Set up later",
       requiresBitkeyInteraction = false,
       treatment = ButtonModel.Treatment.Secondary,

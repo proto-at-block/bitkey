@@ -2,11 +2,11 @@
     "module-identifier": "org.codehaus.mojo:animal-sniffer-annotations",
     "components": [
         {
-            "version": "1.23",
+            "version": "1.24",
             "variants": [
                 {
                     "artifacts": {
-                        "animal-sniffer-annotations-1.23.jar": "9ffe526bf43a6348e9d8b33b9cd6f580a7f5eed0cf055913007eda263de974d0"
+                        "animal-sniffer-annotations-1.24.jar": "c720e6e5bcbe6b2f48ded75a47bccdb763eede79d14330102e0d352e3d89ed92"
                     }
                 }
             ],

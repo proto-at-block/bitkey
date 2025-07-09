@@ -12,9 +12,9 @@ interface RemoveRelationshipF8eClient {
    * Removes a relationship that the caller is part of.
    *
    * [hardwareProofOfPossession] and [AuthTokenScope.Global] are required for a customer to
-   * remove a Recovery Contact.
+   * remove a Trusted Contact.
    *
-   * Otherwise, for a Recovery Contact to remove themselves, [AuthTokenScope.Recovery] is
+   * Otherwise, for a Trusted Contact to remove themselves, [AuthTokenScope.Recovery] is
    * expected.
    */
   suspend fun removeRelationship(

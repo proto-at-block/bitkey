@@ -7,7 +7,6 @@ import build.wallet.analytics.events.screen.id.BitcoinPriceChartScreenId
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.BalanceHistoryFeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
@@ -28,7 +27,6 @@ import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -52,15 +50,10 @@ class BitcoinPriceChartUiStateMachineImpl(
   private val chartDataFetcherService: ChartDataFetcherService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val balanceHistoryService: BalanceHistoryService,
-  private val balanceHistoryFeatureFlag: BalanceHistoryFeatureFlag,
   private val timeScalePreference: ChartRangePreference,
 ) : BitcoinPriceChartUiStateMachine {
   @Composable
   override fun model(props: BitcoinPriceChartUiProps): ScreenModel {
-    val balanceHistoryEnabled by remember {
-      balanceHistoryFeatureFlag.flagValue()
-        .map { it.value }
-    }.collectAsState(initial = false)
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     var data by remember { mutableStateOf<ImmutableList<DataPoint>>(emptyImmutableList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -103,7 +96,6 @@ class BitcoinPriceChartUiStateMachineImpl(
             .map { chartDataFetcherService.getChartData(selectedRange) }
         ChartType.BALANCE ->
           balanceHistoryService.observe(selectedRange)
-            .filter { it.isOk && it.value.size > 1 }
       }.onEach { result ->
         result
           .onSuccess { chartData ->
@@ -171,7 +163,6 @@ class BitcoinPriceChartUiStateMachineImpl(
         range = selectedRange,
         type = selectedType,
         isLoading = isLoading,
-        isBalanceHistoryEnabled = balanceHistoryEnabled,
         selectedPoint = selectedPoint,
         selectedPointData = selectedPointData,
         selectedPointTimestamp = selectedPointTimeText,

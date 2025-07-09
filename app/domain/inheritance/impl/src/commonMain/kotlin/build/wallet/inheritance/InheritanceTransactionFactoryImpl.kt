@@ -16,6 +16,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.logging.logInfo
 import build.wallet.relationships.RelationshipsKeysRepository
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -95,6 +96,16 @@ class InheritanceTransactionFactoryImpl(
     }
 
     // Otherwise, we try to use the decrypted package descriptor if it is available.
-    return decryptInheritanceMaterialPackage.descriptor ?: claim.benefactorKeyset!!.value
+    return if (decryptInheritanceMaterialPackage.descriptor != null) {
+      logInfo {
+        "[Privacy] inheritance material package has non-null descriptor, using it to create transaction."
+      }
+      decryptInheritanceMaterialPackage.descriptor!!
+    } else {
+      logInfo {
+        "[Privacy] inheritance material package has null descriptor, falling back to benefactor keyset."
+      }
+      claim.benefactorKeyset!!.value
+    }
   }
 }

@@ -129,7 +129,7 @@ async fn test_reissue_recovery_relationship_invitation() {
     let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
     let tc_account_keys = context
         .get_authentication_keys_for_account_id(&tc_account.id)
-        .expect("Invalid keys for RC account");
+        .expect("Invalid keys for tc account");
 
     // Another account can't reissue
     let reissue_response = client
@@ -155,7 +155,7 @@ async fn test_reissue_recovery_relationship_invitation() {
         reissue_response.body_string
     );
 
-    // A RC can't reissue
+    // A TC can't reissue
     let reissue_response = client
         .update_recovery_relationship(
             &tc_account.id.to_string(),

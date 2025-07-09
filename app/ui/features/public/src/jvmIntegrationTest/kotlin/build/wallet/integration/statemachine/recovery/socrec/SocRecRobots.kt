@@ -55,7 +55,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 
 /**
- * Advances through Recovery Contact invite screens starting at the Recovery Contact Management screen.
+ * Advances through Trusted Contact invite screens starting at the Trusted Contact Management screen.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactInviteScreens(tcName: String) {
   awaitUntilBody<TrustedContactsListBodyModel>()
@@ -68,7 +68,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactInviteScreen
 
 /**
  * Advances through Lite Account onboarding, starting at Getting Started screen.
- * @param inviteCode the Recovery Contact invite code
+ * @param inviteCode the Trusted Contact invite code
  * @param cloudStoreAccount the cloud store account to sign in with
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCreateLiteAccountScreens(
@@ -145,7 +145,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
 }
 
 /**
- * Advances through Recovery Contact enrollment screen, starting at the invite code entry.
+ * Advances through trusted contact enrollment screen, starting at the invite code entry.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactEnrollmentScreens(
   protectedCustomerName: String,
@@ -232,8 +232,8 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceToSocialChallengeTrustedContactLi
 }
 
 /**
- * Starts a social challenge from the Recovery Contacts list in Social Recovery
- * @param formBodyModel the Recovery Contact list form
+ * Starts a social challenge from the Trusted Contacts list in Social Recovery
+ * @param formBodyModel the trusted contact list form
  * @return the challenge code
  */
 suspend fun ReceiveTurbine<ScreenModel>.startSocialChallenge(
@@ -248,8 +248,8 @@ suspend fun ReceiveTurbine<ScreenModel>.startSocialChallenge(
 
 /**
  * Advances the protected customer through restoring their app using the social challenge response,
- * starting at the RC list screen.
- * @param formBodyModel the Recovery Contact list form
+ * starting at the TC list screen.
+ * @param formBodyModel the trusted contact list form
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceFromSocialRestoreToLostHardwareRecovery(
   formBodyModel: FormBodyModel,

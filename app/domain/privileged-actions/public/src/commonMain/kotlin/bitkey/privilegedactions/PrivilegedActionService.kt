@@ -25,6 +25,7 @@ import kotlinx.datetime.Clock
 interface PrivilegedActionService<Req, Res> {
   val privilegedActionF8eClient: PrivilegedActionsF8eClient<Req, Res>
   val accountService: AccountService
+  val clock: Clock
 }
 
 suspend fun <Req, Res> PrivilegedActionService<Req, Res>.getFullAccount(): Result<FullAccount, PrivilegedActionError> {
@@ -40,7 +41,7 @@ suspend fun <Req, Res> PrivilegedActionService<Req, Res>.getPrivilegedActions():
     .map { instances ->
       instances.map { inst ->
         val status = when (val strat = inst.authorizationStrategy) {
-          is AuthorizationStrategy.DelayAndNotify -> if (strat.delayEndTime > Clock.System.now()) {
+          is AuthorizationStrategy.DelayAndNotify -> if (strat.delayEndTime > clock.now()) {
             PrivilegedActionStatus.PENDING
           } else {
             PrivilegedActionStatus.AUTHORIZED
@@ -79,7 +80,7 @@ suspend fun <Req, Res> PrivilegedActionService<Req, Res>.continueAction(
   }
 
   val token = strat.completionToken
-  if (strat.delayEndTime > Clock.System.now() || token.isNullOrBlank()) {
+  if (strat.delayEndTime > clock.now() || token.isNullOrBlank()) {
     return Err(PrivilegedActionError.NotAuthorized)
   }
 

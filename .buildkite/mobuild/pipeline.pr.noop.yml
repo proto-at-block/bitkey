@@ -1,0 +1,3 @@
+# This helps the job to not report status until dev add specific labels
+steps:
+  - block: "Add ios or app or core label to pull request to  trigger iOS specific CI pipelines"

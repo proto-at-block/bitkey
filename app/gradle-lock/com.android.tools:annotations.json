@@ -2,6 +2,19 @@
     "module-identifier": "com.android.tools:annotations",
     "components": [
         {
+            "version": "31.10.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "annotations-31.10.1.jar": "b25995fa7b220d35fbb8e325df071f8291691bfbaff9734c98e38f45ec2a73ee"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
             "version": "31.7.3",
             "variants": [
                 {
@@ -12,19 +25,6 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
-            ]
-        },
-        {
-            "version": "31.9.1",
-            "variants": [
-                {
-                    "artifacts": {
-                        "annotations-31.9.1.jar": "b25995fa7b220d35fbb8e325df071f8291691bfbaff9734c98e38f45ec2a73ee"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
             ]
         }
     ]

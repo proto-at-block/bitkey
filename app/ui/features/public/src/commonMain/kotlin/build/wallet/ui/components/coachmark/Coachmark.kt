@@ -66,7 +66,7 @@ fun Coachmark(
             icon = Icon.CalloutArrow,
             iconSize = IconSize.Small
           ),
-          color = WalletTheme.colors.accentDarkBackground
+          color = WalletTheme.colors.coachmarkBackground
         )
       }
     }

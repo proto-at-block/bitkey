@@ -567,10 +567,12 @@ impl BootstrapBuilder {
         );
 
         let transaction_verification_state = transaction_verification::routes::RouteState(
+            config::extract(profile)?,
             self.services.account_service.clone(),
             self.services.feature_flags_service.clone(),
             self.services.userpool_service.clone(),
             self.services.transaction_verification_service.clone(),
+            self.services.exchange_rate_service.clone(),
         );
 
         let delay_notify_state = recovery::routes::delay_notify::RouteState(
@@ -783,7 +785,9 @@ impl BootstrapBuilder {
         let app = match secure_site_config.int_secure_site_base_url.host_str() {
             // If the secure site is configured to localhost or left blank, merge the routers and
             // ignore HOST.
-            None | Some("localhost") => Router::new().merge(api_router).merge(secure_site_router),
+            None | Some("localhost") => {
+                finalize_router(Router::new().merge(api_router).merge(secure_site_router))
+            }
 
             // If the secure site is configured to a non-localhost URL, HOST routing is enabled so
             // that the api router and the site router do not share paths. This routing acts
@@ -798,8 +802,8 @@ impl BootstrapBuilder {
                         .and_then(|v| v.to_str().ok())
                         .unwrap_or_default()
                         .to_string();
-                    let secure_site_router = secure_site_router.clone();
-                    let api_router = api_router.clone();
+                    let secure_site_router = finalize_router(secure_site_router.clone());
+                    let api_router = finalize_router(api_router.clone());
                     let req = req.map(Body::new);
                     let secure_site_host = secure_site_host.clone();
                     tracing::debug!(
@@ -820,13 +824,16 @@ impl BootstrapBuilder {
             }
         };
 
-        let router = app
-            .layer(HttpMetrics::new())
-            .layer(OtelInResponseLayer)
-            .layer(OtelAxumLayer::default())
-            .layer(middleware::from_fn(request_baggage))
-            .layer(middleware::from_fn(client_request_context))
-            .layer(CatchPanicLayer::new());
-        Ok(router)
+        Ok(app)
     }
+}
+
+fn finalize_router(router: Router) -> Router {
+    router
+        .layer(HttpMetrics::new())
+        .layer(OtelInResponseLayer)
+        .layer(OtelAxumLayer::default())
+        .layer(middleware::from_fn(request_baggage))
+        .layer(middleware::from_fn(client_request_context))
+        .layer(CatchPanicLayer::new())
 }

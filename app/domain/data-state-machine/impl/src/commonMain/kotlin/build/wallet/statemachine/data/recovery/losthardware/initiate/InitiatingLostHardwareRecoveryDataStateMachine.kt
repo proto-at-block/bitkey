@@ -8,7 +8,6 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
-import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -72,9 +71,8 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
       is OnboardingNewHardware ->
         AwaitingNewHardwareData(
           newAppGlobalAuthKey = s.newAppKeys.authKey,
-          addHardwareKeys = { sealedCsek, keyBundle, appGlobalAuthKeyHwSignature ->
+          addHardwareKeys = { keyBundle, appGlobalAuthKeyHwSignature ->
             state = InitiatingServerRecoveryState(
-              sealedCsek = sealedCsek,
               destinationAppKeyBundle = s.newAppKeys,
               destinationHardwareKeyBundle = keyBundle,
               appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
@@ -94,14 +92,12 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
               state = when (it) {
                 is CommsVerificationRequiredError ->
                   VerifyingNotificationCommsForInitiationState(
-                    sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                     appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
                   )
                 is RecoveryAlreadyExistsError ->
                   DisplayingConflictingRecoveryState(
-                    sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                     appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
@@ -109,7 +105,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
                 is OtherError ->
                   FailedInitiatingServerRecoveryState(
                     cause = it,
-                    sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                     appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
@@ -130,7 +125,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
           retry = {
             state =
               InitiatingServerRecoveryState(
-                sealedCsek = s.sealedCsek,
                 destinationAppKeyBundle = s.destinationAppKeyBundle,
                 destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                 appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
@@ -153,7 +147,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
               when (s) {
                 is VerifyingNotificationCommsForCancellationState -> {
                   CancellingConflictingRecoveryWithF8eState(
-                    sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                     hwFactorProofOfPossession = s.hwFactorProofOfPossession,
@@ -163,7 +156,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
 
                 is VerifyingNotificationCommsForInitiationState -> {
                   InitiatingServerRecoveryState(
-                    sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                     appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
@@ -178,7 +170,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
           onCancelRecovery = {
             state =
               AwaitingHardwareProofOfPossessionState(
-                s.sealedCsek,
                 s.destinationAppKeyBundle,
                 s.destinationHardwareKeyBundle,
                 s.appGlobalAuthKeyHwSignature
@@ -195,7 +186,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
           ).onSuccess {
             state =
               InitiatingServerRecoveryState(
-                sealedCsek = s.sealedCsek,
                 destinationAppKeyBundle = s.destinationAppKeyBundle,
                 destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                 appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
@@ -206,7 +196,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
               state =
                 if (f8eError.errorCode == CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED) {
                   VerifyingNotificationCommsForCancellationState(
-                    sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                     hwFactorProofOfPossession = s.hwFactorProofOfPossession,
@@ -215,7 +204,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
                 } else {
                   FailedToCancelConflictingRecoveryWithF8EState(
                     cause = f8eError.error,
-                    sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                     hwFactorProofOfPossession = s.hwFactorProofOfPossession,
@@ -232,7 +220,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
           onComplete = {
             state =
               CancellingConflictingRecoveryWithF8eState(
-                sealedCsek = s.sealedCsek,
                 destinationAppKeyBundle = s.destinationAppKeyBundle,
                 destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                 appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature,
@@ -266,7 +253,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
     ) : State
 
     data class InitiatingServerRecoveryState(
-      val sealedCsek: SealedCsek,
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
@@ -274,27 +260,23 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
 
     data class FailedInitiatingServerRecoveryState(
       val cause: Throwable,
-      val sealedCsek: SealedCsek,
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     ) : State
 
     sealed interface VerifyingNotificationCommsState : State {
-      val sealedCsek: SealedCsek
       val destinationAppKeyBundle: AppKeyBundle
       val destinationHardwareKeyBundle: HwKeyBundle
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature
 
       data class VerifyingNotificationCommsForInitiationState(
-        override val sealedCsek: SealedCsek,
         override val destinationAppKeyBundle: AppKeyBundle,
         override val destinationHardwareKeyBundle: HwKeyBundle,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
       ) : VerifyingNotificationCommsState
 
       data class VerifyingNotificationCommsForCancellationState(
-        override val sealedCsek: SealedCsek,
         override val destinationAppKeyBundle: AppKeyBundle,
         override val destinationHardwareKeyBundle: HwKeyBundle,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
@@ -303,7 +285,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
     }
 
     data class DisplayingConflictingRecoveryState(
-      val sealedCsek: SealedCsek,
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
@@ -313,7 +294,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
      * Corresponds to [CancellingConflictingRecoveryData].
      */
     data class CancellingConflictingRecoveryWithF8eState(
-      val sealedCsek: SealedCsek,
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,
@@ -325,7 +305,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
      */
     data class FailedToCancelConflictingRecoveryWithF8EState(
       val cause: Throwable,
-      val sealedCsek: SealedCsek,
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,
@@ -333,7 +312,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
     ) : State
 
     data class AwaitingHardwareProofOfPossessionState(
-      val sealedCsek: SealedCsek,
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,

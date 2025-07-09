@@ -3,6 +3,7 @@ package build.wallet.statemachine.transactions
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
@@ -20,8 +21,20 @@ fun TransactionItemModel(
   onClick: () -> Unit,
 ) = ListItemModel(
   title = when (transactionType) {
-    Incoming, Outgoing -> truncatedRecipientAddress
+    Incoming, Outgoing -> "" // titleLabel will be used
     UtxoConsolidation -> "Consolidation"
+  },
+  titleLabel = when (transactionType) {
+    Incoming, Outgoing -> LabelModel.StringWithStyledSubstringModel(
+      string = truncatedRecipientAddress,
+      styledSubstrings = listOf(
+        LabelModel.StringWithStyledSubstringModel.StyledSubstring(
+          range = 0..<truncatedRecipientAddress.length,
+          style = LabelModel.StringWithStyledSubstringModel.SubstringStyle.FontFeatureStyle("\"calt\" 0")
+        )
+      )
+    )
+    UtxoConsolidation -> null
   },
   secondaryText = date,
   sideText = amount,
@@ -50,10 +63,9 @@ fun TransactionItemModel(
       }
     )
   ),
-  sideTextTint =
-    when (transactionType) {
-      Incoming -> GREEN
-      Outgoing, UtxoConsolidation -> PRIMARY
-    },
+  sideTextTint = when (transactionType) {
+    Incoming -> GREEN
+    Outgoing, UtxoConsolidation -> PRIMARY
+  },
   onClick = onClick
 )

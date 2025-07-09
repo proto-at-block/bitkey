@@ -272,7 +272,7 @@ class FullAccountAuthKeyRotationServiceImpl(
       )
 
       // With new auth keys, we need to re-generate new endorsement certificates for existing
-      // Recovery Contacts.
+      // trusted contacts.
       regenerateEndorseAndVerifyTrustedContacts(
         newAccount = rotatedAccount,
         oldHwAuthPublicKey = account.keybox.activeHwKeyBundle.authKey,

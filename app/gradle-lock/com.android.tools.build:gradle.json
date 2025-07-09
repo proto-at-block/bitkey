@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:gradle",
     "components": [
         {
-            "version": "8.9.1",
+            "version": "8.10.1",
             "variants": [
                 {
                     "artifacts": {
-                        "gradle-8.9.1.jar": "8aeaa7fa7bfbc9ade7746eb86d37dd5990118fbede400c9ebadc63d13cc6c880"
+                        "gradle-8.10.1.jar": "a0fe22ce029c548335a75913f7ad517c827c567b8abb84047102034255ae1173"
                     }
                 }
             ],

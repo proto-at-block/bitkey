@@ -8,6 +8,7 @@ import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInPro
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.ManageFingerprintsOptionsSheetBodyModel
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.FinishResetFingerprintsBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsConfirmationBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsConfirmationSheetModel
 import build.wallet.statemachine.ui.awaitSheet
@@ -20,6 +21,7 @@ import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldNotBeNull
+import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
 class ResetFingerprintsFunctionalTests : FunSpec({
@@ -31,7 +33,7 @@ class ResetFingerprintsFunctionalTests : FunSpec({
     app.onboardFullAccountWithFakeHardware()
   }
 
-  xtest("reset fingerprints flow") {
+  test("reset fingerprints flow") {
     launchAndPrepareApp()
     app.appUiStateMachine.test(
       props = Unit,
@@ -45,12 +47,10 @@ class ResetFingerprintsFunctionalTests : FunSpec({
       }
 
       awaitUntilBody<DeviceSettingsFormBodyModel>()
-
-      cancelAndIgnoreRemainingEvents()
     }
   }
 
-  xtest("cancel reset from progress screen returns to device settings") {
+  test("cancel reset from progress screen returns to device settings") {
     launchAndPrepareApp()
     app.appUiStateMachine.test(
       props = Unit,
@@ -64,8 +64,28 @@ class ResetFingerprintsFunctionalTests : FunSpec({
       }
 
       awaitUntilBody<DeviceSettingsFormBodyModel>()
+    }
+  }
 
-      cancelAndIgnoreRemainingEvents()
+  xtest("approve reset") {
+    launchAndPrepareApp()
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 65.seconds,
+      turbineTimeout = 65.seconds
+    ) {
+      advanceToResetFingerprintConfirmation()
+
+      awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
+
+      // TODO: make FP reset D+N time configurable
+      delay(61.seconds)
+
+      awaitUntilBody<FinishResetFingerprintsBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilBody<DeviceSettingsFormBodyModel>()
     }
   }
 })

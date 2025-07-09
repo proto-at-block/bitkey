@@ -1,7 +1,7 @@
 package build.wallet.bitkey.relationships
 
 /**
- * Common interface for an invitation or Recovery Contact.
+ * Common interface for an invitation or trusted contact.
  */
 sealed interface TrustedContact : RecoveryEntity {
   @Deprecated("Use typed ID", ReplaceWith("id"))

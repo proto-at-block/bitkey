@@ -64,7 +64,7 @@ export class SecurityAlertMonitors extends Construct {
         logAlertConfig.monitorThresholds.critical
       ),
       name: "socrec enrollment pake failure",
-      message: "Protected customer app failed PAKE confirmation for Recovery Contact enrollment",
+      message: "Protected customer app failed PAKE confirmation for trusted contact enrollment",
       tags: [`env:${environment}`, "socrec_enrollment_pake_failure"],
       ...logAlertConfig,
     });

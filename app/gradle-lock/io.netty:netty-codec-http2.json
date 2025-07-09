@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-codec-http2",
     "components": [
         {
-            "version": "4.1.93.Final",
+            "version": "4.1.110.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-codec-http2-4.1.93.Final.jar": "d96cc09045a1341c6d47494352aa263b87b72fb1d2ea9eca161aa73820bfe8bb"
+                        "netty-codec-http2-4.1.110.Final.jar": "b546c75445a487bb7bcd5a94779caecce33582cf7be31b8b39fc0e65b1ee26fc"
                     }
                 }
             ],

@@ -12,8 +12,10 @@ use crypto::noise::{
     DhError, HardwareBackedDh, HardwareBackedKeyPair, NoiseContext, NoiseRole, NoiseWrapperError,
     PrivateKey,
 };
+use crypto::p256_box::{P256Box, P256BoxError, P256BoxKeyPair, P256BoxKeyPairError};
 use crypto::signature_utils::{
-    encode_signature_to_der, DERSerializedSignature, SignatureUtilsError,
+    compact_signature_from_der, compact_signature_to_der, CompactSignature, DERSignature,
+    SignatureUtilsError,
 };
 use crypto::signature_verifier::{SignatureVerifier, SignatureVerifierError};
 use crypto::spake2::{Spake2Context, Spake2Error, Spake2Keys, Spake2Role};

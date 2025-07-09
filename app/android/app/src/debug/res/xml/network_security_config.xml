@@ -5,4 +5,19 @@
     <!-- Allow cleartext to 10.0.2.2 for local dev -->
     <domain includeSubdomains="true">10.0.2.2</domain>
   </domain-config>
+
+  <debug-overrides>
+    <trust-anchors>
+      <!-- Trust user added CAs while debuggable only -->
+      <certificates src="user" />
+      <certificates src="system" />
+    </trust-anchors>
+  </debug-overrides>
+
+  <base-config cleartextTrafficPermitted="false">
+    <!-- Secure defaults for all other traffic: HTTPS-only, system CAs only -->
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
 </network-security-config>

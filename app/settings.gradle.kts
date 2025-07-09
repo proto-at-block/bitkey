@@ -17,20 +17,13 @@ pluginManagement {
 
   includeBuild("gradle/build-logic")
   includeBuild("gradle/dependency-locking")
+}
 
-  buildscript {
-    repositories {
-      google()
-      mavenCentral()
-      maven {
-        url = uri("https://storage.googleapis.com/r8-releases/raw")
-      }
-      gradlePluginPortal()
-    }
-
-    dependencies {
-      classpath("com.android.tools:r8:8.10.24")
-    }
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
   }
 }
 
@@ -260,6 +253,8 @@ module(":sample:android-app")
 module(":sample:shared")
 module(":shared:app-component:impl")
 module(":shared:app-component:public")
+module(":shared:balance-utils:impl")
+module(":shared:balance-utils:public")
 module(":shared:integration-testing:public")
 module(":shared:price-chart:fake")
 module(":shared:price-chart:impl")

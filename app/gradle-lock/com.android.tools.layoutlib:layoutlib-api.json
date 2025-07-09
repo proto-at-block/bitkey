@@ -2,6 +2,19 @@
     "module-identifier": "com.android.tools.layoutlib:layoutlib-api",
     "components": [
         {
+            "version": "31.10.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "layoutlib-api-31.10.1.jar": "9b3c87ef6d48cde7188207df085cf7448561f575b788cb4a7addb94d255101a6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
             "version": "31.8.0",
             "variants": [
                 {
@@ -12,19 +25,6 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
-            ]
-        },
-        {
-            "version": "31.9.1",
-            "variants": [
-                {
-                    "artifacts": {
-                        "layoutlib-api-31.9.1.jar": "29232e6007625b569e82798d2d8f559d8941ece630fe276e842cd818ebf94b17"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
             ]
         }
     ]

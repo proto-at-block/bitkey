@@ -1,9 +1,4 @@
-use std::collections::HashMap;
-
-use types::account::{
-    entities::{Account, FullAccount},
-    identifiers::KeysetId,
-};
+use types::account::entities::{Account, FullAccount};
 
 use super::{Service, UpdateDescriptorBackupsInput};
 use crate::error::AccountError;
@@ -13,24 +8,24 @@ impl Service {
         &self,
         input: UpdateDescriptorBackupsInput<'_>,
     ) -> Result<Account, AccountError> {
-        let descriptor_backups: HashMap<KeysetId, String> = input
-            .descriptor_backups
-            .into_iter()
-            .map(|b| {
-                if input.account.spending_keysets.contains_key(&b.keyset_id) {
-                    Ok((b.keyset_id, b.sealed_descriptor))
-                } else {
-                    Err(AccountError::UnrecognizedKeysetIds)
-                }
-            })
-            .collect::<Result<_, _>>()?;
+        for descriptor_backup in &input.descriptor_backups_set.descriptor_backups {
+            if !input
+                .account
+                .spending_keysets
+                .contains_key(&descriptor_backup.keyset_id)
+            {
+                return Err(AccountError::UnrecognizedKeysetIds);
+            }
+        }
 
-        if descriptor_backups.len() < input.account.spending_keysets.len() {
+        if input.descriptor_backups_set.descriptor_backups.len()
+            < input.account.spending_keysets.len()
+        {
             return Err(AccountError::MissingKeysetIds);
         }
 
-        let updated_account = FullAccount {
-            descriptor_backups,
+        let updated_account: Account = FullAccount {
+            descriptor_backups_set: Some(input.descriptor_backups_set),
             ..input.account.clone()
         }
         .into();

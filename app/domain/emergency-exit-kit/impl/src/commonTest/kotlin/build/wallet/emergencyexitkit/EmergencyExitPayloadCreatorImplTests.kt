@@ -10,6 +10,7 @@ import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.emergencyexitkit.EmergencyExitPayloadCreator.EmergencyExitPayloadCreatorError.AppPrivateKeyMissing
 import build.wallet.emergencyexitkit.EmergencyExitPayloadCreator.EmergencyExitPayloadCreatorError.CsekMissing
+import build.wallet.encrypt.SymmetricKeyEncryptorFake
 import build.wallet.testing.shouldBeErr
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
@@ -31,6 +32,7 @@ class EmergencyExitPayloadCreatorImplTests : FunSpec({
   afterTest {
     csekDao.reset()
     appPrivateKeyDao.reset()
+    symmetricKeyEncryptor.reset()
   }
 
   test("Successful creation") {

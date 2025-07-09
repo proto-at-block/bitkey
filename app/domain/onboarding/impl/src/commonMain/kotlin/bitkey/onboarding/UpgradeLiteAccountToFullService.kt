@@ -99,7 +99,8 @@ class UpgradeLiteToFullAccountServiceImpl(
           activeAppKeyBundle = adjustedKeyCross,
           activeHwKeyBundle = keyCrossDraft.hardwareKeyBundle,
           appGlobalAuthKeyHwSignature = keyCrossDraft.appGlobalAuthKeyHwSignature,
-          config = fullAccountConfig
+          config = fullAccountConfig,
+          keysets = listOf(spendingKeyset)
         )
 
       // Save our keybox, but do NOT set as active.

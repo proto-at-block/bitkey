@@ -15,7 +15,7 @@ import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.*
 import build.wallet.encrypt.SealedDataMock
-import build.wallet.encrypt.SymmetricKeyEncryptorMock
+import build.wallet.encrypt.SymmetricKeyEncryptorFake
 import build.wallet.encrypt.XCiphertextMock
 import build.wallet.relationships.RelationshipsCryptoFake
 import build.wallet.testing.shouldBeErrOfType
@@ -29,7 +29,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 
 class FullAccountFieldsCreatorImplTests : FunSpec({
 
-  val symmetricKeyEncryptor = SymmetricKeyEncryptorMock()
+  val symmetricKeyEncryptor = SymmetricKeyEncryptorFake()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val csekDao = CsekDaoFake()
   val trustedContacts = listOf(EndorsedTrustedContactFake1, EndorsedTrustedContactFake2)
@@ -62,7 +62,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
         privateKey = AppSpendingPrivateKeyMock
       )
     )
-    symmetricKeyEncryptor.sealResult = SealedDataMock
+    symmetricKeyEncryptor.sealNoMetadataResult = SealedDataMock
     val backup =
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,
@@ -97,7 +97,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
         privateKey = AppSpendingPrivateKeyMock
       )
     )
-    symmetricKeyEncryptor.sealResult = SealedDataMock
+    symmetricKeyEncryptor.sealNoMetadataResult = SealedDataMock
     val createResult =
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,
@@ -124,7 +124,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
         privateKey = AppSpendingPrivateKeyMock
       )
     )
-    symmetricKeyEncryptor.sealResult = SealedDataMock
+    symmetricKeyEncryptor.sealNoMetadataResult = SealedDataMock
     val createResult =
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,
@@ -144,7 +144,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
       )
     )
     appPrivateKeyDao.getAppSpendingPrivateKeyErrResult = Err(throwable)
-    symmetricKeyEncryptor.sealResult = SealedDataMock
+    symmetricKeyEncryptor.sealNoMetadataResult = SealedDataMock
     val createResult =
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,
@@ -160,7 +160,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
   test("create full account backup fails with AuthKeyRetrievalError") {
     val throwable = Throwable("foo")
     appPrivateKeyDao.getAppPrivateKeyErrResult = Err(throwable)
-    symmetricKeyEncryptor.sealResult = SealedDataMock
+    symmetricKeyEncryptor.sealNoMetadataResult = SealedDataMock
     val createResult =
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,

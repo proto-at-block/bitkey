@@ -7,7 +7,7 @@ import build.wallet.encrypt.XCiphertext
  */
 interface SocRecV1AccountFeatures {
   /**
-   * Key information about Recovery Contact used to restore transferred
+   * Key information about trusted contact used to restore transferred
    * keys during recovery.
    */
   val socRecSealedDekMap: Map<String, XCiphertext>

@@ -18,12 +18,11 @@ class XChaCha20Poly1305Impl : XChaCha20Poly1305 {
     aad: ByteString,
   ): XCiphertext {
     val cipher = CoreXChaCha20Poly1305(key.raw.toByteArray())
-    val ciphertext =
-      cipher.encrypt(
-        nonce.bytes.toByteArray(),
-        plaintext.toByteArray(),
-        aad.toByteArray()
-      )
+    val ciphertext = cipher.encrypt(
+      nonce.bytes.toByteArray(),
+      plaintext.toByteArray(),
+      aad.toByteArray()
+    )
     return XSealedData(
       XSealedData.Header(algorithm = XChaCha20Poly1305.ALGORITHM),
       ciphertext.toByteString(),
@@ -52,12 +51,11 @@ class XChaCha20Poly1305Impl : XChaCha20Poly1305 {
     aad: ByteString,
   ): SealedData {
     val cipher = CoreXChaCha20Poly1305(key.raw.toByteArray())
-    val ciphertextAndTag =
-      cipher.encrypt(
-        nonce.toByteArray(),
-        plaintext.toByteArray(),
-        aad.toByteArray()
-      )
+    val ciphertextAndTag = cipher.encrypt(
+      nonce.toByteArray(),
+      plaintext.toByteArray(),
+      aad.toByteArray()
+    )
 
     // Split ciphertext and tag.
     val ciphertext = ciphertextAndTag.copyOfRange(0, ciphertextAndTag.size - tagLength)

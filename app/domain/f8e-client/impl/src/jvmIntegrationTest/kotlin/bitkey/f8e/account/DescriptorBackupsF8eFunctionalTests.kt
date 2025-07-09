@@ -1,19 +1,20 @@
 package bitkey.f8e.account
 
 import bitkey.backup.DescriptorBackup
+import build.wallet.encrypt.XCiphertext
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createLostHardwareKeyset
+import build.wallet.testing.ext.getActiveAppGlobalAuthKey
 import build.wallet.testing.ext.getHardwareFactorProofOfPossession
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
-import okio.ByteString.Companion.encodeUtf8
+import okio.ByteString.Companion.toByteString
 
 class DescriptorBackupsF8eFunctionalTests : FunSpec({
-  // TODO [W-11422]: Re-enable with SSEK upload after backend is ready.
-  xtest("create new account and upload descriptor backup") {
+  test("create new account and upload descriptor backup") {
     val app = launchNewApp()
     val account = app.onboardFullAccountWithFakeHardware()
 
@@ -33,12 +34,16 @@ class DescriptorBackupsF8eFunctionalTests : FunSpec({
     // Upload fake descriptor backup associated with the active keyset.
     val descriptorBackup = DescriptorBackup(
       keysetId = account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
-      sealedDescriptor = "foobar".encodeUtf8()
+      sealedDescriptor = XCiphertext("foobar")
     )
+    // The server checks that we have a valid 60-byte sealed SSEK.
+    val sealedSsekByteArray = ByteArray(60) { 1 }
     app.updateDescriptorBackupsF8eClient.update(
       f8eEnvironment = account.config.f8eEnvironment,
       accountId = account.accountId,
       descriptorBackups = listOf(descriptorBackup),
+      sealedSsek = sealedSsekByteArray.toByteString(),
+      appAuthKey = app.getActiveAppGlobalAuthKey().publicKey,
       hwKeyProof = app.getHardwareFactorProofOfPossession()
     ).getOrThrow()
 
@@ -62,13 +67,15 @@ class DescriptorBackupsF8eFunctionalTests : FunSpec({
     // Create a new backup
     val secondDescriptor = DescriptorBackup(
       keysetId = newKeyset.f8eSpendingKeyset.keysetId,
-      sealedDescriptor = "barfoo".encodeUtf8()
+      sealedDescriptor = XCiphertext("barfoo")
     )
 
     app.updateDescriptorBackupsF8eClient.update(
       f8eEnvironment = account.config.f8eEnvironment,
       accountId = account.accountId,
       descriptorBackups = listOf(descriptorBackup, secondDescriptor),
+      sealedSsek = sealedSsekByteArray.toByteString(),
+      appAuthKey = app.getActiveAppGlobalAuthKey().publicKey,
       hwKeyProof = app.getHardwareFactorProofOfPossession()
     ).getOrThrow()
 

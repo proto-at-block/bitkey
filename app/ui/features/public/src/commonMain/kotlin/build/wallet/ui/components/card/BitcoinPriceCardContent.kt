@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.*
+import build.wallet.pricechart.ChartRange
 import build.wallet.pricechart.ui.PriceChart
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
@@ -125,6 +126,7 @@ internal fun BitcoinPriceContent(model: BitcoinPrice) {
         if (model.data.isNotEmpty()) {
           PriceChart(
             dataPoints = model.data,
+            range = ChartRange.DAY,
             colorSparkLine = WalletTheme.colors.foreground.copy(alpha = 0.1f),
             sparkLineMode = true,
             yAxisIntervals = 10,

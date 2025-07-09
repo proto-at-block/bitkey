@@ -1,6 +1,8 @@
 use std::time::{Duration, Instant};
 
 use crate::currencies::CurrencyCode;
+use coingecko::RateProvider as CoingeckoRateProvider;
+use local_rate_provider::LocalRateProvider;
 use serde::{Deserialize, Serialize};
 use time::serde::rfc3339;
 use time::OffsetDateTime;
@@ -54,6 +56,11 @@ pub struct ExchangeRateChartData {
     pub from_currency: CurrencyCode,
     pub to_currency: CurrencyCode,
     pub exchange_rates: Vec<PriceAt>,
+}
+
+pub enum RateProvider {
+    Local(LocalRateProvider),
+    Coingecko(CoingeckoRateProvider),
 }
 
 #[cfg(test)]

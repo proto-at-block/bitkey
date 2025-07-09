@@ -64,7 +64,7 @@ use serde_with::{base64::Base64, serde_as};
 use time::Duration;
 use tracing::{error, event, instrument, Level};
 use types::account::entities::{
-    Account, CommsVerificationScope, DescriptorBackup,
+    Account, CommsVerificationScope, DescriptorBackup, DescriptorBackupsSet,
     FullAccountAuthKeysPayload as FullAccountAuthKeysRequest, Keyset, LiteAccount,
     LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
     SoftwareAccountAuthKeysPayload as SoftwareAccountAuthKeysRequest, SpendingKeysetRequest,
@@ -289,7 +289,7 @@ impl From<RouteState> for SwaggerEndpoint {
             ActivateSpendingKeyDefinitionRequest,
             ActivateSpendingKeyDefinitionResponse,
             DescriptorBackup,
-            UpdateDescriptorBackupsRequest,
+            DescriptorBackupsSet,
             UpdateDescriptorBackupsResponse,
         ),
     ),
@@ -748,10 +748,14 @@ async fn get_touchpoints_for_account(
     Ok(Json(AccountGetTouchpointsResponse { touchpoints }))
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GetAccountStatusResponse {
     pub keyset_id: KeysetId,
     pub spending: SpendingKeyset,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde_as(as = "Option<Base64>")]
+    pub wrapped_ssek: Option<Vec<u8>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sealed_descriptor: Option<String>,
 }
@@ -774,7 +778,7 @@ async fn account_status(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
 ) -> Result<Json<GetAccountStatusResponse>, ApiError> {
-    //TODO: Update this when we introduce Recovery Contacts
+    //TODO: Update this when we introduce Trusted Contacts
     let account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
@@ -782,6 +786,7 @@ async fn account_status(
         .await?;
 
     let active_keyset_id = &account.active_keyset_id;
+    let descriptor_backups_set = account.descriptor_backups_set.as_ref();
 
     Ok(Json(GetAccountStatusResponse {
         keyset_id: active_keyset_id.clone(),
@@ -789,7 +794,9 @@ async fn account_status(
             .active_spending_keyset()
             .ok_or(RouteError::NoActiveSpendKeyset)?
             .to_owned(),
-        sealed_descriptor: account.descriptor_backups.get(active_keyset_id).cloned(),
+        wrapped_ssek: descriptor_backups_set.map(|d| d.wrapped_ssek.clone()),
+        sealed_descriptor: descriptor_backups_set
+            .and_then(|d| d.get_sealed_descriptor(active_keyset_id)),
     }))
 }
 
@@ -1404,9 +1411,12 @@ pub struct AccountKeyset {
     pub server_dpub: DescriptorPublicKey,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GetAccountKeysetsResponse {
     pub keysets: Vec<AccountKeyset>,
+    #[serde_as(as = "Option<Base64>")]
+    pub wrapped_ssek: Option<Vec<u8>>,
     pub descriptor_backups: Vec<DescriptorBackup>,
 }
 
@@ -1447,19 +1457,13 @@ pub async fn account_keysets(
         .sorted_by_key(|k| k.keyset_id.to_string())
         .collect::<Vec<AccountKeyset>>();
 
-    let descriptor_backups = account
-        .descriptor_backups
-        .into_iter()
-        .map(|(keyset_id, sealed_descriptor)| DescriptorBackup {
-            keyset_id,
-            sealed_descriptor,
-        })
-        .sorted_by_key(|b| b.keyset_id.to_string())
-        .collect::<Vec<DescriptorBackup>>();
+    let descriptor_backups_set = account.descriptor_backups_set.as_ref();
 
     Ok(Json(GetAccountKeysetsResponse {
         keysets,
-        descriptor_backups,
+        wrapped_ssek: descriptor_backups_set.map(|d| d.wrapped_ssek.clone()),
+        descriptor_backups: descriptor_backups_set
+            .map_or_else(Vec::new, |d| d.descriptor_backups.clone()),
     }))
 }
 
@@ -1914,12 +1918,6 @@ pub async fn initiate_demo_mode(
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct UpdateDescriptorBackupsRequest {
-    pub descriptor_backups: Vec<DescriptorBackup>,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
 pub struct UpdateDescriptorBackupsResponse {}
 
 #[instrument(skip(account_service))]
@@ -1929,7 +1927,7 @@ pub struct UpdateDescriptorBackupsResponse {}
     params(
         ("account_id" = AccountId, Path, description = "AccountId"),
     ),
-    request_body = UpdateDescriptorBackupsRequest,
+    request_body = DescriptorBackupsSet,
     responses(
         (status = 200, description = "Updated descriptor backups", body=UpdateDescriptorBackupsResponse),
         (status = 404, description = "Account not found")
@@ -1939,7 +1937,7 @@ pub async fn update_descriptor_backups(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     key_proof: KeyClaims,
-    Json(request): Json<UpdateDescriptorBackupsRequest>,
+    Json(request): Json<DescriptorBackupsSet>,
 ) -> Result<Json<UpdateDescriptorBackupsResponse>, ApiError> {
     let full_account = account_service
         .fetch_full_account(FetchAccountInput {
@@ -1962,7 +1960,7 @@ pub async fn update_descriptor_backups(
     account_service
         .update_descriptor_backups(UpdateDescriptorBackupsInput {
             account: &full_account,
-            descriptor_backups: request.descriptor_backups,
+            descriptor_backups_set: request,
         })
         .await?;
 

@@ -37,8 +37,7 @@ use onboarding::routes::{
     ContinueDistributedKeygenResponse, CreateAccountRequest, CreateAccountResponse,
     CreateKeysetRequest, CreateKeysetResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
-    RotateSpendingKeysetRequest, UpdateDescriptorBackupsRequest, UpdateDescriptorBackupsResponse,
-    UpgradeAccountRequest,
+    RotateSpendingKeysetRequest, UpdateDescriptorBackupsResponse, UpgradeAccountRequest,
 };
 use privileged_action::routes::{
     CancelPendingDelayAndNotifyInstanceByTokenRequest,
@@ -86,13 +85,17 @@ use transaction_verification::routes::{
     GetTransactionVerificationPolicyResponse, InitiateTransactionVerificationRequest,
     PutTransactionVerificationPolicyRequest, PutTransactionVerificationPolicyResponse,
 };
+use types::account::entities::DescriptorBackupsSet;
 use types::account::identifiers::{AccountId, KeysetId};
 use types::notification::NotificationsPreferences;
 use types::privileged_action::router::generic::{
     PrivilegedActionRequest, PrivilegedActionResponse,
 };
 use types::recovery::trusted_contacts::TrustedContactRole;
-use types::transaction_verification::router::InitiateTransactionVerificationView;
+use types::transaction_verification::router::{
+    InitiateTransactionVerificationView, TransactionVerificationView,
+};
+use types::transaction_verification::TransactionVerificationId;
 
 use super::{AuthenticatedRequestExt, CognitoAuthentication, Response};
 use crate::test_utils::{AuthenticatedRequest, ExtendRequest};
@@ -480,6 +483,22 @@ impl TestClient {
             .uri(format!("/api/accounts/{account_id}/tx-verify/requests"))
             .authenticated(account_id, Some(keys.app.secret_key), None)
             .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn check_transaction_verification(
+        &self,
+        account_id: &AccountId,
+        verification_id: &TransactionVerificationId,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<TransactionVerificationView> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/tx-verify/requests/{verification_id}"
+            ))
+            .authenticated(account_id, Some(keys.app.secret_key), None)
+            .get()
             .call(&self.router)
             .await
     }
@@ -1682,7 +1701,7 @@ impl TestClient {
     pub(crate) async fn update_descriptor_backups(
         &self,
         account_id: &str,
-        request: &UpdateDescriptorBackupsRequest,
+        request: &DescriptorBackupsSet,
         keys: Option<&TestAuthenticationKeys>,
     ) -> Response<UpdateDescriptorBackupsResponse> {
         Request::builder()

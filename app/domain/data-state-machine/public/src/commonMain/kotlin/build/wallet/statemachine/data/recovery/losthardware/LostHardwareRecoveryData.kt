@@ -4,7 +4,6 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
-import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
@@ -32,7 +31,7 @@ sealed interface LostHardwareRecoveryData {
      */
     data class AwaitingNewHardwareData(
       val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
-      val addHardwareKeys: (SealedCsek, HwKeyBundle, AppGlobalAuthKeyHwSignature) -> Unit,
+      val addHardwareKeys: (HwKeyBundle, AppGlobalAuthKeyHwSignature) -> Unit,
     ) : InitiatingLostHardwareRecoveryData
 
     /**

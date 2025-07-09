@@ -143,7 +143,7 @@ suspend fun TestScope.launchInheritanceApps(
 }
 
 /**
- * Advances through the full account invite screens for a RC receiving an
+ * Advances through the full account invite screens for a TC receiving an
  * inheritance invite.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteScreens(

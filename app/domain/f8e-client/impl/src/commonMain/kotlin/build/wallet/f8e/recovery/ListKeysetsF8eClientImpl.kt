@@ -63,6 +63,7 @@ class ListKeysetsF8eClientImpl(
 
         ListKeysetsF8eClient.ListKeysetsResponse(
           keysets = keysets,
+          wrappedSsek = body.wrappedSsek,
           descriptorBackups = body.descriptorBackups
         )
       }
@@ -86,6 +87,8 @@ class ListKeysetsF8eClientImpl(
   private data class ResponseBody(
     @SerialName("keysets")
     val keysets: List<Keyset>,
+    @SerialName("wrapped_ssek")
+    val wrappedSsek: String?,
     @SerialName("descriptor_backups")
     val descriptorBackups: List<DescriptorBackup>,
   ) : RedactedResponseBody

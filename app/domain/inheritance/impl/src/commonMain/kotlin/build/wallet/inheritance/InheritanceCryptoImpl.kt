@@ -17,6 +17,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.XCiphertext
 import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.logging.logInfo
 import build.wallet.relationships.RelationshipsCrypto
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -61,6 +62,7 @@ class InheritanceCryptoImpl(
         .bind()
 
       val sealedDescriptor = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
+        logInfo { "[Privacy] Encrypting descriptor for inheritance package" }
         val descriptor = descriptorBuilder.watchingDescriptor(
           appPublicKey = keybox.activeSpendingKeyset.appKey.key,
           hardwareKey = keybox.activeSpendingKeyset.hardwareKey.key,
@@ -126,6 +128,7 @@ class InheritanceCryptoImpl(
         .bind()
 
       val descriptor = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
+        logInfo { "[Privacy] Decrypting descriptor from inheritance package" }
         sealedDescriptor?.let {
           crypto.decryptPrivateKeyMaterial(pkek, it).bind().utf8()
         }

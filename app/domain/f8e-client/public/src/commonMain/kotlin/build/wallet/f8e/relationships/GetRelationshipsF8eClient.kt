@@ -9,8 +9,8 @@ import com.github.michaelbull.result.Result
 
 interface GetRelationshipsF8eClient {
   /**
-   * Retrieves relationships that the caller is part of: Recovery Contact invitations
-   * they’ve created (the caller is a Full Account), established Recovery Contacts
+   * Retrieves relationships that the caller is part of: trusted contact invitations
+   * they’ve created (the caller is a Full Account), established trusted contacts
    * (if the caller is a Full Account), and established customers they’re protecting
    * (if the caller is either type of account).
    */

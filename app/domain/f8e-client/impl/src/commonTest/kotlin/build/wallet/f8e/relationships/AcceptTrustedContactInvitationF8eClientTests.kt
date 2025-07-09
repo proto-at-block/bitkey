@@ -15,7 +15,7 @@ import kotlinx.serialization.json.Json
 import okio.ByteString.Companion.encodeUtf8
 
 class AcceptTrustedContactInvitationF8eClientTests : FunSpec({
-  test("Accept RC Invite - Request Serialization") {
+  test("Accept TC Invite - Request Serialization") {
     val request =
       AcceptTrustedContactInvitationRequestBody(
         code = "1234",
@@ -40,7 +40,7 @@ class AcceptTrustedContactInvitationF8eClientTests : FunSpec({
     )
   }
 
-  test("Accept RC Invite - Response Deserialization") {
+  test("Accept TC Invite - Response Deserialization") {
     val response =
       """
       {

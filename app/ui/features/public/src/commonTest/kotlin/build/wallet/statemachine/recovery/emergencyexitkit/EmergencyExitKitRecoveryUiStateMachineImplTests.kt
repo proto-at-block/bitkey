@@ -11,13 +11,12 @@ import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.crypto.SymmetricKey
 import build.wallet.emergencyexitkit.EmergencyExitKitBackup
 import build.wallet.emergencyexitkit.EmergencyExitKitPayload.EmergencyExitKitPayloadV1
 import build.wallet.emergencyexitkit.EmergencyExitKitPayloadDecoderImpl
 import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorerImpl
 import build.wallet.encrypt.SealedData
-import build.wallet.encrypt.SymmetricKeyEncryptor
+import build.wallet.encrypt.SymmetricKeyEncryptorFake
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.platform.clipboard.ClipItem
 import build.wallet.platform.clipboard.ClipboardMock
@@ -42,7 +41,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldBeEmpty
 import io.ktor.utils.io.core.*
-import okio.ByteString
 import okio.ByteString.Companion.EMPTY
 import okio.ByteString.Companion.toByteString
 
@@ -55,41 +53,7 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
   val csekDao = CsekDaoFake()
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
-  val symmetricKeyEncryptor =
-    object : SymmetricKeyEncryptor {
-      var shouldFail = false
-      lateinit var sealedData: SealedData
-
-      override fun seal(
-        unsealedData: ByteString,
-        key: SymmetricKey,
-      ): SealedData {
-        sealedData = SealedData(
-          ciphertext = unsealedData,
-          nonce = key.raw,
-          tag = EMPTY
-        )
-        return sealedData
-      }
-
-      override fun unseal(
-        sealedData: SealedData,
-        key: SymmetricKey,
-      ): ByteString {
-        if (shouldFail) {
-          throw IllegalStateException()
-        }
-        return sealedData.ciphertext
-      }
-
-      fun reset() {
-        sealedData = SealedData(
-          ciphertext = EMPTY,
-          nonce = EMPTY,
-          tag = EMPTY
-        )
-      }
-    }
+  val symmetricKeyEncryptor = SymmetricKeyEncryptorFake()
 
   val props = EmergencyExitKitRecoveryUiStateMachineProps(
     onExit = { onExitCalls.add(Unit) }
@@ -311,7 +275,7 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
   test("Failed Restore - decrypt failed") {
     // Force the encryptor to throw an error while attempting decryption.
     // This is the same real behavior of the encryptor when provided with an invalid ciphertext.
-    symmetricKeyEncryptor.shouldFail = true
+    symmetricKeyEncryptor.unsealError = true
 
     stateMachine.test(props = props) {
       awaitBody<EmergencyExitKitImportWalletBodyModel> {

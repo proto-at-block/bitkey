@@ -21,12 +21,12 @@ enum class GeneralEventTrackerScreenId : EventTrackerScreenId {
 
   /**
    * The customer is deciding how to access an account after "More Options", either by
-   * being a Recovery Contact or restoring a wallet.
+   * being a trusted contact or restoring a wallet.
    */
   ACCOUNT_ACCESS_MORE_OPTIONS,
 
   /**
-   * Showing introduction for Being a Recovery Contact.
+   * Showing introduction for Being a Trusted Contact.
    */
   BEING_TRUSTED_CONTACT_INTRODUCTION,
 }

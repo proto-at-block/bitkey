@@ -50,7 +50,7 @@ interface InheritanceService {
   val benefactorClaimState: Flow<ImmutableList<ContactClaimState.Benefactor>>
 
   /**
-   * Creates an invitation for a Recovery Contact to become a beneficiary
+   * Creates an invitation for a trusted contact to become a beneficiary
    *
    * @param hardwareProofOfPossession the hardware proof of possession for creating the invitation
    * @param trustedContactAlias the alias of the beneficiary

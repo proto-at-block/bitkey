@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:builder",
     "components": [
         {
-            "version": "8.9.1",
+            "version": "8.10.1",
             "variants": [
                 {
                     "artifacts": {
-                        "builder-8.9.1.jar": "066763c90b14fb82e9b18dd8cadd432981fdd2fcff927393d5230c44ad4ee252"
+                        "builder-8.10.1.jar": "b15ca05ef1d85fb2d69a7dae912ab93548b1cb6d7d1f190626a235694fa77bb4"
                     }
                 }
             ],

@@ -50,6 +50,16 @@ class DurationFormatterImplTests : FunSpec({
     )
   }
 
+  test("Words: 2 hours") {
+    formatter.formatWithWords(2.hours).shouldBe("2 hours")
+    formatter.formatWithWords(2.hours.toDouble(SECONDS)).shouldBe("2 hours")
+  }
+
+  test("Words: 1 hour") {
+    formatter.formatWithWords(1.hours).shouldBe("1 hour")
+    formatter.formatWithWords(1.hours.toDouble(SECONDS)).shouldBe("1 hour")
+  }
+
   test("Words: 1 hour, 1 minute") {
     formatter.formatWithWords(1.hours + 1.minutes).shouldBe("1 hour, 1 minute")
     formatter.formatWithWords((1.hours + 1.minutes).toDouble(SECONDS)).shouldBe(

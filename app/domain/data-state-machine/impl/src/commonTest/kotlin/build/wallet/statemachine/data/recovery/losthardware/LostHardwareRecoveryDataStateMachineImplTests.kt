@@ -25,7 +25,7 @@ class LostHardwareRecoveryDataStateMachineImplTests : FunSpec({
       StateMachineMock<InitiatingLostHardwareRecoveryProps, InitiatingLostHardwareRecoveryData>(
         initialModel = AwaitingNewHardwareData(
           newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-          addHardwareKeys = { _, _, _ -> }
+          addHardwareKeys = { _, _ -> }
         )
       ) {}
 

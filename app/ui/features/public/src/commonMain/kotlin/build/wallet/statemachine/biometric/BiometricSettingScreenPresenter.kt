@@ -93,6 +93,7 @@ class BiometricSettingScreenPresenter(
         isEnabled = isEnabled,
         biometricSettingTitleText = biometricTitle,
         biometricSettingSecondaryText = biometricTextProvider.getSettingsSecondaryText(),
+        appSecurityDescriptionText = biometricTextProvider.getAppSecurityDescriptionText(),
         onEnableCheckedChange = {
           if (!isEnabled) {
             val biometricsAvailability = biometricPrompter.biometricsAvailability().result
@@ -237,6 +238,7 @@ internal data class BiometricSettingsScreenBodyModel(
   override val onBack: () -> Unit,
   val biometricSettingTitleText: String,
   val biometricSettingSecondaryText: String,
+  val appSecurityDescriptionText: String,
   val isEnabled: Boolean,
   val onEnableCheckedChange: (Boolean) -> Unit,
 ) : FormBodyModel(
@@ -245,7 +247,7 @@ internal data class BiometricSettingsScreenBodyModel(
     ),
     header = FormHeaderModel(
       headline = "App Security",
-      subline = "Unlock the app using fingerprint or facial recognition."
+      subline = appSecurityDescriptionText
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(

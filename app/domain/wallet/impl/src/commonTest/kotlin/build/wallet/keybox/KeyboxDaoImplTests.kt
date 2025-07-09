@@ -46,7 +46,8 @@ class KeyboxDaoImplTests : FunSpec({
       activeAppKeyBundle = appKeyBundle1,
       activeHwKeyBundle = hwKeyBundle,
       appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-      config = config
+      config = config,
+      keysets = listOf(keyset1)
     )
 
   val keyset2 = SpendingKeysetMock2
@@ -62,7 +63,8 @@ class KeyboxDaoImplTests : FunSpec({
       activeAppKeyBundle = appKeyBundle2,
       activeHwKeyBundle = hwKeyBundle,
       appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-      config = config
+      config = config,
+      keysets = listOf(keyset2)
     )
 
   beforeTest {
@@ -145,7 +147,9 @@ class KeyboxDaoImplTests : FunSpec({
           activeSpendingKeyset = keyset3,
           activeAppKeyBundle = keyBundle3,
           appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-          config = config
+          config = config,
+          // New keybox, but with keyset from old keybox.
+          keysets = listOf(keyset1, keyset3)
         )
 
       dao.saveKeyboxAsActive(keybox3)
@@ -159,7 +163,8 @@ class KeyboxDaoImplTests : FunSpec({
             activeSpendingKeyset = keyset3,
             activeAppKeyBundle = keyBundle3,
             appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-            config = config
+            config = config,
+            keysets = listOf(keyset1, keyset3)
           )
         )
       )
@@ -196,7 +201,8 @@ class KeyboxDaoImplTests : FunSpec({
 
       dao.saveKeyboxAsActive(keybox2)
 
-      awaitItem().shouldBe(Ok(keybox2))
+      // Should include both keyset1 and keyset2
+      awaitItem().shouldBe(Ok(keybox2.copy(keysets = listOf(keyset1, keyset2))))
     }
   }
 
@@ -205,6 +211,6 @@ class KeyboxDaoImplTests : FunSpec({
     dao.saveKeyboxAndBeginOnboarding(keybox1)
     dao.getActiveOrOnboardingKeybox().shouldBe(Ok(keybox1))
     dao.saveKeyboxAsActive(keybox2)
-    dao.getActiveOrOnboardingKeybox().shouldBe(Ok(keybox2))
+    dao.getActiveOrOnboardingKeybox().shouldBe(Ok(keybox2.copy(keysets = listOf(keyset1, keyset2))))
   }
 })

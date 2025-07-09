@@ -12,4 +12,7 @@ enum class PairHardwareEventTrackerScreenIdContext : EventTrackerContext {
 
   /** Events for pairing new hardware during HW recovery */
   HW_RECOVERY,
+
+  /** Events for resetting fingerprints during hardware pairing */
+  RESET_FINGERPRINTS,
 }

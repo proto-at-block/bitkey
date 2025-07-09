@@ -19,6 +19,7 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachineImpl
+import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
 import build.wallet.statemachine.ui.matchers.shouldHaveSubtitle
 import build.wallet.statemachine.ui.matchers.shouldHaveTitle
 import build.wallet.statemachine.ui.matchers.shouldNotHaveSubtitle
@@ -29,13 +30,14 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.seconds
 
 class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
   val dsm = object : LostHardwareRecoveryDataStateMachine,
     StateMachineMock<LostHardwareRecoveryProps, LostHardwareRecoveryData>(
       AwaitingNewHardwareData(
         newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-        addHardwareKeys = { _, _, _ -> }
+        addHardwareKeys = { _, _ -> }
       )
     ) {}
 
@@ -44,7 +46,8 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
     clock = clock,
     durationFormatter = DurationFormatterFake(),
     lostHardwareRecoveryDataStateMachine = dsm,
-    recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
+    recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create),
+    remainingRecoveryDelayWordsUpdateFrequency = RemainingRecoveryDelayWordsUpdateFrequency(1.seconds)
   )
 
   val onClickCalls = turbines.create<Unit>("on click calls")

@@ -30,7 +30,6 @@ import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.LocalIsPreviewTheme
 import kotlinx.collections.immutable.toImmutableList
 import org.jetbrains.compose.resources.stringResource
 
@@ -73,13 +72,7 @@ internal fun ChartScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
       ) {
         when (type) {
-          ChartType.BALANCE -> {
-            if (model.isBalanceHistoryEnabled || LocalIsPreviewTheme.current) {
-              BalanceHistoryScreen(model = model)
-            } else {
-              ComingSoonScreen()
-            }
-          }
+          ChartType.BALANCE -> BalanceHistoryScreen(model = model)
           ChartType.BTC_PRICE -> BitcoinPriceChartScreen(model = model)
         }
       }

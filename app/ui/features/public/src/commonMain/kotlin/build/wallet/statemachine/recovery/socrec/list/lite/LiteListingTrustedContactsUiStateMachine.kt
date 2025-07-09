@@ -6,7 +6,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
 /**
- * State machine for the screen model to show the 'Recovery Contacts' list UI
+ * State machine for the screen model to show the 'Trusted Contacts' list UI
  * for Lite Accounts
  */
 interface LiteListingTrustedContactsUiStateMachine :

@@ -14,7 +14,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class CreateTrustedContactInvitationF8eClientTests : FunSpec({
-  test("Create RC Invite - Request Serialization") {
+  test("Create TC Invite - Request Serialization") {
     val request =
       CreateRelationshipInvitationRequestBody(
         trustedContactAlias = TrustedContactAlias("test"),
@@ -34,7 +34,7 @@ class CreateTrustedContactInvitationF8eClientTests : FunSpec({
     )
   }
 
-  test("Create RC Invite - Response Deserialization") {
+  test("Create TC Invite - Response Deserialization") {
     val response =
       """
       {

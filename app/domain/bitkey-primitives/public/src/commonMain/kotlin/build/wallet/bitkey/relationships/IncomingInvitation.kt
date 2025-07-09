@@ -5,7 +5,7 @@ import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.datetime.Instant
 
 /**
- * The Recovery Contact's view of an invitation.
+ * The Trusted Contact's view of an invitation.
  */
 data class IncomingInvitation(
   val relationshipId: String,

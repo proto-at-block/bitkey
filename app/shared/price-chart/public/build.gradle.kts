@@ -5,6 +5,7 @@ plugins {
   id("build.wallet.redacted")
   alias(libs.plugins.compose.runtime)
   alias(libs.plugins.compose.compiler)
+  alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -23,6 +24,8 @@ kotlin {
         implementation(libs.kmp.compottie)
         implementation(libs.kmp.compottie.resources)
         implementation(projects.domain.analyticsPublic)
+        implementation(libs.kmp.kotlin.serialization.json)
+        implementation(projects.libs.loggingPublic)
       }
     }
 

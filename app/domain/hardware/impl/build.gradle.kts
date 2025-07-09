@@ -26,6 +26,7 @@ kotlin {
         api(projects.libs.keyValueStorePublic)
         api(projects.domain.analyticsPublic)
         api(projects.domain.walletPublic)
+        api(projects.libs.grantsPublic)
         implementation(libs.kmp.okio)
         implementation(projects.libs.stdlibPublic)
         implementation(libs.kmp.settings)

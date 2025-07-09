@@ -8,6 +8,12 @@ class SensitiveDataValidatorTest : FunSpec({
     "xprv01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789",
     "tprv01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
   )
+  val bitcoinAddresses = listOf(
+    "1Lbcfr7sAHTD9CgdQo3HTMTkV8LK4ZnX71",
+    "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy", // P2SH
+    "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq" // Bech32
+  )
+
   test("detect bitcoin private key in log message") {
     bitcoinKeys.forEach {
       SensitiveDataValidator.isSensitiveData(
@@ -36,6 +42,28 @@ class SensitiveDataValidatorTest : FunSpec({
         LogEntry(
           tag = "Some $it Tag",
           message = "This contains a sensitive key material $it sandwiched in a log statement"
+        )
+      ).shouldBe(true)
+    }
+  }
+
+  test("detect bitcoin address in log message") {
+    bitcoinAddresses.forEach {
+      SensitiveDataValidator.isSensitiveData(
+        LogEntry(
+          tag = "SomeTag",
+          message = "This contains a sensitive key material $it sandwiched in a log statement"
+        )
+      ).shouldBe(true)
+    }
+  }
+
+  test("detect bitcoin address in log tag") {
+    bitcoinAddresses.forEach {
+      SensitiveDataValidator.isSensitiveData(
+        LogEntry(
+          tag = "Some $it tag",
+          message = "This is a benign log message"
         )
       ).shouldBe(true)
     }

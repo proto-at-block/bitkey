@@ -2,6 +2,19 @@
     "module-identifier": "com.android.tools:dvlib",
     "components": [
         {
+            "version": "31.10.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "dvlib-31.10.1.jar": "e3cf3fdc947788dee8d5baa76cb72a66571174bc4741edf0e3bab97a7ca90e1b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
             "version": "31.4.2",
             "variants": [
                 {
@@ -12,19 +25,6 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
-            ]
-        },
-        {
-            "version": "31.9.1",
-            "variants": [
-                {
-                    "artifacts": {
-                        "dvlib-31.9.1.jar": "e3cf3fdc947788dee8d5baa76cb72a66571174bc4741edf0e3bab97a7ca90e1b"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
             ]
         }
     ]

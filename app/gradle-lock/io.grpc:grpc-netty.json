@@ -2,11 +2,11 @@
     "module-identifier": "io.grpc:grpc-netty",
     "components": [
         {
-            "version": "1.57.2",
+            "version": "1.69.1",
             "variants": [
                 {
                     "artifacts": {
-                        "grpc-netty-1.57.2.jar": "9809d4c10c94d11e7b2946cdeb5b2884be20a09510289544f37569f02c877a21"
+                        "grpc-netty-1.69.1.jar": "52a86ed66f78933e83d1a3fb7162ad1667489564c4556366b7a3579c7024a447"
                     }
                 }
             ],

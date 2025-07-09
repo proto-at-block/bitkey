@@ -12,6 +12,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import dev.zacsweers.redacted.annotations.Unredacted
 import io.ktor.client.request.*
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -80,31 +81,44 @@ interface PrivilegedActionsF8eClient<Req, Res> {
 /**
  * Request to continue a privileged action
  */
+@Serializable
 data class ContinuePrivilegedActionRequest(
+  @SerialName("privileged_action_instance")
   val privilegedActionInstance: PrivilegedActionInstanceRef,
 )
 
 /**
  * Reference to a privileged action instance with authorization details
  */
+@Serializable
 data class PrivilegedActionInstanceRef(
   val id: String,
+  @SerialName("authorization_strategy")
   val authorizationStrategy: Authorization,
 )
 
 /**
- * Authorization with completion token
+ * Authorization information with strategy type and completion token
  */
+@Serializable
 data class Authorization(
+  @SerialName("authorization_strategy_type")
   val authorizationStrategyType: AuthorizationStrategyType,
+  @SerialName("completion_token")
   val completionToken: String,
 )
 
+/**
+ * Types of privileged actions that can be performed
+ */
 @Serializable
 enum class PrivilegedActionType {
   RESET_FINGERPRINT,
 }
 
+/**
+ * Represents a privileged action instance with its details
+ */
 @Serializable
 data class PrivilegedActionInstance(
   val id: String,
@@ -114,6 +128,9 @@ data class PrivilegedActionInstance(
   val authorizationStrategy: AuthorizationStrategy,
 ) : RedactedResponseBody
 
+/**
+ * Response containing a list of privileged action instances
+ */
 @Serializable
 data class PrivilegedActionInstancesResponse(
   @Unredacted
@@ -121,6 +138,9 @@ data class PrivilegedActionInstancesResponse(
   val privilegedActionInstances: List<PrivilegedActionInstance>,
 ) : RedactedResponseBody
 
+/**
+ * Response containing a single privileged action instance
+ */
 @Serializable
 data class PrivilegedActionInstanceResponse(
   @Unredacted
@@ -128,12 +148,18 @@ data class PrivilegedActionInstanceResponse(
   val privilegedActionInstance: PrivilegedActionInstance,
 ) : RedactedResponseBody
 
+/**
+ * Types of authorization strategies for privileged actions
+ */
 @Serializable
 enum class AuthorizationStrategyType {
   DELAY_AND_NOTIFY,
   HARDWARE_PROOF_OF_POSSESSION,
 }
 
+/**
+ * Authorization strategy details - currently only supports delay and notify
+ */
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
 @JsonClassDiscriminator("authorization_strategy_type")
@@ -141,11 +167,16 @@ sealed class AuthorizationStrategy {
   @SerialName("authorization_strategy_type")
   abstract val authorizationStrategyType: AuthorizationStrategyType
 
+  /**
+   * Authorization strategy that requires a delay period before completion
+   */
   @Serializable
   @SerialName("DELAY_AND_NOTIFY")
   data class DelayAndNotify(
     @SerialName("authorization_strategy_type")
     override val authorizationStrategyType: AuthorizationStrategyType,
+    @SerialName("delay_start_time")
+    val delayStartTime: Instant,
     @SerialName("delay_end_time")
     val delayEndTime: Instant,
     @SerialName("cancellation_token")
@@ -163,3 +194,14 @@ data class CancelPrivilegedActionRequest(
   @SerialName("cancellation_token")
   val cancellationToken: String,
 )
+
+/**
+ * Extension function to check if a D+N privileged action is ready to be completed.
+ * Returns true if the delay period has ended, false otherwise.
+ */
+fun PrivilegedActionInstance.isDelayAndNotifyReadyToComplete(clock: Clock): Boolean {
+  val delayAndNotifyStrategy = authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
+  return delayAndNotifyStrategy?.let { strategy ->
+    clock.now() >= strategy.delayEndTime
+  } ?: false
+}

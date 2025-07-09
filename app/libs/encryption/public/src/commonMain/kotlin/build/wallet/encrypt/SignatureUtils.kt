@@ -15,4 +15,14 @@ interface SignatureUtils {
    */
   @Throws(IllegalArgumentException::class)
   fun encodeSignatureToDer(compactSignature: ByteArray): ByteString
+
+  /**
+   * Decodes a DER-encoded signature to compact format.
+   *
+   * @param derSignature The DER-encoded signature
+   * @return The compact signature (64 bytes: r + s components)
+   * @throws IllegalArgumentException if the signature is invalid
+   */
+  @Throws(IllegalArgumentException::class)
+  fun decodeSignatureFromDer(derSignature: ByteString): ByteArray
 }

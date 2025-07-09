@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-codec-socks",
     "components": [
         {
-            "version": "4.1.93.Final",
+            "version": "4.1.110.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-codec-socks-4.1.93.Final.jar": "0ea47b5ba23ca1da8eb9146c8fc755c1271414633b1e2be2ce1df764ba0fff2a"
+                        "netty-codec-socks-4.1.110.Final.jar": "976052a3c9bb280bc6d99f3a29e6404677cf958c3de05b205093d38c006b880c"
                     }
                 }
             ],

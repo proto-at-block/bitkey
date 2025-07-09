@@ -159,12 +159,14 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::InheritanceClaimCanceled
             | NotificationPayloadType::InheritanceClaimPeriodCompleted
             | NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending
-            | NotificationPayloadType::SecurityHub => NotificationCategory::AccountSecurity,
+            | NotificationPayloadType::SecurityHub
+            | NotificationPayloadType::TransactionVerification => {
+                NotificationCategory::AccountSecurity
+            }
             NotificationPayloadType::ConfirmedPaymentNotification
             | NotificationPayloadType::PendingPaymentNotification => {
                 NotificationCategory::MoneyMovement
             }
-            NotificationPayloadType::TransactionVerification => NotificationCategory::MoneyMovement,
         }
     }
 }

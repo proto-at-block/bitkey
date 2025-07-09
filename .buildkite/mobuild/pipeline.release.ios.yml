@@ -1,0 +1,13 @@
+notify:
+  - slack: "#bitkey-releases"
+    if: build.state == "failed"
+
+steps:
+  - label: "Release build"
+    agents:
+      xcode: 16.2.0
+      ios: 18.3.1
+    plugins:
+      - squareup/ios-builder#v1.0.0:
+          build_action: release
+          options: --manual-mpp

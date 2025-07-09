@@ -42,6 +42,44 @@ where
     Ok(x as u64)
 }
 
+#[instrument(err, skip(exchange_rate_service, rate_provider, sats, to_currency))]
+pub async fn money_for_sats<T>(
+    exchange_rate_service: &Service,
+    rate_provider: T,
+    sats: u64,
+    to_currency: &CurrencyCode,
+) -> Result<Money, ExchangeRateError>
+where
+    T: SpotExchangeRateProvider + 'static,
+{
+    let rate = exchange_rate_service
+        .get_latest_rate(rate_provider, to_currency.to_owned())
+        .await?
+        .rate;
+
+    // Some currencies have fractional digits, so we need to shift the amount to the left
+    let currency = Currency::from(*to_currency);
+    let fractional_digits = match currency {
+        Currency::Fiat(fiat_currency) => fiat_currency.currency.fractional_digits,
+        Currency::Bitcoin(_) => {
+            return Ok(Money {
+                amount: sats,
+                currency_code: *to_currency,
+            })
+        }
+    };
+    let shift = 10.0_f64.powi(fractional_digits as i32);
+
+    let cents = sats as f64       // amount in SATOSHIs
+        / ONE_BTC_IN_SATOSHIS as f64   // 1 BTC in SATOSHIs
+        * rate                         // 1 USD in SATOSHIs
+        * shift; // shift to the left by the number of fractional digits
+    Ok(Money {
+        amount: cents.round() as u64,
+        currency_code: *to_currency,
+    })
+}
+
 /// Trait for exchange rate providers that support spot rates.
 #[async_trait]
 pub trait SpotExchangeRateProvider: ExchangeRateProvider {
@@ -284,6 +322,46 @@ mod sats_for_tests {
         )
         .await;
         assert!(rate_result.is_err())
+    }
+}
+
+#[cfg(test)]
+mod fiat_for_sats_tests {
+    use types::currencies::CurrencyCode::{JPY, USD};
+    use types::exchange_rate::local_rate_provider::LocalRateProvider;
+
+    use crate::currency_conversion::money_for_sats;
+    use crate::service::Service;
+
+    #[tokio::test]
+    async fn test_fiat_for_sats_conversion() {
+        let rate_provider = LocalRateProvider::new();
+        let test_cases = vec![
+            (44, 1),                // 44 sats = 44/100_000_000 * 22678 = 0.0099783 → rounds to 1 cent
+            (4409, 100), // 4409 sats = 4409/100_000_000 * 22678 = 0.9998... → rounds to 100 cents
+            (100_000_000, 2267800), // 1 BTC should equal the exact rate in cents
+        ];
+
+        for (sat_amount, expected_cents) in test_cases {
+            let result = money_for_sats(&Service::new(), rate_provider.clone(), sat_amount, &USD)
+                .await
+                .unwrap();
+
+            // Check both amount and currency
+            assert_eq!(
+                result.amount, expected_cents,
+                "Expected {} cents for {} sats, got {} cents",
+                expected_cents, sat_amount, result.amount
+            );
+            assert_eq!(result.currency_code, USD);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_unsupported_currency_fails() {
+        let rate_provider = LocalRateProvider::new();
+        let result = money_for_sats(&Service::new(), rate_provider, 100000000, &JPY).await;
+        assert!(result.is_err())
     }
 }
 

@@ -66,5 +66,10 @@ interface SecurityRecommendationInteractionDao {
   /**
    * Deletes the persisted recommendation interaction.
    */
-  suspend fun deleteRecommendation(id: SecurityActionRecommendation)
+  suspend fun deleteRecommendation(id: String)
+
+  /**
+   * Deletes all persisted recommendation interactions. Used for the [AppDataDeleter]
+   */
+  suspend fun clear()
 }

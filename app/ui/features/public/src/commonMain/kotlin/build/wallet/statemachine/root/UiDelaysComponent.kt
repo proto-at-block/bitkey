@@ -33,4 +33,8 @@ interface UiDelaysComponent {
 
   @Provides
   fun provideBitkeyWordMarkAnimationDuration() = BitkeyWordMarkAnimationDuration()
+
+  @Provides
+  fun provideRemainingRecoveryDelayWordsUpdateFrequency() =
+    RemainingRecoveryDelayWordsUpdateFrequency()
 }

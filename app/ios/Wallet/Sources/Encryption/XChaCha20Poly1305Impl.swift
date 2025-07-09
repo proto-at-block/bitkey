@@ -25,7 +25,7 @@ public final class XChaCha20Poly1305Impl: Shared.XChaCha20Poly1305 {
         )
         return Shared.XSealedData(
             header: Shared.XSealedData.Header(
-                version: 1,
+                format: .standard,
                 algorithm: Shared.XChaCha20Poly1305Companion().ALGORITHM
             ),
             ciphertext: OkioKt.ByteString(data: ciphertext),

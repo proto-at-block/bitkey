@@ -2,11 +2,11 @@
     "module-identifier": "io.grpc:grpc-stub",
     "components": [
         {
-            "version": "1.61.0",
+            "version": "1.69.1",
             "variants": [
                 {
                     "artifacts": {
-                        "grpc-stub-1.61.0.jar": "72098cc69a1c786b707a697ceb2a82b45c624add09e78900ec4a5990a594f586"
+                        "grpc-stub-1.69.1.jar": "e39c63273d53052ebe9f638d8ae98176735ec567328d9a17092cddb6f239b8c2"
                     }
                 }
             ],

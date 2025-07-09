@@ -3,8 +3,9 @@ use std::{fmt::Display, str::FromStr};
 use crate::UniffiCustomTypeConverter;
 use bitcoin::{psbt::Psbt, secp256k1::ecdsa::Signature, Network};
 use crypto::frost::FrostShare;
-use crypto::signature_utils::DERSerializedSignature;
+use crypto::signature_utils::{CompactSignature, DERSignature};
 use miniscript::DescriptorPublicKey;
+use std::convert::TryFrom;
 
 trait Stringable: Display + FromStr {}
 impl Stringable for lightning_support::invoice::Sha256 {}
@@ -29,13 +30,23 @@ where
     }
 }
 
-impl UniffiCustomTypeConverter for DERSerializedSignature {
+impl UniffiCustomTypeConverter for DERSignature {
     type Builtin = Vec<u8>;
 
     fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
-        Ok(DERSerializedSignature(
-            Signature::from_der(&val)?.serialize_der(),
-        ))
+        DERSignature::try_from(val).map_err(Into::into)
+    }
+
+    fn from_custom(obj: Self) -> Self::Builtin {
+        obj.0.to_vec()
+    }
+}
+
+impl UniffiCustomTypeConverter for CompactSignature {
+    type Builtin = Vec<u8>;
+
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
+        CompactSignature::try_from(val).map_err(Into::into)
     }
 
     fn from_custom(obj: Self) -> Self::Builtin {

@@ -13,7 +13,7 @@ import build.wallet.crypto.PublicKey
  * the F8e service and authorize SocRec operations.
  *
  * Social Recovery roles:
- * Lite Account can only have a role of a Recovery Contact - be a Trusted
+ * Lite Account can only have a role of a Trusted Contact - be a Trusted
  * Contact for other [FullAccount]s.
  *
  * @property config determines environment configuration of this account.

@@ -2,11 +2,11 @@
     "module-identifier": "io.grpc:grpc-protobuf",
     "components": [
         {
-            "version": "1.57.2",
+            "version": "1.69.1",
             "variants": [
                 {
                     "artifacts": {
-                        "grpc-protobuf-1.57.2.jar": "31630d8a9e9f08a959862015e30a4863908be3680c3a686f4c1f08d2ffeaf706"
+                        "grpc-protobuf-1.69.1.jar": "4c52ef948fb8987a3baa7d46ba362b7bf307dd3c51f29241cd5c598398a010df"
                     }
                 }
             ],

@@ -48,7 +48,7 @@ class ListKeysetsF8eClientMock : ListKeysetsF8eClient {
               )
           )
         }
-    ).map { ListKeysetsResponse(keysets = it, descriptorBackups = null) }
+    ).map { ListKeysetsResponse(keysets = it, wrappedSsek = null, descriptorBackups = null) }
   }
 
   fun reset() {

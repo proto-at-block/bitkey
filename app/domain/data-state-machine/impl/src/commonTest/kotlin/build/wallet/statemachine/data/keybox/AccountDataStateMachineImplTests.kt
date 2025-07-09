@@ -53,7 +53,7 @@ class AccountDataStateMachineImplTests : FunSpec({
     ) {}
   val awaitingNewHardwareData = AwaitingNewHardwareData(
     newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-    addHardwareKeys = { _, _, _ -> }
+    addHardwareKeys = { _, _ -> }
   )
 
   val lostHardwareRecoveryDataStateMachine = object : LostHardwareRecoveryDataStateMachine,

@@ -87,7 +87,7 @@ sealed interface LabelModel {
    * It should be implemented as [AnnotatedString] on Android
    * and [AttributedString] on iOS
    */
-  data class StringWithStyledSubstringModel internal constructor(
+  data class StringWithStyledSubstringModel(
     override val string: String,
     val styledSubstrings: List<StyledSubstring>,
   ) : LabelModel {
@@ -95,6 +95,8 @@ sealed interface LabelModel {
       data object BoldStyle : SubstringStyle
 
       data class ColorStyle(val color: Color) : SubstringStyle
+
+      data class FontFeatureStyle(val fontFeatureSettings: String) : SubstringStyle
     }
 
     data class StyledSubstring(

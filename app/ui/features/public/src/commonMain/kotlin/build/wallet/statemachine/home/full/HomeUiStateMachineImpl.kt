@@ -522,7 +522,7 @@ private sealed interface PresentedScreen {
   /** Indicates that the app functionality status screen is currently presented */
   data object AppFunctionalityStatus : PresentedScreen
 
-  /** Indicates that the add Recovery Contact flow is currently presented */
+  /** Indicates that the add trusted contact flow is currently presented */
   data class AddTrustedContact(val inviteCode: String?) : PresentedScreen
 
   /** Indicates that the become beneficiary flow is currently presented */

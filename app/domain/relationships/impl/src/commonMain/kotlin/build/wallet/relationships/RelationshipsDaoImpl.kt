@@ -104,12 +104,12 @@ class RelationshipsDaoImpl(
           )
         }
 
-        // Maintain the existing authentication states for the Recovery Contacts
+        // Maintain the existing authentication states for the trusted contacts
         val currentAuthStates =
           relationshipsQueries.getTrustedContacts()
             .executeAsList()
             .associate { it.relationshipId to it.authenticationState }
-        // Reset Recovery Contacts.
+        // Reset trusted contacts.
         relationshipsQueries.clearTrustedContacts()
         relationships.endorsedTrustedContacts.forEach { tc ->
           relationshipsQueries.insertTrustedContact(
@@ -135,12 +135,12 @@ class RelationshipsDaoImpl(
           )
         }
 
-        // Maintain the existing authentication states for the unendorsed Recovery Contacts
+        // Maintain the existing authentication states for the unendorsed trusted contacts
         val currentUnendorsedAuthStates =
           relationshipsQueries.getUnendorsedTrustedContacts()
             .executeAsList()
             .associate { it.relationshipId to it.authenticationState }
-        // Reset unendorsed Recovery Contacts
+        // Reset unendorsed trusted contacts
         relationshipsQueries.clearUnendorsedTrustedContacts()
         relationships.unendorsedTrustedContacts.forEach { contact ->
           relationshipsQueries.insertUnendorsedTrustedContact(

@@ -5,36 +5,12 @@ from bitkey.wallet import Wallet
 from automation.commander import reset_device
 
 from bitkey_proto import wallet_pb2 as wallet_pb
+from bitkey_proto import ops_keybundle_pb2 as ops_keybundle
+from binascii import hexlify
 
 from time import sleep
 
-
-def transaction_verification_flow():
-    pass
-    # server = MockServer()
-    # wallet = Wallet(comms=WalletComms(NFCTransaction()))
-
-    # # Ask for a grant request.
-    # proto_rsp = wallet.transaction_verification_request()
-    # assert(proto_rsp.status == wallet_pb.SUCCESS)
-
-    # grant_request = GrantRequest.deserialize(proto_rsp.transaction_verification_request_rsp.grant_request)
-    # print(grant_request)
-
-    # # Forward request to server.
-    # sighash = b'\x42'*SHA256_DIGEST_SIZE
-    # server.transaction_verification_flow(sighash)
-    # grant = server.sign_grant_for_request(grant_request)
-    # print(grant)
-
-    # # Send grant to wallet.
-    # proto_rsp = wallet.transaction_verification_finalize(grant)
-    # assert(proto_rsp.status == wallet_pb.SUCCESS)
-
-    # # Now we can sign the transaction with the sighash specified above.
-    # proto_rsp = wallet.derive_and_sign(sighash, [1, 2, 3], False)
-    # assert(proto_rsp.status == wallet_pb.SUCCESS, f"Failed to sign transaction: {proto_rsp.status}")
-    # print(proto_rsp.derive_and_sign_rsp.signature)
+CHECK_GRANT_REQUEST_SIGNATURE = True
 
 def fingerprint_reset_flow():
     server = MockServer()
@@ -46,17 +22,36 @@ def fingerprint_reset_flow():
     assert(proto_rsp.status == wallet_pb.SUCCESS)
 
     grant_request = GrantRequest.deserialize(proto_rsp.fingerprint_reset_request_rsp.grant_request)
+    print("Grant request:")
     print(grant_request)
 
-    # Forward request to server.
-    grant = server.sign_grant_for_request(grant_request)
+
+    if CHECK_GRANT_REQUEST_SIGNATURE:
+        BIP32_HARDENED_BIT = 0x80000000
+
+        # Derive the auth key.
+        proto_rsp = wallet.derive(0, [87497287 | BIP32_HARDENED_BIT, 0 | BIP32_HARDENED_BIT])
+
+        # last 33 bytes are the the actual key
+        hw_auth_key = proto_rsp.derive_rsp.descriptor.bare_bip32_key[-33:]
+        print("Hw auth key:")
+        print(hexlify(hw_auth_key).decode('ascii'))
+        assert len(hw_auth_key) == 33, "Hw auth key should be 33 bytes"
+
+    if CHECK_GRANT_REQUEST_SIGNATURE:
+        grant = server.sign_grant_for_request(grant_request, verify_request_signature=True, hw_auth_pubkey=hw_auth_key)
+    else:
+        grant = server.sign_grant_for_request(grant_request, verify_request_signature=False)
+
+    print("Grant:")
     print(grant)
 
     # Reset the hardware to simulate a waiting period.
     # reset_device()
 
     # Sleep a bit.
-    # sleep(2)
+    print("Sleeping for 1 seconds...")
+    sleep(1)
 
     # Send grant to wallet.
     proto_rsp = wallet.fingerprint_reset_finalize(grant)

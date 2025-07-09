@@ -26,6 +26,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import build.wallet.pricechart.ChartRange
 import build.wallet.pricechart.DataPoint
 import build.wallet.time.truncateTo
 import build.wallet.ui.compose.thenIf
@@ -61,6 +62,7 @@ private class WrappedPath(
 @Suppress("detekt:CyclomaticComplexMethod")
 fun PriceChart(
   dataPoints: ImmutableList<DataPoint>,
+  range: ChartRange,
   onPointSelected: (DataPoint?) -> Unit = {},
   colorPrimary: Color = WalletTheme.colors.bitcoinPrimary,
   colorSparkLine: Color = WalletTheme.colors.primaryForeground30,
@@ -88,7 +90,8 @@ fun PriceChart(
       ChartDataState(
         data = updatedDataPoints,
         intervals = yAxisIntervals,
-        pathSize = pathSize
+        pathSize = pathSize,
+        chartRange = range
       )
     }
   }
@@ -128,7 +131,6 @@ fun PriceChart(
         }
       }
   ) {
-    val density = LocalDensity.current
     val secondaryYHeight = remember(extractSecondaryYValue) {
       if (extractSecondaryYValue == null) 0.dp else 60.dp
     }
@@ -315,23 +317,32 @@ fun PriceChart(
             duration < 366.days -> (duration.inWholeDays / 30).days
             else -> (duration.inWholeDays / 90).days
           }
-          val chunksMap = dataPoints
+          val chunks = dataPoints
             .groupBy { Instant.fromEpochSeconds(it.x).truncateTo(rangeInterval) }
             .mapValues { (_, points) -> extractSecondaryYValue(points.last()) }
-          val chunks = chunksMap.toList()
+            .toList()
           val padding = 4f
-          val chunkPaddingTotal = padding * (chunks.size - 1)
-          val width = (adjustedCanvasWidth - chunkPaddingTotal) / chunks.size
+          val width = if (chunks.size == 1) {
+            10.dp.toPx()
+          } else {
+            val chunkPaddingTotal = padding * (chunks.size - 1)
+            (adjustedCanvasWidth - chunkPaddingTotal) / chunks.size
+          }
           val maxY = dataPoints.maxOf(extractSecondaryYValue)
           val selectionOffset = lineSplitOffset.takeUnless {
             it == Offset.Unspecified || inputHoverOffset == Offset.Unspecified
           }
           onDrawBehind {
             chunks.forEachIndexed { index, (_, value) ->
-              val height = (value / maxY) * size.height
+              val adjustedCanvasHeight = size.height - padding
+              val height = (value / maxY) * adjustedCanvasHeight
               val offset = Offset(
-                x = (padding * 2) + (index * (width + padding)),
-                y = padding + (size.height - height).toFloat()
+                x = if (chunks.size == 1) {
+                  adjustedCanvasWidth - width - padding
+                } else {
+                  (padding * 2) + (index * (width + padding))
+                },
+                y = padding + (adjustedCanvasHeight - height).toFloat()
               )
               val isSelected = selectionOffset?.let { (x) ->
                 val safeX = x.coerceIn(0f, adjustedCanvasWidth)

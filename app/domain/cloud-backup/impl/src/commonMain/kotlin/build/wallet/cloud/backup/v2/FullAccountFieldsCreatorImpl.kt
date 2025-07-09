@@ -72,7 +72,7 @@ class FullAccountFieldsCreatorImpl(
 
       val fullCustomerKeysInfoEncodedHardwareEncrypted =
         symmetricKeyEncryptor
-          .seal(fullCustomerKeysInfoEncoded.encodeUtf8(), csek.key)
+          .sealNoMetadata(fullCustomerKeysInfoEncoded.encodeUtf8(), csek.key)
 
       val socRecPKMatOutput =
         relationshipsCrypto.encryptPrivateKeyMaterial(fullCustomerKeysInfoEncoded.encodeUtf8())

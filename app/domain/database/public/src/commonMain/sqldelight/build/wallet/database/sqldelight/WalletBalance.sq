@@ -1,18 +1,16 @@
 import kotlinx.datetime.Instant;
-import build.wallet.money.currency.code.IsoCurrencyTextCode;
 import build.wallet.pricechart.ChartRange;
 
 CREATE TABLE walletBalanceEntity(
   date              TEXT AS Instant NOT NULL,
-  fiatCurrencyCode  TEXT AS IsoCurrencyTextCode NOT NULL,
-  fiatBalance       REAL NOT NULL,
   btcBalance        REAL NOT NULL,
-  range             TEXT AS ChartRange NOT NULL
+  range             TEXT AS ChartRange NOT NULL,
+  cachedAt          TEXT AS Instant NOT NULL
 );
 
 
 insertBalance:
-INSERT INTO walletBalanceEntity(date, fiatCurrencyCode, fiatBalance, btcBalance, range)
+INSERT INTO walletBalanceEntity(date, btcBalance, range, cachedAt)
 VALUES ?;
 
 selectFrom:
@@ -36,9 +34,10 @@ DELETE FROM walletBalanceEntity
 WHERE date < ?
 AND range == ?;
 
-clearIfNotCurrencyCode:
+clearFromDate:
 DELETE FROM walletBalanceEntity
-WHERE fiatCurrencyCode != ?;
+WHERE date >= ?
+AND range == ?;
 
 count:
 SELECT COUNT(date)

@@ -4,7 +4,7 @@ use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
 use types::account::bitcoin::Network;
 use types::account::entities::{
-    CommsVerificationClaim, CommsVerificationScope, DescriptorBackup, FullAccount, Keyset,
+    CommsVerificationClaim, CommsVerificationScope, DescriptorBackupsSet, FullAccount, Keyset,
     LiteAccount, TouchpointPlatform,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId};
@@ -215,5 +215,5 @@ pub struct RotateToSpendingKeyDefinitionInput<'a> {
 #[derive(Debug, Clone)]
 pub struct UpdateDescriptorBackupsInput<'a> {
     pub account: &'a FullAccount,
-    pub descriptor_backups: Vec<DescriptorBackup>,
+    pub descriptor_backups_set: DescriptorBackupsSet,
 }

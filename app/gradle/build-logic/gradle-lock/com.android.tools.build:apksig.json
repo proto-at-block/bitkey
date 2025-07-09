@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:apksig",
     "components": [
         {
-            "version": "8.9.1",
+            "version": "8.10.1",
             "variants": [
                 {
                     "artifacts": {
-                        "apksig-8.9.1.jar": "c070ed1394629d74641aa0906f60b2ffa1ee77e6366a1f93437f59717b1aeb89"
+                        "apksig-8.10.1.jar": "c070ed1394629d74641aa0906f60b2ffa1ee77e6366a1f93437f59717b1aeb89"
                     }
                 }
             ],

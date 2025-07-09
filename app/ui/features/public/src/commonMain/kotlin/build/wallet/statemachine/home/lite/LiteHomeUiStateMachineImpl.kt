@@ -3,6 +3,7 @@ package build.wallet.statemachine.home.lite
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
+import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -43,6 +44,16 @@ class LiteHomeUiStateMachineImpl(
   override fun model(props: LiteHomeUiProps): ScreenModel {
     var uiState: State by remember {
       mutableStateOf(State.LiteHomeUiState(rootScreen = MoneyHome, presentedScreen = null))
+    }
+
+    /**
+     * Holds the potentially upgraded account object for a sub-flow like beneficiary enrollment.
+     * This is necessary because the account can be upgraded from Lite to Full during the flow,
+     * and if the user retreats, we need to know about the upgraded account to land them on
+     * the correct home screen.
+     */
+    var upgradedAccount: Account by remember(props.account) {
+      mutableStateOf(props.account)
     }
 
     LaunchedEffect("deep-link-routing") {
@@ -149,7 +160,10 @@ class LiteHomeUiStateMachineImpl(
             retreat = Retreat(
               style = RetreatStyle.Close,
               onRetreat = {
-                uiState = state.copy(presentedScreen = null)
+                when (val account = upgradedAccount) {
+                  is FullAccount -> props.onUpgradeComplete(account)
+                  else -> uiState = state.copy(presentedScreen = null)
+                }
               }
             ),
             inviteCode = presentedScreen.acceptInvite?.inviteCode,
@@ -160,7 +174,10 @@ class LiteHomeUiStateMachineImpl(
                 else -> uiState = state.copy(presentedScreen = null)
               }
             },
-            variant = TrustedContactFeatureVariant.Direct(target = TrustedContactFeatureVariant.Feature.Inheritance)
+            variant = TrustedContactFeatureVariant.Direct(target = TrustedContactFeatureVariant.Feature.Inheritance),
+            onAccountUpgraded = {
+              upgradedAccount = it
+            }
           )
         )
       }
@@ -204,7 +221,7 @@ private enum class HomeScreen {
  * Represents a screen presented on top of either [HomeScreen]
  */
 private sealed interface PresentedScreen {
-  /** Indicates that the add Recovery Contact flow is currently presented */
+  /** Indicates that the add trusted contact flow is currently presented */
   data class AddTrustedContact(
     val acceptInvite: AcceptInvite?,
   ) : PresentedScreen

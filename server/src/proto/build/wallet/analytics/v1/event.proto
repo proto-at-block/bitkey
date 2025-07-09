@@ -182,16 +182,16 @@ enum Action {
     /** [App] Customer failed the auth signature when trying to re-authenticate after refresh token failure. This indicates they're now in the inactive app status */
     ACTION_APP_SOCREC_REMOVED_TC = 45;
 
-    /** [App] Customer tapped the button to open the share sheet when creating a Recovery Contactt invite */
+    /** [App] Customer tapped the button to open the share sheet when creating a trusted contact invite */
     ACTION_APP_SOCREC_TC_INVITE_TAPPED_SHARE = 46;
 
     /** [App] Customer tapped the button to open the share sheet but closed without sharing. */
     ACTION_APP_SOCREC_TC_INVITE_DISMISSED_SHEET_WITHOUT_SHARING = 47;
 
-    /** [App] A Recovery Contact accepted an invite from a deep link */
+    /** [App] A trusted contact accepted an invite from a deep link */
     ACTION_APP_SOCREC_ENTERED_INVITE_VIA_DEEPLINK = 48;
 
-    /** [App] A Recovery Contact accepted an invite from a deep link */
+    /** [App] A trusted contact accepted an invite from a deep link */
     ACTION_APP_SOCREC_ENTERED_INVITE_MANUALLY = 49;
 
     /** [App] A generic counter that can be used to keep track of incremental metrics. */

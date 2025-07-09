@@ -66,8 +66,11 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
   /** Deleting an enrolled fingerprint. */
   DELETE_FINGERPRINT,
 
-  /** Resetting all enrolled fingerprints. */
-  RESET_FINGERPRINTS,
+  /** Creating the grant request for resetting fingerprints */
+  RESET_FINGERPRINTS_CREATE_GRANT_REQUEST,
+
+  /** Providing the signed grant for resetting fingerprints */
+  RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT,
 
   /** Enrolling an additional fingerprint */
   ENROLLING_NEW_FINGERPRINT,

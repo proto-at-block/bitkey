@@ -1,0 +1,2 @@
+[env]
+BINDGEN_EXTRA_CLANG_ARGS_aarch64_apple_ios_sim="--target=arm64-apple-ios-simulator" 

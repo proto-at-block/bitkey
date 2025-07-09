@@ -31,6 +31,8 @@ import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import org.jetbrains.compose.resources.Font
 
@@ -39,6 +41,7 @@ fun PendingClaimContent(
   model: CardModel.CardContent.PendingClaim,
   modifier: Modifier = Modifier,
 ) {
+  val theme = LocalTheme.current
   Box(
     modifier = modifier
       .fillMaxWidth()
@@ -60,10 +63,16 @@ fun PendingClaimContent(
           model = IconModel(
             icon = if (model.isPendingClaim) Icon.SmallIconClockHands else Icon.SmallIconCheckInheritance,
             iconSize = IconSize.Accessory,
-            iconTint = IconTint.Information,
+            iconTint = when (theme) {
+              Theme.LIGHT -> IconTint.Information
+              Theme.DARK -> IconTint.Foreground
+            },
             iconBackgroundType = IconBackgroundType.Circle(
-              IconSize.Large,
-              IconBackgroundType.Circle.CircleColor.Information
+              circleSize = IconSize.Large,
+              color = when (theme) {
+                Theme.LIGHT -> IconBackgroundType.Circle.CircleColor.Information
+                Theme.DARK -> IconBackgroundType.Circle.CircleColor.TransparentForeground
+              }
             )
           )
         )
@@ -72,7 +81,10 @@ fun PendingClaimContent(
           direction = TimerDirection.Clockwise,
           remainingSeconds = model.timeRemaining.inWholeSeconds,
           size = 40.dp,
-          indicatorColor = WalletTheme.colors.calloutInformationTrailingIconBackground.copy(alpha = 0.33f),
+          indicatorColor = when (theme) {
+            Theme.LIGHT -> WalletTheme.colors.calloutInformationTrailingIconBackground.copy(alpha = 0.33f)
+            Theme.DARK -> WalletTheme.colors.foreground
+          },
           backgroundColor = Color.Unspecified,
           strokeWidth = 4.dp
         )

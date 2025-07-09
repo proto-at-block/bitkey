@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-common",
     "components": [
         {
-            "version": "4.1.93.Final",
+            "version": "4.1.110.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-common-4.1.93.Final.jar": "443bb316599fb16e3baeba2fb58881814d7ff0b7af176fe76e38071a6e86f8c0"
+                        "netty-common-4.1.110.Final.jar": "9851ec66548b9e0d41164ce98943cdd4bbe305f68ddbd24eae52e4501a0d7b1a"
                     }
                 }
             ],

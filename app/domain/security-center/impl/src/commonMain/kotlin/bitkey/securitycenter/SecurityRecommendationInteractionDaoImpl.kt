@@ -6,7 +6,8 @@ import build.wallet.database.sqldelight.SecurityRecommendationInteractionEntity
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 
@@ -102,10 +103,18 @@ class SecurityRecommendationInteractionDaoImpl(
     )
   }
 
-  override suspend fun deleteRecommendation(id: SecurityActionRecommendation) =
+  override suspend fun deleteRecommendation(id: String) =
     withContext(Dispatchers.Default) {
       databaseProvider.database().securityRecommendationInteractionEntityQueries.deleteByIds(
-        listOf(id.toDbString())
+        listOf(id)
       )
     }
+
+  override suspend fun clear() {
+    withContext(Dispatchers.Default) {
+      databaseProvider.database()
+        .securityRecommendationInteractionEntityQueries
+        .deleteAll()
+    }
+  }
 }

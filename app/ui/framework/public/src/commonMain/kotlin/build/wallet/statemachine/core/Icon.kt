@@ -43,6 +43,7 @@ enum class Icon {
   SecurityHubEducationMultipleFingerprints,
   SecurityHubEducationEmergencyExit,
   SecurityHubEducationCriticalAlerts,
+  SecurityHubEducationTransactionVerification,
   SmallIconAccount,
   SmallIconAnnouncement,
   SmallIconArrowDown,

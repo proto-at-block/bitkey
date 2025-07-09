@@ -231,7 +231,25 @@ class DeviceSettingsScreenPresenter(
         resetFingerprintsUiStateMachine.model(
           props = ResetFingerprintsProps(
             onComplete = { uiState = ViewingDeviceDataUiState() },
-            onCancel = { uiState = ViewingDeviceDataUiState() }
+            onCancel = { uiState = ViewingDeviceDataUiState() },
+            onFwUpRequired = {
+              when (val firmwareUpdateState = firmwareData.firmwareUpdateState) {
+                is FirmwareData.FirmwareUpdateState.PendingUpdate -> {
+                  navigator.goTo(
+                    FwupScreen(
+                      firmwareUpdateData = firmwareUpdateState,
+                      onExit = {
+                        navigator.goTo(screen)
+                      }
+                    )
+                  )
+                }
+                else -> {
+                  uiState = ViewingDeviceDataUiState()
+                }
+              }
+            },
+            account = screen.account
           )
         )
       }

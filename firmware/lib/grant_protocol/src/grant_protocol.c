@@ -54,7 +54,13 @@ static bool sign_with_hw_auth_key(uint8_t* message, uint32_t message_len, uint8_
     return false;
   }
 
-  return bip32_sign(&key_priv, message, signature);
+  uint8_t message_digest[SHA256_DIGEST_SIZE] = {0};
+  if (!crypto_hash(message, message_len, message_digest, sizeof(message_digest), ALG_SHA256)) {
+    LOGE("Failed to hash message");
+    return false;
+  }
+
+  return bip32_sign(&key_priv, message_digest, signature);
 }
 
 static grant_protocol_result_t sign_request(grant_request_t* request) {

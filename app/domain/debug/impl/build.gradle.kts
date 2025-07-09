@@ -21,6 +21,7 @@ kotlin {
         api(projects.domain.notificationsPublic)
         api(projects.domain.walletPublic)
         api(projects.libs.platformPublic)
+        api(projects.domain.securityCenterPublic)
       }
     }
 
@@ -45,6 +46,8 @@ kotlin {
         implementation(projects.domain.relationshipsFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)
+        implementation(projects.domain.securityCenterFake)
+        implementation(projects.domain.coachmarkFake)
       }
     }
 

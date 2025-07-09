@@ -29,11 +29,11 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 import dev.zacsweers.redacted.annotations.Redacted
 
 /**
- * Prompt the user to save their Recovery Contact with bitkey.
+ * Prompt the user to save their trusted contact with bitkey.
  */
 data class SaveContactBodyModel(
   /**
-   * Name of the Recovery Contact to be added.
+   * Name of the trusted contact to be added.
    */
   @Redacted
   val trustedContactName: String,

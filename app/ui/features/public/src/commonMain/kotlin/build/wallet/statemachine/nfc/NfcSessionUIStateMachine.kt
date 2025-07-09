@@ -63,6 +63,12 @@ class NfcSessionUIStateMachineProps<T>(
   val onSuccess: suspend (@UnsafeVariance T) -> Unit,
   val onCancel: () -> Unit,
   val onInauthenticHardware: (Throwable) -> Unit = {},
+  /**
+   * Optional callback invoked when an [NfcException] occurs during the session.
+   * Returning `true` indicates the error was handled and the default error
+   * screen should not be shown.
+   */
+  val onError: (NfcException) -> Boolean = { false },
   val needsAuthentication: Boolean = true,
   /** Whether the tapped hardware must match the hardware associated with the account. */
   val hardwareVerification: HardwareVerification = Required(),
@@ -86,6 +92,7 @@ class NfcSessionUIStateMachineProps<T>(
     actionDescription: String? = null,
     hardwareVerification: HardwareVerification,
     onInauthenticHardware: (Throwable) -> Unit = {},
+    onError: (NfcException) -> Boolean = { false },
   ) : this(
     session = transaction::session,
     onSuccess = transaction::onSuccess,
@@ -97,7 +104,8 @@ class NfcSessionUIStateMachineProps<T>(
     actionDescription = actionDescription,
     screenPresentationStyle = screenPresentationStyle,
     eventTrackerContext = eventTrackerContext,
-    onInauthenticHardware = onInauthenticHardware
+    onInauthenticHardware = onInauthenticHardware,
+    onError = onError,
   )
 
   /**
@@ -203,8 +211,12 @@ class NfcSessionUIStateMachineImpl(
           when (error) {
             is NfcException.IOSOnly.UserCancellation ->
               props.onCancel()
-            else ->
-              newState = Error(error)
+            else -> {
+              val handled = props.onError(error)
+              if (!handled) {
+                newState = Error(error)
+              }
+            }
           }
         }
       }

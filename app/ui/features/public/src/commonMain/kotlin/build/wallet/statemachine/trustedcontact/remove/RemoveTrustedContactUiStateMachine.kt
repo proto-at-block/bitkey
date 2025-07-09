@@ -6,7 +6,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
 /**
- * State machine for removing an existing or pending Recovery Contact.
+ * State machine for removing an existing or pending Trusted Contact.
  */
 interface RemoveTrustedContactUiStateMachine :
   StateMachine<RemoveTrustedContactUiProps, ScreenModel>

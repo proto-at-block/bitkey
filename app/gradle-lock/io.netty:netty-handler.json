@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-handler",
     "components": [
         {
-            "version": "4.1.93.Final",
+            "version": "4.1.110.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-handler-4.1.93.Final.jar": "4e5f563ae14ed713381816d582f5fcfd0615aefb29203486cdfb782d8a00a02b"
+                        "netty-handler-4.1.110.Final.jar": "d5a08d7de364912e4285968de4d4cce3f01da4bb048d5c6937e5f2af1f8e148a"
                     }
                 }
             ],

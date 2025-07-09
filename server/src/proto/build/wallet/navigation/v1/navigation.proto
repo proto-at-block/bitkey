@@ -49,7 +49,7 @@ enum NavigationScreenId {
     /** The screen shown to view the status of the App Key backup. **/
     NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP = 13;
 
-    /** The screen shown to manage Recovery Contacts. **/
+    /** The screen shown to manage recovery contacts. **/
     NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS = 14;
 
     /** The screen shown to update firmware. **/

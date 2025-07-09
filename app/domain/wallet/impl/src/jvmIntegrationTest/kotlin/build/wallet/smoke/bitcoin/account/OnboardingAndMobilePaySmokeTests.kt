@@ -50,13 +50,17 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
      * Send the money back to the treasury
      */
     logTesting { "spending coins via server-spend" }
+
+    val estimatedFeeRates = app.bitcoinFeeRateEstimator.getEstimatedFeeRates(app.initialBitcoinNetworkType).getOrThrow()
+    val hourFeeRate = estimatedFeeRates.hourFeeRate
+
     val appSignedPsbt =
       keyboxWallet
         .createSignedPsbt(
           SpendingWallet.PsbtConstructionMethod.Regular(
             recipientAddress = treasury.getReturnAddress(),
             amount = SendAll,
-            feePolicy = FeePolicy.MinRelayRate
+            feePolicy = FeePolicy.Rate(hourFeeRate)
           )
         ).getOrThrow()
 

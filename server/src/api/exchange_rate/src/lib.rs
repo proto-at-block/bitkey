@@ -1,3 +1,8 @@
+use types::exchange_rate::{
+    coingecko::RateProvider as CoingeckoRateProvider, local_rate_provider::LocalRateProvider,
+    RateProvider,
+};
+
 pub mod chart;
 pub mod currency_conversion;
 pub mod error;
@@ -35,4 +40,18 @@ impl std::fmt::Display for ExchangeRateProviderType {
 pub trait ExchangeRateProvider: Send + Sync {
     fn root_url(&self) -> &str;
     fn rate_provider_type() -> ExchangeRateProviderType;
+}
+
+/// Configuration trait for selecting exchange rate providers
+pub trait ExchangeRateConfig {
+    fn use_local_currency_exchange(&self) -> bool;
+}
+
+/// Selects the appropriate exchange rate provider based on configuration
+pub fn select_exchange_rate_provider<T: ExchangeRateConfig>(config: &T) -> RateProvider {
+    if config.use_local_currency_exchange() {
+        RateProvider::Local(LocalRateProvider::new())
+    } else {
+        RateProvider::Coingecko(CoingeckoRateProvider::new())
+    }
 }

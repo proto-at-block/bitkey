@@ -8,7 +8,10 @@ public class SymmetricKeyEncryptorImpl: SymmetricKeyEncryptor {
 
     public init() {}
 
-    public func seal(unsealedData: OkioByteString, key: Shared.SymmetricKey) throws -> SealedData {
+    public func sealNoMetadata(
+        unsealedData: OkioByteString,
+        key: Shared.SymmetricKey
+    ) throws -> SealedData {
         let nonce = try XNonceGeneratorImpl().generateXNonce()
         return try cipher.encryptNoMetadata(
             key: key,
@@ -18,7 +21,7 @@ public class SymmetricKeyEncryptorImpl: SymmetricKeyEncryptor {
         )
     }
 
-    public func unseal(
+    public func unsealNoMetadata(
         sealedData: Shared.SealedData,
         key: Shared.SymmetricKey
     ) throws -> OkioByteString {
@@ -29,4 +32,29 @@ public class SymmetricKeyEncryptorImpl: SymmetricKeyEncryptor {
         )
     }
 
+    public func seal(
+        unsealedData: OkioByteString,
+        key: Shared.SymmetricKey,
+        aad: OkioByteString
+    ) throws -> XCiphertext {
+        let nonce = try XNonceGeneratorImpl().generateXNonce()
+        return try cipher.encrypt(
+            key: key,
+            nonce: nonce,
+            plaintext: unsealedData,
+            aad: aad
+        )
+    }
+
+    public func unseal(
+        ciphertext: XCiphertext,
+        key: Shared.SymmetricKey,
+        aad: OkioByteString
+    ) throws -> OkioByteString {
+        return try cipher.decrypt(
+            key: key,
+            ciphertextWithMetadata: ciphertext,
+            aad: aad
+        )
+    }
 }

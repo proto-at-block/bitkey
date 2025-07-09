@@ -2,7 +2,6 @@ package bitkey.ui.screens.securityhub
 
 import androidx.compose.runtime.*
 import bitkey.securitycenter.SecurityAction
-import bitkey.securitycenter.SecurityActionCategory
 import bitkey.securitycenter.SecurityActionRecommendation
 import bitkey.securitycenter.SecurityActionRecommendation.*
 import bitkey.securitycenter.SecurityActionType.*
@@ -56,10 +55,7 @@ import build.wallet.statemachine.status.BannerContext
 import build.wallet.statemachine.status.BannerType.OfflineStatus
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
-import build.wallet.time.MinimumLoadingDuration
-import build.wallet.time.withMinimumDelay
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 // TODO remove dependency on full account when children no longer need it
@@ -72,7 +68,6 @@ data class SecurityHubScreen(
 @BitkeyInject(ActivityScope::class)
 class SecurityHubPresenter(
   private val securityActionsService: SecurityActionsService,
-  private val minimumLoadingDuration: MinimumLoadingDuration,
   private val homeStatusBannerUiStateMachine: HomeStatusBannerUiStateMachine,
   private val firmwareDataService: FirmwareDataService,
   private val recoveryContactCardsUiStateMachine: RecoveryContactCardsUiStateMachine,
@@ -97,32 +92,12 @@ class SecurityHubPresenter(
       uiState = SecurityHubUiState.ResetFingerprintsState
     }
 
-    var securityActions by remember { mutableStateOf(emptyList<SecurityAction>()) }
-    var recoveryActions by remember { mutableStateOf(emptyList<SecurityAction>()) }
+    val securityActionsWithRecommendations by remember {
+      securityActionsService.securityActionsWithRecommendations
+    }.collectAsState()
 
-    val recommendationsWithStatus by remember {
-      securityActionsService.getRecommendationsWithInteractionStatus()
-    }.collectAsState(emptyList())
-
-    val isFingerprintResetEnabled by fingerprintResetFeatureFlag.flagValue().collectAsState()
-
-    var isRefreshing by remember { mutableStateOf(true) }
-
-    if (isRefreshing) {
-      LaunchedEffect("update-actions-and-recommendations") {
-        withMinimumDelay(minimumLoadingDuration.value) {
-          coroutineScope {
-            launch {
-              securityActions = securityActionsService.getActions(SecurityActionCategory.SECURITY)
-            }
-            launch {
-              recoveryActions = securityActionsService.getActions(SecurityActionCategory.RECOVERY)
-            }
-          }
-        }
-        isRefreshing = false
-      }
-    }
+    val isFingerprintResetEnabled by remember { fingerprintResetFeatureFlag.flagValue() }
+      .collectAsState()
 
     val homeStatusBannerModel = homeStatusBannerUiStateMachine.model(
       props = HomeStatusBannerUiProps(
@@ -158,7 +133,7 @@ class SecurityHubPresenter(
           )
         ).also { add(it) }
 
-        // Add Fingerprint Reset Status Card
+        // Add Fingerprint reset status card
         fingerprintResetStatusCardUiStateMachine.model(
           props = FingerprintResetStatusCardUiProps(
             account = screen.account,
@@ -168,7 +143,7 @@ class SecurityHubPresenter(
           )
         ).also { add(it) }
 
-        // Add RC invitation cards
+        // Add TC invitation cards
         recoveryContactCardsUiStateMachine.model(
           RecoveryContactCardsUiProps(
             onClick = {
@@ -212,41 +187,45 @@ class SecurityHubPresenter(
       securityActionsService.markAllRecommendationsViewed()
     }
 
-    val recommendations = remember(recommendationsWithStatus) {
-      recommendationsWithStatus.map { it.recommendation }.toImmutableList()
-    }
-
     return when (uiState) {
       is SecurityHubUiState.ViewingSecurityHub -> {
         SecurityHubBodyModel(
           isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
-          // TODO W-11412 filter this in the service
-          atRiskRecommendations = recommendations.filter {
-            it == BACKUP_MOBILE_KEY || it == PAIR_HARDWARE_DEVICE
-          }.toImmutableList(),
-          // TODO W-11412 filter this in the service
-          recommendations = recommendations.filter {
-            it != BACKUP_MOBILE_KEY && it != PAIR_HARDWARE_DEVICE
-          }.toImmutableList(),
+          atRiskRecommendations = securityActionsWithRecommendations.atRiskRecommendations.toImmutableList(),
+          recommendations = securityActionsWithRecommendations.recommendations.toImmutableList(),
           cardsModel = cardsModel,
-          securityActions = securityActions,
-          recoveryActions = recoveryActions,
+          securityActions = securityActionsWithRecommendations.securityActions,
+          recoveryActions = securityActionsWithRecommendations.recoveryActions,
           onRecommendationClick = { recommendation ->
-            if (recommendation.shouldShowEducation()) {
-              navigator.goTo(
-                screen = SecurityHubEducationScreen.RecommendationEducation(
-                  recommendation = recommendation,
-                  originScreen = screen,
-                  firmwareData = firmwareUpdateData.firmwareUpdateState
-                )
-              )
+            val activeRecommendations = securityActionsWithRecommendations.recommendations
+
+            // If the complete fingerprint reset recommendation is present, always go to the reset flow
+            if (activeRecommendations.contains(COMPLETE_FINGERPRINT_RESET)) {
+              uiState = SecurityHubUiState.ResetFingerprintsState
             } else {
-              navigator.navigateToScreen(
-                id = recommendation.navigationScreenId(),
-                originScreen = screen,
-                firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
-                onCannotUnlockFingerprints = onCannotUnlockFingerprints
-              )
+              when (recommendation) {
+                COMPLETE_FINGERPRINT_RESET -> {
+                  uiState = SecurityHubUiState.ResetFingerprintsState
+                }
+                else -> {
+                  if (recommendation.shouldShowEducation()) {
+                    navigator.goTo(
+                      screen = SecurityHubEducationScreen.RecommendationEducation(
+                        recommendation = recommendation,
+                        originScreen = screen,
+                        firmwareData = firmwareUpdateData.firmwareUpdateState
+                      )
+                    )
+                  } else {
+                    navigator.navigateToScreen(
+                      id = recommendation.navigationScreenId(),
+                      originScreen = screen,
+                      firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+                      onCannotUnlockFingerprints = onCannotUnlockFingerprints
+                    )
+                  }
+                }
+              }
             }
           },
           onSecurityActionClick = { securityAction ->
@@ -271,11 +250,23 @@ class SecurityHubPresenter(
         resetFingerprintsUiStateMachine.model(
           props = ResetFingerprintsProps(
             onComplete = {
-              uiState = SecurityHubUiState.ViewingSecurityHub
+              onEditFingerprints(
+                navigator,
+                screen,
+                firmwareUpdateData.firmwareUpdateState
+              )
             },
             onCancel = {
               uiState = SecurityHubUiState.ViewingSecurityHub
-            }
+            },
+            onFwUpRequired = {
+              navigator.navigateToScreen(
+                id = NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE,
+                originScreen = screen,
+                firmwareUpdateData = firmwareUpdateData.firmwareUpdateState
+              )
+            },
+            account = screen.account
           )
         )
       }
@@ -284,7 +275,7 @@ class SecurityHubPresenter(
 }
 
 private fun SecurityActionRecommendation.shouldShowEducation(): Boolean {
-  return actionType.hasEducation
+  return hasEducation
 }
 
 fun Navigator.navigateToScreen(
@@ -303,7 +294,7 @@ fun Navigator.navigateToScreen(
             closeSheet()
           },
           onEditFingerprints = {
-            onEditFingerprints(originScreen, firmwareUpdateData)
+            onEditFingerprints(this, originScreen, firmwareUpdateData)
           },
           onCannotUnlock = {
             onCannotUnlock(onCannotUnlockFingerprints, originScreen)
@@ -371,19 +362,20 @@ private fun Navigator.onCannotUnlock(
   }
 }
 
-private fun Navigator.onEditFingerprints(
+private fun onEditFingerprints(
+  navigator: Navigator,
   originScreen: SecurityHubScreen,
   firmwareUpdateData: FirmwareData.FirmwareUpdateState,
 ) {
-  goTo(
+  navigator.goTo(
     ManagingFingerprintsScreen(
       account = originScreen.account,
       onFwUpRequired = {
-        goTo(
+        navigator.goTo(
           FwupScreen(
             firmwareUpdateData = firmwareUpdateData,
             onExit = {
-              goTo(
+              navigator.goTo(
                 SecurityHubScreen(
                   account = originScreen.account,
                   hardwareRecoveryData = originScreen.hardwareRecoveryData
@@ -420,6 +412,7 @@ fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =
     BACKUP_MOBILE_KEY -> NavigationScreenId.NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP
     BACKUP_EAK -> NavigationScreenId.NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH
     ADD_FINGERPRINTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS
+    COMPLETE_FINGERPRINT_RESET -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS
     ADD_TRUSTED_CONTACTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS
     ENABLE_CRITICAL_ALERTS, ENABLE_PUSH_NOTIFICATIONS, ENABLE_SMS_NOTIFICATIONS,
     ENABLE_EMAIL_NOTIFICATIONS,

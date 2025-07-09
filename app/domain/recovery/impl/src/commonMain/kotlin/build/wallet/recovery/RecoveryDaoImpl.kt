@@ -403,6 +403,7 @@ private fun LocalRecoveryAttemptEntity.spendingKeysRotated(): Boolean {
 }
 
 private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
+  // TODO [W-11633]: Instead of inserting only the active keyset, `keysets` list should be persisted.
   spendingKeysetQueries.insertKeyset(
     id = keybox.activeSpendingKeyset.localId,
     serverId = keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
@@ -410,6 +411,7 @@ private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
     hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
     serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey
   )
+
   // Insert the app key bundle
   appKeyBundleQueries.insertKeyBundle(
     id = keybox.activeAppKeyBundle.localId,

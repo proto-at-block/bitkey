@@ -77,12 +77,14 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   fun createProps(
     requirePairedHardware: HardwareVerification = NotRequired,
     shouldShowLongRunningOperation: Boolean = false,
+    onError: (NfcException) -> Boolean = { false },
   ) = NfcSessionUIStateMachineProps<Unit>(
     session = { _, _ -> },
     onConnected = {},
     onSuccess = { onSuccessCalls.add(Unit) },
     onCancel = { onCancelCalls.add(Unit) },
     onInauthenticHardware = { _ -> },
+    onError = onError,
     needsAuthentication = true,
     hardwareVerification = requirePairedHardware,
     shouldLock = true,
@@ -132,6 +134,22 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
       nfcTransactor.transactCalls.awaitItem()
 
       awaitBody<FormBodyModel>(NfcEventTrackerScreenId.NFC_FAILURE)
+    }
+  }
+
+  test("error callback overrides default handling") {
+    val error = NfcException.CommandError()
+    nfcTransactor.transactResult = Err(error)
+    val errorCalls = turbines.create<Unit>("error calls")
+    val propsWithCallback = createProps(onError = {
+      errorCalls.add(Unit)
+      true
+    })
+
+    stateMachine.test(propsWithCallback) {
+      awaitBody<NfcBodyModel> { status.shouldBeTypeOf<Searching>() }
+      nfcTransactor.transactCalls.awaitItem()
+      errorCalls.awaitItem()
     }
   }
 

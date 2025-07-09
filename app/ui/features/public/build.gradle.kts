@@ -53,6 +53,7 @@ kotlin {
         api(projects.domain.emergencyExitKitPublic)
         api(projects.domain.featureFlagPublic)
         api(projects.libs.keyValueStoreImpl)
+        implementation(libs.kmp.settings.coroutines)
         api(projects.libs.ktorClientPublic)
         api(projects.libs.loggingPublic)
         api(projects.domain.metricsPublic)
@@ -70,6 +71,10 @@ kotlin {
         api(projects.domain.walletPublic)
         api(projects.domain.workerPublic)
         api(projects.shared.priceChartPublic)
+        api(projects.domain.securityCenterPublic)
+        api(projects.domain.privilegedActionsPublic)
+        implementation(projects.shared.priceChartFake)
+        implementation(projects.shared.balanceUtilsImpl)
         implementation(projects.domain.supportPublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.domain.availabilityPublic)
@@ -77,8 +82,6 @@ kotlin {
         implementation(projects.domain.inheritancePublic)
         implementation(projects.domain.relationshipsPublic)
         implementation(projects.ui.snapshotGeneratorApiPublic)
-        implementation(projects.domain.securityCenterPublic)
-        implementation(projects.domain.privilegedActionsImpl)
       }
     }
 
@@ -127,6 +130,7 @@ kotlin {
         implementation(projects.shared.priceChartFake)
         implementation(projects.domain.privilegedActionsImpl)
         implementation(projects.domain.privilegedActionsFake)
+        implementation(projects.shared.balanceUtilsImpl)
         implementation(projects.domain.recoveryFake)
         implementation(projects.domain.relationshipsFake)
         implementation(projects.domain.dataStateMachineFake)

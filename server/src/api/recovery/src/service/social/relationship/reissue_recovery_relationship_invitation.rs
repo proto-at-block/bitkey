@@ -17,7 +17,7 @@ pub struct ReissueRecoveryRelationshipInvitationInput<'a> {
 }
 
 impl Service {
-    /// This function allows customers to reissue invitations to Recovery Contacts. This is useful
+    /// This function allows customers to reissue invitations to trusted contacts. This is useful
     /// if the original invitation has expired.
     ///
     /// # Arguments

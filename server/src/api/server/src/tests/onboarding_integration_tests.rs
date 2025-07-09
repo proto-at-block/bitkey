@@ -10,7 +10,7 @@ use authn_authz::routes::{
     AuthRequestKey, AuthenticationRequest, ChallengeResponseParameters, GetTokensRequest,
 };
 use axum::response::IntoResponse;
-use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
+use base64::{prelude::BASE64_STANDARD as b64, Engine as _};
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::secp256k1::Message;
 use bdk_utils::bdk::bitcoin::Network;
@@ -36,7 +36,7 @@ use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountAddDeviceTokenRequest, AccountAddTouchpointRequest,
     AccountVerifyTouchpointRequest, ActivateSpendingKeyDefinitionRequest,
     CompleteOnboardingRequest, ContinueDistributedKeygenRequest, CreateAccountRequest,
-    InititateDistributedKeygenRequest, UpdateDescriptorBackupsRequest, UpgradeAccountRequest,
+    InititateDistributedKeygenRequest, UpgradeAccountRequest,
 };
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use recovery::routes::distributed_keys::CreateSelfSovereignBackupRequest;
@@ -45,9 +45,9 @@ use serde_json::{json, Value};
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network as AccountNetwork;
 use types::account::entities::{
-    DescriptorBackup, Factor, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload,
-    SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
-    UpgradeLiteAccountAuthKeysPayload,
+    DescriptorBackup, DescriptorBackupsSet, Factor, FullAccountAuthKeysPayload,
+    LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, Touchpoint,
+    TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
 };
 use types::account::identifiers::{KeysetId, TouchpointId};
 use types::account::AccountType;
@@ -2240,7 +2240,10 @@ async fn test_descriptor_backup(
 
     let sealed_descriptor = "sealed_descriptor".to_string();
 
-    let request = UpdateDescriptorBackupsRequest {
+    let wrapped_ssek: Vec<u8> = [1u8; 66].to_vec();
+
+    let request = DescriptorBackupsSet {
+        wrapped_ssek: wrapped_ssek.clone(),
         descriptor_backups: keyset_ids
             .iter()
             .cloned()
@@ -2310,7 +2313,8 @@ async fn test_descriptor_backup(
         let sealed_descriptor2 = "sealed_descriptor2".to_string();
         keyset_ids.push(create_keyset_response.keyset_id);
 
-        let request = UpdateDescriptorBackupsRequest {
+        let request = DescriptorBackupsSet {
+            wrapped_ssek: wrapped_ssek.clone(),
             descriptor_backups: vec![
                 DescriptorBackup {
                     keyset_id: keyset_ids[0].clone(),

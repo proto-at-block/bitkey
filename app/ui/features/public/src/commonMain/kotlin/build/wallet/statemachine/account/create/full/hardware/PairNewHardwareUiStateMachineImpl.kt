@@ -36,6 +36,7 @@ import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
+import io.ktor.client.request.request
 import kotlinx.coroutines.launch
 
 @BitkeyInject(ActivityScope::class)
@@ -49,7 +50,14 @@ class PairNewHardwareUiStateMachineImpl(
   @Composable
   override fun model(props: PairNewHardwareProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
-    var state: State by remember { mutableStateOf(ShowingActivationInstructionsUiState()) }
+    val initialState: State =
+      if (props.isResettingFingerprints && props.request is PairNewHardwareProps.Request.Ready) {
+        ShowingCompleteFingerprintEnrollmentInstructionsUiState(request = props.request)
+      } else {
+        ShowingActivationInstructionsUiState()
+      }
+
+    var state: State by remember { mutableStateOf(initialState) }
 
     // Always show the [PairNewHardwareBodyModel] as full screens
     val pairNewHardwareBodyModelPresentationStyle =
@@ -125,7 +133,8 @@ class PairNewHardwareUiStateMachineImpl(
                   }
                 }
               },
-              appGlobalAuthPublicKey = s.request.appGlobalAuthPublicKey
+              appGlobalAuthPublicKey = s.request.appGlobalAuthPublicKey,
+              shouldLockHardware = !props.isResettingFingerprints
             ),
             screenPresentationStyle = props.screenPresentationStyle,
             segment = props.segment,
@@ -158,7 +167,10 @@ class PairNewHardwareUiStateMachineImpl(
           eventTrackerContext = props.eventTrackerContext,
           isNavigatingBack = s.isNavigatingBack,
           presentationStyle = pairNewHardwareBodyModelPresentationStyle,
-          headline = "Set up your first fingerprint",
+          headline = when {
+            props.isResettingFingerprints -> "Set up your fingerprint"
+            else -> "Set up your first fingerprint"
+          },
           instructions = "Place your finger on the sensor until you see a blue light. Lift your" +
             " finger and repeat (15-20 times) adjusting your finger position slightly each time," +
             " until the light turns green. Then save your fingerprint."
@@ -201,7 +213,8 @@ class PairNewHardwareUiStateMachineImpl(
               },
               onCancel = {
                 state = ShowingCompleteFingerprintEnrollmentInstructionsUiState(s.request)
-              }
+              },
+              shouldLockHardware = false
             ),
             hardwareVerification = NotRequired,
             screenPresentationStyle = props.screenPresentationStyle,

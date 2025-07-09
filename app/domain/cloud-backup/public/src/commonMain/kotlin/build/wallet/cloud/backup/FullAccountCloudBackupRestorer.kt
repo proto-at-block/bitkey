@@ -56,6 +56,8 @@ interface FullAccountCloudBackupRestorer {
       activeAppKeyBundle = activeAppKeyBundle,
       activeHwKeyBundle = activeHwKeyBundle,
       config = config,
+      // TODO [W-11610] Update cloud backup/restore flows; we should return the full history here.
+      keysets = listOf(activeSpendingKeyset),
       appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
     )
   }

@@ -6,6 +6,7 @@ use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 use bdk_utils::DescriptorKeyset;
 use isocountry::CountryCode;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 use strum_macros::{Display as StrumDisplay, EnumString};
 use time::{serde::rfc3339, OffsetDateTime};
 use utoipa::ToSchema;
@@ -298,7 +299,7 @@ pub struct FullAccount {
     #[serde(default)]
     pub spending_keysets: HashMap<KeysetId, SpendingKeyset>,
     #[serde(default)]
-    pub descriptor_backups: HashMap<KeysetId, String>,
+    pub descriptor_backups_set: Option<DescriptorBackupsSet>,
     // Spending limit
     pub spending_limit: Option<SpendingLimit>,
     #[serde(default)]
@@ -332,7 +333,7 @@ impl FullAccount {
             active_keyset_id: active_keyset_id.clone(),
             auth_keys: HashMap::from([(active_auth_keys_id.clone(), auth)]),
             spending_keysets: HashMap::from([(active_keyset_id, spending)]),
-            descriptor_backups: HashMap::new(),
+            descriptor_backups_set: None,
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey,
@@ -445,7 +446,7 @@ impl LiteAccount {
             id: self.id.clone(),
             active_keyset_id: keyset_id.clone(),
             spending_keysets: HashMap::from([(keyset_id, spending_keyset)]),
-            descriptor_backups: HashMap::new(),
+            descriptor_backups_set: None,
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey: Some(auth_keys.app_pubkey),
@@ -660,9 +661,28 @@ impl From<Account> for PubkeysToAccount {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, ToSchema)]
+pub struct DescriptorBackupsSet {
+    /// Wallet Key Encryption Key-wrapped Server Storage Encryption Key (SSEK)
+    #[serde_as(as = "Base64")]
+    pub wrapped_ssek: Vec<u8>,
+    pub descriptor_backups: Vec<DescriptorBackup>,
+}
+
+impl DescriptorBackupsSet {
+    pub fn get_sealed_descriptor(&self, keyset_id: &KeysetId) -> Option<String> {
+        self.descriptor_backups
+            .iter()
+            .find(|backup| backup.keyset_id == *keyset_id)
+            .map(|backup| backup.sealed_descriptor.clone())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct DescriptorBackup {
     pub keyset_id: KeysetId,
+    /// Server storage encryption key-sealed descriptor
     pub sealed_descriptor: String,
 }
 
@@ -843,7 +863,7 @@ mod tests {
                     descriptor_public_key,
                 ),
             )]),
-            descriptor_backups: HashMap::new(),
+            descriptor_backups_set: None,
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey: None,

@@ -29,6 +29,7 @@ kotlin {
         api(projects.libs.platformPublic)
         api(projects.libs.queueProcessorPublic)
         api(projects.domain.databasePublic)
+        api(projects.shared.balanceUtilsImpl)
         implementation(projects.libs.loggingPublic)
         implementation(libs.kmp.okio)
         implementation(libs.kmp.settings)

@@ -29,7 +29,7 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 class InterstitialUiStateMachineImplTests : FunSpec({
   val awaitingNewHardwareData = AwaitingNewHardwareData(
     newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-    addHardwareKeys = { _, _, _ -> }
+    addHardwareKeys = { _, _ -> }
   )
 
   val lostHardwareRecoveryDataStateMachine = object : LostHardwareRecoveryDataStateMachine,

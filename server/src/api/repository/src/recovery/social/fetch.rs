@@ -294,7 +294,7 @@ impl SocialRecoveryRepository {
             }
         }
 
-        // Get relationships for which account is the Recovery Contact
+        // Get relationships for which account is the trusted contact
         exclusive_start_key = None;
 
         loop {
@@ -315,7 +315,7 @@ impl SocialRecoveryRepository {
                     let service_err = err.into_service_error();
                     event!(
                         Level::ERROR,
-                        "Could not query recovery relationships Recovery Contact index: {service_err:?} with message: {:?}",
+                        "Could not query recovery relationships trusted contact index: {service_err:?} with message: {:?}",
                         service_err.message()
                     );
                     DatabaseError::FetchError(database_object)

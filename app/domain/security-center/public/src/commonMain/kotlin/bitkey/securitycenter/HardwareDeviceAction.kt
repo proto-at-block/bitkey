@@ -25,4 +25,13 @@ class HardwareDeviceAction(
   }
 
   override fun type(): SecurityActionType = SecurityActionType.HARDWARE_DEVICE
+
+  override fun state(): SecurityActionState {
+    return when {
+      getRecommendations().contains(SecurityActionRecommendation.PAIR_HARDWARE_DEVICE) ->
+        SecurityActionState.HasCriticalActions
+      getRecommendations().isNotEmpty() -> SecurityActionState.HasRecommendationActions
+      else -> SecurityActionState.Secure
+    }
+  }
 }

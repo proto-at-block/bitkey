@@ -425,6 +425,7 @@ enum FirmwareFeatureFlag {
   "ImprovedFingerprintEnrollment",
   "AsyncSigning",
   "SigningOptimizations",
+  "FingerprintReset",
 };
 
 enum SecureBootConfig {

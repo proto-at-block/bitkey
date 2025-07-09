@@ -13,4 +13,12 @@ class BiometricAction(
   override fun category(): SecurityActionCategory = SecurityActionCategory.SECURITY
 
   override fun type(): SecurityActionType = SecurityActionType.BIOMETRIC
+
+  override fun state(): SecurityActionState {
+    return if (biometricsEnabled) {
+      SecurityActionState.Secure
+    } else {
+      SecurityActionState.HasRecommendationActions
+    }
+  }
 }

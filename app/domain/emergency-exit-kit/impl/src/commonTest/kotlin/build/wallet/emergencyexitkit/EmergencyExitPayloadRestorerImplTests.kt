@@ -11,6 +11,7 @@ import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.EmergencyExitPayloadRestorerError.CsekMissing
 import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.EmergencyExitPayloadRestorerError.InvalidBackup
 import build.wallet.encrypt.SealedData
+import build.wallet.encrypt.SymmetricKeyEncryptorFake
 import build.wallet.testing.shouldBeErr
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
@@ -43,6 +44,7 @@ class EmergencyExitPayloadRestorerImplTests : FunSpec({
   afterTest {
     csekDao.reset()
     appPrivateKeyDao.reset()
+    symmetricKeyEncryptor.reset()
   }
 
   test("Full create and restore loop") {

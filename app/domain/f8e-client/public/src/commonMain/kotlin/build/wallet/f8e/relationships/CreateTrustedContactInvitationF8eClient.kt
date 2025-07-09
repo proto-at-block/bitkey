@@ -12,14 +12,14 @@ import com.github.michaelbull.result.Result
 
 interface CreateTrustedContactInvitationF8eClient {
   /**
-   * Creates a relationship between the given account and a Recovery Contact, which generates an invite
+   * Creates a relationship between the given account and a trusted contact, which generates an invite
    * to be accepted
    *
    * @param account the account to create the relationship for
    * @param hardwareProofOfPossession the current active hardware proof of possession
-   * @param trustedContactAlias the alias of the Recovery Contact to create the relationship with
+   * @param trustedContactAlias the alias of the trusted contact to create the relationship with
    * @param protectedCustomerEnrollmentPakeKey the protected customer enrollment pake key
-   * @param roles the roles to assign to the Recovery Contact
+   * @param roles the roles to assign to the trusted contact
    */
   suspend fun createInvitation(
     account: FullAccount,

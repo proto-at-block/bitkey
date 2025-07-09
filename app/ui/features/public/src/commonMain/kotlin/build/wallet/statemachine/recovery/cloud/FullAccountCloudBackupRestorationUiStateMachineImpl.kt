@@ -31,6 +31,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logFailure
+import build.wallet.nfc.NfcException
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.random.UuidGenerator
@@ -165,7 +166,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                     actionDescription = "Reading full account from backup",
                     cause = Error("Backup did not contain data for full account")
                   ),
-                  onBack = { uiState = SocialRecoveryExplanationState }
+                  onBack = { uiState = SocialRecoveryExplanationState },
+                  failure = CloudBackupFailure.CantFindCloudAccount
                 )
               } else {
                 RecoveryAuthenticationState(
@@ -200,6 +202,23 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 RestoringFromBackupUiState
             },
             onCancel = { uiState = CloudBackupFoundUiState },
+            onError = { error ->
+              if (error is NfcException.CommandErrorSealCsekResponseUnsealException) {
+                uiState =
+                  RestoringFromBackupFailureUiState(
+                    errorData = ErrorData(
+                      segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+                      actionDescription = "Unsealing CSEK for full account cloud restoration",
+                      cause = error
+                    ),
+                    onBack = { uiState = SocialRecoveryExplanationState },
+                    failure = CloudBackupFailure.HWCantDecryptCSEK
+                  )
+                true
+              } else {
+                false
+              }
+            },
             hardwareVerification = NotRequired,
             screenPresentationStyle = Root,
             eventTrackerContext = UNSEAL_CLOUD_BACKUP,
@@ -226,7 +245,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           onBack = {
             uiState = SocialRecoveryExplanationState
           },
-          onRecoverAppKey = props.onRecoverAppKey
+          onRecoverAppKey = props.onRecoverAppKey,
+          failure = state.failure
         ).asRootScreen()
 
       is SocRecRestorationFailedState ->
@@ -271,7 +291,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 actionDescription = "Restoring full account from backup",
                 cause = it
               ),
-              onBack = props.onExit
+              onBack = props.onExit,
+              failure = CloudBackupFailure.AppCantRestoreCloudBackup
             )
           )
         }
@@ -297,7 +318,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 actionDescription = "Authenticating with new app auth key and applying cloud backup",
                 cause = it
               ),
-              onBack = props.onExit
+              onBack = props.onExit,
+              failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
             )
           )
         }
@@ -313,7 +335,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                     actionDescription = "Saving keybox as active",
                     cause = error
                   ),
-                  onBack = props.onExit
+                  onBack = props.onExit,
+                  failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
                 )
               )
             }
@@ -461,7 +484,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 actionDescription = "Storing app recovery auth key",
                 cause = it
               ),
-              onBack = { setState(SocialRecoveryExplanationState) }
+              onBack = { setState(SocialRecoveryExplanationState) },
+              failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
             )
           )
           return@LaunchedEffect
@@ -493,7 +517,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
               actionDescription = "Authenticating with new app recovery auth key, storing tokens, and syncing socrec relationships",
               cause = it
             ),
-            onBack = { setState(SocialRecoveryExplanationState) }
+            onBack = { setState(SocialRecoveryExplanationState) },
+            failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
           )
         )
       }
@@ -526,6 +551,7 @@ private sealed interface CloudBackupRestorationUiState {
   data class RestoringFromBackupFailureUiState(
     val errorData: ErrorData,
     val onBack: () -> Unit,
+    val failure: CloudBackupFailure,
   ) : CloudBackupRestorationUiState
 
   /**
@@ -549,7 +575,7 @@ private sealed interface CloudBackupRestorationUiState {
 
   /**
    * Starts the Social Recovery challenge flow for restoring
-   * using Recovery Contacts instead of hardware.
+   * using trusted contacts instead of hardware.
    */
   data class SocRecChallengeState(
     val accountId: FullAccountId,

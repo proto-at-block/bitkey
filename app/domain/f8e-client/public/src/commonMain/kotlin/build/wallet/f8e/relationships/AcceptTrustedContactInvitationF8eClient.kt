@@ -14,7 +14,7 @@ import okio.ByteString
 
 interface AcceptTrustedContactInvitationF8eClient {
   /**
-   * Redeems an invitation to make the caller a Recovery Contact.
+   * Redeems an invitation to make the caller a trusted contact.
    * Returns the [ProtectedCustomer] that the current customer is now protecting.
    */
   suspend fun acceptInvitation(

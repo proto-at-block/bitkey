@@ -95,7 +95,7 @@ ios-snapshots-verify:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
   echo "⚠️⚠️⚠️ Please be aware than verifying snapshots locally may result in flakey failures ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.3'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.3.1'
 
 # Record and update baseline UI snapshots for iOS
 ios-snapshots-record:
@@ -104,14 +104,14 @@ ios-snapshots-record:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=true
   echo "⚠️⚠️⚠️ Only for use for local development, DO NOT COMMIT LOCALLY GENERATED SNAPSHOTS ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.3'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.3.1'
 
 [private]
 ios-snapshot-prework:
   #!/bin/bash
   just install-xcode-clt
   # Check for the specific iOS simulator runtime
-  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-18-2' && echo true || echo false)
+  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-18-3' && echo true || echo false)
   if [ "$runtime" == "false" ]; then
     echo "You must install the iOS 18.3 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1

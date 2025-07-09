@@ -2,11 +2,11 @@
     "module-identifier": "io.perfmark:perfmark-api",
     "components": [
         {
-            "version": "0.26.0",
+            "version": "0.27.0",
             "variants": [
                 {
                     "artifacts": {
-                        "perfmark-api-0.26.0.jar": "b7d23e93a34537ce332708269a0d1404788a5b5e1949e82f5535fce51b3ea95b"
+                        "perfmark-api-0.27.0.jar": "c7b478503ec524e55df19b424d46d27c8a68aeb801664fadd4f069b71f52d0f6"
                     }
                 }
             ],

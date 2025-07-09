@@ -8,4 +8,7 @@ class BiometricTextProviderImpl : BiometricTextProvider {
   override fun getSettingsTitleText() = "Biometrics"
 
   override fun getSettingsSecondaryText(): String = "Use Biometrics to unlock app"
+
+  override fun getAppSecurityDescriptionText(): String =
+    "Unlock the app using fingerprint or facial recognition."
 }

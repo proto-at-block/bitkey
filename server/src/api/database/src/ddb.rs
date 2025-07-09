@@ -128,6 +128,9 @@ impl Connection {
             DatabaseObject::TransactionVerification => {
                 ("TRANSACTION_VERIFICATION_TABLE", "TransactionVerification")
             }
+            DatabaseObject::EncryptedAttachment => {
+                ("ENCRYPTED_ATTACHMENT_TABLE", "EncryptedAttachment")
+            }
         };
 
         match self {
@@ -401,6 +404,7 @@ pub enum DatabaseObject {
     Inheritance,
     PromotionCode,
     TransactionVerification,
+    EncryptedAttachment,
 }
 
 impl fmt::Display for DatabaseObject {
@@ -422,6 +426,7 @@ impl fmt::Display for DatabaseObject {
             DatabaseObject::Inheritance => write!(f, "Inheritance"),
             DatabaseObject::PromotionCode => write!(f, "PromotionCode"),
             DatabaseObject::TransactionVerification => write!(f, "TransactionVerification"),
+            DatabaseObject::EncryptedAttachment => write!(f, "EncryptedAttachment"),
         }
     }
 }

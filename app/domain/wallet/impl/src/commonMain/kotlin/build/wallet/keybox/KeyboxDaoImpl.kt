@@ -1,7 +1,6 @@
 package build.wallet.keybox
 
 import bitkey.account.FullAccountConfig
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
@@ -15,11 +14,14 @@ import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
-import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
+import build.wallet.sqldelight.awaitAsListResult
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
+import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.*
 
@@ -33,7 +35,7 @@ class KeyboxDaoImpl(
         .fullAccountQueries
         .getActiveFullAccount()
         .asFlowOfOneOrNull()
-        .mapResult { it?.fullAccount()?.keybox }
+        .map { it.flatMap { it?.keybox() ?: Ok(null) } }
         .distinctUntilChanged()
         .collect(::emit)
     }
@@ -45,7 +47,7 @@ class KeyboxDaoImpl(
         .fullAccountQueries
         .getOnboardingFullAccount()
         .asFlowOfOneOrNull()
-        .mapResult { it?.fullAccount()?.keybox }
+        .map { it.flatMap { it?.keybox() ?: Ok(null) } }
         .distinctUntilChanged()
         .collect(::emit)
     }
@@ -129,13 +131,16 @@ class KeyboxDaoImpl(
   }
 
   private fun BitkeyDatabase.saveKeybox(keybox: Keybox) {
-    spendingKeysetQueries.insertKeyset(
-      id = keybox.activeSpendingKeyset.localId,
-      serverId = keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
-      appKey = keybox.activeSpendingKeyset.appKey,
-      hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
-      serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey
-    )
+    for (keyset in keybox.keysets) {
+      spendingKeysetQueries.insertKeyset(
+        id = keyset.localId,
+        serverId = keyset.f8eSpendingKeyset.keysetId,
+        appKey = keyset.appKey,
+        hardwareKey = keyset.hardwareKey,
+        serverKey = keyset.f8eSpendingKeyset.spendingPublicKey
+      )
+    }
+
     // Insert the app key bundle
     appKeyBundleQueries.insertKeyBundle(
       id = keybox.activeAppKeyBundle.localId,
@@ -174,21 +179,29 @@ class KeyboxDaoImpl(
     )
   }
 
-  private suspend fun FullAccountView.fullAccount(): FullAccount {
-    val keybox = keybox()
-    return FullAccount(
-      accountId = accountId,
-      config = keybox.config,
-      keybox = keybox
-    )
-  }
+  private suspend fun FullAccountView.keybox(): Result<Keybox, DbError> =
+    coroutineBinding {
+      val keysets = databaseProvider.database().spendingKeysetQueries.allKeysets()
+        .awaitAsListResult()
+        .bind()
+        .map {
+          SpendingKeyset(
+            localId = it.id,
+            f8eSpendingKeyset = F8eSpendingKeyset(
+              keysetId = it.serverId,
+              spendingPublicKey = it.serverKey
+            ),
+            appKey = it.appKey,
+            hardwareKey = it.hardwareKey,
+            networkType = networkType
+          )
+        }
 
-  private suspend fun FullAccountView.keybox(): Keybox {
-    return Keybox(
-      localId = keyboxId,
-      fullAccountId = accountId,
-      activeSpendingKeyset =
-        SpendingKeyset(
+      Keybox(
+        localId = keyboxId,
+        fullAccountId = accountId,
+        keysets = keysets,
+        activeSpendingKeyset = SpendingKeyset(
           localId = spendingPublicKeysetId,
           f8eSpendingKeyset =
             F8eSpendingKeyset(
@@ -199,30 +212,29 @@ class KeyboxDaoImpl(
           hardwareKey = hardwareKey,
           networkType = networkType
         ),
-      activeAppKeyBundle =
-        AppKeyBundle(
+        activeAppKeyBundle = AppKeyBundle(
           localId = appKeyBundleId,
           spendingKey = appKey,
           authKey = globalAuthKey,
           networkType = networkType,
           recoveryAuthKey = recoveryAuthKey
         ),
-      activeHwKeyBundle = HwKeyBundle(
-        localId = hwKeyBundleId,
-        spendingKey = hwSpendingKey,
-        authKey = hwAuthKey,
-        networkType = networkType
-      ),
-      appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
-      config =
-        FullAccountConfig(
-          bitcoinNetworkType = networkType,
-          isHardwareFake = fakeHardware,
-          f8eEnvironment = f8eEnvironment,
-          isTestAccount = isTestAccount,
-          isUsingSocRecFakes = isUsingSocRecFakes,
-          delayNotifyDuration = delayNotifyDuration
-        )
-    )
-  }
+        activeHwKeyBundle = HwKeyBundle(
+          localId = hwKeyBundleId,
+          spendingKey = hwSpendingKey,
+          authKey = hwAuthKey,
+          networkType = networkType
+        ),
+        appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+        config =
+          FullAccountConfig(
+            bitcoinNetworkType = networkType,
+            isHardwareFake = fakeHardware,
+            f8eEnvironment = f8eEnvironment,
+            isTestAccount = isTestAccount,
+            isUsingSocRecFakes = isUsingSocRecFakes,
+            delayNotifyDuration = delayNotifyDuration
+          )
+      )
+    }
 }

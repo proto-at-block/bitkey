@@ -59,6 +59,7 @@ kotlin {
         api(projects.ui.featuresPublic)
         api(projects.ui.frameworkImpl)
         api(projects.shared.priceChartImpl)
+        api(projects.shared.balanceUtilsImpl)
         api(projects.domain.privilegedActionsImpl)
       }
     }

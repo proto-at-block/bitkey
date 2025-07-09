@@ -366,6 +366,7 @@ def fwup(ctx):
     FirmwareUpdater(ctx.obj).fwup()
 
 
+@cli.command()
 @click.option('--network', type=click.Choice(ops_keybundle.btc_network.keys()), required=True)
 @click.option('--path', type=DerivationPath, required=True)
 @click.pass_context

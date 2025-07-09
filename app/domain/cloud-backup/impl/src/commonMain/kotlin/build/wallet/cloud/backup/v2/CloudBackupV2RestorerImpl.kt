@@ -42,7 +42,7 @@ class CloudBackupV2RestorerImpl(
 
     val keysInfoEncoded =
       catchingResult {
-        symmetricKeyEncryptor.unseal(
+        symmetricKeyEncryptor.unsealNoMetadata(
           sealedData = fullAccountFields.hwFullAccountKeysCiphertext,
           key = pkek.key
         )
@@ -87,7 +87,7 @@ class CloudBackupV2RestorerImpl(
         }.bind()
     }
 
-    // Store Recovery Contact identity key
+    // Store trusted contact identity key
     relationshipsKeysDao.saveKey(cloudBackupV2.delegatedDecryptionKeypair)
       .mapError(::SocRecTrustedContactIdentityKeyStorageError)
       .bind()

@@ -1,0 +1,23 @@
+steps:
+  - label: "PR Unit Tests"
+    agents:
+      xcode: 16.2.0
+      ios: 18.3.1
+    plugins:
+      - squareup/ios-builder#v1.0.0:
+          build_action: unit
+  - label: "PR Snapshot Tests"
+    agents:
+      xcode: 16.2.0
+      ios: 18.3.1
+    plugins:
+      - squareup/ios-builder#v1.0.0:
+          build_action: ios-snapshots
+  - label: "PR KMP iOS Test"
+    agents:
+      xcode: 16.2.0
+    plugins:
+      - squareup/macos-environment:
+          xcode_version: 16.2.0
+    command:
+      - "./app/ios/Scripts/CI/RunKmpIosTests"

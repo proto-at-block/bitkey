@@ -1,12 +1,10 @@
 package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.fwup.FirmwareData
 import build.wallet.platform.config.AppVariant
 import build.wallet.ui.model.StandardClick
@@ -21,11 +19,9 @@ import build.wallet.ui.model.list.ListItemModel
 @BitkeyInject(ActivityScope::class)
 class BitkeyDeviceOptionsUiStateMachineImpl(
   private val appVariant: AppVariant,
-  private val fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
 ) : BitkeyDeviceOptionsUiStateMachine {
   @Composable
   override fun model(props: BitkeyDeviceOptionsUiProps): ListGroupModel {
-    val isFingerprintResetEnabled by fingerprintResetFeatureFlag.flagValue().collectAsState()
     // Only show button to FWUP if there is a pending update
     // and we are not in a Customer build
     val firmwareUpdateItem =
@@ -55,12 +51,6 @@ class BitkeyDeviceOptionsUiStateMachineImpl(
         }
       }
 
-    val resetFingerprintsItem = ListItemModel(
-      title = "Reset Fingerprints",
-      trailingAccessory = ListItemAccessory.drillIcon(),
-      onClick = props.onResetFingerprintsClick
-    ).takeIf { isFingerprintResetEnabled.value }
-
     return ListGroupModel(
       style = ListGroupStyle.DIVIDER,
       items =
@@ -83,8 +73,7 @@ class BitkeyDeviceOptionsUiStateMachineImpl(
                     onClick = StandardClick(props.onWipeBitkeyClick)
                   )
               )
-          ),
-          resetFingerprintsItem
+          )
         )
     )
   }

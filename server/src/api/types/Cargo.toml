@@ -37,6 +37,8 @@ all = [
   "authn_authz",
   "consent",
   "currencies",
+  "encrypted_attachment",
+  "encrypted_attachment",
   "exchange_rate",
   "notification",
   "privileged_action",
@@ -47,6 +49,7 @@ all = [
 authn_authz = []
 consent = []
 currencies = []
+encrypted_attachment = []
 exchange_rate = []
 notification = []
 privileged_action = []

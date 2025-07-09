@@ -139,7 +139,7 @@ class RelationshipsRelationshipsDaoImplTests : FunSpec({
     )
   }
 
-  test("set unendorsed Recovery Contact does not overwrite authentication state") {
+  test("set unendorsed trusted contact does not overwrite authentication state") {
     dao.setRelationships(relationships)
     dao.relationships().first().shouldBeEqual(
       Ok(relationships)

@@ -12,13 +12,13 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class RefreshTrustedContactInvitationF8eClientTests : FunSpec({
-  test("Refresh RC Invite - Request Serialization") {
+  test("Refresh TC Invite - Request Serialization") {
     val result = Json.encodeToString(RefreshTrustedContactRequestBody(action = "Reissue"))
 
     result.shouldBeEqual("""{"action":"Reissue"}""")
   }
 
-  test("Refresh RC Invite - Response Deserialization") {
+  test("Refresh TC Invite - Response Deserialization") {
     val response =
       """
       {

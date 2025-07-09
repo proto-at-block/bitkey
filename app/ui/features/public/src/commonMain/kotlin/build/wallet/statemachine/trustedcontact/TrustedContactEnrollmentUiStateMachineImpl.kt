@@ -390,6 +390,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
             uiState = State.AskingIfHasHardware(state.invitation, state.account, protectedCustomerAlias = state.protectedCustomerAlias)
           },
           onOnboardingComplete = { account ->
+            props.onAccountUpgraded?.invoke(account)
             uiState = State.LoadIdentityKey(account, state.invitation, state.protectedCustomerAlias)
           }
         )
@@ -547,7 +548,7 @@ private sealed interface State {
     val delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
   ) : State
 
-  /** Screen shown when enrolling as a Recovery Contact succeeded, after accepting the invite. */
+  /** Screen shown when enrolling as a Trusted Contact succeeded, after accepting the invite. */
   data class AcceptingInviteWithF8eSuccess(
     val recoveryRelationshipRoles: Set<TrustedContactRole>,
     val account: Account,

@@ -1,12 +1,18 @@
 package bitkey.securitycenter
 
 import build.wallet.account.AccountService
+import build.wallet.availability.AppFunctionalityService
+import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
+import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.logging.logError
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.onStart
+import kotlinx.datetime.Instant
 
 interface EekBackupHealthActionFactory {
   suspend fun create(): Flow<SecurityAction?>
@@ -16,15 +22,29 @@ interface EekBackupHealthActionFactory {
 class EekBackupHealthActionFactoryImpl(
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val accountService: AccountService,
+  private val appFunctionalityService: AppFunctionalityService,
 ) : EekBackupHealthActionFactory {
   override suspend fun create(): Flow<SecurityAction?> {
-    val account = accountService.activeAccount().first()
-    if (account !is FullAccount) {
-      val message = "No active full account found when checking cloud backup. Found account: $account."
-      logError { message }
-      return flowOf(null)
+    return combine(
+      accountService.activeAccount(),
+      cloudBackupHealthRepository.eekBackupStatus().filterNotNull(),
+      appFunctionalityService.status
+    ) { account, eekBackupStatus, featureState ->
+      if (account !is FullAccount) {
+        null
+      } else {
+        EekBackupHealthAction(
+          cloudBackupStatus = eekBackupStatus,
+          featureState = featureState.featureStates.cloudBackupHealth
+        )
+      }
+    }.onStart {
+      emit(
+        EekBackupHealthAction(
+          cloudBackupStatus = EekBackupStatus.Healthy(Instant.DISTANT_PAST),
+          featureState = FunctionalityFeatureStates.FeatureState.Unavailable
+        )
+      )
     }
-    return cloudBackupHealthRepository.eekBackupStatus()
-      .map { status -> status?.let(::EekBackupHealthAction) }
   }
 }

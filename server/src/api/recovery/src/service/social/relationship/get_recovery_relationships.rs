@@ -21,8 +21,8 @@ pub struct GetRecoveryRelationshipsInput<'a> {
 /// # Fields
 ///
 /// * `invitations` - The list of invitations for the account
-/// * `endorsed_trusted_contacts` - The list of endorsed Recovery Contacts for the account
-/// * `unendorsed_trusted_contacts` - The list of unendorsed Recovery Contacts for the account
+/// * `endorsed_trusted_contacts` - The list of endorsed trusted contacts for the account
+/// * `unendorsed_trusted_contacts` - The list of unendorsed trusted contacts for the account
 /// * `customers` - The list of customers for the account
 pub struct GetRecoveryRelationshipsOutput {
     pub invitations: Vec<RecoveryRelationship>,
@@ -44,7 +44,7 @@ impl From<RecoveryRelationshipsForAccount> for GetRecoveryRelationshipsOutput {
 
 impl Service {
     /// This function fetches the recovery relationships for a given account. It returns a list of
-    /// invitations, Recovery Contacts, and customers. Both the Recovery Contacts and customers are
+    /// invitations, trusted contacts, and customers. Both the trusted contacts and customers are
     /// able to call this endpoint.
     ///
     /// # Arguments
@@ -53,7 +53,7 @@ impl Service {
     ///
     /// # Returns
     ///
-    /// * A list of invitations, Recovery Contacts, and customers
+    /// * A list of invitations, trusted contacts, and customers
     #[instrument(skip(self, input))]
     pub async fn get_recovery_relationships(
         &self,

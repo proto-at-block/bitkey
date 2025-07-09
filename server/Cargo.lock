@@ -4210,6 +4210,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-macros",
+ "base64 0.22.1",
  "bdk_utils",
  "comms_verification",
  "database",
@@ -5312,10 +5313,14 @@ dependencies = [
  "async-trait",
  "bdk_utils",
  "database",
+ "external_identifier",
+ "http_server",
  "serde",
  "time",
+ "tokio",
  "tracing",
  "types",
+ "ulid",
 ]
 
 [[package]]

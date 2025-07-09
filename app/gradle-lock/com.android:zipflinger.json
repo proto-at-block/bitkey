@@ -2,11 +2,11 @@
     "module-identifier": "com.android:zipflinger",
     "components": [
         {
-            "version": "8.9.1",
+            "version": "8.10.1",
             "variants": [
                 {
                     "artifacts": {
-                        "zipflinger-8.9.1.jar": "81dd485618a509a3235929b9eb13091d884452661de6ce5a45cc38b1c555421c"
+                        "zipflinger-8.10.1.jar": "ba1f32aa255abe4dab66571dd9195305d3027f261f9f4f465898b30cdffd09b3"
                     }
                 }
             ],

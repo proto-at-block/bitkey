@@ -18,6 +18,9 @@ enum class ResetFingerprintsEventTrackerScreenId : EventTrackerScreenId {
   /** Loading screen when cancelling the fingerprint reset */
   CANCEL_FINGERPRINT_RESET_LOADING,
 
+  /** Loading screen when completing the fingerprint reset and getting grant */
+  LOADING_GRANT,
+
   /** Error shown when starting the reset process fails. */
   ERROR_STARTING_RESET,
 

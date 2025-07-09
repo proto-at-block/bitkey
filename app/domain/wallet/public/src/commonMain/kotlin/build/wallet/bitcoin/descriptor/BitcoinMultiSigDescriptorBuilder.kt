@@ -88,6 +88,13 @@ interface BitcoinMultiSigDescriptorBuilder {
    * [fp/84h/0h/0h]xpub/0;1/\*, especially for exposure externally.
    *
    * https://bitcoindevkit.org/descriptors/
+   *
+   * The parameters are placed in the descriptor string in the following order:
+   * 1. appPublicKey
+   * 2. hardwareKey
+   * 3. serverKey
+   *
+   * This ordering must match the expected order in DescriptorBackupServiceImpl.parseDescriptorKeys().
    */
   fun watchingDescriptor(
     appPublicKey: DescriptorPublicKey,

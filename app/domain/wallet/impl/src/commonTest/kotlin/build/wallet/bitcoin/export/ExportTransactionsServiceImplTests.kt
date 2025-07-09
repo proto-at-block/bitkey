@@ -41,7 +41,13 @@ class ExportTransactionsServiceImplTests : FunSpec({
     val activeKeyset =
       (accountService.activeAccount().first() as FullAccount).keybox.activeSpendingKeyset
     listKeysetsF8eClient.result =
-      Ok(ListKeysetsF8eClient.ListKeysetsResponse(keysets = listOf(activeKeyset), descriptorBackups = null))
+      Ok(
+        ListKeysetsF8eClient.ListKeysetsResponse(
+          keysets = listOf(activeKeyset),
+          wrappedSsek = null,
+          descriptorBackups = null
+        )
+      )
   }
 
   suspend fun onboardAndSendMoney(value: BigDecimal) {

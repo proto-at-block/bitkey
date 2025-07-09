@@ -5,5 +5,5 @@ import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 val LostHardwareRecoveryDataMock =
   LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData(
     newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-    addHardwareKeys = { _, _, _ -> }
+    addHardwareKeys = { _, _ -> }
   )

@@ -51,6 +51,7 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       SecurityHubEducationMultipleFingerprints -> Res.drawable.hero_multiple_fingerprints
       SecurityHubEducationEmergencyExit -> Res.drawable.hero_eak
       SecurityHubEducationCriticalAlerts -> Res.drawable.hero_critical_alerts
+      SecurityHubEducationTransactionVerification -> Res.drawable.hero_transaction_verification
       SmallIconAccount -> Res.drawable.small_icon_account
       SmallIconAnnouncement -> Res.drawable.small_icon_announcement
       SmallIconArrowDown -> Res.drawable.small_icon_arrow_down

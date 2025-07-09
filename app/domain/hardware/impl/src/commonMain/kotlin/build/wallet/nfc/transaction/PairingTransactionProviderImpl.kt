@@ -39,6 +39,7 @@ class PairingTransactionProviderImpl(
 ) : PairingTransactionProvider {
   override operator fun invoke(
     appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
+    shouldLockHardware: Boolean,
     onSuccess: (PairingTransactionResponse) -> Unit,
     onCancel: () -> Unit,
   ) = object : NfcTransaction<PairingTransactionResponse> {
@@ -46,7 +47,7 @@ class PairingTransactionProviderImpl(
     private lateinit var unsealedSsek: Ssek
 
     override val needsAuthentication = false
-    override val shouldLock = true
+    override val shouldLock = shouldLockHardware
 
     override suspend fun session(
       session: NfcSession,

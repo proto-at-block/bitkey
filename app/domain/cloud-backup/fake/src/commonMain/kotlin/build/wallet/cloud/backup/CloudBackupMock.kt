@@ -48,7 +48,7 @@ const val CLOUD_BACKUP_V2_WITH_FULL_ACCOUNT_FIELDS_JSON = """
     "isUsingSocRecFakes":false,
     "bitcoinNetworkType":"SIGNET",
     "fullAccountFields": {
-      "sealedHwEncryptionKey":"b8ef0c208d341bf262638a7ecf142bea",
+      "sealedHwEncryptionKey":"b8ef0c208d341bf262638a7ecf142bea1234567890abcdef1234567890abcdef",
       "socRecSealedDekMap": {
         "someRelationshipId": "cipherText-1.nonce-1",
         "someOtherRelationshipId": "cipherText-2.nonce-2"

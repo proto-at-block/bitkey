@@ -22,8 +22,8 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
 
-  test("happy path through create lite account and enroll as Recovery Contact") {
-    // Set up a protected customer with a full account and create a Recovery Contact invite
+  test("happy path through create lite account and enroll as trusted contact") {
+    // Set up a protected customer with a full account and create a trusted contact invite
     val fullAccountApp = launchNewApp()
     fullAccountApp.onboardFullAccountWithFakeHardware()
     val (inviteCode, _) =
@@ -31,8 +31,8 @@ class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
         tcName = "Test Recovery Contact Name"
       )
 
-    // Going through onboarding with the lite account, becoming a Recovery Contact
-    // and then remove the Recovery Contact relationship
+    // Going through onboarding with the lite account, becoming a trusted contact
+    // and then remove the trusted contact relationship
     val liteAccountApp = launchNewApp()
     liteAccountApp.appUiStateMachine.test(Unit) {
       advanceThroughCreateLiteAccountScreens(

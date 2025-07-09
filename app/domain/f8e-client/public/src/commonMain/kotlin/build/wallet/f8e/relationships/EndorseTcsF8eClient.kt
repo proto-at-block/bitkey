@@ -9,11 +9,11 @@ import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
 
 /**
- * Used to upload the endorsement key certificates for a set of Recovery Contacts.
- * If a certificate was previously uploaded for a Recovery Contact, it will be replaced with the new
+ * Used to upload the endorsement key certificates for a set of trusted contacts.
+ * If a certificate was previously uploaded for a trusted contact, it will be replaced with the new
  * one.
  *
- * @param endorsements [TrustedContactKeyCertificate] associated with RC's [RelationshipId]
+ * @param endorsements [TrustedContactKeyCertificate] associated with TC's [RelationshipId]
  */
 fun interface EndorseTcsF8eClient {
   suspend fun endorseTrustedContacts(

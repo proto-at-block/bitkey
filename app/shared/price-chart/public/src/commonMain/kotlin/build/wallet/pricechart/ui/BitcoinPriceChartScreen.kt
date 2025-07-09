@@ -54,6 +54,7 @@ internal fun BitcoinPriceChartScreen(model: BitcoinPriceDetailsBodyModel) {
       Spacer(modifier = Modifier.size(6.dp))
       PriceChart(
         dataPoints = model.data,
+        range = model.range,
         initialSelectedPoint = model.selectedPoint,
         onPointSelected = model.onPointSelected,
         colorPrimary = WalletTheme.colors.bitcoinPrimary,

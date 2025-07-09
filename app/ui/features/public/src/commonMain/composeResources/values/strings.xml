@@ -12,6 +12,7 @@
     <string name="backup_mobile_key_recommendation_title">Add cloud backup</string>
     <string name="backup_eak_recommendation_title">Back up Emergency Exit Kit</string>
     <string name="add_fingerprints_recommendation_title">Add a backup fingerprint</string>
+    <string name="complete_fingerprint_reset_recommendation_title">Complete fingerprint reset</string>
     <string name="add_recovery_contacts_recommendation_title">Add a Recovery Contact</string>
     <string name="enable_critical_alerts_recommendation_title">Enable critical alerts</string>
     <string name="enable_sms_recommendation_title">Enable SMS notifications</string>

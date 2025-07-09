@@ -396,7 +396,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
     )
     .await;
 
-    // If the Recovery Contact isn't endorsed, there's no point in continuing
+    // If the trusted contact isn't endorsed, there's no point in continuing
     if !vector.is_trusted_contact_endorsed_by_customer {
         return;
     }

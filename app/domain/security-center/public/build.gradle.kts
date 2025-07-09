@@ -16,6 +16,7 @@ kotlin {
         implementation(projects.domain.recoveryPublic)
         implementation(projects.domain.notificationsPublic)
         implementation(projects.libs.loggingPublic)
+        implementation(projects.domain.privilegedActionsPublic)
       }
     }
   }

@@ -1,8 +1,6 @@
 package build.wallet.coachmark
 
 import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.BalanceHistoryFeatureFlag
 import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
@@ -13,17 +11,11 @@ class CoachmarkVisibilityDeciderTests :
   FunSpec({
 
     val featureFlagDao = FeatureFlagDaoMock()
-    val balanceHistoryFeatureFlag = BalanceHistoryFeatureFlag(featureFlagDao)
     val securityHubFeatureFlag = SecurityHubFeatureFlag(featureFlagDao)
     val coachmarkVisibilityDecider = CoachmarkVisibilityDecider(
       ClockFake(),
-      balanceHistoryFeatureFlag,
       securityHubFeatureFlag
     )
-
-    beforeTest {
-      balanceHistoryFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-    }
 
     test("return unexpired coachmarks") {
       coachmarkVisibilityDecider.shouldShow(
@@ -71,17 +63,6 @@ class CoachmarkVisibilityDeciderTests :
           CoachmarkIdentifier.InheritanceCoachmark,
           viewed = true,
           expiration = Instant.DISTANT_PAST
-        )
-      ).shouldBe(false)
-    }
-
-    test("don't return feature flagged coachmarks that are off") {
-      balanceHistoryFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-      coachmarkVisibilityDecider.shouldShow(
-        Coachmark(
-          CoachmarkIdentifier.BalanceGraphCoachmark,
-          viewed = false,
-          expiration = Instant.DISTANT_FUTURE
         )
       ).shouldBe(false)
     }

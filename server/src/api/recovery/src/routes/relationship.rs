@@ -344,8 +344,8 @@ pub struct CreateRelationshipResponse {
 
 ///
 /// Used by FullAccounts to create a recovery relationship which is sent to
-/// a Recovery Contact (either a FullAccount or a LiteAccount). The Recovery Contact
-/// can then accept the relationship and become a Recovery Contact for the account.
+/// a Trusted Contact (either a FullAccount or a LiteAccount). The trusted contact
+/// can then accept the relationship and become a trusted contact for the account.
 ///
 #[instrument(
     err,
@@ -463,14 +463,14 @@ async fn create_relationship_common(
 }
 
 ///
-/// This route is used by either the Customer or the Recovery Contact to delete a pending
+/// This route is used by either the Customer or the Trusted Contact to delete a pending
 /// or an established recovery relationship.
 ///
 /// For Customers, they will need to provide:
 /// - Account access token
 /// - Both App and Hardware keyproofs
 ///
-/// For Recovery Contacts, they will need to provide:
+/// For Trusted Contacts, they will need to provide:
 /// - Recovery access token
 ///
 #[instrument(
@@ -554,17 +554,17 @@ pub struct GetRecoveryRelationshipsResponse {
 }
 
 ///
-/// This route is used by both Customers and Recovery Contacts to retrieve
+/// This route is used by both Customers and Trusted Contacts to retrieve
 /// recovery relationships.
 ///
 /// Only returns relationships having a trusted_contact_role of SocialRecoveryContact
 ///
 /// For Customers, we will show:
-/// - All the Recovery Contacts that are protecting their account
+/// - All the Trusted Contacts that are protecting their account
 /// - All the pending outbound invitations
-/// - All the accounts that they are protecting as a Recovery Contact
+/// - All the accounts that they are protecting as a Trusted Contact
 ///
-/// For Recovery Contacts, we will show:
+/// For Trusted Contacts, we will show:
 /// - All the accounts that they are protecting
 ///
 #[instrument(err, skip(recovery_relationship_service, _feature_flags_service))]
@@ -622,7 +622,7 @@ pub struct GetRelationshipsRequest {
 }
 
 ///
-/// This route is used by both Customers and Recovery Contacts to retrieve relationships.
+/// This route is used by both Customers and Trusted Contacts to retrieve relationships.
 ///
 #[instrument(err, skip(recovery_relationship_service, _feature_flags_service))]
 #[utoipa::path(
@@ -691,7 +691,7 @@ pub enum UpdateRecoveryRelationshipResponse {
 
 ///
 /// This route is used by either Full Accounts or LiteAccounts to accept
-/// an pending outbound invitation and to become a Recovery Contact.
+/// an pending outbound invitation and to become a Trusted Contact.
 ///
 #[instrument(
     err,
@@ -817,7 +817,7 @@ pub struct EndorseRecoveryRelationshipsResponse {
 
 ///
 /// This route is used by Full Accounts to endorse recovery relationships
-/// that are accepted by the Recovery Contact
+/// that are accepted by the Trusted Contact
 ///
 #[instrument(
     err,

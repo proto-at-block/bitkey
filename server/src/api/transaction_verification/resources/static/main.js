@@ -1,24 +1,30 @@
 document.addEventListener('DOMContentLoaded', function() {    
     const data = JSON.parse(document.getElementById('verification-params').textContent);
-    const {recipient, amountFiat, amountSats} = data;
+    const {recipient, amountFiat, amountSats, amountCurrency} = data;
+
+    const formattedAmountFiat = formatCurrency(amountFiat, amountCurrency);    
     
     // Get all characters from the address
     const allCharacters = recipient.split('');
     
-    // Function to get random unique indices
-    function getRandomIndices(array, count) {
-        const indices = [];
-        while (indices.length < count) {
-            const randomIndex = Math.floor(Math.random() * array.length);
-            if (!indices.includes(randomIndex)) {
-                indices.push(randomIndex);
-            }
-        }
-        return indices;
+    const segmentSize = 4;
+    const numSegments = Math.ceil(allCharacters.length / segmentSize);
+    // Skip the first segment, so start from index 1
+    const availableSegments = Array.from({length: numSegments - 1}, (_, i) => i + 1);
+
+    // Randomly pick 4 different segments
+    const chosenSegments = [];
+    while (chosenSegments.length < 4 && availableSegments.length > 0) {
+        const idx = Math.floor(Math.random() * availableSegments.length);
+        chosenSegments.push(availableSegments.splice(idx, 1)[0]);
     }
-    
-    // Get 4 random unique indices
-    const randomIndices = getRandomIndices(allCharacters, 4);
+
+    // For each chosen segment, pick a random character index within that segment
+    const randomIndices = chosenSegments.map(segment => {
+        const start = segment * segmentSize;
+        const end = Math.min(start + segmentSize, allCharacters.length);
+        return start + Math.floor(Math.random() * (end - start));
+    });
     
     // Create array of [character, index] for verification
     const charactersToVerify = randomIndices.map(index => [allCharacters[index], index]);
@@ -26,8 +32,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const addressGrid = document.querySelector('#addressGrid');
     const fullAddressContainer = document.getElementById('fullAddressText');
 
-    document.getElementById('amountFiat').innerText = amountFiat;
-    document.getElementById('amountSats').innerText = amountSats;
+    document.getElementById('amountFiat').innerText = formattedAmountFiat;
+    document.getElementById('amountSats').innerText = `${amountSats.toLocaleString()} sats`;
 
     // Show loading screen first
     const loadingOverlay = document.getElementById('loadingOverlay');
@@ -46,8 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
         let currentRow = [];
         let currentSegment = [];
 
-        console.log(targets);
-    
         chars.forEach((char, charIndex) => {
             // Check if this character position is in our targets
             const targetIndex = remainingTargets.findIndex(([_, idx]) => idx === charIndex);
@@ -136,7 +140,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
+    function formatCurrency(amount, currencyCode) {
+        try {
+          return new Intl.NumberFormat(undefined, {
+            style: "currency",
+            currency: currencyCode,
+            currencyDisplay: "symbol",
+          }).format(amount);
+        } catch (e) {
+          // fallback for unsupported currency codes
+          return `${amount} ${currencyCode}`;
+        }
+      }
     
     // Function to show the amount confirmation screen
     function showAmountConfirmation() {
@@ -193,8 +209,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Main app initialization for address verification
     function initializeAddressVerification() {
-        console.log('JavaScript is running!');
-        
         // Get all input fields
         const inputFields = document.querySelectorAll('.character-input');
         const verificationButtons = document.getElementById('verificationButtons');
@@ -210,7 +224,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Immediately disable the check button
         checkButton.disabled = true;
-        console.log('Button disabled on load:', checkButton.disabled);
         
         // Force the disabled state with an attribute as well
         checkButton.setAttribute('disabled', 'disabled');
@@ -237,14 +250,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (allFilled && allCorrect) {
                 checkButton.disabled = false;
                 checkButton.removeAttribute('disabled');
-                console.log('All correct! Button enabled.');
             } else {
                 checkButton.disabled = true;
                 checkButton.setAttribute('disabled', 'disabled');
-                console.log('Not all correct. Button disabled.');
             }
-            
-            console.log(`All filled: ${allFilled}, All correct: ${allCorrect}`);
         }    
         
         // Run check on page load
@@ -270,8 +279,6 @@ document.addEventListener('DOMContentLoaded', function() {
             input.addEventListener('input', function() {
                 const value = this.value.toLowerCase();
                 const expected = this.dataset.expected;
-                
-                console.log(`Input ${index}: Entered "${value}", Expected "${expected}"`);
                 
                 if (value === '') {
                     // Reset styling if empty
@@ -340,14 +347,17 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (allCorrect) {
                 if (data.confirmToken) {
-                    console.log('Confirming transaction with token: ', data.confirmToken);
                     // Create a Promise for the PUT request
                     const confirmTransaction = new Promise((resolve, reject) => {
-                        fetch(`/api/tx-verify/confirm?token=${data.confirmToken}`, {
+                        fetch(`/api/tx-verify/${data.verificationId}`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json'
-                            }
+                            },
+                            body: JSON.stringify({
+                                action: 'confirm',
+                                confirm_token: data.confirmToken
+                            })
                         })
                         .then(response => {
                             if (!response.ok) {
@@ -359,8 +369,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             console.error('Error:', error);
                             reject(error);
                         });
-                        // TODO: Remove this once the server is ready to handle the request
-                        resolve();
                     });
 
                     // Wait for the request to complete before proceeding
@@ -418,14 +426,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // Skip button handler
         skipButton.addEventListener('click', function() {
             if (data.cancelToken) {
-                console.log('Cancelling transaction with token: ', data.cancelToken);
                 // Create a Promise for the PUT request
                 const cancelTransaction = new Promise((resolve, reject) => {
-                    fetch(`/api/tx-verify/cancel?token=${data.cancelToken}`, {
+                    fetch(`/api/tx-verify/${data.verificationId}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        body: JSON.stringify({
+                            action: 'cancel',
+                            cancel_token: data.cancelToken
+                        })
                     })
                     .then(response => {
                         if (!response.ok) {
@@ -442,7 +453,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Handle the response
                 cancelTransaction
                     .then(() => {
-                        console.log('Transaction cancelled successfully');
                         window.location.href = '/'; // Redirect to home or appropriate page
                     })
                     .catch(error => {
@@ -450,7 +460,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         alert('An error occurred while cancelling the transaction.');
                     });
             }            
-            console.log('Skipping this verification step.');
         });
     }
 

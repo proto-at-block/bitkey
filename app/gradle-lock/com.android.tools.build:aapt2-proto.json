@@ -2,6 +2,19 @@
     "module-identifier": "com.android.tools.build:aapt2-proto",
     "components": [
         {
+            "version": "8.10.1-12782657",
+            "variants": [
+                {
+                    "artifacts": {
+                        "aapt2-proto-8.10.1-12782657.jar": "542852b381e0b6f7886e2de0baa3680ec60c6209c34e1cb90645a689b6122dd4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
             "version": "8.4.2-11315950",
             "variants": [
                 {
@@ -12,19 +25,6 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
-            ]
-        },
-        {
-            "version": "8.9.1-12782657",
-            "variants": [
-                {
-                    "artifacts": {
-                        "aapt2-proto-8.9.1-12782657.jar": "0779df11a7c840e2857b96e509db3cbda73ceb2582575887ad647133984a6683"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
             ]
         }
     ]

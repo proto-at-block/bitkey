@@ -17,6 +17,7 @@ kotlin {
         implementation(projects.domain.inheritancePublic)
         implementation(projects.domain.recoveryPublic)
         implementation(projects.domain.notificationsPublic)
+        implementation(projects.domain.privilegedActionsPublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.domain.metricsPublic)
       }
@@ -35,6 +36,9 @@ kotlin {
         implementation(projects.domain.securityCenterFake)
         implementation(projects.domain.analyticsFake)
         implementation(projects.domain.metricsFake)
+        implementation(projects.domain.privilegedActionsFake)
+        implementation(projects.domain.privilegedActionsImpl)
+        implementation(projects.domain.availabilityFake)
       }
     }
   }

@@ -8,7 +8,9 @@ import build.wallet.grants.GrantRequest
 sealed interface ResetFingerprintsNfcResult {
   data class GrantRequestRetrieved(val grantRequest: GrantRequest) : ResetFingerprintsNfcResult
 
+  /** The grant was provided successfully. */
   object ProvideGrantSuccess : ResetFingerprintsNfcResult
 
-  object ProvideGrantFailure : ResetFingerprintsNfcResult
+  /** A firmware update is required to support fingerprint reset. */
+  object FwUpRequired : ResetFingerprintsNfcResult
 }

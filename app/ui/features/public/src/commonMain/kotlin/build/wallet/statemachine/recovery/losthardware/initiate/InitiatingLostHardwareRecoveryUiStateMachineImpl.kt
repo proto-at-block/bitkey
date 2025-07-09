@@ -163,7 +163,6 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                   appGlobalAuthPublicKey = recoveryData.newAppGlobalAuthKey,
                   onSuccess = { response ->
                     recoveryData.addHardwareKeys(
-                      response.sealedCsek,
                       response.keyBundle,
                       response.appGlobalAuthKeyHwSignature
                     )

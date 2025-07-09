@@ -2,6 +2,19 @@
     "module-identifier": "com.android.tools:repository",
     "components": [
         {
+            "version": "31.10.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "repository-31.10.1.jar": "cb9bcb7159b395d7ba9428206d0f914e670a2aa464f7c5227f5698441155d446"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
             "version": "31.4.2",
             "variants": [
                 {
@@ -12,19 +25,6 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
-            ]
-        },
-        {
-            "version": "31.9.1",
-            "variants": [
-                {
-                    "artifacts": {
-                        "repository-31.9.1.jar": "ee7331131b6d80dc83ea7d78fb6600847300733f2964d18861709c4d23075e08"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
             ]
         }
     ]

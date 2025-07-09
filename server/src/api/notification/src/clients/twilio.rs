@@ -34,15 +34,26 @@ static SUPPORTED_PREFIX_TO_COUNTRY_CODE: OnceLock<HashMap<&'static str, CountryC
 
 fn init_twilio_supported_sms_countries() -> HashMap<&'static str, CountryCode> {
     let mut map = HashMap::new();
-    map.insert("54", CountryCode::ARG);
-    map.insert("61", CountryCode::AUS);
-    map.insert("43", CountryCode::AUT);
-    map.insert("55", CountryCode::BRA);
+    map.insert("54", CountryCode::ARG); // Argentina
+    map.insert("244", CountryCode::AGO); // Angola
+
+    // map.insert("971", CountryCode::ARE); // United Arab Emirates https://sq-block.slack.com/archives/C031W6H66LU/p1715973450221139?thread_ts=1711031831.067439&cid=C031W6H66LU
+
+    map.insert("61", CountryCode::AUS); // Australia
+    map.insert("43", CountryCode::AUT); // Austria
+    map.insert("994", CountryCode::AZE); // Azerbaijan
+    map.insert("32", CountryCode::BEL); // Belgium
+    map.insert("229", CountryCode::BEN); // Benin
+    map.insert("226", CountryCode::BFA); // Burkina Faso
+    map.insert("359", CountryCode::BGR); // Bulgaria
+    map.insert("387", CountryCode::BIH); // Bosnia and Herzegovina
+    map.insert("591", CountryCode::BOL); // Bolivia
+    map.insert("55", CountryCode::BRA); // Brazil
 
     // Make an entry for each Canadian area code so we can differntiate between USA and CAN.
     // Since USA and CAN share country code prefix, we need the Canadian area codes
     // to recognize a Canadian phone number.
-    map.insert("1204", CountryCode::CAN);
+    map.insert("1204", CountryCode::CAN); // Canada
     map.insert("1226", CountryCode::CAN);
     map.insert("1236", CountryCode::CAN);
     map.insert("1249", CountryCode::CAN);
@@ -103,51 +114,85 @@ fn init_twilio_supported_sms_countries() -> HashMap<&'static str, CountryCode> {
     map.insert("1905", CountryCode::CAN);
     map.insert("1942", CountryCode::CAN);
 
-    map.insert("41", CountryCode::CHE);
-    map.insert("56", CountryCode::CHL);
-    map.insert("237", CountryCode::CMR);
-    map.insert("57", CountryCode::COL);
-    map.insert("506", CountryCode::CRI);
-    map.insert("420", CountryCode::CZE);
-    map.insert("49", CountryCode::DEU);
-    map.insert("45", CountryCode::DNK);
-    map.insert("593", CountryCode::ECU);
-    map.insert("34", CountryCode::ESP);
-    map.insert("33", CountryCode::FRA);
-    map.insert("44", CountryCode::GBR);
-    map.insert("233", CountryCode::GHA);
-    map.insert("36", CountryCode::HUN);
-    map.insert("62", CountryCode::IDN);
-    map.insert("91", CountryCode::IND);
-    map.insert("353", CountryCode::IRL);
-    map.insert("972", CountryCode::ISR);
-    map.insert("39", CountryCode::ITA);
-    map.insert("81", CountryCode::JPN);
-    map.insert("7", CountryCode::KAZ);
-    map.insert("254", CountryCode::KEN);
-    map.insert("82", CountryCode::KOR);
-    map.insert("370", CountryCode::LTU);
-    map.insert("52", CountryCode::MEX);
-    map.insert("60", CountryCode::MYS);
-    map.insert("234", CountryCode::NGA);
-    map.insert("31", CountryCode::NLD);
-    map.insert("47", CountryCode::NOR);
-    map.insert("64", CountryCode::NZL);
-    map.insert("63", CountryCode::PHL);
-    map.insert("48", CountryCode::POL);
-    map.insert("351", CountryCode::PRT);
-    map.insert("40", CountryCode::ROU);
-    map.insert("65", CountryCode::SGP);
-    map.insert("503", CountryCode::SLV);
-    map.insert("46", CountryCode::SWE);
-    map.insert("66", CountryCode::THA);
-    map.insert("90", CountryCode::TUR);
-    map.insert("886", CountryCode::TWN);
-    map.insert("256", CountryCode::UGA);
-    map.insert("1", CountryCode::USA);
-    map.insert("598", CountryCode::URY);
-    map.insert("84", CountryCode::VNM);
-    map.insert("27", CountryCode::ZAF);
+    map.insert("41", CountryCode::CHE); // Switzerland
+    map.insert("56", CountryCode::CHL); // Chile
+    map.insert("237", CountryCode::CMR); // Cameroon
+    map.insert("57", CountryCode::COL); // Colombia
+    map.insert("506", CountryCode::CRI); // Costa Rica
+    map.insert("420", CountryCode::CZE); // Czech Republic
+    map.insert("357", CountryCode::CYP); // Cyprus
+    map.insert("49", CountryCode::DEU); // Germany
+    map.insert("45", CountryCode::DNK); // Denmark
+
+    map.insert("1809", CountryCode::DOM); // Dominican Republic
+    map.insert("1829", CountryCode::DOM);
+    map.insert("1849", CountryCode::DOM);
+
+    map.insert("593", CountryCode::ECU); // Ecuador
+    map.insert("372", CountryCode::EST); // Estonia
+    map.insert("34", CountryCode::ESP); // Spain
+    map.insert("33", CountryCode::FRA); // France
+    map.insert("358", CountryCode::FIN); // Finland
+    map.insert("44", CountryCode::GBR); // United Kingdom
+    map.insert("233", CountryCode::GHA); // Ghana
+    map.insert("30", CountryCode::GRC); // Greece
+    map.insert("502", CountryCode::GTM); // Guatemala
+    map.insert("36", CountryCode::HUN); // Hungary
+    map.insert("504", CountryCode::HND); // Honduras
+    map.insert("385", CountryCode::HRV); // Croatia
+    map.insert("62", CountryCode::IDN); // Indonesia
+    map.insert("91", CountryCode::IND); // India
+    map.insert("353", CountryCode::IRL); // Ireland
+    map.insert("354", CountryCode::ISL); // Iceland
+    map.insert("39", CountryCode::ITA); // Italy
+
+    map.insert("1658", CountryCode::JAM); // Jamaica
+    map.insert("1876", CountryCode::JAM);
+
+    // map.insert("7", CountryCode::KAZ); // Kazakhstan https://sq-block.slack.com/archives/C031W6H66LU/p1750961319938909?thread_ts=1750403981.882879&cid=C031W6H66LU
+
+    map.insert("254", CountryCode::KEN); // Kenya
+    map.insert("855", CountryCode::KHM); // Cambodia
+    map.insert("82", CountryCode::KOR); // South Korea
+    map.insert("370", CountryCode::LTU); // Lithuania
+    map.insert("352", CountryCode::LUX); // Luxembourg
+    map.insert("371", CountryCode::LVA); // Latvia
+    map.insert("961", CountryCode::LBN); // Lebanon
+    map.insert("52", CountryCode::MEX); // Mexico
+    map.insert("356", CountryCode::MLT); // Malta
+    map.insert("223", CountryCode::MLI); // Mali
+    map.insert("373", CountryCode::MDA); // Moldova
+    map.insert("258", CountryCode::MOZ); // Mozambique
+    map.insert("60", CountryCode::MYS); // Malaysia
+    map.insert("234", CountryCode::NGA); // Nigeria
+    map.insert("227", CountryCode::NER); // Niger
+    map.insert("31", CountryCode::NLD); // Netherlands
+    map.insert("47", CountryCode::NOR); // Norway
+    map.insert("64", CountryCode::NZL); // New Zealand
+    map.insert("63", CountryCode::PHL); // Philippines
+    map.insert("51", CountryCode::PER); // Peru
+    map.insert("48", CountryCode::POL); // Poland
+    map.insert("351", CountryCode::PRT); // Portugal
+    map.insert("40", CountryCode::ROU); // Romania
+    map.insert("65", CountryCode::SGP); // Singapore
+    map.insert("221", CountryCode::SEN); // Senegal
+    map.insert("232", CountryCode::SLE); // Sierra Leone
+    map.insert("503", CountryCode::SLV); // El Salvador
+    map.insert("421", CountryCode::SVK); // Slovakia
+    map.insert("386", CountryCode::SVN); // Slovenia
+    map.insert("46", CountryCode::SWE); // Sweden
+    map.insert("66", CountryCode::THA); // Thailand
+    map.insert("235", CountryCode::TCD); // Chad
+    map.insert("992", CountryCode::TJK); // Tajikistan
+    map.insert("90", CountryCode::TUR); // Turkey
+    map.insert("255", CountryCode::TZA); // Tanzania
+    map.insert("886", CountryCode::TWN); // Taiwan
+    map.insert("256", CountryCode::UGA); // Uganda
+    map.insert("1", CountryCode::USA); // United States
+    map.insert("598", CountryCode::URY); // Uruguay
+    map.insert("84", CountryCode::VNM); // Vietnam
+    map.insert("27", CountryCode::ZAF); // South Africa
+    map.insert("260", CountryCode::ZMB); // Zambia
     map
 }
 

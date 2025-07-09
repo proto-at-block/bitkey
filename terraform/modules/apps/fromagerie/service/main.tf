@@ -68,14 +68,15 @@ locals {
     DD_ENV                       = var.environment
     OTEL_RESOURCE_ATTRIBUTES     = "deployment.environment=${var.environment}"
     # DD_ENV isn't respected for f8e metrics, but this is
-    RUST_LOG                         = "info"
-    PUSH_QUEUE_URL                   = module.push_notification_queue.queue_url
-    EMAIL_QUEUE_URL                  = module.email_notification_queue.queue_url
-    SMS_QUEUE_URL                    = module.sms_notification_queue.queue_url
-    SERVER_WSM_ENDPOINT              = var.wsm_endpoint
-    SERVER_FROMAGERIE_ENDPOINT       = "https://${module.ecs_api.alb_fqdn}"
-    SERVER_ENABLE_FUND_SIGNET_WALLET = "true"
-    ROCKET_PROFILE                   = var.config_profile
+    RUST_LOG                               = "info"
+    PUSH_QUEUE_URL                         = module.push_notification_queue.queue_url
+    EMAIL_QUEUE_URL                        = module.email_notification_queue.queue_url
+    SMS_QUEUE_URL                          = module.sms_notification_queue.queue_url
+    SERVER_WSM_ENDPOINT                    = var.wsm_endpoint
+    SERVER_FROMAGERIE_ENDPOINT             = "https://${module.ecs_api.alb_fqdn}"
+    SERVER_ENABLE_FUND_SIGNET_WALLET       = "true"
+    ROCKET_PROFILE                         = var.config_profile
+    SERVER_ENCRYPTED_ATTACHMENT_KMS_KEY_ID = module.encrypted_attachment.kms_key_id
 
     ACCOUNT_TABLE                  = local.tables.account_table_name
     ADDRESS_WATCHLIST_TABLE        = local.tables.address_watchlist_table_name

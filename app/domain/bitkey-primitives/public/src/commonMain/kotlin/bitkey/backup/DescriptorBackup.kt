@@ -1,10 +1,9 @@
 package bitkey.backup
 
-import bitkey.serialization.base64.ByteStringAsBase64Serializer
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.encrypt.XCiphertext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import okio.ByteString
 
 /**
  * Wallet descriptor encrypted with hardware. The backup is meant to be uploaded
@@ -18,6 +17,5 @@ data class DescriptorBackup(
   @SerialName("keyset_id")
   val keysetId: String,
   @SerialName("sealed_descriptor")
-  @Serializable(with = ByteStringAsBase64Serializer::class)
-  val sealedDescriptor: ByteString,
+  val sealedDescriptor: XCiphertext,
 )

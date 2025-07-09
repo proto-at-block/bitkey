@@ -9,11 +9,11 @@ import build.wallet.crypto.PublicKey
 import com.github.michaelbull.result.Result
 
 /**
- * Authenticates and endorses Recovery Contacts who have accepted their invitation.
+ * Authenticates and endorses Trusted Contacts who have accepted their invitation.
  */
 interface EndorseTrustedContactsService {
   /**
-   * Authenticates, regenerates and endorses RC certificates using new auth keys.
+   * Authenticates, regenerates and endorses TC certificates using new auth keys.
    */
   suspend fun authenticateRegenerateAndEndorse(
     accountId: FullAccountId,

@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-test-plugin-host-emulator-control-proto",
     "components": [
         {
-            "version": "31.9.1",
+            "version": "31.10.1",
             "variants": [
                 {
                     "artifacts": {
-                        "android-test-plugin-host-emulator-control-proto-31.9.1.jar": "a4f34aae0f9ffa026dbf7151436dd7ae53becb72622b40f2c479cac8943d9319"
+                        "android-test-plugin-host-emulator-control-proto-31.10.1.jar": "a4f34aae0f9ffa026dbf7151436dd7ae53becb72622b40f2c479cac8943d9319"
                     }
                 }
             ],

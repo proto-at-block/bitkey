@@ -7,7 +7,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
 /**
- * State machine for viewing the details and actions on an established Recovery Contact.
+ * State machine for viewing the details and actions on an established Trusted Contact.
  */
 interface ViewingRecoveryContactUiStateMachine :
   StateMachine<ViewingRecoveryContactProps, ScreenModel>

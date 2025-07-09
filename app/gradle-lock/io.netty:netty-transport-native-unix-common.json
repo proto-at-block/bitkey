@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-transport-native-unix-common",
     "components": [
         {
-            "version": "4.1.93.Final",
+            "version": "4.1.110.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-transport-native-unix-common-4.1.93.Final.jar": "774165a1c4dbaacb17f9c1ad666b3569a6a59715ae828e7c3d47703f479a53e7"
+                        "netty-transport-native-unix-common-4.1.110.Final.jar": "51717bb7471141950390c6713a449fdb1054d07e60737ee7dda7083796cdee48"
                     }
                 }
             ],

@@ -50,7 +50,7 @@ fun AcceptingInviteWithF8eFailureBodyModel(
                 )
               }
               CUSTOMER_IS_TRUSTED_CONTACT -> {
-                // Special case for when the user is trying to enroll as a RC for themselves.
+                // Special case for when the user is trying to enroll as a TC for themselves.
                 return ErrorFormBodyModel(
                   title = "You can't be your own $subject",
                   subline =

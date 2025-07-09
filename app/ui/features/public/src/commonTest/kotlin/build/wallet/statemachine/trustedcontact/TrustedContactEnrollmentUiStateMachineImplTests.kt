@@ -8,6 +8,7 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.relationships.ProtectedCustomerFake
@@ -42,7 +43,6 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.http.*
 import io.ktor.http.HttpStatusCode
 import okio.ByteString.Companion.encodeUtf8
 import kotlin.time.Duration.Companion.hours
@@ -78,6 +78,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
 
   val propsOnRetreatCalls = turbines.create<Unit>("props onRetreat calls")
   val propsOnDoneCalls = turbines.create<Unit>("props onDone calls")
+  val propsOnAccountUpgradedCalls = turbines.create<FullAccount>("props onAccountUpgraded calls")
   val props =
     TrustedContactEnrollmentUiProps(
       retreat =
@@ -91,17 +92,18 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
       screenPresentationStyle = ScreenPresentationStyle.Root,
       variant = TrustedContactFeatureVariant.Direct(
         target = TrustedContactFeatureVariant.Feature.Recovery
-      )
+      ),
+      onAccountUpgraded = { propsOnAccountUpgradedCalls.add(it) }
     )
 
-  beforeEach {
+  beforeTest {
     relationshipsService.clear()
 
     relationshipsService.retrieveInvitationResult = Ok(IncomingRecoveryContactInvitationFake)
     relationshipsService.acceptInvitationResult = Ok(ProtectedCustomerFake)
   }
 
-  test("happy path - Recovery Contact") {
+  test("happy path - recovery contact") {
     stateMachine.test(props) {
       awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
@@ -175,6 +177,9 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
       awaitBodyMock<CreateAccountUiProps> {
         onOnboardingComplete(FullAccountMock)
       }
+
+      propsOnAccountUpgradedCalls.awaitItem().shouldBe(FullAccountMock)
+
       awaitBody<LoadingSuccessBodyModel>(TC_BENEFICIARY_ENROLLMENT_LOAD_KEY) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -435,6 +440,55 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
         }
         awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
       }
+    }
+  }
+
+  test("onAccountUpgraded callback is invoked when lite account is upgraded during beneficiary enrollment") {
+    relationshipsService.retrieveInvitationResult = Ok(IncomingBeneficiaryInvitationFake)
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+        mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
+          .onValueChange("code", 0..0)
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+        clickPrimaryButton()
+      }
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      awaitBody<BeneficiaryOnboardingBodyModel> {
+        onContinue()
+      }
+      awaitBody<EnteringBenefactorNameBodyModel> {
+        onValueChange("Some Name")
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_BENEFACTOR_NAME) {
+        clickPrimaryButton()
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ASKING_IF_HAS_HARDWARE) {
+        mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup>()
+          .listGroupModel
+          .items
+          .first()
+          .onClick
+          .shouldNotBeNull()
+          .invoke()
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ASKING_IF_HAS_HARDWARE) {
+        clickPrimaryButton()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(action = Action.ACTION_APP_SOCREC_BENEFICIARY_HAS_HARDWARE)
+      )
+
+      awaitBodyMock<CreateAccountUiProps> {
+        onOnboardingComplete(FullAccountMock)
+      }
+      propsOnAccountUpgradedCalls.awaitItem().shouldBe(FullAccountMock)
+      awaitBody<LoadingSuccessBodyModel>(TC_BENEFICIARY_ENROLLMENT_LOAD_KEY)
+      cancelAndIgnoreRemainingEvents()
     }
   }
 

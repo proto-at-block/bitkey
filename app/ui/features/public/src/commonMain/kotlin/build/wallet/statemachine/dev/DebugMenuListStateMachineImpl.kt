@@ -18,7 +18,6 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.notifications.TestNotificationF8eClient
 import build.wallet.logging.logWarn
 import build.wallet.platform.config.AppVariant
-import build.wallet.pricechart.BalanceHistoryService
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiStateMachine
@@ -54,7 +53,6 @@ class DebugMenuListStateMachineImpl(
   private val cloudSignUiStateMachine: CloudSignInUiStateMachine,
   private val coachmarkService: CoachmarkService,
   private val testNotificationF8eClient: TestNotificationF8eClient,
-  private val balanceHistoryService: BalanceHistoryService,
 ) : DebugMenuListStateMachine {
   @Composable
   override fun model(props: DebugMenuListProps): BodyModel {
@@ -227,7 +225,6 @@ class DebugMenuListStateMachineImpl(
               )
             )
           },
-          onResetFingerprintsClick = { props.onSetState(DebugMenuState.ResettingFingerprints) },
           onFirmwareMetadataClick = {
             props.onSetState(DebugMenuState.ShowingFirmwareMetadata)
           }
@@ -329,7 +326,7 @@ class DebugMenuListStateMachineImpl(
         ListGroupModel(
           header = "Debug Options",
           items =
-            immutableListOf(
+            immutableListOfNotNull(
               ListItemModel(
                 title = "Cloud Storage",
                 trailingAccessory = ListItemAccessory.drillIcon(),
@@ -340,6 +337,15 @@ class DebugMenuListStateMachineImpl(
                 trailingAccessory = ListItemAccessory.drillIcon(),
                 onClick = { onSetState(DebugMenuState.ShowingNetworkingDebugOptions) }
               ),
+              if (appVariant != AppVariant.Customer) {
+                ListItemModel(
+                  title = "Mock Tx & Exchange Rate Data",
+                  trailingAccessory = ListItemAccessory.drillIcon(),
+                  onClick = { onSetState(DebugMenuState.ShowingMockDataProvider) }
+                )
+              } else {
+                null
+              },
               ListItemModel(
                 title = "Reset Coachmarks",
                 onClick = {
@@ -354,11 +360,11 @@ class DebugMenuListStateMachineImpl(
               ListItemModel(
                 title = "Test Notification",
                 onClick = {
-                  account?.let { account ->
+                  account?.let { acc ->
                     scope.launch {
                       testNotificationF8eClient.notification(
-                        account.accountId,
-                        account.config.f8eEnvironment
+                        acc.accountId,
+                        acc.config.f8eEnvironment
                       )
                     }
                   }
@@ -384,12 +390,6 @@ class DebugMenuListStateMachineImpl(
                       gatedAction = { onSetState(DebugMenuState.ClearingOnboardingData.HasSeenUpsell) }
                     )
                   )
-                }
-              ),
-              ListItemModel(
-                title = "Clear balance chart data",
-                onClick = {
-                  balanceHistoryService.clearData()
                 }
               ),
               ListItemModel(

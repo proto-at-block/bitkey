@@ -42,7 +42,7 @@ pub enum NavigationScreenId {
     ManageFingerprints = 12,
     /// * The screen shown to view the status of the App Key backup. *
     MobileKeyBackup = 13,
-    /// * The screen shown to manage Recovery Contacts. *
+    /// * The screen shown to manage recovery contacts. *
     ManageRecoveryContacts = 14,
     /// * The screen shown to update firmware. *
     UpdateFirmware = 15,

@@ -104,7 +104,7 @@ class CreateLiteAccountUiStateMachineImpl(
               isEnabled = value.isNotEmpty(),
               size = ButtonModel.Size.Footer,
               onClick = StandardClick {
-                // If the RC is tapping the continue button, it wasn't from a deep link
+                // If the TC is tapping the continue button, it wasn't from a deep link
                 // but rather manually entered.
                 eventTracker.track(Action.ACTION_APP_SOCREC_ENTERED_INVITE_MANUALLY)
                 uiState = State.CreatingLiteAccount(value)
@@ -235,7 +235,7 @@ private sealed class State {
   abstract val inviteCode: String
 
   /**
-   * Introduction to being a Recovery Contact.
+   * Introduction to being a trusted contact.
    */
   data class ShowingBeTrustedContactIntroduction(
     override val inviteCode: String,
@@ -275,7 +275,7 @@ private sealed class State {
     override val inviteCode: String,
   ) : State()
 
-  /** The account creation process succeeded, we are now enrolling the account as a Recovery Contact */
+  /** The account creation process succeeded, we are now enrolling the account as a Trusted Contact */
   data class EnrollingAsTrustedContact(
     override val inviteCode: String,
     val liteAccount: LiteAccount,

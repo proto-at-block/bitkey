@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-resolver",
     "components": [
         {
-            "version": "4.1.93.Final",
+            "version": "4.1.110.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-resolver-4.1.93.Final.jar": "e59770b66e81822e5d111ac4e544d7eb0c543e0a285f52628e53941acd8ed759"
+                        "netty-resolver-4.1.110.Final.jar": "a2e9b4ae7caa92fc5bd747e11d1dec20d81b18fc00959554302244ac5c56ce70"
                     }
                 }
             ],

@@ -19,6 +19,7 @@ kotlin {
         api(projects.domain.relationshipsPublic)
 
         implementation(projects.libs.loggingPublic)
+        implementation(projects.domain.securityCenterPublic)
       }
     }
 

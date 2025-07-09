@@ -5,6 +5,7 @@ import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.encrypt.MessageSignerFake
+import build.wallet.encrypt.SignatureUtilsMock
 import build.wallet.nfc.NfcSessionFake.Companion.invoke
 import build.wallet.platform.random.uuid
 import com.github.michaelbull.result.Ok
@@ -16,14 +17,19 @@ import okio.ByteString.Companion.encodeUtf8
 
 class NfcCommandsFakeTests : FunSpec({
   val messageSigner = MessageSignerFake()
+  val signatureUtils = SignatureUtilsMock()
   val fakeHardwareKeyStore = FakeHardwareKeyStoreFake()
   val fakeHardwareSpendingWalletProvider = FakeHardwareSpendingWalletProvider(
     spendingWalletProvider = { Ok(SpendingWalletFake()) },
     fakeHardwareKeyStore = fakeHardwareKeyStore,
     descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock()
   )
-  val nfcCommands =
-    NfcCommandsFake(messageSigner, fakeHardwareKeyStore, fakeHardwareSpendingWalletProvider)
+  val nfcCommands = NfcCommandsFake(
+    messageSigner,
+    signatureUtils,
+    fakeHardwareKeyStore,
+    fakeHardwareSpendingWalletProvider
+  )
   val sessionFake = invoke()
 
   beforeTest {

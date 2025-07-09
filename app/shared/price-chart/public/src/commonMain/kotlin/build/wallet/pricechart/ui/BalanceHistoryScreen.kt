@@ -11,11 +11,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import build.wallet.pricechart.BalanceAt
 import build.wallet.pricechart.BitcoinPriceDetailsBodyModel
@@ -80,6 +85,7 @@ internal fun BalanceHistoryScreen(model: BitcoinPriceDetailsBodyModel) {
         Spacer(modifier = Modifier.size(6.dp))
         PriceChart(
           dataPoints = model.data,
+          range = model.range,
           initialSelectedPoint = model.selectedPoint,
           onPointSelected = model.onPointSelected,
           colorPrimary = WalletTheme.colors.yourBalancePrimary,
@@ -153,7 +159,6 @@ private fun EmptyWalletMessage(
   }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SelectedPointDetails(
   isLoading: Boolean,
@@ -164,14 +169,13 @@ private fun SelectedPointDetails(
   val selectedAlpha by animateFloatAsState(
     targetValue = if (data?.isUserSelected == true) 0f else 1f
   )
-  FlowRow(
+  Row(
     modifier = modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
-    verticalArrangement = Arrangement.spacedBy(8.dp),
-    maxItemsInEachRow = 2,
-    maxLines = 2
+    horizontalArrangement = Arrangement.spacedBy(16.dp)
   ) {
+    // Left column - Fiat balance
     Column(
+      modifier = Modifier.weight(1f),
       verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Top)
     ) {
       Row(
@@ -190,23 +194,12 @@ private fun SelectedPointDetails(
         )
       }
 
-      Box(
-        modifier = Modifier
-          .loadingScrim(isLoading)
-      ) {
-        MeasureWithoutPlacement {
-          // size the loader based on the expected value size, not displayed to user
-          Label(
-            model = StringModel("$ 00000.00"),
-            type = LabelType.Title1
-          )
-        }
-        Label(
-          model = StringModel(data?.primaryFiatText.orEmpty()),
-          type = LabelType.Title1,
-          treatment = LabelTreatment.Primary
-        )
-      }
+      AutoSizingLabel(
+        text = data?.primaryFiatText.orEmpty(),
+        maxType = LabelType.Title1,
+        minType = LabelType.Body2Medium,
+        treatment = LabelTreatment.Primary
+      )
       Box(
         contentAlignment = Alignment.CenterStart,
         modifier = Modifier
@@ -222,14 +215,17 @@ private fun SelectedPointDetails(
         }
         Label(
           model = StringModel(data?.secondaryFiatText.orEmpty()),
-          type = Body3Regular,
+          type = LabelType.Body4Regular,
           treatment = LabelTreatment.Secondary
         )
       }
     }
 
+    // Right column - Bitcoin balance
     Column(
-      verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Top)
+      modifier = Modifier.weight(1f),
+      verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Top),
+      horizontalAlignment = Alignment.End
     ) {
       Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
@@ -246,46 +242,67 @@ private fun SelectedPointDetails(
           treatment = LabelTreatment.Secondary
         )
       }
+      AutoSizingLabel(
+        text = data?.primaryBtcText.orEmpty(),
+        maxType = LabelType.Title1,
+        minType = LabelType.Body2Medium,
+        treatment = LabelTreatment.Primary,
+        alignment = TextAlign.End
+      )
       Box(
         modifier = Modifier
           .loadingScrim(isLoading)
+          .alpha(selectedAlpha)
+          .fillMaxWidth(),
+        contentAlignment = Alignment.CenterEnd
       ) {
         MeasureWithoutPlacement {
           // size the loader based on the expected value size, not displayed to user
           Label(
-            model = StringModel("000000 sats"),
-            type = LabelType.Title1,
-            treatment = LabelTreatment.Primary
+            model = StringModel("+50.00% Past year"),
+            type = Body3Regular
           )
         }
         Label(
-          model = StringModel(data?.primaryBtcText.orEmpty()),
-          type = LabelType.Title1,
-          treatment = LabelTreatment.Primary
+          model = StringModel(data?.secondaryBtcText.orEmpty()),
+          type = LabelType.Body4Regular,
+          treatment = LabelTreatment.Secondary,
+          alignment = TextAlign.End
         )
-      }
-      Row(
-        horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-          .loadingScrim(isLoading)
-          .alpha(selectedAlpha)
-      ) {
-        Box {
-          MeasureWithoutPlacement {
-            // size the loader based on the expected value size, not displayed to user
-            Label(
-              model = StringModel("+50.00% Past year"),
-              type = Body3Regular
-            )
-          }
-          Label(
-            model = StringModel(data?.secondaryBtcText.orEmpty()),
-            type = Body3Regular,
-            treatment = LabelTreatment.Secondary
-          )
-        }
       }
     }
   }
+}
+
+@Composable
+private fun AutoSizingLabel(
+  text: String,
+  maxType: LabelType,
+  minType: LabelType,
+  modifier: Modifier = Modifier,
+  treatment: LabelTreatment = LabelTreatment.Primary,
+  alignment: TextAlign = TextAlign.Start,
+) {
+  var currentType by remember(text) { mutableStateOf(maxType) }
+
+  Label(
+    model = StringModel(text),
+    type = currentType,
+    treatment = treatment,
+    alignment = alignment,
+    modifier = modifier,
+    maxLines = 1,
+    overflow = TextOverflow.Clip,
+    onTextLayout = { textLayoutResult: TextLayoutResult ->
+      // If text is clipped (doesn't fit in one line) and we haven't reached minimum size
+      if (textLayoutResult.hasVisualOverflow && currentType != minType) {
+        // Try next smaller font size
+        currentType = when (currentType) {
+          LabelType.Title1 -> LabelType.Body1Medium
+          LabelType.Body1Medium -> LabelType.Body2Medium
+          else -> minType
+        }
+      }
+    }
+  )
 }

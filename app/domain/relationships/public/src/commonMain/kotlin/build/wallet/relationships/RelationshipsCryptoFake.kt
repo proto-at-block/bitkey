@@ -14,6 +14,7 @@ import build.wallet.crypto.PakeKey
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.*
+import build.wallet.encrypt.XSealedData.Format.WithPubkey
 import build.wallet.ensure
 import build.wallet.relationships.RelationshipsCryptoError.*
 import com.github.michaelbull.result.*
@@ -101,7 +102,7 @@ class RelationshipsCryptoFake(
         protectedCustomerEnrollmentPakeKey,
         trustedContactIdentityKeyBytes.size
       )
-    // Encrypt RC Identity Key
+    // Encrypt TC Identity Key
     val trustedContactIdentityKeyCiphertext =
       trustedContactIdentityKeyBytes.xorWith(secureChannelOutput.sharedSecretKey)
 
@@ -314,7 +315,7 @@ class RelationshipsCryptoFake(
       val privateKeyEncryptionKeyCiphertext = keyMat.xorWith(expandedKey)
 
       XSealedData(
-        header = XSealedData.Header(algorithm = "RelationshipsCryptoFake", version = 2),
+        header = XSealedData.Header(algorithm = "RelationshipsCryptoFake", format = WithPubkey),
         ciphertext = privateKeyEncryptionKeyCiphertext,
         nonce = XNonce(ByteString.EMPTY),
         publicKey = protectedCustomerIdentityKey.publicKey
@@ -342,8 +343,8 @@ class RelationshipsCryptoFake(
     sealedPrivateKeyEncryptionKey: XCiphertext,
   ): Result<DecryptPrivateKeyEncryptionKeyOutput, RelationshipsCryptoError> {
     val sealedPrivateKeyEncryptionKeyData = sealedPrivateKeyEncryptionKey.toXSealedData()
-    if (sealedPrivateKeyEncryptionKeyData.header.version != 2) {
-      return Err(UnsupportedXCiphertextVersion)
+    if (sealedPrivateKeyEncryptionKeyData.header.format != WithPubkey) {
+      return Err(UnsupportedXCiphertextFormat)
     }
     // Generate PAKE keys
     val secureChannelOutput =
@@ -427,7 +428,7 @@ class RelationshipsCryptoFake(
     protectedCustomerPasswordAuthenticatedKey: PublicKey<P>,
     length: Int,
   ): EstablishSecureChannelOutput<T> {
-    // Generate RC PAKE Key
+    // Generate TC PAKE Key
     // x ⭠ ℤ_q
     val privKey = randomBytes()
     val x = q.parseString(privKey.hex(), 16)
@@ -474,7 +475,7 @@ class RelationshipsCryptoFake(
     keyConfirmation: ByteString,
     sealedData: XCiphertext,
   ): Result<ByteString, RelationshipsCryptoError> {
-    // Tweak RC PAKE Key
+    // Tweak TC PAKE Key
     val deserializedTrustedContactPasswordAuthenticatedKey =
       Point.secDeserialize(
         trustedContactPasswordAuthenticatedKey.value.decodeHex()

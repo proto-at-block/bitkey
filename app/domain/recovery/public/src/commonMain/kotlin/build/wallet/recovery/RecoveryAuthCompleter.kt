@@ -26,7 +26,7 @@ interface RecoveryAuthCompleter {
 
   /**
    * Rotates the auth tokens for the given [FullAccountId] to the given [AppAuthPublicKeys]
-   * and optionally removes all Recovery Contacts.
+   * and optionally removes all trusted contacts.
    *
    * @param f8eEnvironment The environment to use for the auth token rotation
    * @param fullAccountId The [FullAccountId] to rotate the auth tokens for

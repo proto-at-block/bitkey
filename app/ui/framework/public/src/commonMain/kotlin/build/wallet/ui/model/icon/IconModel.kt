@@ -1,6 +1,5 @@
 package build.wallet.ui.model.icon
 
-import androidx.compose.ui.graphics.Color
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.model.icon.IconBackgroundType.*
 import build.wallet.ui.model.icon.IconImage.LocalImage
@@ -161,6 +160,8 @@ sealed interface IconBackgroundType {
       Primary,
 
       BitkeyPrimary,
+
+      TransparentForeground,
     }
   }
 

@@ -203,7 +203,7 @@ sealed interface RecoveryInProgressData {
     ) : CompletingRecoveryData
 
     /**
-     * Indicates that we are currently generating new RC
+     * Indicates that we are currently generating new TC
      * certificates using new auth keys, verifying them and
      * uploading them to f8e.
      */

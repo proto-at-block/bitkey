@@ -9,7 +9,6 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.BalanceHistoryFeatureFlag
 import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
 import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.sqldelight.inMemorySqlDriver
@@ -26,20 +25,17 @@ class CoachmarkServiceTests :
     lateinit var service: CoachmarkService
     val featureFlagDao = FeatureFlagDaoMock()
     val accountService = AccountServiceFake()
-    val balanceHistoryFeatureFlag = BalanceHistoryFeatureFlag(featureFlagDao)
     val coachmarksGlobalFlag = CoachmarksGlobalFeatureFlag(featureFlagDao)
     val eventTracker = EventTrackerMock(turbines::create)
     val securityHubFeatureFlag = SecurityHubFeatureFlag(featureFlagDao)
 
     beforeTest {
       accountService.setActiveAccount(FullAccountMock)
-      balanceHistoryFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service = CoachmarkServiceImpl(
         CoachmarkDaoImpl(BitkeyDatabaseProviderImpl(sqlDriver.factory)),
         accountService,
         CoachmarkVisibilityDecider(
           ClockFake(),
-          balanceHistoryFeatureFlag,
           securityHubFeatureFlag
         ),
         coachmarksGlobalFlag,
@@ -144,7 +140,6 @@ class CoachmarkServiceTests :
         accountService,
         CoachmarkVisibilityDecider(
           ClockFake(),
-          balanceHistoryFeatureFlag,
           securityHubFeatureFlag
         ),
         coachmarksGlobalFlag,
@@ -166,7 +161,6 @@ class CoachmarkServiceTests :
         accountService,
         CoachmarkVisibilityDecider(
           ClockFake(),
-          balanceHistoryFeatureFlag,
           securityHubFeatureFlag
         ),
         coachmarksGlobalFlag,

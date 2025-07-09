@@ -4,9 +4,9 @@ import build.wallet.bitkey.socrec.SocialChallenge
 
 /***
  * A wrapper that contains both the challenge and all the challenge authentications that we've
- * generated for the challenge (one for each RC)
+ * generated for the challenge (one for each TC)
  * @param challenge - the social challenge object
- * @param tcAuths - the list of Recovery Contact challenge authentications
+ * @param tcAuths - the list of trusted contact challenge authentications
  *
  */
 data class ChallengeWrapper(

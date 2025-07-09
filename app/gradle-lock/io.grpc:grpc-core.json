@@ -2,11 +2,11 @@
     "module-identifier": "io.grpc:grpc-core",
     "components": [
         {
-            "version": "1.57.2",
+            "version": "1.69.1",
             "variants": [
                 {
                     "artifacts": {
-                        "grpc-core-1.57.2.jar": "5a10070abfeb4966ec4d580961dcc4e7f69fa83ab25242f92c1765efb07b8606"
+                        "grpc-core-1.69.1.jar": "51352cadaecbf9a4a4aa42d93f6f1fc728f1fd01b051680383ed09e5631ffbd0"
                     }
                 }
             ],
