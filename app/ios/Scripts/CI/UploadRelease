@@ -14,7 +14,7 @@ release_version="${GIT_BRANCH##*/}"
 release_type="$1"
 
 echo "Copying IPA"
-artifacts_dir="$WORKSPACE/ios-builder/artifacts" 
+artifacts_dir="$WORKSPACE/wallet/ios-builder/artifacts" 
 case "$release_type" in
     "customer")
         release_ipa_file="release_archive.ipa"
