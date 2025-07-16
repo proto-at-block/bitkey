@@ -130,4 +130,67 @@ class CloudBackupV2RestorerImplTests : FunSpec({
       .cause
       .shouldBeEqual(throwable)
   }
+
+  test("test restoration from old backup with inactiveSpendingKeysets field succeeds") {
+    // Create an old cloud backup by interpolating mock values
+    val oldFullAccountKeysWithInactiveKeysets = """
+      {
+          "activeSpendingKeyset": {
+              "localId": "${SpendingKeysetMock.localId}",
+              "keysetServerId": "${SpendingKeysetMock.f8eSpendingKeyset.keysetId}",
+              "appDpub": "${SpendingKeysetMock.appKey.key.dpub}",
+              "hardwareDpub": "${SpendingKeysetMock.hardwareKey.key.dpub}",
+              "serverDpub": "${SpendingKeysetMock.f8eSpendingKeyset.spendingPublicKey.key.dpub}",
+              "bitcoinNetworkType": "${SpendingKeysetMock.networkType}"
+          },
+          "inactiveSpendingKeysets": [],
+          "appGlobalAuthKeypair": {
+              "publicKey": "${FullAccountKeysMock.appGlobalAuthKeypair.publicKey.value}",
+              "privateKeyHex": "${FullAccountKeysMock.appGlobalAuthKeypair.privateKey.bytes.hex()}"
+          },
+          "appSpendingKeys": {
+              "${AppSpendingPublicKeyMock.key.dpub}": {
+                  "xprv": "${AppSpendingPrivateKeyMock.key.xprv}",
+                  "mnemonics": "${AppSpendingPrivateKeyMock.key.mnemonic}"
+              }
+          },
+          "activeHwSpendingKey": "${FullAccountKeysMock.activeHwSpendingKey.key.dpub}",
+          "activeHwAuthKey": "${FullAccountKeysMock.activeHwAuthKey.pubKey}",
+          "rotationAppGlobalAuthKeypair": ${if (FullAccountKeysMock.rotationAppGlobalAuthKeypair != null) "\"${FullAccountKeysMock.rotationAppGlobalAuthKeypair}\"" else "null"}
+      }
+    """.trimIndent()
+
+    csekDao.set(SealedCsekFake, CsekFake)
+    symmetricKeyEncryptor.unsealNoMetadataResult = oldFullAccountKeysWithInactiveKeysets.encodeUtf8()
+
+    // Restore
+    val accountRestorationResult = restorer.restore(CloudBackupV2WithFullAccountMock)
+    accountRestorationResult.shouldBeOk()
+
+    val restoration = accountRestorationResult.value
+
+    // Verify the key components are correctly restored
+    restoration.activeSpendingKeyset.shouldBeEqual(SpendingKeysetMock)
+    restoration.activeAppKeyBundle.spendingKey.shouldBeEqual(SpendingKeysetMock.appKey)
+    restoration.config.bitcoinNetworkType.shouldBeEqual(SIGNET)
+    restoration.config.f8eEnvironment.shouldBeEqual(Development)
+
+    // Verify that the private keys were stored correctly
+    appPrivateKeyDao.asymmetricKeys.shouldBeEqual(
+      mapOf(
+        AppGlobalAuthPublicKeyMock to AppGlobalAuthPrivateKeyMock,
+        AppRecoveryAuthPublicKeyMock to AppRecoveryAuthPrivateKeyMock
+      )
+    )
+    appPrivateKeyDao.appSpendingKeys.shouldBeEqual(
+      mapOf(
+        AppSpendingPublicKeyMock to AppSpendingPrivateKeyMock
+      )
+    )
+    relationshipKeysDao.keys.shouldBeEqual(
+      mapOf(
+        SocRecKeyPurpose.DelegatedDecryption to DelegatedDecryptionKeyFake
+      )
+    )
+  }
 })

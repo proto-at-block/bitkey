@@ -31,6 +31,8 @@ class CloudBackupV2RestorerImpl(
   private val uuidGenerator: UuidGenerator,
   private val relationshipsKeysDao: RelationshipsKeysDao,
 ) : CloudBackupV2Restorer {
+  private val json by lazy { Json { ignoreUnknownKeys = true } }
+
   override suspend fun restore(
     cloudBackupV2: CloudBackupV2,
   ): Result<AccountRestoration, CloudBackupV2RestorerError> {
@@ -49,13 +51,11 @@ class CloudBackupV2RestorerImpl(
       }.getOrElse { return Err(AccountBackupDecryptionError(cause = it)) }
         .utf8()
 
-    val keysInfo =
-      Json
-        .decodeFromStringResult<FullAccountKeys>(keysInfoEncoded)
-        .mapError {
-          AccountBackupDecodingError(it)
-        }
-        .getOrElse { return Err(it) }
+    val keysInfo = json.decodeFromStringResult<FullAccountKeys>(keysInfoEncoded)
+      .mapError {
+        AccountBackupDecodingError(it)
+      }
+      .getOrElse { return Err(it) }
 
     return restoreWithDecryptedKeys(cloudBackupV2, keysInfo)
   }

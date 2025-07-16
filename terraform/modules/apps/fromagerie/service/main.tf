@@ -66,6 +66,7 @@ locals {
     FCM_CUSTOMER_PLATFORM_ARN    = local.fcm_customer_platform_arn
     FCM_TEAM_PLATFORM_ARN        = local.fcm_team_platform_arn
     DD_ENV                       = var.environment
+    OTEL_BSP_SCHEDULE_DELAY      = 3000
     OTEL_RESOURCE_ATTRIBUTES     = "deployment.environment=${var.environment}"
     # DD_ENV isn't respected for f8e metrics, but this is
     RUST_LOG                               = "info"
