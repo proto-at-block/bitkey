@@ -43,6 +43,8 @@ class RecoveryChallengeUiStateMachineImpl(
   private val challengeCodeFormatter: ChallengeCodeFormatter,
   private val permissionChecker: PermissionChecker,
 ) : RecoveryChallengeUiStateMachine {
+  private val json by lazy { Json { ignoreUnknownKeys = true } }
+
   @Composable
   override fun model(props: RecoveryChallengeUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.StartingChallengeState) }
@@ -199,7 +201,7 @@ class RecoveryChallengeUiStateMachineImpl(
           ).logFailure {
             "Error decrypting SocRec payload during recovery"
           }.flatMap {
-            Json.decodeFromStringResult<FullAccountKeys>(it.utf8())
+            json.decodeFromStringResult<FullAccountKeys>(it.utf8())
           }.logFailure {
             "Error decoding SocRec payload during recovery"
           }.onSuccess { pkMat ->
