@@ -50,7 +50,7 @@ class NfcCommandsMock(
     failCount = null,
     diagnostics = null
   )
-  private val defaultEnrolledFingerprints = EnrolledFingerprints(3, emptyList())
+  private val defaultEnrolledFingerprints = EnrolledFingerprints(fingerprintHandles = emptyList())
   private val defaultFirmwareFeatureFlags = listOf(
     FirmwareFeatureFlagCfg(
       flag = FirmwareFeatureFlag.TELEMETRY,

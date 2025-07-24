@@ -216,7 +216,9 @@ class RelationshipsCodeBuilderImpl : RelationshipsCodeBuilder {
     try {
       fullData = recoveryCode.toBigInteger()
     } catch (e: NumberFormatException) {
-      return Err(RelationshipsCodeEncodingError("Invalid code, can't parse to BigInteger"))
+      return Err(RelationshipsCodeEncodingError("Invalid code, can't parse to BigInteger", cause = e))
+    } catch (e: ArithmeticException) {
+      return Err(RelationshipsCodeEncodingError("Invalid code, can't parse to BigInteger", cause = e))
     }
     val significantBits = (fullData.bitLength() - 1)
     val data = fullData.removePreambleBit()

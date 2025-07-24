@@ -26,7 +26,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProvideMockPriceScenariosGroup(
   mockScenarioService: MockScenarioService,
-  balanceHistoryService: BalanceHistoryService,
   onConfigurationChanged: () -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
@@ -47,7 +46,6 @@ fun ProvideMockPriceScenariosGroup(
           onClick = {
             coroutineScope.launch {
               mockScenarioService.clearScenarios(clearPrice = true, clearTransaction = false)
-              balanceHistoryService.clearData()
               currentPriceScenario = mockScenarioService.currentPriceScenario()
               onConfigurationChanged()
             }
@@ -64,7 +62,6 @@ fun ProvideMockPriceScenariosGroup(
             onClick = {
               coroutineScope.launch {
                 mockScenarioService.setPriceScenario(scenario)
-                balanceHistoryService.clearData()
                 currentPriceScenario = mockScenarioService.currentPriceScenario()
                 onConfigurationChanged()
               }
@@ -83,7 +80,6 @@ fun ProvideMockPriceScenariosGroup(
 @Composable
 fun ProvideMockTransactionScenariosGroup(
   mockScenarioService: MockScenarioService,
-  balanceHistoryService: BalanceHistoryService,
   onConfigurationChanged: () -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
@@ -104,7 +100,6 @@ fun ProvideMockTransactionScenariosGroup(
           onClick = {
             coroutineScope.launch {
               mockScenarioService.clearScenarios(clearPrice = false, clearTransaction = true)
-              balanceHistoryService.clearData()
               currentTransactionScenario = mockScenarioService.currentTransactionScenario()
               onConfigurationChanged()
             }
@@ -121,7 +116,6 @@ fun ProvideMockTransactionScenariosGroup(
             onClick = {
               coroutineScope.launch {
                 mockScenarioService.setTransactionScenario(scenario)
-                balanceHistoryService.clearData()
                 currentTransactionScenario = mockScenarioService.currentTransactionScenario()
                 onConfigurationChanged()
               }
@@ -140,7 +134,6 @@ fun ProvideMockTransactionScenariosGroup(
 @Composable
 fun ProvideMockChartDataControlsGroup(
   mockScenarioService: MockScenarioService,
-  balanceHistoryService: BalanceHistoryService,
   onShowSeedInput: () -> Unit,
   onSeedCopied: (String) -> Unit,
   refreshTrigger: Int,
@@ -175,17 +168,6 @@ fun ProvideMockChartDataControlsGroup(
           onClick = onShowSeedInput
         )
       )
-
-      add(
-        ListItemModel(
-          title = "Clear Balance Chart Data",
-          onClick = {
-            coroutineScope.launch {
-              balanceHistoryService.clearData()
-            }
-          }
-        )
-      )
     },
     style = ListGroupStyle.DIVIDER
   )
@@ -197,7 +179,6 @@ fun ProvideMockChartDataControlsGroup(
 @Composable
 fun ProvideMockDataQualityGroup(
   mockScenarioService: MockScenarioService,
-  balanceHistoryService: BalanceHistoryService,
   onConfigurationChanged: () -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
@@ -226,7 +207,6 @@ fun ProvideMockDataQualityGroup(
             onClick = {
               coroutineScope.launch {
                 mockScenarioService.setDataQuality(quality)
-                balanceHistoryService.clearData()
                 currentDataQuality = mockScenarioService.currentDataQuality()
                 onConfigurationChanged()
               }

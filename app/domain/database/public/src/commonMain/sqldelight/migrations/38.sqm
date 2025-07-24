@@ -1,0 +1,21 @@
+-- Add sealedSsek column to existing localRecoveryAttemptEntity table
+ALTER TABLE localRecoveryAttemptEntity ADD COLUMN sealedSsek BLOB;
+
+-- Add the uploadedDescriptorBackups column to the existing localRecoveryAttemptEntity table
+ALTER TABLE localRecoveryAttemptEntity ADD COLUMN uploadedDescriptorBackups INTEGER NOT NULL DEFAULT 0;
+
+-- Create the table for storing spending keysets during recovery
+CREATE TABLE recoverySpendingKeysetEntity(
+  id                              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryAttemptRowId            INTEGER NOT NULL,
+  keysetLocalId                   TEXT NOT NULL,
+  keysetServerId                  TEXT NOT NULL,
+  appKey                          TEXT AS AppSpendingPublicKey NOT NULL,
+  hardwareKey                     TEXT AS HwSpendingPublicKey NOT NULL,
+  serverKey                       TEXT AS F8eSpendingPublicKey NOT NULL,
+  networkType                     TEXT AS BitcoinNetworkType NOT NULL,
+  FOREIGN KEY (recoveryAttemptRowId) REFERENCES localRecoveryAttemptEntity(rowId) ON DELETE CASCADE
+);
+
+-- Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

@@ -8,6 +8,7 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
@@ -34,11 +35,15 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickSetUpNewWalletButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
+import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
+import io.kotest.matchers.collections.shouldNotBeEmpty
+import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
@@ -70,6 +75,18 @@ class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
       awaitUntilBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
+
+    val account = app.accountService.activeAccount().first().shouldBeTypeOf<FullAccount>()
+
+    app.listKeysetsF8eClient
+      .listKeysets(
+        f8eEnvironment = account.config.f8eEnvironment,
+        fullAccountId = account.accountId
+      ).getOrThrow()
+      .keysets
+      .shouldNotBeEmpty()
+      .size
+      .shouldBeEqual(1)
   }
 
   test("close and reopen app to cloud backup onboard step") {

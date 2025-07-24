@@ -59,14 +59,14 @@ where
 
         let app_signed = app_sig_header
             .and_then(|value| value.to_str().ok().map(String::from))
-            .map_or(false, |app_sig_header| match app_pubkey {
+            .is_some_and(|app_sig_header| match app_pubkey {
                 Some(app_pubkey) => verify_signature(&app_sig_header, jwt.clone(), app_pubkey),
                 None => false,
             });
 
         let hw_signed = hw_sig_header
             .and_then(|value| value.to_str().ok().map(String::from))
-            .map_or(false, |hw_sig_header| match hw_pubkey {
+            .is_some_and(|hw_sig_header| match hw_pubkey {
                 Some(hw_pubkey) => verify_signature(&hw_sig_header, jwt.clone(), hw_pubkey),
                 None => false,
             });

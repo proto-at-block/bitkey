@@ -8,6 +8,4 @@ import kotlinx.coroutines.flow.Flow
  */
 interface BalanceHistoryService {
   fun observe(range: ChartRange): Flow<Result<List<BalanceAt>, Error>>
-
-  fun clearData()
 }

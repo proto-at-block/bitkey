@@ -8,6 +8,8 @@ version = "0.1.0"
 debug-embed = ["rust-embed/debug-embed"]
 
 [dependencies]
+aws-config = { workspace = true }
+aws-sdk-kms = "1.15.0"
 axum = { workspace = true }
 axum-macros = { workspace = true }
 instrumentation = { workspace = true }
@@ -16,16 +18,21 @@ reqwest = { workspace = true }
 rust-embed = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_with = { workspace = true, features = ["base64"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 
 # path dependencies
 account = { workspace = true }
+authn_authz = { workspace = true }
 errors = { workspace = true }
 http_server = { workspace = true }
+repository = { workspace = true, features = ["encrypted_attachment"] }
+types = { workspace = true, features = ["encrypted_attachment"] }
 
 [lints]
 workspace = true

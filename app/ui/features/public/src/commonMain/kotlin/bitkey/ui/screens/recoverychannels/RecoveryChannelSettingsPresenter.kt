@@ -196,6 +196,14 @@ class RecoveryChannelSettingsScreenPresenter(
               accountId = screen.account.accountId,
               touchpointType = NotificationTouchpointType.Email,
               entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
+              onSuccess = {
+                state =
+                  if (notificationPreferences.accountSecurity.contains(NotificationChannel.Email)) {
+                    ShowingNotificationsSettingsUiState()
+                  } else {
+                    TogglingNotificationChannelUiState(NotificationChannel.Email, null)
+                  }
+              },
               onClose = {
                 state = ShowingNotificationsSettingsUiState()
               }
@@ -225,12 +233,12 @@ class RecoveryChannelSettingsScreenPresenter(
   ) {
     // Side effect: get prefs from server
     LaunchedEffect("load-notifications-preferences") {
-      notificationsPreferencesCachedProvider.getNotificationsPreferences(screen.account.accountId)
+      notificationsPreferencesCachedProvider.getNotificationsPreferences()
         .collect {
-          it.onSuccess { prefs ->
+          it?.onSuccess { prefs ->
             updatedPrefsState(prefs)
             setState(ShowingNotificationsSettingsUiState())
-          }.onFailure { error ->
+          }?.onFailure { error ->
             setState(
               ShowingNotificationsSettingsUiState(
                 overlayState = BottomSheetOverlayState(

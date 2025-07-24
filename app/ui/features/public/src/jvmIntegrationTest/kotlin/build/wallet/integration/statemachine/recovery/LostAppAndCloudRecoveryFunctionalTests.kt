@@ -3,12 +3,12 @@ package build.wallet.integration.statemachine.recovery
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
+import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
-import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.platform.permissions.EnableNotificationsBodyModel
@@ -39,6 +39,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   suspend fun TestScope.setup(initWithTreasuryFunds: BitcoinMoney = BitcoinMoney.zero()) {
     app = launchNewApp()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
     app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
     if (initWithTreasuryFunds != BitcoinMoney.zero()) {
       val wallet = app.getActiveWallet()
@@ -51,6 +52,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   suspend fun relaunchApp() {
     app = app.relaunchApp()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
     app.defaultAccountConfigService.setDelayNotifyDuration(5.seconds)
   }
 
@@ -100,7 +102,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  @Suppress("UnreachableCode") // TODO(W-11055)
   test("delay & notify - no cloud access") {
     setup()
 
@@ -120,13 +121,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .signInFailure(Error())
       awaitUntilBody<CloudWarningBodyModel>()
         .onCannotAccessCloud()
-
-      awaitUntilBody<FormBodyModel>(
-        matching = { it.header?.headline == "You're not signed in" }
-      )
-      // TODO(W-11055): there is a bug where we show cloud sign in error screen,
-      //  but we don't give the customer an option to initiate Lost App + Cloud recovery.
-      return@test
 
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
@@ -154,7 +148,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
   }
-
   test("recovery lost app - force exiting in the middle of initiating") {
     setup()
 

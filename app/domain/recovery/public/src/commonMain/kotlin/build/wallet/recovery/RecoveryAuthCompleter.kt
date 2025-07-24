@@ -4,6 +4,7 @@ import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.challange.SignedChallenge.HardwareSignedChallenge
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SealedSsek
 import com.github.michaelbull.result.Result
 
 interface RecoveryAuthCompleter {
@@ -22,6 +23,7 @@ interface RecoveryAuthCompleter {
     hardwareSignedChallenge: HardwareSignedChallenge,
     destinationAppAuthPubKeys: AppAuthPublicKeys,
     sealedCsek: SealedCsek,
+    sealedSsek: SealedSsek,
   ): Result<Unit, Throwable>
 
   /**

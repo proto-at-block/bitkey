@@ -12,7 +12,6 @@ aws-sdk-dynamodb = { workspace = true }
 aws-smithy-async = { workspace = true }
 aws-types = { workspace = true }
 http = { workspace = true }
-regex = { workspace = true }
 serde = { workspace = true }
 serde_dynamo = { workspace = true }
 thiserror = { workspace = true }

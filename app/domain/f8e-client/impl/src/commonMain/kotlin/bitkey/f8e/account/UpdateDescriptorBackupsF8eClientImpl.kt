@@ -35,7 +35,7 @@ class UpdateDescriptorBackupsF8eClientImpl(
     descriptorBackups: List<DescriptorBackup>,
     sealedSsek: SealedSsek,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
-    hwKeyProof: HwFactorProofOfPossession,
+    hwKeyProof: HwFactorProofOfPossession?,
   ): Result<Unit, UpdateDescriptorBackupError> =
     f8eHttpClient.authenticated()
       .bodyResult<EmptyResponseBody> {
@@ -45,7 +45,7 @@ class UpdateDescriptorBackupsF8eClientImpl(
           withAccountId(accountId)
           setRedactedBody(RequestBody(sealedSsek, descriptorBackups))
           withAppAuthKey(appAuthKey)
-          withHardwareFactor(hwKeyProof)
+          hwKeyProof?.let { withHardwareFactor(it) }
         }
       }
       .mapUnit()

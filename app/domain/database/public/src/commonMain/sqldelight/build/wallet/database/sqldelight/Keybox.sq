@@ -8,30 +8,38 @@ import kotlin.time.Duration;
 -- Table for Full Account's Keybox data, contains spending keysets.
 CREATE TABLE keyboxEntity(
   id                                    TEXT NOT NULL PRIMARY KEY,
-  account                               TEXT AS FullAccountId NOT NULL,
-  activeSpendingKeysetId                TEXT NOT NULL UNIQUE,
-  activeKeyBundleId                     TEXT NOT NULL UNIQUE,
+  accountId                             TEXT AS FullAccountId NOT NULL,
   networkType                           TEXT AS BitcoinNetworkType NOT NULL,
   fakeHardware                          INTEGER AS Boolean NOT NULL,
   f8eEnvironment                        TEXT AS F8eEnvironment NOT NULL,
   isTestAccount                         INTEGER AS Boolean NOT NULL,
   isUsingSocRecFakes                    INTEGER AS Boolean NOT NULL,
   delayNotifyDuration                   TEXT AS Duration,
-  activeHwKeyBundleId                   TEXT NOT NULL UNIQUE,
   appGlobalAuthKeyHwSignature           TEXT AS AppGlobalAuthKeyHwSignature NOT NULL,
-  FOREIGN KEY (activeSpendingKeysetId)  REFERENCES spendingKeysetEntity(id),
-  FOREIGN KEY (activeKeyBundleId)       REFERENCES appKeyBundleEntity(id),
-  FOREIGN KEY (activeHwKeyBundleId)     REFERENCES hwKeyBundleEntity(id)
+  canUseKeyboxKeysets                   INTEGER AS Boolean NOT NULL DEFAULT 0,
+  FOREIGN KEY (accountId)               REFERENCES fullAccountEntity(accountId) ON DELETE CASCADE
 );
 
 insertKeybox:
-INSERT OR REPLACE INTO keyboxEntity(id, account, activeSpendingKeysetId, activeKeyBundleId, networkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, activeHwKeyBundleId, appGlobalAuthKeyHwSignature)
-VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO keyboxEntity(id, accountId, networkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, appGlobalAuthKeyHwSignature, canUseKeyboxKeysets)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 rotateAppGlobalAuthKeyHwSignature:
 UPDATE keyboxEntity
 SET appGlobalAuthKeyHwSignature = ?
 WHERE id = ?;
 
+-- Query to get a keybox by ID
+keyboxById:
+SELECT * FROM keyboxEntity WHERE id = ?;
+
 clear:
 DELETE FROM keyboxEntity;
+
+-- Query to delete a specific keybox by ID
+deleteKeybox:
+DELETE FROM keyboxEntity WHERE id = ?;
+
+-- Query to count total keyboxes
+countKeyboxes:
+SELECT COUNT(*) FROM keyboxEntity;

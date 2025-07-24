@@ -146,6 +146,7 @@ kotlin {
         implementation(projects.libs.platformFake)
         implementation(projects.domain.coachmarkFake)
         implementation(projects.domain.inheritanceFake)
+        implementation(projects.domain.txVerificationFake)
         // TODO: remove dependency on :impl.
         implementation(projects.libs.amountImpl) {
           because("Depends on DoubleFormatterImpl")

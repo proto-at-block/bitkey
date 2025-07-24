@@ -22,3 +22,5 @@ pub mod serde;
 pub mod time;
 #[cfg(feature = "transaction_verification")]
 pub mod transaction_verification;
+
+pub use external_identifier::Error as ExternalIdentifierError;

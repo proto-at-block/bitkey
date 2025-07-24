@@ -4,9 +4,12 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.ktor.result.NetworkingError
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconEmail
 import build.wallet.statemachine.core.Icon.SmallIconPushNotification
+import build.wallet.statemachine.core.LabelModel
+import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.SheetSize
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
@@ -228,7 +231,7 @@ data class NetworkingErrorState(val networkingError: NetworkingError, val onClos
  */
 fun NetworkingErrorSheetModel(
   onClose: () -> Unit,
-  networkingError: NetworkingError,
+  networkingError: Error,
 ) = SheetModel(
   size = SheetSize.MIN40,
   body = NetworkingErrorSheetBodyModel(
@@ -240,7 +243,7 @@ fun NetworkingErrorSheetModel(
 
 private data class NetworkingErrorSheetBodyModel(
   val onClose: () -> Unit,
-  val networkingError: NetworkingError,
+  val networkingError: Error,
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_NETWORKING_ERROR_SHEET,
     header = FormHeaderModel(

@@ -6,6 +6,7 @@ import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.challange.SignedChallenge.HardwareSignedChallenge
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SealedSsek
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -22,6 +23,7 @@ class RecoveryAuthCompleterMock(
     hardwareSignedChallenge: HardwareSignedChallenge,
     destinationAppAuthPubKeys: AppAuthPublicKeys,
     sealedCsek: SealedCsek,
+    sealedSsek: SealedSsek,
   ): Result<Unit, Throwable> {
     rotateAuthKeysCalls += Unit
     return rotateAuthKeysResult

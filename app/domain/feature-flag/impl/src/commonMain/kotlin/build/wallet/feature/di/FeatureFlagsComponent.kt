@@ -97,6 +97,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun fingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun inheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao: FeatureFlagDao) =
     InheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao)
 
@@ -126,6 +131,7 @@ interface FeatureFlagsComponent {
     usSmsFeatureFlag: UsSmsFeatureFlag,
     checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
     fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
+    fingerprintResetMinFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
     inheritanceUseEncryptedDescriptorFeatureFlag: InheritanceUseEncryptedDescriptorFeatureFlag,
     encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
@@ -139,6 +145,7 @@ interface FeatureFlagsComponent {
       usSmsFeatureFlag,
       checkHardwareIsPairedFeatureFlag,
       fingerprintResetFeatureFlag,
+      fingerprintResetMinFirmwareVersionFeatureFlag,
       atRiskNotificationsFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom

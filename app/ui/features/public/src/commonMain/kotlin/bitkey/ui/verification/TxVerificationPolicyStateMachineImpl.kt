@@ -1,15 +1,10 @@
 package bitkey.ui.verification
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import bitkey.verification.TxVerificationPolicy
 import bitkey.verification.TxVerificationService
 import bitkey.verification.VerificationThreshold
-import build.wallet.di.AppScope
+import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.money.FiatMoney
@@ -20,11 +15,7 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.SheetSize
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
 import build.wallet.time.MinimumLoadingDuration
@@ -34,7 +25,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
 
-@BitkeyInject(AppScope::class)
+@BitkeyInject(ActivityScope::class)
 class TxVerificationPolicyStateMachineImpl(
   private val txVerificationService: TxVerificationService,
   private val formatter: MoneyDisplayFormatter,
@@ -47,14 +38,23 @@ class TxVerificationPolicyStateMachineImpl(
   @Composable
   override fun model(props: TxVerificationPolicyProps): ScreenModel {
     var viewState: State by remember { mutableStateOf(State.Overview) }
-    val thresholdState by txVerificationService.getCurrentThreshold().collectAsState(null)
-    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
-    val exchangeRates by exchangeRateService.exchangeRates.collectAsState()
+    val thresholdState by remember {
+      txVerificationService.getCurrentThreshold()
+    }.collectAsState(null)
+    val fiatCurrency by remember {
+      fiatCurrencyPreferenceRepository.fiatCurrencyPreference
+    }.collectAsState()
+    val exchangeRates by remember {
+      exchangeRateService.exchangeRates
+    }.collectAsState()
 
     when (val current = viewState) {
       is State.Updating -> LaunchedEffect("Update Policy") {
         withMinimumDelay(minimumLoadingDuration.value) {
-          txVerificationService.updateThreshold(current.threshold, current.hwFactorProofOfPossession)
+          txVerificationService.updateThreshold(
+            TxVerificationPolicy.Active(current.threshold),
+            current.hwFactorProofOfPossession
+          )
         }
         viewState = State.Overview
       }
@@ -65,7 +65,7 @@ class TxVerificationPolicyStateMachineImpl(
       viewState = if (enable) {
         State.ChooseEnabledType
       } else {
-        State.HardwareConfirmation(VerificationThreshold.Disabled)
+        State.HardwareConfirmation(VerificationThreshold.Always)
       }
     }
 
@@ -114,7 +114,7 @@ class TxVerificationPolicyStateMachineImpl(
               onBack = { viewState = State.ChooseEnabledType },
               onConfirmClick = {
                 viewState = State.HardwareConfirmation(
-                  VerificationThreshold.Enabled(
+                  VerificationThreshold(
                     amount = moneyInputModel.primaryAmount
                   )
                 )
@@ -140,7 +140,7 @@ class TxVerificationPolicyStateMachineImpl(
         props = props,
         thresholdState = thresholdState,
         onToggle = onToggleVerification,
-        pendingToggleState = current.threshold is VerificationThreshold.Enabled
+        pendingToggleState = current.threshold is VerificationThreshold
       ).asRootScreen(
         bottomSheetModel = UpdatingPolicySheet(
           onBack = {
@@ -154,7 +154,7 @@ class TxVerificationPolicyStateMachineImpl(
   @Composable
   private fun overviewModel(
     props: TxVerificationPolicyProps,
-    thresholdState: Result<VerificationThreshold, Error>? = null,
+    thresholdState: Result<VerificationThreshold?, Error>? = null,
     onToggle: (Boolean) -> Unit,
     pendingToggleState: Boolean? = null,
   ): BodyModel {
@@ -172,7 +172,7 @@ class TxVerificationPolicyStateMachineImpl(
         formatter = formatter,
         onBack = props.onExit,
         threshold = threshold,
-        checked = pendingToggleState ?: (threshold is VerificationThreshold.Enabled),
+        checked = pendingToggleState ?: (threshold is VerificationThreshold),
         enabled = pendingToggleState == null,
         updatePolicy = onToggle
       )

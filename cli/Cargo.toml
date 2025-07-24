@@ -2,16 +2,21 @@
 edition = "2021"
 name = "bk"
 publish = false
-version = "2025.13.1"
+version = "2025.14.0"
 
 default-run = "bk"
 
 [dependencies]
+crypto = { path = "../core/crypto", features = ["p256_box"] }
+
 aes-gcm-siv = "0.11.1"
 anyhow = { version = "1.0.80", features = ["backtrace"] }
 aws-config = "=1.5.11"
+aws-credential-types = "=1.2.2"
 aws-sdk-dynamodb = "=1.56.0"
+aws-sdk-kms = "=1.16.0"
 aws-sdk-secretsmanager = "1.17.0"
+base64 = "0.22.1"
 bdk = { version = "0.29.0" }
 clap = { version = "4.5.0", features = ["derive"] }
 derive_builder = { version = "0.20.0" }
@@ -25,10 +30,12 @@ rustify = { version = "0.5.3", default-features = false, features = [
   "rustls-tls",
 ] }
 rustify_derive = { version = "0.5.2" }
+rustyline = "14.0"
 serde = "1.0.196"
 serde_derive = { version = "1.0.137" }
 serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+0_29"] }
 serde_json = "1.0.113"
+serde_yaml = "0.9"
 sha2 = "0.10.8"
 sled = { version = "0.34.7" }
 thiserror = "1.0.57"

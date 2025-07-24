@@ -4,6 +4,9 @@ enum class CreateAccountEventTrackerScreenId : EventTrackerScreenId {
   /** Loading screen shown when the server is generating keys for a new wallet */
   NEW_ACCOUNT_SERVER_KEYS_LOADING,
 
+  /** Loading screen shown when the app is uploading descriptor backups to the Server */
+  NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING,
+
   /** The customer encountered a generic server error when trying to create a new account. */
   NEW_ACCOUNT_CREATION_FAILURE,
 

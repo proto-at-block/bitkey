@@ -39,12 +39,17 @@ class GettingStartedRoutingStateMachineImpl(
             onExit = props.onExit,
             onBackupFound = { state = BackupLoaded(it) },
             onCannotAccessCloudBackup = { account ->
-              state =
-                if (account == null) {
+              if (account == null && props.startIntent == RestoreBitkey) {
+                // If the customer can't sign in, skip the sign-in error screen and
+                // fall back to Lost App recovery.
+                props.onStartLostAppRecovery()
+              } else {
+                state = if (account == null) {
                   SignInFailure
                 } else {
                   BackupLoaded(null)
                 }
+              }
             },
             onImportEmergencyExitKit = { props.onImportEmergencyExitKit() }
           )

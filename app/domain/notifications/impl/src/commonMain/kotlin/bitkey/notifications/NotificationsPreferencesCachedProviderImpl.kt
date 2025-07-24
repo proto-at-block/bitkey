@@ -1,6 +1,9 @@
 package bitkey.notifications
 
 import bitkey.account.AccountConfigService
+import build.wallet.account.AccountService
+import build.wallet.account.getAccount
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -13,7 +16,8 @@ import com.github.michaelbull.result.*
 import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 internal const val NOTIFICATIONS_PREFERENCES_CACHE = "NOTIFICATIONS_PREFERENCES_CACHE"
 internal const val PREFS_INITIALIZED = "prefs-initialized"
@@ -27,52 +31,61 @@ class NotificationsPreferencesCachedProviderImpl(
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val keyValueStoreFactory: KeyValueStoreFactory,
   private val accountConfigService: AccountConfigService,
+  private val accountService: AccountService,
 ) : NotificationsPreferencesCachedProvider {
-  override fun getNotificationsPreferences(
-    accountId: AccountId,
-  ): Flow<Result<NotificationPreferences, NetworkingError>> =
-    flow {
-      val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
-      val prefsCache = keyValueStoreFactory.getOrCreate(NOTIFICATIONS_PREFERENCES_CACHE)
-      val loadedPrefs = loadCachedPreferences(prefsCache)
-      if (loadedPrefs != null) {
-        // Emit saved values right away
-        emit(Ok(loadedPrefs))
+  private val preferencesFlow = MutableStateFlow<Result<NotificationPreferences, Error>?>(null)
 
-        notificationTouchpointF8eClient.getNotificationsPreferences(
-          f8eEnvironment = f8eEnvironment,
-          accountId = accountId
-        ).onSuccess { serverPrefs ->
-          // Emit again, but only if server values differ
-          if (serverPrefs != loadedPrefs) {
-            emit(Ok(serverPrefs))
-            cacheNotificationPreferences(
-              prefsCache = prefsCache,
-              notificationPreferences = serverPrefs
-            )
-          }
-        }
-          .logFailure {
-            // We assume the local values are sufficient and do not emit an error
-            // [NotificationTouchpointF8eClientImpl] will log the error detail for us
-            "Failed to load prefs. Using cached values."
-          }
-      } else {
-        notificationTouchpointF8eClient.getNotificationsPreferences(
-          f8eEnvironment = f8eEnvironment,
-          accountId = accountId
-        ).onSuccess { serverPrefs ->
-          emit(Ok(serverPrefs))
+  override suspend fun initialize() {
+    val prefsCache = keyValueStoreFactory.getOrCreate(NOTIFICATIONS_PREFERENCES_CACHE)
+    val loadedPrefs = loadCachedPreferences(prefsCache)
+    val account = accountService.getAccount<FullAccount>().get()
+
+    if (account == null) {
+      preferencesFlow.update { Err(Error("No account available.")) }
+      return
+    }
+
+    if (loadedPrefs != null) {
+      preferencesFlow.update { Ok(loadedPrefs) }
+
+      notificationTouchpointF8eClient.getNotificationsPreferences(
+        f8eEnvironment = account.config.f8eEnvironment,
+        accountId = account.accountId
+      ).onSuccess { serverPrefs ->
+        // Emit again, but only if server values differ
+        if (serverPrefs != loadedPrefs) {
+          preferencesFlow.update { Ok(serverPrefs) }
+
           cacheNotificationPreferences(
             prefsCache = prefsCache,
             notificationPreferences = serverPrefs
           )
-        }.onFailure {
-          // No saved values. Emit error.
-          emit(Err(it))
         }
+      }.logFailure {
+        // We assume the local values are sufficient and do not emit an error
+        // [NotificationTouchpointF8eClientImpl] will log the error detail for us
+        "Failed to load prefs. Using cached values."
+      }
+    } else {
+      notificationTouchpointF8eClient.getNotificationsPreferences(
+        f8eEnvironment = account.config.f8eEnvironment,
+        accountId = account.accountId
+      ).onSuccess { serverPrefs ->
+        preferencesFlow.update { Ok(serverPrefs) }
+        cacheNotificationPreferences(
+          prefsCache = prefsCache,
+          notificationPreferences = serverPrefs
+        )
+      }.onFailure {
+        // No saved values. Emit error.
+        preferencesFlow.update { it }
       }
     }
+  }
+
+  override fun getNotificationsPreferences(): Flow<Result<NotificationPreferences, Error>?> {
+    return preferencesFlow
+  }
 
   override suspend fun updateNotificationsPreferences(
     accountId: AccountId,
@@ -91,6 +104,7 @@ class NotificationsPreferencesCachedProviderImpl(
         prefsCache = prefsCache,
         notificationPreferences = preferences
       )
+      preferencesFlow.update { Ok(preferences) }
       Ok(Unit)
     }.onFailure {
       // On failure, we do not update local values
@@ -121,10 +135,6 @@ class NotificationsPreferencesCachedProviderImpl(
       prefsCache: SuspendSettings,
       notificationPreferences: NotificationPreferences,
     ) {
-      fun joinChannels(channels: Set<NotificationChannel>): String =
-        channels
-          .joinToString(separator = ",") { it.name }
-
       prefsCache.putString(
         MONEY_MOVEMENT_CHANNELS,
         joinChannels(notificationPreferences.moneyMovement)
@@ -139,6 +149,10 @@ class NotificationsPreferencesCachedProviderImpl(
       )
       prefsCache.putBoolean(PREFS_INITIALIZED, true)
     }
+
+    private fun joinChannels(channels: Set<NotificationChannel>): String =
+      channels
+        .joinToString(separator = ",") { it.name }
 
     private suspend fun notificationChannels(
       prefsCache: SuspendSettings,

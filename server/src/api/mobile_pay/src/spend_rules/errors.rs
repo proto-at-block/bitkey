@@ -22,6 +22,8 @@ pub enum SpendRuleCheckError {
     OutputsBelongToSanctionedIndividuals,
     #[error("Error fetching spend amount: {0}")]
     CouldNotFetchSpendAmount(String),
+    #[error("Transaction requires verification")]
+    TransactionVerificationRequired,
 }
 
 #[derive(Error, Debug)]
@@ -47,5 +49,12 @@ impl SpendRuleCheckErrors {
         self.0
             .iter()
             .any(|e| discriminant(e) == discriminant(error))
+    }
+
+    pub fn is_transaction_verification_required(&self) -> bool {
+        matches!(
+            self.0.as_slice(),
+            [SpendRuleCheckError::TransactionVerificationRequired]
+        )
     }
 }

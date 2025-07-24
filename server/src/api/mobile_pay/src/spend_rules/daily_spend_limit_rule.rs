@@ -33,7 +33,7 @@ impl<'a> DailySpendingLimitRule<'a> {
     }
 }
 
-impl<'a> Rule for DailySpendingLimitRule<'a> {
+impl Rule for DailySpendingLimitRule<'_> {
     /// Ensure that the total outflows for this PSBT plus the outflows so far today do not exceed
     /// the set spending limit
     fn check_transaction(

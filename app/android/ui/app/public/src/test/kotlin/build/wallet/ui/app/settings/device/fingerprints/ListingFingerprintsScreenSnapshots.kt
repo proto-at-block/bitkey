@@ -13,7 +13,6 @@ class ListingFingerprintsScreenSnapshots : FunSpec({
 
   test("listing fingerprints") {
     val enrolledFingerprints = EnrolledFingerprints(
-      maxCount = 3,
       fingerprintHandles = listOf(
         FingerprintHandle(index = 0, label = "Left Thumb"),
         FingerprintHandle(index = 1, label = "Right Thumb")

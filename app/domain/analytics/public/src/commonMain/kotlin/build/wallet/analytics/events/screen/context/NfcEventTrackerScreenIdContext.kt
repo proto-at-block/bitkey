@@ -36,6 +36,9 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
   /** NFC flow to unseal the cloud sealed encryption key (CSEK) */
   UNSEAL_CLOUD_BACKUP,
 
+  /** NFC flow to unseal the server storage encryption key (SSEK) */
+  UNSEAL_SSEK,
+
   /** NFC flow to unseal the cloud sealed encryption key (CSEK) in Emergency Exit Kit Restore */
   UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP,
 

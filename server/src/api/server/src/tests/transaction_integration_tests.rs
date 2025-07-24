@@ -35,10 +35,13 @@ use mockall::mock;
 use onboarding::routes::RotateSpendingKeysetRequest;
 use serde_json::json;
 use types::account::bitcoin::Network;
+use types::account::entities::TransactionVerificationPolicy;
 use types::account::identifiers::AccountId;
 use types::account::money::Money;
 use types::account::spend_limit::SpendingLimit;
 use types::currencies::CurrencyCode::USD;
+use types::transaction_verification::entities::TransactionVerification;
+use types::transaction_verification::router::PutTransactionVerificationPolicyRequest;
 use ulid::Ulid;
 
 #[derive(Debug)]
@@ -138,6 +141,7 @@ async fn sign_transaction_test(vector: SignTransactionTestVector) {
             &account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt,
+                ..Default::default()
             },
         )
         .await;
@@ -218,6 +222,124 @@ tests! {
     },
 }
 
+#[rstest::rstest]
+#[case::never(TransactionVerificationPolicy::Never, false)]
+#[case::always(TransactionVerificationPolicy::Always, true)]
+#[case::threshold_over_balance(TransactionVerificationPolicy::Threshold(Money{
+    amount: 10_000,
+    currency_code: USD,
+}), false)]
+#[case::threshold_under_balance(TransactionVerificationPolicy::Threshold(Money{
+    amount: 5,
+    currency_code: USD,
+}), true)]
+#[tokio::test]
+async fn test_sign_transaction_with_transaction_verification(
+    #[case] policy: TransactionVerificationPolicy,
+    #[case] expect_transaction_verification: bool,
+) {
+    let mut broadcaster_mock = MockTransactionBroadcaster::new();
+    broadcaster_mock
+        .expect_broadcast()
+        .times(if expect_transaction_verification {
+            0
+        } else {
+            1
+        })
+        .returning(move |_, _, _| Ok(()));
+
+    let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account, bdk_wallet) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    let app_signed_psbt =
+        build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 2_000, &[]);
+
+    let limit = SpendingLimit {
+        active: true,
+        amount: Money {
+            amount: 5_000,
+            currency_code: USD,
+        },
+        ..Default::default()
+    };
+
+    // In this case, we can setup mobile pay so our code can check some spend conditions
+    let request = build_mobile_pay_request(limit);
+    let mobile_pay_response = client.put_mobile_pay(&account.id, &request, &keys).await;
+    assert_eq!(
+        mobile_pay_response.status_code,
+        StatusCode::OK,
+        "{}",
+        mobile_pay_response.body_string
+    );
+
+    let update_policy_request = client
+        .update_transaction_verification_policy(
+            &account.id,
+            true,
+            false,
+            &keys,
+            &PutTransactionVerificationPolicyRequest { policy },
+        )
+        .await;
+    assert_eq!(
+        update_policy_request.status_code,
+        StatusCode::OK,
+        "{}",
+        update_policy_request.body_string
+    );
+
+    let response = client
+        .sign_transaction_with_keyset(
+            &account.id,
+            &account.active_keyset_id,
+            &SignTransactionData {
+                psbt: app_signed_psbt.to_string(),
+                should_prompt_user: true,
+                ..Default::default()
+            },
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
+    if expect_transaction_verification {
+        let SignTransactionResponse::VerificationRequested {
+            verification_id, ..
+        } = response.body.unwrap()
+        else {
+            panic!("Expected a verification response, got a signed transaction");
+        };
+        let verification = bootstrap
+            .services
+            .transaction_verification_service
+            .fetch(&account.id, &verification_id)
+            .await
+            .expect("Failed to fetch verification");
+        assert!(matches!(
+            verification,
+            TransactionVerification::Pending { .. }
+        ));
+        assert_eq!(verification.common_fields().psbt, app_signed_psbt);
+    } else {
+        assert!(
+            matches!(response.body, Some(SignTransactionResponse::Signed { .. })),
+            "Expected a signed transaction, got a verification response"
+        );
+    }
+}
+
 #[derive(Debug)]
 enum BroadcastFailureMode {
     Generic,
@@ -283,7 +405,11 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
 
     let check_psbt = |response_body: Option<SignTransactionResponse>| async {
         let mut server_and_app_signed_psbt = match response_body {
-            Some(r) => Psbt::from_str(&r.tx).unwrap(),
+            Some(SignTransactionResponse::Signed { tx }) => Psbt::from_str(&tx).unwrap(),
+            Some(SignTransactionResponse::VerificationRequired)
+            | Some(SignTransactionResponse::VerificationRequested { .. }) => {
+                panic!("Expected a signed transaction, got a verification response");
+            }
             None => return,
         };
 
@@ -306,6 +432,7 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
 
     let request_data = SignTransactionData {
         psbt: app_signed_psbt.to_string(),
+        ..Default::default()
     };
 
     let response = client
@@ -475,7 +602,11 @@ async fn test_bypass_mobile_spend_limit_for_sweep(vector: SweepBypassTransaction
 
     let check_psbt = |response_body: Option<SignTransactionResponse>| async {
         let mut server_and_app_signed_psbt = match response_body {
-            Some(r) => Psbt::from_str(&r.tx).unwrap(),
+            Some(SignTransactionResponse::Signed { tx }) => Psbt::from_str(&tx).unwrap(),
+            Some(SignTransactionResponse::VerificationRequired)
+            | Some(SignTransactionResponse::VerificationRequested { .. }) => {
+                panic!("Expected a signed transaction, got a verification response");
+            }
             None => return,
         };
 
@@ -492,6 +623,7 @@ async fn test_bypass_mobile_spend_limit_for_sweep(vector: SweepBypassTransaction
 
     let request_data = SignTransactionData {
         psbt: app_signed_psbt.to_string(),
+        ..Default::default()
     };
 
     // Send the sweep transaction
@@ -548,6 +680,7 @@ async fn test_disabled_mobile_pay_spend_limit() {
             &account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt.to_string(),
+                ..Default::default()
             },
         )
         .await;
@@ -617,6 +750,7 @@ async fn test_mismatched_account_id_keyproof() {
             &account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt,
+                ..Default::default()
             },
         )
         .await;
@@ -675,6 +809,7 @@ async fn test_fail_sends_to_sanctioned_address() {
 
     let request_data = SignTransactionData {
         psbt: app_signed_psbt.to_string(),
+        ..Default::default()
     };
 
     let response = client
@@ -731,6 +866,7 @@ async fn test_fail_to_send_if_kill_switch_is_on() {
             &account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt,
+                ..Default::default()
             },
         )
         .await;
@@ -785,6 +921,7 @@ async fn test_fail_if_signed_with_different_wallet() {
                 &account.active_keyset_id,
                 &SignTransactionData {
                     psbt: psbt_without_signatures.to_string(),
+                    ..Default::default()
                 },
             )
             .await;
@@ -813,6 +950,7 @@ async fn test_fail_if_signed_with_different_wallet() {
                 &account.active_keyset_id,
                 &SignTransactionData {
                     psbt: psbt_with_two_signatures.to_string(),
+                    ..Default::default()
                 },
             )
             .await;
@@ -844,6 +982,7 @@ async fn test_fail_if_signed_with_different_wallet() {
                 &account.active_keyset_id,
                 &SignTransactionData {
                     psbt: psbt_with_attacker_signature.to_string(),
+                    ..Default::default()
                 },
             )
             .await;

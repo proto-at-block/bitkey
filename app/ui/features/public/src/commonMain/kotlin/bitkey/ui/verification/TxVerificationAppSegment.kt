@@ -13,4 +13,9 @@ object TxVerificationAppSegment : AppSegment {
    * Settings/Management screen for changing/toggling the Transaction Verification Policy.
    */
   object ManagePolicy : AppSegment by childSegment("ManagePolicy")
+
+  /**
+   * Actual verification operations for transactions.
+   */
+  object Transaction : AppSegment by childSegment("Transaction")
 }

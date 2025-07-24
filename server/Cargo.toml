@@ -35,6 +35,7 @@ members = [
   "src/api/repository",
   "src/api/s3_utils",
   "src/api/screener",
+  "src/api/secure_site",
   "src/api/server",
   "src/api/transaction_verification",
   "src/api/types",
@@ -165,6 +166,7 @@ recovery = { path = "src/api/recovery" }
 repository = { path = "src/api/repository" }
 s3-utils = { path = "src/api/s3_utils" }
 screener = { path = "src/api/screener" }
+secure_site = { path = "src/api/secure_site" }
 transaction_verification = { path = "src/api/transaction_verification" }
 types = { path = "src/api/types" }
 userpool = { path = "src/api/userpool" }

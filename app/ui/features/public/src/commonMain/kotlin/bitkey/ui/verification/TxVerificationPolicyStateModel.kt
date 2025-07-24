@@ -44,7 +44,7 @@ internal data class TxVerificationPolicyStateModel(
       onCheckedChange = updatePolicy
     ),
     actionRows = when (threshold) {
-      null, is VerificationThreshold.Disabled -> emptyImmutableList()
+      null -> emptyImmutableList()
       Always -> immutableListOf(
         SwitchCardModel.ActionRow(
           title = "Verify",
@@ -52,7 +52,7 @@ internal data class TxVerificationPolicyStateModel(
           onClick = { updatePolicy(true) }
         )
       )
-      is VerificationThreshold.Enabled -> immutableListOf(
+      else -> immutableListOf(
         SwitchCardModel.ActionRow(
           title = "Verify above",
           sideText = threshold.amount.let {

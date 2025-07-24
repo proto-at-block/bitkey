@@ -27,7 +27,7 @@ async fn recovery_backup_upload_and_fetch_test(
     let client = TestClient::new(bootstrap.router).await;
 
     let account = match account_type {
-        AccountType::Full { .. } => Account::Full(
+        AccountType::Full => Account::Full(
             create_full_account(
                 &mut context,
                 &bootstrap.services,

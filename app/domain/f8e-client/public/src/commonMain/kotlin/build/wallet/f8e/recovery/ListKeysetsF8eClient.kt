@@ -3,6 +3,7 @@ package build.wallet.f8e.recovery
 import bitkey.backup.DescriptorBackup
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
@@ -18,7 +19,7 @@ interface ListKeysetsF8eClient {
    */
   data class ListKeysetsResponse(
     val keysets: List<SpendingKeyset>,
-    val wrappedSsek: String?,
+    val wrappedSsek: SealedSsek?,
     val descriptorBackups: List<DescriptorBackup>?,
   )
 }

@@ -8,7 +8,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon.*
+import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.Icon.SmallIconArrowRight
+import build.wallet.statemachine.core.Icon.SmallIconBitkey
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.components.card.Card
@@ -49,7 +51,7 @@ fun NewCard(
       shape = RoundedCornerShape(16.dp),
       ambientColor = Color.Black.copy(.1f)
     ),
-    paddingValues = PaddingValues(16.dp),
+    paddingValues = PaddingValues(vertical = 16.dp, horizontal = 14.dp),
     borderWidth = 0.dp
   ) {
     Row(
@@ -59,7 +61,10 @@ fun NewCard(
         CardImage(it)
         Spacer(modifier = Modifier.width(12.dp))
       }
-      Column(verticalArrangement = Arrangement.SpaceAround) {
+      Column(
+        modifier = Modifier.weight(1F),
+        verticalArrangement = Arrangement.SpaceAround
+      ) {
         model.title?.let { title ->
           Label(
             model = title,
@@ -81,7 +86,6 @@ fun NewCard(
           )
         }
       }
-      Spacer(modifier = Modifier.weight(1F))
       Spacer(modifier = Modifier.width(20.dp))
       IconButton(
         iconModel = IconModel(
@@ -94,6 +98,7 @@ fun NewCard(
           model.onClick?.invoke()
         }
       )
+      Spacer(modifier = Modifier.width(2.dp))
     }
   }
 }
@@ -104,7 +109,12 @@ private fun CardImage(model: CardModel.CardImage) {
     is CardModel.CardImage.StaticImage ->
       IconImage(
         model = IconModel(
-          icon = model.icon,
+          // This is a workaround for the TrustedContact icon to support both cards
+          // TODO: Remove this workaround when the Security Hub FF flag is removed
+          icon = when (model.icon) {
+            Icon.MediumIconTrustedContact -> Icon.SmallIconShieldPerson
+            else -> model.icon
+          },
           iconSize = Small,
           iconTint = IconTint.White,
           iconBackgroundType = IconBackgroundType.Circle(

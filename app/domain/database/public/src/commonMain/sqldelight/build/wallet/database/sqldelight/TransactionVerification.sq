@@ -1,86 +1,22 @@
 import build.wallet.money.currency.code.IsoCurrencyTextCode;
 import kotlinx.datetime.Instant;
 
--- Stores transaction verification policy threshold and the data needed
--- to complete an optional privileged action to enable the policy
--- While a policy contains authorization information it is considered pending.
 CREATE TABLE txVerificationPolicyEntity(
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    thresholdCurrencyAlphaCode TEXT AS IsoCurrencyTextCode,
-    thresholdAmountFractionalUnitValue INTEGER,
-    delayEndTime TEXT AS Instant,
-    authId TEXT,
-    cancellationToken TEXT,
-    completionToken TEXT
+    id INTEGER NOT NULL PRIMARY KEY,
+    thresholdCurrencyAlphaCode TEXT AS IsoCurrencyTextCode NOT NULL,
+    thresholdAmountFractionalUnitValue INTEGER NOT NULL
 );
 
--- Insert a new policy into the database with a threshold and optional auth
--- If the auth is null, this policy will be considered active.
-createPendingPolicy:
-INSERT INTO txVerificationPolicyEntity(
+setPolicy:
+INSERT OR REPLACE INTO txVerificationPolicyEntity(
+    id,
     thresholdCurrencyAlphaCode,
-    thresholdAmountFractionalUnitValue,
-    delayEndTime,
-    authId,
-    cancellationToken,
-    completionToken
+    thresholdAmountFractionalUnitValue
 )
-VALUES(?, ?, ?, ?, ?, ?)
-RETURNING *;
-
-replaceActivePolicy {
-    -- Delete any active policies before inserting a new active one
-    DELETE FROM txVerificationPolicyEntity
-    WHERE authId IS NULL
-    AND delayEndTime IS NULL
-    AND cancellationToken IS NULL
-    AND completionToken IS NULL;
-
-    INSERT INTO txVerificationPolicyEntity(
-        thresholdCurrencyAlphaCode,
-        thresholdAmountFractionalUnitValue
-    )
-    VALUES(?, ?)
-    RETURNING *;
-}
-
--- Remove the auth properties from the specified policy, making it active.
-promotePolicy {
-    -- Delete any active policies before inserting a new active one
-    DELETE FROM txVerificationPolicyEntity
-    WHERE authId IS NULL
-    AND delayEndTime IS NULL
-    AND cancellationToken IS NULL
-    AND completionToken IS NULL;
-
-    UPDATE txVerificationPolicyEntity
-    SET authId = NULL,
-    cancellationToken = NULL,
-    completionToken = NULL,
-    delayEndTime = NULL
-    WHERE id = ?;
-}
+VALUES(0, ?, ?);
 
 deletePolicy:
-DELETE FROM txVerificationPolicyEntity
-WHERE id = ?;
+DELETE FROM txVerificationPolicyEntity;
 
 getActivePolicy:
-SELECT * FROM txVerificationPolicyEntity
-WHERE authId IS NULL
-AND delayEndTime IS NULL
-AND cancellationToken IS NULL
-AND completionToken IS NULL
-ORDER BY id DESC
-LIMIT 1;
-
-getPendingPolicies:
-SELECT * FROM txVerificationPolicyEntity
-WHERE authId IS NOT NULL
-AND delayEndTime IS NOT NULL
-AND completionToken IS NOT NULL
-AND cancellationToken IS NOT NULL
-ORDER BY delayEndTime ASC;
-
-clear:
-DELETE FROM txVerificationPolicyEntity;
+SELECT * FROM txVerificationPolicyEntity WHERE id = 0;

@@ -81,7 +81,6 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
   val onFwUpRequiredCalls = turbines.create<Unit>("onFwUpRequired calls")
 
   val enrolledFingerprints = EnrolledFingerprints(
-    maxCount = 3,
     fingerprintHandles = immutableListOf(
       FingerprintHandle(index = 0, label = "Left Thumb"),
       FingerprintHandle(index = 2, label = "Right Thumb")
@@ -268,7 +267,6 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
 
       // "Enroll" a new fingerprint at index 1
       val fingerprints = EnrolledFingerprints(
-        maxCount = 3,
         fingerprintHandles = listOf(
           FingerprintHandle(index = 0, label = "Left Thumb"),
           FingerprintHandle(index = 1, label = "Right Pinky"),
@@ -379,7 +377,6 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
 
       // "Save" the new label to hardware, which will return the latest fingerprints
       val fingerprints = EnrolledFingerprints(
-        maxCount = 3,
         fingerprintHandles = listOf(
           FingerprintHandle(index = 0, label = "New Finger"),
           FingerprintHandle(index = 2, label = "Right Thumb")
@@ -478,7 +475,6 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
 
       // Delete the handle on hardware, which will return the latest fingerprints
       val fingerprints = EnrolledFingerprints(
-        maxCount = 3,
         fingerprintHandles = listOf(
           FingerprintHandle(index = 0, label = "New Finger")
         )

@@ -83,7 +83,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     onExit = {
       onExitCalls += Unit
     },
-    eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
+    eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION,
+    pairingContext = PairingContext.Onboarding
   )
 
   beforeTest {

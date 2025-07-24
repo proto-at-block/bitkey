@@ -4,6 +4,7 @@ import app.cash.turbine.ReceiveTurbine
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
+import build.wallet.feature.setFlagValue
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
@@ -50,12 +51,14 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
   suspend fun TestScope.launchAndPrepareApp() {
     app = launchNewApp()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
     app.onboardFullAccountWithFakeHardware()
     app.fakeNfcCommands.wipeDevice()
   }
 
   suspend fun relaunchApp() {
     app = app.relaunchApp()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
   }
 
   test("lost hardware recovery - happy path") {

@@ -8,15 +8,24 @@ class SymmetricKeyEncryptorFake : SymmetricKeyEncryptor {
   var sealNoMetadataResult: SealedData? = null
   var unsealNoMetadataResult: ByteString? = null
   var unsealError: Boolean = false
+  
+  // Store the last sealed data for test verification
+  var lastSealedData: ByteString? = null
+    private set
 
   override fun sealNoMetadata(
     unsealedData: ByteString,
     key: SymmetricKey,
-  ) = sealNoMetadataResult ?: SealedData(
-    ciphertext = unsealedData,
-    nonce = key.raw,
-    tag = ByteString.EMPTY
-  )
+  ): SealedData {
+    // Store the unsealed data for test access
+    lastSealedData = unsealedData
+    
+    return sealNoMetadataResult ?: SealedData(
+      ciphertext = unsealedData,
+      nonce = key.raw,
+      tag = ByteString.EMPTY
+    )
+  }
 
   override fun unsealNoMetadata(
     sealedData: SealedData,
@@ -51,5 +60,6 @@ class SymmetricKeyEncryptorFake : SymmetricKeyEncryptor {
     sealNoMetadataResult = null
     unsealNoMetadataResult = null
     unsealError = false
+    lastSealedData = null
   }
 }

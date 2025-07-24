@@ -12,8 +12,11 @@ use payloads::{
     inheritance_claim_period_initiated::InheritanceClaimPeriodInitiatedPayload,
     payment::ConfirmedPaymentPayload, payment::PendingPaymentPayload,
     privileged_action_canceled_delay_period::PrivilegedActionCanceledDelayPeriodPayload,
+    privileged_action_canceled_oob_verification::PrivilegedActionCanceledOutOfBandVerificationPayload,
     privileged_action_completed_delay_period::PrivilegedActionCompletedDelayPeriodPayload,
+    privileged_action_completed_oob_verification::PrivilegedActionCompletedOutOfBandVerificationPayload,
     privileged_action_pending_delay_period::PrivilegedActionPendingDelayPeriodPayload,
+    privileged_action_pending_oob_verification::PrivilegedActionPendingOutOfBandVerificationPayload,
     push_blast::PushBlastPayload,
     recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
     recovery_completed_delay_period::RecoveryCompletedDelayPeriodPayload,
@@ -21,6 +24,7 @@ use payloads::{
     recovery_relationship_benefactor_invitation_pending::RecoveryRelationshipBenefactorInvitationPendingPayload,
     recovery_relationship_deleted::RecoveryRelationshipDeletedPayload,
     recovery_relationship_invitation_accepted::RecoveryRelationshipInvitationAcceptedPayload,
+    security_hub::SecurityHubPayload,
     social_challenge_response_received::SocialChallengeResponseReceivedPayload,
     test_notification::TestNotificationPayload,
     transaction_verification::TransactionVerificationPayload,
@@ -33,8 +37,6 @@ use strum_macros::{Display as StrumDisplay, EnumString};
 use thiserror::Error;
 use types::notification::NotificationCategory;
 use ulid::DecodeError;
-
-use crate::payloads::security_hub::SecurityHubPayload;
 
 use self::{email::EmailPayload, push::SNSPushPayload};
 use entities::NotificationCompositeKey;
@@ -128,8 +130,11 @@ pub enum NotificationPayloadType {
     PushBlast,
     PendingPaymentNotification,
     PrivilegedActionCanceledDelayPeriod,
+    PrivilegedActionCanceledOutOfBandVerification,
     PrivilegedActionCompletedDelayPeriod,
+    PrivilegedActionCompletedOutOfBandVerification,
     PrivilegedActionPendingDelayPeriod,
+    PrivilegedActionPendingOutOfBandVerification,
     InheritanceClaimPeriodAlmostOver,
     InheritanceClaimPeriodInitiated,
     InheritanceClaimCanceled,
@@ -152,8 +157,11 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::PushBlast
             | NotificationPayloadType::TestPushNotification
             | NotificationPayloadType::PrivilegedActionCanceledDelayPeriod
+            | NotificationPayloadType::PrivilegedActionCanceledOutOfBandVerification
             | NotificationPayloadType::PrivilegedActionCompletedDelayPeriod
+            | NotificationPayloadType::PrivilegedActionCompletedOutOfBandVerification
             | NotificationPayloadType::PrivilegedActionPendingDelayPeriod
+            | NotificationPayloadType::PrivilegedActionPendingOutOfBandVerification
             | NotificationPayloadType::InheritanceClaimPeriodAlmostOver
             | NotificationPayloadType::InheritanceClaimPeriodInitiated
             | NotificationPayloadType::InheritanceClaimCanceled
@@ -248,6 +256,16 @@ impl NotificationPayloadType {
                     .privileged_action_canceled_delay_period_payload
                     .is_some()
             }
+            NotificationPayloadType::PrivilegedActionCanceledOutOfBandVerification => {
+                builder.privileged_action_canceled_oob_verification_payload(
+                    payload
+                        .privileged_action_canceled_oob_verification_payload
+                        .clone(),
+                );
+                payload
+                    .privileged_action_canceled_oob_verification_payload
+                    .is_some()
+            }
             NotificationPayloadType::PrivilegedActionCompletedDelayPeriod => {
                 builder.privileged_action_completed_delay_period_payload(
                     payload
@@ -258,6 +276,16 @@ impl NotificationPayloadType {
                     .privileged_action_completed_delay_period_payload
                     .is_some()
             }
+            NotificationPayloadType::PrivilegedActionCompletedOutOfBandVerification => {
+                builder.privileged_action_completed_oob_verification_payload(
+                    payload
+                        .privileged_action_completed_oob_verification_payload
+                        .clone(),
+                );
+                payload
+                    .privileged_action_completed_oob_verification_payload
+                    .is_some()
+            }
             NotificationPayloadType::PrivilegedActionPendingDelayPeriod => {
                 builder.privileged_action_pending_delay_period_payload(
                     payload
@@ -266,6 +294,16 @@ impl NotificationPayloadType {
                 );
                 payload
                     .privileged_action_pending_delay_period_payload
+                    .is_some()
+            }
+            NotificationPayloadType::PrivilegedActionPendingOutOfBandVerification => {
+                builder.privileged_action_pending_oob_verification_payload(
+                    payload
+                        .privileged_action_pending_oob_verification_payload
+                        .clone(),
+                );
+                payload
+                    .privileged_action_pending_oob_verification_payload
                     .is_some()
             }
             NotificationPayloadType::InheritanceClaimPeriodAlmostOver => {
@@ -459,6 +497,14 @@ impl
                         .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
+            NotificationPayloadType::PrivilegedActionCanceledOutOfBandVerification => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .privileged_action_canceled_oob_verification_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
             NotificationPayloadType::PrivilegedActionCompletedDelayPeriod => {
                 NotificationMessage::try_from((
                     composite_key,
@@ -467,11 +513,27 @@ impl
                         .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
+            NotificationPayloadType::PrivilegedActionCompletedOutOfBandVerification => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .privileged_action_completed_oob_verification_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
             NotificationPayloadType::PrivilegedActionPendingDelayPeriod => {
                 NotificationMessage::try_from((
                     composite_key,
                     payload
                         .privileged_action_pending_delay_period_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
+            NotificationPayloadType::PrivilegedActionPendingOutOfBandVerification => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .privileged_action_pending_oob_verification_payload
                         .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
@@ -578,6 +640,9 @@ pub struct NotificationPayload {
     pub privileged_action_completed_delay_period_payload:
         Option<PrivilegedActionCompletedDelayPeriodPayload>,
     #[serde(default)]
+    pub privileged_action_completed_oob_verification_payload:
+        Option<PrivilegedActionCompletedOutOfBandVerificationPayload>,
+    #[serde(default)]
     pub privileged_action_pending_delay_period_payload:
         Option<PrivilegedActionPendingDelayPeriodPayload>,
     #[serde(default)]
@@ -596,4 +661,10 @@ pub struct NotificationPayload {
     pub transaction_verification_payload: Option<TransactionVerificationPayload>,
     #[serde(default)]
     pub security_hub_payload: Option<SecurityHubPayload>,
+    #[serde(default)]
+    pub privileged_action_pending_oob_verification_payload:
+        Option<PrivilegedActionPendingOutOfBandVerificationPayload>,
+    #[serde(default)]
+    pub privileged_action_canceled_oob_verification_payload:
+        Option<PrivilegedActionCanceledOutOfBandVerificationPayload>,
 }

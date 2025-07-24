@@ -12,7 +12,7 @@ pub(crate) struct AllPsbtInputsBelongToWalletRule<'a> {
     wallet: &'a Wallet<AnyDatabase>,
 }
 
-impl<'a> Rule for AllPsbtInputsBelongToWalletRule<'a> {
+impl Rule for AllPsbtInputsBelongToWalletRule<'_> {
     /// Ensure all the inputs in the PSBT belong to this wallet
     fn check_transaction(
         &self,

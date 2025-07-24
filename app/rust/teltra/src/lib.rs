@@ -50,10 +50,7 @@ impl Teltra {
         bitlog_bytes: Vec<u8>,
         device_info: TelemetryIdentifiers,
     ) -> Result<Vec<Vec<u8>>, TeltraError> {
-        let bitlogs = match parse_bitlogs(bitlog_bytes) {
-            Ok(bitlogs) => bitlogs,
-            Err(e) => return Err(e),
-        };
+        let bitlogs = parse_bitlogs(bitlog_bytes)?;
 
         let mut memfault_events = Vec::new();
 

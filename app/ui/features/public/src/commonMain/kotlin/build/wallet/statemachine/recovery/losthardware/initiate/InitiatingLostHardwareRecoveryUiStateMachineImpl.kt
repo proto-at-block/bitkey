@@ -13,6 +13,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps.Request.*
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
+import build.wallet.statemachine.account.create.full.hardware.PairingContext
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
@@ -172,7 +173,8 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                 onExit = {
                   state = AskingNewHardwareReadyQuestionState
                 },
-                eventTrackerContext = HW_RECOVERY
+                eventTrackerContext = HW_RECOVERY,
+                pairingContext = PairingContext.LostHardware
               )
             )
           is VerifyingFoundHardwareState -> {

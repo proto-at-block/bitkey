@@ -12,7 +12,7 @@ pub(crate) struct AllPsbtOutputsBelongToWalletRule<'a> {
     wallet: &'a Wallet<AnyDatabase>,
 }
 
-impl<'a> Rule for AllPsbtOutputsBelongToWalletRule<'a> {
+impl Rule for AllPsbtOutputsBelongToWalletRule<'_> {
     /// Ensure all the outputs in the PSBT belong to this wallet
     /// Requires a synced wallet
     fn check_transaction(

@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.statemachine.account.create.full.hardware.HardwareFingerprintEnrollmentScreenModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -24,8 +25,13 @@ class EnrollingFingerprintUiStateMachineImpl(
 ) : EnrollingFingerprintUiStateMachine {
   @Composable
   override fun model(props: EnrollingFingerprintProps): ScreenModel {
-    var uiState: EnrollingFingerprintUiState by remember {
-      mutableStateOf(StartingEnrollmentUiState)
+    val initialState = when (props.context) {
+      EnrollmentContext.FingerprintReset -> ShowingFingerprintInstructionsUiState()
+      EnrollmentContext.AddingFingerprint -> StartingEnrollmentUiState
+    }
+
+    var uiState by remember {
+      mutableStateOf(initialState)
     }
 
     return when (val state = uiState) {
@@ -59,11 +65,17 @@ class EnrollingFingerprintUiStateMachineImpl(
           onErrorOverlayClosed = {
             uiState = state.copy(showingIncompleteEnrollmentError = false)
           },
-          onBack = props.onCancel,
+          onBack = when (props.context) {
+            EnrollmentContext.FingerprintReset -> null
+            else -> props.onCancel
+          },
           eventTrackerContext = NfcEventTrackerScreenIdContext.ENROLLING_NEW_FINGERPRINT,
           isNavigatingBack = state.isNavigatingBack,
           presentationStyle = ScreenPresentationStyle.RootFullScreen,
-          headline = "Add a new fingerprint",
+          headline = when (props.context) {
+            EnrollmentContext.FingerprintReset -> "Set up your fingerprint"
+            else -> "Add a new fingerprint"
+          },
           instructions = "Place your finger on the sensor until you see a blue light. Lift your" +
             " finger and repeat (15-20 times) adjusting your finger position slightly each time," +
             " until the light turns green. Then save your fingerprint."
@@ -71,12 +83,30 @@ class EnrollingFingerprintUiStateMachineImpl(
       ConfirmingEnrollmentStatusUiState -> nfcSessionUIStateMachine.model(
         NfcSessionUIStateMachineProps(
           session = { session, commands ->
-            fingerprintNfcCommands.checkEnrollmentStatus(
+
+            val enrollmentStatus = fingerprintNfcCommands.checkEnrollmentStatus(
               commands = commands,
               session = session,
               enrolledFingerprints = props.enrolledFingerprints,
               fingerprintHandle = props.fingerprintHandle
             )
+
+            if (props.context == EnrollmentContext.FingerprintReset &&
+              enrollmentStatus is EnrollmentStatusResult.Complete
+            ) {
+              // If we are resetting fingerprints, we need to delete all other fingerprints
+              enrollmentStatus.enrolledFingerprints
+                .fingerprintHandles.filter { it.index != props.fingerprintHandle.index }
+                .forEach { commands.deleteFingerprint(session, it.index) }
+
+              EnrollmentStatusResult.Complete(
+                enrolledFingerprints = EnrolledFingerprints(
+                  fingerprintHandles = listOf(props.fingerprintHandle)
+                )
+              )
+            } else {
+              enrollmentStatus
+            }
           },
           onSuccess = { response ->
             when (response) {
@@ -92,7 +122,8 @@ class EnrollingFingerprintUiStateMachineImpl(
           },
           onCancel = { uiState = ShowingFingerprintInstructionsUiState(isNavigatingBack = true) },
           screenPresentationStyle = ScreenPresentationStyle.Modal,
-          eventTrackerContext = NfcEventTrackerScreenIdContext.CHECKING_FINGERPRINT_ENROLLMENT_STATUS
+          eventTrackerContext = NfcEventTrackerScreenIdContext.CHECKING_FINGERPRINT_ENROLLMENT_STATUS,
+          shouldLock = props.context != EnrollmentContext.FingerprintReset
         )
       )
     }

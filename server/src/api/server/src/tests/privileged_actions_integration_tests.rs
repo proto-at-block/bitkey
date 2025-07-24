@@ -4,23 +4,29 @@ use std::sync::Arc;
 use http::StatusCode;
 use notification::service::FetchForAccountInput;
 use notification::NotificationPayloadType;
+use privileged_action::routes::ProcessPrivilegedActionVerificationRequest;
 use privileged_action::routes::{
     CancelPendingDelayAndNotifyInstanceByTokenRequest,
     CancelPendingDelayAndNotifyInstanceByTokenResponse,
     ConfigurePrivilegedActionDelayDurationsRequest,
-    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingDelayAndNotifyInstancesResponse,
-    GetPrivilegedActionDefinitionsResponse,
+    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingInstancesParams,
+    GetPendingInstancesResponse, GetPrivilegedActionDefinitionsResponse,
 };
 use time::OffsetDateTime;
 use types::account::entities::Account;
+use types::account::entities::TransactionVerificationPolicy;
 use types::account::identifiers::AccountId;
 use types::privileged_action::definition::AuthorizationStrategyDefinition;
+use types::privileged_action::repository::{
+    AuthorizationStrategyRecord, PrivilegedActionInstanceRecord,
+};
 use types::privileged_action::router::generic::{
     AuthorizationStrategyInput, AuthorizationStrategyOutput, ContinuePrivilegedActionRequest,
     DelayAndNotifyInput, PrivilegedActionInstanceInput, PrivilegedActionRequest,
     PrivilegedActionResponse,
 };
 use types::privileged_action::shared::{PrivilegedActionDelayDuration, PrivilegedActionInstanceId};
+use types::transaction_verification::router::PutTransactionVerificationPolicyRequest;
 use types::{account::AccountType, privileged_action::shared::PrivilegedActionType};
 
 use super::TestContext;
@@ -109,11 +115,14 @@ async fn get_pending_privileged_action_instances(
     auth: &CognitoAuthentication,
     expected_status: StatusCode,
     expected_count: usize,
-) -> Option<GetPendingDelayAndNotifyInstancesResponse> {
+) -> Option<GetPendingInstancesResponse> {
     let get_resp = client
-        .get_pending_delay_and_notify_instances(
+        .get_pending_instances(
             &account_id.to_string(),
             auth,
+            &GetPendingInstancesParams {
+                privileged_action_type: None,
+            },
             context.account_authentication_keys.get(account_id).unwrap(),
         )
         .await;
@@ -603,4 +612,74 @@ async fn get_instances_cancel_instance_test() {
         customer_notifications_types,
         expected_customer_notification_types
     );
+}
+
+#[tokio::test]
+pub async fn respond_to_privileged_action_request_test() {
+    let clock = Arc::new(OffsetClock::new());
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let account = create_account(&mut context, &bootstrap.services, AccountType::Full, false).await;
+    let keys = context
+        .get_authentication_keys_for_account_id(account.get_id())
+        .unwrap();
+
+    bootstrap
+        .services
+        .account_service
+        .put_transaction_verification_policy(
+            account.get_id(),
+            TransactionVerificationPolicy::Always,
+        )
+        .await
+        .expect("Failed to set transaction verification policy");
+
+    let resp = client
+        .update_transaction_verification_policy(
+            account.get_id(),
+            true,
+            true,
+            &keys,
+            &PutTransactionVerificationPolicyRequest {
+                policy: TransactionVerificationPolicy::Never,
+            },
+        )
+        .await;
+
+    let Some(PrivilegedActionResponse::Pending(pending_resp)) = resp.body else {
+        panic!("Expected Pending response");
+    };
+
+    let web_auth_token = {
+        let instance_record: PrivilegedActionInstanceRecord<
+            PutTransactionVerificationPolicyRequest,
+        > = bootstrap
+            .services
+            .privileged_action_service
+            .privileged_action_repository
+            .fetch_by_id(&pending_resp.privileged_action_instance.id)
+            .await
+            .expect("Failed to fetch privileged action instance");
+
+        let AuthorizationStrategyRecord::OutOfBand(oob_record) =
+            &instance_record.authorization_strategy
+        else {
+            panic!("Expected OutOfBand authorization strategy record");
+        };
+
+        oob_record.web_auth_token.clone()
+    };
+
+    let resp = client
+        .respond_to_out_of_band_privileged_action(
+            &ProcessPrivilegedActionVerificationRequest::Confirm {
+                privileged_action_type: PrivilegedActionType::LoosenTransactionVerificationPolicy,
+                web_auth_token,
+            },
+        )
+        .await;
+
+    assert_eq!(resp.status_code, StatusCode::OK);
 }

@@ -16,4 +16,5 @@ data class EnrollingFingerprintProps(
   val onSuccess: suspend (EnrolledFingerprints) -> Unit,
   val fingerprintHandle: FingerprintHandle,
   val enrolledFingerprints: EnrolledFingerprints,
+  val context: EnrollmentContext,
 )

@@ -76,12 +76,12 @@ pub(crate) fn upload_latest(client: &Client) -> Result<()> {
 
     let device_info = transactor.device_info()?;
 
-    let hardware_version = match device_info.hw_revision.split('-').last() {
+    let hardware_version = match device_info.hw_revision.split('-').next_back() {
         Some(v @ ("evt" | "dvt" | "proto")) => v,
         Some(_) | None => bail!("Invalid hardware revision ('{}')", device_info.hw_revision),
     };
 
-    let software_type = match device_info.sw_type.split('-').last() {
+    let software_type = match device_info.sw_type.split('-').next_back() {
         Some(v @ ("dev" | "prod")) => v,
         Some(_) | None => bail!("Invalid software type ('{}')", device_info.sw_type),
     };

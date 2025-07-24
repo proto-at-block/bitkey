@@ -31,13 +31,12 @@ errors = { workspace = true }
 external_identifier = { workspace = true }
 
 [features]
-account = []
+account = ["currencies", "notification"]
 all = [
   "account",
   "authn_authz",
   "consent",
   "currencies",
-  "encrypted_attachment",
   "encrypted_attachment",
   "exchange_rate",
   "notification",
@@ -47,9 +46,9 @@ all = [
   "time",
 ]
 authn_authz = []
-consent = []
+consent = ["notification"]
 currencies = []
-encrypted_attachment = []
+encrypted_attachment = ["account"]
 exchange_rate = []
 notification = []
 privileged_action = []

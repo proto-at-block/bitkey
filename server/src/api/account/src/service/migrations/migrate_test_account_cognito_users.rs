@@ -22,7 +22,7 @@ impl<'a> MigrateTestAccountCognitoUsers<'a> {
 }
 
 #[async_trait]
-impl<'a> Migration for MigrateTestAccountCognitoUsers<'a> {
+impl Migration for MigrateTestAccountCognitoUsers<'_> {
     fn name(&self) -> &str {
         "20240614_migrate_test_account_cognito_users"
     }

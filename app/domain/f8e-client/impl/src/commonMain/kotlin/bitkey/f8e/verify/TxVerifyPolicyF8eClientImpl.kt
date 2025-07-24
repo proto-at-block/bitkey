@@ -1,7 +1,10 @@
 package bitkey.f8e.verify
 
+import bitkey.f8e.privilegedactions.PrivilegedActionInstance
+import bitkey.f8e.privilegedactions.toPrimitive
 import bitkey.verification.TxVerificationPolicy
 import bitkey.verification.VerificationThreshold
+import bitkey.verification.VerificationThreshold.Companion.Always
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -22,19 +25,18 @@ import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
 import build.wallet.money.currency.FiatCurrencyDao
 import build.wallet.money.currency.code.IsoCurrencyTextCode
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.map
+import com.github.michaelbull.result.*
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import dev.zacsweers.redacted.annotations.Unredacted
 import io.ktor.client.request.get
 import io.ktor.client.request.put
 import kotlinx.coroutines.flow.first
-import kotlinx.datetime.Instant
+import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonContentPolymorphicSerializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
 
 @BitkeyInject(AppScope::class)
 class TxVerifyPolicyF8eClientImpl(
@@ -44,11 +46,11 @@ class TxVerifyPolicyF8eClientImpl(
   override suspend fun setPolicy(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-    threshold: VerificationThreshold,
+    policy: TxVerificationPolicy,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
-  ): Result<TxVerificationPolicy.DelayNotifyAuthorization?, Error> {
+  ): Result<TxVerificationPolicy, Error> {
     return f8eHttpClient.authenticated()
-      .bodyResult<PolicyChangeResponse> {
+      .bodyResult<SetPolicyResponse> {
         put("/api/accounts/${fullAccountId.serverId}/tx-verify/policy") {
           withHardwareFactor(hwFactorProofOfPossession)
           withDescription("Set Tx Verification Policy")
@@ -56,13 +58,18 @@ class TxVerifyPolicyF8eClientImpl(
           withAccountId(fullAccountId)
           setRedactedBody(
             PolicyChangeRequest(
-              state = when (threshold) {
-                VerificationThreshold.Disabled -> VerificationState.NEVER
-                VerificationThreshold.Always -> VerificationState.ALWAYS
-                else -> VerificationState.THRESHOLD
+              state = when (policy) {
+                is TxVerificationPolicy.Active -> when (policy.threshold) {
+                  Always -> VerificationState.ALWAYS
+                  else -> VerificationState.THRESHOLD
+                }
+                TxVerificationPolicy.Disabled -> VerificationState.NEVER
+                is TxVerificationPolicy.Pending -> error("Can't set a pending policy directly")
               },
-              threshold = threshold.amount
-                .takeIf { threshold != VerificationThreshold.Always }
+              threshold = (policy as? TxVerificationPolicy.Active)
+                ?.threshold
+                ?.amount
+                ?.takeIf { policy.threshold != Always }
                 ?.let {
                   MoneyDTO(
                     amount = it.fractionalUnitValue.intValue(),
@@ -73,15 +80,11 @@ class TxVerifyPolicyF8eClientImpl(
           )
         }
       }.map { response ->
-        if (response.id == null || response.strategy == null) {
-          null
-        } else {
-          TxVerificationPolicy.DelayNotifyAuthorization(
-            id = TxVerificationPolicy.DelayNotifyAuthorization.AuthId(response.id),
-            delayEndTime = response.strategy.endTime,
-            cancellationToken = response.strategy.cancellationToken,
-            completionToken = response.strategy.completionToken
-          )
+        when (response) {
+          is SetPolicyResponse.EmptyResponse -> policy
+          is SetPolicyResponse.PrivilegedActionInstanceResponse ->
+            response.privilegedActionInstance
+              .let { TxVerificationPolicy.Pending(it.toPrimitive()) }
         }
       }
   }
@@ -89,7 +92,7 @@ class TxVerifyPolicyF8eClientImpl(
   override suspend fun getPolicy(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-  ): Result<VerificationThreshold, Error> {
+  ): Result<TxVerificationPolicy?, Error> {
     return f8eHttpClient.authenticated()
       .bodyResult<ThresholdResponse> {
         get("/api/accounts/${fullAccountId.serverId}/tx-verify/policy") {
@@ -99,21 +102,23 @@ class TxVerifyPolicyF8eClientImpl(
         }
       }.flatMap { response ->
         when (response.threshold) {
-          null -> VerificationThreshold.Disabled
-          else -> VerificationThreshold.Enabled(
-            response.threshold.let { threshold ->
-              when (threshold.currencyCode) {
-                BTC.textCode.code -> BitcoinMoney(
-                  fractionalUnitAmount = threshold.amount.toBigInteger()
-                )
-                else -> FiatMoney(
-                  currency = fiatCurrencyDao.fiatCurrency(
-                    textCode = IsoCurrencyTextCode(threshold.currencyCode)
-                  ).first() ?: return@flatMap Err(Error("Unsupported currency: ${threshold.currencyCode}")),
-                  fractionalUnitAmount = threshold.amount.toBigInteger()
-                )
+          null -> TxVerificationPolicy.Disabled
+          else -> TxVerificationPolicy.Active(
+            threshold = VerificationThreshold(
+              amount = response.threshold.let { threshold ->
+                when (threshold.currencyCode) {
+                  BTC.textCode.code -> BitcoinMoney(
+                    fractionalUnitAmount = threshold.amount.toBigInteger()
+                  )
+                  else -> FiatMoney(
+                    currency = fiatCurrencyDao.fiatCurrency(
+                      textCode = IsoCurrencyTextCode(threshold.currencyCode)
+                    ).first() ?: return@flatMap Err(Error("Unsupported currency: ${threshold.currencyCode}")),
+                    fractionalUnitAmount = threshold.amount.toBigInteger()
+                  )
+                }
               }
-            }
+            )
           )
         }.let { Ok(it) }
       }
@@ -128,24 +133,6 @@ private data class PolicyChangeRequest(
 ) : RedactedRequestBody
 
 @Serializable
-private data class PolicyChangeResponse(
-  @Unredacted
-  val id: String? = null,
-  @SerialName("authorization_strategy")
-  val strategy: AuthStrategy? = null,
-) : RedactedResponseBody {
-  @Serializable
-  data class AuthStrategy(
-    @SerialName("delay_end_time")
-    val endTime: Instant,
-    @SerialName("cancellation_token")
-    val cancellationToken: String,
-    @SerialName("completion_token")
-    val completionToken: String,
-  )
-}
-
-@Serializable
 private data class ThresholdResponse(
   val threshold: MoneyDTO?,
 ) : RedactedResponseBody
@@ -155,4 +142,29 @@ private enum class VerificationState {
   NEVER,
   THRESHOLD,
   ALWAYS,
+}
+
+@Serializable(with = SetPolicyResponseSerializer::class)
+private sealed interface SetPolicyResponse : RedactedResponseBody {
+  @Serializable
+  data object EmptyResponse : SetPolicyResponse
+
+  @Serializable
+  data class PrivilegedActionInstanceResponse(
+    @SerialName("privileged_action_instance")
+    val privilegedActionInstance: PrivilegedActionInstance,
+  ) : SetPolicyResponse
+}
+
+private object SetPolicyResponseSerializer : JsonContentPolymorphicSerializer<SetPolicyResponse>(
+  SetPolicyResponse::class
+) {
+  override fun selectDeserializer(
+    element: JsonElement,
+  ): DeserializationStrategy<SetPolicyResponse> {
+    return when (element.jsonObject["privileged_action_instance"]) {
+      null -> SetPolicyResponse.EmptyResponse.serializer()
+      else -> SetPolicyResponse.PrivilegedActionInstanceResponse.serializer()
+    }
+  }
 }

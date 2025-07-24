@@ -13,12 +13,20 @@ data "aws_iam_policy_document" "cmk" {
     resources = ["*"]
     principals {
       type        = "AWS"
-      identifiers = [resource.aws_iam_role.encrypted_attachment_reader.arn]
+      identifiers = ["*"]
     }
     condition {
-      test     = "ForAnyValue:StringEquals"
-      variable = "kms:EncryptionContextKeys"
-      values   = ["encryptedAttachmentId"]
+      test     = "ArnLike"
+      variable = "aws:PrincipalArn"
+      values = [
+        resource.aws_iam_role.encrypted_attachment_reader.arn,
+        "arn:aws:sts::${data.aws_caller_identity.this.account_id}:assumed-role/${resource.aws_iam_role.encrypted_attachment_reader.name}/*"
+      ]
+    }
+    condition {
+      test     = "Null"
+      variable = "kms:EncryptionContext:encryptedAttachmentId"
+      values   = ["false"]
     }
   }
 
@@ -28,12 +36,20 @@ data "aws_iam_policy_document" "cmk" {
     resources = ["*"]
     principals {
       type        = "AWS"
-      identifiers = [var.fromagerie_iam_role_arn]
+      identifiers = ["*"]
     }
     condition {
-      test     = "ForAnyValue:StringEquals"
-      variable = "kms:EncryptionContextKeys"
-      values   = ["encryptedAttachmentId"]
+      test     = "ArnLike"
+      variable = "aws:PrincipalArn"
+      values = [
+        var.fromagerie_iam_role_arn,
+        "arn:aws:sts::${data.aws_caller_identity.this.account_id}:assumed-role/${var.fromagerie_iam_role_name}/*"
+      ]
+    }
+    condition {
+      test     = "Null"
+      variable = "kms:EncryptionContext:encryptedAttachmentId"
+      values   = ["false"]
     }
     condition {
       test     = "StringEquals"

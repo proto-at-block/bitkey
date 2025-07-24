@@ -31,7 +31,7 @@ all = [
   "recovery",
 ]
 consent = ["types/consent"]
-encrypted_attachment = ["types/encrypted_attachment"]
+encrypted_attachment = ["types/account", "types/encrypted_attachment"]
 privileged_action = ["types/privileged_action"]
 recovery = ["types/recovery"]
 

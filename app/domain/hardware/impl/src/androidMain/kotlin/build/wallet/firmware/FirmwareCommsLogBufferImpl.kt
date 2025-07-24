@@ -2,7 +2,7 @@ package build.wallet.firmware
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.logging.*
+import build.wallet.logging.logDebug
 import build.wallet.rust.firmware.disableProtoExchangeLogging
 import build.wallet.rust.firmware.enableProtoExchangeLogging
 import build.wallet.rust.firmware.getProtoExchangeLogs

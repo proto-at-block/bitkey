@@ -11,6 +11,7 @@ base64 = { workspace = true }
 derive_builder = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
+rust-embed = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -28,10 +29,12 @@ http_server = { workspace = true }
 instrumentation = { workspace = true }
 notification = { workspace = true }
 repository = { workspace = true, features = ["privileged_action"] }
+secure_site = { workspace = true }
 types = { workspace = true, features = [
   "account",
   "privileged_action",
   "time",
+  "transaction_verification",
 ] }
 userpool = { workspace = true }
 

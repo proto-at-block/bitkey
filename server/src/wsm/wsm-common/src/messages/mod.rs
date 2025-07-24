@@ -42,7 +42,7 @@ impl<'a, T> SecretRequest<'a, T> {
     }
 }
 
-impl<'a, T> Debug for SecretRequest<'a, T> {
+impl<T> Debug for SecretRequest<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SecretRequest")
             .field("dek_id", &self.dek_id)

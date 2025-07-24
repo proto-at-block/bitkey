@@ -4,11 +4,12 @@ import app.cash.sqldelight.coroutines.asFlow
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.ActiveServerRecoveryEntity
 import build.wallet.database.sqldelight.BitkeyDatabase
 import build.wallet.database.sqldelight.LocalRecoveryAttemptEntity
+import build.wallet.database.sqldelight.RecoveryQueries
 import build.wallet.db.DbError
 import build.wallet.db.DbTransactionError
 import build.wallet.di.AppScope
@@ -76,7 +77,7 @@ class RecoveryDaoImpl(
         queries.awaitTransactionWithResult {
           val localRecoveryAttempt = localRecoveryQuery.executeAsOneOrNull()
           val activeServerRecovery = serverRecoveryQuery.executeAsOneOrNull()
-          localRecoveryAttempt?.toRecovery(activeServerRecovery)
+          localRecoveryAttempt?.toRecovery(activeServerRecovery, queries)
             ?: activeServerRecovery?.let { SomeoneElseIsRecovering(it.lostFactor) }
             ?: NoActiveRecovery
         }
@@ -95,10 +96,11 @@ class RecoveryDaoImpl(
   ): Result<Unit, DbError> {
     return when (progress) {
       is CreatedPendingKeybundles -> markAsInitiated(progress)
-      is AttemptingCompletion -> markAsAttemptingCompletion(progress.sealedCsek)
+      is AttemptingCompletion -> markAsAttemptingCompletion(progress)
       is CompletionAttemptFailedDueToServerCancellation -> markAsCompletionAttemptFailed()
       is RotatedAuthKeys -> markAuthKeysRotated()
       is RotatedSpendingKeys -> markSpendingKeysRotated(progress)
+      is UploadedDescriptorBackups -> markUploadedDescriptorBackups(progress)
       DdkBackedUp -> markDdkBackedUp()
       BackedUpToCloud -> markCloudBackedUp()
       is SweptFunds -> markFundsSwept(progress.keyboxToActivate)
@@ -144,11 +146,11 @@ class RecoveryDaoImpl(
   }
 
   private suspend fun markAsAttemptingCompletion(
-    csek: SealedCsek,
+    progress: AttemptingCompletion,
   ): Result<Unit, DbTransactionError> {
     return databaseProvider.database()
       .awaitTransaction {
-        recoveryQueries.markAsAttemptingCompletion(csek)
+        recoveryQueries.markAsAttemptingCompletion(progress.sealedCsek, progress.sealedSsek)
       }
   }
 
@@ -169,6 +171,31 @@ class RecoveryDaoImpl(
           progress.f8eSpendingKeyset.spendingPublicKey
         )
       }
+  }
+
+  private suspend fun markUploadedDescriptorBackups(
+    progress: UploadedDescriptorBackups,
+  ): Result<Unit, DbError> {
+    return databaseProvider.database().awaitTransaction {
+      // First clear any dangling recovery spending keysets, just in case.
+      recoveryQueries.clearRecoverySpendingKeysets()
+
+      // Mark uploaded before inserting new keysets
+      recoveryQueries.markUploadedDescriptorBackups()
+
+      // Insert all descriptors
+      progress.spendingKeysets.forEach {
+        recoveryQueries.insertRecoverySpendingKeyset(
+          recoveryAttemptRowId = 0, // Using stable rowId,
+          keysetLocalId = it.localId,
+          keysetServerId = it.f8eSpendingKeyset.keysetId,
+          appKey = it.appKey,
+          hardwareKey = it.hardwareKey,
+          serverKey = it.f8eSpendingKeyset.spendingPublicKey,
+          networkType = it.networkType
+        )
+      }
+    }
   }
 
   private suspend fun markDdkBackedUp(): Result<Unit, DbTransactionError> {
@@ -218,6 +245,7 @@ private fun ActiveServerRecoveryEntity.toServerRecovery(): ServerRecovery {
  */
 private fun LocalRecoveryAttemptEntity.toRecovery(
   serverRecovery: ActiveServerRecoveryEntity?,
+  queries: RecoveryQueries,
 ): Recovery {
   // If our recovery has moved past server completion, then it's considered server-independent.
   // This state trumps all and doesn't matter if the server recovery exists, since if one
@@ -234,7 +262,7 @@ private fun LocalRecoveryAttemptEntity.toRecovery(
   // TODO(W-4229)
   // In the scenario above, let the customer exit back to the onboarding home screen recovery
   // so they could try a new recovery.
-  when (val serverIndependentRecovery = toServerIndependentRecovery()) {
+  when (val serverIndependentRecovery = toServerIndependentRecovery(queries)) {
     null -> Unit
     else -> {
       return serverIndependentRecovery
@@ -296,7 +324,8 @@ private fun LocalRecoveryAttemptEntity.serverRecoveryMissing(): Recovery {
       appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
       hardwareAuthKey = destinationHardwareAuthKey,
       factorToRecover = lostFactor,
-      sealedCsek = it
+      sealedCsek = it,
+      sealedSsek = sealedSsek
     )
   }
 
@@ -324,9 +353,28 @@ private fun LocalRecoveryAttemptEntity.serverRecoveryMissing(): Recovery {
  * what the local one represents. If the local recovery attempt is not server-dependent,
  * then it returns null.
  */
-private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(): ServerIndependentRecovery? {
+private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
+  queries: RecoveryQueries,
+): ServerIndependentRecovery? {
   if (authKeysRotated) {
     if (spendingKeysRotated()) {
+      // Get the local set of keysets from the recovery table; this is all active + inactive keysets
+      // for the account, including the one created by this recovery.
+      val storedKeysets = queries.getRecoverySpendingKeysets()
+        .executeAsList()
+        .map {
+          SpendingKeyset(
+            localId = it.keysetLocalId,
+            f8eSpendingKeyset = F8eSpendingKeyset(
+              keysetId = it.keysetServerId,
+              spendingPublicKey = it.serverKey
+            ),
+            appKey = it.appKey,
+            hardwareKey = it.hardwareKey,
+            networkType = it.networkType
+          )
+        }
+
       if (backedUpToCloud) {
         return ServerIndependentRecovery.BackedUpToCloud(
           f8eSpendingKeyset =
@@ -341,7 +389,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(): ServerInde
           hardwareSpendingKey = destinationHardwareSpendingKey,
           hardwareAuthKey = destinationHardwareAuthKey,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
-          factorToRecover = lostFactor
+          factorToRecover = lostFactor,
+          keysets = storedKeysets
         )
       }
 
@@ -360,7 +409,30 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(): ServerInde
           hardwareAuthKey = destinationHardwareAuthKey,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           factorToRecover = lostFactor,
-          sealedCsek = sealedCsek!!
+          sealedCsek = sealedCsek!!,
+          sealedSsek = sealedSsek,
+          keysets = storedKeysets
+        )
+      }
+
+      if (uploadedDescriptorBackups) {
+        return ServerIndependentRecovery.UploadedDescriptorBackups(
+          f8eSpendingKeyset =
+            F8eSpendingKeyset(
+              keysetId = serverKeysetId!!,
+              spendingPublicKey = serverSpendingKey!!
+            ),
+          fullAccountId = account,
+          appSpendingKey = destinationAppSpendingKey,
+          appGlobalAuthKey = destinationAppGlobalAuthKey,
+          appRecoveryAuthKey = destinationAppRecoveryAuthKey,
+          hardwareSpendingKey = destinationHardwareSpendingKey,
+          hardwareAuthKey = destinationHardwareAuthKey,
+          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+          factorToRecover = lostFactor,
+          sealedCsek = sealedCsek!!,
+          sealedSsek = sealedSsek,
+          keysets = storedKeysets
         )
       } else {
         return ServerIndependentRecovery.CreatedSpendingKeys(
@@ -377,6 +449,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(): ServerInde
           hardwareAuthKey = destinationHardwareAuthKey,
           factorToRecover = lostFactor,
           sealedCsek = sealedCsek!!,
+          sealedSsek = sealedSsek,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
         )
       }
@@ -390,7 +463,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(): ServerInde
         hardwareAuthKey = destinationHardwareAuthKey,
         appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
         factorToRecover = lostFactor,
-        sealedCsek = sealedCsek!!
+        sealedCsek = sealedCsek!!,
+        sealedSsek = sealedSsek
       )
     }
   } else {
@@ -403,50 +477,71 @@ private fun LocalRecoveryAttemptEntity.spendingKeysRotated(): Boolean {
 }
 
 private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
-  // TODO [W-11633]: Instead of inserting only the active keyset, `keysets` list should be persisted.
-  spendingKeysetQueries.insertKeyset(
-    id = keybox.activeSpendingKeyset.localId,
-    serverId = keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
-    appKey = keybox.activeSpendingKeyset.appKey,
-    hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
-    serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey
+  // Insert the full account
+  fullAccountQueries.insertFullAccount(
+    accountId = keybox.fullAccountId
   )
 
-  // Insert the app key bundle
-  appKeyBundleQueries.insertKeyBundle(
-    id = keybox.activeAppKeyBundle.localId,
-    globalAuthKey = keybox.activeAppKeyBundle.authKey,
-    spendingKey = keybox.activeAppKeyBundle.spendingKey,
-    recoveryAuthKey = keybox.activeAppKeyBundle.recoveryAuthKey
-  )
-
-  // Insert the hw key bundle
-  hwKeyBundleQueries.insertKeyBundle(
-    id = keybox.activeHwKeyBundle.localId,
-    authKey = keybox.activeHwKeyBundle.authKey,
-    spendingKey = keybox.activeHwKeyBundle.spendingKey
-  )
-
-  // Insert the keybox
+  // Then, insert the keybox which points to the account.
   keyboxQueries.insertKeybox(
     id = keybox.localId,
-    account = keybox.fullAccountId,
-    activeSpendingKeysetId = keybox.activeSpendingKeyset.localId,
-    activeKeyBundleId = keybox.activeAppKeyBundle.localId,
-    activeHwKeyBundleId = keybox.activeHwKeyBundle.localId,
+    accountId = keybox.fullAccountId,
     appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
     networkType = keybox.config.bitcoinNetworkType,
     fakeHardware = keybox.config.isHardwareFake,
     f8eEnvironment = keybox.config.f8eEnvironment,
     isTestAccount = keybox.config.isTestAccount,
     isUsingSocRecFakes = keybox.config.isUsingSocRecFakes,
-    delayNotifyDuration = keybox.config.delayNotifyDuration
+    delayNotifyDuration = keybox.config.delayNotifyDuration,
+    canUseKeyboxKeysets = keybox.canUseKeyboxKeysets
   )
 
-  // Insert and activate full account
-  fullAccountQueries.insertFullAccount(
-    accountId = keybox.fullAccountId,
-    keyboxId = keybox.localId
+  // Insert the app key bundle
+  appKeyBundleQueries.insertKeyBundle(
+    id = keybox.activeAppKeyBundle.localId,
+    keyboxId = keybox.localId,
+    globalAuthKey = keybox.activeAppKeyBundle.authKey,
+    spendingKey = keybox.activeAppKeyBundle.spendingKey,
+    recoveryAuthKey = keybox.activeAppKeyBundle.recoveryAuthKey,
+    isActive = true
   )
+
+  // Insert the hw key bundle
+  hwKeyBundleQueries.insertKeyBundle(
+    id = keybox.activeHwKeyBundle.localId,
+    keyboxId = keybox.localId,
+    authKey = keybox.activeHwKeyBundle.authKey,
+    spendingKey = keybox.activeHwKeyBundle.spendingKey,
+    isActive = true
+  )
+
+  // Insert all keysets, if they're available
+  if (keybox.keysets.isNotEmpty()) {
+    for (keyset in keybox.keysets) {
+      val isActive = keyset.localId == keybox.activeSpendingKeyset.localId
+      spendingKeysetQueries.insertKeyset(
+        id = keyset.localId,
+        keyboxId = keybox.localId,
+        serverId = keyset.f8eSpendingKeyset.keysetId,
+        appKey = keyset.appKey,
+        hardwareKey = keyset.hardwareKey,
+        serverKey = keyset.f8eSpendingKeyset.spendingPublicKey,
+        isActive = isActive
+      )
+    }
+  } else {
+    // Otherwise, just insert the active keyset.
+    spendingKeysetQueries.insertKeyset(
+      id = keybox.activeSpendingKeyset.localId,
+      keyboxId = keybox.localId,
+      serverId = keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+      appKey = keybox.activeSpendingKeyset.appKey,
+      hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
+      serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey,
+      isActive = true
+    )
+  }
+
+  // Activate full account
   fullAccountQueries.setActiveFullAccountId(keybox.fullAccountId)
 }

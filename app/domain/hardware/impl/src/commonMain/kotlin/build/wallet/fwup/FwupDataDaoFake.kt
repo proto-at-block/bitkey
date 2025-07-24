@@ -15,16 +15,30 @@ import okio.ByteString.Companion.encodeUtf8
 @Fake
 @BitkeyInject(AppScope::class)
 class FwupDataDaoFake(
-  private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
+  firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
 ) : FwupDataDao {
   private val firmwareDeviceInfoFlow = firmwareDeviceInfoDao.deviceInfo()
 
+  private var lastOfferedUpdateVersion: String? = null
+
   override fun fwupData(): Flow<Result<FwupData?, Error>> {
     return firmwareDeviceInfoFlow.map { firmwareDeviceInfo ->
-      if (firmwareDeviceInfo.get()?.version == FwupDataMockUpdate.version) {
-        Ok(null)
+      val currentVersion = firmwareDeviceInfo.get()?.version
+      if (currentVersion != null) {
+        val incrementedVersion = incrementSemver(currentVersion)
+
+        // If we've already offered this incremented version, return null (up-to-date)
+        if (lastOfferedUpdateVersion == incrementedVersion) {
+          Ok(null)
+        } else {
+          lastOfferedUpdateVersion = incrementedVersion
+          Ok(createMockUpdateData(incrementedVersion))
+        }
       } else {
-        Ok(FwupDataMockUpdate)
+        // No current version, offer a default update
+        val defaultVersion = "1.0.1"
+        lastOfferedUpdateVersion = defaultVersion
+        Ok(createMockUpdateData(defaultVersion))
       }
     }
   }
@@ -34,6 +48,7 @@ class FwupDataDaoFake(
   }
 
   override suspend fun clear(): Result<Unit, Error> {
+    lastOfferedUpdateVersion = null
     return Ok(Unit)
   }
 
@@ -44,15 +59,32 @@ class FwupDataDaoFake(
   override suspend fun getSequenceId(): Result<UInt, Error> {
     return Ok(0u)
   }
-}
 
-val FwupDataMockUpdate =
-  FwupData(
-    version = "fake-update",
-    chunkSize = 0u,
-    signatureOffset = 0u,
-    appPropertiesOffset = 0u,
-    firmware = "firmware".encodeUtf8(),
-    signature = "signature".encodeUtf8(),
-    fwupMode = Delta
-  )
+  private fun incrementSemver(version: String): String {
+    return try {
+      val parts = version.split('.')
+      if (parts.size == 3) {
+        val major = parts[0].toInt()
+        val minor = parts[1].toInt()
+        val patch = parts[2].toInt()
+        "$major.$minor.${patch + 1}"
+      } else {
+        "1.0.1"
+      }
+    } catch (e: NumberFormatException) {
+      "1.0.1"
+    }
+  }
+
+  private fun createMockUpdateData(version: String): FwupData {
+    return FwupData(
+      version = version,
+      chunkSize = 0u,
+      signatureOffset = 0u,
+      appPropertiesOffset = 0u,
+      firmware = "firmware".encodeUtf8(),
+      signature = "signature".encodeUtf8(),
+      fwupMode = Delta
+    )
+  }
+}

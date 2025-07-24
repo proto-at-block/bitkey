@@ -16,7 +16,7 @@ impl<'a> AddAppAuthPubkey<'a> {
 }
 
 #[async_trait]
-impl<'a> Migration for AddAppAuthPubkey<'a> {
+impl Migration for AddAppAuthPubkey<'_> {
     fn name(&self) -> &str {
         "20230905_add_app_auth_pubkey"
     }

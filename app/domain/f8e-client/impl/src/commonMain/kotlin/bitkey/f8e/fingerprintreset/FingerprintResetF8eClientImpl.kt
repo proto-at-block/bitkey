@@ -13,6 +13,7 @@ import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import io.ktor.client.request.*
@@ -31,7 +32,7 @@ class FingerprintResetF8eClientImpl(
         post("/api/accounts/${fullAccountId.serverId}/fingerprint-reset") {
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
-          setBody(request)
+          setRedactedBody(request)
         }
       }
       .map { it.privilegedActionInstance }
@@ -47,7 +48,7 @@ class FingerprintResetF8eClientImpl(
         post("/api/accounts/${fullAccountId.serverId}/fingerprint-reset") {
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
-          setBody(request)
+          setRedactedBody(request)
         }
       }
   }

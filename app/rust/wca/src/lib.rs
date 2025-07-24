@@ -58,7 +58,7 @@ impl Display for fwpb::KeyDescriptor {
             .filter(|p| !p.child.is_empty())
             .map(|p| p.to_string());
         let wildcard = match self.wildcard() {
-            fwpb::Wildcard::None => match self.xpub_path.as_ref().map_or(false, |p| p.wildcard) {
+            fwpb::Wildcard::None => match self.xpub_path.as_ref().is_some_and(|p| p.wildcard) {
                 true => Some("*"),
                 false => None,
             },

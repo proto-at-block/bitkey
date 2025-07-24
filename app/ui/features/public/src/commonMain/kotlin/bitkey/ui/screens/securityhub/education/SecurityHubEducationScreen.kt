@@ -86,7 +86,7 @@ class SecurityHubEducationScreenPresenter(
               SecurityHubScreen(
                 account = screen.originScreen.account,
                 hardwareRecoveryData = screen.originScreen.hardwareRecoveryData,
-                initialState = SecurityHubUiState.ResetFingerprintsState
+                initialState = SecurityHubUiState.FingerprintResetState
               )
             )
           }

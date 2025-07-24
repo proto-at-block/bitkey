@@ -1,6 +1,7 @@
 package bitkey.notifications
 
 import build.wallet.account.AccountService
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.UsSmsFeatureFlag
@@ -22,13 +23,13 @@ class NotificationsServiceImpl(
   private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider,
   private val usSmsFeatureFlag: UsSmsFeatureFlag,
   private val accountService: AccountService,
-) : NotificationsService {
+) : NotificationsService, NotificationsAppWorker {
   override fun getCriticalNotificationStatus(): Flow<NotificationsService.NotificationStatus> {
     return accountService.activeAccount()
       .mapNotNull { it?.accountId }
       .flatMapConcat { accountId ->
         combine(
-          notificationsPreferencesProvider.getNotificationsPreferences(accountId),
+          notificationsPreferencesProvider.getNotificationsPreferences(),
           usSmsFeatureFlag.flagValue()
         ) { preferences, usSmsEnabledFlag ->
           val isUsCountryCode = telephonyCountryCodeProvider.isCountry("us")
@@ -40,7 +41,7 @@ class NotificationsServiceImpl(
             NotificationChannel.Email
           )
           val notificationPermission = permissionChecker.getPermissionStatus(PushNotifications)
-          val missingChannels = criticalChannels.minus(preferences.get()?.accountSecurity.orEmpty())
+          val missingChannels = criticalChannels.minus(preferences?.get()?.accountSecurity.orEmpty())
             .let {
               if (notificationPermission != Authorized) {
                 it + NotificationChannel.Push
@@ -50,7 +51,7 @@ class NotificationsServiceImpl(
             }
 
           when {
-            preferences.isErr -> NotificationsService.NotificationStatus.Error(preferences.error)
+            preferences?.isErr == true -> NotificationsService.NotificationStatus.Error(preferences.error)
             missingChannels.isNotEmpty() -> NotificationsService.NotificationStatus.Missing(
               missingChannels
             )
@@ -59,6 +60,16 @@ class NotificationsServiceImpl(
             )
             else -> NotificationsService.NotificationStatus.Enabled
           }
+        }
+      }
+  }
+
+  override suspend fun executeWork() {
+    accountService.activeAccount()
+      .collect { account ->
+        if (account is FullAccount) {
+          // Initialize the notifications preferences provider once there is an active full account
+          notificationsPreferencesProvider.initialize()
         }
       }
   }

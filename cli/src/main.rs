@@ -85,6 +85,11 @@ enum Commands {
         app_signature: String,
         hardware_signature: String,
     },
+    /// Interactive debug REPL for stateful debugging
+    Debug {
+        /// Environment (e.g., dev, staging, prod)
+        environment: String,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -145,24 +150,6 @@ enum WalletCommands {
     },
     /// List the UTXOs in the wallet
     Utxos {},
-    /// Debug a wallet
-    Debug {
-        // default is the account table in dev
-        #[arg(short, long, default_value_t = String::from("fromagerie.accounts"))]
-        account_table: String,
-        // default is the recovery table in dev
-        #[arg(short, long, default_value_t = String::from("fromagerie.account_recovery"))]
-        recovery_table: String,
-        #[arg(short, long, default_value_t = String::from("fromagerie.social_recovery"))]
-        social_recovery_table: String,
-        #[arg(short, long, default_value_t = String::from("fromagerie.inheritance"))]
-        inheritance_table: String,
-        #[arg(short, long, default_value_t = 20)]
-        gap_limit: u32,
-        #[arg(long)]
-        address_balance: bool,
-        account_id: String,
-    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -188,13 +175,20 @@ enum FirmwareCommands {
     },
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     Registry::default()
         .with(EnvFilter::from_default_env())
         .with(tracing_subscriber::fmt::layer().with_ansi(true))
         .init();
 
     let cli = Cli::parse();
+
+    // Handle debug command early to avoid client/db initialization issues
+    if let Commands::Debug { environment } = cli.command {
+        return commands::debug::debug_repl(environment).await;
+    }
+
     let client = Client::default(&cli.server);
     let db = sled::open(&cli.wallet)?;
     let blockchain = blockchain(&cli.electrum)?;
@@ -258,24 +252,6 @@ fn main() -> Result<()> {
                 }
             },
             WalletCommands::Utxos {} => commands::wallet::utxos(&client, &db, blockchain)?,
-            WalletCommands::Debug {
-                account_table,
-                recovery_table,
-                social_recovery_table,
-                inheritance_table,
-                gap_limit,
-                address_balance,
-                account_id,
-            } => commands::wallet::debug(
-                cli.electrum,
-                account_table,
-                recovery_table,
-                social_recovery_table,
-                inheritance_table,
-                gap_limit,
-                address_balance,
-                account_id,
-            )?,
         },
         Commands::EndToEnd {
             ref treasury_root_key,
@@ -303,6 +279,7 @@ fn main() -> Result<()> {
             app_signature,
             hardware_signature,
         )?,
+        Commands::Debug { .. } => unreachable!("Debug command handled early"),
     }
 
     Ok(())

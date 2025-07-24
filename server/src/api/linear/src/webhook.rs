@@ -74,7 +74,7 @@ pub(crate) fn process_issue_sla_breached(issue_sla_breached: IssueSlaBreached) {
 }
 
 fn has_cs_escalation_label(labels: Option<Vec<Label>>) -> bool {
-    labels.map_or(false, |ls| ls.contains(&Label::CsEscalation {}))
+    labels.is_some_and(|ls| ls.contains(&Label::CsEscalation {}))
 }
 
 pub(crate) mod linear_signature {

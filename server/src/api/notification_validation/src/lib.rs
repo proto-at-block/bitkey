@@ -1,5 +1,8 @@
 use async_trait::async_trait;
 use error::NotificationValidationError;
+use notification::payloads::privileged_action_canceled_oob_verification::PrivilegedActionCanceledOutOfBandVerificationPayload;
+use notification::payloads::privileged_action_completed_oob_verification::PrivilegedActionCompletedOutOfBandVerificationPayload;
+use notification::payloads::privileged_action_pending_oob_verification::PrivilegedActionPendingOutOfBandVerificationPayload;
 use notification::payloads::security_hub::SecurityHubPayload;
 use notification::payloads::transaction_verification::TransactionVerificationPayload;
 use notification::{
@@ -35,7 +38,7 @@ use repository::{
 use serde_json::Value;
 use time::{Duration, OffsetDateTime};
 use types::{
-    privileged_action::repository::{AuthorizationStrategyRecord, DelayAndNotifyStatus},
+    privileged_action::repository::{AuthorizationStrategyRecord, OutOfBandRecord, RecordStatus},
     recovery::{inheritance::claim::InheritanceClaim, social::relationship::RecoveryRelationship},
 };
 
@@ -133,8 +136,20 @@ pub fn to_validator(
                 .privileged_action_canceled_delay_period_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::PrivilegedActionCanceledOutOfBandVerification => payload
+                .privileged_action_canceled_oob_verification_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
             NotificationPayloadType::PrivilegedActionCompletedDelayPeriod => payload
                 .privileged_action_completed_delay_period_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::PrivilegedActionCompletedOutOfBandVerification => payload
+                .privileged_action_completed_oob_verification_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::PrivilegedActionPendingOutOfBandVerification => payload
+                .privileged_action_pending_oob_verification_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
             NotificationPayloadType::PrivilegedActionPendingDelayPeriod => payload
@@ -298,7 +313,7 @@ impl ValidateNotificationDelivery for PrivilegedActionCompletedDelayPeriodPayloa
             {
                 return privileged_action_instance.account_id == *account_id
                     && OffsetDateTime::now_utc() >= delay_and_notify_definition.delay_end_time
-                    && delay_and_notify_definition.status == DelayAndNotifyStatus::Pending;
+                    && delay_and_notify_definition.status == RecordStatus::Pending;
             }
         }
         false
@@ -324,7 +339,7 @@ impl ValidateNotificationDelivery for PrivilegedActionPendingDelayPeriodPayload 
             {
                 return privileged_action_instance.account_id == *account_id
                     && OffsetDateTime::now_utc() < delay_and_notify_definition.delay_end_time
-                    && delay_and_notify_definition.status == DelayAndNotifyStatus::Pending;
+                    && delay_and_notify_definition.status == RecordStatus::Pending;
             }
         }
         false
@@ -435,5 +450,80 @@ impl ValidateNotificationDelivery for SecurityHubPayload {
                     .any(|t| t.trigger_type == self.trigger_type && t.created_at == self.created_at)
             })
             .unwrap_or_default()
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for PrivilegedActionPendingOutOfBandVerificationPayload {
+    async fn validate_delivery(
+        &self,
+        state: &NotificationValidationState,
+        _: &NotificationCompositeKey,
+    ) -> bool {
+        let privileged_action_result = state
+            .privileged_action_repository
+            .fetch_by_id::<Value>(&self.privileged_action_instance_id)
+            .await;
+
+        matches!(
+            privileged_action_result,
+            Ok(instance) if matches!(
+                instance.authorization_strategy,
+                AuthorizationStrategyRecord::OutOfBand(OutOfBandRecord {
+                    status: RecordStatus::Pending,
+                    ..
+                })
+            )
+        )
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for PrivilegedActionCanceledOutOfBandVerificationPayload {
+    async fn validate_delivery(
+        &self,
+        state: &NotificationValidationState,
+        _: &NotificationCompositeKey,
+    ) -> bool {
+        let privileged_action_result = state
+            .privileged_action_repository
+            .fetch_by_id::<Value>(&self.privileged_action_instance_id)
+            .await;
+
+        matches!(
+            privileged_action_result,
+            Ok(instance) if matches!(
+                instance.authorization_strategy,
+                AuthorizationStrategyRecord::OutOfBand(OutOfBandRecord {
+                    status: RecordStatus::Canceled,
+                    ..
+                })
+            )
+        )
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for PrivilegedActionCompletedOutOfBandVerificationPayload {
+    async fn validate_delivery(
+        &self,
+        state: &NotificationValidationState,
+        _: &NotificationCompositeKey,
+    ) -> bool {
+        let privileged_action_result = state
+            .privileged_action_repository
+            .fetch_by_id::<Value>(&self.privileged_action_instance_id)
+            .await;
+
+        matches!(
+            privileged_action_result,
+            Ok(instance) if matches!(
+                instance.authorization_strategy,
+                AuthorizationStrategyRecord::OutOfBand(OutOfBandRecord {
+                    status: RecordStatus::Completed,
+                    ..
+                })
+            )
+        )
     }
 }

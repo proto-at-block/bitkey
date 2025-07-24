@@ -37,26 +37,25 @@ class CloudBackupV2RestorerImplTests : FunSpec({
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val relationshipKeysDao = RelationshipsKeysDaoFake()
 
-  val accountRestoration =
-    AccountRestoration(
-      activeSpendingKeyset = SpendingKeysetMock,
-      activeAppKeyBundle = AppKeyBundleMock.copy(
-        localId = "uuid-0"
-      ),
-      activeHwKeyBundle = HwKeyBundleMock.copy(
-        localId = "uuid-1"
-      ),
-      config =
-        FullAccountConfig(
-          bitcoinNetworkType = SIGNET,
-          f8eEnvironment = Development,
-          isHardwareFake = false,
-          isTestAccount = true,
-          isUsingSocRecFakes = false
-        ),
-      cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock,
-      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
-    )
+  val accountRestoration = AccountRestoration(
+    activeSpendingKeyset = SpendingKeysetMock,
+    keysets = listOf(SpendingKeysetMock),
+    activeAppKeyBundle = AppKeyBundleMock.copy(
+      localId = "uuid-0"
+    ),
+    activeHwKeyBundle = HwKeyBundleMock.copy(
+      localId = "uuid-1"
+    ),
+    config = FullAccountConfig(
+      bitcoinNetworkType = SIGNET,
+      f8eEnvironment = Development,
+      isHardwareFake = false,
+      isTestAccount = true,
+      isUsingSocRecFakes = false
+    ),
+    cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock,
+    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
+  )
 
   afterTest {
     csekDao.reset()
@@ -74,7 +73,8 @@ class CloudBackupV2RestorerImplTests : FunSpec({
 
   test("test restoration from backup to an AccountRestoration") {
     csekDao.set(SealedCsekFake, CsekFake)
-    symmetricKeyEncryptor.unsealNoMetadataResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
+    symmetricKeyEncryptor.unsealNoMetadataResult =
+      Json.encodeToString(FullAccountKeysMock).encodeUtf8()
     val accountRestorationResult = restorer.restore(CloudBackupV2WithFullAccountMock)
     accountRestorationResult.shouldBeOk(accountRestoration)
     appPrivateKeyDao.asymmetricKeys.shouldBeEqual(
@@ -110,7 +110,8 @@ class CloudBackupV2RestorerImplTests : FunSpec({
   test("test restoration from backup fails with AppSpendingKeypairStorageError") {
     val throwable = Throwable("foo")
     csekDao.set(SealedCsekFake, CsekFake)
-    symmetricKeyEncryptor.unsealNoMetadataResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
+    symmetricKeyEncryptor.unsealNoMetadataResult =
+      Json.encodeToString(FullAccountKeysMock).encodeUtf8()
     appPrivateKeyDao.storeAppSpendingKeyPairResult = Err(throwable)
 
     restorer.restore(CloudBackupV2WithFullAccountMock)
@@ -122,7 +123,8 @@ class CloudBackupV2RestorerImplTests : FunSpec({
   test("test restoration from backup fails with AppAuthKeypairStorageError") {
     val throwable = Throwable("foo")
     csekDao.set(SealedCsekFake, CsekFake)
-    symmetricKeyEncryptor.unsealNoMetadataResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
+    symmetricKeyEncryptor.unsealNoMetadataResult =
+      Json.encodeToString(FullAccountKeysMock).encodeUtf8()
     appPrivateKeyDao.storeAppAuthKeyPairResult = Err(throwable)
 
     restorer.restore(CloudBackupV2WithFullAccountMock)
@@ -171,6 +173,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
 
     // Verify the key components are correctly restored
     restoration.activeSpendingKeyset.shouldBeEqual(SpendingKeysetMock)
+    restoration.keysets.shouldBeEqual(emptyList())
     restoration.activeAppKeyBundle.spendingKey.shouldBeEqual(SpendingKeysetMock.appKey)
     restoration.config.bitcoinNetworkType.shouldBeEqual(SIGNET)
     restoration.config.f8eEnvironment.shouldBeEqual(Development)

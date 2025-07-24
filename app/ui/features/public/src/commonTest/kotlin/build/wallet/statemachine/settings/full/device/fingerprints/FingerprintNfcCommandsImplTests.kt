@@ -16,11 +16,9 @@ class FingerprintNfcCommandsImplTests : FunSpec({
   val existingFingerprint = FingerprintHandle(index = 0, label = "Right thumb")
   val fingerprintToEnroll = FingerprintHandle(index = 1, label = "Left thumb")
   val existingEnrolledFingerprints = EnrolledFingerprints(
-    maxCount = 3,
     fingerprintHandles = listOf(existingFingerprint)
   )
   val updatedEnrolledFingerprints = EnrolledFingerprints(
-    maxCount = 3,
     fingerprintHandles = listOf(
       existingFingerprint,
       fingerprintToEnroll

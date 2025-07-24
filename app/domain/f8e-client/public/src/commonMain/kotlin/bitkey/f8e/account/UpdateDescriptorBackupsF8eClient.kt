@@ -13,6 +13,9 @@ import com.github.michaelbull.result.Result
 interface UpdateDescriptorBackupsF8eClient {
   /**
    * Updates the set of descriptor backups as specified.
+   *
+   * @param hwKeyProof Proof of possession of the hardware key. Can be null if the user is first
+   * onboarding, and the descriptors are being uploaded for the first time.
    */
   suspend fun update(
     f8eEnvironment: F8eEnvironment,
@@ -20,6 +23,6 @@ interface UpdateDescriptorBackupsF8eClient {
     descriptorBackups: List<DescriptorBackup>,
     sealedSsek: SealedSsek,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
-    hwKeyProof: HwFactorProofOfPossession,
+    hwKeyProof: HwFactorProofOfPossession?,
   ): Result<Unit, UpdateDescriptorBackupError>
 }

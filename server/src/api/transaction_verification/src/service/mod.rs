@@ -6,9 +6,11 @@ use serde::Deserialize;
 use std::sync::Arc;
 use wsm_rust_client::GrantService;
 
+mod cancel;
 mod fetch;
 mod initiate;
 pub mod mock;
+#[cfg(test)]
 pub mod tests;
 mod verify;
 

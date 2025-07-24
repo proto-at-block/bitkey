@@ -25,14 +25,14 @@ val KeyboxMock =
     activeHwKeyBundle = HwKeyBundleMock,
     appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
     keysets = listOf(SpendingKeysetMock),
-    config =
-      FullAccountConfig(
-        bitcoinNetworkType = SIGNET,
-        isHardwareFake = false,
-        f8eEnvironment = Development,
-        isUsingSocRecFakes = false,
-        isTestAccount = true
-      )
+    canUseKeyboxKeysets = true,
+    config = FullAccountConfig(
+      bitcoinNetworkType = SIGNET,
+      isHardwareFake = false,
+      f8eEnvironment = Development,
+      isUsingSocRecFakes = false,
+      isTestAccount = true
+    )
   )
 
 val KeyboxMock2 =
@@ -44,14 +44,14 @@ val KeyboxMock2 =
     activeHwKeyBundle = HwKeyBundleMock,
     appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
     keysets = listOf(SpendingKeysetMock2),
-    config =
-      FullAccountConfig(
-        bitcoinNetworkType = SIGNET,
-        isHardwareFake = false,
-        f8eEnvironment = Development,
-        isUsingSocRecFakes = true,
-        isTestAccount = true
-      )
+    canUseKeyboxKeysets = true,
+    config = FullAccountConfig(
+      bitcoinNetworkType = SIGNET,
+      isHardwareFake = false,
+      f8eEnvironment = Development,
+      isUsingSocRecFakes = true,
+      isTestAccount = true
+    )
   )
 
 val FullAccountMock =

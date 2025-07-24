@@ -131,57 +131,75 @@ class KeyboxDaoImpl(
   }
 
   private fun BitkeyDatabase.saveKeybox(keybox: Keybox) {
-    for (keyset in keybox.keysets) {
-      spendingKeysetQueries.insertKeyset(
-        id = keyset.localId,
-        serverId = keyset.f8eSpendingKeyset.keysetId,
-        appKey = keyset.appKey,
-        hardwareKey = keyset.hardwareKey,
-        serverKey = keyset.f8eSpendingKeyset.spendingPublicKey
-      )
-    }
-
-    // Insert the app key bundle
-    appKeyBundleQueries.insertKeyBundle(
-      id = keybox.activeAppKeyBundle.localId,
-      globalAuthKey = keybox.activeAppKeyBundle.authKey,
-      spendingKey = keybox.activeAppKeyBundle.spendingKey,
-      recoveryAuthKey = keybox.activeAppKeyBundle.recoveryAuthKey
+    // Insert the full account
+    fullAccountQueries.insertFullAccount(
+      accountId = keybox.fullAccountId
     )
 
-    // Insert the hw key bundle
-    hwKeyBundleQueries.insertKeyBundle(
-      id = keybox.activeHwKeyBundle.localId,
-      authKey = keybox.activeHwKeyBundle.authKey,
-      spendingKey = keybox.activeHwKeyBundle.spendingKey
-    )
-
-    // Insert the keybox
+    // Then, insert the keybox which points to the account.
     keyboxQueries.insertKeybox(
       id = keybox.localId,
-      account = keybox.fullAccountId,
-      activeSpendingKeysetId = keybox.activeSpendingKeyset.localId,
-      activeKeyBundleId = keybox.activeAppKeyBundle.localId,
-      activeHwKeyBundleId = keybox.activeHwKeyBundle.localId,
+      accountId = keybox.fullAccountId,
       appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
       networkType = keybox.config.bitcoinNetworkType,
       fakeHardware = keybox.config.isHardwareFake,
       f8eEnvironment = keybox.config.f8eEnvironment,
       isTestAccount = keybox.config.isTestAccount,
       isUsingSocRecFakes = keybox.config.isUsingSocRecFakes,
-      delayNotifyDuration = keybox.config.delayNotifyDuration
+      delayNotifyDuration = keybox.config.delayNotifyDuration,
+      canUseKeyboxKeysets = keybox.canUseKeyboxKeysets
     )
 
-    // Insert full account
-    fullAccountQueries.insertFullAccount(
-      accountId = keybox.fullAccountId,
-      keyboxId = keybox.localId
+    // Insert the app key bundle
+    appKeyBundleQueries.insertKeyBundle(
+      id = keybox.activeAppKeyBundle.localId,
+      keyboxId = keybox.localId,
+      globalAuthKey = keybox.activeAppKeyBundle.authKey,
+      spendingKey = keybox.activeAppKeyBundle.spendingKey,
+      recoveryAuthKey = keybox.activeAppKeyBundle.recoveryAuthKey,
+      isActive = true
     )
+
+    // Insert the hw key bundle
+    hwKeyBundleQueries.insertKeyBundle(
+      id = keybox.activeHwKeyBundle.localId,
+      keyboxId = keybox.localId,
+      authKey = keybox.activeHwKeyBundle.authKey,
+      spendingKey = keybox.activeHwKeyBundle.spendingKey,
+      isActive = true
+    )
+
+    // Insert all keysets, if they're available
+    if (keybox.keysets.isNotEmpty()) {
+      for (keyset in keybox.keysets) {
+        val isActive = keyset.localId == keybox.activeSpendingKeyset.localId
+        spendingKeysetQueries.insertKeyset(
+          id = keyset.localId,
+          keyboxId = keybox.localId,
+          serverId = keyset.f8eSpendingKeyset.keysetId,
+          appKey = keyset.appKey,
+          hardwareKey = keyset.hardwareKey,
+          serverKey = keyset.f8eSpendingKeyset.spendingPublicKey,
+          isActive = isActive
+        )
+      }
+    } else {
+      // Otherwise, just insert the active keyset.
+      spendingKeysetQueries.insertKeyset(
+        id = keybox.activeSpendingKeyset.localId,
+        keyboxId = keybox.localId,
+        serverId = keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+        appKey = keybox.activeSpendingKeyset.appKey,
+        hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
+        serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey,
+        isActive = true
+      )
+    }
   }
 
   private suspend fun FullAccountView.keybox(): Result<Keybox, DbError> =
     coroutineBinding {
-      val keysets = databaseProvider.database().spendingKeysetQueries.allKeysets()
+      val keysets = databaseProvider.database().spendingKeysetQueries.allKeysetsForKeybox(keyboxId)
         .awaitAsListResult()
         .bind()
         .map {
@@ -201,13 +219,13 @@ class KeyboxDaoImpl(
         localId = keyboxId,
         fullAccountId = accountId,
         keysets = keysets,
+        canUseKeyboxKeysets = canUseKeyboxKeysets,
         activeSpendingKeyset = SpendingKeyset(
           localId = spendingPublicKeysetId,
-          f8eSpendingKeyset =
-            F8eSpendingKeyset(
-              keysetId = spendingPublicKeysetServerId,
-              spendingPublicKey = serverKey
-            ),
+          f8eSpendingKeyset = F8eSpendingKeyset(
+            keysetId = spendingPublicKeysetServerId,
+            spendingPublicKey = serverKey
+          ),
           appKey = appKey,
           hardwareKey = hardwareKey,
           networkType = networkType
@@ -226,15 +244,14 @@ class KeyboxDaoImpl(
           networkType = networkType
         ),
         appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
-        config =
-          FullAccountConfig(
-            bitcoinNetworkType = networkType,
-            isHardwareFake = fakeHardware,
-            f8eEnvironment = f8eEnvironment,
-            isTestAccount = isTestAccount,
-            isUsingSocRecFakes = isUsingSocRecFakes,
-            delayNotifyDuration = delayNotifyDuration
-          )
+        config = FullAccountConfig(
+          bitcoinNetworkType = networkType,
+          isHardwareFake = fakeHardware,
+          f8eEnvironment = f8eEnvironment,
+          isTestAccount = isTestAccount,
+          isUsingSocRecFakes = isUsingSocRecFakes,
+          delayNotifyDuration = delayNotifyDuration
+        )
       )
     }
 }

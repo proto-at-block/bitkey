@@ -77,7 +77,6 @@ class DebugMenuScreenPresenter(
   private val onboardingCompletionService: OnboardingCompletionService,
   private val inheritanceUpsellService: InheritanceUpsellService,
   private val mockScenarioService: MockScenarioService,
-  private val balanceHistoryService: BalanceHistoryService,
 ) : ScreenPresenter<DebugMenuScreen> {
   @Composable
   override fun model(
@@ -148,7 +147,6 @@ class DebugMenuScreenPresenter(
       is DebugMenuState.ShowingMockDataProvider ->
         MockDataProviderBodyModel(
           mockScenarioService = mockScenarioService,
-          balanceHistoryService = balanceHistoryService,
           onBack = { uiState = DebugMenuState.ShowingDebugMenu },
           onShowSeedInput = { uiState = DebugMenuState.ShowingMockSeedInput },
           onSeedCopied = { seed -> pasteboardToast = "seed $seed" }
@@ -268,7 +266,6 @@ sealed interface DebugMenuState {
 @Composable
 private fun MockDataProviderBodyModel(
   mockScenarioService: MockScenarioService,
-  balanceHistoryService: BalanceHistoryService,
   onBack: () -> Unit,
   onShowSeedInput: () -> Unit,
   onSeedCopied: (String) -> Unit,
@@ -283,10 +280,10 @@ private fun MockDataProviderBodyModel(
     title = "Mock Data Provider",
     onBack = onBack,
     groups = immutableListOfNotNull(
-      ProvideMockPriceScenariosGroup(mockScenarioService, balanceHistoryService, onConfigurationChanged, refreshTrigger),
-      ProvideMockDataQualityGroup(mockScenarioService, balanceHistoryService, onConfigurationChanged, refreshTrigger),
-      ProvideMockTransactionScenariosGroup(mockScenarioService, balanceHistoryService, onConfigurationChanged, refreshTrigger),
-      ProvideMockChartDataControlsGroup(mockScenarioService, balanceHistoryService, onShowSeedInput, onSeedCopied, refreshTrigger)
+      ProvideMockPriceScenariosGroup(mockScenarioService, onConfigurationChanged, refreshTrigger),
+      ProvideMockDataQualityGroup(mockScenarioService, onConfigurationChanged, refreshTrigger),
+      ProvideMockTransactionScenariosGroup(mockScenarioService, onConfigurationChanged, refreshTrigger),
+      ProvideMockChartDataControlsGroup(mockScenarioService, onShowSeedInput, onSeedCopied, refreshTrigger)
     ),
     alertModel = null
   )

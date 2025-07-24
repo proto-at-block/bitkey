@@ -17,4 +17,7 @@ enum class ManagingFingerprintsEventTrackerScreenId : EventTrackerScreenId {
 
   /** Onboarding screen for adding an additional fingerprint. */
   ADD_ADDITIONAL_FINGERPRINT_EXPLAINER,
+
+  /** Loading enrolled fingerprints */
+  LOADING_ENROLLED_FINGERPRINTS,
 }

@@ -116,7 +116,9 @@ internal data class ChartDataState(
 
     path.moveTo(baseOffset, normalizedData[0])
     val scaleX = canvasWidth / data.size
-    for (targetIndex in 1 until normalizedData.lastIndex) {
+    // Start at `i = 1` and make lines from `i - 1` to `i`.
+    // use `..` to include the last point in the loop.
+    for (targetIndex in 1..normalizedData.lastIndex) {
       val startIndex = targetIndex - 1
       if (startIndex == stopAtIndex) {
         if (stopAtIndex == 0) {

@@ -25,7 +25,6 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   val onSaveCalls = turbines.create<FingerprintHandle>("onSave calls")
   val onDeleteFingerprintCalls = turbines.create<FingerprintHandle>("onDeleteFingerprint calls")
   val enrolledFingerprints = EnrolledFingerprints(
-    maxCount = 3,
     fingerprintHandles = listOf(
       FingerprintHandle(index = 0, label = "Left Thumb"),
       FingerprintHandle(index = 1, label = "Right Thumb")
@@ -159,7 +158,6 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
     stateMachine.test(
       props.copy(
         EnrolledFingerprints(
-          maxCount = 3,
           fingerprintHandles = listOf(
             FingerprintHandle(index = 0, label = "Left Thumb")
           )

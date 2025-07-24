@@ -41,11 +41,17 @@ impl DelayAndNotifyDefinition {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+pub struct OutOfBandDefinition {
+    pub notification_summary: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 #[serde(tag = "authorization_strategy_type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthorizationStrategyDefinition {
     HardwareProofOfPossession(HardwareProofOfPossessionDefinition),
     DelayAndNotify(DelayAndNotifyDefinition),
+    OutOfBand(OutOfBandDefinition),
 }
 
 #[derive(Debug, Clone)]
@@ -155,6 +161,18 @@ impl From<&PrivilegedActionType> for PrivilegedActionDefinition {
                     }),
                 )]),
             },
+            PrivilegedActionType::LoosenTransactionVerificationPolicy => {
+                PrivilegedActionDefinition {
+                    privileged_action_type: value.clone(),
+                    authorization_strategies: HashMap::from([(
+                        AccountType::Full,
+                        AuthorizationStrategyDefinition::OutOfBand(OutOfBandDefinition {
+                            notification_summary: "update your transaction verification policy"
+                                .to_string(),
+                        }),
+                    )]),
+                }
+            }
         }
     }
 }

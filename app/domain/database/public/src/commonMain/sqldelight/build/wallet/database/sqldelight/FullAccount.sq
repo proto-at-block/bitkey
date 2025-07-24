@@ -2,9 +2,7 @@ import build.wallet.bitkey.f8e.FullAccountId;
 
 -- Table for Full Account data. This can be an active or an onboarding account, if any.
 CREATE TABLE fullAccountEntity(
-  accountId           TEXT AS FullAccountId NOT NULL PRIMARY KEY,
-  keyboxId            TEXT NOT NULL,
-  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity(id)
+  accountId           TEXT AS FullAccountId NOT NULL PRIMARY KEY
 );
 
 -- Table for an active Full Account data, if any.
@@ -23,8 +21,8 @@ CREATE TABLE onboardingFullAccountEntity(
 
 -- Query to set a Full account
 insertFullAccount:
-INSERT OR REPLACE INTO fullAccountEntity
-VALUES (?, ?);
+INSERT OR REPLACE INTO fullAccountEntity(accountId)
+VALUES (?);
 
 -- Query to set a Full account as active to make it ready to use.
 setActiveFullAccountId:
@@ -60,7 +58,15 @@ clear {
   DELETE FROM fullAccountEntity;
 }
 
--- A view to get keybox's data with all of its keys
+-- Query to delete a specific account by ID
+deleteAccount:
+DELETE FROM fullAccountEntity WHERE accountId = ?;
+
+-- Query to count total accounts
+countAccounts:
+SELECT COUNT(*) FROM fullAccountEntity;
+
+-- A view to get keybox's data with all of its active keys
 CREATE VIEW fullAccountView AS
 SELECT
   fullAccountEntity.accountId AS accountId,
@@ -72,6 +78,7 @@ SELECT
   keyboxEntity.isUsingSocRecFakes,
   keyboxEntity.delayNotifyDuration,
   keyboxEntity.appGlobalAuthKeyHwSignature,
+  keyboxEntity.canUseKeyboxKeysets,
   spendingKeysetEntity.id AS spendingPublicKeysetId,
   spendingKeysetEntity.serverId AS spendingPublicKeysetServerId,
   spendingKeysetEntity.appKey,
@@ -86,13 +93,13 @@ SELECT
 FROM fullAccountEntity
 -- keybox
 INNER JOIN keyboxEntity
-ON keyboxEntity.id = fullAccountEntity.keyboxId
--- spending public keyset
+ON keyboxEntity.accountId = fullAccountEntity.accountId
+-- spending public keyset (active one only)
 INNER JOIN spendingKeysetEntity
-ON keyboxEntity.activeSpendingKeysetId = spendingKeysetEntity.id
--- app key bundle
+ON spendingKeysetEntity.keyboxId = keyboxEntity.id AND spendingKeysetEntity.isActive = 1
+-- app key bundle (active one only)
 INNER JOIN appKeyBundleEntity
-ON keyboxEntity.activeKeyBundleId = appKeyBundleEntity.id
--- hw key bundle
+ON appKeyBundleEntity.keyboxId = keyboxEntity.id AND appKeyBundleEntity.isActive = 1
+-- hw key bundle (active one only)
 INNER JOIN hwKeyBundleEntity
-ON keyboxEntity.activeHwKeyBundleId = hwKeyBundleEntity.id;
+ON hwKeyBundleEntity.keyboxId = keyboxEntity.id AND hwKeyBundleEntity.isActive = 1;

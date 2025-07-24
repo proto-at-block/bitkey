@@ -1,52 +1,58 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use account::service::FetchAndUpdateSpendingLimitInput;
-use account::service::{FetchAccountInput, Service as AccountService};
-use authn_authz::key_claims::KeyClaims;
-use axum::routing::delete;
 use axum::{
     extract::{Path, State},
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
-use bdk_utils::generate_electrum_rpc_uris;
-use bdk_utils::TransactionBroadcasterTrait;
-use errors::ApiError;
-use errors::ErrorCode::NoSpendingLimitExists;
-use exchange_rate::service::Service as ExchangeRateService;
-use experimentation::claims::ExperimentationClaims;
-use feature_flags::flag::ContextKey;
-use feature_flags::service::Service as FeatureFlagsService;
-use http_server::router::RouterBuilder;
-use http_server::swagger::{SwaggerEndpoint, Url};
-use screener::service::Service as ScreenerService;
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 use time::OffsetDateTime;
 use tracing::{error, event, instrument, Level};
-use types::account::entities::FullAccount;
-use types::account::identifiers::{AccountId, KeysetId};
-use types::account::money::Money;
-use types::account::spend_limit::SpendingLimit;
-use types::account::spending::SpendingKeyDefinition;
-use types::currencies::CurrencyCode::BTC;
-use types::currencies::{Currency, CurrencyCode};
-use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
+
+use account::service::{
+    FetchAccountInput, FetchAndUpdateSpendingLimitInput, Service as AccountService,
+};
+use authn_authz::key_claims::KeyClaims;
+use bdk_utils::{
+    bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, generate_electrum_rpc_uris,
+    TransactionBroadcasterTrait,
+};
+use errors::{ApiError, ErrorCode::NoSpendingLimitExists};
+use exchange_rate::service::Service as ExchangeRateService;
+use experimentation::claims::ExperimentationClaims;
+use feature_flags::{flag::ContextKey, service::Service as FeatureFlagsService};
+use http_server::{
+    router::RouterBuilder,
+    swagger::{SwaggerEndpoint, Url},
+};
+use screener::service::Service as ScreenerService;
+use transaction_verification::service::Service as TransactionVerificationService;
+use types::{
+    account::{
+        entities::FullAccount,
+        identifiers::{AccountId, KeysetId},
+        money::Money,
+        spend_limit::SpendingLimit,
+        spending::SpendingKeyDefinition,
+    },
+    currencies::{Currency, CurrencyCode, CurrencyCode::BTC},
+    transaction_verification::{
+        entities::BitcoinDisplayUnit, service::InitiateVerificationResult,
+        TransactionVerificationId,
+    },
+};
+use userpool::userpool::UserPoolService;
 use wsm_rust_client::{SigningService, WsmClient};
 
-use crate::daily_spend_record::service::Service as DailySpendRecordService;
-use crate::entities::Settings;
-use crate::error::SigningError;
-use crate::signed_psbt_cache::service::Service as SignedPsbtCacheService;
-use crate::signing_processor::SigningProcessor;
-use crate::signing_strategies::SigningStrategyFactory;
-use crate::util::total_sats_spent_today;
 use crate::{
-    get_mobile_pay_spending_record, metrics as mobile_pay_metrics, sats_for_limit,
-    SERVER_SIGNING_ENABLED,
+    daily_spend_record::service::Service as DailySpendRecordService, entities::Settings,
+    error::SigningError, get_mobile_pay_spending_record, metrics as mobile_pay_metrics,
+    sats_for_limit, signed_psbt_cache::service::Service as SignedPsbtCacheService,
+    signing_processor::SigningProcessor, signing_strategies::SigningStrategyFactory,
+    util::total_sats_spent_today, SERVER_SIGNING_ENABLED,
 };
 
 #[derive(Clone, Deserialize)]
@@ -66,6 +72,7 @@ pub struct RouteState(
     pub SignedPsbtCacheService,
     pub FeatureFlagsService,
     pub Arc<ScreenerService>,
+    pub TransactionVerificationService,
 );
 
 impl RouterBuilder for RouteState {
@@ -124,16 +131,66 @@ impl From<RouteState> for SwaggerEndpoint {
 )]
 struct ApiDoc;
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct SignTransactionData {
     pub psbt: String,
+    #[serde(default)]
+    pub should_prompt_user: bool,
+    #[serde(default)]
+    pub fiat_currency: Option<CurrencyCode>,
+    #[serde(default)]
+    pub bitcoin_display_unit: Option<BitcoinDisplayUnit>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct SignTransactionResponse {
-    pub tx: String,
+#[serde(rename_all = "SCREAMING_SNAKE_CASE", tag = "status")]
+pub enum SignTransactionResponse {
+    Signed {
+        tx: String,
+    },
+    VerificationRequired,
+    VerificationRequested {
+        verification_id: TransactionVerificationId,
+        expiration: OffsetDateTime,
+    },
+}
+
+impl From<InitiateVerificationResult> for SignTransactionResponse {
+    fn from(result: InitiateVerificationResult) -> Self {
+        match result {
+            InitiateVerificationResult::VerificationRequired => Self::VerificationRequired,
+            InitiateVerificationResult::VerificationRequested {
+                verification_id,
+                expiration,
+            } => Self::VerificationRequested {
+                verification_id,
+                expiration,
+            },
+            _ => unreachable!("Expected VerificationRequired or VerificationRequested"),
+        }
+    }
+}
+
+async fn initiate_transaction_verification(
+    transaction_verification_service: TransactionVerificationService,
+    full_account: &FullAccount,
+    psbt: Psbt,
+    request: &SignTransactionData,
+) -> Result<SignTransactionResponse, ApiError> {
+    let initiate_result = transaction_verification_service
+        .mobile_pay_initiate(
+            &full_account.id,
+            psbt,
+            request.fiat_currency.unwrap_or(BTC),
+            request
+                .bitcoin_display_unit
+                .clone()
+                .unwrap_or(BitcoinDisplayUnit::Bitcoin),
+            request.should_prompt_user,
+        )
+        .await?;
+    Ok(initiate_result.into())
 }
 
 #[instrument(
@@ -146,6 +203,7 @@ pub struct SignTransactionResponse {
         feature_flags_service,
         screener_service,
         transaction_broadcaster,
+        transaction_verification_service,
         context_key
     ),
     fields(keyset_id, active_keyset_id)
@@ -162,6 +220,7 @@ async fn sign_transaction_maybe_broadcast_impl(
     signed_psbt_cache_service: SignedPsbtCacheService,
     feature_flags_service: FeatureFlagsService,
     screener_service: Arc<ScreenerService>,
+    transaction_verification_service: TransactionVerificationService,
     context_key: Option<ContextKey>,
 ) -> Result<SignTransactionResponse, ApiError> {
     // At the earliest opportunity, we block the request if mobile pay is disabled by feature flag.
@@ -197,20 +256,32 @@ async fn sign_transaction_maybe_broadcast_impl(
         feature_flags_service,
     );
 
-    let signing_strategy = signing_strategy_factory
+    let signing_strategy = match signing_strategy_factory
         .construct_strategy(
             full_account,
             config,
             keyset_id,
-            psbt,
+            psbt.clone(),
             &rpc_uris,
             context_key,
         )
-        .await?;
+        .await
+    {
+        Ok(strategy) => strategy,
+        Err(SigningError::TransactionVerificationRequired) => {
+            return initiate_transaction_verification(
+                transaction_verification_service,
+                full_account,
+                psbt,
+                &request,
+            )
+            .await;
+        }
+        Err(e) => return Err(e.into()),
+    };
 
     let signed_psbt = signing_strategy.execute().await?;
-
-    Ok(SignTransactionResponse {
+    Ok(SignTransactionResponse::Signed {
         tx: signed_psbt.to_string(),
     })
 }
@@ -227,7 +298,8 @@ async fn sign_transaction_maybe_broadcast_impl(
         signed_psbt_cache_service,
         request,
         feature_flags_service,
-        screener_service
+        screener_service,
+        transaction_verification_service
     )
 )]
 #[utoipa::path(
@@ -255,6 +327,7 @@ async fn sign_transaction_with_keyset(
     State(signed_psbt_cache_service): State<SignedPsbtCacheService>,
     State(feature_flags_service): State<FeatureFlagsService>,
     State(screener_service): State<Arc<ScreenerService>>,
+    State(transaction_verification_service): State<TransactionVerificationService>,
     experimentation_claims: ExperimentationClaims,
     Json(request): Json<SignTransactionData>,
 ) -> Result<Json<SignTransactionResponse>, ApiError> {
@@ -277,6 +350,7 @@ async fn sign_transaction_with_keyset(
         signed_psbt_cache_service,
         feature_flags_service,
         screener_service,
+        transaction_verification_service,
         context_key,
     )
     .await?;

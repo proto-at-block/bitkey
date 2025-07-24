@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Verification</title>
+    <link rel="stylesheet" href="/static/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script type="text/javascript" src="/static/main.js"></script>
+</head>
+<body>
+    <header class="secure-banner">
+        <div class="secure-message">
+            <img src="/static/Bitkeylogo.png" srcset="/static/Bitkeylogo.png 1x, /static/Bitkeylogo@2x.png 2x, /static/Bitkeylogo@3x.png 3x" alt="BitKey Logo" class="logo">
+            This site is secure. <a href="#" class="learn-more">Learn More</a>
+        </div>
+    </header>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+
+        <div class="verification-container active">
+            <div class="animation-container">
+                <img
+                    src="/static/DarkLoader.gif"
+                    alt="Loading animation"
+                    style="width: 80px; height: 80px;"
+                >
+            </div>
+            <h1 class="loading-text">Loading transaction details...</h1>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content" id="mainContent">
+
+        <!-- Amount Confirmation Screen -->
+        <div id="amountConfirmation" class="verification-container">
+            <h1>Is this the correct amount?</h1>
+            <p class="subtitle">This is the amount you're sending—before fees.</p>
+
+            <div class="amount-card">
+                <div class="amount-card-content">
+                    <span class="amount-label">Send amount</span>
+                    <div class="amount-values">
+                        <span id="amountFiat" class="amount-value">$AMOUNT_FIAT</span>
+                        <span id="amountSats" class="amount-sats">$AMOUNT_SATS</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Address Verification Screen -->
+        <main id="addressVerification" class="verification-container">
+            <h1>Enter the missing characters in the recipient's address</h1>
+
+            <div id="addressGrid" class="address-grid">
+                <!-- Generated address grid will go here -->
+            </div>
+        </main>
+
+        <!-- Success Screen -->
+        <div id="successScreen" class="verification-container">
+            <img src="/static/success.svg" alt="Success" class="success-icon">
+            <h1>Address Verified, you're all set</h1>
+            <p class="subtitle">You can return to the Bitkey app on your mobile device.</p>
+
+            <div id="fullAddressText" class="address-grid">
+                <!-- Generated address text will go here -->
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Button container with top border -->
+    <div class="button-container">
+        <div class="action-buttons" id="amountButtons">
+            <button class="secondary-button">No</button>
+            <button class="primary-button">Yes, it's correct</button>
+        </div>
+        <div class="action-buttons" id="verificationButtons" style="display: none;">
+            <button id="cancelBtn" class="secondary-button">I can't find one</button>
+            <button id="confirmBtn" class="primary-button">Continue</button>
+        </div>
+    </div>
+    
+    <!-- MOCK DATA: This will be replaced by the server with real data -->
+    <script type="application/json" id="verification-params">
+    {
+        "verificationId": "mock-transaction-verification-id",
+        "amountFiat": 5000,
+        "amountSats": 10000000,
+        "amountCurrency": "USD",
+        "recipient": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+        "confirmToken": "mock-confirm-token",
+        "cancelToken": "mock-cancel-token"
+    }
+    </script>
+</body>
+</html> 

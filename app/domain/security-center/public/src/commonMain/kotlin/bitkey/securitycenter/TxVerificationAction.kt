@@ -4,11 +4,11 @@ import bitkey.verification.VerificationThreshold
 import build.wallet.availability.FunctionalityFeatureStates
 
 class TxVerificationAction(
-  private val threshold: VerificationThreshold,
+  private val threshold: VerificationThreshold?,
   private val featureState: FunctionalityFeatureStates.FeatureState,
 ) : SecurityAction {
   override fun getRecommendations(): List<SecurityActionRecommendation> {
-    return if (threshold == VerificationThreshold.Disabled) {
+    return if (threshold == null) {
       listOf(SecurityActionRecommendation.ENABLE_TRANSACTION_VERIFICATION)
     } else {
       emptyList()

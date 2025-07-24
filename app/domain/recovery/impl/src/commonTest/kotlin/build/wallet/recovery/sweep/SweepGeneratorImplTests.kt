@@ -62,7 +62,8 @@ class SweepGeneratorImplTests : FunSpec({
           DescriptorPublicKeyMock("hw-dpub-active", fingerprint = "deadbeef")
         )
     )
-  val activeKeybox = KeyboxMock.copy(activeSpendingKeyset = activeKeyset)
+  val activeKeybox =
+    KeyboxMock.copy(activeSpendingKeyset = activeKeyset, keysets = listOf(activeKeyset))
 
   val lostAppKeyset1 =
     SpendingKeyset(

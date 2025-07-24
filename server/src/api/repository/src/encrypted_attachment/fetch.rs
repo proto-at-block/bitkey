@@ -20,6 +20,7 @@ impl EncryptedAttachmentRepository {
             .get_connection()
             .client
             .get_item()
+            .consistent_read(true)
             .table_name(table_name)
             .key(
                 PARTITION_KEY,

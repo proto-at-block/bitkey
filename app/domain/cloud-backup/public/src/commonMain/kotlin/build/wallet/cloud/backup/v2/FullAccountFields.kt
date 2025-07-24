@@ -60,6 +60,15 @@ data class FullAccountFields(
 data class FullAccountKeys(
   @Serializable(with = SpendingKeysetSerializer::class)
   val activeSpendingKeyset: SpendingKeyset,
+  /**
+   * All keysets (including the active one) for this account.
+   * Empty for backups created before keyset history was supported and accounts that have not been
+   * migrated to persist local keysets.
+   */
+  val keysets: List<
+    @Serializable(with = SpendingKeysetSerializer::class)
+    SpendingKeyset
+  > = emptyList(),
   @Serializable(with = AppKeyKeyPairSerializer::class)
   val appGlobalAuthKeypair: AppKey<AppGlobalAuthKey>,
   val appSpendingKeys: Map<

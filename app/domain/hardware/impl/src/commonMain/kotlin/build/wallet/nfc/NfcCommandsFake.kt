@@ -53,7 +53,7 @@ class NfcCommandsFake(
     diagnostics = null
   )
   private var enrolledFingerprints =
-    EnrolledFingerprints(3, listOf(FingerprintHandle(index = 0, label = "")))
+    EnrolledFingerprints(fingerprintHandles = listOf(FingerprintHandle(index = 0, label = "")))
 
   override suspend fun fwupStart(
     session: NfcSession,
@@ -125,7 +125,6 @@ class NfcCommandsFake(
     index: Int,
   ): Boolean {
     enrolledFingerprints = enrolledFingerprints.copy(
-      maxCount = 3,
       fingerprintHandles = enrolledFingerprints.fingerprintHandles.filterNot { it.index == index }
     )
     return true
@@ -326,7 +325,7 @@ class NfcCommandsFake(
   ): EnrolledFingerprints {
     val fingerprints =
       fingerprintHandles.filterNot { it.index == fingerprintHandle.index } + fingerprintHandle
-    return EnrolledFingerprints(3, fingerprints)
+    return EnrolledFingerprints(fingerprintHandles = fingerprints)
   }
 }
 

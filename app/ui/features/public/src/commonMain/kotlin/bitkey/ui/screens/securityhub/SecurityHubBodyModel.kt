@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import bitkey.securitycenter.*
@@ -252,7 +253,7 @@ private fun RecommendationList(
     )
   ) {
     RecommendationHeader(
-      modifier = Modifier.padding(vertical = 20.dp, horizontal = 16.dp),
+      modifier = Modifier.padding(vertical = 20.dp, horizontal = 12.dp),
       numberOfRecommendations = recommendations.size,
       type = type
     )
@@ -291,7 +292,7 @@ private fun RecommendationHeader(
     verticalAlignment = CenterVertically
   ) {
     RecommendationStateIndicator(numberOfRecommendations, type)
-    Spacer(modifier = Modifier.width(10.dp))
+    Spacer(modifier = Modifier.width(12.dp))
     Label(
       text = text,
       style = WalletTheme.labelStyle(
@@ -308,10 +309,13 @@ fun RecommendationRow(
   onRecommendationClick: (SecurityActionRecommendation) -> Unit,
 ) {
   Row(
-    Modifier.padding(vertical = 15.dp).scalingClickable {
-      onRecommendationClick(recommendation)
-    }
+    modifier = Modifier.padding(vertical = 20.dp)
+      .scalingClickable {
+        onRecommendationClick(recommendation)
+      },
+    verticalAlignment = CenterVertically
   ) {
+    Spacer(modifier = Modifier.width(6.dp))
     Icon(
       icon = recommendation.icon(),
       size = IconSize.Small,
@@ -319,11 +323,12 @@ fun RecommendationRow(
     )
     Spacer(modifier = Modifier.width(12.dp))
     Label(
-      stringResource(recommendation.title()),
+      modifier = Modifier.weight(1.0f),
+      text = stringResource(recommendation.title()),
       color = WalletTheme.colors.foreground,
-      type = LabelType.Body2Medium
+      type = LabelType.Body2Medium,
+      overflow = TextOverflow.Ellipsis
     )
-    Spacer(modifier = Modifier.weight(1.0f))
     Icon(
       icon = Icon.SmallIconCaretRight,
       size = IconSize.Small,
@@ -344,7 +349,7 @@ private fun RecommendationStateIndicator(
     RecommendationType.Recommended -> WarningOrange
   }
 
-  Box(modifier = Modifier.padding(5.dp).size(42.dp)) {
+  Box(modifier = Modifier.size(44.dp)) {
     if (numberOfRecommendations == 0) {
       Canvas(modifier = Modifier.fillMaxSize()) {
         val canvasWidth = size.width

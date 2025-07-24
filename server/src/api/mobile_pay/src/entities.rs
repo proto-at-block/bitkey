@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use types::account::spend_limit::SpendingLimit;
+use types::account::{entities::TransactionVerificationPolicy, spend_limit::SpendingLimit};
 use utoipa::ToSchema;
 
 #[derive(Debug, Default)]
@@ -13,4 +13,10 @@ pub struct Features {
 #[derive(Default)]
 pub struct Settings {
     pub limit: SpendingLimit,
+}
+
+#[derive(Debug, Default)]
+pub struct TransactionVerificationFeatures {
+    pub policy: TransactionVerificationPolicy,
+    pub verification_sats: u64,
 }

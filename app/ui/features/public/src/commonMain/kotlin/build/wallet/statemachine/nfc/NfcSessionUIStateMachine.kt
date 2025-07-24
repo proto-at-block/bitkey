@@ -105,7 +105,7 @@ class NfcSessionUIStateMachineProps<T>(
     screenPresentationStyle = screenPresentationStyle,
     eventTrackerContext = eventTrackerContext,
     onInauthenticHardware = onInauthenticHardware,
-    onError = onError,
+    onError = onError
   )
 
   /**

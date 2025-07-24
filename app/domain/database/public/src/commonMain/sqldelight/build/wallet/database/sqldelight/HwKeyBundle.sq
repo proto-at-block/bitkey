@@ -1,15 +1,27 @@
 import build.wallet.bitkey.hardware.HwAuthPublicKey;
 import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import kotlin.Boolean;
 
 CREATE TABLE hwKeyBundleEntity(
   id            TEXT NOT NULL PRIMARY KEY,
+  keyboxId      TEXT NOT NULL,
   spendingKey   TEXT AS HwSpendingPublicKey NOT NULL,
-  authKey       TEXT AS HwAuthPublicKey NOT NULL
+  authKey       TEXT AS HwAuthPublicKey NOT NULL,
+  isActive      INTEGER AS Boolean NOT NULL DEFAULT 0,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity(id) ON DELETE CASCADE
 );
 
+CREATE UNIQUE INDEX idx_hwKeyBundle_unique_active
+ON hwKeyBundleEntity (keyboxId)
+WHERE isActive = 1;
+
 insertKeyBundle:
-INSERT OR REPLACE INTO hwKeyBundleEntity(id, spendingKey, authKey)
-VALUES(?, ?, ?);
+INSERT OR REPLACE INTO hwKeyBundleEntity(id, keyboxId, spendingKey, authKey, isActive)
+VALUES(?, ?, ?, ?, ?);
 
 clear:
 DELETE FROM hwKeyBundleEntity;
+
+-- Query to count total hardware key bundles
+countHwKeyBundles:
+SELECT COUNT(*) FROM hwKeyBundleEntity;

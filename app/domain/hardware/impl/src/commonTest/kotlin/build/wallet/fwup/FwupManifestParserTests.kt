@@ -9,8 +9,6 @@ import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.ints.shouldBeGreaterThan
-import io.kotest.matchers.ints.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 
 class FwupManifestParserTests :
@@ -146,26 +144,5 @@ class FwupManifestParserTests :
     test("Parsing normal manifest when trying to delta fwup") {
       val result = fwup.parseFwupManifest(goodJson, "1.0.1", A, FwupMode.Delta)
       result.shouldBeErrOfType<ParsingError>()
-    }
-
-    test("Semver to int conversion") {
-      semverToInt("1.2.5") shouldBe 102005
-      semverToInt("1.0.65") shouldBe 100065
-      semverToInt("1.0.0") shouldBe 100000
-      semverToInt("9.09.999") shouldBe 909999
-
-      semverToInt("1.1.2") shouldBeLessThan semverToInt("1.1.3")
-      semverToInt("1.0.999") shouldBeLessThan semverToInt("1.1.0")
-      semverToInt("1.9.9") shouldBeLessThan semverToInt("1.10.0")
-
-      semverToInt("0.0.1") shouldBe "0000001".toInt()
-      semverToInt("0.0.0") shouldBe "0000000".toInt()
-      semverToInt("0.99.0") shouldBe "0099000".toInt()
-      semverToInt("99.0.0") shouldBe "9900000".toInt()
-      semverToInt("0.1.0") shouldBe "0001000".toInt()
-
-      semverToInt("1.10.1") shouldBeLessThan semverToInt("1.11.0")
-      semverToInt("1.2.10") shouldBeLessThan semverToInt("1.2.11")
-      semverToInt("10.0.0") shouldBeGreaterThan semverToInt("9.99.999")
     }
   })

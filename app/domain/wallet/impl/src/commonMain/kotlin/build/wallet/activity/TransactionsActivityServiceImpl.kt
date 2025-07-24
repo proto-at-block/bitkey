@@ -49,8 +49,8 @@ class TransactionsActivityServiceImpl(
 
   override val transactions: StateFlow<List<Transaction>?> = transactionsCache
 
-  override val activeAndInactiveWalletTransactions: StateFlow<List<Transaction>?> =
-    MutableStateFlow<List<Transaction>?>(null)
+  private val activeAndInactiveWalletTransactionsCache = MutableStateFlow<List<Transaction>?>(null)
+  override val activeAndInactiveWalletTransactions: StateFlow<List<Transaction>?> = activeAndInactiveWalletTransactionsCache
   private val inactiveWallets =
     appScope
       .async(Dispatchers.IO, start = LAZY) {
@@ -69,8 +69,11 @@ class TransactionsActivityServiceImpl(
       bitcoinWalletService.sync().bind()
       partnershipTransactionsService.syncPendingTransactions().bind()
 
-      val transactions = loadActiveAndInactiveWalletTransactions()
-      (activeAndInactiveWalletTransactions as MutableStateFlow).value = transactions
+      val transactions = mockScenarioService.currentTransactionScenario()?.let { _ ->
+        mockScenarioService.generateTransactions()
+      } ?: loadActiveAndInactiveWalletTransactions()
+
+      activeAndInactiveWalletTransactionsCache.value = transactions
     }.logFailure { "Error syncing transactions activity with inactive wallets. " }
 
   override suspend fun executeWork() {
@@ -88,7 +91,7 @@ class TransactionsActivityServiceImpl(
       mockScenarioService.currentTransactionScenarioFlow()
     ) { expectedTransactionsEnabled, bitcoinTransactions, expectedTransactions, transactionScenario ->
       transactionScenario?.let { _ ->
-        return@combine mockScenarioService.generateTransactions() ?: emptyList()
+        return@combine mockScenarioService.generateTransactions()
       }
 
       if (expectedTransactionsEnabled.value) {

@@ -195,7 +195,7 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
     let client = TestClient::new(bootstrap.router).await;
 
     let customer_account = match vector.customer_account_type {
-        AccountType::Full { .. } => {
+        AccountType::Full => {
             let account = create_full_account(
                 &mut context,
                 &bootstrap.services,

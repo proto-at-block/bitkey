@@ -1,0 +1,30 @@
+import bitkey.privilegedactions.AuthorizationStrategyType;
+import bitkey.privilegedactions.PrivilegedActionType;
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+
+DROP TABLE txVerificationPolicyEntity;
+
+CREATE TABLE txVerificationPolicyEntity(
+    id INTEGER NOT NULL PRIMARY KEY,
+    thresholdCurrencyAlphaCode TEXT AS IsoCurrencyTextCode NOT NULL,
+    thresholdAmountFractionalUnitValue INTEGER NOT NULL
+);
+
+CREATE TABLE pendingPrivilegedActionsEntity(
+    id TEXT NOT NULL PRIMARY KEY,
+    type TEXT AS PrivilegedActionType NOT NULL,
+    strategy TEXT AS AuthorizationStrategyType NOT NULL
+);
+
+CREATE TRIGGER check_type_before_insert
+BEFORE INSERT ON pendingPrivilegedActionsEntity
+WHEN EXISTS (
+    SELECT 1 FROM pendingPrivilegedActionsEntity
+    WHERE type == "LOOSEN_TRANSACTION_VERIFICATION_POLICY"
+)
+BEGIN
+    SELECT RAISE(FAIL, 'A record with this type already exists.');
+END;
+
+-- Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

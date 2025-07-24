@@ -9,7 +9,6 @@ axum = { workspace = true }
 axum-macros = { workspace = true }
 http_server = { workspace = true }
 serde = { workspace = true }
-tracing = { workspace = true }
 ulid = { workspace = true }
 utoipa = { workspace = true }
 

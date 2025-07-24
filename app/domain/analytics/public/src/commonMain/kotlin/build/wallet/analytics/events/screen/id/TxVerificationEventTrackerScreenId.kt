@@ -25,4 +25,24 @@ enum class TxVerificationEventTrackerScreenId : EventTrackerScreenId {
    * Loading screen shown while changes are being made to the policy.
    */
   UPDATING_POLICY,
+
+  /**
+   * Info/Confirmation screen shown when the user is told their transaction requires verification.
+   */
+  VERIFICATION_START,
+
+  /**
+   * Cancellation screen shown when the user rejects the verification as invalid.
+   */
+  VERIFICATION_REJECTED,
+
+  /**
+   * Cancellation screen shown when the user fails to complete the verification in time.
+   */
+  VERIFICATION_EXPIRED,
+
+  /**
+   * Unexpected problem when attempting to verify a transaction.
+   */
+  VERIFICATION_ERROR,
 }

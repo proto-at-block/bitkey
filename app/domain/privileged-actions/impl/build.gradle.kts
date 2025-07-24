@@ -13,6 +13,8 @@ kotlin {
         api(projects.domain.privilegedActionsPublic)
         api(projects.domain.f8eClientPublic)
         api(projects.domain.walletPublic)
+        api(projects.domain.hardwarePublic)
+        api(projects.domain.featureFlagPublic)
       }
     }
 
@@ -23,6 +25,8 @@ kotlin {
         implementation(projects.domain.accountFake)
         implementation(projects.domain.privilegedActionsFake)
         implementation(projects.libs.encryptionFake)
+        implementation(projects.domain.hardwareFake)
+        implementation(projects.domain.featureFlagFake)
       }
     }
   }

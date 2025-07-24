@@ -36,7 +36,7 @@ async fn create_recovery_relationship_test(vector: CreateRecoveryRelationshipTes
     let client = TestClient::new(bootstrap.clone().router).await;
 
     let customer_account = match vector.customer_account_type {
-        AccountType::Full { .. } => Account::Full(
+        AccountType::Full => Account::Full(
             create_full_account(
                 &mut context,
                 &bootstrap.services,
@@ -599,7 +599,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
         .get_authentication_keys_for_account_id(&customer_account.id)
         .expect("Invalid keys for account");
     let tc_account = match vector.tc_account_type {
-        AccountType::Full { .. } => Account::Full(
+        AccountType::Full => Account::Full(
             create_full_account(
                 &mut context,
                 &bootstrap.services,

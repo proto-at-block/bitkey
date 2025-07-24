@@ -9,6 +9,7 @@ use exchange_rate::{select_exchange_rate_provider, ExchangeRateConfig};
 use feature_flags::flag::Flag;
 use time::{Duration, OffsetDateTime};
 use types::account::identifiers::AccountId;
+use types::account::money::Money;
 use types::account::spend_limit::SpendingLimit;
 use types::exchange_rate::RateProvider;
 
@@ -91,6 +92,17 @@ async fn sats_for_limit(
         RateProvider::Coingecko(provider) => {
             sats_for(exchange_rate_service, provider, &limit.amount).await
         }
+    }
+}
+
+async fn sats_for_threshold(
+    money: &Money,
+    config: &Config,
+    exchange_rate_service: &ExchangeRateService,
+) -> Result<u64, ExchangeRateError> {
+    match select_exchange_rate_provider(config) {
+        RateProvider::Local(provider) => sats_for(exchange_rate_service, provider, money).await,
+        RateProvider::Coingecko(provider) => sats_for(exchange_rate_service, provider, money).await,
     }
 }
 

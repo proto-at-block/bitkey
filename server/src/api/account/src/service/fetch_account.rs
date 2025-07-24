@@ -77,7 +77,6 @@ impl Service {
         self.account_repo
             .fetch_optional_account_by_auth_pubkey(input.pubkey, AuthFactor::App)
             .await
-            .map_err(Into::into)
     }
 
     pub async fn fetch_account_by_recovery_pubkey(
@@ -87,7 +86,6 @@ impl Service {
         self.account_repo
             .fetch_optional_account_by_auth_pubkey(input.pubkey, AuthFactor::Recovery)
             .await
-            .map_err(Into::into)
     }
 
     pub async fn fetch_full_account(

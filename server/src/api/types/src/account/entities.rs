@@ -365,7 +365,7 @@ impl FullAccount {
     pub fn is_spending_limit_active(&self) -> bool {
         self.spending_limit
             .as_ref()
-            .map_or(false, |limit| limit.active)
+            .is_some_and(|limit| limit.active)
     }
 
     pub fn active_descriptor_keyset(&self) -> Option<DescriptorKeyset> {

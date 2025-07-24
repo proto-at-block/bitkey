@@ -80,7 +80,7 @@ NO_OPTIMIZE int main(void) {
   });
   auth_task_create(true);
 #else
-  captouch_task_create();
+  // captouch_task_create();
   key_manager_task_create();
   auth_task_create(false);
   fwup_task_create((fwup_task_options_t){

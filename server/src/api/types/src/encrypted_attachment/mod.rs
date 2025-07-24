@@ -1,5 +1,8 @@
-use crate::encrypted_attachment::identifiers::EncryptedAttachmentId;
+use crate::{
+    account::identifiers::AccountId, encrypted_attachment::identifiers::EncryptedAttachmentId,
+};
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 use time::OffsetDateTime;
 
 pub mod identifiers;
@@ -14,14 +17,19 @@ pub mod identifiers;
 ///
 /// This allows authorized personnel to access and decrypt the wallet descriptor for
 /// troubleshooting, using the provided keys and identifiers.
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EncryptedAttachment {
     #[serde(rename = "partition_key")]
     pub id: EncryptedAttachmentId,
+    pub account_id: AccountId,
     pub kms_key_id: String,
-    pub private_key_ciphertext: String,
-    pub public_key: String,
-    pub sealed_attachment: Option<String>,
+    #[serde_as(as = "Base64")]
+    pub private_key_ciphertext: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub public_key: Vec<u8>,
+    #[serde_as(as = "Option<Base64>")]
+    pub sealed_attachment: Option<Vec<u8>>,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
@@ -40,10 +48,11 @@ mod tests {
 
         let attachment = EncryptedAttachment {
             id: EncryptedAttachmentId::new(Ulid::default()).unwrap(),
+            account_id: AccountId::new(Ulid::default()).unwrap(),
             kms_key_id: "test-kms-key-id".to_string(),
-            private_key_ciphertext: "encrypted-private-key".to_string(),
-            public_key: "public-key-data".to_string(),
-            sealed_attachment: Some("sealed-attachment-data".to_string()),
+            private_key_ciphertext: "encrypted-private-key".as_bytes().to_vec(),
+            public_key: "public-key-data".as_bytes().to_vec(),
+            sealed_attachment: Some("sealed-attachment-data".as_bytes().to_vec()),
             created_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
             updated_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
         };
@@ -63,22 +72,26 @@ mod tests {
     fn test_encrypted_attachment_field_mapping() {
         let json = r#"{
             "partition_key": "urn:wallet-encrypted-attachment:00000000000000000000000000",
-            "kms_key_id": "test-kms-key",
-            "private_key_ciphertext": "encrypted-key",
-            "public_key": "public-key",
-            "sealed_attachment": "sealed-data",
+            "account_id": "urn:wallet-account:00000000000000000000000000",
+            "kms_key_id": "test-kms-key-id",
+            "private_key_ciphertext": "ZW5jcnlwdGVkLXByaXZhdGUta2V5",
+            "public_key": "cHVibGljLWtleS1kYXRh",
+            "sealed_attachment": "c2VhbGVkLWF0dGFjaG1lbnQtZGF0YQ==",
             "created_at": "2023-01-01T00:00:00Z",
             "updated_at": "2023-01-01T00:00:00Z"
         }"#;
 
         let attachment: EncryptedAttachment =
             serde_json::from_str(json).expect("Failed to deserialize");
-        assert_eq!(attachment.kms_key_id, "test-kms-key");
-        assert_eq!(attachment.private_key_ciphertext, "encrypted-key");
-        assert_eq!(attachment.public_key, "public-key");
+        assert_eq!(attachment.kms_key_id, "test-kms-key-id");
+        assert_eq!(
+            attachment.private_key_ciphertext,
+            "encrypted-private-key".as_bytes().to_vec()
+        );
+        assert_eq!(attachment.public_key, "public-key-data".as_bytes().to_vec());
         assert_eq!(
             attachment.sealed_attachment,
-            Some("sealed-data".to_string())
+            Some("sealed-attachment-data".as_bytes().to_vec())
         );
     }
 
@@ -89,9 +102,10 @@ mod tests {
 
         let attachment = EncryptedAttachment {
             id: EncryptedAttachmentId::new(Ulid::default()).unwrap(),
+            account_id: AccountId::new(Ulid::default()).unwrap(),
             kms_key_id: "test-kms-key-id".to_string(),
-            private_key_ciphertext: "encrypted-private-key".to_string(),
-            public_key: "public-key-data".to_string(),
+            private_key_ciphertext: "encrypted-private-key".as_bytes().to_vec(),
+            public_key: "public-key-data".as_bytes().to_vec(),
             sealed_attachment: None,
             created_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
             updated_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
@@ -107,36 +121,19 @@ mod tests {
 
     #[test]
     fn test_encrypted_attachment_optional_field_deserialization() {
-        // Test with sealed_attachment present
-        let json_with_sealed = r#"{
-            "partition_key": "urn:wallet-encrypted-attachment:00000000000000000000000000",
-            "kms_key_id": "test-kms-key",
-            "private_key_ciphertext": "encrypted-key",
-            "public_key": "public-key",
-            "sealed_attachment": "sealed-data",
-            "created_at": "2023-01-01T00:00:00Z",
-            "updated_at": "2023-01-01T00:00:00Z"
-        }"#;
-
-        let attachment_with_sealed: EncryptedAttachment =
-            serde_json::from_str(json_with_sealed).expect("Failed to deserialize");
-        assert_eq!(
-            attachment_with_sealed.sealed_attachment,
-            Some("sealed-data".to_string())
-        );
-
         // Test with sealed_attachment absent (should default to null/None)
-        let json_without_sealed = r#"{
+        let json = r#"{
             "partition_key": "urn:wallet-encrypted-attachment:00000000000000000000000000",
-            "kms_key_id": "test-kms-key",
-            "private_key_ciphertext": "encrypted-key",
-            "public_key": "public-key",
+            "account_id": "urn:wallet-account:00000000000000000000000000",
+            "kms_key_id": "test-kms-key-id",
+            "private_key_ciphertext": "ZW5jcnlwdGVkLXByaXZhdGUta2V5",
+            "public_key": "cHVibGljLWtleS1kYXRh",
             "created_at": "2023-01-01T00:00:00Z",
             "updated_at": "2023-01-01T00:00:00Z"
         }"#;
 
         let attachment_without_sealed: EncryptedAttachment =
-            serde_json::from_str(json_without_sealed).expect("Failed to deserialize");
+            serde_json::from_str(json).expect("Failed to deserialize");
         assert_eq!(attachment_without_sealed.sealed_attachment, None);
     }
 }

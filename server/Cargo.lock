@@ -17,17 +17,13 @@ dependencies = [
  "isocountry",
  "migration",
  "repository",
- "serde",
  "serde_json",
- "strum",
- "strum_macros",
  "thiserror 1.0.57",
  "time",
  "tracing",
  "types",
  "ulid",
  "userpool",
- "utoipa",
 ]
 
 [[package]]
@@ -1570,7 +1566,6 @@ dependencies = [
  "bdk_utils",
  "config",
  "database",
- "once_cell",
  "reqwest",
  "reqwest-middleware",
  "reqwest-retry",
@@ -2024,20 +2019,27 @@ name = "customer_feedback"
 version = "0.1.0"
 dependencies = [
  "account",
+ "authn_authz",
+ "aws-config",
+ "aws-sdk-kms",
  "axum",
  "axum-macros",
  "errors",
  "http_server",
  "instrumentation",
  "once_cell",
+ "repository",
  "reqwest",
  "rust-embed",
  "serde",
  "serde_json",
+ "serde_with 3.9.0",
  "strum",
  "strum_macros",
  "thiserror 1.0.57",
+ "time",
  "tracing",
+ "types",
  "utoipa",
 ]
 
@@ -2094,7 +2096,6 @@ dependencies = [
  "aws-types",
  "errors",
  "http 1.1.0",
- "regex",
  "serde",
  "serde_dynamo",
  "thiserror 1.0.57",
@@ -2424,12 +2425,10 @@ dependencies = [
 name = "errors"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "axum",
  "external_identifier",
  "http 1.1.0",
  "serde",
- "serde_json",
  "strum_macros",
  "thiserror 1.0.57",
  "tracing",
@@ -2500,7 +2499,6 @@ dependencies = [
  "axum-macros",
  "bdk_utils",
  "errors",
- "experimentation",
  "feature_flags",
  "futures",
  "http 1.1.0",
@@ -2528,7 +2526,6 @@ name = "experimentation"
 version = "0.1.0"
 dependencies = [
  "account",
- "analytics",
  "authn_authz",
  "axum",
  "axum-macros",
@@ -2592,7 +2589,6 @@ dependencies = [
  "launchdarkly-server-sdk",
  "rust-embed",
  "serde",
- "serde_json",
  "thiserror 1.0.57",
  "toml",
 ]
@@ -3974,6 +3970,7 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
+ "transaction_verification",
  "types",
  "userpool",
  "utoipa",
@@ -4086,7 +4083,6 @@ dependencies = [
  "errors",
  "futures",
  "hmac",
- "http 1.1.0",
  "http_server",
  "instrumentation",
  "isocountry",
@@ -4230,7 +4226,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with 3.9.0",
- "strum",
  "thiserror 1.0.57",
  "time",
  "tracing",
@@ -4480,7 +4475,6 @@ dependencies = [
  "server",
  "tokio",
  "tower 0.5.0",
- "tracing",
  "types",
  "ulid",
  "userpool",
@@ -4505,7 +4499,6 @@ dependencies = [
  "hex",
  "hmac",
  "isocountry",
- "opentelemetry",
  "regex",
  "reqwest",
  "rstest",
@@ -4854,6 +4847,8 @@ dependencies = [
  "once_cell",
  "rand",
  "repository",
+ "rust-embed",
+ "secure_site",
  "serde",
  "serde_json",
  "thiserror 1.0.57",
@@ -4934,7 +4929,6 @@ dependencies = [
  "rand",
  "reqwest",
  "reqwest-middleware",
- "reqwest-retry",
  "rstest",
  "serde",
  "serde_json",
@@ -5705,8 +5699,6 @@ version = "0.1.0"
 dependencies = [
  "aws-config",
  "aws-sdk-s3",
- "errors",
- "instrumentation",
  "rstest",
  "tracing",
  "url",
@@ -5860,6 +5852,19 @@ source = "git+https://github.com/wpaulino/rust-secp256k1-zkp.git?branch=frost-bi
 dependencies = [
  "cc",
  "secp256k1-sys 0.10.1",
+]
+
+[[package]]
+name = "secure_site"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "mime_guess",
+ "regex",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.57",
 ]
 
 [[package]]
@@ -6123,6 +6128,7 @@ dependencies = [
  "repository",
  "rstest",
  "screener",
+ "secure_site",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -6958,9 +6964,7 @@ dependencies = [
  "async-trait",
  "authn_authz",
  "axum",
- "axum-extra",
  "axum-macros",
- "base64 0.22.1",
  "bdk_utils",
  "config",
  "database",
@@ -6969,11 +6973,12 @@ dependencies = [
  "experimentation",
  "feature_flags",
  "http_server",
- "mime_guess",
  "notification",
+ "privileged_action",
  "regex",
  "rstest",
  "rust-embed",
+ "secure_site",
  "serde",
  "serde_json",
  "thiserror 1.0.57",
@@ -7694,7 +7699,6 @@ dependencies = [
  "queue",
  "recovery",
  "repository",
- "reqwest",
  "rstest",
  "s3-utils",
  "serde",

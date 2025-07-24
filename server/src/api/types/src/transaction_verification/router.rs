@@ -1,3 +1,4 @@
+use crate::account::entities::TransactionVerificationPolicy;
 use crate::transaction_verification::entities::TransactionVerification;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::bitcoin::secp256k1::ecdsa::Signature;
@@ -74,4 +75,11 @@ pub enum InitiateTransactionVerificationView {
     Signed(InitiateTransactionVerificationViewSigned),
     VerificationRequired,
     VerificationRequested(InitiateTransactionVerificationViewRequested),
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct PutTransactionVerificationPolicyRequest {
+    #[serde(flatten)]
+    pub policy: TransactionVerificationPolicy,
 }

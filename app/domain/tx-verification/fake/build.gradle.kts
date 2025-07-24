@@ -8,5 +8,6 @@ kotlin {
   targets(ios = true, jvm = true)
   sourceSets.commonMain.dependencies {
     implementation(libs.kmp.kotlin.datetime)
+    implementation(projects.domain.bitkeyPrimitivesFake)
   }
 }

@@ -74,8 +74,14 @@ mod tests {
     use external_identifier::ExternalIdentifier;
     use http_server::config;
     use time::OffsetDateTime;
-    use types::encrypted_attachment::{identifiers::EncryptedAttachmentId, EncryptedAttachment};
+    use tokio::sync::OnceCell;
+    use types::{
+        account::identifiers::AccountId,
+        encrypted_attachment::{identifiers::EncryptedAttachmentId, EncryptedAttachment},
+    };
     use ulid::Ulid;
+
+    static INIT: OnceCell<()> = OnceCell::const_new();
 
     async fn construct_test_encrypted_attachment_repository() -> EncryptedAttachmentRepository {
         let profile = Some("test");
@@ -84,13 +90,24 @@ mod tests {
         EncryptedAttachmentRepository::new(ddb_connection)
     }
 
+    async fn ensure_test_table_exists() {
+        INIT.get_or_init(|| async {
+            let repository = construct_test_encrypted_attachment_repository().await;
+            if !repository.table_exists().await.unwrap_or(false) {
+                let _ = repository.create_table().await;
+            }
+        })
+        .await;
+    }
+
     fn create_test_encrypted_attachment() -> EncryptedAttachment {
         EncryptedAttachment {
             id: EncryptedAttachmentId::new(Ulid::default()).unwrap(),
+            account_id: AccountId::new(Ulid::default()).unwrap(),
             kms_key_id: "test-kms-key-id".to_string(),
-            private_key_ciphertext: "encrypted-private-key-data".to_string(),
-            public_key: "public-key-data".to_string(),
-            sealed_attachment: Some("sealed-attachment-data".to_string()),
+            private_key_ciphertext: "encrypted-private-key".as_bytes().to_vec(),
+            public_key: "public-key-data".as_bytes().to_vec(),
+            sealed_attachment: Some("sealed-attachment-data".as_bytes().to_vec()),
             created_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
             updated_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
         }
@@ -136,15 +153,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_persist_and_fetch() {
+        ensure_test_table_exists().await;
         let repository = construct_test_encrypted_attachment_repository().await;
-
-        // Ensure table exists before running tests
-        if !repository.table_exists().await.unwrap_or(false) {
-            repository
-                .create_table()
-                .await
-                .expect("Failed to create table");
-        }
 
         let mut attachment = create_test_encrypted_attachment();
         // Use unique ID to avoid conflicts with other tests
@@ -187,15 +197,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_persist_optimistic_locking() {
+        ensure_test_table_exists().await;
         let repository = construct_test_encrypted_attachment_repository().await;
-
-        // Ensure table exists before running tests
-        if !repository.table_exists().await.unwrap_or(false) {
-            repository
-                .create_table()
-                .await
-                .expect("Failed to create table");
-        }
 
         let mut attachment = create_test_encrypted_attachment();
         // Use unique ID to avoid conflicts with other tests
@@ -211,15 +214,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_nonexistent_attachment() {
+        ensure_test_table_exists().await;
         let repository = construct_test_encrypted_attachment_repository().await;
-
-        // Ensure table exists before running tests
-        if !repository.table_exists().await.unwrap_or(false) {
-            repository
-                .create_table()
-                .await
-                .expect("Failed to create table");
-        }
 
         let non_existent_id = EncryptedAttachmentId::new(Ulid::new()).unwrap();
 
@@ -229,15 +225,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_persist_attachment_with_none_sealed_attachment() {
+        ensure_test_table_exists().await;
         let repository = construct_test_encrypted_attachment_repository().await;
-
-        // Ensure table exists before running tests
-        if !repository.table_exists().await.unwrap_or(false) {
-            repository
-                .create_table()
-                .await
-                .expect("Failed to create table");
-        }
 
         let mut test_attachment = create_test_encrypted_attachment();
         // Use unique ID for this test to avoid conflicts
@@ -264,15 +253,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_persist_multiple_attachments() {
+        ensure_test_table_exists().await;
         let repository = construct_test_encrypted_attachment_repository().await;
-
-        // Ensure table exists before running tests
-        if !repository.table_exists().await.unwrap_or(false) {
-            repository
-                .create_table()
-                .await
-                .expect("Failed to create table");
-        }
 
         let mut attachment1 = create_test_encrypted_attachment();
         attachment1.id = EncryptedAttachmentId::new(Ulid::new()).unwrap();

@@ -1,6 +1,7 @@
 package bitkey.ui.screens.securityhub
 
 import androidx.compose.runtime.*
+import bitkey.privilegedactions.FingerprintResetAvailabilityService
 import bitkey.securitycenter.SecurityAction
 import bitkey.securitycenter.SecurityActionRecommendation
 import bitkey.securitycenter.SecurityActionRecommendation.*
@@ -23,7 +24,7 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.FingerprintResetFeatureFlag
+import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.navigation.v1.NavigationScreenId
@@ -47,8 +48,8 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManageFingerprintsOptionsSheet
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
-import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsProps
-import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetProps
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachine
 import build.wallet.statemachine.settings.full.notifications.Source
 import build.wallet.statemachine.status.AppFunctionalityStatusScreen
 import build.wallet.statemachine.status.BannerContext
@@ -73,10 +74,10 @@ class SecurityHubPresenter(
   private val recoveryContactCardsUiStateMachine: RecoveryContactCardsUiStateMachine,
   private val hardwareRecoveryStatusCardUiStateMachine: HardwareRecoveryStatusCardUiStateMachine,
   private val fingerprintResetStatusCardUiStateMachine: FingerprintResetStatusCardUiStateMachine,
-  private val resetFingerprintsUiStateMachine: ResetFingerprintsUiStateMachine,
+  private val fingerprintResetUiStateMachine: FingerprintResetUiStateMachine,
   private val appFunctionalityService: AppFunctionalityService,
   private val haptics: Haptics,
-  private val fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
+  private val fingerprintResetAvailabilityService: FingerprintResetAvailabilityService,
 ) : ScreenPresenter<SecurityHubScreen> {
   @Composable
   override fun model(
@@ -89,15 +90,16 @@ class SecurityHubPresenter(
       mutableStateOf(screen.initialState)
     }
     val onCannotUnlockFingerprints = {
-      uiState = SecurityHubUiState.ResetFingerprintsState
+      uiState = SecurityHubUiState.FingerprintResetState
     }
 
     val securityActionsWithRecommendations by remember {
       securityActionsService.securityActionsWithRecommendations
     }.collectAsState()
 
-    val isFingerprintResetEnabled by remember { fingerprintResetFeatureFlag.flagValue() }
-      .collectAsState()
+    val isFingerprintResetEnabled by remember {
+      fingerprintResetAvailabilityService.isAvailable()
+    }.collectAsState(initial = false)
 
     val homeStatusBannerModel = homeStatusBannerUiStateMachine.model(
       props = HomeStatusBannerUiProps(
@@ -115,9 +117,23 @@ class SecurityHubPresenter(
       )
     )
 
+    val fingerprintResetStatusCard = fingerprintResetStatusCardUiStateMachine.model(
+      props = FingerprintResetStatusCardUiProps(
+        account = screen.account,
+        onClick = { _ ->
+          uiState = SecurityHubUiState.FingerprintResetState
+        }
+      )
+    )
+
     val functionalityStatus by remember {
       appFunctionalityService.status
     }.collectAsState()
+
+    // Helper function to check if the fingerprint reset flow should be shown
+    val shouldShowFingerprintReset = { recommendations: List<SecurityActionRecommendation> ->
+      recommendations.contains(COMPLETE_FINGERPRINT_RESET) || fingerprintResetStatusCard != null
+    }
 
     val cardsModel = CardListModel(
       cards = buildImmutableList {
@@ -134,14 +150,8 @@ class SecurityHubPresenter(
         ).also { add(it) }
 
         // Add Fingerprint reset status card
-        fingerprintResetStatusCardUiStateMachine.model(
-          props = FingerprintResetStatusCardUiProps(
-            account = screen.account,
-            onClick = { actionId ->
-              uiState = SecurityHubUiState.ResetFingerprintsState
-            }
-          )
-        ).also { add(it) }
+        fingerprintResetStatusCard
+          ?.let { add(it) }
 
         // Add TC invitation cards
         recoveryContactCardsUiStateMachine.model(
@@ -200,12 +210,12 @@ class SecurityHubPresenter(
             val activeRecommendations = securityActionsWithRecommendations.recommendations
 
             // If the complete fingerprint reset recommendation is present, always go to the reset flow
-            if (activeRecommendations.contains(COMPLETE_FINGERPRINT_RESET)) {
-              uiState = SecurityHubUiState.ResetFingerprintsState
+            if (shouldShowFingerprintReset(activeRecommendations)) {
+              uiState = SecurityHubUiState.FingerprintResetState
             } else {
               when (recommendation) {
                 COMPLETE_FINGERPRINT_RESET -> {
-                  uiState = SecurityHubUiState.ResetFingerprintsState
+                  uiState = SecurityHubUiState.FingerprintResetState
                 }
                 else -> {
                   if (recommendation.shouldShowEducation()) {
@@ -229,13 +239,22 @@ class SecurityHubPresenter(
             }
           },
           onSecurityActionClick = { securityAction ->
-            navigator.navigateToScreen(
-              id = securityAction.navigationScreenId(),
-              originScreen = screen,
-              firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
-              isFingerprintResetEnabled = isFingerprintResetEnabled.value,
-              onCannotUnlockFingerprints = onCannotUnlockFingerprints
-            )
+            val activeRecommendations = securityActionsWithRecommendations.recommendations
+
+            // If this is a fingerprint security action and complete fingerprint reset is recommended, go directly to reset flow
+            if (securityAction.navigationScreenId() == NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS &&
+              shouldShowFingerprintReset(activeRecommendations)
+            ) {
+              uiState = SecurityHubUiState.FingerprintResetState
+            } else {
+              navigator.navigateToScreen(
+                id = securityAction.navigationScreenId(),
+                originScreen = screen,
+                firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+                isFingerprintResetEnabled = isFingerprintResetEnabled,
+                onCannotUnlockFingerprints = onCannotUnlockFingerprints
+              )
+            }
           },
           onHomeTabClick = {
             scope.launch {
@@ -246,14 +265,15 @@ class SecurityHubPresenter(
         ).asRootScreen(statusBannerModel = homeStatusBannerModel)
       }
 
-      is SecurityHubUiState.ResetFingerprintsState -> {
-        resetFingerprintsUiStateMachine.model(
-          props = ResetFingerprintsProps(
-            onComplete = {
+      is SecurityHubUiState.FingerprintResetState -> {
+        fingerprintResetUiStateMachine.model(
+          props = FingerprintResetProps(
+            onComplete = { enrolledFingerprints ->
               onEditFingerprints(
                 navigator,
                 screen,
-                firmwareUpdateData.firmwareUpdateState
+                firmwareUpdateData.firmwareUpdateState,
+                enrolledFingerprints
               )
             },
             onCancel = {
@@ -356,7 +376,7 @@ private fun Navigator.onCannotUnlock(
       SecurityHubScreen(
         account = originScreen.account,
         hardwareRecoveryData = originScreen.hardwareRecoveryData,
-        initialState = SecurityHubUiState.ResetFingerprintsState
+        initialState = SecurityHubUiState.FingerprintResetState
       )
     )
   }
@@ -366,6 +386,7 @@ private fun onEditFingerprints(
   navigator: Navigator,
   originScreen: SecurityHubScreen,
   firmwareUpdateData: FirmwareData.FirmwareUpdateState,
+  enrolledFingerprints: EnrolledFingerprints? = null,
 ) {
   navigator.goTo(
     ManagingFingerprintsScreen(
@@ -386,6 +407,7 @@ private fun onEditFingerprints(
         )
       },
       entryPoint = EntryPoint.SECURITY_HUB,
+      enrolledFingerprints = enrolledFingerprints,
       origin = SecurityHubScreen(
         account = originScreen.account,
         hardwareRecoveryData = originScreen.hardwareRecoveryData
@@ -433,5 +455,5 @@ sealed interface SecurityHubUiState {
   /**
    * State for resetting fingerprints
    */
-  data object ResetFingerprintsState : SecurityHubUiState
+  data object FingerprintResetState : SecurityHubUiState
 }

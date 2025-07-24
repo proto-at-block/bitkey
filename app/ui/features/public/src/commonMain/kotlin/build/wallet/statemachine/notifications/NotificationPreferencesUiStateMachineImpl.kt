@@ -9,7 +9,6 @@ import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.ktor.result.NetworkingError
 import build.wallet.platform.permissions.Permission
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PermissionStatus
@@ -68,18 +67,18 @@ class NotificationPreferencesUiStateMachineImpl(
     LaunchedEffect("load-push-and-preferences-state") {
       // If we're coming from settings, load user's settings from the server
       if (shouldLoadSavedPreferences) {
-        notificationsPreferencesCachedProvider.getNotificationsPreferences(props.accountId)
+        notificationsPreferencesCachedProvider.getNotificationsPreferences()
           // Generally speaking, there will be only one result, coming from the cache.
           // However, if the server state differs from the cache, we'll emit a second
           // data set for the UI.
           .collect {
-            it.onSuccess { prefs ->
+            it?.onSuccess { prefs ->
               currentPreferences = prefs
               transactionPush = prefs.moneyMovement.contains(NotificationChannel.Push)
               updatesPush = prefs.productMarketing.contains(NotificationChannel.Push)
               updatesEmail = prefs.productMarketing.contains(NotificationChannel.Email)
               uiState = UiState.MainViewState.Editing
-            }.onFailure { error ->
+            }?.onFailure { error ->
               // If we have cache data, the provider doesn't signal an error if the server
               // check fails. We'll only get an "error" if there's no cached data, and
               // the server refresh call fails.
@@ -329,7 +328,7 @@ class NotificationPreferencesUiStateMachineImpl(
        * Network error. If on load, back action returns user to settings. If on save, return to editing
        * and user can try again.
        */
-      data class NetworkError(val networkingError: NetworkingError, val onClose: () -> Unit) :
+      data class NetworkError(val networkingError: Error, val onClose: () -> Unit) :
         MainViewState
     }
 

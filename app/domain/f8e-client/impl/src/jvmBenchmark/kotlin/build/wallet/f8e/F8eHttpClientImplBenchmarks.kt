@@ -13,17 +13,19 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.encrypt.WsmVerifierMock
 import build.wallet.f8e.client.*
+import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.debug.NetworkingDebugServiceFake
+import build.wallet.firmware.FirmwareDeviceInfoDaoMock
+import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.bodyResult
-import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant.Development
-import build.wallet.platform.config.AppVersion
 import build.wallet.platform.data.MimeType
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.settings.CountryCodeGuesserMock
+import build.wallet.time.ClockFake
 import io.kotest.matchers.shouldBe
 import io.ktor.client.engine.mock.*
 import io.ktor.client.request.*
@@ -42,7 +44,8 @@ import kotlinx.coroutines.runBlocking
 open class F8eHttpClientImplBenchmarks {
   private val fakeAppAuthKeyMessageSigner = AppAuthKeyMessageSignerMock()
   private val fakeKeyboxDao = KeyboxDaoMock({ Turbine() }, KeyboxMock)
-  private val authTokensRepository = AuthTokensServiceFake()
+  private val authTokensService = AuthTokensServiceFake()
+  private val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock { Turbine() }
 
   private val engine =
     MockEngine {
@@ -90,18 +93,12 @@ open class F8eHttpClientImplBenchmarks {
     }
   private val deviceInfoProvider = DeviceInfoProviderMock()
 
-  private val networkReachabilityProvider = NetworkReachabilityProviderMock { Turbine() }
-  private val f8eHttpClientProvider =
-    F8eHttpClientProvider(
-      appId = AppId("world.bitkey.test"),
-      appVersion = AppVersion("2008.10.31"),
-      appVariant = Development,
-      platformInfoProvider = PlatformInfoProviderMock(),
-      datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer),
-      networkingDebugService = NetworkingDebugServiceFake(),
-      appInstallationDao = AppInstallationDaoMock(),
-      countryCodeGuesser = CountryCodeGuesserMock()
-    )
+  private val authedNetworkReachabilityProvider = NetworkReachabilityProviderMock("authed") {
+    Turbine()
+  }
+  private val unauthedNetworkReachabilityProvider = NetworkReachabilityProviderMock("unauthed") {
+    Turbine()
+  }
 
   private val unauthenticatedF8eHttpClientFactory =
     UnauthenticatedF8eHttpClientFactory(
@@ -109,36 +106,52 @@ open class F8eHttpClientImplBenchmarks {
       platformInfoProvider = PlatformInfoProviderMock(),
       datadogTracer = datadogTracer,
       deviceInfoProvider = deviceInfoProvider,
-      networkReachabilityProvider = NetworkReachabilityProviderMock { Turbine(name = it) },
       appInstallationDao = AppInstallationDaoMock(),
+      firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       countryCodeGuesser = CountryCodeGuesserMock(),
+      networkReachabilityProvider = unauthedNetworkReachabilityProvider,
       networkingDebugService = NetworkingDebugServiceFake(),
       engine = engine
     )
 
+  private val authenticatedF8eHttpClientFactory =
+    AuthenticatedF8eHttpClientFactory(
+      appVariant = Development,
+      platformInfoProvider = PlatformInfoProviderMock(),
+      authTokensService = authTokensService,
+      datadogTracer = datadogTracer,
+      deviceInfoProvider = deviceInfoProvider,
+      keyboxDao = fakeKeyboxDao,
+      appAuthKeyMessageSigner = fakeAppAuthKeyMessageSigner,
+      appInstallationDao = AppInstallationDaoMock(),
+      firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+      countryCodeGuesser = CountryCodeGuesserMock(),
+      networkReachabilityProvider = authedNetworkReachabilityProvider,
+      networkingDebugService = NetworkingDebugServiceFake(),
+      engine = engine,
+      clock = ClockFake()
+    )
+
   private val client =
     F8eHttpClientImpl(
-      authTokensRepository = AuthTokensServiceFake(),
-      deviceInfoProvider = deviceInfoProvider,
-      proofOfPossessionPluginProvider =
-        ProofOfPossessionPluginProvider(
-          authTokensRepository = authTokensRepository,
-          keyboxDao = fakeKeyboxDao,
-          appAuthKeyMessageSigner = fakeAppAuthKeyMessageSigner
-        ),
-      unauthenticatedF8eHttpClient =
-        UnauthenticatedOnlyF8eHttpClientImpl(
-          appCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-          unauthenticatedF8eHttpClientFactory = unauthenticatedF8eHttpClientFactory
-        ),
-      f8eHttpClientProvider = f8eHttpClientProvider,
-      networkReachabilityProvider = networkReachabilityProvider,
+      authenticatedF8eHttpClient = AuthenticatedF8eHttpClientImpl(
+        appCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        authenticatedF8eHttpClientFactory = authenticatedF8eHttpClientFactory
+      ),
+      unauthenticatedF8eHttpClient = UnauthenticatedOnlyF8eHttpClientImpl(
+        appCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        unauthenticatedF8eHttpClientFactory = unauthenticatedF8eHttpClientFactory
+      ),
       wsmVerifier = WsmVerifierMock()
     )
 
   @Setup
   fun prepare() {
-    authTokensRepository.reset()
+    @Suppress("ForbiddenMethodCall")
+    runBlocking {
+      authTokensService.reset()
+      firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
+    }
   }
 
   @Benchmark
@@ -158,12 +171,11 @@ open class F8eHttpClientImplBenchmarks {
   fun authenticatedRequest() {
     @Suppress("ForbiddenMethodCall")
     runBlocking {
-      client.authenticated(
-        f8eEnvironment = F8eEnvironment.Development,
-        engine = engine,
-        accountId = FullAccountId("1234")
-      ).bodyResult<EmptyResponseBody> {
-        put("/1234/soda/can")
+      client.authenticated().bodyResult<EmptyResponseBody> {
+        put("/1234/soda/can") {
+          withEnvironment(F8eEnvironment.Development)
+          withAccountId(FullAccountId("1234"))
+        }
       }
     }
   }

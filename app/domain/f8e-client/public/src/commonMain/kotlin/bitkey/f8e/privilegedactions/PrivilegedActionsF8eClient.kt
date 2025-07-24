@@ -5,14 +5,12 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
-import build.wallet.ktor.result.EmptyResponseBody
-import build.wallet.ktor.result.RedactedResponseBody
-import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import dev.zacsweers.redacted.annotations.Unredacted
-import io.ktor.client.request.*
-import kotlinx.datetime.Clock
+import io.ktor.client.request.get
+import io.ktor.client.request.post
 import kotlinx.datetime.Instant
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -72,7 +70,7 @@ interface PrivilegedActionsF8eClient<Req, Res> {
         post("/api/privileged-actions/cancel") {
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
-          setBody(request)
+          setRedactedBody(request)
         }
       }
   }
@@ -85,7 +83,7 @@ interface PrivilegedActionsF8eClient<Req, Res> {
 data class ContinuePrivilegedActionRequest(
   @SerialName("privileged_action_instance")
   val privilegedActionInstance: PrivilegedActionInstanceRef,
-)
+) : RedactedRequestBody
 
 /**
  * Reference to a privileged action instance with authorization details
@@ -193,15 +191,33 @@ sealed class AuthorizationStrategy {
 data class CancelPrivilegedActionRequest(
   @SerialName("cancellation_token")
   val cancellationToken: String,
-)
+) : RedactedRequestBody
 
-/**
- * Extension function to check if a D+N privileged action is ready to be completed.
- * Returns true if the delay period has ended, false otherwise.
- */
-fun PrivilegedActionInstance.isDelayAndNotifyReadyToComplete(clock: Clock): Boolean {
-  val delayAndNotifyStrategy = authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
-  return delayAndNotifyStrategy?.let { strategy ->
-    clock.now() >= strategy.delayEndTime
-  } ?: false
+fun PrivilegedActionInstance.toPrimitive(): bitkey.privilegedactions.PrivilegedActionInstance {
+  return bitkey.privilegedactions.PrivilegedActionInstance(
+    id = id,
+    privilegedActionType = privilegedActionType.toPrimitive(),
+    authorizationStrategy = when (authorizationStrategy) {
+      is AuthorizationStrategy.DelayAndNotify -> bitkey.privilegedactions.AuthorizationStrategy.DelayAndNotify(
+        authorizationStrategyType = authorizationStrategy.authorizationStrategyType.toPrimitive(),
+        delayStartTime = authorizationStrategy.delayStartTime,
+        delayEndTime = authorizationStrategy.delayEndTime,
+        cancellationToken = authorizationStrategy.cancellationToken,
+        completionToken = authorizationStrategy.completionToken
+      )
+    }
+  )
+}
+
+fun PrivilegedActionType.toPrimitive(): bitkey.privilegedactions.PrivilegedActionType {
+  return when (this) {
+    PrivilegedActionType.RESET_FINGERPRINT -> bitkey.privilegedactions.PrivilegedActionType.RESET_FINGERPRINT
+  }
+}
+
+fun AuthorizationStrategyType.toPrimitive(): bitkey.privilegedactions.AuthorizationStrategyType {
+  return when (this) {
+    AuthorizationStrategyType.DELAY_AND_NOTIFY -> bitkey.privilegedactions.AuthorizationStrategyType.DELAY_AND_NOTIFY
+    AuthorizationStrategyType.HARDWARE_PROOF_OF_POSSESSION -> bitkey.privilegedactions.AuthorizationStrategyType.HARDWARE_PROOF_OF_POSSESSION
+  }
 }

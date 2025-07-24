@@ -4,11 +4,10 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.bdk.bindings.BdkError.Generic
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.bitkey.spending.F8eSpendingPublicKeyMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.notifications.RegisterWatchAddressContext
@@ -61,10 +60,7 @@ class BitcoinAddressServiceImplTests : FunSpec({
       listOf(
         RegisterWatchAddressContext(
           someBitcoinAddress,
-          F8eSpendingKeyset(
-            keysetId = "spending-public-keyset-fake-server-id",
-            spendingPublicKey = F8eSpendingPublicKeyMock
-          ),
+          F8eSpendingKeysetMock,
           FullAccountIdMock.serverId,
           KeyboxMock.config.f8eEnvironment
         )

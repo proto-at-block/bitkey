@@ -8,6 +8,7 @@ import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
@@ -88,7 +89,7 @@ class ListKeysetsF8eClientImpl(
     @SerialName("keysets")
     val keysets: List<Keyset>,
     @SerialName("wrapped_ssek")
-    val wrappedSsek: String?,
+    val wrappedSsek: SealedSsek?,
     @SerialName("descriptor_backups")
     val descriptorBackups: List<DescriptorBackup>,
   ) : RedactedResponseBody

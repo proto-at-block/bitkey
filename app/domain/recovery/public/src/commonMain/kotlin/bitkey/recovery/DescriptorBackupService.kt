@@ -55,6 +55,24 @@ interface DescriptorBackupService {
   ): Result<DescriptorBackupPreparedData, Error>
 
   /**
+   * Uploads encrypted descriptor backups to F8e on onboarding.
+   *
+   * This method is different from [uploadDescriptorBackups] because it does not require a hardware
+   * key proof when uploading the backups before onboarding is complete.
+   *
+   * @param accountId The full account identifier
+   * @param sealedSsekForEncryption The sealed SSEK for encrypting the descriptors
+   * @param appAuthKey The app's authentication key for F8e
+   * @param keysetsToEncrypt The list of spending keysets to encrypt as descriptors
+   */
+  suspend fun uploadOnboardingDescriptorBackup(
+    accountId: FullAccountId,
+    sealedSsekForEncryption: SealedSsek,
+    appAuthKey: PublicKey<AppGlobalAuthKey>,
+    keysetsToEncrypt: List<SpendingKeyset>,
+  ): Result<Unit, DescriptorBackupError>
+
+  /**
    * Uploads encrypted descriptor backups to F8e after processing them for recovery.
    *
    * This method:

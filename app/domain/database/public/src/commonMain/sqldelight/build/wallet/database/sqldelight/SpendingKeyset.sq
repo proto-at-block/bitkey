@@ -1,21 +1,32 @@
 import build.wallet.bitkey.app.AppSpendingPublicKey;
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey;
 import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import kotlin.Boolean;
 
 CREATE TABLE spendingKeysetEntity(
   id          TEXT NOT NULL PRIMARY KEY,
+  keyboxId    TEXT NOT NULL,
   serverId    TEXT NOT NULL,
   appKey      TEXT AS AppSpendingPublicKey NOT NULL UNIQUE,
   hardwareKey TEXT AS HwSpendingPublicKey NOT NULL UNIQUE,
-  serverKey   TEXT AS F8eSpendingPublicKey NOT NULL UNIQUE
+  serverKey   TEXT AS F8eSpendingPublicKey NOT NULL UNIQUE,
+  isActive    INTEGER AS Boolean NOT NULL DEFAULT 0,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity(id) ON DELETE CASCADE
 );
+
+CREATE UNIQUE INDEX idx_spendingKeyset_unique_active
+ON spendingKeysetEntity (keyboxId)
+WHERE isActive = 1;
 
 allKeysets:
 SELECT * FROM spendingKeysetEntity;
 
+allKeysetsForKeybox:
+SELECT * FROM spendingKeysetEntity WHERE keyboxId = ?;
+
 insertKeyset:
-INSERT OR REPLACE INTO spendingKeysetEntity(id, serverId, appKey, hardwareKey, serverKey)
-VALUES(?, ?, ?, ?, ?);
+INSERT INTO spendingKeysetEntity(id, keyboxId, serverId, appKey, hardwareKey, serverKey, isActive)
+VALUES(?, ?, ?, ?, ?, ?, ?);
 
 -- When fetching the keyset, join the key table for each key.
 keysetById:
@@ -27,3 +38,7 @@ DELETE FROM spendingKeysetEntity WHERE spendingKeysetEntity.id = ?;
 
 clear:
 DELETE FROM spendingKeysetEntity;
+
+-- Query to count total spending keysets
+countSpendingKeysets:
+SELECT COUNT(*) FROM spendingKeysetEntity;

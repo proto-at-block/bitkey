@@ -16,7 +16,6 @@ futures = { workspace = true }
 isocountry = { workspace = true }
 itertools = { workspace = true }
 once_cell = { workspace = true }
-reqwest = { workspace = true }
 s3-utils = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

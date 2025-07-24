@@ -7,6 +7,7 @@ import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 
@@ -20,17 +21,11 @@ val AppSpendingKeypair = AppSpendingKeypair(AppSpendingPublicKeyMock, AppSpendin
 
 val HwSpendingPublicKeyMock =
   HwSpendingPublicKey(DescriptorPublicKeyMock(identifier = "hardware-dpub"))
-val F8eSpendingPublicKeyMock =
-  F8eSpendingPublicKey(DescriptorPublicKeyMock(identifier = "server-dpub"))
 
 val SpendingKeysetMock =
   SpendingKeyset(
     localId = "spending-public-keyset-fake-id-1",
-    f8eSpendingKeyset =
-      F8eSpendingKeyset(
-        keysetId = "spending-public-keyset-fake-server-id",
-        spendingPublicKey = F8eSpendingPublicKeyMock
-      ),
+    f8eSpendingKeyset = F8eSpendingKeysetMock,
     networkType = SIGNET,
     appKey = AppSpendingPublicKeyMock,
     hardwareKey = HwSpendingPublicKeyMock

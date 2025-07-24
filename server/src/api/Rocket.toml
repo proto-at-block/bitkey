@@ -30,6 +30,8 @@ known_fields.19386550194836 = "SystemNameAndVersion"
 known_fields.19386560407956 = "AppVersion"
 known_fields.19386627184148 = "HardwareFirmwareVersion"
 monitored_electrum_nodes = []
+kms = "test"
+encrypted_attachment_kms_key_id = "fake-encrypted-attachment-kms-key-id"
 
 [test-docker]
 port = 8080
@@ -94,6 +96,9 @@ analytics_api_url = "https://api.segment.io"
 # Iterable
 iterable.mode = "environment"
 iterable.comms_verification_campaign_id = 9281957
+iterable.privileged_action_canceled_out_of_band_verification_campaign_id = 13993615
+iterable.privileged_action_completed_out_of_band_verification_campaign_id = 13993614
+iterable.privileged_action_pending_out_of_band_verification_campaign_id = 13993611
 iterable.recovery_pending_delay_period_lost_app_campaign_id = 9234980
 iterable.recovery_pending_delay_period_lost_hw_campaign_id = 9234864
 iterable.recovery_completed_delay_period_lost_app_campaign_id = 9235008
@@ -144,6 +149,7 @@ monitored_electrum_nodes = [
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.147.244.49:50001" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.131.144.107:50001" },
 ]
+kms = "environment"
 
 [staging]
 port = 80
@@ -164,6 +170,9 @@ analytics_api_url = "https://api.segment.io"
 # Iterable
 iterable.mode = "environment"
 iterable.comms_verification_campaign_id = 9281957
+iterable.privileged_action_canceled_out_of_band_verification_campaign_id = 13993615
+iterable.privileged_action_completed_out_of_band_verification_campaign_id = 13993614
+iterable.privileged_action_pending_out_of_band_verification_campaign_id = 13993611
 iterable.recovery_pending_delay_period_lost_app_campaign_id = 9234980
 iterable.recovery_pending_delay_period_lost_hw_campaign_id = 9234864
 iterable.recovery_completed_delay_period_lost_app_campaign_id = 9235008
@@ -215,6 +224,7 @@ monitored_electrum_nodes = [
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.147.244.49:50001" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.131.144.107:50001" },
 ]
+kms = "environment"
 
 [production]
 port = 80
@@ -235,6 +245,9 @@ analytics_api_url = "https://api.segment.io"
 # Iterable
 iterable.mode = "environment"
 iterable.comms_verification_campaign_id = 9282843
+iterable.privileged_action_canceled_out_of_band_verification_campaign_id = 13993609
+iterable.privileged_action_completed_out_of_band_verification_campaign_id = 13993605
+iterable.privileged_action_pending_out_of_band_verification_campaign_id = 13993591
 iterable.recovery_pending_delay_period_lost_app_campaign_id = 9284325
 iterable.recovery_pending_delay_period_lost_hw_campaign_id = 9284300
 iterable.recovery_completed_delay_period_lost_app_campaign_id = 9284352
@@ -288,3 +301,4 @@ monitored_electrum_nodes = [
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.147.244.49:50001" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.131.144.107:50001" },
 ]
+kms = "environment"

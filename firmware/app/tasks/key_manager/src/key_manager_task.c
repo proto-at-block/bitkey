@@ -503,10 +503,12 @@ void key_manager_thread(void* UNUSED(args)) {
     ipc_ref_t message = {0};
     ipc_recv(key_manager_port, &message);
 
+#if 0
     if (sysevent_get(SYSEVENT_BREAK_GLASS_READY)) {
       LOGW("Entering break glass mode - disabling signing policies!");
       policy_disable();
     }
+#endif
 
     switch (message.tag) {
       // Unauthenticated commands

@@ -19,6 +19,9 @@ const ACCOUNT_IDX_SORT_KEY: &str = "created_at";
 const CANCELLATION_TOKEN_IDX: &str = "by_cancellation_token";
 const CANCELLATION_TOKEN_IDX_PARTITION_KEY: &str = "cancellation_token";
 
+const WEB_AUTH_TOKEN_IDX: &str = "by_web_auth_token";
+const WEB_AUTH_TOKEN_IDX_PARTITION_KEY: &str = "web_auth_token";
+
 #[derive(Clone)]
 pub struct PrivilegedActionRepository {
     base: BaseRepository,
@@ -82,6 +85,16 @@ impl Repository for PrivilegedActionRepository {
                 name: CANCELLATION_TOKEN_IDX.to_string(),
                 pk: TableKey {
                     name: CANCELLATION_TOKEN_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: None, // No sort key for this GSI
+            },
+            // Web Auth Token GSI
+            GlobalSecondaryIndexDef {
+                name: WEB_AUTH_TOKEN_IDX.to_string(),
+                pk: TableKey {
+                    name: WEB_AUTH_TOKEN_IDX_PARTITION_KEY.to_string(),
                     key_type: KeyType::Hash,
                     attribute_type: ScalarAttributeType::S,
                 },

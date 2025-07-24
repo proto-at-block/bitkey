@@ -15,7 +15,7 @@ use http_server::{
 };
 use privileged_action::service::{
     authorize_privileged_action::{
-        AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+        AuthenticationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
         PrivilegedActionRequestValidator, PrivilegedActionRequestValidatorBuilder,
     },
     Service as PrivilegedActionService,
@@ -126,7 +126,7 @@ pub async fn reset_fingerprint(
         .authorize_privileged_action(AuthorizePrivilegedActionInput {
             account_id: &account_id,
             privileged_action_definition: &PrivilegedActionType::ResetFingerprint.into(),
-            key_proof: &key_proof,
+            authentication: AuthenticationContext::KeyClaims(&key_proof),
             privileged_action_request: &privileged_action_request,
             request_validator,
         })

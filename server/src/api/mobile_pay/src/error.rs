@@ -41,6 +41,23 @@ pub enum SigningError {
     DatabaseError(#[from] DatabaseError),
     #[error(transparent)]
     MobilePayDatetimeError(#[from] MobilepayDatetimeError),
+    #[error("Transaction verification required")]
+    TransactionVerificationRequired,
+}
+
+impl SigningError {
+    pub fn to_transaction_verification_if_required(self) -> Self {
+        match &self {
+            SigningError::SpendRuleCheckFailed(errors) => {
+                if errors.is_transaction_verification_required() {
+                    SigningError::TransactionVerificationRequired
+                } else {
+                    self
+                }
+            }
+            _ => self,
+        }
+    }
 }
 
 impl From<SigningError> for ApiError {

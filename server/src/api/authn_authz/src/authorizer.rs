@@ -1,17 +1,48 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
+use async_trait::async_trait;
+use axum::extract::FromRequestParts;
 use axum::extract::Path;
 use axum::extract::Request;
+use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
+use jsonwebtoken::TokenData;
 use jwt_authorizer::{JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy, Validation};
 use types::account::identifiers::AccountId;
 use types::authn_authz::cognito::CognitoUser;
 use types::authn_authz::AccessTokenClaims;
 use userpool::test_utils::TEST_JWT_SIGNING_SECRET;
 use userpool::userpool::CognitoMode;
+
+#[derive(Debug, Clone)]
+pub struct AccountIdFromAccessToken(AccountId);
+
+impl From<AccountIdFromAccessToken> for AccountId {
+    fn from(value: AccountIdFromAccessToken) -> Self {
+        value.0
+    }
+}
+
+#[async_trait]
+impl<S> FromRequestParts<S> for AccountIdFromAccessToken
+where
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, &'static str);
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let token_data = parts
+            .extensions
+            .get::<TokenData<AccessTokenClaims>>()
+            .ok_or((StatusCode::UNAUTHORIZED, "No access token found"))?;
+        let cognito_user = CognitoUser::from_str(token_data.claims.username.as_ref())
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid cognito user"))?;
+        Ok(AccountIdFromAccessToken(cognito_user.get_account_id()))
+    }
+}
 
 pub enum AuthorizerConfig {
     Test,

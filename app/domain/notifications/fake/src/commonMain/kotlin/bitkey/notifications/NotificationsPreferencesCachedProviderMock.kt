@@ -18,9 +18,12 @@ data class NotificationsPreferencesCachedProviderMock(
 ) : NotificationsPreferencesCachedProvider {
   val notificationPreferences = MutableStateFlow(getNotificationPreferencesResult)
 
-  override fun getNotificationsPreferences(
-    accountId: AccountId,
-  ): Flow<Result<NotificationPreferences, NetworkingError>> = notificationPreferences
+  override suspend fun initialize() {
+    // no-op in mock
+  }
+
+  override fun getNotificationsPreferences(): Flow<Result<NotificationPreferences, Error>> =
+    notificationPreferences
 
   override suspend fun updateNotificationsPreferences(
     accountId: AccountId,

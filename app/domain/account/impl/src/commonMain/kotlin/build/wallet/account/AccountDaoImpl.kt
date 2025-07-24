@@ -224,6 +224,7 @@ class AccountDaoImpl(
         localId = keyboxId,
         fullAccountId = accountId,
         keysets = keysets,
+        canUseKeyboxKeysets = canUseKeyboxKeysets,
         activeSpendingKeyset = SpendingKeyset(
           localId = spendingPublicKeysetId,
           f8eSpendingKeyset =
@@ -249,15 +250,14 @@ class AccountDaoImpl(
           networkType = networkType
         ),
         appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
-        config =
-          FullAccountConfig(
-            bitcoinNetworkType = networkType,
-            isHardwareFake = fakeHardware,
-            f8eEnvironment = f8eEnvironment,
-            isTestAccount = isTestAccount,
-            isUsingSocRecFakes = isUsingSocRecFakes,
-            delayNotifyDuration = delayNotifyDuration
-          )
+        config = FullAccountConfig(
+          bitcoinNetworkType = networkType,
+          isHardwareFake = fakeHardware,
+          f8eEnvironment = f8eEnvironment,
+          isTestAccount = isTestAccount,
+          isUsingSocRecFakes = isUsingSocRecFakes,
+          delayNotifyDuration = delayNotifyDuration
+        )
       )
     }
 }

@@ -17,6 +17,7 @@ import build.wallet.bitkey.challange.SignedChallenge.HardwareSignedChallenge
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensure
@@ -48,6 +49,7 @@ class RecoveryAuthCompleterImpl(
     hardwareSignedChallenge: HardwareSignedChallenge,
     destinationAppAuthPubKeys: AppAuthPublicKeys,
     sealedCsek: SealedCsek,
+    sealedSsek: SealedSsek,
   ): Result<Unit, Throwable> {
     return recoveryLock.withLock {
       coroutineBinding {
@@ -60,7 +62,7 @@ class RecoveryAuthCompleterImpl(
 
           recoveryStatusService
             .setLocalRecoveryProgress(
-              LocalRecoveryAttemptProgress.AttemptingCompletion(sealedCsek = sealedCsek)
+              LocalRecoveryAttemptProgress.AttemptingCompletion(sealedCsek = sealedCsek, sealedSsek = sealedSsek)
             ).bind()
 
           val appSignedChallenge =

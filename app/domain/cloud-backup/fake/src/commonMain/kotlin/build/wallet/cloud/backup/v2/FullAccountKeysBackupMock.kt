@@ -9,16 +9,15 @@ import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 
-val FullAccountKeysMock =
-  FullAccountKeys(
-    activeSpendingKeyset = SpendingKeysetMock,
-    activeHwSpendingKey = HwSpendingPublicKeyMock,
-    activeHwAuthKey = HwAuthPublicKeyMock,
-    appGlobalAuthKeypair =
-      AppKey(
-        AppGlobalAuthPublicKeyMock,
-        AppGlobalAuthPrivateKeyMock
-      ),
-    appSpendingKeys = mapOf(AppSpendingPublicKeyMock to AppSpendingPrivateKeyMock),
-    rotationAppGlobalAuthKeypair = null
-  )
+val FullAccountKeysMock = FullAccountKeys(
+  activeSpendingKeyset = SpendingKeysetMock,
+  keysets = listOf(SpendingKeysetMock),
+  activeHwSpendingKey = HwSpendingPublicKeyMock,
+  activeHwAuthKey = HwAuthPublicKeyMock,
+  appGlobalAuthKeypair = AppKey(
+    AppGlobalAuthPublicKeyMock,
+    AppGlobalAuthPrivateKeyMock
+  ),
+  appSpendingKeys = mapOf(AppSpendingPublicKeyMock to AppSpendingPrivateKeyMock),
+  rotationAppGlobalAuthKeypair = null
+)

@@ -9,6 +9,8 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
 import build.wallet.bitkey.hardware.HwAuthPublicKey;
 import build.wallet.bitkey.hardware.HwSpendingPublicKey;
 import build.wallet.cloud.backup.csek.SealedCsek;
+import build.wallet.cloud.backup.csek.SealedSsek;
+import build.wallet.bitcoin.BitcoinNetworkType;
 import kotlin.Boolean;
 import kotlinx.datetime.Instant;
 
@@ -46,8 +48,25 @@ CREATE TABLE localRecoveryAttemptEntity(
   -- presence of above means spendingKeysRotated status
   backedUpToCloud                 INTEGER AS Boolean NOT NULL,
   -- presence of above means backed up to cloud status
-  ddkBackedUp                     INTEGER AS Boolean NOT NULL DEFAULT 0
+  ddkBackedUp                     INTEGER AS Boolean NOT NULL DEFAULT 0,
   -- presence of above means we've sealed the ddk with new hardware (HW Recovery) & uploaded to F8e
+  sealedSsek                      BLOB AS SealedSsek,
+  -- sealed SSEK for descriptor encryption/decryption
+  uploadedDescriptorBackups       INTEGER AS Boolean NOT NULL DEFAULT 0
+  -- presence of above means we've uploaded descriptor backups to F8e after rotating spending keys
+);
+
+-- Table for storing spending keysets during recovery
+CREATE TABLE recoverySpendingKeysetEntity(
+  id                              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryAttemptRowId            INTEGER NOT NULL,
+  keysetLocalId                   TEXT NOT NULL,
+  keysetServerId                  TEXT NOT NULL,
+  appKey                          TEXT AS AppSpendingPublicKey NOT NULL,
+  hardwareKey                     TEXT AS HwSpendingPublicKey NOT NULL,
+  serverKey                       TEXT AS F8eSpendingPublicKey NOT NULL,
+  networkType                     TEXT AS BitcoinNetworkType NOT NULL,
+  FOREIGN KEY (recoveryAttemptRowId) REFERENCES localRecoveryAttemptEntity(rowId) ON DELETE CASCADE
 );
 
 getServerRecovery:
@@ -77,9 +96,9 @@ clear {
 }
 
 markAsInitiated:
-INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, authKeysRotated, serverKeysetId, serverSpendingKey, authKeysRotated, ddkBackedUp, backedUpToCloud, hadServerRecovery)
+INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, sealedSsek, authKeysRotated, serverKeysetId, serverSpendingKey, uploadedDescriptorBackups, ddkBackedUp, backedUpToCloud, hadServerRecovery)
 -- Use stable id to ensure we only ever have a single active set of local pending recovery keys.
-VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, NULL, NULL, 0, 0, 0, 0);
+VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, NULL, NULL, 0, 0, 0, 0);
 
 -- To protect against race conditions where we might not get a server sync between the time we
 -- rotate auth keys to the time we complete our recovery on the app, we clear the server recovery
@@ -93,13 +112,16 @@ markAuthKeysRotated {
 }
 
 markAsAttemptingCompletion:
-UPDATE localRecoveryAttemptEntity SET sealedCsek = ?;
+UPDATE localRecoveryAttemptEntity SET sealedCsek = :sealedCsek, sealedSsek = :sealedSsek;
 
 markAttemptedCompletionAsFailed:
 UPDATE localRecoveryAttemptEntity SET sealedCsek = NULL;
 
 markSpendingKeysRotated:
 UPDATE localRecoveryAttemptEntity SET serverKeysetId = ?, serverSpendingKey = ?;
+
+markUploadedDescriptorBackups:
+UPDATE localRecoveryAttemptEntity SET uploadedDescriptorBackups = 1;
 
 markDdkBackedUp:
 UPDATE localRecoveryAttemptEntity SET ddkBackedUp = 1;
@@ -109,3 +131,14 @@ UPDATE localRecoveryAttemptEntity SET backedUpToCloud = 1;
 
 clearLocalRecoveryAttempt:
 DELETE FROM localRecoveryAttemptEntity;
+
+-- Recovery Spending Keyset queries
+insertRecoverySpendingKeyset:
+INSERT INTO recoverySpendingKeysetEntity(recoveryAttemptRowId, keysetLocalId, keysetServerId, appKey, hardwareKey, serverKey, networkType)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+getRecoverySpendingKeysets:
+SELECT * FROM recoverySpendingKeysetEntity WHERE recoveryAttemptRowId = 0;
+
+clearRecoverySpendingKeysets:
+DELETE FROM recoverySpendingKeysetEntity WHERE recoveryAttemptRowId = 0;

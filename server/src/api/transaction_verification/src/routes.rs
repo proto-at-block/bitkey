@@ -1,17 +1,27 @@
-use crate::error::TransactionVerificationError;
-use crate::service::Service as TransactionVerificationService;
-use crate::static_handler::{get_template, static_handler};
+use std::str::FromStr;
 
-use account::service::{
-    tests::default_electrum_rpc_uris, FetchAccountInput, Service as AccountService,
-};
 use axum::{
     extract::{Path, Query, State},
     http::{header, StatusCode},
     response::{Html, IntoResponse},
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
+use serde::{Deserialize, Serialize};
+use serde_json;
+use tracing::{event, instrument, Level};
+use utoipa::{OpenApi, ToSchema};
+
+use crate::{
+    error::TransactionVerificationError,
+    service::Service as TransactionVerificationService,
+    static_handler::{get_template, static_handler},
+};
+
+use account::service::{
+    tests::default_electrum_rpc_uris, FetchAccountInput, Service as AccountService,
+};
+use authn_authz::key_claims::KeyClaims;
 use bdk_utils::{
     bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, generate_electrum_rpc_uris,
     get_outflow_addresses_for_psbt, get_total_outflow_for_psbt, DescriptorKeyset,
@@ -27,11 +37,14 @@ use http_server::{
     router::RouterBuilder,
     swagger::{SwaggerEndpoint, Url},
 };
-use regex;
-use serde::{Deserialize, Serialize};
-use serde_json;
-use std::str::FromStr;
-use tracing::instrument;
+use privileged_action::service::{
+    authorize_privileged_action::{
+        AuthenticationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+        PrivilegedActionRequestValidatorBuilder,
+    },
+    Service as PrivilegedActionService,
+};
+use secure_site::static_handler::{html_error, inject_json_into_template};
 use types::{
     account::{
         entities::TransactionVerificationPolicy,
@@ -39,35 +52,21 @@ use types::{
     },
     currencies::CurrencyCode,
     exchange_rate::RateProvider,
+    privileged_action::{
+        router::generic::{PrivilegedActionRequest, PrivilegedActionResponse},
+        shared::PrivilegedActionType,
+    },
     transaction_verification::{
         entities::BitcoinDisplayUnit,
-        router::{InitiateTransactionVerificationView, TransactionVerificationView},
+        router::{
+            InitiateTransactionVerificationView, PutTransactionVerificationPolicyRequest,
+            TransactionVerificationView,
+        },
         service::DescriptorKeysetWalletProvider,
         TransactionVerificationId,
     },
 };
 use userpool::userpool::UserPoolService;
-use utoipa::{OpenApi, ToSchema};
-
-// Helper function to create HTML error responses
-// TODO: Move this to a more general purpose location
-fn html_error<E: std::fmt::Display>(
-    status: StatusCode,
-    error: E,
-) -> (
-    StatusCode,
-    [(header::HeaderName, &'static str); 1],
-    Html<String>,
-) {
-    (
-        status,
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-        Html(format!(
-            "<html><body><h1>Error</h1><p>{}</p></body></html>",
-            error
-        )),
-    )
-}
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
@@ -88,6 +87,7 @@ pub struct RouteState(
     pub UserPoolService,
     pub TransactionVerificationService,
     pub ExchangeRateService,
+    pub PrivilegedActionService,
 );
 
 impl RouterBuilder for RouteState {
@@ -106,6 +106,10 @@ impl RouterBuilder for RouteState {
                 get(check_transaction_verification),
             )
             .route(
+                "/api/accounts/:account_id/tx-verify/requests/:verification_id",
+                delete(cancel_transaction_verification),
+            )
+            .route(
                 "/api/accounts/:account_id/tx-verify/requests",
                 post(initiate_transaction_verification),
             )
@@ -119,7 +123,7 @@ impl RouterBuilder for RouteState {
                 "/api/tx-verify/:verification_id",
                 put(process_transaction_verification_token),
             )
-            .route("/static/*file", get(static_handler))
+            .route("/tx-verify/static/*file", get(static_handler))
             .with_state(self.to_owned())
     }
 }
@@ -139,6 +143,7 @@ impl From<RouteState> for SwaggerEndpoint {
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        cancel_transaction_verification,
         get_transaction_verification_policy,
         put_transaction_verification_policy,
         check_transaction_verification,
@@ -146,6 +151,7 @@ impl From<RouteState> for SwaggerEndpoint {
     ),
     components(
         schemas(
+            CancelTransactionVerificationResponse,
             GetTransactionVerificationPolicyResponse,
             PutTransactionVerificationPolicyRequest,
             PutTransactionVerificationPolicyResponse,
@@ -194,13 +200,6 @@ async fn get_transaction_verification_policy(
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub struct PutTransactionVerificationPolicyRequest {
-    #[serde(flatten)]
-    pub policy: TransactionVerificationPolicy,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub struct PutTransactionVerificationPolicyResponse {}
 
 #[utoipa::path(
@@ -215,16 +214,80 @@ pub struct PutTransactionVerificationPolicyResponse {}
         (status = 404, description = "Account could not be found")
     ),
 )]
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, privileged_action_service))]
 async fn put_transaction_verification_policy(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
+    State(privileged_action_service): State<PrivilegedActionService>,
+    key_proof: KeyClaims,
     Json(request): Json<PutTransactionVerificationPolicyRequest>,
-) -> Result<Json<PutTransactionVerificationPolicyResponse>, ApiError> {
+) -> Result<Json<PrivilegedActionResponse<PutTransactionVerificationPolicyResponse>>, ApiError> {
+    let account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    let get_threshold_amount = |policy: &TransactionVerificationPolicy| match policy {
+        TransactionVerificationPolicy::Always => 0,
+        TransactionVerificationPolicy::Threshold(v) => v.amount,
+        TransactionVerificationPolicy::Never => u64::MAX,
+    };
+
+    let current_threshold = account
+        .transaction_verification_policy
+        .as_ref()
+        .map(get_threshold_amount)
+        .unwrap_or(u64::MAX);
+    let new_threshold = get_threshold_amount(&request.policy);
+
+    // Requires out-of-band if we're making verification LESS restrictive (increasing threshold)
+    if new_threshold > current_threshold {
+        let is_app_signed = key_proof.app_signed;
+        let is_hw_signed = key_proof.hw_signed;
+        let authorize_result = privileged_action_service
+            .authorize_privileged_action(AuthorizePrivilegedActionInput {
+                account_id: &account_id,
+                privileged_action_definition:
+                    &PrivilegedActionType::LoosenTransactionVerificationPolicy.into(),
+                authentication: AuthenticationContext::Standard,
+                privileged_action_request: &PrivilegedActionRequest::Initiate(request),
+                request_validator: PrivilegedActionRequestValidatorBuilder::default()
+                .on_initiate_out_of_band(Box::new(
+                    move |_| {
+                        Box::pin(async move {
+                            if !(is_hw_signed && is_app_signed) {
+                                event!(
+                                    Level::WARN,
+                                    "valid signature over access token required by both app and hw auth keys"
+                                );
+                                return Err(ApiError::GenericForbidden(
+                                    "valid signature over access token required by both app and hw auth keys".to_string(),
+                                ));
+                            }
+                            Ok::<(), ApiError>(())
+                        })
+                    },
+                ))
+                .build()?,
+            })
+            .await?;
+
+        // For policy loosening, we expect this to always return Pending (requiring out-of-band)
+        if let AuthorizePrivilegedActionOutput::Pending(response) = authorize_result {
+            return Ok(Json(response));
+        }
+        return Err(ApiError::GenericInternalApplicationError(
+            "Policy loosening should require privileged action authorization".to_string(),
+        ));
+    }
+
     account_service
         .put_transaction_verification_policy(&account_id, request.policy)
         .await?;
-    Ok(Json(PutTransactionVerificationPolicyResponse {}))
+    Ok(Json(PrivilegedActionResponse::Completed(
+        PutTransactionVerificationPolicyResponse {},
+    )))
 }
 
 #[instrument(skip(transaction_verification_service), fields(account_id = %account_id))]
@@ -247,6 +310,31 @@ async fn check_transaction_verification(
         .fetch(&account_id, &verification_id)
         .await?;
     Ok(Json(tx_verification.into()))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CancelTransactionVerificationResponse {}
+
+#[instrument(skip(transaction_verification_service), fields(account_id = %account_id))]
+#[utoipa::path(
+    delete,
+    path = "/api/accounts/:account_id/tx-verify/requests/:verification_id",
+    responses(
+        (status = 200, description = "Transaction verification request cancelled successfully", body = CancelTransactionVerificationResponse),
+        (status = 400, description = "Bad Request - missing or invalid request"),
+        (status = 401, description = "Unauthorized - invalid API key"),
+        (status = 500, description = "Internal server error processing transaction verification")
+    ),
+    tag = "Transaction Verification"
+)]
+async fn cancel_transaction_verification(
+    Path((account_id, verification_id)): Path<(AccountId, TransactionVerificationId)>,
+    State(transaction_verification_service): State<TransactionVerificationService>,
+) -> Result<Json<TransactionVerificationView>, ApiError> {
+    let updated_tx_verification = transaction_verification_service
+        .cancel(&account_id, &verification_id)
+        .await?;
+    Ok(Json(updated_tx_verification.into()))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -380,7 +468,7 @@ pub async fn get_transaction_verification_interface(
         .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     let psbt = &tx_verification.common_fields.psbt;
 
-    let to_currency_code = CurrencyCode::USD;
+    let to_currency_code = tx_verification.fiat_currency;
     let amount_sats = get_total_outflow_for_psbt(&wallet, psbt);
     let amount_fiat = cents_for_sats(
         &config,
@@ -422,23 +510,9 @@ pub async fn get_transaction_verification_interface(
         "cancelToken": cancel_token
     });
 
-    let params_json =
-        serde_json::to_string(&verification_params).unwrap_or_else(|_| "{}".to_string());
-
-    // Create a regex pattern to find and replace the mock verification-params script
-    let mock_script_pattern =
-        r#"<script type="application/json" id="verification-params">(\s*\{[\s\S]*?\})\s*</script>"#;
-    let replacement = format!(
-        r#"<script type="application/json" id="verification-params">{}</script>"#,
-        params_json
-    );
-
-    // Replace the mock data with real data using regex
-    let html_regex = regex::Regex::new(mock_script_pattern)
-        .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-    let html = html_regex
-        .replace(&html_template, replacement.as_str())
-        .to_string();
+    let html =
+        inject_json_into_template(&html_template, "verification-params", verification_params)
+            .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
     Ok((
         StatusCode::OK,

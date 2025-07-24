@@ -54,7 +54,7 @@ pub trait ExchangeRateChartProvider: ExchangeRateProvider {
         let num_points_to_select = max_price_points - 1; // latest price point included later
                                                          // Calculate interval to evenly distribute selected points, adding num_points_to_select - 1
                                                          // will round up the division to ensure we get the correct number of points
-        let interval = (sma_prices.len() + num_points_to_select - 1) / num_points_to_select;
+        let interval = sma_prices.len().div_ceil(num_points_to_select);
         let mut selected_prices: Vec<PriceAt> = sma_prices
             .into_iter()
             .step_by(interval)

@@ -9,7 +9,9 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.recovery.ServerRecovery
 
@@ -94,6 +96,7 @@ sealed interface Recovery {
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
+        val sealedSsek: SealedSsek?,
       ) : ServerIndependentRecovery
 
       /**
@@ -109,6 +112,7 @@ sealed interface Recovery {
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
+        val sealedSsek: SealedSsek?,
       ) : ServerIndependentRecovery
 
       /**
@@ -125,6 +129,25 @@ sealed interface Recovery {
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
+        val sealedSsek: SealedSsek?,
+      ) : ServerIndependentRecovery
+
+      /**
+       * Indicates that we have successfully uploaded encrypted descriptor backups to F8e.
+       */
+      data class UploadedDescriptorBackups(
+        val f8eSpendingKeyset: F8eSpendingKeyset,
+        override val fullAccountId: FullAccountId,
+        override val appSpendingKey: AppSpendingPublicKey,
+        override val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+        override val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
+        override val hardwareSpendingKey: HwSpendingPublicKey,
+        override val hardwareAuthKey: HwAuthPublicKey,
+        override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+        override val factorToRecover: PhysicalFactor,
+        val sealedCsek: SealedCsek,
+        val sealedSsek: SealedSsek?,
+        val keysets: List<SpendingKeyset>,
       ) : ServerIndependentRecovery
 
       /**
@@ -141,6 +164,8 @@ sealed interface Recovery {
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
+        val sealedSsek: SealedSsek?,
+        val keysets: List<SpendingKeyset>,
       ) : ServerIndependentRecovery
 
       /**
@@ -156,6 +181,7 @@ sealed interface Recovery {
         override val hardwareAuthKey: HwAuthPublicKey,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
+        val keysets: List<SpendingKeyset>,
       ) : ServerIndependentRecovery
     }
   }

@@ -27,23 +27,16 @@ static bool bio_storage_template_id_valid(bio_template_id_t id) {
   return ok;
 }
 
-static bool save_template(fs_file_t* file, fpc_bep_template_t* template) {
+static bool save_template(fs_file_t* file, fpc_bep_template_t* template, size_t size) {
   bool result = false;
-  uint8_t* serialized_template = NULL;
 
-  size_t size = 0;
-  fpc_bep_result_t res = fpc_bep_template_get_size(template, &size);
-  if (res != FPC_BEP_RESULT_OK || (size == 0)) {
-    goto out;
-  }
-
-  serialized_template = fpc_malloc(size);
+  uint8_t* serialized_template = fpc_malloc(size);
   if (serialized_template == NULL) {
     LOGE("Out of memory");
     goto out;
   }
 
-  res = fpc_bep_template_serialize(template, serialized_template, size);
+  fpc_bep_result_t res = fpc_bep_template_serialize(template, serialized_template, size);
   if (res != FPC_BEP_RESULT_OK) {
     goto out;
   }
@@ -94,6 +87,14 @@ out:
 bool bio_storage_template_save(bio_template_id_t id, fpc_bep_template_t* template) {
   ASSERT(template != NULL);
 
+  // Validate template size before creating file
+  size_t size = 0;
+  fpc_bep_result_t res = fpc_bep_template_get_size(template, &size);
+  if (res != FPC_BEP_RESULT_OK || (size == 0)) {
+    LOGE("Invalid template size for template %d", id);
+    return false;
+  }
+
   bool result = false;
 
   char filename[TEMPLATE_PATH_LEN] = {0};
@@ -106,7 +107,7 @@ bool bio_storage_template_save(bio_template_id_t id, fpc_bep_template_t* templat
     return false;
   }
 
-  result = save_template(file, template);
+  result = save_template(file, template, size);
 
   (void)fs_close_global(file);
   return result;
@@ -399,7 +400,7 @@ bool bio_storage_label_retrieve(bio_template_id_t id, char label[BIO_LABEL_MAX_L
   }
 
   int32_t size = fs_file_size(file);
-  if (size <= 0 || size > BIO_LABEL_MAX_LEN) {
+  if (size < 0 || size > BIO_LABEL_MAX_LEN) {
     LOGE("Bad file size: %" PRId32, size);
     (void)fs_close_global(file);
     return false;

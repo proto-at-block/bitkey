@@ -19,6 +19,7 @@ import build.wallet.firmware.FirmwareFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -37,6 +38,7 @@ data class ManagingFingerprintsScreen(
   val account: FullAccount,
   val onFwUpRequired: () -> Unit,
   val entryPoint: EntryPoint,
+  val enrolledFingerprints: EnrolledFingerprints? = null,
   override val origin: Screen?,
 ) : Screen
 
@@ -266,7 +268,8 @@ class ManagingFingerprintsScreenPresenter(
             index = state.fingerprintToAdd.index,
             label = state.fingerprintToAdd.currentLabel
           ),
-          enrolledFingerprints = state.enrolledFingerprints
+          enrolledFingerprints = state.enrolledFingerprints,
+          context = EnrollmentContext.AddingFingerprint
         )
       )
       is DeletingFingerprintUiState -> nfcSessionUIStateMachine.model(
@@ -308,60 +311,88 @@ class ManagingFingerprintsScreenPresenter(
         )
       )
       is RetrievingEnrolledFingerprintsUiState -> {
-        if (state.fwUpdateRequired) {
-          LaunchedEffect("fwup-required-for-fingerprints") {
-            screen.onFwUpRequired()
+        // If we already have enrolled fingerprints from props, use them directly
+        screen.enrolledFingerprints?.let { enrolledFingerprints ->
+          LaunchedEffect("use-provided-enrolled-fingerprints") {
+            processEnrolledFingerprintsAndTransition(enrolledFingerprints, screen) { newState ->
+              uiState = newState
+            }
           }
-        }
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
-            session = { session, commands ->
-              // Check that the fw supports multiple fingerprints
-              val enabled = commands.getFirmwareFeatureFlags(session)
-                .find { it.flag == FirmwareFeatureFlag.MULTIPLE_FINGERPRINTS }
-                ?.enabled
+          ScreenModel(
+            body = LoadingBodyModel(
+              id = ManagingFingerprintsEventTrackerScreenId.LOADING_ENROLLED_FINGERPRINTS
+            ),
+            presentationStyle = ScreenPresentationStyle.Modal
+          )
+        } ?: run {
+          // Fetch fingerprints via NFC
+          if (state.fwUpdateRequired) {
+            LaunchedEffect("fwup-required-for-fingerprints") {
+              screen.onFwUpRequired()
+            }
+          }
+          nfcSessionUIStateMachine.model(
+            NfcSessionUIStateMachineProps(
+              session = { session, commands ->
+                // Check that the fw supports multiple fingerprints
+                val enabled = commands.getFirmwareFeatureFlags(session)
+                  .find { it.flag == FirmwareFeatureFlag.MULTIPLE_FINGERPRINTS }
+                  ?.enabled
 
-              when (enabled) {
-                true -> {
-                  // In the event the user backed out of enrollment, either through a crash or manually,
-                  // cancel any ongoing enrollment.
-                  commands.cancelFingerprintEnrollment(session)
-                  EnrolledFingerprintResult.Success(commands.getEnrolledFingerprints(session))
+                when (enabled) {
+                  true -> {
+                    // In the event the user backed out of enrollment, either through a crash or manually,
+                    // cancel any ongoing enrollment.
+                    commands.cancelFingerprintEnrollment(session)
+                    EnrolledFingerprintResult.Success(commands.getEnrolledFingerprints(session))
+                  }
+                  else -> EnrolledFingerprintResult.FwUpRequired
                 }
-                else -> EnrolledFingerprintResult.FwUpRequired
-              }
-            },
-            onSuccess = {
-              uiState = when (it) {
-                EnrolledFingerprintResult.FwUpRequired -> RetrievingEnrolledFingerprintsUiState(
-                  fwUpdateRequired = true
-                )
-                is EnrolledFingerprintResult.Success -> {
-                  hardwareUnlockInfoService.replaceAllUnlockInfo(it.enrolledFingerprints.toUnlockInfoList())
-
-                  when (screen.entryPoint) {
-                    EntryPoint.MONEY_HOME -> EditingFingerprintUiState(
-                      enrolledFingerprints = it.enrolledFingerprints,
-                      isExistingFingerprint = false,
-                      fingerprintToEdit = EditingFingerprintHandle(index = 1, label = "")
-                    )
-
-                    EntryPoint.DEVICE_SETTINGS, EntryPoint.SECURITY_HUB -> ListingFingerprintsUiState(it.enrolledFingerprints)
+              },
+              onSuccess = { result ->
+                when (result) {
+                  EnrolledFingerprintResult.FwUpRequired -> {
+                    uiState = RetrievingEnrolledFingerprintsUiState(fwUpdateRequired = true)
+                  }
+                  is EnrolledFingerprintResult.Success -> {
+                    processEnrolledFingerprintsAndTransition(
+                      result.enrolledFingerprints, screen
+                    ) { newState ->
+                      uiState = newState
+                    }
                   }
                 }
-              }
-            },
-            onCancel = if (screen.origin != null) {
-              { navigator.goTo(screen.origin) }
-            } else {
-              { navigator.exit() }
-            },
-            screenPresentationStyle = ScreenPresentationStyle.Modal,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.GET_ENROLLED_FINGERPRINTS
+              },
+              onCancel = if (screen.origin != null) {
+                { navigator.goTo(screen.origin) }
+              } else {
+                { navigator.exit() }
+              },
+              screenPresentationStyle = ScreenPresentationStyle.Modal,
+              eventTrackerContext = NfcEventTrackerScreenIdContext.GET_ENROLLED_FINGERPRINTS
+            )
           )
-        )
+        }
       }
     }
+  }
+
+  private suspend fun processEnrolledFingerprintsAndTransition(
+    enrolledFingerprints: EnrolledFingerprints,
+    screen: ManagingFingerprintsScreen,
+    updateState: (ManagingFingerprintsUiState) -> Unit,
+  ) {
+    hardwareUnlockInfoService.replaceAllUnlockInfo(enrolledFingerprints.toUnlockInfoList())
+
+    val nextState = when (screen.entryPoint) {
+      EntryPoint.MONEY_HOME -> EditingFingerprintUiState(
+        enrolledFingerprints = enrolledFingerprints,
+        isExistingFingerprint = false,
+        fingerprintToEdit = EditingFingerprintHandle(index = 1, label = "")
+      )
+      EntryPoint.DEVICE_SETTINGS, EntryPoint.SECURITY_HUB -> ListingFingerprintsUiState(enrolledFingerprints)
+    }
+    updateState(nextState)
   }
 }
 

@@ -1,6 +1,7 @@
 package build.wallet.statemachine.settings.full.device
 
 import app.cash.turbine.plusAssign
+import bitkey.privilegedactions.FingerprintResetAvailabilityServiceImpl
 import bitkey.ui.framework.NavigatorModelFake
 import bitkey.ui.framework.NavigatorPresenterFake
 import build.wallet.availability.AppFunctionalityServiceFake
@@ -10,8 +11,12 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.FingerprintResetFeatureFlag
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
+import build.wallet.firmware.FirmwareDeviceInfoMock
+import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
@@ -31,8 +36,8 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
-import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsProps
-import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetProps
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachine
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -61,6 +66,17 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val firmwareDataService = FirmwareDataServiceFake()
   val clock = ClockFake()
+
+  val featureFlagDao = FeatureFlagDaoFake()
+  val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
+  val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
+
+  val fingerprintResetAvailability = FingerprintResetAvailabilityServiceImpl(
+    fingerprintResetFeatureFlag = fingerprintResetFeatureFlag,
+    fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
+    firmwareDataService = firmwareDataService
+  )
+
   val stateMachine =
     DeviceSettingsUiStateMachineImpl(
       lostHardwareRecoveryUiStateMachine =
@@ -72,9 +88,9 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
           "firmware metadata"
         ) {},
-      resetFingerprintsUiStateMachine =
-        object : ResetFingerprintsUiStateMachine, ScreenStateMachineMock<ResetFingerprintsProps>(
-          "reset fingerprints"
+      fingerprintResetUiStateMachine =
+        object : FingerprintResetUiStateMachine, ScreenStateMachineMock<FingerprintResetProps>(
+          "fingerprint reset"
         ) {},
       dateTimeFormatter = DateTimeFormatterMock(),
       timeZoneProvider = TimeZoneProviderMock(),
@@ -88,9 +104,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       firmwareDataService = firmwareDataService,
       clock = clock,
       navigatorPresenter = NavigatorPresenterFake(),
-      fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(
-        featureFlagDao = FeatureFlagDaoFake()
-      )
+      fingerprintResetAvailabilityService = fingerprintResetAvailability
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -354,6 +368,156 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
       // Back on the device settings screen
       awaitBody<FormBodyModel>()
+    }
+  }
+
+  test("fingerprint reset option shows correctly when version requirements met") {
+    val featureFlagDao = FeatureFlagDaoFake()
+    val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
+    val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
+
+    val fingerprintResetAvailability = FingerprintResetAvailabilityServiceImpl(
+      fingerprintResetFeatureFlag = fingerprintResetFeatureFlag,
+      fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
+      firmwareDataService = firmwareDataService
+    )
+
+    val stateMachineWithAvailability = DeviceSettingsUiStateMachineImpl(
+      lostHardwareRecoveryUiStateMachine =
+        object : LostHardwareRecoveryUiStateMachine,
+          ScreenStateMachineMock<LostHardwareRecoveryProps>(
+            "initiate hw recovery"
+          ) {},
+      nfcSessionUIStateMachine =
+        object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
+          "firmware metadata"
+        ) {},
+      fingerprintResetUiStateMachine =
+        object : FingerprintResetUiStateMachine, ScreenStateMachineMock<FingerprintResetProps>(
+          "fingerprint reset"
+        ) {},
+      dateTimeFormatter = DateTimeFormatterMock(),
+      timeZoneProvider = TimeZoneProviderMock(),
+      durationFormatter = DurationFormatterFake(),
+      firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+      appFunctionalityService = appFunctionalityService,
+      wipingDeviceUiStateMachine =
+        object : WipingDeviceUiStateMachine, ScreenStateMachineMock<WipingDeviceProps>(
+          "wiping device"
+        ) {},
+      firmwareDataService = firmwareDataService,
+      clock = clock,
+      navigatorPresenter = NavigatorPresenterFake(),
+      fingerprintResetAvailabilityService = fingerprintResetAvailability
+    )
+
+    // Enable feature flag and set supported firmware version
+    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(version = "1.0.98"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachineWithAvailability.test(props) {
+      // Tap the Fingerprint button
+      awaitBody<FormBodyModel> {
+        mainContentList[1].apply {
+          shouldBeInstanceOf<ListGroup>()
+          listGroupModel.items[0].onClick!!()
+        }
+      }
+
+      // Expect the options sheet with fingerprint reset enabled
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .body.shouldBeInstanceOf<FormBodyModel>().apply {
+          header.shouldNotBeNull()
+            .headline.shouldBe("Manage fingerprints")
+
+          // Primary button should be "Edit fingerprints"
+          primaryButton.shouldNotBeNull().apply {
+            text.shouldBe("Edit fingerprints")
+          }
+
+          // Secondary button should be available for fingerprint reset
+          secondaryButton.shouldNotBeNull().apply {
+            text.shouldBe("I can't unlock my Bitkey")
+          }
+        }
+    }
+  }
+
+  test("fingerprint reset option disabled when version requirements not met") {
+    val featureFlagDao = FeatureFlagDaoFake()
+    val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
+    val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
+
+    val fingerprintResetAvailability = FingerprintResetAvailabilityServiceImpl(
+      fingerprintResetFeatureFlag = fingerprintResetFeatureFlag,
+      fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
+      firmwareDataService = firmwareDataService
+    )
+
+    val stateMachineWithAvailability = DeviceSettingsUiStateMachineImpl(
+      lostHardwareRecoveryUiStateMachine =
+        object : LostHardwareRecoveryUiStateMachine,
+          ScreenStateMachineMock<LostHardwareRecoveryProps>(
+            "initiate hw recovery"
+          ) {},
+      nfcSessionUIStateMachine =
+        object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
+          "firmware metadata"
+        ) {},
+      fingerprintResetUiStateMachine =
+        object : FingerprintResetUiStateMachine, ScreenStateMachineMock<FingerprintResetProps>(
+          "fingerprint reset"
+        ) {},
+      dateTimeFormatter = DateTimeFormatterMock(),
+      timeZoneProvider = TimeZoneProviderMock(),
+      durationFormatter = DurationFormatterFake(),
+      firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+      appFunctionalityService = appFunctionalityService,
+      wipingDeviceUiStateMachine =
+        object : WipingDeviceUiStateMachine, ScreenStateMachineMock<WipingDeviceProps>(
+          "wiping device"
+        ) {},
+      firmwareDataService = firmwareDataService,
+      clock = clock,
+      navigatorPresenter = NavigatorPresenterFake(),
+      fingerprintResetAvailabilityService = fingerprintResetAvailability
+    )
+
+    // Enable feature flag but set unsupported firmware version
+    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(version = "1.0.95"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachineWithAvailability.test(props) {
+      // Tap the Fingerprint button
+      awaitBody<FormBodyModel> {
+        mainContentList[1].apply {
+          shouldBeInstanceOf<ListGroup>()
+          listGroupModel.items[0].onClick!!()
+        }
+      }
+
+      // Expect the options sheet with fingerprint reset disabled
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .body.shouldBeInstanceOf<FormBodyModel>().apply {
+          header.shouldNotBeNull()
+            .headline.shouldBe("Manage fingerprints")
+
+          // Primary button should be "Edit fingerprints"
+          primaryButton.shouldNotBeNull().apply {
+            text.shouldBe("Edit fingerprints")
+          }
+
+          // Secondary button should be null (disabled) when version requirements not met
+          secondaryButton.shouldBeNull()
+        }
     }
   }
 })

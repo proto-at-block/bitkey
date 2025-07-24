@@ -131,7 +131,10 @@ fun PendingClaimContent(
               iconModel = IconModel(
                 icon = Icon.SmallIconXFilled,
                 iconSize = IconSize.Accessory,
-                iconTint = IconTint.Information
+                iconTint = when (theme) {
+                  Theme.LIGHT -> IconTint.Information
+                  Theme.DARK -> IconTint.On30
+                }
               ),
               onClick = {
                 it.invoke()

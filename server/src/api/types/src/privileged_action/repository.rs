@@ -6,9 +6,9 @@ use crate::account::identifiers::AccountId;
 
 use super::shared::{PrivilegedActionInstanceId, PrivilegedActionType};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum DelayAndNotifyStatus {
+pub enum RecordStatus {
     Pending,
     Canceled,
     Completed,
@@ -16,7 +16,7 @@ pub enum DelayAndNotifyStatus {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DelayAndNotifyRecord {
-    pub status: DelayAndNotifyStatus,
+    pub status: RecordStatus,
     pub cancellation_token: String,
     pub completion_token: String,
     #[serde(with = "rfc3339")]
@@ -24,11 +24,22 @@ pub struct DelayAndNotifyRecord {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "authorization_strategy_type")]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct OutOfBandRecord {
+    pub status: RecordStatus,
+    pub web_auth_token: String,
+    #[serde(with = "rfc3339")]
+    pub expiry_time: OffsetDateTime,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(
+    tag = "authorization_strategy_type",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
 pub enum AuthorizationStrategyRecord {
     HardwareProofOfPossession,
     DelayAndNotify(DelayAndNotifyRecord),
+    OutOfBand(OutOfBandRecord),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -65,5 +76,13 @@ impl<T> PrivilegedActionInstanceRecord<T> {
             created_at: now,
             updated_at: now,
         })
+    }
+
+    pub fn get_record_status(&self) -> RecordStatus {
+        match &self.authorization_strategy {
+            AuthorizationStrategyRecord::DelayAndNotify(dn) => dn.status,
+            AuthorizationStrategyRecord::OutOfBand(out_of_band) => out_of_band.status,
+            AuthorizationStrategyRecord::HardwareProofOfPossession => RecordStatus::Completed,
+        }
     }
 }

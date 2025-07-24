@@ -19,6 +19,7 @@ use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer}
 use bdk_utils::{TransactionBroadcaster, TransactionBroadcasterTrait};
 use chain_indexer::{repository::ChainIndexerRepository, service::Service as ChainIndexerService};
 use comms_verification::Service as CommsVerificationService;
+use customer_feedback::service::Service as CustomerFeedbackService;
 use database::ddb::{self, Repository};
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::service::Service as FeatureFlagsService;
@@ -63,6 +64,7 @@ use recovery::service::social::{
 };
 use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
+use repository::encrypted_attachment::EncryptedAttachmentRepository;
 use repository::privileged_action::PrivilegedActionRepository;
 use repository::recovery::inheritance::InheritanceRepository;
 use repository::recovery::social::SocialRecoveryRepository;
@@ -128,12 +130,14 @@ pub struct Services {
     pub wsm_client: WsmClient,
     pub web_shop_client: WebShopClient,
     pub webhook_validator: WebhookValidator,
+    pub customer_feedback_service: CustomerFeedbackService,
     // Remove the following repositories from services
     pub consent_repository: ConsentRepository,
     pub privileged_action_repository: PrivilegedActionRepository,
     pub inheritance_repository: InheritanceRepository,
     pub social_recovery_repository: SocialRecoveryRepository,
     pub account_repository: AccountRepository,
+    pub encrypted_attachment_repository: EncryptedAttachmentRepository,
 }
 
 #[derive(Debug, Error)]
@@ -240,6 +244,7 @@ struct Repositories {
     privileged_action_repository: PrivilegedActionRepository,
     promotion_code_repository: PromotionCodeRepository,
     transaction_verification_repository: TransactionVerificationRepository,
+    encrypted_attachment_repository: EncryptedAttachmentRepository,
 }
 
 #[derive(Clone, Deserialize)]
@@ -301,6 +306,9 @@ impl BootstrapBuilder {
             transaction_verification_repository: TransactionVerificationRepository::new(
                 ddb_connection.clone(),
             ),
+            encrypted_attachment_repository: EncryptedAttachmentRepository::new(
+                ddb_connection.clone(),
+            ),
         };
 
         // Create tables concurrently
@@ -342,6 +350,9 @@ impl BootstrapBuilder {
                 .create_table_if_necessary(),
             repositories
                 .transaction_verification_repository
+                .create_table_if_necessary(),
+            repositories
+                .encrypted_attachment_repository
                 .create_table_if_necessary(),
         )?;
 
@@ -451,6 +462,7 @@ impl BootstrapBuilder {
             promotion_code_service.clone(),
         );
         let privileged_action_service = PrivilegedActionService::new(
+            config::extract::<privileged_action::service::Config>(profile)?,
             repositories.privileged_action_repository.clone(),
             repositories.account_repository.clone(),
             overrides
@@ -475,6 +487,16 @@ impl BootstrapBuilder {
         let twilio_client = config::extract::<onboarding::routes::Config>(profile)?
             .twilio
             .to_client();
+
+        let customer_feedback_service_config =
+            config::extract::<customer_feedback::service::Config>(profile)?;
+        let customer_feedback_service = CustomerFeedbackService::new(
+            customer_feedback_service_config
+                .kms_config
+                .to_wrapper()
+                .await,
+            repositories.encrypted_attachment_repository.clone(),
+        );
 
         Ok(Services {
             account_service,
@@ -503,12 +525,14 @@ impl BootstrapBuilder {
             wsm_client,
             web_shop_client,
             webhook_validator,
+            customer_feedback_service,
             // Repositories to be removed
             consent_repository: repositories.consent_repository.clone(),
             privileged_action_repository: repositories.privileged_action_repository.clone(),
             inheritance_repository: repositories.inheritance_repository.clone(),
             social_recovery_repository: repositories.social_recovery_repository.clone(),
             account_repository: repositories.account_repository.clone(),
+            encrypted_attachment_repository: repositories.encrypted_attachment_repository.clone(),
         })
     }
 
@@ -529,6 +553,7 @@ impl BootstrapBuilder {
         let privileged_action_state = privileged_action::routes::RouteState(
             self.services.userpool_service.clone(),
             self.services.privileged_action_service.clone(),
+            self.services.account_service.clone(),
         );
 
         let notification_state = notification::routes::RouteState(
@@ -564,6 +589,7 @@ impl BootstrapBuilder {
             self.services.signed_psbt_cache_service.clone(),
             self.services.feature_flags_service.clone(),
             self.services.screener_service.clone(),
+            self.services.transaction_verification_service.clone(),
         );
 
         let transaction_verification_state = transaction_verification::routes::RouteState(
@@ -573,6 +599,7 @@ impl BootstrapBuilder {
             self.services.userpool_service.clone(),
             self.services.transaction_verification_service.clone(),
             self.services.exchange_rate_service.clone(),
+            self.services.privileged_action_service.clone(),
         );
 
         let delay_notify_state = recovery::routes::delay_notify::RouteState(
@@ -640,10 +667,12 @@ impl BootstrapBuilder {
 
         let customer_feedback_config =
             config::extract::<customer_feedback::routes::Config>(profile)?;
+
         let customer_feedback_state = customer_feedback::routes::RouteState(
             self.services.account_service.clone(),
             customer_feedback_config.zendesk.to_client(),
             customer_feedback_config.known_fields.into(),
+            self.services.customer_feedback_service.clone(),
         );
 
         let authentication_state = authn_authz::routes::RouteState(
@@ -659,6 +688,7 @@ impl BootstrapBuilder {
             self.services.wsm_client.clone(),
         );
 
+        let static_handler_state = secure_site::static_handler::RouteState();
         let analytics_state = config::extract::<analytics::routes::Config>(profile)?.to_state();
         let health_checks_state = healthcheck::Service;
 
@@ -727,7 +757,7 @@ impl BootstrapBuilder {
             .merge(customer_feedback_state.basic_validation_router());
 
         let mut swagger_endpoints = vec![
-            SwaggerEndpoint::from(privileged_action_state),
+            SwaggerEndpoint::from(privileged_action_state.clone()),
             SwaggerEndpoint::from(onboarding_state),
             SwaggerEndpoint::from(mobile_pay_state),
             SwaggerEndpoint::from(notification_state),
@@ -777,7 +807,10 @@ impl BootstrapBuilder {
             .merge(swagger_router);
 
         // Assemble the "secure site" router for out-of-band verification
-        let secure_site_router = transaction_verification_state.secure_site_router();
+        let secure_site_router = Router::new()
+            .merge(static_handler_state.secure_site_router())
+            .merge(transaction_verification_state.secure_site_router())
+            .merge(privileged_action_state.secure_site_router());
 
         // Merge the API and secure site routers into a single router.
         //

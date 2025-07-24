@@ -1,0 +1,36 @@
+import bitkey.privilegedactions.AuthorizationStrategyType;
+import bitkey.privilegedactions.PrivilegedActionType;
+
+CREATE TABLE pendingPrivilegedActionsEntity(
+    id TEXT NOT NULL PRIMARY KEY,
+    type TEXT AS PrivilegedActionType NOT NULL,
+    strategy TEXT AS AuthorizationStrategyType NOT NULL
+);
+
+CREATE TRIGGER check_type_before_insert
+BEFORE INSERT ON pendingPrivilegedActionsEntity
+WHEN EXISTS (
+    SELECT 1 FROM pendingPrivilegedActionsEntity
+    WHERE type == "LOOSEN_TRANSACTION_VERIFICATION_POLICY"
+)
+BEGIN
+    SELECT RAISE(FAIL, 'A record with this type already exists.');
+END;
+
+insertPendingAction:
+   INSERT OR REPLACE INTO pendingPrivilegedActionsEntity(id, type, strategy)
+   VALUES (?, ?, ?);
+
+getAllPendingActions:
+   SELECT * FROM pendingPrivilegedActionsEntity;
+
+getPendingActionByType:
+   SELECT * FROM pendingPrivilegedActionsEntity
+   WHERE type = ?;
+
+deletePendingActionById:
+    DELETE FROM pendingPrivilegedActionsEntity
+    WHERE id = ?;
+
+clearPendingActions:
+    DELETE FROM pendingPrivilegedActionsEntity;

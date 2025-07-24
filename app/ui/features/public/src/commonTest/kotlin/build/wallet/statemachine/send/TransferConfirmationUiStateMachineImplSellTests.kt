@@ -1,6 +1,7 @@
 package build.wallet.statemachine.send
 
 import app.cash.turbine.test
+import bitkey.verification.TxVerificationServiceFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitcoin.address.someBitcoinAddress
@@ -16,6 +17,8 @@ import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.TxVerificationFeatureFlag
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.partnerships.PartnerInfoFake
@@ -107,6 +110,8 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
   val feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake()
   val appFunctionalityService = AppFunctionalityServiceFake()
   val accountService = AccountServiceFake()
+  val txVerificationService = TxVerificationServiceFake()
+  val verificationFlag = TxVerificationFeatureFlag(FeatureFlagDaoFake())
 
   val stateMachine = TransferConfirmationUiStateMachineImpl(
     transactionDetailsCardUiStateMachine = transactionDetailsCardUiStateMachine,
@@ -116,7 +121,9 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     bitcoinWalletService = bitcoinWalletService,
     mobilePayService = mobilePayService,
     appFunctionalityService = appFunctionalityService,
-    accountService = accountService
+    accountService = accountService,
+    txVerificationService = txVerificationService,
+    txVerificationFeatureFlag = verificationFlag
   )
 
   // Reset mocks before each test
@@ -127,6 +134,8 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     bitcoinWalletService.spendingWallet.value = spendingWallet
     mobilePayService.reset()
     accountService.reset()
+    txVerificationService.reset()
+    verificationFlag.reset()
   }
 
   // Invoke the shared test function, passing in all necessary parameters
@@ -142,7 +151,9 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     mobilePayService = mobilePayService,
     appSignedPsbt = appSignedPsbt,
     appAndHwSignedPsbt = appAndHwSignedPsbt,
-    nfcSessionUIStateMachineId = nfcSessionUIStateMachine.id
+    nfcSessionUIStateMachineId = nfcSessionUIStateMachine.id,
+    txVerificationServiceFake = txVerificationService,
+    verificationFlag = verificationFlag
   )
 
   test("[app & hw] successful signing syncs, broadcasts, calls onTransferInitiated") {
@@ -160,6 +171,8 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
       }
 
       mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(sellProps.sendAmount)
+
+      awaitBody<LoadingSuccessBodyModel>()
 
       // ViewingTransferConfirmation
       awaitBody<FormBodyModel> {

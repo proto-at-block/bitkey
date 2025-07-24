@@ -7,7 +7,9 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SealedSsek
 
 /**
  * Represents progress made towards a recovery locally. Each member represents
@@ -31,6 +33,7 @@ sealed interface LocalRecoveryAttemptProgress {
    */
   data class AttemptingCompletion(
     val sealedCsek: SealedCsek,
+    val sealedSsek: SealedSsek,
   ) : LocalRecoveryAttemptProgress
 
   /**
@@ -55,6 +58,13 @@ sealed interface LocalRecoveryAttemptProgress {
    */
   data class RotatedSpendingKeys(
     val f8eSpendingKeyset: F8eSpendingKeyset,
+  ) : LocalRecoveryAttemptProgress
+
+  /**
+   * Successfully uploaded encrypted descriptor backups to F8e after rotating spending keys.
+   */
+  data class UploadedDescriptorBackups(
+    val spendingKeysets: List<SpendingKeyset>,
   ) : LocalRecoveryAttemptProgress
 
   /**

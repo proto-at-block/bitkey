@@ -1974,7 +1974,7 @@ mod tests {
                 .unwrap()
                 .as_str()
                 .split(' ')
-                .last()
+                .next_back()
                 .unwrap(),
             "1023"
         );

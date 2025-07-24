@@ -20,7 +20,7 @@ class UpdateDescriptorBackupsF8eClientFake(
     descriptorBackups: List<DescriptorBackup>,
     sealedSsek: SealedSsek,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
-    hwKeyProof: HwFactorProofOfPossession,
+    hwKeyProof: HwFactorProofOfPossession?,
   ): Result<Unit, UpdateDescriptorBackupError> {
     return updateResult
   }

@@ -23,6 +23,10 @@ import build.wallet.bitkey.spending.SpendingKeyset
  * @param appGlobalAuthKeyHwSignature the active app global auth key signed with the active
  * hardware's auth key. Used to verify the authenticity of the Social Recovery contacts as part
  * of SPAKE protocol.
+ * @property keysets All spending keysets for this keybox, including the active one and any inactive ones
+ * @property canUseKeyboxKeysets whether the [keysets] are complete, containing all active and inactive keysets.
+ *           This is required as this field was not properly maintained in the past, so some users only have
+ *           their most recently active keyset available.
  */
 data class Keybox(
   val localId: String,
@@ -33,4 +37,12 @@ data class Keybox(
   val activeHwKeyBundle: HwKeyBundle,
   val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   val keysets: List<SpendingKeyset>,
-)
+  val canUseKeyboxKeysets: Boolean,
+) {
+  init {
+    val matchingKeyset = keysets.find { it == activeSpendingKeyset }
+    require(keysets.isNotEmpty() && matchingKeyset != null) {
+      "activeSpendingKeyset must be present in keysets!"
+    }
+  }
+}

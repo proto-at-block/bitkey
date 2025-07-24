@@ -15,8 +15,10 @@ actual class InMemorySqlDriverFactory : SqlDriverFactory {
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver {
-    return inMemoryDriver(dataBaseSchema).also {
-      sqlDriver = it
+    return inMemoryDriver(dataBaseSchema).also { driver ->
+      // Enable foreign key constraints like the production iOS driver
+      driver.execute(identifier = null, sql = "PRAGMA foreign_keys=ON", parameters = 0)
+      sqlDriver = driver
     }
   }
 }

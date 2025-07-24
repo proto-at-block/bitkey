@@ -12,7 +12,7 @@ pub(crate) struct NoPsbtOutputsBelongToWalletRule<'a> {
     wallet: &'a Wallet<AnyDatabase>,
 }
 
-impl<'a> Rule for NoPsbtOutputsBelongToWalletRule<'a> {
+impl Rule for NoPsbtOutputsBelongToWalletRule<'_> {
     /// Ensure no outputs in the PSBT belong to this wallet.
     /// Requires derivation path information in the PSBT.
     /// Works for an un-synced walled if checking for self-spend.

@@ -107,7 +107,7 @@ class BitkeyDatabaseProviderImpl(
         ),
       keyboxEntityAdapter =
         KeyboxEntity.Adapter(
-          accountAdapter = FullAccountColumnAdapter,
+          accountIdAdapter = FullAccountColumnAdapter,
           networkTypeAdapter = EnumColumnAdapter(),
           f8eEnvironmentAdapter = F8eEnvironmentColumnAdapter,
           delayNotifyDurationAdapter = DurationColumnAdapter,
@@ -187,7 +187,8 @@ class BitkeyDatabaseProviderImpl(
           appGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter,
           serverSpendingKeyAdapter = F8eSpendingPublicKeyColumnAdapter,
           lostFactorAdapter = EnumColumnAdapter(),
-          sealedCsekAdapter = ByteStringColumnAdapter
+          sealedCsekAdapter = ByteStringColumnAdapter,
+          sealedSsekAdapter = ByteStringColumnAdapter
         ),
       emailTouchpointEntityAdapter =
         EmailTouchpointEntity.Adapter(
@@ -374,8 +375,17 @@ class BitkeyDatabaseProviderImpl(
         timeScaleAdapter = EnumColumnAdapter()
       ),
       txVerificationPolicyEntityAdapter = TxVerificationPolicyEntity.Adapter(
-        thresholdCurrencyAlphaCodeAdapter = IsoCurrencyTextCodeColumnAdapter,
-        delayEndTimeAdapter = InstantAsIso8601ColumnAdapter
+        thresholdCurrencyAlphaCodeAdapter = IsoCurrencyTextCodeColumnAdapter
+      ),
+      recoverySpendingKeysetEntityAdapter = RecoverySpendingKeysetEntity.Adapter(
+        appKeyAdapter = AppSpendingPublicKeyColumnAdapter,
+        hardwareKeyAdapter = HwSpendingPublicKeyColumnAdapter,
+        serverKeyAdapter = F8eSpendingPublicKeyColumnAdapter,
+        networkTypeAdapter = EnumColumnAdapter()
+      ),
+      pendingPrivilegedActionsEntityAdapter = PendingPrivilegedActionsEntity.Adapter(
+        typeAdapter = EnumColumnAdapter(),
+        strategyAdapter = EnumColumnAdapter()
       )
     )
   }

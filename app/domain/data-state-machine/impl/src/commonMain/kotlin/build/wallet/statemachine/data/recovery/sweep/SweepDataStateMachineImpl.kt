@@ -9,7 +9,6 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
-import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
 import build.wallet.recovery.sweep.Sweep
@@ -222,7 +221,7 @@ class SweepDataStateMachineImpl(
   private suspend fun serverSignPsbt(
     props: SweepDataProps,
     sweep: SweepPsbt,
-  ): Result<Psbt, NetworkingError> =
+  ): Result<Psbt, Error> =
     mobilePaySigningF8eClient.signWithSpecificKeyset(
       f8eEnvironment = props.keybox.config.f8eEnvironment,
       fullAccountId = props.keybox.fullAccountId,

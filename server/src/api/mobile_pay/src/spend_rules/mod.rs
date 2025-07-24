@@ -17,12 +17,14 @@ use self::all_psbt_outputs_belong_to_wallet_rule::AllPsbtOutputsBelongToWalletRu
 use self::daily_spend_limit_rule::DailySpendingLimitRule;
 use self::no_psbt_outputs_belong_to_wallet_rule::NoPsbtOutputsBelongToWalletRule;
 use crate::daily_spend_record::entities::SpendingEntry;
-use crate::entities::Features;
+use crate::entities::{Features, TransactionVerificationFeatures};
 use crate::spend_rules::errors::SpendRuleCheckError;
+use crate::spend_rules::transaction_verification_rule::TransactionVerificationRule;
 
 mod address_screening_rule;
 mod all_psbt_inputs_belong_to_wallet_rule;
 mod daily_spend_limit_rule;
+mod transaction_verification_rule;
 
 mod no_psbt_outputs_belong_to_wallet_rule;
 
@@ -56,6 +58,7 @@ impl<'a> SpendRuleSet<'a> {
         features: &'a Features,
         spending_history: &'a Vec<&'a SpendingEntry>,
         screener_service: Arc<ScreenerService>,
+        transaction_verification_features: Option<TransactionVerificationFeatures>,
         feature_flags_service: FeatureFlagsService,
         context_key: Option<ContextKey>,
     ) -> Self {
@@ -75,6 +78,10 @@ impl<'a> SpendRuleSet<'a> {
                 )),
                 Box::new(AllPsbtInputsBelongToWalletRule::new(source_wallet)),
                 Box::new(NoPsbtOutputsBelongToWalletRule::new(source_wallet)),
+                Box::new(TransactionVerificationRule::new(
+                    source_wallet,
+                    transaction_verification_features,
+                )),
             ],
         }
     }
@@ -146,7 +153,7 @@ pub mod test {
         }
     }
 
-    impl<'a> SpendRuleSet<'a> {
+    impl SpendRuleSet<'_> {
         pub fn test(rules: Vec<TestRule>) -> Self {
             SpendRuleSet::Test {
                 rules: rules

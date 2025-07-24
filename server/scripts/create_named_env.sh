@@ -27,10 +27,22 @@ popd > /dev/null
 TERRAFORM_REPO_PATH="${TERRAFORM_REPO_PATH:-}"
 if [[ -n "$TERRAFORM_REPO_PATH" ]]; then
   echo "🔧 Using provided terraform repo path: $TERRAFORM_REPO_PATH"
+  if [[ ! -d "$TERRAFORM_REPO_PATH" ]]; then
+    echo "❌ Error: Provided TERRAFORM_REPO_PATH does not exist: $TERRAFORM_REPO_PATH"
+    exit 1
+  fi
 else
-  echo "🔧 Cloning squareup/bitkey-terraform"
-  TERRAFORM_REPO_PATH=$(mktemp -d)/bitkey-terraform
-  git clone org-49461806@github.com:squareup/bitkey-terraform.git ${TERRAFORM_REPO_PATH}
+  # Try ../bitkey-terraform from wallet root as default
+  DEFAULT_TERRAFORM_PATH="$REPO_ROOT/../bitkey-terraform"
+  if [[ -d "$DEFAULT_TERRAFORM_PATH" ]]; then
+    TERRAFORM_REPO_PATH="$DEFAULT_TERRAFORM_PATH"
+    echo "🔧 Using adjacent terraform repo: $TERRAFORM_REPO_PATH"
+  else
+    echo "❌ Error: TERRAFORM_REPO_PATH must be provided or bitkey-terraform must exist adjacent to wallet root"
+    echo "   Either set TERRAFORM_REPO_PATH environment variable or ensure ../bitkey-terraform exists"
+    echo "   Example: TERRAFORM_REPO_PATH=/path/to/bitkey-terraform just stack-up"
+    exit 1
+  fi
 fi
 
 if [[ -z $IS_CI_RUN ]] ; then

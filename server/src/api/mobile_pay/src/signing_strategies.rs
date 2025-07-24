@@ -1,13 +1,15 @@
 use crate::daily_spend_record::entities::DailySpendingRecord;
 use crate::daily_spend_record::service::Service as DailySpendRecordService;
-use crate::entities::{Features, Settings};
+use crate::entities::{Features, Settings, TransactionVerificationFeatures};
 use crate::error::SigningError;
 use crate::routes::Config;
 use crate::signed_psbt_cache::service::Service as SignedPsbtCacheService;
 use crate::signing_processor::state::{Initialized, Validated};
 use crate::signing_processor::{Broadcaster, Signer, SigningProcessor, SigningValidator};
 use crate::spend_rules::SpendRuleSet;
-use crate::{get_mobile_pay_spending_record, sats_for_limit, MobilePaySpendingRecord};
+use crate::{
+    get_mobile_pay_spending_record, sats_for_limit, sats_for_threshold, MobilePaySpendingRecord,
+};
 use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::{DescriptorKeyset, ElectrumRpcUris};
@@ -16,7 +18,7 @@ use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
 use screener::service::Service as ScreenerService;
 use std::sync::Arc;
-use types::account::entities::FullAccount;
+use types::account::entities::{FullAccount, TransactionVerificationPolicy};
 use types::account::identifiers::KeysetId;
 
 #[async_trait]
@@ -47,6 +49,7 @@ impl TransferWithoutHardwareSigningStrategy {
         signed_psbt_cache_service: SignedPsbtCacheService,
         daily_spend_record_service: DailySpendRecordService,
         feature_flags_service: FeatureFlagsService,
+        transaction_verification_features: Option<TransactionVerificationFeatures>,
         context_key: Option<ContextKey>,
     ) -> Result<Self, SigningError> {
         let unsynced_source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
@@ -54,17 +57,20 @@ impl TransferWithoutHardwareSigningStrategy {
         // bundle up yesterday and today's spending records for spend rule checking
         let spending_entries = mobile_pay_spending_record.spending_entries();
 
-        let signer = signing_validator.validate(
-            &unsigned_psbt,
-            SpendRuleSet::mobile_pay(
-                &unsynced_source_wallet,
-                features,
-                &spending_entries,
-                screener_service,
-                feature_flags_service,
-                context_key,
-            ),
-        )?;
+        let signer = signing_validator
+            .validate(
+                &unsigned_psbt,
+                SpendRuleSet::mobile_pay(
+                    &unsynced_source_wallet,
+                    features,
+                    &spending_entries,
+                    screener_service,
+                    transaction_verification_features,
+                    feature_flags_service,
+                    context_key,
+                ),
+            )
+            .map_err(SigningError::to_transaction_verification_if_required)?;
 
         // Update the daily spending record object with the PSBT. Will be persisted after signing.
         let mut today_spending_record = mobile_pay_spending_record.today.clone();
@@ -169,7 +175,7 @@ impl SigningStrategy for RecoverySweepSigningStrategy {
 
         broadcaster.broadcast_transaction(&self.rpc_uris, &self.source_descriptor)?;
 
-        Ok(broadcaster.finalized_psbt().clone())
+        Ok(broadcaster.finalized_psbt())
     }
 }
 
@@ -279,6 +285,12 @@ impl SigningStrategyFactory {
             settings: Settings { limit },
             daily_limit_sats,
         };
+        let transaction_verification_features = Self::create_transaction_verification_features(
+            &full_account.transaction_verification_policy,
+            config,
+            exchange_rate_service,
+        )
+        .await?;
         let mobile_pay_spending_record =
             get_mobile_pay_spending_record(&full_account.id, daily_spend_record_service).await?;
 
@@ -294,6 +306,7 @@ impl SigningStrategyFactory {
             signed_psbt_cache_service.clone(),
             daily_spend_record_service.clone(),
             feature_flags_service.clone(),
+            transaction_verification_features,
             context_key,
         )?))
     }
@@ -326,5 +339,28 @@ impl SigningStrategyFactory {
             feature_flags_service.clone(),
             context_key,
         )?))
+    }
+
+    async fn create_transaction_verification_features(
+        policy: &Option<TransactionVerificationPolicy>,
+        config: &Config,
+        exchange_rate_service: &ExchangeRateService,
+    ) -> Result<Option<TransactionVerificationFeatures>, SigningError> {
+        match policy {
+            Some(TransactionVerificationPolicy::Threshold(amount)) => {
+                Ok(Some(TransactionVerificationFeatures {
+                    policy: TransactionVerificationPolicy::Threshold(amount.clone()),
+                    verification_sats: sats_for_threshold(amount, config, exchange_rate_service)
+                        .await?,
+                }))
+            }
+            Some(TransactionVerificationPolicy::Always) => {
+                Ok(Some(TransactionVerificationFeatures {
+                    policy: TransactionVerificationPolicy::Always,
+                    verification_sats: 0,
+                }))
+            }
+            Some(TransactionVerificationPolicy::Never) | None => Ok(None),
+        }
     }
 }

@@ -43,8 +43,10 @@ use privileged_action::routes::{
     CancelPendingDelayAndNotifyInstanceByTokenRequest,
     CancelPendingDelayAndNotifyInstanceByTokenResponse,
     ConfigurePrivilegedActionDelayDurationsRequest,
-    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingDelayAndNotifyInstancesResponse,
-    GetPrivilegedActionDefinitionsResponse,
+    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingInstancesParams,
+    GetPendingInstancesResponse, GetPrivilegedActionDefinitionsResponse,
+    ProcessPrivilegedActionVerificationRequest, ProcessPrivilegedActionVerificationResponse,
+    UpdateDelayDurationForTestRequest, UpdateDelayDurationForTestResponse,
 };
 use recovery::routes::delay_notify::{
     CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest, EvaluatePinRequest,
@@ -83,7 +85,7 @@ use tokio::sync::Mutex;
 use tower::Service;
 use transaction_verification::routes::{
     GetTransactionVerificationPolicyResponse, InitiateTransactionVerificationRequest,
-    PutTransactionVerificationPolicyRequest, PutTransactionVerificationPolicyResponse,
+    PutTransactionVerificationPolicyResponse,
 };
 use types::account::entities::DescriptorBackupsSet;
 use types::account::identifiers::{AccountId, KeysetId};
@@ -93,7 +95,8 @@ use types::privileged_action::router::generic::{
 };
 use types::recovery::trusted_contacts::TrustedContactRole;
 use types::transaction_verification::router::{
-    InitiateTransactionVerificationView, TransactionVerificationView,
+    InitiateTransactionVerificationView, PutTransactionVerificationPolicyRequest,
+    TransactionVerificationView,
 };
 use types::transaction_verification::TransactionVerificationId;
 
@@ -452,7 +455,7 @@ impl TestClient {
         hw_signed: bool,
         keys: &TestAuthenticationKeys,
         request: &PutTransactionVerificationPolicyRequest,
-    ) -> Response<PutTransactionVerificationPolicyResponse> {
+    ) -> Response<PrivilegedActionResponse<PutTransactionVerificationPolicyResponse>> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/tx-verify/policy"))
             .authenticated(
@@ -1407,6 +1410,22 @@ impl TestClient {
             .await
     }
 
+    pub(crate) async fn update_delay_duration_for_test(
+        &self,
+        account_id: &str,
+        privileged_action_id: &str,
+        delay_duration: i64,
+    ) -> Response<UpdateDelayDurationForTestResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/privileged-actions/{privileged_action_id}/test"
+            ))
+            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
+            .put(UpdateDelayDurationForTestRequest { delay_duration })
+            .call(&self.router)
+            .await
+    }
+
     pub(crate) async fn get_privileged_action_definitions(
         &self,
         account_id: &str,
@@ -1431,16 +1450,23 @@ impl TestClient {
             .await
     }
 
-    pub(crate) async fn get_pending_delay_and_notify_instances(
+    pub(crate) async fn get_pending_instances(
         &self,
         account_id: &str,
         auth: &CognitoAuthentication,
+        params: &GetPendingInstancesParams,
         keys: &TestAuthenticationKeys,
-    ) -> Response<GetPendingDelayAndNotifyInstancesResponse> {
+    ) -> Response<GetPendingInstancesResponse> {
+        let mut uri = format!("/api/accounts/{account_id}/privileged-actions/instances");
+        if let Some(privileged_action_type) = &params.privileged_action_type {
+            uri.push_str(&format!(
+                "?privileged_action_type={}",
+                privileged_action_type
+            ));
+        }
+
         Request::builder()
-            .uri(format!(
-                "/api/accounts/{account_id}/privileged-actions/instances"
-            ))
+            .uri(uri)
             .with_authentication(
                 auth,
                 &AccountId::from_str(account_id).unwrap(),
@@ -1724,6 +1750,47 @@ impl TestClient {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/notifications/triggers"))
             .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
+            .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn create_encrypted_attachment(
+        &self,
+        account_id: &AccountId,
+        request: &customer_feedback::routes::CreateEncryptedAttachmentRequest,
+    ) -> Response<customer_feedback::routes::CreateEncryptedAttachmentResponse> {
+        Request::builder()
+            .uri("/api/support/encrypted-attachments")
+            .authenticated(account_id, None, None)
+            .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn upload_sealed_attachment(
+        &self,
+        account_id: &AccountId,
+        encrypted_attachment_id: &types::encrypted_attachment::identifiers::EncryptedAttachmentId,
+        request: &customer_feedback::routes::UploadSealedAttachmentRequest,
+    ) -> Response<customer_feedback::routes::UploadSealedAttachmentResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/support/encrypted-attachments/{}",
+                encrypted_attachment_id
+            ))
+            .authenticated(account_id, None, None)
+            .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn respond_to_out_of_band_privileged_action(
+        &self,
+        request: &ProcessPrivilegedActionVerificationRequest,
+    ) -> Response<ProcessPrivilegedActionVerificationResponse> {
+        Request::builder()
+            .uri("/api/privileged-action/respond".to_string())
             .put(request)
             .call(&self.router)
             .await

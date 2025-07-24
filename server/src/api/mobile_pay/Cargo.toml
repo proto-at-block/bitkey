@@ -31,6 +31,7 @@ migration = { workspace = true }
 screener = { workspace = true }
 strum_macros = { workspace = true }
 tokio = { workspace = true }
+transaction_verification = { workspace = true }
 types = { workspace = true, features = [
   "currencies",
   "exchange_rate",

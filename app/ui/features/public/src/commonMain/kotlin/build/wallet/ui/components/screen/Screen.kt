@@ -1,9 +1,11 @@
 package build.wallet.ui.components.screen
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -21,6 +24,7 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SystemUIModel
 import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.components.sheet.Sheet
+import build.wallet.ui.components.status.backgroundColor
 import build.wallet.ui.components.system.SystemUI
 import build.wallet.ui.components.toast.Toast
 import build.wallet.ui.compose.gestures.onTwoFingerDoubleTap
@@ -46,7 +50,9 @@ fun Screen(
     model.presentationStyle
   ) { style ->
     Column(
-      modifier = modifier.background(color = WalletTheme.colors.background),
+      modifier = modifier.background(
+        color = model.statusBannerModel?.backgroundColor() ?: WalletTheme.colors.background
+      ),
       verticalArrangement = Arrangement.Top
     ) {
       val statusBannerModel by produceState(model.statusBannerModel, model) {
@@ -64,6 +70,10 @@ fun Screen(
       val systemStatusBarHeightPx = with(density) {
         WindowInsets.statusBars.getTop(this)
       }
+      val borderRadius by animateDpAsState(
+        targetValue = if (statusBannerVisible) 24.dp else 0.dp,
+        label = "status-banner-border-radius"
+      )
 
       Box(
         modifier = Modifier
@@ -108,6 +118,7 @@ fun Screen(
       Screen(
         modifier = Modifier
           .weight(1f)
+          .clip(RoundedCornerShape(topStart = borderRadius, topEnd = borderRadius))
           .background(style.screenBackgroundColor)
           .then(addSystemBarsPadding),
         bodyContent = {

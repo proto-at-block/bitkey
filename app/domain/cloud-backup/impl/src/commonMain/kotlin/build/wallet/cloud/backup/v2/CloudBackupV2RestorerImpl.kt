@@ -94,6 +94,7 @@ class CloudBackupV2RestorerImpl(
 
     AccountRestoration(
       activeSpendingKeyset = keysInfo.activeSpendingKeyset,
+      keysets = keysInfo.keysets,
       activeAppKeyBundle =
         AppKeyBundle(
           localId = uuidGenerator.random(),

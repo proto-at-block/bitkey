@@ -40,6 +40,7 @@ import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
+import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.home.GettingStartedTaskDao
@@ -167,4 +168,5 @@ interface JvmAppComponent {
   val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator
   val metricTrackerService: MetricTrackerService
   val inheritanceUseEncryptedDescriptorFeatureFlag: InheritanceUseEncryptedDescriptorFeatureFlag
+  val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag
 }

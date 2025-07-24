@@ -214,7 +214,7 @@ async fn create_customer_account(
     bootstrap: &Bootstrap,
 ) -> Account {
     match customer_account_type {
-        AccountType::Full { .. } => Account::Full(
+        AccountType::Full => Account::Full(
             create_full_account(context, &bootstrap.services, Network::BitcoinSignet, None).await,
         ),
         AccountType::Lite => {

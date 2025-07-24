@@ -149,3 +149,14 @@ data class PrivilegedActionInfo(
   val instance: PrivilegedActionInstance,
   val status: PrivilegedActionStatus,
 )
+
+/**
+ * Extension function to check if a D+N privileged action is ready to be completed.
+ * Returns true if the delay period has ended, false otherwise.
+ */
+fun PrivilegedActionInstance.isDelayAndNotifyReadyToComplete(clock: Clock): Boolean {
+  val delayAndNotifyStrategy = authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
+  return delayAndNotifyStrategy?.let { strategy ->
+    clock.now() >= strategy.delayEndTime
+  } ?: false
+}

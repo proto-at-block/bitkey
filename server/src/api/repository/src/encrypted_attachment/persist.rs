@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use database::{
-    aws_sdk_dynamodb::error::ProvideErrorMetadata,
+    aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
     ddb::{try_to_attribute_val, try_to_item, DatabaseError, Repository},
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
@@ -7,6 +9,8 @@ use tracing::{event, instrument, Level};
 use types::encrypted_attachment::EncryptedAttachment;
 
 use super::EncryptedAttachmentRepository;
+
+const TTL: time::Duration = time::Duration::days(7);
 
 impl EncryptedAttachmentRepository {
     #[instrument(skip(self, attachment))]
@@ -17,7 +21,15 @@ impl EncryptedAttachmentRepository {
         let mut updated_attachment = attachment.clone();
         updated_attachment.updated_at = OffsetDateTime::now_utc();
 
-        let item = try_to_item(&updated_attachment, database_object)?;
+        let mut item: HashMap<String, AttributeValue> =
+            try_to_item(&updated_attachment, database_object)?;
+
+        // Set the TTL for the item to expire after 7 days
+        let expiring_at = updated_attachment.updated_at + TTL;
+        item.insert(
+            "expiring_at".to_string(),
+            AttributeValue::N(expiring_at.unix_timestamp().to_string()),
+        );
 
         let formatted_original_updated_at =
             attachment.updated_at.format(&Rfc3339).map_err(|err| {

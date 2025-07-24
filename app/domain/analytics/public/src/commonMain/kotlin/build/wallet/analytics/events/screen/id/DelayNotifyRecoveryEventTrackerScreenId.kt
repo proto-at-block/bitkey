@@ -37,6 +37,9 @@ enum class DelayNotifyRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Failure screen shown when loading sealed DDK fails */
   LOST_APP_DELAY_NOTIFY_DDK_LOADING_ERROR,
 
+  /** Failure screen shown when uploading encrypted descriptors fails */
+  LOST_APP_DELAY_NOTIFY_ENCRYPTED_DESCRIPTORS_UPLOAD_ERROR,
+
   /** Failure screen shown when loading ddk fails */
   LOST_APP_DELAY_NOTIFY_DDK_RECOVERY_DATA_LOADING_ERROR,
 
@@ -72,6 +75,9 @@ enum class DelayNotifyRecoveryEventTrackerScreenId : EventTrackerScreenId {
 
   /** Loading screen shown when uploading DDK backup */
   LOST_APP_DELAY_NOTIFY_DDK_UPLOAD,
+
+  /** Loading screen shown when uploading encrypted descriptor backups */
+  LOST_APP_DELAY_NOTIFY_ENCRYPTED_DESCRIPTOR_UPLOAD,
 
   /** Error screen shown when an error was encountered uploading DDK backup */
   LOST_APP_DELAY_NOTIFY_DDK_UPLOAD_FAILURE,

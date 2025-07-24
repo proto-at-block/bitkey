@@ -14,7 +14,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.util.Properties
 
 /**
  * Creates a new database driver by copying the schema file to a temp file.
@@ -30,8 +29,7 @@ private suspend fun createDatabaseAtVersion(version: Long): SqlDriver {
     }
   }
   return JdbcSqliteDriver(
-    "jdbc:sqlite:${tempDatabase.absolutePath}",
-    Properties().apply { put("foreign_keys", "true") }
+    "jdbc:sqlite:${tempDatabase.absolutePath}"
   )
 }
 
@@ -81,6 +79,9 @@ private suspend fun DbSpecDsl.migrateAndInstallFixtures(version: Long) {
           """.trimIndent()
         )
       }
+
+      // Ensure FK references are intact post migrations.
+      driver.execute(identifier = null, sql = "PRAGMA foreign_keys=ON", parameters = 0)
     }
   }
 }

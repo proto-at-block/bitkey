@@ -8,29 +8,27 @@ import build.wallet.cloud.backup.v2.FullAccountFieldsMock
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.relationships.DelegatedDecryptionKeyFake
 
-val CloudBackupV2WithFullAccountMock =
-  CloudBackupV2(
-    accountId = FullAccountIdMock.serverId,
-    f8eEnvironment = F8eEnvironment.Development,
-    isTestAccount = true,
-    delegatedDecryptionKeypair = DelegatedDecryptionKeyFake,
-    fullAccountFields = FullAccountFieldsMock,
-    appRecoveryAuthKeypair = AppRecoveryAuthKeypairMock,
-    isUsingSocRecFakes = false,
-    bitcoinNetworkType = BitcoinNetworkType.SIGNET
-  )
+val CloudBackupV2WithFullAccountMock = CloudBackupV2(
+  accountId = FullAccountIdMock.serverId,
+  f8eEnvironment = F8eEnvironment.Development,
+  isTestAccount = true,
+  delegatedDecryptionKeypair = DelegatedDecryptionKeyFake,
+  fullAccountFields = FullAccountFieldsMock,
+  appRecoveryAuthKeypair = AppRecoveryAuthKeypairMock,
+  isUsingSocRecFakes = false,
+  bitcoinNetworkType = BitcoinNetworkType.SIGNET
+)
 
-val CloudBackupV2WithLiteAccountMock =
-  CloudBackupV2(
-    accountId = LiteAccountIdMock.serverId,
-    f8eEnvironment = F8eEnvironment.Development,
-    isTestAccount = true,
-    delegatedDecryptionKeypair = DelegatedDecryptionKeyFake,
-    fullAccountFields = null,
-    appRecoveryAuthKeypair = AppRecoveryAuthKeypairMock,
-    isUsingSocRecFakes = true,
-    bitcoinNetworkType = BitcoinNetworkType.SIGNET
-  )
+val CloudBackupV2WithLiteAccountMock = CloudBackupV2(
+  accountId = LiteAccountIdMock.serverId,
+  f8eEnvironment = F8eEnvironment.Development,
+  isTestAccount = true,
+  delegatedDecryptionKeypair = DelegatedDecryptionKeyFake,
+  fullAccountFields = null,
+  appRecoveryAuthKeypair = AppRecoveryAuthKeypairMock,
+  isUsingSocRecFakes = true,
+  bitcoinNetworkType = BitcoinNetworkType.SIGNET
+)
 
 const val CLOUD_BACKUP_V2_WITH_FULL_ACCOUNT_FIELDS_JSON = """
   {

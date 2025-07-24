@@ -1,10 +1,16 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.*
+import bitkey.ui.verification.TxVerificationAppSegment
+import bitkey.verification.ConfirmationState
+import bitkey.verification.TxVerificationApproval
+import bitkey.verification.TxVerificationService
+import bitkey.verification.VerificationRequiredError
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.TxVerificationEventTrackerScreenId
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.bdk.bindings.BdkError
@@ -24,12 +30,15 @@ import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensureNotNull
+import build.wallet.feature.flags.TxVerificationFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayData
 import build.wallet.limit.MobilePayService
 import build.wallet.logging.logDebug
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logWarn
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
@@ -65,6 +74,8 @@ class TransferConfirmationUiStateMachineImpl(
   private val mobilePayService: MobilePayService,
   private val appFunctionalityService: AppFunctionalityService,
   private val accountService: AccountService,
+  private val txVerificationService: TxVerificationService,
+  private val txVerificationFeatureFlag: TxVerificationFeatureFlag,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
@@ -114,6 +125,19 @@ class TransferConfirmationUiStateMachineImpl(
     }
 
     when (val state = uiState) {
+      is CheckVerificationUiState -> CheckVerificationStateEffect(
+        props = props,
+        state = state,
+        setUiState = { uiState = it }
+      )
+      is VerifyingTransactionUiState -> VerifyTransactionEffect(
+        state = state,
+        setUiState = { uiState = it }
+      )
+      is RequestHardwareGrantUiState -> RequestHardwareGrantEffect(
+        state = state,
+        setUiState = { uiState = it }
+      )
       is BroadcastingTransactionUiState ->
         BroadcastingTransactionEffect(
           props = props,
@@ -159,13 +183,8 @@ class TransferConfirmationUiStateMachineImpl(
           selectedPriority = selectedPriority,
           onAppSignSuccess = { psbts ->
             appSignedPsbts = psbts
-
-            uiState =
-              ViewingTransferConfirmationUiState(
-                appSignedPsbt =
-                  psbts[selectedPriority]
-                    ?: error("This callback should not be invoked without selected priority, this shouldn’t happen")
-              )
+            val psbt = psbts[selectedPriority] ?: error("This callback should not be invoked without selected priority, this shouldn’t happen")
+            uiState = CheckVerificationUiState(psbt)
           },
           onAppSignError = { cause ->
             logError(throwable = cause) { "Unable to sign PSBT" }
@@ -180,6 +199,40 @@ class TransferConfirmationUiStateMachineImpl(
               }
           }
         )
+      is CheckVerificationUiState, is RequestHardwareGrantUiState -> LoadingBodyModel(
+        onBack = props.onBack,
+        id = null,
+        eventTrackerShouldTrack = false
+      ).asModalScreen()
+      is ConfirmVerificationUiState -> VerifyConfirmation(
+        onBack = props.onBack,
+        onContinue = {
+          uiState = VerifyingTransactionUiState(
+            psbt = state.psbt
+          )
+        }
+      ).asModalScreen()
+      is VerifyingTransactionUiState -> LoadingBodyModel(
+        message = "Waiting for transaction...",
+        onBack = props.onBack,
+        id = null,
+        eventTrackerShouldTrack = false
+      ).asModalScreen()
+      is RejectedConfirmationUiState -> TransactionCanceledBodyModel(
+        id = TxVerificationEventTrackerScreenId.VERIFICATION_REJECTED,
+        onExit = props.onBack
+      ).asModalScreen()
+      is ExpiredConfirmationUiState -> TransactionCanceledBodyModel(
+        id = TxVerificationEventTrackerScreenId.VERIFICATION_EXPIRED,
+        onExit = props.onBack
+      ).asModalScreen()
+      is VerificationErrorUiState -> ErrorFormBodyModel(
+        errorData = state.error,
+        title = "We couldn't verify this transaction",
+        subline = "Please try again later.",
+        primaryButton = ButtonDataModel(text = "Got it", onClick = props.onExit),
+        eventTrackerScreenId = TxVerificationEventTrackerScreenId.VERIFICATION_ERROR
+      ).asModalScreen()
       ReceivedBdkErrorUiState ->
         ErrorFormBodyModel(
           title = "We couldn’t send this transaction",
@@ -384,6 +437,56 @@ class TransferConfirmationUiStateMachineImpl(
   }
 
   @Composable
+  private fun CheckVerificationStateEffect(
+    props: TransferConfirmationUiProps,
+    state: CheckVerificationUiState,
+    setUiState: (TransferConfirmationUiState) -> Unit,
+  ) = LaunchedEffect("Check verification", state.psbt.id) {
+    setUiState(
+      when {
+        !txVerificationFeatureFlag.isEnabled() -> ViewingTransferConfirmationUiState(appSignedPsbt = state.psbt)
+        txVerificationService.isVerificationRequired(state.psbt.amountBtc, props.exchangeRates) -> ConfirmVerificationUiState(psbt = state.psbt)
+        else -> RequestHardwareGrantUiState(psbt = state.psbt)
+      }
+    )
+  }
+
+  @Composable
+  private fun RequestHardwareGrantEffect(
+    state: RequestHardwareGrantUiState,
+    setUiState: (TransferConfirmationUiState) -> Unit,
+  ) = LaunchedEffect("Request hardware grant", state.psbt.id) {
+    txVerificationService.requestGrant(state.psbt)
+      .onFailure { error ->
+        if (error is VerificationRequiredError) {
+          logWarn {
+            "Verification required for transaction by server. Redirecting user to verification confirmation"
+          }
+          setUiState(ConfirmVerificationUiState(psbt = state.psbt))
+        } else {
+          logError(throwable = error) { "Failed to request hardware grant" }
+          setUiState(
+            VerificationErrorUiState(
+              error = ErrorData(
+                segment = TxVerificationAppSegment.Transaction,
+                actionDescription = "Requesting a hardware grant from server",
+                cause = error
+              )
+            )
+          )
+        }
+      }
+      .onSuccess { grant ->
+        setUiState(
+          ViewingTransferConfirmationUiState(
+            appSignedPsbt = state.psbt,
+            grant = grant
+          )
+        )
+      }
+  }
+
+  @Composable
   private fun SigningWithServerEffect(
     state: SigningWithServerUiState,
     onSignSuccess: (Psbt) -> Unit,
@@ -402,6 +505,47 @@ class TransferConfirmationUiStateMachineImpl(
           onSignError()
         }
     }
+  }
+
+  @Composable
+  private fun VerifyTransactionEffect(
+    state: VerifyingTransactionUiState,
+    setUiState: (TransferConfirmationUiState) -> Unit,
+  ) = LaunchedEffect("verify", state.psbt.id) {
+    txVerificationService.requestVerification(state.psbt)
+      .onFailure { error ->
+        setUiState(
+          VerificationErrorUiState(
+            error = ErrorData(
+              segment = TxVerificationAppSegment.Transaction,
+              actionDescription = "Requesting verification from server",
+              cause = error
+            )
+          )
+        )
+      }
+      .get()
+      ?.collect { confirmationState ->
+        when (confirmationState) {
+          is ConfirmationState.Confirmed -> {
+            setUiState(
+              ViewingTransferConfirmationUiState(
+                appSignedPsbt = state.psbt,
+                grant = confirmationState.data
+              )
+            )
+          }
+          ConfirmationState.Rejected -> {
+            setUiState(RejectedConfirmationUiState)
+          }
+          ConfirmationState.Expired -> {
+            setUiState(ExpiredConfirmationUiState)
+          }
+          ConfirmationState.Pending -> {
+            // No-op - Waiting for verification to complete
+          }
+        }
+      }
   }
 
   @Composable
@@ -497,12 +641,56 @@ private sealed interface TransferConfirmationUiState {
   data object CreatingAppSignedPsbtUiState : TransferConfirmationUiState
 
   /**
+   * Loading screen while checking if the transaction requires verification.
+   */
+  data class CheckVerificationUiState(
+    val psbt: Psbt,
+  ) : TransferConfirmationUiState
+
+  /**
+   * Notification to the user that the transaction requires verification.
+   */
+  data class ConfirmVerificationUiState(
+    val psbt: Psbt,
+  ) : TransferConfirmationUiState
+
+  /**
+   * Loading screen while requesting and waiting for the user to verify the transaction.
+   */
+  data class VerifyingTransactionUiState(
+    val psbt: Psbt,
+  ) : TransferConfirmationUiState
+
+  /**
+   * Loading screen while requesting a hardware grant from the server to sign with hardware.
+   */
+  data class RequestHardwareGrantUiState(
+    val psbt: Psbt,
+  ) : TransferConfirmationUiState
+
+  /**
+   * Transaction canceled notification when the user has indicated a problem during verification.
+   */
+  data object RejectedConfirmationUiState : TransferConfirmationUiState
+
+  /**
+   * Transaction canceled notification when the user has not completed verification in time.
+   */
+  data object ExpiredConfirmationUiState : TransferConfirmationUiState
+
+  /**
+   * Error state shown if verification fails due to an unexpected error.
+   */
+  data class VerificationErrorUiState(val error: ErrorData) : TransferConfirmationUiState
+
+  /**
    * Viewing transfer confirmation with info of transfer
    *
    * @property appSignedPsbt - the app-signed psbt associated with the transfer
    */
   data class ViewingTransferConfirmationUiState(
     val appSignedPsbt: Psbt,
+    val grant: TxVerificationApproval? = null,
     val sheetState: SheetState = Hidden,
   ) : TransferConfirmationUiState {
     sealed interface SheetState {

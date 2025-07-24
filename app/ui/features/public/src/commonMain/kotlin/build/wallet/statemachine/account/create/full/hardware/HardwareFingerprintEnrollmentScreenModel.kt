@@ -23,7 +23,7 @@ import build.wallet.ui.theme.ThemePreference
 
 fun HardwareFingerprintEnrollmentScreenModel(
   onSaveFingerprint: () -> Unit,
-  onBack: () -> Unit,
+  onBack: (() -> Unit)?,
   showingIncompleteEnrollmentError: Boolean,
   incompleteEnrollmentErrorOnPrimaryButtonClick: () -> Unit,
   onErrorOverlayClosed: () -> Unit,

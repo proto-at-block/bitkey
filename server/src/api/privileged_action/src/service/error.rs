@@ -28,9 +28,13 @@ pub enum ServiceError {
     RecordAuthorizationStrategyTypeConflict,
     #[error("Privileged action instance record delay and notify status conflict")]
     RecordDelayAndNotifyStatusConflict,
+    #[error("Privileged action instance record out of band status conflict")]
+    RecordOutofBandStatusConflict,
 
     #[error("Cannot configure delay for privileged action type {0} and account type {1}")]
     CannotConfigureDelay(PrivilegedActionType, AccountType),
+    #[error("Cannot update delay for non-test account")]
+    CannotUpdateDelayForNonTestAccount,
 
     #[error(
         "No authorization strategy defined for privileged action type {0} and account type {1}"
@@ -40,6 +44,8 @@ pub enum ServiceError {
     CannotContinueDefinedAuthorizationStrategyType,
     #[error("Failed hardware proof of possession check")]
     FailedHardwareProofOfPossessionCheck,
+    #[error("Authentication was required but not provided")]
+    AuthenticationRequiredButNotProvided,
     #[error("Privileged action instance record privileged action type conflict")]
     RecordPrivilegedActionTypeConflict,
     #[error("Privileged action instance record authorization strategy type unexpected")]
@@ -50,6 +56,8 @@ pub enum ServiceError {
     BadInputAuthorizationStrategyType,
     #[error("Bad privileged action instance input completion token")]
     BadInputCompletionToken,
+    #[error("Bad privileged action instance input web auth token")]
+    BadInputWebAuthToken,
 
     #[error("Cannot have multiple concurrent privileged action instances of type {0}")]
     MultipleConcurrentInstancesConflict(PrivilegedActionType),
@@ -71,16 +79,19 @@ impl From<ServiceError> for ApiError {
             ServiceError::Notification(e) => e.into(),
             ServiceError::RecordAccountIdForbidden
             | ServiceError::NoAuthorizationStrategyDefinedForbidden(_, _)
-            | ServiceError::FailedHardwareProofOfPossessionCheck => ApiError::GenericForbidden(msg),
+            | ServiceError::FailedHardwareProofOfPossessionCheck
+            | ServiceError::AuthenticationRequiredButNotProvided => ApiError::GenericForbidden(msg),
             ServiceError::RecordAuthorizationStrategyTypeConflict
             | ServiceError::RecordDelayAndNotifyStatusConflict
             | ServiceError::DelayAndNotifyEndTimeInFuture
             | ServiceError::RecordPrivilegedActionTypeConflict
+            | ServiceError::RecordOutofBandStatusConflict
             | ServiceError::MultipleConcurrentInstancesConflict(_) => {
                 ApiError::GenericConflict(msg)
             }
             ServiceError::BadInputAuthorizationStrategyType
             | ServiceError::BadInputCompletionToken
+            | ServiceError::BadInputWebAuthToken
             | ServiceError::CannotConfigureDelay(_, _)
             | ServiceError::CannotContinueDefinedAuthorizationStrategyType => {
                 ApiError::GenericBadRequest(msg)
@@ -91,6 +102,7 @@ impl From<ServiceError> for ApiError {
             | ServiceError::NotificationPayloadBuilder(_) => {
                 ApiError::GenericInternalApplicationError(msg)
             }
+            ServiceError::CannotUpdateDelayForNonTestAccount => ApiError::GenericForbidden(msg),
         }
     }
 }

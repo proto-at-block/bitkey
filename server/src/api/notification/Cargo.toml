@@ -14,7 +14,6 @@ derive_builder = { workspace = true }
 dyn-clone = { workspace = true }
 futures = { workspace = true }
 hmac = { workspace = true }
-http = { workspace = true }
 isocountry = { workspace = true }
 itertools = { workspace = true }
 once_cell = { workspace = true }

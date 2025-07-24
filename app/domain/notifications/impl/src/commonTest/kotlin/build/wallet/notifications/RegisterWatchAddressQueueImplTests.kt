@@ -1,8 +1,10 @@
 package build.wallet.notifications
 
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
@@ -26,15 +28,36 @@ class RegisterWatchAddressQueueImplTests : FunSpec({
   beforeTest {
     val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
     q = RegisterWatchAddressQueueImpl(databaseProvider)
-    databaseProvider.database()
-      .spendingKeysetQueries
-      .insertKeyset(
-        "f8e-spending-keyset-id",
-        FullAccountIdMock.serverId,
-        AppSpendingPublicKeyMock,
-        HwSpendingPublicKeyMock,
-        F8eSpendingKeysetMock.spendingPublicKey
-      )
+
+    val database = databaseProvider.database()
+
+    // Create fullAccount first (top level)
+    database.fullAccountQueries.insertFullAccount(FullAccountIdMock)
+
+    // Create keybox (references fullAccount)
+    database.keyboxQueries.insertKeybox(
+      id = KeyboxMock.localId,
+      accountId = FullAccountIdMock,
+      networkType = KeyboxMock.config.bitcoinNetworkType,
+      fakeHardware = KeyboxMock.config.isHardwareFake,
+      f8eEnvironment = KeyboxMock.config.f8eEnvironment,
+      isTestAccount = KeyboxMock.config.isTestAccount,
+      isUsingSocRecFakes = KeyboxMock.config.isUsingSocRecFakes,
+      delayNotifyDuration = KeyboxMock.config.delayNotifyDuration,
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+      canUseKeyboxKeysets = true
+    )
+
+    // Create spendingKeyset (references keybox)
+    database.spendingKeysetQueries.insertKeyset(
+      id = F8eSpendingKeysetMock.keysetId,
+      keyboxId = KeyboxMock.localId,
+      serverId = FullAccountIdMock.serverId,
+      appKey = AppSpendingPublicKeyMock,
+      hardwareKey = HwSpendingPublicKeyMock,
+      serverKey = F8eSpendingKeysetMock.spendingPublicKey,
+      isActive = true
+    )
   }
 
   test("passing negative num to take throws") {

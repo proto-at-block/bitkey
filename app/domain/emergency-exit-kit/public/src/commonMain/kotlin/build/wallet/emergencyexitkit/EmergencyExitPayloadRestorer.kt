@@ -54,6 +54,7 @@ interface EmergencyExitPayloadRestorer {
       ),
       // TODO [W-11632] EEK recovery of encrypted backups is not supported yet
       keysets = listOf(activeSpendingKeyset),
+      canUseKeyboxKeysets = false,
       config = fullAccountConfig
     )
   }

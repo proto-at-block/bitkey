@@ -100,7 +100,7 @@ fn resolve_or_panic<T: Into<FlagValue> + Clone>(
     }
 }
 
-impl<'a> Resolver<'a, bool> {
+impl Resolver<'_, bool> {
     pub fn resolve(&self) -> bool {
         if let Some(b) = self
             .service
@@ -121,7 +121,7 @@ impl<'a> Resolver<'a, bool> {
     }
 }
 
-impl<'a> Resolver<'a, &str> {
+impl Resolver<'_, &str> {
     pub fn resolve(&self) -> String {
         if let Some(f) = self.service.override_flags.get(self.flag.key) {
             return f.to_owned();

@@ -21,7 +21,7 @@ impl<'a> CreateHardwareCognitoUsers<'a> {
 }
 
 #[async_trait]
-impl<'a> Migration for CreateHardwareCognitoUsers<'a> {
+impl Migration for CreateHardwareCognitoUsers<'_> {
     fn name(&self) -> &str {
         "20240613_create_hardware_cognito_users"
     }

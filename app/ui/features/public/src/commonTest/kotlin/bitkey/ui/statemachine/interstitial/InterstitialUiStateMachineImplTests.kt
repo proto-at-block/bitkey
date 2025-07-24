@@ -27,6 +27,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps as LostHardwareRecoveryDataProps
 
 class InterstitialUiStateMachineImplTests : FunSpec({
+
   val awaitingNewHardwareData = AwaitingNewHardwareData(
     newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
     addHardwareKeys = { _, _ -> }
@@ -40,18 +41,21 @@ class InterstitialUiStateMachineImplTests : FunSpec({
   val lostHardwareUiStateMachine = object : LostHardwareRecoveryUiStateMachine,
     ScreenStateMachineMock<LostHardwareRecoveryProps>(id = "someone-else-recovering") {}
 
+  val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
   val fundsLostRiskService = FundsLostRiskServiceFake()
   val inheritanceUpsellService = InheritanceUpsellServiceFake()
+  val appSessionManager = AppSessionManagerFake()
 
-  val stateMachine = InterstitialUiStateMachineImpl(
-    lostHardwareRecoveryDataStateMachine = lostHardwareRecoveryDataStateMachine,
-    lostHardwareUiStateMachine = lostHardwareUiStateMachine,
-    recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create),
-    fundsLostRiskService = fundsLostRiskService,
-    inheritanceUpsellService = inheritanceUpsellService,
-    appSessionManager = AppSessionManagerFake(),
-    recoveryIncompleteRepository = PostSocRecTaskRepositoryMock()
-  )
+  fun stateMachine() =
+    InterstitialUiStateMachineImpl(
+      lostHardwareRecoveryDataStateMachine = lostHardwareRecoveryDataStateMachine,
+      lostHardwareUiStateMachine = lostHardwareUiStateMachine,
+      recoveryStatusService = recoveryStatusService,
+      fundsLostRiskService = fundsLostRiskService,
+      inheritanceUpsellService = inheritanceUpsellService,
+      appSessionManager = appSessionManager,
+      recoveryIncompleteRepository = PostSocRecTaskRepositoryMock()
+    )
 
   val props = InterstitialUiProps(
     account = FullAccountMock,
@@ -62,10 +66,11 @@ class InterstitialUiStateMachineImplTests : FunSpec({
     inheritanceUpsellService.reset()
     fundsLostRiskService.reset()
     lostHardwareRecoveryDataStateMachine.reset()
+    appSessionManager.reset()
   }
 
   test("default screen model is null") {
-    stateMachine.test(props = props) {
+    stateMachine().test(props = props) {
       awaitItem().shouldBeNull()
     }
   }
@@ -74,7 +79,7 @@ class InterstitialUiStateMachineImplTests : FunSpec({
     fundsLostRiskService.riskLevel.value = FundsLostRiskLevel.AtRisk(cause = AtRiskCause.MissingHardware)
     inheritanceUpsellService.markUpsellAsSeen()
 
-    stateMachine.test(props = props) {
+    stateMachine().test(props = props) {
       awaitItem().shouldNotBeNull()
         .body
         .shouldBeInstanceOf<WalletAtRiskInterstitialBodyModel>()
@@ -85,7 +90,7 @@ class InterstitialUiStateMachineImplTests : FunSpec({
   }
 
   test("inheritance upsell is shown when applicable") {
-    stateMachine.test(props = props) {
+    stateMachine().test(props = props) {
       // initial loading of the inheritance upsell service
       awaitItem()
 
@@ -103,7 +108,7 @@ class InterstitialUiStateMachineImplTests : FunSpec({
   test("when at risk, don't show risk screen model if coming from onboarding") {
     fundsLostRiskService.riskLevel.value = FundsLostRiskLevel.AtRisk(cause = AtRiskCause.MissingHardware)
 
-    stateMachine.test(props = props.copy(isComingFromOnboarding = true)) {
+    stateMachine().test(props = props.copy(isComingFromOnboarding = true)) {
       awaitItem().shouldBeNull()
     }
   }

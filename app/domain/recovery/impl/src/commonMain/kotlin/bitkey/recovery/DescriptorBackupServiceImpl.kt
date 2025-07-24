@@ -26,6 +26,8 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
@@ -42,6 +44,7 @@ import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onFailure
 import okio.ByteString.Companion.encodeUtf8
 
+@BitkeyInject(AppScope::class)
 class DescriptorBackupServiceImpl(
   private val ssekDao: SsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
@@ -97,6 +100,35 @@ class DescriptorBackupServiceImpl(
     }
   }
 
+  override suspend fun uploadOnboardingDescriptorBackup(
+    accountId: FullAccountId,
+    sealedSsekForEncryption: SealedSsek,
+    appAuthKey: PublicKey<AppGlobalAuthKey>,
+    keysetsToEncrypt: List<SpendingKeyset>,
+  ): Result<Unit, DescriptorBackupError> =
+    coroutineBinding {
+      require(keysetsToEncrypt.size == 1) {
+        "must have keysets to encrypt, but had none"
+      }
+
+      logDebug { "Uploading initial descriptor backups for account $accountId" }
+
+      // Seal the descriptors using the provided SSEK
+      val encryptedDescriptors = sealDescriptors(
+        sealedSsek = sealedSsekForEncryption,
+        keysets = keysetsToEncrypt
+      ).bind()
+
+      // Upload the encrypted descriptors to F8e
+      uploadBackupsToF8e(
+        accountId = accountId,
+        sealedSsek = sealedSsekForEncryption,
+        descriptorBackups = encryptedDescriptors,
+        appAuthKey = appAuthKey,
+        hwKeyProof = null
+      ).bind()
+    }
+
   override suspend fun uploadDescriptorBackups(
     accountId: FullAccountId,
     sealedSsekForDecryption: SealedSsek?,
@@ -114,7 +146,7 @@ class DescriptorBackupServiceImpl(
         sealedSsekToDecrypt = sealedSsekForDecryption
       ).bind()
 
-      uploadDescriptorBackups(
+      uploadBackupsToF8e(
         accountId = accountId,
         descriptorBackups = processedResult.encryptedDescriptors,
         sealedSsek = sealedSsekForEncryption,
@@ -208,18 +240,14 @@ class DescriptorBackupServiceImpl(
     coroutineBinding {
       logDebug { "Preparing descriptor backups for Lost Hardware recovery" }
 
-      // Get existing keysets from local account
-      val localKeysets = accountService.getAccount<FullAccount>()
+      val keybox = accountService.getAccount<FullAccount>()
         .mapError { DescriptorBackupError.AccountNotFound }
-        .map {
-          emptyList<SpendingKeyset>()
-          // TODO(W-11614): Use keybox keysets once available
-          // it.keybox.keysets
-        }
+        .map { it.keybox }
         .bind()
 
-      val allKeysets = if (localKeysets.isEmpty()) {
-        // If we've never gone through this process before, we need to retrieve keysets
+      val allKeysets = if (!keybox.canUseKeyboxKeysets) {
+        logDebug { "Retrieving f8e keysets for Lost Hardware recovery" }
+        // If the local keysets are not authoritative, we need to retrieve keysets
         // from f8e.
         listKeysetsF8eClient.listKeysets(
           f8eEnvironment = accountConfig.f8eEnvironment,
@@ -229,7 +257,8 @@ class DescriptorBackupServiceImpl(
           .bind().keysets
       } else {
         // Otherwise, we take our local keysets and append the new one
-        localKeysets + newActiveKeyset
+        logDebug { "Using local keysets Lost Hardware recovery" }
+        keybox.keysets + newActiveKeyset
       }
 
       DescriptorBackupPreparedData.EncryptOnly(
@@ -253,7 +282,7 @@ class DescriptorBackupServiceImpl(
         .bind()
 
       val existingEncryptedDescriptors = listKeysetsResponse.descriptorBackups.orEmpty()
-      val wrappedSsek = listKeysetsResponse.wrappedSsek?.encodeUtf8()
+      val wrappedSsek = listKeysetsResponse.wrappedSsek
 
       if (existingEncryptedDescriptors.isEmpty() && wrappedSsek == null) {
         // This is our first time uploading descriptor backups!
@@ -297,19 +326,18 @@ class DescriptorBackupServiceImpl(
    * Upload descriptor backups to F8e after they have been encrypted with hardware.
    * Note: This method expects ALL descriptor backups, not just new ones.
    */
-  private suspend fun uploadDescriptorBackups(
+  private suspend fun uploadBackupsToF8e(
     accountId: FullAccountId,
     sealedSsek: SealedSsek,
     descriptorBackups: List<DescriptorBackup>,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
-    hwKeyProof: HwFactorProofOfPossession,
+    hwKeyProof: HwFactorProofOfPossession?,
   ): Result<Unit, DescriptorBackupError> =
     coroutineBinding {
       val accountConfig = getFullAccountConfig()
 
       logDebug { "Uploading ${descriptorBackups.size} descriptor backups to F8e" }
 
-      // Upload all backups to F8e, the API expects the complete set
       updateDescriptorBackupsF8eClient.update(
         f8eEnvironment = accountConfig.f8eEnvironment,
         accountId = accountId,

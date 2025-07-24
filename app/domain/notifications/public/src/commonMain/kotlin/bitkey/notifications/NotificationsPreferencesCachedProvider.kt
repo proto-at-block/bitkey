@@ -12,6 +12,11 @@ import kotlinx.coroutines.flow.Flow
  */
 interface NotificationsPreferencesCachedProvider {
   /**
+   * Hydrates the in memory cache with the current notification preferences for the active account.
+   */
+  suspend fun initialize()
+
+  /**
    * Returns the notification preferences for the given account. The value returned is a Flow
    * of Result, because there could be more than one result. Here is the logical flow:
    *
@@ -26,9 +31,7 @@ interface NotificationsPreferencesCachedProvider {
    * To be clear, the *only* time an error is emitted is if there's no local cache data and the server
    * call fails.
    */
-  fun getNotificationsPreferences(
-    accountId: AccountId,
-  ): Flow<Result<NotificationPreferences, NetworkingError>>
+  fun getNotificationsPreferences(): Flow<Result<NotificationPreferences, Error>?>
 
   /**
    * Updates the notification preferences for the given account. The data is sent to the server, and

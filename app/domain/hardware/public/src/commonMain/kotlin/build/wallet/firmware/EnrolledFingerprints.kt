@@ -5,7 +5,7 @@ package build.wallet.firmware
  * supported by the version of firmware.
  */
 data class EnrolledFingerprints(
-  val maxCount: Int,
+  val maxCount: Int = MAX_FINGERPRINT_COUNT,
   val fingerprintHandles: List<FingerprintHandle>,
 ) {
   init {
@@ -22,5 +22,12 @@ data class EnrolledFingerprints(
         fingerprintIdx = fingerprintHandle.index
       )
     }
+  }
+
+  companion object {
+    /**
+     * Maximum number of fingerprints that can be enrolled on the hardware device.
+     */
+    const val MAX_FINGERPRINT_COUNT = 3
   }
 }

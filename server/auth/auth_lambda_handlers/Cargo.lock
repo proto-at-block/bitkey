@@ -72,7 +72,6 @@ dependencies = [
  "lambda_runtime",
  "rand",
  "secp256k1",
- "serde",
  "serde_json",
  "tokio",
  "tracing-subscriber",

@@ -404,7 +404,7 @@ pub async fn create_beneficiary_account(
         create_nontest_default_account_with_predefined_wallet(context, client, &bootstrap.services)
             .await;
     match beneficiary_account_type {
-        types::account::AccountType::Full { .. } => (Account::Full(acct), Some(wallet)),
+        types::account::AccountType::Full => (Account::Full(acct), Some(wallet)),
         types::account::AccountType::Lite => (
             Account::Lite(create_lite_account(context, &bootstrap.services, None, true).await),
             None,

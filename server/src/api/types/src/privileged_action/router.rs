@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumDiscriminants};
 use time::serde::rfc3339;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
@@ -21,12 +22,20 @@ pub struct DelayAndNotify {
     pub completion_token: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-#[serde(tag = "authorization_strategy_type")]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, EnumDiscriminants)]
+#[strum_discriminants(
+    derive(Display, Serialize, Deserialize),
+    serde(rename_all = "SCREAMING_SNAKE_CASE"),
+    strum(serialize_all = "SCREAMING_SNAKE_CASE")
+)]
+#[serde(
+    rename_all = "SCREAMING_SNAKE_CASE",
+    tag = "authorization_strategy_type"
+)]
 pub enum AuthorizationStrategy {
-    HardwareProofOfPossession,
+    HardwareProofOfPossession {},
     DelayAndNotify(DelayAndNotify),
+    OutOfBand {},
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
@@ -46,7 +55,7 @@ impl<T> From<PrivilegedActionInstanceRecord<T>> for PrivilegedActionInstance {
             privileged_action_type: value.privileged_action_type,
             authorization_strategy: match value.authorization_strategy {
                 AuthorizationStrategyRecord::HardwareProofOfPossession => {
-                    AuthorizationStrategy::HardwareProofOfPossession
+                    AuthorizationStrategy::HardwareProofOfPossession {}
                 }
                 AuthorizationStrategyRecord::DelayAndNotify(d) => {
                     AuthorizationStrategy::DelayAndNotify(DelayAndNotify {
@@ -64,6 +73,7 @@ impl<T> From<PrivilegedActionInstanceRecord<T>> for PrivilegedActionInstance {
                         },
                     })
                 }
+                AuthorizationStrategyRecord::OutOfBand(_) => AuthorizationStrategy::OutOfBand {},
             },
         }
     }
@@ -87,11 +97,17 @@ pub mod generic {
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+    pub struct OutOfBandInput {
+        pub web_auth_token: String,
+    }
+
+    #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
     #[serde(tag = "authorization_strategy_type")]
     #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
     pub enum AuthorizationStrategyInput {
         HardwareProofOfPossession,
         DelayAndNotify(DelayAndNotifyInput),
+        OutOfBand(OutOfBandInput),
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
@@ -126,11 +142,14 @@ pub mod generic {
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-    #[serde(tag = "authorization_strategy_type")]
-    #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+    #[serde(
+        tag = "authorization_strategy_type",
+        rename_all = "SCREAMING_SNAKE_CASE"
+    )]
     pub enum AuthorizationStrategyOutput {
         HardwareProofOfPossession,
         DelayAndNotify(DelayAndNotifyOutput),
+        OutOfBand,
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
@@ -156,6 +175,9 @@ pub mod generic {
                             cancellation_token: d.cancellation_token,
                             completion_token: d.completion_token,
                         })
+                    }
+                    AuthorizationStrategyRecord::OutOfBand(_) => {
+                        AuthorizationStrategyOutput::OutOfBand
                     }
                 },
             }
@@ -193,7 +215,7 @@ mod tests {
 
     use super::*;
     use crate::account::identifiers::AccountId;
-    use crate::privileged_action::repository::{DelayAndNotifyRecord, DelayAndNotifyStatus};
+    use crate::privileged_action::repository::{DelayAndNotifyRecord, RecordStatus};
 
     #[rstest]
     #[case::reset_fingerprint(PrivilegedActionType::ResetFingerprint, true)]
@@ -210,7 +232,7 @@ mod tests {
             privileged_action_type,
             authorization_strategy: AuthorizationStrategyRecord::DelayAndNotify(
                 DelayAndNotifyRecord {
-                    status: DelayAndNotifyStatus::Pending,
+                    status: RecordStatus::Pending,
                     delay_end_time: OffsetDateTime::now_utc(),
                     cancellation_token: "cancellation_token".to_string(),
                     completion_token: "completion_token".to_string(),

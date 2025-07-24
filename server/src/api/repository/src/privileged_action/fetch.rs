@@ -7,14 +7,16 @@ use tracing::{event, instrument, Level};
 use types::{
     account::identifiers::AccountId,
     privileged_action::{
-        repository::{DelayAndNotifyStatus, PrivilegedActionInstanceRecord},
+        repository::{PrivilegedActionInstanceRecord, RecordStatus},
+        router::AuthorizationStrategyDiscriminants,
         shared::{PrivilegedActionInstanceId, PrivilegedActionType},
     },
 };
 
 use super::{
     PrivilegedActionRepository, ACCOUNT_IDX, ACCOUNT_IDX_PARTITION_KEY, CANCELLATION_TOKEN_IDX,
-    CANCELLATION_TOKEN_IDX_PARTITION_KEY, PARTITION_KEY,
+    CANCELLATION_TOKEN_IDX_PARTITION_KEY, PARTITION_KEY, WEB_AUTH_TOKEN_IDX,
+    WEB_AUTH_TOKEN_IDX_PARTITION_KEY,
 };
 
 const AUTHORIZATION_STRATEGY_TYPE_EXPRESSION: &str =
@@ -109,11 +111,12 @@ impl PrivilegedActionRepository {
     }
 
     #[instrument(skip(self))]
-    pub async fn fetch_delay_notify_for_account_id<T>(
+    pub async fn fetch_for_account_id<T>(
         &self,
         account_id: &AccountId,
+        authorization_strategy: Option<AuthorizationStrategyDiscriminants>,
         privileged_action_type: Option<PrivilegedActionType>,
-        status: Option<DelayAndNotifyStatus>,
+        status: Option<RecordStatus>,
     ) -> Result<Vec<PrivilegedActionInstanceRecord<T>>, DatabaseError>
     where
         T: DeserializeOwned,
@@ -123,8 +126,9 @@ impl PrivilegedActionRepository {
 
         let account_id_attr: AttributeValue =
             try_to_attribute_val(account_id.to_string(), self.get_database_object())?;
-        let authorization_strategy_type_attr: AttributeValue =
-            try_to_attribute_val("DELAY_AND_NOTIFY", self.get_database_object())?;
+        let authorization_strategy_type_attr: Option<AttributeValue> = authorization_strategy
+            .map(|p| try_to_attribute_val(p.to_string(), self.get_database_object()))
+            .transpose()?;
         let privileged_action_type_attr: Option<AttributeValue> = privileged_action_type
             .map(|p| try_to_attribute_val(p, self.get_database_object()))
             .transpose()?;
@@ -136,7 +140,7 @@ impl PrivilegedActionRepository {
         let mut result = Vec::new();
 
         loop {
-            let mut filter_expression = AUTHORIZATION_STRATEGY_TYPE_EXPRESSION.to_owned();
+            let mut filter_conditions = Vec::new();
             let mut query = self
                 .get_connection()
                 .client
@@ -150,17 +154,18 @@ impl PrivilegedActionRepository {
                 .expression_attribute_values(
                     format!(":{}", ACCOUNT_IDX_PARTITION_KEY),
                     account_id_attr.clone(),
-                )
-                .expression_attribute_values(
-                    ":authorization_strategy_type",
-                    authorization_strategy_type_attr.clone(),
                 );
 
-            if let Some(privileged_action_type_attr) = &privileged_action_type_attr {
-                filter_expression = format!(
-                    "{} AND {}",
-                    filter_expression, PRIVILEGED_ACTION_TYPE_EXPRESSION
+            if let Some(authorization_strategy_type_attr) = &authorization_strategy_type_attr {
+                filter_conditions.push(AUTHORIZATION_STRATEGY_TYPE_EXPRESSION.to_string());
+                query = query.expression_attribute_values(
+                    ":authorization_strategy_type",
+                    authorization_strategy_type_attr.to_owned(),
                 );
+            }
+
+            if let Some(privileged_action_type_attr) = &privileged_action_type_attr {
+                filter_conditions.push(PRIVILEGED_ACTION_TYPE_EXPRESSION.to_string());
                 query = query.expression_attribute_values(
                     ":privileged_action_type",
                     privileged_action_type_attr.to_owned(),
@@ -168,13 +173,16 @@ impl PrivilegedActionRepository {
             }
 
             if let Some(status_attr) = &status_attr {
-                filter_expression = format!("{} AND {}", filter_expression, STATUS_EXPRESSION);
+                filter_conditions.push(STATUS_EXPRESSION.to_string());
                 query = query
                     .expression_attribute_names("#status", "status")
                     .expression_attribute_values(":status", status_attr.to_owned());
             }
 
-            query = query.filter_expression(filter_expression.clone());
+            if !filter_conditions.is_empty() {
+                let filter_expression = filter_conditions.join(" AND ");
+                query = query.filter_expression(filter_expression);
+            }
 
             let item_output = query
                 .set_exclusive_start_key(exclusive_start_key.clone())
@@ -203,5 +211,50 @@ impl PrivilegedActionRepository {
         }
 
         Ok(result)
+    }
+
+    #[instrument(skip(self, web_auth_token))]
+    pub async fn fetch_by_web_auth_token<T>(
+        &self,
+        web_auth_token: &str,
+    ) -> Result<PrivilegedActionInstanceRecord<T>, DatabaseError>
+    where
+        T: DeserializeOwned,
+    {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        let item_output = self
+            .get_connection()
+            .client
+            .query()
+            .table_name(table_name)
+            .index_name(WEB_AUTH_TOKEN_IDX)
+            .key_condition_expression(format!(
+                "{} = :{}",
+                WEB_AUTH_TOKEN_IDX_PARTITION_KEY, WEB_AUTH_TOKEN_IDX_PARTITION_KEY
+            ))
+            .expression_attribute_values(
+                format!(":{}", WEB_AUTH_TOKEN_IDX_PARTITION_KEY),
+                try_to_attribute_val(web_auth_token, database_object)?,
+            )
+            .send()
+            .await
+            .map_err(|err| {
+                let service_err = err.into_service_error();
+                event!(
+                    Level::ERROR,
+                    "Could not query database: {service_err:?} with message: {:?}",
+                    service_err.message()
+                );
+                DatabaseError::FetchError(database_object)
+            })?;
+
+        let items = item_output.items();
+        match items.len() {
+            1 => try_from_item(items[0].to_owned(), database_object),
+            0 => Err(DatabaseError::ObjectNotFound(database_object)),
+            _ => Err(DatabaseError::ObjectNotUnique(database_object)),
+        }
     }
 }

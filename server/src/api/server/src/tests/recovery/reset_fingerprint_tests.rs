@@ -3,13 +3,14 @@ use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use http::StatusCode;
 use recovery::routes::reset_fingerprint::ResetFingerprintRequest;
 use rstest::rstest;
+use serde_json::Value;
 use std::str::FromStr;
 use time::{Duration, OffsetDateTime};
 use types::account::AccountType;
 use types::privileged_action::{
     repository::{
-        AuthorizationStrategyRecord, DelayAndNotifyRecord, DelayAndNotifyStatus,
-        PrivilegedActionInstanceRecord,
+        AuthorizationStrategyRecord, DelayAndNotifyRecord, PrivilegedActionInstanceRecord,
+        RecordStatus,
     },
     router::generic::{
         AuthorizationStrategyInput, ContinuePrivilegedActionRequest, DelayAndNotifyInput,
@@ -18,6 +19,7 @@ use types::privileged_action::{
     shared::{PrivilegedActionInstanceId, PrivilegedActionType},
 };
 
+use crate::tests::lib::create_account;
 use crate::tests::{gen_services, lib::create_test_account, requests::axum::TestClient};
 
 #[rstest]
@@ -74,7 +76,7 @@ async fn test_complete_reset_fingerprint(
         account_id: account.get_id().to_owned(),
         privileged_action_type: PrivilegedActionType::ResetFingerprint,
         authorization_strategy: AuthorizationStrategyRecord::DelayAndNotify(DelayAndNotifyRecord {
-            status: DelayAndNotifyStatus::Pending,
+            status: RecordStatus::Pending,
             delay_end_time: OffsetDateTime::now_utc() + delay_end_time_offset,
             cancellation_token: "test".to_string(),
             completion_token: "test".to_string(),
@@ -130,6 +132,78 @@ async fn test_complete_reset_fingerprint(
         // expected signature for the pregenerated request
         let expected_signature = Signature::from_str("304402205ce8b3ee12324d783c6dcbfb679d178e80c3c37f30c41cd7785ea616d01b61f60220197b7cffd2207f5590c1384f0ea1dea846f0b0448c69b711a353c1a7fb1a6059").unwrap();
         assert_eq!(signature, expected_signature);
+    }
+}
+
+#[rstest::rstest]
+#[case::test_account(true, StatusCode::OK)]
+#[case::non_test_account(false, StatusCode::FORBIDDEN)]
+#[tokio::test]
+async fn test_update_delay_duration_for_test(
+    #[case] is_test_account: bool,
+    #[case] expected_status: StatusCode,
+) {
+    // arrange
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = create_account(
+        &mut context,
+        &bootstrap.services,
+        AccountType::Full,
+        is_test_account,
+    )
+    .await;
+
+    let privileged_action_instance_id = PrivilegedActionInstanceId::gen().unwrap();
+    let instance = PrivilegedActionInstanceRecord {
+        id: privileged_action_instance_id,
+        account_id: account.get_id().to_owned(),
+        privileged_action_type: PrivilegedActionType::ResetFingerprint,
+        authorization_strategy: AuthorizationStrategyRecord::DelayAndNotify(DelayAndNotifyRecord {
+            status: RecordStatus::Pending,
+            delay_end_time: OffsetDateTime::now_utc() + Duration::seconds(1000),
+            cancellation_token: "test".to_string(),
+            completion_token: "test".to_string(),
+        }),
+        created_at: OffsetDateTime::now_utc(),
+        updated_at: OffsetDateTime::now_utc(),
+        request: PrivilegedActionRequest::Initiate(get_pregenerated_request()),
+    };
+    bootstrap
+        .services
+        .privileged_action_repository
+        .persist(&instance)
+        .await
+        .expect("Failed to persist privileged action instance");
+
+    let instance_id = instance.id;
+
+    let response = client
+        .update_delay_duration_for_test(&account.get_id().to_string(), &instance_id.to_string(), 10)
+        .await;
+    assert_eq!(
+        response.status_code, expected_status,
+        "{}",
+        response.body_string
+    );
+    if expected_status == StatusCode::OK {
+        let instance: PrivilegedActionInstanceRecord<Value> = bootstrap
+            .services
+            .privileged_action_repository
+            .fetch_by_id(&instance_id)
+            .await
+            .expect("Failed to fetch privileged action instance");
+        let delay_and_notify_record = if let AuthorizationStrategyRecord::DelayAndNotify(r) =
+            instance.authorization_strategy
+        {
+            r
+        } else {
+            panic!("Expected delay and notify strategy");
+        };
+        assert_eq!(
+            delay_and_notify_record.delay_end_time,
+            instance.created_at + Duration::seconds(10)
+        );
     }
 }
 

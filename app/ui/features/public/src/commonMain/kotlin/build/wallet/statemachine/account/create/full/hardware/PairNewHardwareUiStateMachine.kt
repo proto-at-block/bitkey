@@ -20,7 +20,7 @@ data class PairNewHardwareProps(
   val segment: AppSegment? = null,
   val eventTrackerContext: PairHardwareEventTrackerScreenIdContext,
   val screenPresentationStyle: ScreenPresentationStyle,
-  val isResettingFingerprints: Boolean = false,
+  val pairingContext: PairingContext,
 ) {
   /**
    * Request data to pair a new hardware device.

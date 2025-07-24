@@ -7,8 +7,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 @BitkeyInject(ActivityScope::class)
 class BiometricPrompterImpl(private val activity: FragmentActivity) : BiometricPrompter {
@@ -35,7 +35,7 @@ class BiometricPrompterImpl(private val activity: FragmentActivity) : BiometricP
   }
 
   override suspend fun promptForAuth(): BiometricsResult<Unit> =
-    suspendCoroutine {
+    suspendCancellableCoroutine { continuation ->
       isPrompting = true
       val executor = ContextCompat.getMainExecutor(activity)
       val prompt = BiometricPrompt(
@@ -46,16 +46,21 @@ class BiometricPrompterImpl(private val activity: FragmentActivity) : BiometricP
             errorCode: Int,
             errString: CharSequence,
           ) {
-            isPrompting = false
-            it.resume(BiometricsResult.Err(BiometricError.AuthenticationFailed()))
+            if (continuation.isActive) {
+              isPrompting = false
+              continuation.resume(BiometricsResult.Err(BiometricError.AuthenticationFailed()))
+            }
           }
 
           override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-            isPrompting = false
-            it.resume(BiometricsResult.Ok(Unit))
+            if (continuation.isActive) {
+              isPrompting = false
+              continuation.resume(BiometricsResult.Ok(Unit))
+            }
           }
         }
       )
+      continuation.invokeOnCancellation { prompt.cancelAuthentication() }
       val promptInfo = BiometricPrompt.PromptInfo.Builder()
         .setTitle("Biometric login for Bitkey")
         .setSubtitle("Log in using your biometric credential")

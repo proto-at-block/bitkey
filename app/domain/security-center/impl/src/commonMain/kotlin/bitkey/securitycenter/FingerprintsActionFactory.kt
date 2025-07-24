@@ -1,9 +1,9 @@
 package bitkey.securitycenter
 
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
-import bitkey.f8e.privilegedactions.isDelayAndNotifyReadyToComplete
 import bitkey.firmware.HardwareUnlockInfoService
 import bitkey.privilegedactions.FingerprintResetService
+import bitkey.privilegedactions.isDelayAndNotifyReadyToComplete
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao

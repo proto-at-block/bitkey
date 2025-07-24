@@ -1,23 +1,132 @@
-use crate::tests::gen_services;
-use crate::tests::lib::create_default_account_with_predefined_wallet;
-use crate::tests::requests::axum::TestClient;
-use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex};
-use bdk_utils::bdk::FeeRate;
+// Third-party imports
+use http::StatusCode;
+use rstest::rstest;
 use time::OffsetDateTime;
-use transaction_verification::routes::{
-    InitiateTransactionVerificationRequest, PutTransactionVerificationPolicyRequest,
-};
-use types::account::entities::TransactionVerificationPolicy;
-use types::account::money::Money;
-use types::currencies::CurrencyCode::USD;
-use types::transaction_verification::entities::BitcoinDisplayUnit;
-use types::transaction_verification::router::{
-    InitiateTransactionVerificationView, InitiateTransactionVerificationViewRequested,
-    InitiateTransactionVerificationViewSigned, TransactionVerificationView,
+
+// Internal crate imports
+use crate::tests::{
+    gen_services, lib::create_default_account_with_predefined_wallet, requests::axum::TestClient,
 };
 
+// Workspace crate imports
+use account::service::FetchAccountInput;
+use bdk_utils::bdk::{
+    wallet::{get_funded_wallet, AddressIndex},
+    FeeRate,
+};
+use transaction_verification::routes::InitiateTransactionVerificationRequest;
+use types::{
+    account::{
+        entities::{Account, FullAccount, TransactionVerificationPolicy},
+        money::Money,
+    },
+    currencies::CurrencyCode::USD,
+    privileged_action::{
+        repository::PrivilegedActionInstanceRecord, router::generic::PrivilegedActionResponse,
+    },
+    transaction_verification::{
+        entities::BitcoinDisplayUnit,
+        router::{
+            InitiateTransactionVerificationView, InitiateTransactionVerificationViewRequested,
+            InitiateTransactionVerificationViewSigned, PutTransactionVerificationPolicyRequest,
+            TransactionVerificationView,
+        },
+    },
+};
+
+#[rstest]
+// Cases that should succeed without out-of-band verification
+#[case::from_never_to_always(
+    TransactionVerificationPolicy::Never,
+    TransactionVerificationPolicy::Always,
+    false, // has_hw_signed
+    StatusCode::OK,
+    false // expect_out_of_band
+)]
+#[case::from_never_to_threshold(
+    TransactionVerificationPolicy::Never,
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 1000,
+        currency_code: USD,
+    }),
+    false, // has_hw_signed
+    StatusCode::OK,
+    false // expect_out_of_band
+)]
+#[case::from_threshold_to_lower_threshold(
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 2000,
+        currency_code: USD,
+    }),
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 1000,
+        currency_code: USD,
+    }),
+    false, // has_hw_signed
+    StatusCode::OK,
+    false // expect_out_of_band
+)]
+// Cases that require out-of-band verification (loosening policies with hw signature)
+#[case::from_always_to_never(
+    TransactionVerificationPolicy::Always,
+    TransactionVerificationPolicy::Never,
+    true, // has_hw_signed
+    StatusCode::OK,
+    true // expect_out_of_band
+)]
+#[case::from_threshold_to_never(
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 1000,
+        currency_code: USD,
+    }),
+    TransactionVerificationPolicy::Never,
+    true, // has_hw_signed
+    StatusCode::OK,
+    true // expect_out_of_band
+)]
+#[case::from_threshold_to_higher_threshold(
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 1000,
+        currency_code: USD,
+    }),
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 2000,
+        currency_code: USD,
+    }),
+    true, // has_hw_signed
+    StatusCode::OK,
+    true // expect_out_of_band
+)]
+// Cases that should fail (loosening policies without hw signature)
+#[case::from_always_to_never_without_hw_signature(
+    TransactionVerificationPolicy::Always,
+    TransactionVerificationPolicy::Never,
+    false, // has_hw_signed
+    StatusCode::FORBIDDEN,
+    true // expect_out_of_band (irrelevant since it fails)
+)]
+#[case::from_threshold_to_higher_threshold_without_hw_signature(
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 1000,
+        currency_code: USD,
+    }),
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 2000,
+        currency_code: USD,
+    }),
+    false, // has_hw_signed
+    StatusCode::FORBIDDEN,
+    true // expect_out_of_band (irrelevant since it fails)
+)]
 #[tokio::test]
-async fn update_transaction_verification_policy_test() {
+async fn update_transaction_verification_policy_test(
+    #[case] from_policy: TransactionVerificationPolicy,
+    #[case] to_policy: TransactionVerificationPolicy,
+    #[case] has_hw_signed: bool,
+    #[case] expected_status: StatusCode,
+    #[case] expect_out_of_band: bool,
+) {
+    // Setup test environment
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let (account, _) =
@@ -27,37 +136,75 @@ async fn update_transaction_verification_policy_test() {
     let keys = context
         .get_authentication_keys_for_account_id(&account.id)
         .unwrap();
+
     let resp = client
         .get_transaction_verification_policy(&account.id, &keys)
         .await;
+    assert_eq!(
+        resp.body.unwrap().policy,
+        TransactionVerificationPolicy::Never
+    );
 
-    let expected_policy = TransactionVerificationPolicy::Never;
-    assert_eq!(resp.body.unwrap().policy, expected_policy);
+    let account_id = account.id.clone();
+    bootstrap
+        .services
+        .account_repository
+        .persist(&Account::Full(FullAccount {
+            transaction_verification_policy: Some(from_policy.clone()),
+            ..account
+        }))
+        .await
+        .expect("Failed to persist account");
 
-    // Create a new transaction verification policy
-    let new_policy = TransactionVerificationPolicy::Threshold(Money {
-        amount: 1000,
-        currency_code: USD,
-    });
-
-    // Update the transaction verification policy
-    client
+    let resp = client
         .update_transaction_verification_policy(
-            &account.id,
-            true, // app signed only
-            false,
+            &account_id,
+            true, // app_signed
+            has_hw_signed,
             &keys,
             &PutTransactionVerificationPolicyRequest {
-                policy: new_policy.clone(),
+                policy: to_policy.clone(),
             },
         )
         .await;
 
-    let resp = client
-        .get_transaction_verification_policy(&account.id, &keys)
-        .await;
+    assert_eq!(resp.status_code, expected_status);
+    let response = resp.body.unwrap();
 
-    assert_eq!(resp.body.unwrap().policy, new_policy);
+    if resp.status_code != StatusCode::OK {
+        let account = bootstrap
+            .services
+            .account_service
+            .fetch_full_account(FetchAccountInput {
+                account_id: &account_id,
+            })
+            .await
+            .expect("Failed to fetch account");
+        assert_eq!(account.transaction_verification_policy, Some(from_policy));
+    } else if expect_out_of_band {
+        let PrivilegedActionResponse::Pending(p) = response else {
+            panic!("Expected privileged action response to be pending");
+        };
+
+        let privileged_action_instance: PrivilegedActionInstanceRecord<
+            PutTransactionVerificationPolicyRequest,
+        > = bootstrap
+            .services
+            .privileged_action_repository
+            .fetch_by_id(&p.privileged_action_instance.id)
+            .await
+            .expect("Failed to get privileged action instance");
+        assert_eq!(privileged_action_instance.request.policy, to_policy);
+    } else {
+        if !matches!(response, PrivilegedActionResponse::Completed(_)) {
+            panic!("Expected privileged action response to be completed");
+        }
+
+        let resp = client
+            .get_transaction_verification_policy(&account_id, &keys)
+            .await;
+        assert_eq!(resp.body.unwrap().policy, to_policy);
+    }
 }
 
 #[tokio::test]

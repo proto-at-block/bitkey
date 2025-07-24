@@ -5,6 +5,7 @@ import bitkey.f8e.privilegedactions.PrivilegedActionsF8eClient
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.EmptyResponseBody
+import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
 import com.github.michaelbull.result.Result
 import kotlinx.serialization.SerialName
@@ -35,7 +36,7 @@ data class FingerprintResetRequest(
   val signature: String,
   @SerialName("hw_auth_public_key")
   val hwAuthPublicKey: String,
-)
+) : RedactedRequestBody
 
 /**
  * Response for fingerprint reset after the delay and notify step is complete

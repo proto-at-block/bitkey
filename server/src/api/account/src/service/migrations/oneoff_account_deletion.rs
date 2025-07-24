@@ -18,7 +18,7 @@ impl<'a> OneoffAccountDeletion<'a> {
 }
 
 #[async_trait]
-impl<'a> Migration for OneoffAccountDeletion<'a> {
+impl Migration for OneoffAccountDeletion<'_> {
     fn name(&self) -> &str {
         "20240401_oneoff_account_deletion"
     }

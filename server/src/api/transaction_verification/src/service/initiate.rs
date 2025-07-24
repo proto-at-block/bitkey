@@ -85,6 +85,39 @@ impl Service {
         Ok(result)
     }
 
+    pub async fn mobile_pay_initiate(
+        &self,
+        account_id: &AccountId,
+        psbt: Psbt,
+        fiat_currency: CurrencyCode,
+        bitcoin_display_unit: BitcoinDisplayUnit,
+        should_prompt_user: bool,
+    ) -> Result<InitiateVerificationResult, TransactionVerificationError> {
+        let result = if !should_prompt_user {
+            InitiateVerificationResult::VerificationRequired
+        } else {
+            let tx_verification = TransactionVerification::new_pending(
+                account_id,
+                psbt,
+                fiat_currency,
+                bitcoin_display_unit,
+            );
+            self.repo.persist(&tx_verification).await?;
+            let pending = match &tx_verification {
+                TransactionVerification::Pending(p) => p,
+                _ => unreachable!("Expected TransactionVerification::Pending"),
+            };
+            self.send_verification_notification(&account_id, pending)
+                .await?;
+            InitiateVerificationResult::VerificationRequested {
+                verification_id: tx_verification.common_fields().id.clone(),
+                expiration: tx_verification.common_fields().expires_at,
+            }
+        };
+
+        Ok(result)
+    }
+
     async fn is_verification_required<W: WalletProvider>(
         &self,
         account_id: &AccountId,

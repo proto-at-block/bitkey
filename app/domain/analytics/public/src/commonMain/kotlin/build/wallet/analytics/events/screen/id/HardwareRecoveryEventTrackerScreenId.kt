@@ -37,6 +37,9 @@ enum class HardwareRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Failed to sync socrec relationships error */
   LOST_HW_DELAY_NOTIFY_TRUSTED_CONTACT_SYNC_ERROR,
 
+  /** Failure screen shown when uploading encrypted descriptors fails */
+  LOST_HW_DELAY_NOTIFY_ENCRYPTED_DESCRIPTORS_UPLOAD_ERROR,
+
   /** Loading screen shown when generating PSBTs for hardware D+N */
   LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS,
 
@@ -66,6 +69,9 @@ enum class HardwareRecoveryEventTrackerScreenId : EventTrackerScreenId {
 
   /** Loading screen shown when uploading DDK backup */
   LOST_HW_DELAY_NOTIFY_DDK_UPLOAD,
+
+  /** Loading screen shown when uploading encrypted descriptor backups */
+  LOST_HW_DELAY_NOTIFY_ENCRYPTED_DESCRIPTOR_UPLOAD,
 
   /** Error screen shown when an error was encountered uploading DDK backup */
   LOST_HW_DELAY_NOTIFY_DDK_UPLOAD_FAILURE,

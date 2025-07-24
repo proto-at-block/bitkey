@@ -5,11 +5,9 @@ publish = { workspace = true }
 version = "0.1.0"
 
 [dependencies]
-anyhow = { workspace = true }
 axum = { workspace = true }
 http = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

@@ -10,10 +10,6 @@ aws-sdk-s3 = "1.17.0"
 tracing = { workspace = true }
 url = { workspace = true }
 
-# path dependencies
-errors = { workspace = true }
-instrumentation = { workspace = true }
-
 [dev-dependencies]
 rstest = { workspace = true }
 

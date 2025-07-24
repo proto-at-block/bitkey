@@ -66,6 +66,7 @@ queue = { workspace = true }
 recovery = { workspace = true }
 repository = { workspace = true, features = ["account", "recovery"] }
 screener = { workspace = true }
+secure_site = { workspace = true }
 transaction_verification = { workspace = true }
 types = { workspace = true, features = [
   "account",

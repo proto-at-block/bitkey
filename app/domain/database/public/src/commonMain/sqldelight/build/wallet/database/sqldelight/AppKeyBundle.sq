@@ -2,17 +2,25 @@ import build.wallet.crypto.PublicKey;
 import build.wallet.bitkey.app.AppGlobalAuthKey;
 import build.wallet.bitkey.app.AppRecoveryAuthKey;
 import build.wallet.bitkey.app.AppSpendingPublicKey;
+import kotlin.Boolean;
 
 CREATE TABLE appKeyBundleEntity(
   id              TEXT NOT NULL PRIMARY KEY,
+  keyboxId        TEXT NOT NULL,
   globalAuthKey   TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
   spendingKey     TEXT AS AppSpendingPublicKey NOT NULL,
-  recoveryAuthKey TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL
+  recoveryAuthKey TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL,
+  isActive        INTEGER AS Boolean NOT NULL DEFAULT 0,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity(id) ON DELETE CASCADE
 );
 
+CREATE UNIQUE INDEX idx_appKeyBundle_unique_active
+ON appKeyBundleEntity (keyboxId)
+WHERE isActive = 1;
+
 insertKeyBundle:
-INSERT OR REPLACE INTO appKeyBundleEntity(id, globalAuthKey, spendingKey, recoveryAuthKey)
-VALUES(?, ?, ?, ?);
+INSERT OR REPLACE INTO appKeyBundleEntity(id, keyboxId, globalAuthKey, spendingKey, recoveryAuthKey, isActive)
+VALUES(?, ?, ?, ?, ?, ?);
 
 -- When fetching the keybundle, join the key table for each key.
 keyBundleById:
@@ -33,3 +41,7 @@ SELECT last_insert_rowid();
 
 deleteById:
 DELETE FROM appKeyBundleEntity WHERE appKeyBundleEntity.id = ?;
+
+-- Query to count total app key bundles
+countAppKeyBundles:
+SELECT COUNT(*) FROM appKeyBundleEntity;

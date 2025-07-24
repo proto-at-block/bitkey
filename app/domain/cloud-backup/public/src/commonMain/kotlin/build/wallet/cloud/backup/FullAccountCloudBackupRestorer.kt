@@ -39,6 +39,8 @@ interface FullAccountCloudBackupRestorer {
 
   data class AccountRestoration(
     val activeSpendingKeyset: SpendingKeyset,
+    /** All keysets, including the active one and any inactive ones */
+    val keysets: List<SpendingKeyset>,
     val activeAppKeyBundle: AppKeyBundle,
     val activeHwKeyBundle: HwKeyBundle,
     val config: FullAccountConfig,
@@ -56,8 +58,10 @@ interface FullAccountCloudBackupRestorer {
       activeAppKeyBundle = activeAppKeyBundle,
       activeHwKeyBundle = activeHwKeyBundle,
       config = config,
-      // TODO [W-11610] Update cloud backup/restore flows; we should return the full history here.
-      keysets = listOf(activeSpendingKeyset),
+      keysets = keysets.ifEmpty { listOf(activeSpendingKeyset) },
+      // Keysets are only persisted if they are valid and authoritative, thus we can use their presence
+      // to determine canUseKeyboxKeysets.
+      canUseKeyboxKeysets = keysets.isNotEmpty(),
       appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
     )
   }

@@ -4,7 +4,6 @@ import bitkey.notifications.NotificationChannel
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
-import build.wallet.ktor.result.NetworkingError
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -222,7 +221,7 @@ private fun createSheetFormHeader(
 
 fun NetworkingErrorSheetModel(
   onClose: () -> Unit,
-  networkingError: NetworkingError,
+  networkingError: Error,
 ) = NetworkingErrorBodyModel(
   onClose = onClose,
   networkingError = networkingError
@@ -230,7 +229,7 @@ fun NetworkingErrorSheetModel(
 
 private data class NetworkingErrorBodyModel(
   val onClose: () -> Unit,
-  val networkingError: NetworkingError,
+  val networkingError: Error,
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_NETWORKING_ERROR_SHEET,
     header = FormHeaderModel(

@@ -48,7 +48,8 @@ impl Service {
                             delay_duration_secs: delay_duration.delay_duration_secs,
                         });
                     }
-                    AuthorizationStrategyDefinition::HardwareProofOfPossession(_) => {
+                    AuthorizationStrategyDefinition::HardwareProofOfPossession(_)
+                    | AuthorizationStrategyDefinition::OutOfBand(_) => {
                         return Err(ServiceError::CannotConfigureDelay(
                             delay_duration.privileged_action_type,
                             account_type,

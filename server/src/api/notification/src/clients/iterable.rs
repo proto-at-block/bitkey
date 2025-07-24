@@ -106,6 +106,9 @@ pub struct ClientConfig {
     pub inheritance_claim_initiated_as_beneficiary_campaign_id: usize,
     pub inheritance_claim_period_completed_by_benefactor_campaign_id: usize,
     pub inheritance_claim_period_completed_by_beneficiary_campaign_id: usize,
+    pub privileged_action_canceled_out_of_band_verification_campaign_id: usize,
+    pub privileged_action_completed_out_of_band_verification_campaign_id: usize,
+    pub privileged_action_pending_out_of_band_verification_campaign_id: usize,
     pub social_challenge_response_received_campaign_id: usize,
     pub marketing_channel_id: usize,
     pub transactional_channel_id: usize,
@@ -153,6 +156,9 @@ pub enum IterableCampaignType {
     InheritanceClaimInitiatedAsBeneficiary,
     InheritanceClaimPeriodCompletedAsBenefactor,
     InheritanceClaimPeriodCompletedAsBeneficiary,
+    PrivilegedActionCanceledOutOfBandVerification,
+    PrivilegedActionCompletedOutOfBandVerification,
+    PrivilegedActionPendingOutOfBandVerification,
     RecoveryPendingDelayPeriodLostApp,
     RecoveryPendingDelayPeriodLostHw,
     RecoveryCompletedDelayPeriodLostApp,
@@ -304,6 +310,15 @@ impl IterableClient {
                     }
                     IterableCampaignType::InheritanceClaimPeriodCompletedAsBeneficiary => {
                         config.inheritance_claim_period_completed_by_beneficiary_campaign_id
+                    }
+                    IterableCampaignType::PrivilegedActionCanceledOutOfBandVerification => {
+                        config.privileged_action_canceled_out_of_band_verification_campaign_id
+                    }
+                    IterableCampaignType::PrivilegedActionCompletedOutOfBandVerification => {
+                        config.privileged_action_completed_out_of_band_verification_campaign_id
+                    }
+                    IterableCampaignType::PrivilegedActionPendingOutOfBandVerification => {
+                        config.privileged_action_pending_out_of_band_verification_campaign_id
                     }
                     IterableCampaignType::RecoveryPendingDelayPeriodLostApp => {
                         config.recovery_pending_delay_period_lost_app_campaign_id

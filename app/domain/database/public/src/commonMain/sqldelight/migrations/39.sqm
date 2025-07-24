@@ -1,0 +1,196 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
+import build.wallet.bitkey.app.AppSpendingPublicKey;
+import build.wallet.bitkey.f8e.F8eSpendingPublicKey;
+import build.wallet.bitkey.f8e.FullAccountId;
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import build.wallet.crypto.PublicKey;
+import build.wallet.f8e.F8eEnvironment;
+import kotlin.Boolean;
+import kotlin.time.Duration;
+
+-- Establish proper hierarchical relationships with cascading deletes:
+-- Account 1:N Keybox 1:N KeyBundle/Keyset
+
+-- 0. Drop views that depend on the tables we're going to modify
+DROP VIEW IF EXISTS fullAccountView;
+
+-- 1. Create new fullAccountEntity without a keybox identifier
+CREATE TABLE fullAccountEntity_new(
+  accountId TEXT AS FullAccountId NOT NULL PRIMARY KEY
+);
+
+-- Insert distinct account IDs
+INSERT INTO fullAccountEntity_new(accountId)
+SELECT DISTINCT account FROM keyboxEntity;
+
+-- 2. Create new keyboxEntity with proper foreign key to fullAccountEntity
+CREATE TABLE keyboxEntity_new(
+  id                                    TEXT NOT NULL PRIMARY KEY,
+  accountId                             TEXT AS FullAccountId NOT NULL,
+  networkType                           TEXT AS BitcoinNetworkType NOT NULL,
+  fakeHardware                          INTEGER AS Boolean NOT NULL,
+  f8eEnvironment                        TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount                         INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes                    INTEGER AS Boolean NOT NULL,
+  delayNotifyDuration                   TEXT AS Duration,
+  appGlobalAuthKeyHwSignature           TEXT AS AppGlobalAuthKeyHwSignature NOT NULL,
+  FOREIGN KEY (accountId)               REFERENCES fullAccountEntity_new(accountId) ON DELETE CASCADE
+);
+
+-- Copy keybox data, mapping account field to accountId
+INSERT INTO keyboxEntity_new(
+  id, accountId, networkType, fakeHardware, f8eEnvironment,
+  isTestAccount, isUsingSocRecFakes, delayNotifyDuration,
+  appGlobalAuthKeyHwSignature
+)
+SELECT
+  id, account, networkType, fakeHardware, f8eEnvironment,
+  isTestAccount, isUsingSocRecFakes, delayNotifyDuration,
+  appGlobalAuthKeyHwSignature
+FROM keyboxEntity;
+
+-- 3. Create new spendingKeysetEntity with keyboxId and isActive
+CREATE TABLE spendingKeysetEntity_new(
+  id          TEXT NOT NULL PRIMARY KEY,
+  keyboxId    TEXT NOT NULL,
+  serverId    TEXT NOT NULL,
+  appKey      TEXT AS AppSpendingPublicKey NOT NULL UNIQUE,
+  hardwareKey TEXT AS HwSpendingPublicKey NOT NULL UNIQUE,
+  serverKey   TEXT AS F8eSpendingPublicKey NOT NULL UNIQUE,
+  isActive    INTEGER AS Boolean NOT NULL DEFAULT 0,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity_new(id) ON DELETE CASCADE
+);
+
+-- Map active keysets using the old keybox relationships
+INSERT INTO spendingKeysetEntity_new(id, keyboxId, serverId, appKey, hardwareKey, serverKey, isActive)
+SELECT
+  sk.id,
+  kb.id,
+  sk.serverId,
+  sk.appKey,
+  sk.hardwareKey,
+  sk.serverKey,
+  1
+FROM spendingKeysetEntity sk
+JOIN keyboxEntity kb ON kb.activeSpendingKeysetId = sk.id;
+
+-- 4. Create new appKeyBundleEntity with keyboxId and isActive
+CREATE TABLE appKeyBundleEntity_new(
+  id              TEXT NOT NULL PRIMARY KEY,
+  keyboxId        TEXT NOT NULL,
+  globalAuthKey   TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  spendingKey     TEXT AS AppSpendingPublicKey NOT NULL,
+  recoveryAuthKey TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL,
+  isActive        INTEGER AS Boolean NOT NULL DEFAULT 0,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity_new(id) ON DELETE CASCADE
+);
+
+INSERT INTO appKeyBundleEntity_new(id, keyboxId, globalAuthKey, spendingKey, recoveryAuthKey, isActive)
+SELECT
+  akb.id,
+  kb.id,
+  akb.globalAuthKey,
+  akb.spendingKey,
+  akb.recoveryAuthKey,
+  1
+FROM appKeyBundleEntity akb
+JOIN keyboxEntity kb ON kb.activeKeyBundleId = akb.id;
+
+-- 5. Create new hwKeyBundleEntity with keyboxId and isActive
+CREATE TABLE hwKeyBundleEntity_new(
+  id            TEXT NOT NULL PRIMARY KEY,
+  keyboxId      TEXT NOT NULL,
+  spendingKey   TEXT AS HwSpendingPublicKey NOT NULL,
+  authKey       TEXT AS HwAuthPublicKey NOT NULL,
+  isActive      INTEGER AS Boolean NOT NULL DEFAULT 0,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity_new(id) ON DELETE CASCADE
+);
+
+INSERT INTO hwKeyBundleEntity_new(id, keyboxId, spendingKey, authKey, isActive)
+SELECT
+  hkb.id,
+  kb.id,
+  hkb.spendingKey,
+  hkb.authKey,
+  1
+FROM hwKeyBundleEntity hkb
+JOIN keyboxEntity kb ON kb.activeHwKeyBundleId = hkb.id;
+
+-- Disable legacy alter table behavior to renames of all references when a table is altered
+-- https://www.sqlite.org/pragma.html#pragma_legacy_alter_table
+PRAGMA legacy_alter_table = false;
+
+-- 6. Replace old tables with new ones
+DROP TABLE fullAccountEntity;
+ALTER TABLE fullAccountEntity_new RENAME TO fullAccountEntity;
+
+DROP TABLE spendingKeysetEntity;
+ALTER TABLE spendingKeysetEntity_new RENAME TO spendingKeysetEntity;
+
+DROP TABLE appKeyBundleEntity;
+ALTER TABLE appKeyBundleEntity_new RENAME TO appKeyBundleEntity;
+
+DROP TABLE hwKeyBundleEntity;
+ALTER TABLE hwKeyBundleEntity_new RENAME TO hwKeyBundleEntity;
+
+DROP TABLE keyboxEntity;
+ALTER TABLE keyboxEntity_new RENAME TO keyboxEntity;
+
+-- 6.5. Create unique index to ensure only one active keyset per keybox
+CREATE UNIQUE INDEX idx_spendingKeyset_unique_active
+ON spendingKeysetEntity (keyboxId)
+WHERE isActive = 1;
+
+-- Create unique index to ensure only one active app key bundle per keybox
+CREATE UNIQUE INDEX idx_appKeyBundle_unique_active
+ON appKeyBundleEntity (keyboxId)
+WHERE isActive = 1;
+
+-- Create unique index to ensure only one active hw key bundle per keybox
+CREATE UNIQUE INDEX idx_hwKeyBundle_unique_active
+ON hwKeyBundleEntity (keyboxId)
+WHERE isActive = 1;
+
+-- 7. Recreate fullAccountView with the updated schema
+CREATE VIEW fullAccountView AS
+SELECT
+  fullAccountEntity.accountId AS accountId,
+  keyboxEntity.id AS keyboxId,
+  keyboxEntity.networkType,
+  keyboxEntity.fakeHardware,
+  keyboxEntity.f8eEnvironment,
+  keyboxEntity.isTestAccount,
+  keyboxEntity.isUsingSocRecFakes,
+  keyboxEntity.delayNotifyDuration,
+  keyboxEntity.appGlobalAuthKeyHwSignature,
+  spendingKeysetEntity.id AS spendingPublicKeysetId,
+  spendingKeysetEntity.serverId AS spendingPublicKeysetServerId,
+  spendingKeysetEntity.appKey,
+  spendingKeysetEntity.hardwareKey,
+  spendingKeysetEntity.serverKey,
+  appKeyBundleEntity.id AS appKeyBundleId,
+  appKeyBundleEntity.globalAuthKey,
+  appKeyBundleEntity.recoveryAuthKey,
+  hwKeyBundleEntity.id AS hwKeyBundleId,
+  hwKeyBundleEntity.authKey AS hwAuthKey,
+  hwKeyBundleEntity.spendingKey AS hwSpendingKey
+FROM fullAccountEntity
+-- keybox
+INNER JOIN keyboxEntity
+ON keyboxEntity.accountId = fullAccountEntity.accountId
+-- spending public keyset (active one only)
+INNER JOIN spendingKeysetEntity
+ON spendingKeysetEntity.keyboxId = keyboxEntity.id AND spendingKeysetEntity.isActive = 1
+-- app key bundle (active one only)
+INNER JOIN appKeyBundleEntity
+ON appKeyBundleEntity.keyboxId = keyboxEntity.id AND appKeyBundleEntity.isActive = 1
+-- hw key bundle (active one only)
+INNER JOIN hwKeyBundleEntity
+ON hwKeyBundleEntity.keyboxId = keyboxEntity.id AND hwKeyBundleEntity.isActive = 1;
+
+-- Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

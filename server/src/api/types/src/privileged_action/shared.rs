@@ -53,6 +53,7 @@ pub enum PrivilegedActionType {
     ConfigurePrivilegedActionDelays,
     ActivateTouchpoint,
     ResetFingerprint,
+    LoosenTransactionVerificationPolicy,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]

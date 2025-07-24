@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
 use account::service::Service as AccountService;
+use authn_authz::authorizer::AccountIdFromAccessToken;
 use axum::{
     body::Bytes,
-    extract::Query,
-    extract::State,
+    extract::{Path, Query, State},
     http::{header::CONTENT_TYPE, HeaderMap},
-    routing::get,
-    routing::post,
+    routing::{get, post, put},
     Json, Router,
 };
 use errors::ApiError;
@@ -16,7 +15,9 @@ use http_server::{
     swagger::{SwaggerEndpoint, Url},
 };
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 use tracing::instrument;
+use types::encrypted_attachment::identifiers::EncryptedAttachmentId;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
@@ -30,6 +31,7 @@ use crate::{
         zendesk::{ZendeskClient, ZendeskMode},
     },
     metrics,
+    service::Service as CustomerFeedbackService,
 };
 
 #[derive(Clone, Deserialize)]
@@ -59,6 +61,7 @@ pub struct RouteState(
     pub AccountService,
     pub ZendeskClient,
     pub TicketFormKnownFields,
+    pub CustomerFeedbackService,
 );
 
 impl RouterBuilder for RouteState {
@@ -71,6 +74,14 @@ impl RouterBuilder for RouteState {
             .route("/api/customer_feedback", post(create_task))
             .route("/api/support/ticket-form", get(load_form))
             .route("/api/support/attachments", post(upload_attachment))
+            .route(
+                "/api/support/encrypted-attachments",
+                post(create_encrypted_attachment),
+            )
+            .route(
+                "/api/support/encrypted-attachments/:encrypted_attachment_id",
+                put(upload_sealed_attachment),
+            )
             .route_layer(metrics::FACTORY.route_layer("customer_feedback".to_owned()))
             .with_state(self.to_owned())
     }
@@ -90,6 +101,8 @@ impl From<RouteState> for SwaggerEndpoint {
     paths(
         create_task,
         load_form,
+        create_encrypted_attachment,
+        upload_sealed_attachment,
     ),
     components(
         schemas(
@@ -98,6 +111,10 @@ impl From<RouteState> for SwaggerEndpoint {
             SupportTicketAttachmentUpload,
             SupportTicketDebugData,
             TicketFieldValue,
+            CreateEncryptedAttachmentRequest,
+            CreateEncryptedAttachmentResponse,
+            UploadSealedAttachmentRequest,
+            UploadSealedAttachmentResponse,
         )
     ),
     tags(
@@ -139,6 +156,8 @@ pub struct SupportTicketDebugData {
     pub hardware_firmware_version: String,
     pub hardware_serial_number: String,
     pub feature_flags: HashMap<String, String>,
+    #[serde(default)]
+    pub descriptor_encrypted_attachment_id: Option<String>,
 }
 
 impl CreateTaskRequest {
@@ -187,6 +206,7 @@ impl CreateTaskRequest {
                 hardware_firmware_version,
                 hardware_serial_number,
                 feature_flags,
+                descriptor_encrypted_attachment_id,
             } = debug_data;
             let debug_data_description = format!(
                 "## Debug Data\n\n\
@@ -196,7 +216,8 @@ impl CreateTaskRequest {
                 - OS version: {system_name_and_version}\n\
                 - Firmware version: {hardware_firmware_version}\n\
                 - Serial number: {hardware_serial_number}\n\
-                - Feature flags: {feature_flags:?}\n"
+                - Feature flags: {feature_flags:?}\n\
+                - Descriptor Encrypted Attachment ID: {descriptor_encrypted_attachment_id:?}\n",
             );
             description.push_str(&debug_data_description);
         }
@@ -549,4 +570,83 @@ pub async fn upload_attachment(
     Ok(Json(TicketAttachmentResponse {
         token: response.token,
     }))
+}
+
+// Encrypted attachment endpoints
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreateEncryptedAttachmentRequest {}
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreateEncryptedAttachmentResponse {
+    pub encrypted_attachment_id: EncryptedAttachmentId,
+    #[serde_as(as = "Base64")]
+    pub public_key: Vec<u8>,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/support/encrypted-attachments",
+    request_body = CreateEncryptedAttachmentRequest,
+    responses(
+        (status = 200, description = "Encrypted attachment created successfully", body = CreateEncryptedAttachmentResponse),
+        (status = 500, description = "Failed to create encrypted attachment"),
+    ),
+)]
+#[instrument(err, skip(service))]
+pub async fn create_encrypted_attachment(
+    State(service): State<CustomerFeedbackService>,
+    account_id_from_access_token: AccountIdFromAccessToken,
+    Json(_request): Json<CreateEncryptedAttachmentRequest>,
+) -> Result<Json<CreateEncryptedAttachmentResponse>, ApiError> {
+    let encrypted_attachment = service
+        .create_encrypted_attachment(&account_id_from_access_token.into())
+        .await?;
+
+    Ok(Json(CreateEncryptedAttachmentResponse {
+        encrypted_attachment_id: encrypted_attachment.id,
+        public_key: encrypted_attachment.public_key,
+    }))
+}
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UploadSealedAttachmentRequest {
+    #[serde_as(as = "Base64")]
+    pub sealed_attachment: Vec<u8>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UploadSealedAttachmentResponse {}
+
+#[utoipa::path(
+    put,
+    path = "/api/support/encrypted-attachments/{encrypted_attachment_id}",
+    request_body = UploadSealedAttachmentRequest,
+    responses(
+        (status = 200, description = "Ciphertext added to attachment successfully"),
+        (status = 404, description = "Encrypted attachment not found"),
+        (status = 500, description = "Failed to add ciphertext to attachment"),
+    ),
+    params(
+        ("encrypted_attachment_id" = String, Path, description = "Encrypted attachment ID")
+    )
+)]
+#[instrument(err, skip(service))]
+pub async fn upload_sealed_attachment(
+    State(service): State<CustomerFeedbackService>,
+    Path(encrypted_attachment_id): Path<EncryptedAttachmentId>,
+    account_id_from_access_token: AccountIdFromAccessToken,
+    Json(request): Json<UploadSealedAttachmentRequest>,
+) -> Result<Json<UploadSealedAttachmentResponse>, ApiError> {
+    service
+        .upload_sealed_attachment(
+            &encrypted_attachment_id,
+            &account_id_from_access_token.into(),
+            request.sealed_attachment,
+        )
+        .await?;
+
+    Ok(Json(UploadSealedAttachmentResponse {}))
 }

@@ -6,11 +6,13 @@ use errors::ApiError;
 use notification::{
     payloads::{
         privileged_action_completed_delay_period::PrivilegedActionCompletedDelayPeriodPayload,
+        privileged_action_completed_oob_verification::PrivilegedActionCompletedOutOfBandVerificationPayload,
         privileged_action_pending_delay_period::PrivilegedActionPendingDelayPeriodPayload,
+        privileged_action_pending_oob_verification::PrivilegedActionPendingOutOfBandVerificationPayload,
     },
     schedule::ScheduleNotificationType,
-    service::ScheduleNotificationsInput,
-    NotificationPayloadBuilder,
+    service::{ScheduleNotificationsInput, SendNotificationInput},
+    NotificationPayloadBuilder, NotificationPayloadType,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
@@ -21,16 +23,17 @@ use types::{
     privileged_action::{
         definition::{
             AuthorizationStrategyDefinition, DelayAndNotifyDefinition,
-            HardwareProofOfPossessionDefinition, PrivilegedActionDefinition,
+            HardwareProofOfPossessionDefinition, OutOfBandDefinition, PrivilegedActionDefinition,
         },
         repository::{
-            AuthorizationStrategyRecord, DelayAndNotifyRecord, DelayAndNotifyStatus,
-            PrivilegedActionInstanceRecord,
+            AuthorizationStrategyRecord, DelayAndNotifyRecord, OutOfBandRecord,
+            PrivilegedActionInstanceRecord, RecordStatus,
         },
         router::generic::{
             AuthorizationStrategyInput, ContinuePrivilegedActionRequest, PrivilegedActionRequest,
             PrivilegedActionResponse,
         },
+        router::AuthorizationStrategyDiscriminants,
         shared::PrivilegedActionType,
     },
 };
@@ -63,6 +66,9 @@ where
     pub on_initiate_hardware_proof_of_possession: Option<
         Box<dyn FnOnce(ReqT) -> Pin<Box<dyn Future<Output = Result<(), ErrT>> + Send>> + Send>,
     >,
+    pub on_initiate_out_of_band: Option<
+        Box<dyn FnOnce(ReqT) -> Pin<Box<dyn Future<Output = Result<(), ErrT>> + Send>> + Send>,
+    >,
 }
 
 impl From<PrivilegedActionRequestValidatorBuilderError> for ApiError {
@@ -79,6 +85,30 @@ where
         Self {
             on_initiate_delay_and_notify: None,
             on_initiate_hardware_proof_of_possession: None,
+            on_initiate_out_of_band: None,
+        }
+    }
+}
+
+/// Authentication context for privileged action authorization.
+/// This enum makes authentication explicit when required vs when it's not needed.
+#[derive(Debug, Clone)]
+pub enum AuthenticationContext<'a> {
+    /// Authentication is provided via key claims (for HardwareProofOfPossession strategy)
+    KeyClaims(&'a KeyClaims),
+    /// Standard authentication flow (for DelayAndNotify, OutOfBand, or Continue operations)
+    Standard,
+}
+
+impl AuthenticationContext<'_> {
+    /// Extracts the KeyClaims if authentication is required.
+    /// Returns an error if authentication via keyclaims was required but not provided.
+    pub fn require_key_claims(&self) -> Result<&KeyClaims, ServiceError> {
+        match self {
+            AuthenticationContext::KeyClaims(key_claims) => Ok(key_claims),
+            AuthenticationContext::Standard => {
+                Err(ServiceError::AuthenticationRequiredButNotProvided)
+            }
         }
     }
 }
@@ -95,7 +125,7 @@ where
 /// # Fields
 /// * `account_id` - The account identifier for which the privileged action is being requested
 /// * `privileged_action_definition` - Definition of the privileged action with its requirements
-/// * `key_proof` - Proof of possession (typically signatures from app/hardware keys)
+/// * `authentication` - Authentication context indicating if/what authentication is provided
 /// * `privileged_action_request` - The actual request containing action-specific parameters
 /// * `request_validator` - Validator that contains handlers for different authorization paths, checked before the authorization is checked
 pub struct AuthorizePrivilegedActionInput<'a, ReqT, ErrT>
@@ -104,7 +134,7 @@ where
 {
     pub account_id: &'a AccountId,
     pub privileged_action_definition: &'a PrivilegedActionDefinition,
-    pub key_proof: &'a KeyClaims,
+    pub authentication: AuthenticationContext<'a>,
     pub privileged_action_request: &'a PrivilegedActionRequest<ReqT>,
     pub request_validator: PrivilegedActionRequestValidator<ReqT, ErrT>,
 }
@@ -182,7 +212,7 @@ impl Service {
                     ) => {
                         self.initiate_hardware_proof_of_possession(
                             &hardware_proof_of_possession_definition,
-                            input.key_proof,
+                            input.authentication.require_key_claims()?,
                             initial_request.clone(),
                             input.request_validator.on_initiate_delay_and_notify,
                             account.get_common_fields().onboarding_complete,
@@ -212,6 +242,23 @@ impl Service {
 
                         return Ok(output);
                     }
+                    AuthorizationStrategyDefinition::OutOfBand(out_of_band_definition) => {
+                        let output = self
+                            .initiate_out_of_band(
+                                input.account_id,
+                                &out_of_band_definition,
+                                privileged_action_definition.privileged_action_type,
+                                initial_request.clone(),
+                                input.request_validator.on_initiate_out_of_band,
+                            )
+                            .await?
+                            .map_or(
+                                AuthorizePrivilegedActionOutput::Authorized(initial_request),
+                                |r| AuthorizePrivilegedActionOutput::Pending(r),
+                            );
+
+                        return Ok(output);
+                    }
                 }
             }
             PrivilegedActionRequest::Continue(continue_request) => {
@@ -224,6 +271,16 @@ impl Service {
                             .continue_delay_and_notify(
                                 input.account_id,
                                 account_type,
+                                privileged_action_definition.privileged_action_type,
+                                continue_request.clone(),
+                            )
+                            .await?;
+                        return Ok(AuthorizePrivilegedActionOutput::Authorized(initial_request));
+                    }
+                    AuthorizationStrategyDefinition::OutOfBand(_) => {
+                        let initial_request: ReqT = self
+                            .continue_out_of_band(
+                                input.account_id,
                                 privileged_action_definition.privileged_action_type,
                                 continue_request.clone(),
                             )
@@ -343,10 +400,11 @@ impl Service {
         if !delay_and_notify_definition.concurrency
             && !self
                 .privileged_action_repository
-                .fetch_delay_notify_for_account_id::<Value>(
+                .fetch_for_account_id::<Value>(
                     account_id,
+                    Some(AuthorizationStrategyDiscriminants::DelayAndNotify),
                     Some(privileged_action_type.clone()),
-                    Some(DelayAndNotifyStatus::Pending),
+                    Some(RecordStatus::Pending),
                 )
                 .await?
                 .is_empty()
@@ -373,7 +431,7 @@ impl Service {
             account_id.clone(),
             privileged_action_type.clone(),
             AuthorizationStrategyRecord::DelayAndNotify(DelayAndNotifyRecord {
-                status: DelayAndNotifyStatus::Pending,
+                status: RecordStatus::Pending,
                 cancellation_token: gen_token(),
                 completion_token: gen_token(),
                 delay_end_time,
@@ -465,7 +523,7 @@ impl Service {
             return Err(ServiceError::RecordAuthorizationStrategyTypeUnexpected);
         };
 
-        if delay_and_notify_record.status != DelayAndNotifyStatus::Pending {
+        if delay_and_notify_record.status != RecordStatus::Pending {
             return Err(ServiceError::RecordDelayAndNotifyStatusConflict);
         }
 
@@ -488,7 +546,7 @@ impl Service {
         let updated_instance = PrivilegedActionInstanceRecord {
             authorization_strategy: AuthorizationStrategyRecord::DelayAndNotify(
                 DelayAndNotifyRecord {
-                    status: DelayAndNotifyStatus::Completed,
+                    status: RecordStatus::Completed,
                     ..delay_and_notify_record
                 },
             ),
@@ -503,5 +561,202 @@ impl Service {
         // TODO: send notification
 
         Ok(instance_record.request)
+    }
+
+    /// Initiates an out-of-band privileged action flow.
+    ///
+    /// This method implements an out-of-band security mechanism for sensitive operations. It creates
+    /// a pending privileged action instance, during which the user can cancel the action if it was
+    /// initiated fraudulently. Notifications are sent to the user as soon as the action is initiated.
+    ///
+    /// # Parameters
+    /// * `account_id` - The ID of the account initiating the privileged action
+    /// * `out_of_band_definition` - Configuration for the out-of-band flow
+    /// * `privileged_action_type` - The type of privileged action being initiated
+    /// * `initial_request` - The original request payload
+    /// * `on_initiate_out_of_band` - Optional callback function to execute during validation
+    ///
+    /// # Returns
+    /// * `Result<(), ServiceError>` - Success if validation passes
+    #[instrument(skip(self, initial_request, on_initiate_out_of_band))]
+    async fn initiate_out_of_band<ReqT, RespT, ErrT>(
+        &self,
+        account_id: &AccountId,
+        out_of_band_definition: &OutOfBandDefinition,
+        privileged_action_type: PrivilegedActionType,
+        initial_request: ReqT,
+        on_initiate_out_of_band: Option<
+            Box<dyn FnOnce(ReqT) -> Pin<Box<dyn Future<Output = Result<(), ErrT>> + Send>> + Send>,
+        >,
+    ) -> Result<Option<PrivilegedActionResponse<RespT>>, ServiceError>
+    where
+        ReqT: Serialize + Clone,
+        ErrT: Into<ApiError>,
+    {
+        if let Some(on_initiate_out_of_band) = on_initiate_out_of_band {
+            on_initiate_out_of_band(initial_request.clone())
+                .await
+                .map_err(Into::into)?;
+        }
+
+        let web_auth_token = gen_token();
+
+        let instance_record = PrivilegedActionInstanceRecord::new(
+            account_id.clone(),
+            privileged_action_type.clone(),
+            AuthorizationStrategyRecord::OutOfBand(OutOfBandRecord {
+                status: RecordStatus::Pending,
+                web_auth_token: web_auth_token.clone(),
+                expiry_time: self.clock.now_utc() + Duration::days(1),
+            }),
+            initial_request,
+        )?;
+
+        self.privileged_action_repository
+            .persist(&instance_record)
+            .await?;
+
+        self.notification_service
+            .send_notification(SendNotificationInput {
+                account_id,
+                payload_type: NotificationPayloadType::PrivilegedActionPendingOutOfBandVerification,
+                payload: &NotificationPayloadBuilder::default()
+                    .privileged_action_pending_oob_verification_payload(Some(
+                        PrivilegedActionPendingOutOfBandVerificationPayload {
+                            privileged_action_instance_id: instance_record.id.clone(),
+                            privileged_action_type: instance_record.privileged_action_type.clone(),
+                            base_verification_url: self.config.ext_secure_site_base_url.clone(),
+                            web_auth_token,
+                        },
+                    ))
+                    .build()?,
+                only_touchpoints: None,
+            })
+            .await?;
+
+        Ok(Some(instance_record.into()))
+    }
+
+    /// Continues an out-of-band privileged action flow that was previously initiated.
+    ///
+    /// This method is called when the out-of-band flow for a privileged action is complete and
+    /// the user wants to finalize the action. It validates:
+    /// - The instance belongs to the specified account
+    /// - The action type matches what was initiated
+    /// - The authorization strategy is OutOfBand
+    /// - The action is still in Pending status
+    /// - The completion token provided matches the stored token
+    ///
+    /// If all validations pass, it updates the status to Completed and returns the original request.
+    ///
+    /// # Parameters
+    /// * `account_id` - The ID of the account performing the privileged action
+    /// * `privileged_action_type` - The type of privileged action being continued
+    /// * `continue_request` - The request containing the privileged action instance and completion token
+    ///
+    /// # Returns
+    /// * `Result<ReqT, ServiceError>` - The original request payload on success, or an error if validation fails
+    #[instrument(skip(self, continue_request))]
+    async fn continue_out_of_band<ReqT>(
+        &self,
+        account_id: &AccountId,
+        privileged_action_type: PrivilegedActionType,
+        continue_request: ContinuePrivilegedActionRequest,
+    ) -> Result<ReqT, ServiceError>
+    where
+        ReqT: Serialize + DeserializeOwned + Clone,
+    {
+        let instance_record: PrivilegedActionInstanceRecord<ReqT> = self
+            .privileged_action_repository
+            .fetch_by_id(&continue_request.privileged_action_instance.id)
+            .await?;
+        let privileged_action_instance_id = instance_record.id.clone();
+
+        if instance_record.account_id != *account_id {
+            return Err(ServiceError::RecordAccountIdForbidden);
+        }
+
+        if instance_record.privileged_action_type != privileged_action_type {
+            return Err(ServiceError::RecordPrivilegedActionTypeConflict);
+        }
+
+        let AuthorizationStrategyRecord::OutOfBand(out_of_band_record) =
+            instance_record.authorization_strategy
+        else {
+            return Err(ServiceError::RecordAuthorizationStrategyTypeUnexpected);
+        };
+
+        if out_of_band_record.status != RecordStatus::Pending {
+            return Err(ServiceError::RecordOutofBandStatusConflict);
+        }
+
+        let AuthorizationStrategyInput::OutOfBand(out_of_band_input) = continue_request
+            .privileged_action_instance
+            .authorization_strategy
+            .clone()
+        else {
+            return Err(ServiceError::BadInputAuthorizationStrategyType);
+        };
+
+        if out_of_band_input.web_auth_token != out_of_band_record.web_auth_token {
+            return Err(ServiceError::BadInputWebAuthToken);
+        }
+
+        let updated_instance = PrivilegedActionInstanceRecord {
+            authorization_strategy: AuthorizationStrategyRecord::OutOfBand(OutOfBandRecord {
+                status: RecordStatus::Completed,
+                ..out_of_band_record
+            }),
+            request: instance_record.request.clone(),
+            ..instance_record
+        };
+
+        self.privileged_action_repository
+            .persist(&updated_instance)
+            .await?;
+
+        self.send_oob_completion_notification(
+            account_id,
+            privileged_action_instance_id,
+            privileged_action_type,
+        )
+        .await?;
+
+        Ok(instance_record.request)
+    }
+
+    #[instrument(skip(self))]
+    async fn send_oob_completion_notification(
+        &self,
+        account_id: &AccountId,
+        privileged_action_instance_id: types::privileged_action::shared::PrivilegedActionInstanceId,
+        privileged_action_type: PrivilegedActionType,
+    ) -> Result<(), ServiceError> {
+        // Only send notifications for supported action types
+        if !matches!(
+            privileged_action_type,
+            PrivilegedActionType::LoosenTransactionVerificationPolicy
+        ) {
+            return Ok(());
+        }
+
+        self.notification_service
+            .send_notification(SendNotificationInput {
+                account_id,
+                payload_type:
+                    NotificationPayloadType::PrivilegedActionCompletedOutOfBandVerification,
+                payload: &NotificationPayloadBuilder::default()
+                    .privileged_action_completed_oob_verification_payload(Some(
+                        PrivilegedActionCompletedOutOfBandVerificationPayload {
+                            privileged_action_instance_id,
+                            privileged_action_type,
+                        },
+                    ))
+                    .build()?,
+                only_touchpoints: None,
+            })
+            .await?;
+
+        Ok(())
     }
 }

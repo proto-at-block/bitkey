@@ -222,7 +222,6 @@ pub async fn add_address(
     let addresses = request
         .addresses
         .into_iter()
-        .map(AddressAndKeysetId::from)
         .collect::<Vec<AddressAndKeysetId>>();
 
     address_repo_service.insert(&addresses, &account_id).await?;

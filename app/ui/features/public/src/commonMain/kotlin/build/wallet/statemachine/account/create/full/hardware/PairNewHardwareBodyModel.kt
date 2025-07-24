@@ -21,7 +21,7 @@ import build.wallet.ui.model.video.VideoStartingPosition
  * so 'push' animation) that the videos seamlessly transition from one to the other.
  */
 data class PairNewHardwareBodyModel(
-  override val onBack: () -> Unit,
+  override val onBack: (() -> Unit)?,
   val header: FormHeaderModel,
   val primaryButton: ButtonModel,
   val backgroundVideo: BackgroundVideo,
@@ -51,8 +51,9 @@ data class PairNewHardwareBodyModel(
 
   fun toolbarModel(onRefreshClick: () -> Unit) =
     ToolbarModel(
-      leadingAccessory =
-        toolbarAccessory(icon = Icon.SmallIconArrowLeft, onClick = onBack),
+      leadingAccessory = onBack?.let {
+        toolbarAccessory(icon = Icon.SmallIconArrowLeft, onClick = it)
+      },
       trailingAccessory =
         toolbarAccessory(icon = Icon.SmallIconRefresh, onClick = onRefreshClick)
     )

@@ -21,6 +21,8 @@ kotlin {
       implementation(projects.domain.txVerificationFake)
       implementation(projects.domain.f8eClientFake)
       implementation(projects.domain.accountFake)
+      implementation(projects.libs.moneyFake)
+      implementation(projects.libs.sqldelightTesting)
     }
   }
 }

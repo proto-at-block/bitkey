@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
+import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -17,7 +18,7 @@ import build.wallet.recovery.getEventId
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.Request.*
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.*
@@ -155,6 +156,39 @@ class CompletingRecoveryUiStateMachineImpl(
           eventTrackerShouldTrack = false
         ).asScreen(presentationStyle = props.presentationStyle)
 
+      is CheckingCompletionAttemptData ->
+        LoadingBodyModel(
+          message = "Checking recovery status...",
+          id =
+            props.completingRecoveryData.physicalFactor.getEventId(
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
+              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
+            ),
+          eventTrackerShouldTrack = false
+        ).asScreen(presentationStyle = props.presentationStyle)
+
+      is FetchingSealedDelegatedDecryptionKeyFromF8eData ->
+        LoadingBodyModel(
+          message = "Fetching recovery data...",
+          id =
+            props.completingRecoveryData.physicalFactor.getEventId(
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
+              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
+            ),
+          eventTrackerShouldTrack = false
+        ).asScreen(presentationStyle = props.presentationStyle)
+
+      is RemovingTrustedContactsData ->
+        LoadingBodyModel(
+          message = "Removing Recovery Contacts...",
+          id =
+            props.completingRecoveryData.physicalFactor.getEventId(
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
+              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
+            ),
+          eventTrackerShouldTrack = false
+        ).asScreen(presentationStyle = props.presentationStyle)
+
       is DelegatedDecryptionKeyErrorStateData ->
         ErrorFormBodyModel(
           title = "Unable to fetch Recovery Contact & inheritance data",
@@ -162,7 +196,7 @@ class CompletingRecoveryUiStateMachineImpl(
             """
             Make sure you are connected to the internet and try again. You may choose to remove
             Recovery Contacts and inheritance relationships, which will not cause funds to be lost,
-            but Recovery Contact and inheritance will need to be setup again.
+            but Recovery Contacts and inheritance will need to be setup again.
             """.trimIndent(),
           primaryButton =
             ButtonDataModel(
@@ -188,7 +222,7 @@ class CompletingRecoveryUiStateMachineImpl(
       is AwaitingHardwareProofOfPossessionData ->
         proofOfPossessionNfcStateMachine.model(
           ProofOfPossessionNfcProps(
-            Request.HwKeyProof(
+            HwKeyProof(
               onSuccess = props.completingRecoveryData.addHwFactorProofOfPossession
             ),
             fullAccountId = props.completingRecoveryData.fullAccountId,
@@ -386,6 +420,57 @@ class CompletingRecoveryUiStateMachineImpl(
             ),
           eventTrackerShouldTrack = false
         ).asScreen(props.presentationStyle)
+
+      is ProcessingDescriptorBackupsData.AwaitingSsekUnsealingData ->
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            transaction = props.completingRecoveryData.nfcTransaction,
+            screenPresentationStyle = props.presentationStyle,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_SSEK,
+            hardwareVerification = Required(useRecoveryPubKey = true)
+          )
+        )
+
+      is ProcessingDescriptorBackupsData.UploadingDescriptorBackupsData,
+      is ProcessingDescriptorBackupsData.HandlingDescriptorEncryption,
+      is ProcessingDescriptorBackupsData.RetrievingDescriptorsForKeyboxData,
+      -> uploadingDescriptorBackupsLoadingModel(
+        props.completingRecoveryData.physicalFactor,
+        props.presentationStyle
+      )
+
+      is ProcessingDescriptorBackupsData.FailedToProcessDescriptorBackupsData ->
+        ErrorFormBodyModel(
+          title = "We were unable to update your backup",
+          subline = "Make sure you are connected to the internet and try again.",
+          primaryButton = ButtonDataModel(
+            text = "Retry",
+            onClick = props.completingRecoveryData.onRetry
+          ),
+          errorData = ErrorData(
+            segment = when (props.completingRecoveryData.physicalFactor) {
+              App -> RecoverySegment.DelayAndNotify.LostApp.Completion
+              Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Completion
+            },
+            actionDescription = "Processing descriptor backups to complete recovery",
+            cause = props.completingRecoveryData.cause
+          ),
+          eventTrackerScreenId = props.completingRecoveryData.physicalFactor.getEventId(
+            DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ENCRYPTED_DESCRIPTORS_UPLOAD_ERROR,
+            HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ENCRYPTED_DESCRIPTORS_UPLOAD_ERROR
+          )
+        ).asScreen(props.presentationStyle)
     }
   }
 }
+
+private fun uploadingDescriptorBackupsLoadingModel(
+  physicalFactor: PhysicalFactor,
+  presentationStyle: ScreenPresentationStyle,
+) = LoadingBodyModel(
+  message = "Updating backup...",
+  id = physicalFactor.getEventId(
+    DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ENCRYPTED_DESCRIPTOR_UPLOAD,
+    HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ENCRYPTED_DESCRIPTOR_UPLOAD
+  )
+).asScreen(presentationStyle)

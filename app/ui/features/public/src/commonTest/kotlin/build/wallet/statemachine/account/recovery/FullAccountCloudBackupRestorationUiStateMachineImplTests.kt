@@ -26,6 +26,7 @@ import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
+import build.wallet.nfc.NfcException
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.random.UuidGeneratorFake
@@ -46,7 +47,6 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiStateMachineImpl
 import build.wallet.statemachine.recovery.cloud.ProblemWithCloudBackupModel
-import build.wallet.nfc.NfcException
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
 import build.wallet.statemachine.ui.awaitBody

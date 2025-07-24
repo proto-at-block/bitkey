@@ -3,6 +3,7 @@
 package build.wallet.limit
 
 import app.cash.turbine.test
+import bitkey.verification.VerificationRequiredError
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.account.AccountStatus.OnboardingAccount
@@ -39,10 +40,13 @@ import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.getError
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -385,6 +389,18 @@ class MobilePayServiceImplTests : FunSpec({
     mobilePayService.signPsbtWithMobilePay(PsbtMock)
       .isErr
       .shouldBeTrue()
+
+    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBe(PsbtMock)
+  }
+
+  test("verification required while signing a psbt with mobile pay") {
+    accountService.setActiveAccount(FullAccountMock)
+    mobilePaySigningF8eClient.signWithSpecificKeysetResult =
+      Err(VerificationRequiredError)
+    mobilePayService.signPsbtWithMobilePay(PsbtMock)
+      .getError()
+      .shouldNotBeNull()
+      .shouldBeInstanceOf<VerificationRequiredError>()
 
     mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBe(PsbtMock)
   }

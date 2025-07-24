@@ -52,7 +52,7 @@ use notification::clients::twilio::{TwilioClient, TwilioMode};
 use notification::entities::NotificationTouchpoint;
 use once_cell::sync::Lazy;
 use privileged_action::service::authorize_privileged_action::{
-    AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+    AuthenticationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
     PrivilegedActionRequestValidatorBuilder,
 };
 use privileged_action::service::Service as PrivilegedActionService;
@@ -636,7 +636,7 @@ async fn activate_touchpoint_for_account(
         .authorize_privileged_action(AuthorizePrivilegedActionInput {
             account_id: &account_id,
             privileged_action_definition: &PrivilegedActionType::ActivateTouchpoint.into(),
-            key_proof: &key_proof,
+            authentication: AuthenticationContext::KeyClaims(&key_proof),
             privileged_action_request: &privileged_action_request,
             request_validator: PrivilegedActionRequestValidatorBuilder::default()
                 .on_initiate_delay_and_notify(Box::new(|_| {

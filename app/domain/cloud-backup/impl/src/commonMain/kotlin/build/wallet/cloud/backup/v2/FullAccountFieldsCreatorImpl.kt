@@ -34,65 +34,56 @@ class FullAccountFieldsCreatorImpl(
     endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<FullAccountFields, FullAccountFieldsCreationError> =
     coroutineBinding {
-      val appAuthKeypair =
-        keybox.appGlobalAuthKeypair(appPrivateKeyDao)
-          .mapError {
-            AppAuthPrivateKeyRetrievalError(it)
-          }
-          .bind()
+      val appAuthKeypair = keybox.appGlobalAuthKeypair(appPrivateKeyDao)
+        .mapError {
+          AppAuthPrivateKeyRetrievalError(it)
+        }
+        .bind()
 
-      val appPrivateKeysMap =
-        keybox.appKeys(appPrivateKeyDao)
-          .mapError {
-            AppSpendingPrivateKeyRetrievalError(it)
-          }.bind()
+      val appPrivateKeysMap = keybox.appKeys(appPrivateKeyDao)
+        .mapError {
+          AppSpendingPrivateKeyRetrievalError(it)
+        }.bind()
 
-      val fullAccountKeys =
-        FullAccountKeys(
-          activeSpendingKeyset = keybox.activeSpendingKeyset,
-          activeHwSpendingKey = keybox.activeHwKeyBundle.spendingKey,
-          activeHwAuthKey = keybox.activeHwKeyBundle.authKey,
-          appGlobalAuthKeypair = appAuthKeypair,
-          appSpendingKeys = appPrivateKeysMap,
-          rotationAppGlobalAuthKeypair = null
-        )
+      val fullAccountKeys = FullAccountKeys(
+        activeSpendingKeyset = keybox.activeSpendingKeyset,
+        // If the local keysets are not authoritative, do not persist them in the cloud backup; this
+        // allows us to correctly infer their completeness upon recovery as emptyList == shouldNotUse.
+        keysets = if (keybox.canUseKeyboxKeysets) keybox.keysets else emptyList(),
+        activeHwSpendingKey = keybox.activeHwKeyBundle.spendingKey,
+        activeHwAuthKey = keybox.activeHwKeyBundle.authKey,
+        appGlobalAuthKeypair = appAuthKeypair,
+        appSpendingKeys = appPrivateKeysMap,
+        rotationAppGlobalAuthKeypair = null
+      )
 
-      val fullCustomerKeysInfoEncoded =
-        Json
-          .encodeToStringResult(fullAccountKeys)
-          .mapError { KeysInfoEncodingError(it) }
-          .bind()
+      val fullCustomerKeysInfoEncoded = Json
+        .encodeToStringResult(fullAccountKeys)
+        .mapError { KeysInfoEncodingError(it) }
+        .bind()
 
-      val csek =
-        csekDao
-          .get(sealedCsek)
-          .mapError { PkekRetrievalError(it) }
-          .toErrorIfNull { PkekRetrievalError() }
-          .bind()
+      val csek = csekDao
+        .get(sealedCsek)
+        .mapError { PkekRetrievalError(it) }
+        .toErrorIfNull { PkekRetrievalError() }
+        .bind()
 
       val fullCustomerKeysInfoEncodedHardwareEncrypted =
-        symmetricKeyEncryptor
-          .sealNoMetadata(fullCustomerKeysInfoEncoded.encodeUtf8(), csek.key)
+        symmetricKeyEncryptor.sealNoMetadata(fullCustomerKeysInfoEncoded.encodeUtf8(), csek.key)
 
       val socRecPKMatOutput =
         relationshipsCrypto.encryptPrivateKeyMaterial(fullCustomerKeysInfoEncoded.encodeUtf8())
-          .mapError { FullAccountFieldsCreationError.SocRecEncryptionError(it) }
+          .mapError { SocRecEncryptionError(it) }
           .bind()
 
-      val socRecRelationshipsMap =
-        endorsedTrustedContacts.associate {
-          it.relationshipId to
-            relationshipsCrypto
-              .encryptPrivateKeyEncryptionKey(
-                it.identityKey,
-                socRecPKMatOutput.privateKeyEncryptionKey
-              )
-              .mapError {
-                  err ->
-                FullAccountFieldsCreationError.SocRecEncryptionError(err)
-              }
-              .bind()
-        }
+      val socRecRelationshipsMap = endorsedTrustedContacts.associate {
+        it.relationshipId to relationshipsCrypto.encryptPrivateKeyEncryptionKey(
+          it.identityKey,
+          socRecPKMatOutput.privateKeyEncryptionKey
+        )
+          .mapError { err -> SocRecEncryptionError(err) }
+          .bind()
+      }
 
       FullAccountFields(
         sealedHwEncryptionKey = sealedCsek,

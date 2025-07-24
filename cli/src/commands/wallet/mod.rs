@@ -1,5 +1,4 @@
 pub use balance::balance;
-pub use debug::debug;
 pub use drain::drain;
 pub use hardware_send::hardware_send;
 pub use receive::receive;
@@ -11,7 +10,6 @@ pub use transactions::transactions;
 pub use utxos::utxos;
 
 mod balance;
-mod debug;
 mod drain;
 mod hardware_send;
 mod receive;

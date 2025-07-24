@@ -28,6 +28,7 @@ fun Label(
   modifier: Modifier = Modifier,
   type: LabelType = Title3,
   alignment: TextAlign = TextAlign.Start,
+  overflow: TextOverflow = TextOverflow.Clip,
   treatment: LabelTreatment = LabelTreatment.Primary,
   color: Color = Color.Unspecified,
   allowFontScaling: Boolean = true,
@@ -38,6 +39,7 @@ fun Label(
     modifier = modifier,
     style = WalletTheme.labelStyle(type, treatment, alignment, color),
     allowFontScaling = allowFontScaling,
+    overflow = overflow,
     onClick =
       onClick?.let {
         {

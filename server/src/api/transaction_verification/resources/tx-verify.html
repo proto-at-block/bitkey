@@ -38,18 +38,11 @@
 
         <!-- Amount Confirmation Screen -->
         <div id="amountConfirmation" class="verification-container">
-            <h1>Is this the correct amount?</h1>
-            <p class="subtitle">This is the amount you're sending—before fees.</p>
-
-            <div class="amount-card">
-                <div class="amount-card-content">
-                    <span class="amount-label">Send amount</span>
-                    <div class="amount-values">
-                        <span id="amountFiat" class="amount-value">$AMOUNT_FIAT</span>
-                        <span id="amountSats" class="amount-sats">$AMOUNT_SATS</span>
-                    </div>
-                </div>
-            </div>
+            <h1>Is the amount you're sending <span class="inline-block amountSats" data-amount-sats></span>?</h1>
+            <p class="subtitle">
+                That's about <span class="inline-block amountFiatRounded" data-amount-fiat-rounded></span> 
+                <span class="amountCurrency" data-amount-currency></span>
+            </p>
         </div>
 
         <!-- Address Verification Screen -->
@@ -61,6 +54,13 @@
             </div>
         </main>
 
+        <!-- Address Verification Screen -->
+        <main id="cancellationScreen" class="verification-container">
+            <h1>Transaction canceled</h1>
+            <p class="subtitle">For your security, this transaction was canceled because verification wasn’t completed. Start a new transaction to try again.</p> 
+            <p class="subtitle">If the amount or address doesn’t match what you entered in the Bitkey app, contact Support.</p>           
+        </main>        
+
         <!-- Success Screen -->
         <div id="successScreen" class="verification-container">
             <img src="/static/success.svg" alt="Success" class="success-icon">
@@ -71,6 +71,15 @@
                 <!-- Generated address text will go here -->
             </div>
 
+            <div class="amount-card">
+                <div class="amount-card-content">
+                    <span class="amount-label">Amount</span>
+                    <div class="amount-values">
+                        <span id="amountSats" class="amountSats amount-sats" data-amount-sats></span>
+                    </div>
+                </div>
+            </div>            
+
         </div>
 
     </div>
@@ -78,26 +87,31 @@
     <!-- Button container with top border -->
     <div class="button-container">
         <div class="action-buttons" id="amountButtons">
-            <button class="secondary-button">No</button>
-            <button class="primary-button">Yes, it's correct</button>
+            <button id="yesBtn" class="primary-button">Yes</button>
+            <button id="noBtn" class="secondary-button">No</button>
         </div>
         <div class="action-buttons" id="verificationButtons" style="display: none;">
-            <button id="cancelBtn" class="secondary-button">I can't find one</button>
-            <button id="confirmBtn" class="primary-button">Continue</button>
+            <button id="cancelBtn" class="secondary-button">Address doesn't match</button>
+            <button id="skipAndVerifyBtn" class="secondary-button">Skip</button>
+            <button id="confirmBtn" class="primary-button invisible">Continue</button>
         </div>
+        <div class="action-buttons" id="supportButtons" style="display: none;">
+            <a class="primary-button" href="bitkey://" data-app-link="true">Return to Bitkey</a>
+            <a class="secondary-button invisible" href="https://support.bitkey.world/">Contact Support</a>
+        </div>        
     </div>
     
     <!-- MOCK DATA: This will be replaced by the server with real data -->
     <script type="application/json" id="verification-params">
-    {
-        "verificationId": "mock-transaction-verification-id",
-        "amountFiat": 5000,
-        "amountSats": 10000000,
-        "amountCurrency": "USD",
-        "recipient": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-        "confirmToken": "mock-confirm-token",
-        "cancelToken": "mock-cancel-token"
-    }
+        {
+            "amountCurrency": "USD",
+            "amountFiat": 202,
+            "amountSats": 1894,
+            "cancelToken": "q9Ix7CJLTaRR6DcZNIBDSLFk0omuUjn3of1gjQeRJuAWIMEuWyKc287T6dq6krYGNW_ijWX1nJVSyLHVotiyArqLUVuAGEwr152BX7bQuiJ3TuBI6WpIsugppqk9UT_cyzzSAVbII96B3n57xkWGC0H1icldGWxLLU4SdHmdLdM",
+            "confirmToken": "x_A9Rp-f2hYLDpmy0uJUvxTPgjgLbOJWm8bChdTehL2QK_ScT35OpZQRHEAlbrSv0QmE9YOUiAk8vf_sxA5rgGEISJTeSNSlBxzhr4QS-hCE5aAlu4G3_Aav3AtrwvFgew8_nw8SAMSn_kLWYhtnT6vOMsHQxzUKwx6rSCCbEw0",
+            "recipient": "tb1q8qmmrhcxv7cfxy45n60k6mwxrr83gnshgeawwhajsc24v5hts90q4zndd6",
+            "verificationId": "urn:wallet-tx-verify:01JXN4H4SZBPJ28CW41PHCFDDS"
+        }
     </script>
 </body>
 </html> 
