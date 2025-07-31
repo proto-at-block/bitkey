@@ -2,6 +2,7 @@ package build.wallet.limit
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
+import bitkey.verification.TxVerificationApproval
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -11,12 +12,13 @@ import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MobilePayServiceMock(
-  turbine: (name: String) -> Turbine<Any>,
+  turbine: (name: String) -> Turbine<Any?>,
 ) : MobilePayService {
   override val mobilePayData = MutableStateFlow<MobilePayData?>(null)
 
   val disableCalls = turbine("disable mobile pay calls")
   val signPsbtCalls = turbine("sign psbt with mobile pay calls")
+  val signPsbtGrants = turbine("sign psbt associated grants")
   val getDailySpendingLimitStatusCalls = turbine("get daily spending limit calls")
   var disableResult: Result<Unit, Error> = Ok(Unit)
   var signPsbtWithMobilePayResult: Result<Psbt, Error>? = null
@@ -35,9 +37,13 @@ class MobilePayServiceMock(
     return Ok(Unit)
   }
 
-  override suspend fun signPsbtWithMobilePay(psbt: Psbt): Result<Psbt, Error> {
+  override suspend fun signPsbtWithMobilePay(
+    psbt: Psbt,
+    grant: TxVerificationApproval?,
+  ): Result<Psbt, Error> {
     val signedPsbt = psbt.copy(base64 = "${psbt.base64} ${signature(keysetId ?: "")}")
     signPsbtCalls += signedPsbt
+    signPsbtGrants += grant
     return signPsbtWithMobilePayResult ?: Ok(signedPsbt)
   }
 

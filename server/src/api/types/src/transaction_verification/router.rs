@@ -1,5 +1,4 @@
-use crate::account::entities::TransactionVerificationPolicy;
-use crate::transaction_verification::entities::TransactionVerification;
+use crate::transaction_verification::entities::{PolicyUpdate, TransactionVerification};
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::bitcoin::secp256k1::ecdsa::Signature;
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
@@ -81,5 +80,5 @@ pub enum InitiateTransactionVerificationView {
 #[serde(rename_all = "snake_case")]
 pub struct PutTransactionVerificationPolicyRequest {
     #[serde(flatten)]
-    pub policy: TransactionVerificationPolicy,
+    pub policy: PolicyUpdate,
 }

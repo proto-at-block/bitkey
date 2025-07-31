@@ -1,5 +1,6 @@
 // Third-party imports
 use http::StatusCode;
+use rand::distributions::{Alphanumeric, DistString};
 use rstest::rstest;
 use time::OffsetDateTime;
 
@@ -15,6 +16,7 @@ use bdk_utils::bdk::{
     FeeRate,
 };
 use transaction_verification::routes::InitiateTransactionVerificationRequest;
+use transaction_verification::routes::ProcessTransactionVerificationTokenRequest;
 use types::{
     account::{
         entities::{Account, FullAccount, TransactionVerificationPolicy},
@@ -25,7 +27,10 @@ use types::{
         repository::PrivilegedActionInstanceRecord, router::generic::PrivilegedActionResponse,
     },
     transaction_verification::{
-        entities::BitcoinDisplayUnit,
+        entities::{
+            BitcoinDisplayUnit, PolicyUpdate, PolicyUpdateMoney, TransactionVerification,
+            TransactionVerificationDiscriminants,
+        },
         router::{
             InitiateTransactionVerificationView, InitiateTransactionVerificationViewRequested,
             InitiateTransactionVerificationViewSigned, PutTransactionVerificationPolicyRequest,
@@ -36,30 +41,32 @@ use types::{
 
 #[rstest]
 // Cases that should succeed without out-of-band verification
-#[case::from_never_to_always(
+#[case::never_to_always(
     TransactionVerificationPolicy::Never,
-    TransactionVerificationPolicy::Always,
+    PolicyUpdate::Always,
     false, // has_hw_signed
     StatusCode::OK,
     false // expect_out_of_band
 )]
-#[case::from_never_to_threshold(
+#[case::never_to_threshold(
     TransactionVerificationPolicy::Never,
-    TransactionVerificationPolicy::Threshold(Money {
-        amount: 1000,
+    PolicyUpdate::Threshold(PolicyUpdateMoney {
+        amount_sats: 1000,
+        amount_fiat: 118,
         currency_code: USD,
     }),
     false, // has_hw_signed
     StatusCode::OK,
     false // expect_out_of_band
 )]
-#[case::from_threshold_to_lower_threshold(
+#[case::threshold_lower(
     TransactionVerificationPolicy::Threshold(Money {
-        amount: 2000,
+        amount: 236,
         currency_code: USD,
     }),
-    TransactionVerificationPolicy::Threshold(Money {
-        amount: 1000,
+    PolicyUpdate::Threshold(PolicyUpdateMoney {
+        amount_sats: 1000,
+        amount_fiat: 118,
         currency_code: USD,
     }),
     false, // has_hw_signed
@@ -67,30 +74,31 @@ use types::{
     false // expect_out_of_band
 )]
 // Cases that require out-of-band verification (loosening policies with hw signature)
-#[case::from_always_to_never(
+#[case::always_to_never(
     TransactionVerificationPolicy::Always,
-    TransactionVerificationPolicy::Never,
+    PolicyUpdate::Never,
     true, // has_hw_signed
     StatusCode::OK,
     true // expect_out_of_band
 )]
-#[case::from_threshold_to_never(
+#[case::threshold_to_never(
     TransactionVerificationPolicy::Threshold(Money {
         amount: 1000,
         currency_code: USD,
     }),
-    TransactionVerificationPolicy::Never,
+    PolicyUpdate::Never,
     true, // has_hw_signed
     StatusCode::OK,
     true // expect_out_of_band
 )]
-#[case::from_threshold_to_higher_threshold(
+#[case::threshold_higher(
     TransactionVerificationPolicy::Threshold(Money {
-        amount: 1000,
+        amount: 118,
         currency_code: USD,
     }),
-    TransactionVerificationPolicy::Threshold(Money {
-        amount: 2000,
+    PolicyUpdate::Threshold(PolicyUpdateMoney {
+        amount_sats: 2000,
+        amount_fiat: 236,
         currency_code: USD,
     }),
     true, // has_hw_signed
@@ -98,20 +106,21 @@ use types::{
     true // expect_out_of_band
 )]
 // Cases that should fail (loosening policies without hw signature)
-#[case::from_always_to_never_without_hw_signature(
+#[case::always_to_never_no_hw(
     TransactionVerificationPolicy::Always,
-    TransactionVerificationPolicy::Never,
+    PolicyUpdate::Never,
     false, // has_hw_signed
     StatusCode::FORBIDDEN,
     true // expect_out_of_band (irrelevant since it fails)
 )]
-#[case::from_threshold_to_higher_threshold_without_hw_signature(
+#[case::threshold_higher_no_hw(
     TransactionVerificationPolicy::Threshold(Money {
-        amount: 1000,
+        amount: 118,
         currency_code: USD,
     }),
-    TransactionVerificationPolicy::Threshold(Money {
-        amount: 2000,
+    PolicyUpdate::Threshold(PolicyUpdateMoney {
+        amount_sats: 2000,
+        amount_fiat: 236,
         currency_code: USD,
     }),
     false, // has_hw_signed
@@ -121,7 +130,7 @@ use types::{
 #[tokio::test]
 async fn update_transaction_verification_policy_test(
     #[case] from_policy: TransactionVerificationPolicy,
-    #[case] to_policy: TransactionVerificationPolicy,
+    #[case] to_policy: PolicyUpdate,
     #[case] has_hw_signed: bool,
     #[case] expected_status: StatusCode,
     #[case] expect_out_of_band: bool,
@@ -203,7 +212,7 @@ async fn update_transaction_verification_policy_test(
         let resp = client
             .get_transaction_verification_policy(&account_id, &keys)
             .await;
-        assert_eq!(resp.body.unwrap().policy, to_policy);
+        assert_eq!(resp.body.unwrap().policy, to_policy.into());
     }
 }
 
@@ -220,8 +229,9 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm() {
         .unwrap();
 
     // Set transaction verification policy to $1000 threshold
-    let threshold_policy = TransactionVerificationPolicy::Threshold(Money {
-        amount: 1000,
+    let threshold_policy = PolicyUpdate::Threshold(PolicyUpdateMoney {
+        amount_sats: 1000,
+        amount_fiat: 118,
         currency_code: USD,
     });
 
@@ -293,7 +303,7 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
         .unwrap();
 
     // Set transaction verification policy to ALWAYS
-    let threshold_policy = TransactionVerificationPolicy::Always;
+    let threshold_policy = PolicyUpdate::Always;
 
     client
         .update_transaction_verification_policy(
@@ -352,4 +362,128 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
         TransactionVerificationView::Pending => (),
         _ => panic!("Expected transaction to be pending"),
     }
+}
+
+enum TokenType {
+    ConfirmationToken,
+    CancellationToken,
+    RandomToken,
+}
+
+#[rstest]
+#[case::random_token(TokenType::RandomToken, StatusCode::BAD_REQUEST)]
+#[case::confirmation_token(TokenType::ConfirmationToken, StatusCode::OK)]
+#[case::cancellation_token(TokenType::CancellationToken, StatusCode::OK)]
+#[tokio::test]
+async fn transaction_verification_verification_flow_test(
+    #[case] use_token_type: TokenType,
+    #[case] expected_status: StatusCode,
+) {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account, wallet) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    // Set transaction verification policy to ALWAYS
+    let threshold_policy = PolicyUpdate::Always;
+
+    client
+        .update_transaction_verification_policy(
+            &account.id,
+            true, // app signed only
+            false,
+            &keys,
+            &PutTransactionVerificationPolicyRequest {
+                policy: threshold_policy.clone(),
+            },
+        )
+        .await;
+
+    let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
+    let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
+    let mut builder = wallet.build_tx();
+    builder
+        .add_recipient(recipient_address.script_pubkey(), 1000)
+        .fee_rate(FeeRate::default_min_relay_fee());
+    let (mut psbt, _) = builder.finish().unwrap();
+    wallet.sign(&mut psbt, Default::default()).unwrap();
+
+    // Initiate transaction verification
+    let request = InitiateTransactionVerificationRequest {
+        psbt: psbt.to_string(),
+        fiat_currency: USD,
+        bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
+        signing_keyset_id: account.active_keyset_id,
+        should_prompt_user: true,
+    };
+
+    let resp = client
+        .initiate_transaction_verification(&account.id, &keys, &request)
+        .await;
+
+    // Verify the response
+    let verification_id = match resp.body.unwrap() {
+        InitiateTransactionVerificationView::VerificationRequested(
+            InitiateTransactionVerificationViewRequested {
+                verification_id,
+                expiration,
+            },
+        ) => {
+            // Transaction requires verification because it's over the threshold
+            assert!(!verification_id.to_string().is_empty());
+            assert!(expiration > OffsetDateTime::now_utc());
+            verification_id
+        }
+        _ => panic!("Expected transaction to require verification"),
+    };
+
+    let Ok(TransactionVerification::Pending(pending)) = bootstrap
+        .services
+        .transaction_verification_service
+        .fetch(&account.id, &verification_id)
+        .await
+    else {
+        panic!("Expected verification to be pending");
+    };
+
+    let (request, expect_verification_status) = match use_token_type {
+        TokenType::ConfirmationToken => (
+            ProcessTransactionVerificationTokenRequest::Confirm {
+                confirm_token: pending.confirmation_token.clone(),
+            },
+            TransactionVerificationDiscriminants::Success,
+        ),
+        TokenType::CancellationToken => (
+            ProcessTransactionVerificationTokenRequest::Cancel {
+                cancel_token: pending.cancellation_token.clone(),
+            },
+            TransactionVerificationDiscriminants::Failed,
+        ),
+        TokenType::RandomToken => (
+            ProcessTransactionVerificationTokenRequest::Confirm {
+                confirm_token: Alphanumeric.sample_string(&mut rand::thread_rng(), 16),
+            },
+            TransactionVerificationDiscriminants::Pending,
+        ),
+    };
+    let resp = client
+        .process_transaction_verification_token(&verification_id, &request)
+        .await;
+    assert_eq!(resp.status_code, expected_status);
+
+    let response = bootstrap
+        .services
+        .transaction_verification_service
+        .fetch(&account.id, &verification_id)
+        .await
+        .expect("Failed to fetch verification");
+    assert_eq!(
+        TransactionVerificationDiscriminants::from(response),
+        expect_verification_status
+    );
 }

@@ -31,7 +31,6 @@ import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreen
-import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.moneyhome.card.CardModel
@@ -217,59 +216,6 @@ class SecurityHubPresenterTests : FunSpec({
     }
   }
 
-  test("when fingerprint reset status card is active, all recommendation clicks go to reset flow") {
-    setupFingerprintResetFeatureFlags()
-
-    // Mock the fingerprint reset status card to be non-null (simulating active reset during delay period)
-    val mockFingerprintResetCard = CardModel(
-      title = LabelModel.StringWithStyledSubstringModel.from("Test Card", emptyMap()),
-      content = null,
-      style = CardModel.CardStyle.Plain
-    )
-
-    val mockFingerprintResetStatusCardUiStateMachine = object : FingerprintResetStatusCardUiStateMachine,
-      StateMachineMock<FingerprintResetStatusCardUiProps, CardModel?>(
-        initialModel = mockFingerprintResetCard
-      ) {}
-
-    val presenterWithMockCard = SecurityHubPresenter(
-      securityActionsService = securityActionsService,
-      homeStatusBannerUiStateMachine = object : HomeStatusBannerUiStateMachine,
-        StateMachineMock<HomeStatusBannerUiProps, StatusBannerModel?>(initialModel = null) {},
-      firmwareDataService = firmwareDataService,
-      recoveryContactCardsUiStateMachine = object : RecoveryContactCardsUiStateMachine,
-        StateMachineMock<RecoveryContactCardsUiProps, ImmutableList<CardModel>>(
-          initialModel = immutableListOf()
-        ) {},
-      hardwareRecoveryStatusCardUiStateMachine = object : HardwareRecoveryStatusCardUiStateMachine,
-        StateMachineMock<HardwareRecoveryStatusCardUiProps, CardModel?>(
-          initialModel = null
-        ) {},
-      fingerprintResetStatusCardUiStateMachine = mockFingerprintResetStatusCardUiStateMachine,
-      fingerprintResetUiStateMachine = fingerprintResetUiStateMachine,
-      appFunctionalityService = AppFunctionalityServiceFake(),
-      haptics = haptics,
-      fingerprintResetAvailabilityService = fingerprintResetAvailabilityService
-    )
-
-    // Ensure COMPLETE_FINGERPRINT_RESET is NOT in active recommendations
-    securityActionsService.recommendations.removeAll { it == COMPLETE_FINGERPRINT_RESET }
-
-    presenterWithMockCard.test(createSecurityHubScreen()) {
-      awaitBody<SecurityHubBodyModel> {
-        // Try clicking a different recommendation - should still go to fingerprint reset
-        onRecommendationClick(ADD_TRUSTED_CONTACTS)
-      }
-
-      // Should go directly to fingerprint reset flow, not the normal flow
-      awaitBodyMock<FingerprintResetProps>(
-        id = fingerprintResetUiStateMachine.id
-      ) {
-        account.shouldBe(FullAccountMock)
-      }
-    }
-  }
-
   test("fingerprint reset feature disabled should pass false to ManageFingerprintsOptionsSheet") {
     setupFingerprintResetFeatureFlags(featureEnabled = false)
 
@@ -425,36 +371,6 @@ class SecurityHubPresenterTests : FunSpec({
       }
 
       it.goToCalls.awaitItem().shouldBeTypeOf<FwupScreen>()
-    }
-  }
-
-  test("when COMPLETE_FINGERPRINT_RESET recommendation is active, always goes to reset flow regardless of clicked recommendation") {
-    setupFingerprintResetFeatureFlags()
-    securityActionsService.recommendations += COMPLETE_FINGERPRINT_RESET
-
-    presenter.test(createSecurityHubScreen()) {
-      awaitBody<SecurityHubBodyModel> {
-        onRecommendationClick(ADD_TRUSTED_CONTACTS)
-      }
-
-      awaitBodyMock<FingerprintResetProps>(
-        id = fingerprintResetUiStateMachine.id
-      ) {
-        account.shouldBe(FullAccountMock)
-      }
-    }
-  }
-
-  test("complete fingerprint reset not in active recommendations goes to normal flow") {
-    setupFingerprintResetFeatureFlags()
-    securityActionsService.recommendations.removeAll { it == COMPLETE_FINGERPRINT_RESET }
-
-    presenter.test(createSecurityHubScreen()) {
-      awaitBody<SecurityHubBodyModel> {
-        onRecommendationClick(ADD_FINGERPRINTS)
-      }
-
-      it.goToCalls.awaitItem().shouldBeTypeOf<SecurityHubEducationScreen.RecommendationEducation>()
     }
   }
 

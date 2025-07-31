@@ -36,8 +36,8 @@ internal data class TxVerificationPolicyStateModel(
     eventTrackerScreenId = TxVerificationEventTrackerScreenId.MANAGE_POLICY
   )
   val switchCardModel = SwitchCardModel(
-    title = "Address verification",
-    subline = "When on, we'll ask you to verify the address of the recipient using a secure Bitkey server.",
+    title = "Transaction verification",
+    subline = "Add extra protection by confirming transaction details before you send.",
     switchModel = SwitchModel(
       checked = checked,
       enabled = enabled,
@@ -77,7 +77,7 @@ internal data class TxVerificationPolicyStateModel(
           model = ToolbarModel(
             leadingAccessory = ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory(onClick = onBack),
             middleAccessory = ToolbarMiddleAccessoryModel(
-              title = "Address verification"
+              title = "Transaction verification"
             )
           )
         )

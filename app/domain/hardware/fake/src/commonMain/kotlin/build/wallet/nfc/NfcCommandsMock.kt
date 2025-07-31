@@ -215,8 +215,8 @@ class NfcCommandsMock(
       GrantAction.FINGERPRINT_RESET -> {
         GrantRequest(
           version = 0x01,
-          deviceId = "mockDevice".toByteArray(),
-          challenge = "mockChallenge".toByteArray(),
+          deviceId = ByteArray(8) { 0x01 },
+          challenge = ByteArray(16) { 0x02 },
           action = action,
           signature = "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498".decodeHex().toByteArray()
         ).also { getGrantRequestCalls.add(action) }

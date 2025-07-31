@@ -10,7 +10,8 @@ use types::account::entities::Account;
 use types::recovery::trusted_contacts::TrustedContactRole;
 
 use super::shared::AccountType;
-use crate::tests;
+use rstest::rstest;
+
 use crate::tests::gen_services;
 use crate::tests::lib::create_phone_touchpoint;
 use crate::tests::lib::update_recovery_relationship_invitation_expiration;
@@ -24,18 +25,37 @@ use crate::tests::recovery::shared::{
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
 
-#[derive(Debug)]
-struct CreateRecoveryRelationshipTestVector {
-    customer_account_type: AccountType,
-    auth: CognitoAuthentication,
-    expected_status_code: StatusCode,
-}
-
-async fn create_recovery_relationship_test(vector: CreateRecoveryRelationshipTestVector) {
+#[rstest]
+#[case::success(
+    AccountType::Full,
+    CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: true },
+    StatusCode::OK,
+)]
+#[case::no_app_signature(
+    AccountType::Full,
+    CognitoAuthentication::Wallet{ is_app_signed: false, is_hardware_signed: true },
+    StatusCode::FORBIDDEN,
+)]
+#[case::no_hw_signature(
+    AccountType::Full,
+    CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: false },
+    StatusCode::FORBIDDEN,
+)]
+#[case::lite_account(
+    AccountType::Lite,
+    CognitoAuthentication::Recovery,
+    StatusCode::UNAUTHORIZED
+)]
+#[tokio::test]
+async fn test_create_recovery_relationship(
+    #[case] customer_account_type: AccountType,
+    #[case] auth: CognitoAuthentication,
+    #[case] expected_status_code: StatusCode,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.clone().router).await;
 
-    let customer_account = match vector.customer_account_type {
+    let customer_account = match customer_account_type {
         AccountType::Full => Account::Full(
             create_full_account(
                 &mut context,
@@ -54,36 +74,12 @@ async fn create_recovery_relationship_test(vector: CreateRecoveryRelationshipTes
         &context,
         &client,
         customer_account.get_id(),
-        &vector.auth,
-        vector.expected_status_code,
+        &auth,
+        expected_status_code,
         1,
         0,
     )
     .await;
-}
-
-tests! {
-    runner = create_recovery_relationship_test,
-    test_create_recovery_relationship: CreateRecoveryRelationshipTestVector {
-        customer_account_type: AccountType::Full,
-        auth: CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: true },
-        expected_status_code: StatusCode::OK,
-    },
-    test_create_recovery_relationship_no_app_signature: CreateRecoveryRelationshipTestVector {
-        customer_account_type: AccountType::Full,
-        auth: CognitoAuthentication::Wallet{ is_app_signed: false, is_hardware_signed: true },
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_create_recovery_relationship_no_hw_signature: CreateRecoveryRelationshipTestVector {
-        customer_account_type: AccountType::Full,
-        auth: CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: false },
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_create_recovery_relationship_lite_account: CreateRecoveryRelationshipTestVector {
-        customer_account_type: AccountType::Lite,
-        auth: CognitoAuthentication::Recovery,
-        expected_status_code: StatusCode::UNAUTHORIZED,
-    },
 }
 
 #[tokio::test]
@@ -306,18 +302,55 @@ async fn test_reissue_recovery_relationship_invitation() {
     );
 }
 
-#[derive(Debug)]
-struct AcceptRecoveryRelationshipInvitationTestVector {
-    tc_account_type: AccountType,
-    customer_is_tc: bool,
-    tc_auth: CognitoAuthentication,
-    code_override: CodeOverride,
-    override_expires_at: Option<OffsetDateTime>,
-    expected_status_code: StatusCode,
-}
-
-async fn accept_recovery_relationship_invitation_test(
-    vector: AcceptRecoveryRelationshipInvitationTestVector,
+#[rstest]
+#[case::customer_type_forbidden(
+    AccountType::Full,
+    false,
+    CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: false },
+    CodeOverride::None,
+    None,
+    StatusCode::FORBIDDEN,
+)]
+#[case::tc_type_success(
+    AccountType::Lite,
+    false,
+    CognitoAuthentication::Recovery,
+    CodeOverride::None,
+    None,
+    StatusCode::OK
+)]
+#[case::bad_code(
+    AccountType::Lite,
+    false,
+    CognitoAuthentication::Recovery,
+    CodeOverride::Mismatch,
+    None,
+    StatusCode::BAD_REQUEST
+)]
+#[case::expired(
+    AccountType::Lite,
+    false,
+    CognitoAuthentication::Recovery,
+    CodeOverride::None,
+    Some(OffsetDateTime::now_utc()),
+    StatusCode::CONFLICT
+)]
+#[case::customer_is_tc(
+    AccountType::Full,
+    true,
+    CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: true },
+    CodeOverride::None,
+    None,
+    StatusCode::FORBIDDEN,
+)]
+#[tokio::test]
+async fn test_accept_recovery_relationship_invitation(
+    #[case] tc_account_type: AccountType,
+    #[case] customer_is_tc: bool,
+    #[case] tc_auth: CognitoAuthentication,
+    #[case] code_override: CodeOverride,
+    #[case] override_expires_at: Option<OffsetDateTime>,
+    #[case] expected_status_code: StatusCode,
 ) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
@@ -330,8 +363,8 @@ async fn accept_recovery_relationship_invitation_test(
     )
     .await;
 
-    let tc_account = if !vector.customer_is_tc {
-        match vector.tc_account_type {
+    let tc_account = if !customer_is_tc {
+        match tc_account_type {
             AccountType::Full => Account::Full(
                 create_full_account(
                     &mut context,
@@ -364,7 +397,7 @@ async fn accept_recovery_relationship_invitation_test(
     .await
     .unwrap();
 
-    if let Some(override_expiration) = vector.override_expires_at {
+    if let Some(override_expiration) = override_expires_at {
         update_recovery_relationship_invitation_expiration(
             &bootstrap.services,
             &create_body
@@ -382,67 +415,25 @@ async fn accept_recovery_relationship_invitation_test(
         &customer_account.id,
         tc_account.get_id(),
         &TrustedContactRole::SocialRecoveryContact,
-        &vector.tc_auth,
+        &tc_auth,
         &create_body.invitation,
-        vector.code_override,
-        vector.expected_status_code,
+        code_override,
+        expected_status_code,
         1,
     )
     .await;
 }
 
-tests! {
-    runner = accept_recovery_relationship_invitation_test,
-    test_accept_recovery_relationship_invitation_by_customer_type: AcceptRecoveryRelationshipInvitationTestVector {
-        tc_account_type: AccountType::Full,
-        customer_is_tc: false,
-        tc_auth: CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: false },
-        code_override: CodeOverride::None,
-        override_expires_at: None,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_accept_recovery_relationship_invitation_by_tc_type: AcceptRecoveryRelationshipInvitationTestVector {
-        tc_account_type: AccountType::Lite,
-        customer_is_tc: false,
-        tc_auth: CognitoAuthentication::Recovery,
-        code_override: CodeOverride::None,
-        override_expires_at: None,
-        expected_status_code: StatusCode::OK,
-    },
-    test_accept_recovery_relationship_invitation_bad_code: AcceptRecoveryRelationshipInvitationTestVector {
-        tc_account_type: AccountType::Lite,
-        customer_is_tc: false,
-        tc_auth: CognitoAuthentication::Recovery,
-        code_override: CodeOverride::Mismatch,
-        override_expires_at: None,
-        expected_status_code: StatusCode::BAD_REQUEST,
-    },
-    test_accept_recovery_relationship_invitation_expired: AcceptRecoveryRelationshipInvitationTestVector {
-        tc_account_type: AccountType::Lite,
-        customer_is_tc: false,
-        tc_auth: CognitoAuthentication::Recovery,
-        code_override: CodeOverride::None,
-        override_expires_at: Some(OffsetDateTime::now_utc()),
-        expected_status_code: StatusCode::CONFLICT,
-    },
-    test_accept_recovery_relationship_invitation_customer_is_tc: AcceptRecoveryRelationshipInvitationTestVector {
-        tc_account_type: AccountType::Full,
-        customer_is_tc: true,
-        tc_auth: CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: true },
-        code_override: CodeOverride::None,
-        override_expires_at: None,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-}
-
-#[derive(Debug)]
-struct EndorseRecoveryRelationshipTestVector {
-    accept_recovery_relationship: bool,
-    redo_endorsed_relationship: bool,
-    expected_status_code: StatusCode,
-}
-
-async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipTestVector) {
+#[rstest]
+#[case::success(true, false, StatusCode::OK)]
+#[case::redo_endorsement(true, true, StatusCode::OK)]
+#[case::invitation_not_accepted(false, false, StatusCode::BAD_REQUEST)]
+#[tokio::test]
+async fn test_endorse_recovery_relationship(
+    #[case] accept_recovery_relationship: bool,
+    #[case] redo_endorsed_relationship: bool,
+    #[case] expected_status_code: StatusCode,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -471,7 +462,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
     .await
     .unwrap();
 
-    if vector.accept_recovery_relationship {
+    if accept_recovery_relationship {
         try_accept_recovery_relationship_invitation(
             &context,
             &client,
@@ -481,7 +472,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
             &CognitoAuthentication::Recovery,
             &create_body.invitation,
             CodeOverride::None,
-            vector.expected_status_code,
+            expected_status_code,
             1,
         )
         .await;
@@ -497,7 +488,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
             .recovery_relationship_info
             .recovery_relationship_id,
         "RANDOM_CERT",
-        vector.expected_status_code,
+        expected_status_code,
     )
     .await;
     let get_response = client
@@ -515,7 +506,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
         assert_eq!(tc.delegated_decryption_pubkey_certificate, "RANDOM_CERT");
     });
 
-    if vector.redo_endorsed_relationship {
+    if redo_endorsed_relationship {
         try_endorse_recovery_relationship(
             &context,
             &client,
@@ -526,7 +517,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
                 .recovery_relationship_info
                 .recovery_relationship_id,
             "RANDOM_CERT_2",
-            vector.expected_status_code,
+            expected_status_code,
         )
         .await;
         let get_response = client
@@ -547,25 +538,6 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
     }
 }
 
-tests! {
-    runner = endorse_recovery_relationship_test,
-    test_endorse_recovery_relationship: EndorseRecoveryRelationshipTestVector {
-        accept_recovery_relationship: true,
-        redo_endorsed_relationship: false,
-        expected_status_code: StatusCode::OK,
-    },
-    test_redo_endorsement_recovery_relationship: EndorseRecoveryRelationshipTestVector {
-        accept_recovery_relationship: true,
-        redo_endorsed_relationship: true,
-        expected_status_code: StatusCode::OK,
-    },
-    test_endorse_recovery_relationship_invitation: EndorseRecoveryRelationshipTestVector {
-        accept_recovery_relationship: false,
-        redo_endorsed_relationship: false,
-        expected_status_code: StatusCode::BAD_REQUEST,
-    },
-}
-
 #[derive(Debug, PartialEq)]
 enum RelationshipRole {
     Customer,
@@ -573,18 +545,134 @@ enum RelationshipRole {
     Unrelated,
 }
 
-#[derive(Debug)]
-struct DeleteRecoveryRelationshipTestVector {
-    tc_account_type: AccountType,
-    deleter: RelationshipRole,
-    accepted: bool,
-    endorsed: bool,
-    deleter_auth: CognitoAuthentication,
-    trusted_contact_role: TrustedContactRole,
-    expected_status_code: StatusCode,
-}
-
-async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTestVector) {
+#[rstest]
+#[case::customer_delete_invitation(
+    AccountType::Lite,
+    RelationshipRole::Customer,
+    false,
+    false,
+    CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::OK,
+)]
+#[case::unrelated_delete_forbidden(
+    AccountType::Lite,
+    RelationshipRole::Unrelated,
+    false,
+    false,
+    CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::FORBIDDEN,
+)]
+#[case::customer_delete_accepted(
+    AccountType::Lite,
+    RelationshipRole::Customer,
+    true,
+    false,
+    CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::OK,
+)]
+#[case::customer_delete_endorsed(
+    AccountType::Lite,
+    RelationshipRole::Customer,
+    true,
+    true,
+    CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::OK,
+)]
+#[case::tc_delete_full_account_forbidden(
+    AccountType::Full,
+    RelationshipRole::TrustedContact,
+    true,
+    false,
+    CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::FORBIDDEN,
+)]
+#[case::tc_delete_endorsed_full_forbidden(
+    AccountType::Full,
+    RelationshipRole::TrustedContact,
+    true,
+    true,
+    CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::FORBIDDEN,
+)]
+#[case::tc_delete_lite_account(
+    AccountType::Lite,
+    RelationshipRole::TrustedContact,
+    true,
+    false,
+    CognitoAuthentication::Recovery,
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::OK
+)]
+#[case::tc_delete_endorsed_lite(
+    AccountType::Lite,
+    RelationshipRole::TrustedContact,
+    true,
+    true,
+    CognitoAuthentication::Recovery,
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::OK
+)]
+#[case::unrelated_delete_accepted_forbidden(
+    AccountType::Full,
+    RelationshipRole::Unrelated,
+    true,
+    false,
+    CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::FORBIDDEN,
+)]
+#[case::unrelated_delete_endorsed_forbidden(
+    AccountType::Full,
+    RelationshipRole::Unrelated,
+    true,
+    true,
+    CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::FORBIDDEN,
+)]
+#[case::no_keyproof(
+    AccountType::Lite,
+    RelationshipRole::Customer,
+    false,
+    false,
+    CognitoAuthentication::Wallet { is_app_signed: false, is_hardware_signed: false },
+    TrustedContactRole::SocialRecoveryContact,
+    StatusCode::OK,
+)]
+#[case::customer_delete_beneficiary(
+    AccountType::Full,
+    RelationshipRole::Customer,
+    true,
+    true,
+    CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
+    TrustedContactRole::Beneficiary,
+    StatusCode::OK,
+)]
+#[case::tc_delete_beneficiary(
+    AccountType::Full,
+    RelationshipRole::TrustedContact,
+    true,
+    true,
+    CognitoAuthentication::Recovery,
+    TrustedContactRole::Beneficiary,
+    StatusCode::OK
+)]
+#[tokio::test]
+async fn test_delete_recovery_relationship(
+    #[case] tc_account_type: AccountType,
+    #[case] deleter: RelationshipRole,
+    #[case] accepted: bool,
+    #[case] endorsed: bool,
+    #[case] deleter_auth: CognitoAuthentication,
+    #[case] trusted_contact_role: TrustedContactRole,
+    #[case] expected_status_code: StatusCode,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
 
@@ -598,7 +686,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
     let customer_keys = context
         .get_authentication_keys_for_account_id(&customer_account.id)
         .expect("Invalid keys for account");
-    let tc_account = match vector.tc_account_type {
+    let tc_account = match tc_account_type {
         AccountType::Full => Account::Full(
             create_full_account(
                 &mut context,
@@ -632,7 +720,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
         .get_authentication_keys_for_account_id(&unrelated_account.id)
         .expect("Invalid keys for account");
 
-    let create_body = if vector.trusted_contact_role == TrustedContactRole::SocialRecoveryContact {
+    let create_body = if trusted_contact_role == TrustedContactRole::SocialRecoveryContact {
         try_create_recovery_relationship(
             &context,
             &client,
@@ -652,7 +740,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
             &context,
             &client,
             &customer_account.id,
-            &vector.trusted_contact_role,
+            &trusted_contact_role,
             &CognitoAuthentication::Wallet {
                 is_app_signed: true,
                 is_hardware_signed: true,
@@ -665,13 +753,13 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
         .unwrap()
     };
 
-    if vector.accepted {
+    if accepted {
         try_accept_recovery_relationship_invitation(
             &context,
             &client,
             &customer_account.id,
             tc_account.get_id(),
-            &vector.trusted_contact_role,
+            &trusted_contact_role,
             &CognitoAuthentication::Recovery,
             &create_body.invitation,
             CodeOverride::None,
@@ -681,12 +769,12 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
         .await;
     }
 
-    if vector.endorsed {
+    if endorsed {
         try_endorse_recovery_relationship(
             &context,
             &client,
             &customer_account.id,
-            &vector.trusted_contact_role,
+            &trusted_contact_role,
             &create_body
                 .invitation
                 .recovery_relationship_info
@@ -697,7 +785,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
         .await;
     }
 
-    let (deleter_account_id, keys) = match vector.deleter {
+    let (deleter_account_id, keys) = match deleter {
         RelationshipRole::Customer => (&customer_account.id, &customer_keys),
         RelationshipRole::TrustedContact => (tc_account.get_id(), &tc_account_keys),
         RelationshipRole::Unrelated => (&unrelated_account.id, &unrelated_account_keys),
@@ -711,18 +799,18 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
                 .recovery_relationship_info
                 .recovery_relationship_id
                 .to_string(),
-            &vector.deleter_auth,
+            &deleter_auth,
             keys,
         )
         .await;
 
     assert_eq!(
-        delete_response.status_code, vector.expected_status_code,
+        delete_response.status_code, expected_status_code,
         "{:?}",
         delete_response.body_string
     );
 
-    if vector.expected_status_code == StatusCode::OK {
+    if expected_status_code == StatusCode::OK {
         assert_relationship_counts(
             &client,
             &customer_account.id,
@@ -730,7 +818,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
             0,
             0,
             0,
-            &vector.trusted_contact_role,
+            &trusted_contact_role,
         )
         .await;
         assert_relationship_counts(
@@ -740,11 +828,11 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
             0,
             0,
             0,
-            &vector.trusted_contact_role,
+            &trusted_contact_role,
         )
         .await;
 
-        let expected_customer_notifications = if vector.accepted || vector.endorsed {
+        let expected_customer_notifications = if accepted || endorsed {
             vec![
                 NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
                 NotificationPayloadType::RecoveryRelationshipDeleted,
@@ -752,12 +840,12 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
         } else {
             vec![]
         };
-        if vector.trusted_contact_role == TrustedContactRole::SocialRecoveryContact {
+        if trusted_contact_role == TrustedContactRole::SocialRecoveryContact {
             assert_notifications(
                 &bootstrap,
                 &customer_account.id,
                 expected_customer_notifications,
-                if vector.accepted {
+                if accepted {
                     vec![NotificationPayloadType::RecoveryRelationshipInvitationAccepted]
                 } else {
                     vec![]
@@ -766,7 +854,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
             .await;
             assert_notifications(&bootstrap, tc_account.get_id(), vec![], vec![]).await;
         } else {
-            let expected_tc_notifications = if vector.accepted || vector.endorsed {
+            let expected_tc_notifications = if accepted || endorsed {
                 vec![
                     NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
                     NotificationPayloadType::RecoveryRelationshipDeleted,
@@ -793,127 +881,6 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
             .await;
         }
     }
-}
-
-tests! {
-    runner = delete_recovery_relationship_test,
-    test_delete_recovery_relationship_invitation: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Lite,
-        deleter: RelationshipRole::Customer,
-        accepted: false,
-        endorsed: false,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::OK,
-    },
-    test_delete_recovery_relationship_invitation_unrelated_deleter: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Lite,
-        deleter: RelationshipRole::Unrelated,
-        accepted: false,
-        endorsed: false,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_delete_recovery_relationship_invitation_accepted_customer_deleter: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Lite,
-        deleter: RelationshipRole::Customer,
-        accepted: true,
-        endorsed: false,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::OK,
-    },
-    test_delete_recovery_relationship_invitation_accepted_and_endorsed_customer_deleter: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Lite,
-        deleter: RelationshipRole::Customer,
-        accepted: true,
-        endorsed: true,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::OK,
-    },
-    test_delete_recovery_relationship_invitation_accepted_tc_deleter_customer_type: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Full,
-        deleter: RelationshipRole::TrustedContact,
-        accepted: true,
-        endorsed: false,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_delete_recovery_relationship_invitation_accepted_and_endorsed_tc_deleter_customer_type: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Full,
-        deleter: RelationshipRole::TrustedContact,
-        accepted: true,
-        endorsed: true,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_delete_recovery_relationship_invitation_accepted_tc_deleter_tc_type: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Lite,
-        deleter: RelationshipRole::TrustedContact,
-        accepted: true,
-        endorsed: false,
-        deleter_auth: CognitoAuthentication::Recovery,
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::OK,
-    },
-    test_delete_recovery_relationship_invitation_accepted_and_endorsed_tc_deleter_tc_type: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Lite,
-        deleter: RelationshipRole::TrustedContact,
-        accepted: true,
-        endorsed: true,
-        deleter_auth: CognitoAuthentication::Recovery,
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::OK,
-    },
-    test_delete_recovery_relationship_invitation_accepted_unrelated_deleter: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Full,
-        deleter: RelationshipRole::Unrelated,
-        accepted: true,
-        endorsed: false,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_delete_recovery_relationship_invitation_accepted_and_endorsed_unrelated_deleter: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Full,
-        deleter: RelationshipRole::Unrelated,
-        accepted: true,
-        endorsed: true,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_delete_recovery_relationship_no_keyproof: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Lite,
-        deleter: RelationshipRole::Customer,
-        accepted: false,
-        endorsed: false,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: false, is_hardware_signed: false },
-        trusted_contact_role: TrustedContactRole::SocialRecoveryContact,
-        expected_status_code: StatusCode::OK,
-    },
-    test_delete_recovery_relationship_invitation_accepted_and_endorsed_protected_customer_deleter: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Full,
-        deleter: RelationshipRole::Customer,
-        accepted: true,
-        endorsed: true,
-        deleter_auth: CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
-        trusted_contact_role: TrustedContactRole::Beneficiary,
-        expected_status_code: StatusCode::OK,
-    },
-    test_delete_recovery_relationship_invitation_accepted_and_endorsed_tc_account_deleter: DeleteRecoveryRelationshipTestVector {
-        tc_account_type: AccountType::Full,
-        deleter: RelationshipRole::TrustedContact,
-        accepted: true,
-        endorsed: true,
-        deleter_auth: CognitoAuthentication::Recovery,
-        trusted_contact_role: TrustedContactRole::Beneficiary,
-        expected_status_code: StatusCode::OK,
-    },
 }
 
 #[tokio::test]

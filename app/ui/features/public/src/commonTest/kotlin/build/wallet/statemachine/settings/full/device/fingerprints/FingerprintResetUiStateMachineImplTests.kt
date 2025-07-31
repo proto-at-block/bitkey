@@ -9,6 +9,7 @@ import bitkey.f8e.privilegedactions.PrivilegedActionType
 import bitkey.metrics.MetricTrackerServiceFake
 import bitkey.privilegedactions.FingerprintResetF8eClientFake
 import bitkey.privilegedactions.FingerprintResetServiceImpl
+import bitkey.privilegedactions.GrantDaoFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.bitkey.f8e.AccountId
@@ -24,6 +25,7 @@ import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
+import build.wallet.grants.GrantTestHelpers
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
@@ -52,13 +54,13 @@ import build.wallet.time.ClockFake
 import build.wallet.time.DurationFormatterFake
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.util.encodeBase64
-import io.ktor.utils.io.core.toByteArray
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.toByteString
 import kotlin.time.Duration.Companion.days
@@ -79,11 +81,13 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
   val signatureUtils = SignatureUtilsMock()
   val nfcCommandsMock = NfcCommandsMock(turbines::create)
   val metricTrackerService = MetricTrackerServiceFake()
+  val grantDaoFake = GrantDaoFake()
   val fingerprintResetService = FingerprintResetServiceImpl(
     privilegedActionF8eClient = fingerprintResetF8eClientFake,
     accountService = accountServiceFake,
     signatureUtils = signatureUtils,
-    clock = clock
+    clock = clock,
+    grantDao = grantDaoFake
   )
 
   val enrollingFingerprintUiStateMachine =
@@ -123,8 +127,8 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     clock.reset()
     metricTrackerService.reset()
     accountServiceFake.setActiveAccount(FullAccountMock)
-
-    // Set up firmware feature flags to enable fingerprint reset
+    grantDaoFake.reset()
+    fingerprintResetService.deleteFingerprintResetGrant()
     nfcCommandsMock.setFirmwareFeatureFlags(
       listOf(
         FirmwareFeatureFlagCfg(
@@ -218,8 +222,8 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
         val mockGrantRequest = GrantRequest(
           version = 1.toByte(),
-          deviceId = "mockDevice".toByteArray(),
-          challenge = "mockChallenge".toByteArray(),
+          deviceId = ByteArray(8) { 0x01 },
+          challenge = ByteArray(16) { 0x02 },
           action = GrantAction.FINGERPRINT_RESET,
           signature = "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498".decodeHex()
             .toByteArray()
@@ -278,6 +282,26 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
         accessory.model.onClick?.invoke()
       }
 
+      onCancelCalls.awaitItem()
+    }
+  }
+
+  test("closing D+N progress screen calls onCancel") {
+    val pendingActionInstance = createPendingActionInstance(clock = clock)
+
+    fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult =
+      Ok(listOf(pendingActionInstance))
+
+    stateMachine.test(props) {
+      awaitInitialLoadingAndApiCall(fingerprintResetF8eClientFake, expectedEnv, expectedAccountId)
+
+      awaitBody<AppDelayNotifyInProgressBodyModel> {
+        onExit.shouldNotBeNull().invoke()
+      }
+
+      // Should not cancel the fingerprint reset action
+      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
+      fingerprintResetF8eClientFake.cancelFingerprintResetCalls.expectNoEvents()
       onCancelCalls.awaitItem()
     }
   }
@@ -438,13 +462,7 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
     fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult =
       Ok(listOf(pendingActionInstance))
-    fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(
-      FingerprintResetResponse(
-        version = 1,
-        serializedRequest = "test".toByteArray().encodeBase64(),
-        signature = "test".toByteArray().toByteString().hex()
-      )
-    )
+    fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(createFingerprintResetResponse())
 
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
@@ -510,13 +528,7 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
     fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult =
       Ok(listOf(pendingActionInstance))
-    fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(
-      FingerprintResetResponse(
-        version = 1,
-        serializedRequest = "test".toByteArray().encodeBase64(),
-        signature = "test".toByteArray().toByteString().hex()
-      )
-    )
+    fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(createFingerprintResetResponse())
 
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
@@ -593,6 +605,38 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
       fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
     }
   }
+
+  test("cancelling with persisted grant calls onCancel") {
+    // Create a grant and persist it to simulate having retrieved it from the server
+    val mockGrant = build.wallet.grants.Grant(
+      version = 1,
+      serializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.FINGERPRINT_RESET),
+      signature = ByteArray(64) { it.toByte() }
+    )
+
+    grantDaoFake.saveGrant(mockGrant)
+
+    // Start fresh with no server-side action
+    fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult = Ok(emptyList())
+
+    stateMachine.test(props) {
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
+      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
+
+      // Should recognize persisted grant and go to finish screen
+      awaitBody<FinishFingerprintResetBodyModel> {
+        header.shouldNotBeNull()
+          .headline.shouldBe("Finish fingerprint reset")
+
+        onCancelReset()
+      }
+
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
+
+      // Should call onCancel
+      onCancelCalls.awaitItem()
+    }
+  }
 })
 
 private fun createPendingActionInstance(
@@ -614,12 +658,15 @@ private fun createPendingActionInstance(
   )
 )
 
-private fun createFingerprintResetResponse() =
-  FingerprintResetResponse(
+private fun createFingerprintResetResponse(): FingerprintResetResponse {
+  val mockSerializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.FINGERPRINT_RESET)
+
+  return FingerprintResetResponse(
     version = 1,
-    serializedRequest = "test".toByteArray().encodeBase64(),
-    signature = "test".toByteArray().toByteString().hex()
+    serializedRequest = mockSerializedRequest.encodeBase64(),
+    signature = ByteArray(64) { 0x04 }.toByteString().hex()
   )
+}
 
 private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.awaitInitialLoadingAndApiCall(
   fingerprintResetF8eClientFake: FingerprintResetF8eClientFake,
@@ -630,15 +677,6 @@ private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.await
   fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
     .shouldBe(Pair(expectedEnv, expectedAccountId))
   fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
-}
-
-private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.progressThroughConfirmationToNfc() {
-  awaitBody<FingerprintResetConfirmationBodyModel> {
-    primaryButton.shouldNotBeNull().onClick()
-  }
-  awaitSheet<FingerprintResetConfirmationSheetModel> {
-    primaryButton.shouldNotBeNull().onClick()
-  }
 }
 
 private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.progressThroughFinishFlowToGrantLoading(
@@ -656,16 +694,6 @@ private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.progr
   fingerprintResetF8eClientFake.continuePrivilegedActionCalls.awaitItem()
 }
 
-private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.handleNfcError(
-  nfcSessionUiStateMachine: ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>,
-  errorType: FingerprintResetNfcResult = FingerprintResetNfcResult.ProvideGrantFailed,
-) {
-  awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
-    eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
-    onSuccess(errorType)
-  }
-}
-
 private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.handleNfcCancellation(
   nfcSessionUiStateMachine: ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>,
 ) {
@@ -673,16 +701,6 @@ private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.handl
     eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
     onCancel()
   }
-}
-
-private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.verifyErrorScreenAndRetry() {
-  val errorScreen = awaitItem()
-  val errorBody = errorScreen.body.shouldBeInstanceOf<FormBodyModel>()
-  errorBody.header.shouldNotBeNull().apply {
-    headline.shouldBe("NFC Error")
-    sublineModel.shouldNotBeNull().string.shouldBe("There was an issue communicating with your hardware. Please try again.")
-  }
-  errorBody.primaryButton.shouldNotBeNull().onClick()
 }
 
 private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.verifyErrorScreenAndCancel() {

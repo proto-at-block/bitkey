@@ -153,6 +153,7 @@ kotlin {
         }
         implementation(projects.domain.walletFake)
         implementation(projects.domain.securityCenterFake)
+        implementation(projects.libs.grantsFake)
       }
     }
 

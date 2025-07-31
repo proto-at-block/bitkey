@@ -65,10 +65,7 @@ class EnrollingFingerprintUiStateMachineImpl(
           onErrorOverlayClosed = {
             uiState = state.copy(showingIncompleteEnrollmentError = false)
           },
-          onBack = when (props.context) {
-            EnrollmentContext.FingerprintReset -> null
-            else -> props.onCancel
-          },
+          onBack = props.onCancel,
           eventTrackerContext = NfcEventTrackerScreenIdContext.ENROLLING_NEW_FINGERPRINT,
           isNavigatingBack = state.isNavigatingBack,
           presentationStyle = ScreenPresentationStyle.RootFullScreen,

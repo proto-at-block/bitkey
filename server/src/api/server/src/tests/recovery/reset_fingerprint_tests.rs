@@ -1,11 +1,14 @@
+use account::service::tests::{TestAuthenticationKeys, TestKeypair};
 use bdk_utils::bdk::bitcoin::secp256k1::ecdsa::Signature;
-use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
+use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, SecretKey};
 use http::StatusCode;
+use rand::rngs::OsRng;
 use recovery::routes::reset_fingerprint::ResetFingerprintRequest;
 use rstest::rstest;
 use serde_json::Value;
 use std::str::FromStr;
 use time::{Duration, OffsetDateTime};
+use types::account::keys::FullAccountAuthKeys;
 use types::account::AccountType;
 use types::privileged_action::{
     repository::{
@@ -19,8 +22,11 @@ use types::privileged_action::{
     shared::{PrivilegedActionInstanceId, PrivilegedActionType},
 };
 
-use crate::tests::lib::create_account;
-use crate::tests::{gen_services, lib::create_test_account, requests::axum::TestClient};
+use crate::tests::lib::{create_account, create_full_account, create_pubkey};
+use crate::tests::{gen_services, requests::axum::TestClient};
+
+const EXPECTED_HW_AUTH_PUBLIC_KEY: &str =
+    "03260c677bf1106ae4ca6baeadd9b1f45d9a50801c33674f3509ff3badadddeb6d";
 
 #[rstest]
 #[case::with_existing_instance(true, StatusCode::CONFLICT)]
@@ -33,20 +39,50 @@ async fn test_initiate_reset_fingerprint(
     // arrange
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_test_account(&mut context, &bootstrap.services, AccountType::Full).await;
+
+    let (app_pubkey, hardware_pubkey, recovery_pubkey) = (
+        create_pubkey(),
+        PublicKey::from_str(EXPECTED_HW_AUTH_PUBLIC_KEY).unwrap(),
+        create_pubkey(),
+    );
+    context.add_authentication_keys(TestAuthenticationKeys {
+        app: TestKeypair {
+            public_key: app_pubkey,
+            secret_key: SecretKey::new(&mut OsRng),
+        },
+        hw: TestKeypair {
+            public_key: hardware_pubkey,
+            secret_key: SecretKey::new(&mut OsRng),
+        },
+        recovery: TestKeypair {
+            public_key: recovery_pubkey,
+            secret_key: SecretKey::new(&mut OsRng),
+        },
+    });
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        types::account::bitcoin::Network::BitcoinSignet,
+        Some(FullAccountAuthKeys {
+            app_pubkey,
+            hardware_pubkey,
+            recovery_pubkey: Some(recovery_pubkey),
+        }),
+    )
+    .await;
 
     let request = PrivilegedActionRequest::Initiate(get_pregenerated_request());
 
     if has_existing_instance {
         let reset_fingerprint_response = client
-            .reset_fingerprint(&account.get_id().to_string(), &request)
+            .reset_fingerprint(&account.id.to_string(), &request)
             .await;
         assert_eq!(reset_fingerprint_response.status_code, StatusCode::OK);
     }
 
     // act
     let reset_fingerprint_response = client
-        .reset_fingerprint(&account.get_id().to_string(), &request)
+        .reset_fingerprint(&account.id.to_string(), &request)
         .await;
 
     // assert
@@ -54,6 +90,26 @@ async fn test_initiate_reset_fingerprint(
         reset_fingerprint_response.status_code, expected_status,
         "{}",
         reset_fingerprint_response.body_string
+    );
+}
+
+#[tokio::test]
+async fn test_initiate_with_invalid_signature() {
+    // arrange
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = create_account(&mut context, &bootstrap.services, AccountType::Full, true).await;
+
+    // act
+    let request = PrivilegedActionRequest::Initiate(get_pregenerated_request());
+    let reset_fingerprint_response = client
+        .reset_fingerprint(&account.get_id().to_string(), &request)
+        .await;
+
+    // assert
+    assert_eq!(
+        reset_fingerprint_response.status_code,
+        StatusCode::UNAUTHORIZED
     );
 }
 
@@ -68,12 +124,41 @@ async fn test_complete_reset_fingerprint(
     // arrange
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_test_account(&mut context, &bootstrap.services, AccountType::Full).await;
+    let (app_pubkey, hardware_pubkey, recovery_pubkey) = (
+        create_pubkey(),
+        PublicKey::from_str(EXPECTED_HW_AUTH_PUBLIC_KEY).unwrap(),
+        create_pubkey(),
+    );
+    context.add_authentication_keys(TestAuthenticationKeys {
+        app: TestKeypair {
+            public_key: app_pubkey,
+            secret_key: SecretKey::new(&mut OsRng),
+        },
+        hw: TestKeypair {
+            public_key: hardware_pubkey,
+            secret_key: SecretKey::new(&mut OsRng),
+        },
+        recovery: TestKeypair {
+            public_key: recovery_pubkey,
+            secret_key: SecretKey::new(&mut OsRng),
+        },
+    });
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        types::account::bitcoin::Network::BitcoinSignet,
+        Some(FullAccountAuthKeys {
+            app_pubkey,
+            hardware_pubkey,
+            recovery_pubkey: Some(recovery_pubkey),
+        }),
+    )
+    .await;
 
     let privileged_action_instance_id = PrivilegedActionInstanceId::gen().unwrap();
     let instance = PrivilegedActionInstanceRecord {
         id: privileged_action_instance_id,
-        account_id: account.get_id().to_owned(),
+        account_id: account.id.to_owned(),
         privileged_action_type: PrivilegedActionType::ResetFingerprint,
         authorization_strategy: AuthorizationStrategyRecord::DelayAndNotify(DelayAndNotifyRecord {
             status: RecordStatus::Pending,
@@ -103,7 +188,7 @@ async fn test_complete_reset_fingerprint(
     // act
     let complete_reset_fingerprint_response = client
         .reset_fingerprint(
-            &account.get_id().to_string(),
+            &account.id.to_string(),
             &PrivilegedActionRequest::Continue(ContinuePrivilegedActionRequest {
                 privileged_action_instance: PrivilegedActionInstanceInput {
                     id: instance_id,
@@ -210,7 +295,6 @@ async fn test_update_delay_duration_for_test(
 // Pregenerated request with a signature that matches the hw_auth_public_key
 fn get_pregenerated_request() -> ResetFingerprintRequest {
     ResetFingerprintRequest {
-        hw_auth_public_key: PublicKey::from_str("03260c677bf1106ae4ca6baeadd9b1f45d9a50801c33674f3509ff3badadddeb6d").unwrap(),
         version: 1,
         action: 1,
         device_id: "test-device-12345".as_bytes().to_vec(),

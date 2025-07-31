@@ -71,6 +71,10 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/privileged-actions/:privileged_action_id/test",
                 put(update_delay_duration_for_test),
             )
+            .route(
+                "/api/accounts/:account_id/privileged-actions/:privileged_action_id/cancel",
+                post(cancel_pending_out_of_band_instance),
+            )
             .route_layer(FACTORY.route_layer(FACTORY_NAME.to_owned()))
             .with_state(self.to_owned())
     }
@@ -127,6 +131,7 @@ impl From<RouteState> for SwaggerEndpoint {
 #[openapi(
     paths(
         cancel_pending_delay_and_notify_instance_by_token,
+        cancel_pending_out_of_band_instance,
         configure_privileged_action_delay_durations,
         get_pending_instances,
         get_privileged_action_definitions,
@@ -152,7 +157,7 @@ impl From<RouteState> for SwaggerEndpoint {
             PrivilegedActionResponse<ConfigurePrivilegedActionDelayDurationsResponse>,
             GetPendingInstancesResponse,
             PrivilegedActionInstance,
-            CancelPendingDelayAndNotifyInstanceByTokenRequest,
+            CancelPendingInstanceResponse,
             UpdateDelayDurationForTestRequest,
             UpdateDelayDurationForTestResponse,
         ),
@@ -354,7 +359,7 @@ pub struct CancelPendingDelayAndNotifyInstanceByTokenRequest {
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct CancelPendingDelayAndNotifyInstanceByTokenResponse {}
+pub struct CancelPendingInstanceResponse {}
 
 #[instrument(err, skip(privileged_action_service))]
 #[utoipa::path(
@@ -369,7 +374,7 @@ pub struct CancelPendingDelayAndNotifyInstanceByTokenResponse {}
 pub async fn cancel_pending_delay_and_notify_instance_by_token(
     State(privileged_action_service): State<PrivilegedActionService>,
     Json(request): Json<CancelPendingDelayAndNotifyInstanceByTokenRequest>,
-) -> Result<Json<CancelPendingDelayAndNotifyInstanceByTokenResponse>, ApiError> {
+) -> Result<Json<CancelPendingInstanceResponse>, ApiError> {
     privileged_action_service
         .cancel_pending_delay_and_notify_instance_by_token(
             CancelPendingDelayAndNotifyInstanceByTokenInput {
@@ -378,7 +383,27 @@ pub async fn cancel_pending_delay_and_notify_instance_by_token(
         )
         .await?;
 
-    Ok(Json(CancelPendingDelayAndNotifyInstanceByTokenResponse {}))
+    Ok(Json(CancelPendingInstanceResponse {}))
+}
+
+#[instrument(err, skip(privileged_action_service))]
+#[utoipa::path(
+    post,
+    path = "/api/accounts/:account_id/privileged-actions/:privileged_action_id/cancel",
+    responses(
+        (status = 200, description = "Privileged action instance cancelled", body=CancelPendingInstanceResponse),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn cancel_pending_out_of_band_instance(
+    Path((account_id, instance_id)): Path<(AccountId, PrivilegedActionInstanceId)>,
+    key_proof: KeyClaims,
+    State(privileged_action_service): State<PrivilegedActionService>,
+) -> Result<Json<CancelPendingInstanceResponse>, ApiError> {
+    privileged_action_service
+        .cancel_pending_out_of_band_instance(&account_id, instance_id)
+        .await?;
+    Ok(Json(CancelPendingInstanceResponse {}))
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
@@ -417,14 +442,29 @@ pub async fn get_privileged_action_verification_interface(
         ));
     }
 
-    let html_template = get_template();
-    let verification_params = serde_json::json!({
+    let mut verification_params = serde_json::json!({
         "privilegedActionId": privileged_action.id,
         "privilegedActionType": privileged_action.privileged_action_type,
     });
+    match privileged_action.privileged_action_type {
+        PrivilegedActionType::LoosenTransactionVerificationPolicy => {
+            let tx_policy_verification_payload = serde_json::from_value::<
+                PutTransactionVerificationPolicyRequest,
+            >(privileged_action.request)
+            .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+            verification_params["txPolicyVerification"] =
+                serde_json::json!(tx_policy_verification_payload.policy);
+        }
+        _ => {
+            return Err(html_error(
+                StatusCode::BAD_REQUEST,
+                "Unsupported privileged action type",
+            ));
+        }
+    };
 
     let html = inject_json_into_template(
-        &html_template,
+        &get_template(),
         "privileged-action-params",
         verification_params,
     )
@@ -519,7 +559,10 @@ async fn confirm_transaction_verification_policy(
 
     // Apply the policy change
     account_service
-        .put_transaction_verification_policy(&privileged_action.account_id, policy_request.policy)
+        .put_transaction_verification_policy(
+            &privileged_action.account_id,
+            policy_request.policy.into(),
+        )
         .await?;
 
     Ok(())

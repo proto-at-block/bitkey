@@ -4,6 +4,7 @@ import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.relationships.syncAndVerifyRelationships
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -191,24 +192,15 @@ class RotateAuthKeyFunctionalTests : FunSpec({
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
-        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
-      }
-
-      // Retry
-      awaitUntilBody<FormBodyModel>(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCEPTABLE) {
-        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+      awaitUntilBody<FormBodyModel>(NfcEventTrackerScreenId.NFC_FAILURE) {
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
+      // After NFC failure, user returns to the decision screen
+      screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
-      }
-
-      // Dismiss
-      awaitUntilBody<FormBodyModel>(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCEPTABLE) {
-        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
-        this.secondaryButton.shouldNotBeNull().onClick.invoke()
+        // User decides not to rotate keys after seeing the hardware failure
+        this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitUntilBody<MoneyHomeBodyModel>()

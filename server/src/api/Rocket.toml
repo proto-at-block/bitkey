@@ -3,6 +3,7 @@ address = "0.0.0.0"
 dynamodb = { test = false }
 launchdarkly = "environment"
 use_local_wallet_id = false
+wik_pub_key = "03078451e0c1e12743d2fdd93ae7d03d5cf7813d2f612de10904e1c6a0b87f7071"
 override_current_time = false
 int_secure_site_base_url = "http://localhost:8080"
 ext_secure_site_base_url = "http://localhost:8080"
@@ -159,6 +160,7 @@ use_local_sns = false
 int_secure_site_base_url = "https://secure.bitkeystaging.com"
 ext_secure_site_base_url = "https://secure.bitkeystaging.world"
 wsm_endpoint = "https://wsm-main.dev.wallet.build"
+wik_pub_key = "03078451e0c1e12743d2fdd93ae7d03d5cf7813d2f612de10904e1c6a0b87f7071"
 wallet_telemetry = { mode = "datadog" }
 cognito = "environment"
 sqs = "environment"
@@ -234,6 +236,7 @@ use_local_sns = false
 int_secure_site_base_url = "https://secure.bitkeyproduction.com"
 ext_secure_site_base_url = "https://secure.bitkey.world"
 wsm_endpoint = "https://wsm-main.dev.wallet.build"
+wik_pub_key = "0295216a2e0b54b382cc3938e207298d21cb8c5f686f78b05d9f14b4e4669e560f"
 wallet_telemetry = { mode = "datadog" }
 cognito = "environment"
 sqs = "environment"

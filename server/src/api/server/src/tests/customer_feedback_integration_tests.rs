@@ -77,7 +77,7 @@ async fn assert_attachment_uploaded_in_repository(
     attachment_id: &EncryptedAttachmentId,
     account_id: &AccountId,
     public_key: &[u8],
-    expected_sealed_data: &[u8],
+    expected_sealed_data: &str,
 ) {
     let stored_attachment = bootstrap
         .services
@@ -94,7 +94,7 @@ async fn assert_attachment_uploaded_in_repository(
     );
     assert_eq!(
         stored_attachment.sealed_attachment,
-        Some(expected_sealed_data.to_vec())
+        Some(expected_sealed_data.to_string())
     );
 }
 
@@ -124,9 +124,9 @@ async fn test_upload_sealed_attachment_success() {
     let create_body = create_encrypted_attachment_helper(&client, &account.id).await;
 
     // Then upload sealed attachment
-    let sealed_data = vec![1, 2, 3, 4, 5]; // Mock encrypted data
+    let sealed_data = "Hello, world!"; // Mock encrypted data
     let upload_request = UploadSealedAttachmentRequest {
-        sealed_attachment: sealed_data.clone(),
+        sealed_attachment: sealed_data.to_string(),
     };
 
     let upload_response = client
@@ -145,7 +145,7 @@ async fn test_upload_sealed_attachment_success() {
         &create_body.encrypted_attachment_id,
         &account.id,
         &create_body.public_key,
-        &sealed_data,
+        sealed_data,
     )
     .await;
 }
@@ -156,9 +156,9 @@ async fn test_upload_sealed_attachment_not_found() {
 
     // Try to upload to non-existent encrypted attachment
     let fake_id = EncryptedAttachmentId::gen().unwrap();
-    let sealed_data = vec![1, 2, 3, 4, 5];
+    let sealed_data = "Hello, world!";
     let upload_request = UploadSealedAttachmentRequest {
-        sealed_attachment: sealed_data,
+        sealed_attachment: sealed_data.to_string(),
     };
 
     let upload_response = client
@@ -196,7 +196,7 @@ async fn test_encrypted_attachment_workflow() {
     assert!(stored_attachment_after_create.sealed_attachment.is_none());
 
     // Step 2: Upload sealed attachment
-    let sealed_data = vec![0u8; 1024]; // 1KB of test data
+    let sealed_data = vec!['A'; 1024].iter().cloned().collect::<String>(); // 1KB of test data
     let upload_request = UploadSealedAttachmentRequest {
         sealed_attachment: sealed_data.clone(),
     };

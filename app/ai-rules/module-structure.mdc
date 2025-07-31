@@ -1,0 +1,285 @@
+---
+description: Module creation, organization, and code placement guidelines for the Bitkey mobile app
+globs: ["**/*.kt", "**/build.gradle.kts", "settings.gradle.kts"]
+alwaysApply: false
+---
+
+# Module Creation and Organization
+
+## Summary
+
+Provides comprehensive guidelines for the Bitkey mobile app's modular architecture. Emphasizes extending existing modules over creating new ones, with clear rules for module types, dependencies, and code placement. The app follows interface-first development with strict separation between APIs and implementations to maintain clean architecture and build performance.
+
+## When to Apply
+
+- When deciding where to place new code or functionality
+- When considering creating new modules (rare - prefer extending existing modules)
+- When refactoring code that crosses module boundaries
+- When writing tests that need to mock or fake dependencies
+- When exploring the codebase to understand module organization
+
+## How to Apply
+
+### Step 1: Explore Existing Modules First
+
+**CRITICAL: Default to extending existing modules**
+
+1. **Consult the Module Index below** - Find appropriate existing modules for your functionality
+2. **Ask key questions:**
+   - Can this functionality fit into an existing module?
+   - Does this truly require a new architectural boundary?
+   - Have I checked similar existing functionality for patterns?
+3. **Only create new modules when there's a clear, justified architectural boundary**
+
+### Step 2: Understand Module Types
+
+The app uses three module types with strict separation:
+
+**`:public` modules:**
+- Define minimal, high-level API interfaces and protocols meant for external consumption
+- Can only depend on other `:public` modules
+- Any modules can depend on `:public` modules
+- Must not leak implementation details
+- **Only add interfaces here if they will be used by external modules**
+
+**`:impl` modules:**
+- Contain concrete implementations of APIs from sibling `:public` modules
+- Can only depend on `:public` modules (never other `:impl` modules)
+- Only top-level application modules can depend on `:impl` modules
+- Contains DI setup to bind implementations
+
+**`:fake` modules:**
+- Contain fake implementations and mocks for testing
+- Implement APIs from sibling `:public` modules
+- Only tests are allowed to depend on `:fake` modules
+
+### Step 3: Follow Directory Structure
+
+| Directory | Purpose | When to Use |
+|-----------|---------|-------------|
+| `domain/` | Domain-specific business services | Business logic, domain entities |
+| `libs/` | Domain-agnostic infrastructure | Utilities, shared infrastructure |
+| `ui/` | Presentation layer | UI features, screens, design system |
+| `android/` | Android-specific code | Platform-specific Android code |
+| `ios/` | iOS-specific code | Platform-specific iOS code |
+| `shared/` | **DEPRECATED - DO NOT ADD NEW** | Existing shared modules only |
+
+### Step 4: Respect Dependency Rules
+
+**Module Layer Dependencies:**
+```
+Android App (:android:app)
+    ↓ (can depend on any modules except :ios and :shared:xc-framework)
+    
+DI Graph (:shared:app-component)
+    ↓ (central dependency injection - can depend on all other modules)
+    
+UI Layer (:ui:*)
+    ↓ (can depend on :domain, :libs, external UI artifacts)
+    
+Domain Layer (:domain:*)
+    ↓ (can depend on other :domain, :libs, :rust UniFFI, external artifacts)
+    ↓ (discouraged: some legacy :shared modules)
+    
+Library Layer (:libs:*)
+    ↓ (low-level utilities - can depend on other :libs, external artifacts)
+    
+Rust/Native (:rust:*)
+    ↓ (UniFFI bindings for Rust core functionality)
+
+iOS App (:ios:app)
+    ↓ (uniquely depends on :shared:xc-framework)
+    
+XCFramework Assembly (:shared:xc-framework)
+    ↓ (depends on all KMP modules: DI graph, domain, libs, ui, artifacts)
+```
+
+**Module Type Dependencies:**
+1. **Only app modules and DI graph modules** can depend on `:impl` modules
+2. **`:impl` modules** can only depend on `:public` modules  
+3. **`:public` modules** can depend on other `:public` modules
+4. **Tests** can depend on `:fake` modules
+5. **No `:impl` to `:impl`** dependencies allowed
+
+**Legacy Module Notice:**
+`:shared` modules are **DEPRECATED** - Do not create new modules in `:shared`. The structure should eventually be broken down into `:ui`, `:domain`, and `:libs`. However, it's acceptable to add new code to existing `:shared` modules.
+
+### Step 5: Apply Code Placement Guidelines
+
+**Avoid creating new modules for:**
+- Single, small features
+- Modules with only 1-2 classes
+- Functionality that closely mirrors existing modules
+
+## Example
+
+```kotlin
+// ✅ GOOD: Extending existing module
+// In domain/security-center/public/src/.../SecurityCenterService.kt
+interface SecurityCenterService {
+  fun getSecurityStatus(): SecurityStatus
+  fun performSecurityAction(action: SecurityAction): Result<Unit> // New function
+}
+
+// In domain/security-center/impl/src/.../SecurityCenterServiceImpl.kt
+class SecurityCenterServiceImpl : SecurityCenterService {
+  override fun performSecurityAction(action: SecurityAction): Result<Unit> {
+    // Implementation
+  }
+}
+
+// ❌ BAD: Creating unnecessary new module
+// CONSEQUENCES: Module proliferation, increased build complexity, harder navigation, more dependency setup
+// domain/single-security-action/public/... (Don't do this)
+```
+
+```kotlin
+// ✅ GOOD: Proper dependency flow
+// domain/wallet/public - defines interfaces
+interface WalletService
+
+// domain/wallet/impl - implements interfaces, depends only on :public modules
+class WalletServiceImpl(
+  private val storage: StorageService // from libs/key-value-store/public
+) : WalletService
+
+// ❌ BAD: Improper module dependencies
+// CONSEQUENCES: Circular dependencies, build failures, unclear architecture, difficulty refactoring
+class BadWalletServiceImpl(
+  private val anotherImpl: PaymentServiceImpl // :impl depending on :impl - forbidden
+) : WalletService
+
+// ❌ BAD: :public module depending on :impl
+// CONSEQUENCES: Breaks module boundaries, exposes implementation details, circular dependency risk
+// In domain/wallet/public (this should never happen)
+interface BadWalletService {
+  fun getPaymentImpl(): PaymentServiceImpl // :public exposing :impl type
+}
+```
+
+## Module Index (Source of Truth)
+
+**CRITICAL: Use this index as your primary reference for existing modules and their purposes.**
+
+If you need to place new functionality, **first consult this list** to find appropriate existing modules. If a module appears outdated, missing, or unclear, verify its accuracy by checking `settings.gradle.kts` and exploring the codebase. If necessary, suggest updating this list to maintain accuracy.
+
+### **Core Application**
+- `:android:app` - Main Android application module
+- `:sample:android-app` - Sample/demo Android application  
+- `:sample:shared` - Shared sample code
+
+### **Platform Integration & UI Framework**
+- `:android:ui:app` - Android-specific UI application layer
+- `:android:ui:core` - Android core UI components
+- `:android:kotest-paparazzi` - Android testing framework integration (Kotest + Paparazzi)
+- `:ui:compose-app-controller` - Compose application controller for iOS integration
+- `:ui:features` - UI features and screens (UI state machines, presenters, modules, UI Composables)
+- `:ui:framework` - UI framework (Navigator and Presenter primitives, UI design system components)
+- `:ui:router` - Deeplinking routing/navigation
+- `:ui:snapshot-generator-api` - UI snapshot testing API
+
+### **Account & Authentication** 
+- `:domain:account` - User account management
+- `:domain:auth` - Authentication and authorization
+- `:domain:in-app-security` - Biometrics, PIN, in-app security features
+
+### **Wallet & Bitcoin Core**
+- `:domain:wallet` - Core wallet functionality
+- `:libs:bdk-bindings` - Bitcoin Development Kit (BDK) bindings
+- `:libs:bitcoin-primitives` - Bitcoin cryptographic primitives
+- `:domain:tx-verification` - Bitcoin transaction verification
+- `:libs:frost` - FROST threshold signature scheme implementation
+
+### **Hardware Integration**
+- `:domain:hardware` - Hardware wallet device integration
+- `:rust:core-ffi` - Rust UniFFI bindings for core functionality
+- `:rust:firmware-ffi` - Rust UniFFI bindings for firmware communication
+
+### **Financial & Payments**
+- `:libs:amount` - Amount handling and calculations
+- `:libs:money` - Money/currency handling and formatting
+- `:domain:mobile-pay` - Mobile payment features
+- `:shared:balance-utils` - Balance calculation utilities
+- `:shared:price-chart` - Bitcoin price charting functionality
+
+### **Security & Recovery**
+- `:domain:recovery` - Account/wallet recovery flows
+- `:domain:emergency-exit-kit` - Emergency recovery procedures (EEK)
+- `:domain:security-center` - Security management hub and settings
+- `:domain:privileged-actions` - High-security operations requiring extra verification
+- `:libs:secure-enclave` - Secure storage and hardware security module integration
+- `:libs:encryption` - Encryption utilities and cryptographic operations
+- `:libs:grants` - F8E permission protocol for hardware signing authorization
+
+### **Backup & Cloud Storage**
+- `:domain:cloud-backup` - Cloud backup functionality (iCloud/Google Drive)
+- `:libs:cloud-store` - Cloud storage abstractions and utilities
+
+### **Logging, Monitoring & Analytics**
+- `:libs:datadog` - Datadog integration (crash reporting, logging, tracing)
+- `:libs:bugsnag` - Bugsnag integration (crash reporting, error tracking)
+- `:libs:memfault` - Memfault integration (hardware device monitoring)
+- `:libs:logging` - Logging framework (Kermit-based)
+- `:domain:analytics` - Analytics event tracking
+- `:domain:metrics` - Performance and usage metrics
+
+### **User Experience & Onboarding**
+- `:domain:bootstrap` - App and wallet initialization
+- `:domain:onboarding` - User onboarding flows and setup
+- `:domain:coachmark` - UI tutorials, tips, and guided experiences
+- `:domain:home` - Home screen business logic
+
+### **Communication & Notifications**
+- `:domain:notifications` - Push notifications and in-app alerts
+- `:libs:contact-method` - Email/SMS communication handling
+- `:domain:support` - Customer support features and help
+
+### **Social & Relationships**
+- `:domain:relationships` - Trusted contacts and device relationships
+- `:domain:partnerships` - Third-party integrations and partnerships
+- `:domain:inheritance` - Digital inheritance and estate planning features
+
+### **Backend & Service Integration**
+- `:domain:f8e-client` - F8e API client endpoint implementations
+- `:domain:availability` - Service availability monitoring (F8E, Electrum, internet connectivity)
+- `:libs:ktor-client` - Ktor HTTP client utilities and abstractions
+
+### **Infrastructure & Utilities**
+- `:domain:feature-flag` - Feature toggles and A/B testing
+- `:domain:worker` - Background task processing
+- `:domain:data-state-machine` - Data state machines (deprecated pattern)
+- `:domain:database` - SQLDelight database schemas and Bitkey app table definitions
+- `:domain:debug` - Debug utilities and developer tools
+
+### **Development & Testing Infrastructure**
+- `:libs:platform` - Platform-specific abstractions (Android/iOS)
+- `:libs:stdlib` - Standard library extensions
+- `:libs:testing` - Testing utilities and shared test infrastructure
+- `:libs:time` - Time/date utilities and abstractions
+- `:libs:di-scopes` - Dependency injection scopes
+- `:libs:compose-runtime` - Compose runtime utilities
+- `:libs:state-machine` - State machine framework
+- `:libs:queue-processor` - Background queue processing
+- `:libs:key-value-store` - Key-value storage (Kotlin Multiplatform Settings)
+- `:libs:sqldelight` - SQLDelight database utilities
+- `:libs:google-sign-in` - Google authentication integration
+- `:libs:dev:treasury` - Testnet/Signet treasury wallet utilities for integration tests
+
+### **Build & Development Tools**
+- `:gradle:di-codegen` - Dependency injection code generation (Kotlin Inject + Anvil)
+- `:gradle:ksp-util` - Kotlin Symbol Processing utilities
+- `:gradle:snapshot-generator` - UI snapshot generation for testing
+- `:gradle:test-code-eliminator` - Test code optimization and elimination
+
+### **Legacy/Shared KMP**
+- `:shared:app-component` - Legacy app component (transitional)
+- `:shared:integration-testing` - Integration testing utilities
+- `:shared:xc-framework` - XCFramework assembly for iOS KMP dependencies
+
+### Module Index Maintenance
+
+- **When modules seem outdated or missing**: Ask clarifying questions about module purpose or suggest updating this index
+- **For ultimate verification**: Check `settings.gradle.kts` as the definitive source of truth
+- **When in doubt**: Explore the actual codebase to understand module structure and purpose
+- **Keep this index current**: Update descriptions when module purposes evolve
+

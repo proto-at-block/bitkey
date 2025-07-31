@@ -85,7 +85,7 @@ test-wsm: sidecars
 
 # Run specific tests
 test-some path: sidecars
-  CARGO_LOG=debug {{cargo}} nextest run --all-features "{{path}}" --no-fail-fast
+  RUST_MIN_STACK=4194304 CARGO_LOG=debug {{cargo}} nextest run --all-features "{{path}}" --no-fail-fast
 
 # Start sidecars and run the server in debug mode
 run: sidecars run-server
@@ -170,6 +170,19 @@ stack-up stack_name=env_var('USER'):
 # Tear down a named stack
 stack-down stack_name=env_var('USER'):
   ./scripts/tear_down_named_env.sh {{ stack_name }}
+
+# Build and deploy WSM-only with public internet access for testing against deployed enclave
+wsm-deploy stack_name=env_var('USER'):
+  #!/bin/bash
+  echo "🚀 Deploying WSM-only stack: {{ stack_name }}"
+  echo "📍 WSM will be accessible at: https://wsm.{{ stack_name }}.dev.bitkeydevelopment.com"
+  echo "🧪 Use this endpoint to test your local Fromagerie against a deployed secure enclave"
+  echo ""
+  ./scripts/deploy_wsm_only.sh {{ stack_name }}
+
+# Tear down WSM-only deployment
+wsm-down stack_name=env_var('USER'):
+  ./scripts/tear_down_wsm_only.sh {{ stack_name }}
 
 compose_file := "docker-compose-integration.yml"
 compose_backends := "docker compose -f " + compose_file

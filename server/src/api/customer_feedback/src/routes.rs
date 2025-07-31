@@ -613,8 +613,7 @@ pub async fn create_encrypted_attachment(
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct UploadSealedAttachmentRequest {
-    #[serde_as(as = "Base64")]
-    pub sealed_attachment: Vec<u8>,
+    pub sealed_attachment: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

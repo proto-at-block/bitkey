@@ -138,6 +138,7 @@ pub struct Services {
     pub social_recovery_repository: SocialRecoveryRepository,
     pub account_repository: AccountRepository,
     pub encrypted_attachment_repository: EncryptedAttachmentRepository,
+    pub transaction_verification_repository: TransactionVerificationRepository,
 }
 
 #[derive(Debug, Error)]
@@ -533,6 +534,9 @@ impl BootstrapBuilder {
             social_recovery_repository: repositories.social_recovery_repository.clone(),
             account_repository: repositories.account_repository.clone(),
             encrypted_attachment_repository: repositories.encrypted_attachment_repository.clone(),
+            transaction_verification_repository: repositories
+                .transaction_verification_repository
+                .clone(),
         })
     }
 
@@ -686,6 +690,7 @@ impl BootstrapBuilder {
             self.services.userpool_service.clone(),
             self.services.privileged_action_service.clone(),
             self.services.wsm_client.clone(),
+            self.services.account_service.clone(),
         );
 
         let static_handler_state = secure_site::static_handler::RouteState();

@@ -44,6 +44,8 @@ repository = { workspace = true, features = ["recovery"] }
 screener = { workspace = true }
 types = { workspace = true, features = ["recovery"] }
 userpool = { workspace = true }
+wsm-common = { workspace = true }
+wsm-grant = { workspace = true }
 wsm-rust-client = { workspace = true }
 
 [dev-dependencies]

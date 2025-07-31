@@ -3,6 +3,7 @@ package build.wallet.statemachine.send
 import app.cash.turbine.Turbine
 import app.cash.turbine.test
 import bitkey.verification.ConfirmationState
+import bitkey.verification.FakeTxVerificationApproval
 import bitkey.verification.TxVerificationServiceFake
 import build.wallet.analytics.events.screen.id.TxVerificationEventTrackerScreenId
 import build.wallet.bdk.bindings.BdkError
@@ -17,6 +18,7 @@ import build.wallet.feature.flags.TxVerificationFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.limit.DailySpendingLimitStatus
+import build.wallet.limit.MobilePayDisabledDataMock
 import build.wallet.limit.MobilePayEnabledDataMock
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -209,6 +211,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+      mobilePayService.signPsbtGrants.awaitItem().shouldBeNull()
 
       bitcoinWalletService.broadcastedPsbts.test {
         awaitUntil { it.isNotEmpty() }.shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
@@ -219,7 +222,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
     onTransferInitiatedCalls.awaitItem()
   }
 
-  test("[Verification] successful signing syncs, broadcasts, calls onTransferInitiated") {
+  test("[App+Server w/Verification] successful signing syncs, broadcasts, calls onTransferInitiated") {
     verificationFlag.setFlagValue(true)
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
@@ -258,6 +261,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+      mobilePayService.signPsbtGrants.awaitItem().shouldBe(FakeTxVerificationApproval)
 
       bitcoinWalletService.broadcastedPsbts.test {
         awaitUntil { it.isNotEmpty() }.shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
@@ -268,7 +272,62 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
     onTransferInitiatedCalls.awaitItem()
   }
 
-  test("[Direct Grant] successful signing syncs, broadcasts, calls onTransferInitiated") {
+  test("[App+HW w/Verification] successful signing syncs, broadcasts, calls onTransferInitiated") {
+    verificationFlag.setFlagValue(true)
+    val preferenceToSet = FASTEST
+    spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
+    txVerificationServiceFake.requireVerification = true
+
+    transactionPriorityPreference.preference.shouldBeNull()
+    mobilePayService.mobilePayData.value = MobilePayDisabledDataMock
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
+
+    stateMachine.test(
+      props.copy(
+        selectedPriority = preferenceToSet
+      )
+    ) {
+      // CreatingAppSignedPsbt
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<VerifyConfirmation> {
+        onContinue()
+      }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // ViewingTransferConfirmation
+      awaitBody<FormBodyModel> {
+        clickPrimaryButton()
+      }
+
+      // SigningWithHardware
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>(
+        id = nfcSessionUIStateMachineId
+      ) {
+        onSuccess(appAndHwSignedPsbt)
+      }
+
+      // FinalizingAndBroadcastingTransaction
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      bitcoinWalletService.broadcastedPsbts.test {
+        awaitUntil { it.isNotEmpty() }.shouldContainExactly(appAndHwSignedPsbt)
+      }
+    }
+
+    transactionPriorityPreference.preference.shouldBe(preferenceToSet)
+    onTransferInitiatedCalls.awaitItem()
+  }
+
+  test("[App+Server w/Direct Grant] successful signing syncs, broadcasts, calls onTransferInitiated") {
     verificationFlag.setFlagValue(true)
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
@@ -302,8 +361,59 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
+      mobilePayService.signPsbtGrants.awaitItem().shouldBe(FakeTxVerificationApproval)
+
       bitcoinWalletService.broadcastedPsbts.test {
         awaitUntil { it.isNotEmpty() }.shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
+      }
+    }
+
+    transactionPriorityPreference.preference.shouldBe(preferenceToSet)
+    onTransferInitiatedCalls.awaitItem()
+  }
+
+  test("[App+HW w/Direct Grant] successful signing syncs, broadcasts, calls onTransferInitiated") {
+    verificationFlag.setFlagValue(true)
+    val preferenceToSet = FASTEST
+    spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
+    txVerificationServiceFake.requireVerification = false
+
+    transactionPriorityPreference.preference.shouldBeNull()
+    mobilePayService.mobilePayData.value = MobilePayDisabledDataMock
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
+
+    stateMachine.test(
+      props.copy(
+        selectedPriority = preferenceToSet
+      )
+    ) {
+      // CreatingAppSignedPsbt
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
+      // ViewingTransferConfirmation
+      awaitBody<FormBodyModel> {
+        clickPrimaryButton()
+      }
+
+      // SigningWithHardware
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>(
+        id = nfcSessionUIStateMachineId
+      ) {
+        onSuccess(appAndHwSignedPsbt)
+      }
+
+      // FinalizingAndBroadcastingTransaction
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      bitcoinWalletService.broadcastedPsbts.test {
+        awaitUntil { it.isNotEmpty() }.shouldContainExactly(appAndHwSignedPsbt)
       }
     }
 
@@ -452,6 +562,8 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+      mobilePayService.signPsbtGrants.awaitItem().shouldBeNull()
+
       bitcoinWalletService.broadcastedPsbts.test {
         awaitUntil { it.isNotEmpty() }.shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
       }
@@ -492,6 +604,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+      mobilePayService.signPsbtGrants.awaitItem().shouldBeNull()
 
       // ReceivedServerSigningError
       awaitBody<FormBodyModel> {

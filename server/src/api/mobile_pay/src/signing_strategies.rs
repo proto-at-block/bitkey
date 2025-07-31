@@ -20,6 +20,7 @@ use screener::service::Service as ScreenerService;
 use std::sync::Arc;
 use types::account::entities::{FullAccount, TransactionVerificationPolicy};
 use types::account::identifiers::KeysetId;
+use types::transaction_verification::router::TransactionVerificationGrantView;
 
 #[async_trait]
 pub trait SigningStrategy: Sync + Send {
@@ -57,20 +58,18 @@ impl TransferWithoutHardwareSigningStrategy {
         // bundle up yesterday and today's spending records for spend rule checking
         let spending_entries = mobile_pay_spending_record.spending_entries();
 
-        let signer = signing_validator
-            .validate(
-                &unsigned_psbt,
-                SpendRuleSet::mobile_pay(
-                    &unsynced_source_wallet,
-                    features,
-                    &spending_entries,
-                    screener_service,
-                    transaction_verification_features,
-                    feature_flags_service,
-                    context_key,
-                ),
-            )
-            .map_err(SigningError::to_transaction_verification_if_required)?;
+        let signer = signing_validator.validate(
+            &unsigned_psbt,
+            SpendRuleSet::mobile_pay(
+                &unsynced_source_wallet,
+                features,
+                &spending_entries,
+                screener_service,
+                transaction_verification_features,
+                feature_flags_service,
+                context_key,
+            ),
+        )?;
 
         // Update the daily spending record object with the PSBT. Will be persisted after signing.
         let mut today_spending_record = mobile_pay_spending_record.today.clone();
@@ -213,6 +212,7 @@ impl SigningStrategyFactory {
         config: Config,
         signing_keyset_id: &KeysetId,
         unsigned_psbt: Psbt,
+        grant: Option<TransactionVerificationGrantView>,
         rpc_uris: &ElectrumRpcUris,
         context_key: Option<ContextKey>,
     ) -> Result<Arc<dyn SigningStrategy>, SigningError> {
@@ -233,6 +233,7 @@ impl SigningStrategyFactory {
                 unsigned_psbt,
                 source_descriptor,
                 signing_keyset_id,
+                grant,
                 rpc_uris,
                 &self.screener_service,
                 &self.exchange_rate_service,
@@ -266,6 +267,7 @@ impl SigningStrategyFactory {
         unsigned_psbt: Psbt,
         source_descriptor: DescriptorKeyset,
         keyset_id: &KeysetId,
+        grant: Option<TransactionVerificationGrantView>,
         rpc_uris: &ElectrumRpcUris,
         screener_service: &Arc<ScreenerService>,
         exchange_rate_service: &ExchangeRateService,
@@ -285,8 +287,10 @@ impl SigningStrategyFactory {
             settings: Settings { limit },
             daily_limit_sats,
         };
+
         let transaction_verification_features = Self::create_transaction_verification_features(
             &full_account.transaction_verification_policy,
+            grant,
             config,
             exchange_rate_service,
         )
@@ -343,6 +347,7 @@ impl SigningStrategyFactory {
 
     async fn create_transaction_verification_features(
         policy: &Option<TransactionVerificationPolicy>,
+        grant: Option<TransactionVerificationGrantView>,
         config: &Config,
         exchange_rate_service: &ExchangeRateService,
     ) -> Result<Option<TransactionVerificationFeatures>, SigningError> {
@@ -352,12 +357,16 @@ impl SigningStrategyFactory {
                     policy: TransactionVerificationPolicy::Threshold(amount.clone()),
                     verification_sats: sats_for_threshold(amount, config, exchange_rate_service)
                         .await?,
+                    grant,
+                    wik_pub_key: config.wik_pub_key,
                 }))
             }
             Some(TransactionVerificationPolicy::Always) => {
                 Ok(Some(TransactionVerificationFeatures {
                     policy: TransactionVerificationPolicy::Always,
                     verification_sats: 0,
+                    grant,
+                    wik_pub_key: config.wik_pub_key,
                 }))
             }
             Some(TransactionVerificationPolicy::Never) | None => Ok(None),

@@ -32,12 +32,14 @@ kotlin {
       dependencies {
         implementation(projects.domain.accountFake)
         implementation(projects.domain.analyticsFake)
+        implementation(projects.domain.availabilityFake)
         implementation(projects.domain.recoveryFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.domain.cloudBackupFake) {
           exclude(projects.domain.cloudBackupPublic)
         }
         implementation(projects.libs.cloudStoreFake)
+        implementation(projects.domain.emergencyExitKitFake)
         implementation(projects.domain.recoveryPublic)
         implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.walletFake)

@@ -17,6 +17,9 @@ edition = "2021"
 publish = false
 version = "0.1.1"
 
+[workspace.lints.rust]
+warnings = "deny"
+
 [workspace.dependencies]
 anyhow = "1.0.80"
 bdk = "0.29.0"

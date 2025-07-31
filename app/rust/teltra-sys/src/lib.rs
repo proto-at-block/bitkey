@@ -6,6 +6,7 @@
     unused_imports
 )]
 
+#[allow(improper_ctypes)]
 pub mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }

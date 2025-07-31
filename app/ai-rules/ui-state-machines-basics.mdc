@@ -1,0 +1,429 @@
+---
+description: Core UI State Machine concepts, interface, props design, and basic patterns
+globs: ["**/*StateMachine*.kt", "**/*UiStateMachine*.kt"]
+alwaysApply: false
+---
+
+# UI State Machine Basics
+
+## Summary
+
+UI State Machines manage reactive UI logic through declarative composition using Jetpack Compose Runtime, focusing solely on presentation and navigation logic while delegating business logic to domain Services. They implement the `StateMachine<PropsT, ModelT>` interface with a `@Composable model()` function that transforms external inputs (Props) into UI presentation models, replacing deprecated Data State Machines with clean architectural boundaries and immutable data flow.
+
+## When to Apply
+
+- Creating new UI presentation logic for screens, flows, or widgets
+- Managing UI state, navigation, and user interactions reactively
+- Building composable, hierarchical UI flows that coordinate multiple screens
+- Replacing deprecated Data State Machine implementations
+- Implementing loading, error, and success state management
+- Orchestrating complex workflows with navigation between UI components
+
+## Core Interface
+
+Every UI State Machine implements the `StateMachine` interface:
+
+```kotlin
+interface StateMachine<PropsT : Any, ModelT : Any> {
+  @Composable
+  fun model(props: PropsT): ModelT
+}
+```
+
+- `PropsT`: External inputs that drive behavior
+- `ModelT`: UI-facing presentation model returned to view layer (typically `ScreenModel`)
+- `model()`: Must be `@Composable` for state management
+
+## Props Design
+
+**Props are external inputs** that drive State Machine behavior. Keep props minimal:
+
+- Minimize field values and callbacks
+- Prefer fetching data from Services over prop drilling
+- Only include data that cannot be obtained elsewhere
+- Props are read-only and trigger recomposition when changed
+- **Never nest props** - nested props (Props containing other Props) are a huge red flag and code smell
+
+```kotlin
+// ✅ GOOD: Minimal props
+data class PaymentProps(
+  val amount: BitcoinMoney,
+  val onComplete: (PaymentResult) -> Unit
+)
+
+// ❌ BAD: Excessive prop drilling
+// CONSEQUENCES: Tight coupling, difficult testing, props don't update when original data source changes
+data class BadProps(
+  val user: User,
+  val account: Account,
+  val settings: Settings,
+  val repository: Repository // Don't pass domain objects
+)
+
+// ❌ BAD: Nested props (huge red flag and code smell)
+// CONSEQUENCES: Deep coupling, difficult refactoring, unclear data dependencies, makes testing very difficult
+data class NestedBadProps(
+  val userProps: UserProps,
+  val accountProps: AccountProps,
+  val settingsProps: SettingsProps
+)
+```
+
+**Trade-off consideration**: Sometimes prop drilling pre-loaded data improves UX by avoiding loading states. Balance coupling vs user experience case-by-case.
+
+## State Machine Types
+
+There are two distinct types of UI State Machines in the codebase:
+
+**Type 1: Screen/Widget State Machines**
+- Handle individual screens, body models, or widgets (sheets, dialogs, etc.)
+- **Minimize state management and complexity** - keep UI logic simple and focused
+- **Best for static-like screens/widgets** that have only some dynamic data without major UI structure changes or navigation transitions
+- **Ideal for screens that remain fundamentally the same** but have small subcomponents that dynamically change (e.g., loading indicators on fields, validation states, minor content updates)
+- Use granular composable state (`remember`, `mutableStateOf`, `collectAsState`)
+- Focus on single UI component concerns
+- State can be declared inline as individual fields
+
+**Type 2: Orchestration State Machines**  
+- Handle stateful navigation between screens/other State Machines
+- **Preferred for most complex scenarios** including loading states, error handling, and navigation flows
+- **Use when changing substantial content on screen**, especially with loading states or navigation transitions
+- **Required when handling screen/widget UI loading and error states** - use distinct state types for loading, error, and success states
+- Use explicit private sealed class/interface hierarchies for state
+- Orchestrate complex workflows and business processes
+- Minimal local composable state - delegate to explicit state classes
+
+## State Management Patterns
+
+**For Type 1 (Screen/Widget)** - Use composable state directly and can inject other State Machines:
+
+```kotlin
+@BitkeyInject(ActivityScope::class)
+class SettingsUiStateMachineImpl(
+  private val biometricSettingStateMachine: BiometricSettingUiStateMachine,
+  private val notificationSettingStateMachine: NotificationSettingUiStateMachine,
+  private val settingsService: SettingsService,
+  private val appService: AppService
+) : SettingsUiStateMachine {
+
+  @Composable
+  override fun model(props: SettingsProps): ScreenModel {
+    var isFieldLoading by remember { mutableStateOf(false) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var bottomSheet by remember { mutableStateOf<SheetModel?>(null) }
+    val appStatus by remember { appService.status }.collectAsState()
+    
+    // Simple data fetching without major UI state changes
+    LaunchedEffect(props.userId) {
+      // Minor updates, field-level loading
+      isFieldLoading = true
+      settingsService.validateUser(props.userId)
+        .onFailure { validationError = it.message }
+        .onSuccess { validationError = null }
+      isFieldLoading = false
+    }
+    
+    val bodyModel = SettingsBodyModel(
+      userFieldLoading = isFieldLoading,
+      validationError = validationError,
+      appStatus = appStatus,
+      onBiometricSettingTap = {
+        bottomSheet = SheetModel(
+          body = biometricSettingStateMachine.model(
+            BiometricSettingProps(
+              onComplete = { bottomSheet = null } // Dismiss
+            )
+          ).body,
+          onClosed = { bottomSheet = null } // Dismiss
+        )
+      },
+      onBack = props.onBack
+    )
+    
+    return bodyModel.asRootScreen(bottomSheetModel = bottomSheet)
+  }
+}
+```
+
+**For Type 2 (Orchestration)** - Use explicit sealed state classes and inject other State Machines:
+
+```kotlin
+@BitkeyInject(ActivityScope::class)
+class CreateAccountUiStateMachineImpl(
+  private val introStateMachine: IntroUiStateMachine,
+  private val codeEntryStateMachine: InviteCodeEntryUiStateMachine,
+  private val backupStateMachine: CloudBackupUiStateMachine,
+  private val accountService: AccountService
+) : CreateAccountUiStateMachine {
+
+  @Composable
+  override fun model(props: CreateAccountProps): ScreenModel {
+    var state: State by remember { mutableStateOf(State.ShowingIntroduction) }
+    
+    return when (val currentState = state) {
+      is State.ShowingIntroduction -> introStateMachine.model(
+        IntroProps(
+          onContinue = { state = State.EnteringInviteCode },
+          onBack = props.onBack  // Exit entire flow from first screen
+        )
+      )
+      is State.EnteringInviteCode -> codeEntryStateMachine.model(
+        InviteCodeEntryProps(
+          onCodeEntered = { code -> state = State.CreatingAccount(code) },
+          onBack = { state = State.ShowingIntroduction }  // Back to previous state
+        )
+      )
+      is State.CreatingAccount -> {
+        LaunchedEffect(currentState.inviteCode) {
+          accountService.createAccount(currentState.inviteCode)
+            .onSuccess { account -> state = State.BackingUp(account) }
+            .onFailure { error -> state = State.ShowingError(error, currentState.inviteCode) }
+        }
+        LoadingFormBodyModel(
+          // Simple loading model - no state machine needed for static loading display
+          message = "Creating account...",
+          onBack = { state = State.EnteringInviteCode }  // Back to code entry on user cancel
+        )
+      }
+      is State.ShowingError -> ErrorFormBodyModel(
+        // Simple error model - no state machine needed for static error display
+        errorMessage = currentState.error.message ?: "An error occurred",
+        onRetry = { state = State.CreatingAccount(currentState.inviteCode) },
+        onBack = { state = State.EnteringInviteCode }
+      )
+      is State.BackingUp -> backupStateMachine.model(
+        CloudBackupProps(
+          account = currentState.account,
+          onBackupComplete = { props.onExit(CreateAccountResult.Success(currentState.account)) },
+          onBack = { state = State.CreatingAccount(currentState.account.inviteCode) }, // Back to creating
+          onSkip = { props.onExit(CreateAccountResult.Success(currentState.account)) }  // Complete without backup
+        )
+      )
+    }
+  }
+
+  private sealed interface State {
+    data object ShowingIntroduction : State
+    data object EnteringInviteCode : State
+    data class CreatingAccount(val inviteCode: String) : State
+    data class ShowingError(val error: Throwable, val inviteCode: String) : State
+    data class BackingUp(val account: Account) : State
+  }
+}
+```
+
+## Best Practices by Type
+
+**Type 1 (Screen/Widget) Best Practices:**
+- ✅ Use multiple `remember { mutableStateOf() }` for different UI concerns
+- ✅ Use `collectAsState()` for reactive data streams
+- ✅ Keep state declarations simple and focused on UI variants
+- ✅ Side effects can be frequent for UI updates and data fetching
+- ✅ Can inject other State Machines for sheets, dialogs, or sub-components
+- ✅ **Ideal for forms, settings screens, static content with minor dynamic elements**
+- ✅ **Use when screen structure stays consistent with only content/styling changes**
+- ❌ Avoid complex nested state hierarchies
+- ❌ **Don't use for major loading states, error screens, or navigation flows**
+
+**Type 2 (Orchestration) Best Practices:**
+- ✅ Define explicit `private sealed interface/class` for workflow states  
+- ✅ Use descriptive state names that represent business workflow steps
+- ✅ Include necessary data in state classes for transitions
+- ✅ Keep composable state minimal - prefer single state variable
+- ✅ Use `when` expressions for exhaustive state handling
+- ✅ **Inject and delegate to other State Machines based on current state**
+- ✅ **Implement proper back navigation by transitioning to previous states**
+- ✅ **Balance flow complexity: break down into child State Machines when beneficial**
+- ✅ **Optimize for simplicity, minimalist implementation, and fewer complexity**
+- ✅ **Use `onBack` vs `onExit`/`onResult` callback patterns appropriately**
+- ✅ **Place `State` definition at bottom of class for better readability**
+- ✅ **Prefer Type 2 for any screen with loading/error/success state management**
+- ❌ Never expose internal state classes publicly
+- ❌ Avoid excessive local composable state - use explicit state classes instead
+- ❌ Don't optimize primarily for reusability - focus on simplicity first
+
+## State Machine Organization
+
+**State Definition Placement:**
+- Place `State` sealed interface/class **at the bottom** of the State Machine class
+- This improves readability by putting the main logic (`model()` function) first
+- State definitions serve as implementation details that support the main logic
+- Use simple name `State` rather than verbose names like `CreateAccountState`
+
+**Back Navigation Patterns:**
+- **Internal navigation**: Transition between states using `state = State.PreviousState`
+- **External navigation**: Use `props.onBack` to exit the entire flow
+- **Context-aware back**: Different states may have different "back" destinations
+- **Data preservation**: Include necessary data in state transitions for proper back navigation
+
+## State Machine Injection and Flow Breakdown
+
+**Both types should inject other State Machines as needed:**
+- Type 1: For sheets, dialogs, sub-components
+- Type 2: For orchestrating workflow steps and navigation
+
+**Flow Breakdown Guidelines:**
+- **Optimize for simplicity** over reusability or complex state management
+- **Break down flows** when a single State Machine becomes too complex
+- **Consolidate flows** when multiple simple State Machines add unnecessary indirection
+- **Consider maintenance burden** - fewer State Machines often means less complexity
+
+## Callback Patterns for Type 2 (Orchestration)
+
+**onBack vs onExit/onResult distinction:**
+
+```kotlin
+data class CreateAccountProps(
+  val onBack: () -> Unit,           // User backed out from first screen
+  val onExit: (CreateAccountResult) -> Unit  // Flow finished (success/error)
+)
+
+sealed interface CreateAccountResult {
+  data class Success(val account: Account) : CreateAccountResult
+  data class Error(val error: Throwable) : CreateAccountResult
+}
+```
+
+**When to use each:**
+- **`onBack`**: User cancelled from the initial screen/state - flow never progressed
+- **`onExit`/`onResult`**: Flow completed (successfully or with error) - parent needs the result
+- **Same callback**: When parent doesn't need to distinguish between cancellation and completion
+
+## Service Integration
+
+**Architectural boundaries:**
+- ✅ **Use**: Domain Services and utility classes
+- ❌ **Avoid**: F8e clients, networking clients, database calls, low-level domain APIs
+- Services handle dispatchers and threading - State Machines should not manage them
+- All business logic must be delegated to Services
+
+**Service Usage Patterns:**
+
+```kotlin
+// ✅ GOOD: Access Service properties that expose flows/observables
+@Composable 
+override fun model(props: Props): ScreenModel {
+  val data by remember { dataService.dataFlow }.collectAsState()
+  val status by remember { statusService.currentStatus }.collectAsState()
+  
+  // Use LaunchedEffect for operations, not direct method calls
+  LaunchedEffect(props.triggerRefresh) {
+    if (props.triggerRefresh) {
+      dataService.refreshData() // Suspend function call in LaunchedEffect
+    }
+  }
+}
+
+// ❌ BAD: Direct service method calls in composable body
+// CONSEQUENCES: Flow recreation every recomposition, memory leaks, performance issues, inconsistent state
+@Composable
+override fun model(props: Props): ScreenModel {
+  val data by dataService.getData().collectAsState() // Wrong - don't call methods
+  val result = dataService.processData(props.input) // Wrong - direct call
+}
+```
+
+**Service Integration Guidelines:**
+- **Access flows/properties**: Use Service properties that expose `Flow` or observable data
+- **Use `remember` for Flow methods**: When calling Service methods that return `Flow`, wrap in `remember` to prevent recreation
+- **Suspend calls in effects**: Use `LaunchedEffect` for suspend function calls to Services
+- **No direct method calls**: Don't call Service methods directly in the composable body for non-Flow operations
+- **State management**: Services manage their own internal state and expose it reactively
+
+**Flow Access Patterns:**
+```kotlin
+// ✅ GOOD: Property access (no remember needed)
+val data by dataService.currentData.collectAsState()
+
+// ✅ GOOD: Method returning Flow (use remember)
+val filteredData by remember(filter) { 
+  dataService.getFilteredData(filter) 
+}.collectAsState()
+
+// ❌ BAD: Method returning Flow without remember
+// CONSEQUENCES: Flow recreated every recomposition, memory leaks, performance degradation, lost subscription state
+val badData by dataService.getFilteredData(filter).collectAsState() // Recreates Flow on every recomposition
+```
+
+## Dependency Injection
+
+All UI State Machines use `ActivityScope`:
+
+```kotlin
+@BitkeyInject(ActivityScope::class)
+class PaymentUiStateMachineImpl(
+  private val paymentService: PaymentService,
+  private val accountService: AccountService
+) : PaymentUiStateMachine
+```
+
+**Why ActivityScope**: Sub-scope of AppScope designed for Android Activity lifecycle. Essential NFC components depend on latest Activity instance, and many UI State Machines rely on NfcTagScanner, requiring ActivityScope binding. Ensures proper lifecycle management across platforms.
+
+## Navigation
+
+UI State Machines follow **declarative navigation**:
+- Do NOT inject Navigator or call navigation methods directly
+- Emit navigation state through models or trigger parent state changes
+- Navigation handled by parent State Machines or navigation system
+
+```kotlin
+// ✅ GOOD: Declarative navigation
+return PaymentScreenModel(
+  navigationTarget = when (paymentState) {
+    PaymentState.Success -> NavigationTarget.Home
+    else -> null
+  }
+)
+
+// ❌ BAD: Imperative navigation
+// CONSEQUENCES: Tight coupling, difficult testing, unpredictable navigation state, memory leaks
+navigator.navigateToHome()
+```
+
+## When to Use Simple Models Instead of State Machines
+
+**For very simple screens with no side effects**, prefer using simple model data classes instead of creating even a Type 1 State Machine:
+
+**✅ Use simple model data classes when:**
+- Screen displays only static data with button callbacks
+- No service calls or side effects are needed
+- No state management beyond simple data display
+- Simple loading screens with no user interaction
+- Pure presentation components with callback props
+
+**✅ GOOD: Simple model for static content**
+```kotlin
+// Simple data class for static content display
+data class AboutScreenModel(
+  val appVersion: String,
+  val buildNumber: String,
+  val onContactSupport: () -> Unit,
+  val onPrivacyPolicy: () -> Unit
+) : ScreenModel
+
+// Usage in presentation layer
+@Composable
+fun AboutScreen(model: AboutScreenModel) {
+  // Simple UI rendering with no state management
+}
+```
+
+**❌ Avoid State Machines for overly simple cases:**
+```kotlin
+// CONSEQUENCES: Unnecessary complexity, harder to understand, performance overhead
+class AboutUiStateMachine : StateMachine<AboutUiProps, ScreenModel> {
+  @Composable
+  override fun model(props: AboutUiProps): ScreenModel {
+    // No reactive state, no side effects, no complexity
+    return AboutScreenModel(...)
+  }
+}
+```
+
+## Related Rules
+
+- @ai-rules/ui-state-machines-models.mdc (for model types and presentation patterns)
+- @ai-rules/ui-state-machines-patterns.mdc (for error handling and advanced techniques)
+- @ai-rules/domain-service-pattern.mdc (for business logic delegation)
+- @ai-rules/strong-typing.mdc (for Props and Model type definitions)
+- @ai-rules/module-structure.mdc (for State Machine placement in UI modules)

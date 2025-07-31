@@ -19,7 +19,6 @@ import build.wallet.fwup.FirmwareDataService
 import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.nfc.NfcException
 import build.wallet.onboarding.OnboardingCompletionService
-import build.wallet.pricechart.BalanceHistoryService
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel

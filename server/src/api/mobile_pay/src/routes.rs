@@ -17,8 +17,8 @@ use account::service::{
 };
 use authn_authz::key_claims::KeyClaims;
 use bdk_utils::{
-    bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, generate_electrum_rpc_uris,
-    TransactionBroadcasterTrait,
+    bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, bdk::bitcoin::secp256k1::PublicKey,
+    generate_electrum_rpc_uris, TransactionBroadcasterTrait,
 };
 use errors::{ApiError, ErrorCode::NoSpendingLimitExists};
 use exchange_rate::service::Service as ExchangeRateService;
@@ -38,11 +38,11 @@ use types::{
         spend_limit::SpendingLimit,
         spending::SpendingKeyDefinition,
     },
-    currencies::{Currency, CurrencyCode, CurrencyCode::BTC},
-    transaction_verification::{
-        entities::BitcoinDisplayUnit, service::InitiateVerificationResult,
-        TransactionVerificationId,
+    currencies::{
+        Currency,
+        CurrencyCode::{self, BTC},
     },
+    transaction_verification::router::TransactionVerificationGrantView,
 };
 use userpool::userpool::UserPoolService;
 use wsm_rust_client::{SigningService, WsmClient};
@@ -58,6 +58,7 @@ use crate::{
 #[derive(Clone, Deserialize)]
 pub struct Config {
     pub use_local_currency_exchange: bool,
+    pub wik_pub_key: PublicKey,
 }
 
 #[derive(Clone, axum_macros::FromRef)]
@@ -136,61 +137,12 @@ struct ApiDoc;
 pub struct SignTransactionData {
     pub psbt: String,
     #[serde(default)]
-    pub should_prompt_user: bool,
-    #[serde(default)]
-    pub fiat_currency: Option<CurrencyCode>,
-    #[serde(default)]
-    pub bitcoin_display_unit: Option<BitcoinDisplayUnit>,
+    pub grant: Option<TransactionVerificationGrantView>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE", tag = "status")]
-pub enum SignTransactionResponse {
-    Signed {
-        tx: String,
-    },
-    VerificationRequired,
-    VerificationRequested {
-        verification_id: TransactionVerificationId,
-        expiration: OffsetDateTime,
-    },
-}
-
-impl From<InitiateVerificationResult> for SignTransactionResponse {
-    fn from(result: InitiateVerificationResult) -> Self {
-        match result {
-            InitiateVerificationResult::VerificationRequired => Self::VerificationRequired,
-            InitiateVerificationResult::VerificationRequested {
-                verification_id,
-                expiration,
-            } => Self::VerificationRequested {
-                verification_id,
-                expiration,
-            },
-            _ => unreachable!("Expected VerificationRequired or VerificationRequested"),
-        }
-    }
-}
-
-async fn initiate_transaction_verification(
-    transaction_verification_service: TransactionVerificationService,
-    full_account: &FullAccount,
-    psbt: Psbt,
-    request: &SignTransactionData,
-) -> Result<SignTransactionResponse, ApiError> {
-    let initiate_result = transaction_verification_service
-        .mobile_pay_initiate(
-            &full_account.id,
-            psbt,
-            request.fiat_currency.unwrap_or(BTC),
-            request
-                .bitcoin_display_unit
-                .clone()
-                .unwrap_or(BitcoinDisplayUnit::Bitcoin),
-            request.should_prompt_user,
-        )
-        .await?;
-    Ok(initiate_result.into())
+pub struct SignTransactionResponse {
+    pub tx: String,
 }
 
 #[instrument(
@@ -203,7 +155,6 @@ async fn initiate_transaction_verification(
         feature_flags_service,
         screener_service,
         transaction_broadcaster,
-        transaction_verification_service,
         context_key
     ),
     fields(keyset_id, active_keyset_id)
@@ -220,7 +171,6 @@ async fn sign_transaction_maybe_broadcast_impl(
     signed_psbt_cache_service: SignedPsbtCacheService,
     feature_flags_service: FeatureFlagsService,
     screener_service: Arc<ScreenerService>,
-    transaction_verification_service: TransactionVerificationService,
     context_key: Option<ContextKey>,
 ) -> Result<SignTransactionResponse, ApiError> {
     // At the earliest opportunity, we block the request if mobile pay is disabled by feature flag.
@@ -256,32 +206,20 @@ async fn sign_transaction_maybe_broadcast_impl(
         feature_flags_service,
     );
 
-    let signing_strategy = match signing_strategy_factory
+    let signing_strategy = signing_strategy_factory
         .construct_strategy(
             full_account,
             config,
             keyset_id,
             psbt.clone(),
+            request.grant,
             &rpc_uris,
             context_key,
         )
-        .await
-    {
-        Ok(strategy) => strategy,
-        Err(SigningError::TransactionVerificationRequired) => {
-            return initiate_transaction_verification(
-                transaction_verification_service,
-                full_account,
-                psbt,
-                &request,
-            )
-            .await;
-        }
-        Err(e) => return Err(e.into()),
-    };
+        .await?;
 
     let signed_psbt = signing_strategy.execute().await?;
-    Ok(SignTransactionResponse::Signed {
+    Ok(SignTransactionResponse {
         tx: signed_psbt.to_string(),
     })
 }
@@ -350,7 +288,6 @@ async fn sign_transaction_with_keyset(
         signed_psbt_cache_service,
         feature_flags_service,
         screener_service,
-        transaction_verification_service,
         context_key,
     )
     .await?;

@@ -169,6 +169,7 @@ pub struct SignatureContext {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use bitcoin::base58;
 
@@ -226,7 +227,7 @@ mod tests {
                     child: vec![],
                     wildcard: false,
                 }),
-                bare_bip32_key: base58::from_check("tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL").unwrap(),
+                bare_bip32_key: base58::decode_check("tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL").unwrap(),
                 wildcard: fwpb::Wildcard::Unhardened.into(),
             }.to_string(),
             "[abcd1234/85/0/1]tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL/*"    // Base58check empty string
@@ -243,7 +244,7 @@ mod tests {
                     child: vec![0, 1, 2],
                     wildcard: false,
                 }),
-                bare_bip32_key: base58::from_check("tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL").unwrap(),
+                bare_bip32_key: base58::decode_check("tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL").unwrap(),
                 wildcard: fwpb::Wildcard::Unhardened.into(),
             }.to_string(),
             "[abcd1234/85/0/1]tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL/0/1/2/*"    // Base58check empty string
@@ -260,7 +261,7 @@ mod tests {
                     child: vec![0, 1, 2],
                     wildcard: false,
                 }),
-                bare_bip32_key: base58::from_check("tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL").unwrap(),
+                bare_bip32_key: base58::decode_check("tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL").unwrap(),
                 wildcard: fwpb::Wildcard::Hardened.into(),
             }.to_string(),
             "[abcd1234/85/0/1]tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL/0/1/2/*'"    // Base58check empty string

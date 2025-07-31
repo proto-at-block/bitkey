@@ -14,18 +14,24 @@ use types::notification::{
     NotificationCategory, NotificationChannel, NotificationsPreferences, NotificationsTriggerType,
 };
 
-use crate::tests;
 use crate::tests::gen_services;
 use crate::tests::lib::{create_default_account_with_predefined_wallet, create_full_account};
 use crate::tests::requests::axum::TestClient;
+use rstest::rstest;
 
-struct SendTestNotificationTestVector {
-    override_account_id: Option<AccountId>,
-    expected_create_notification: bool,
-    expected_status: StatusCode,
-}
-
-async fn send_test_notification_test(vector: SendTestNotificationTestVector) {
+#[rstest]
+#[case::invalid_account_id(
+    AccountId::gen().ok(),
+    false,
+    StatusCode::NOT_FOUND
+)]
+#[case::valid_account_id(None, true, StatusCode::OK)]
+#[tokio::test]
+async fn test_send_test_notification(
+    #[case] override_account_id: Option<AccountId>,
+    #[case] expected_create_notification: bool,
+    #[case] expected_status: StatusCode,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let (account, _) =
@@ -58,16 +64,16 @@ async fn send_test_notification_test(vector: SendTestNotificationTestVector) {
         )
         .await;
 
-    let request_account_id = vector.override_account_id.unwrap_or(account.id);
+    let request_account_id = override_account_id.unwrap_or(account.id);
     let actual_response = client
         .send_test_push(&request_account_id.to_string(), &SendTestPushData {})
         .await;
     assert_eq!(
-        actual_response.status_code, vector.expected_status,
+        actual_response.status_code, expected_status,
         "{}",
         actual_response.body_string
     );
-    if vector.expected_create_notification {
+    if expected_create_notification {
         let notifications = bootstrap
             .services
             .notification_service
@@ -80,57 +86,37 @@ async fn send_test_notification_test(vector: SendTestNotificationTestVector) {
     }
 }
 
-tests! {
-    runner = send_test_notification_test,
-    test_send_test_notification_with_invalid_account_id: SendTestNotificationTestVector {
-        override_account_id: AccountId::gen().ok(),
-        expected_create_notification: false,
-        expected_status: StatusCode::NOT_FOUND,
-    },
-    test_send_test_notification_with_valid_account_id: SendTestNotificationTestVector {
-        override_account_id: None,
-        expected_create_notification: true,
-        expected_status: StatusCode::OK,
-    },
-}
-
-struct TwilioStatusCallbackTestVector {
-    signature: Option<String>,
-    body: HashMap<String, String>,
-    expected_status: StatusCode,
-}
-
-async fn twilio_status_callback_test(vector: TwilioStatusCallbackTestVector) {
+#[rstest]
+#[case::no_signature(
+    None,
+    HashMap::from([("MessageStatus".into(), "sent".into())]),
+    StatusCode::BAD_REQUEST
+)]
+#[case::invalid_signature(
+    Some("INVALID".to_string()),
+    HashMap::from([("MessageStatus".into(), "sent".into())]),
+    StatusCode::UNAUTHORIZED
+)]
+#[case::invalid_body(
+    Some("VALID".to_string()),
+    HashMap::from([("Hello".into(), "World".into())]),
+    StatusCode::BAD_REQUEST
+)]
+#[case::valid(
+    Some("VALID".to_string()),
+    HashMap::from([("MessageStatus".into(), "sent".into())]),
+    StatusCode::NO_CONTENT
+)]
+#[tokio::test]
+async fn test_twilio_status_callback(
+    #[case] signature: Option<String>,
+    #[case] body: HashMap<String, String>,
+    #[case] expected_status: StatusCode,
+) {
     let (_, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let response = client
-        .twilio_status_callback(&vector.body, vector.signature)
-        .await;
-    assert_eq!(response.status(), vector.expected_status);
-}
-
-tests! {
-    runner = twilio_status_callback_test,
-    test_status_callback_with_no_signature: TwilioStatusCallbackTestVector {
-        signature: None,
-        body: HashMap::from([("MessageStatus".into(), "sent".into())]),
-        expected_status: StatusCode::BAD_REQUEST,
-    },
-    test_status_callback_with_invalid_signature: TwilioStatusCallbackTestVector {
-        signature: Some("INVALID".to_string()),
-        body: HashMap::from([("MessageStatus".into(), "sent".into())]),
-        expected_status: StatusCode::UNAUTHORIZED,
-    },
-    test_status_callback_with_invalid_body: TwilioStatusCallbackTestVector {
-        signature: Some("VALID".to_string()),
-        body: HashMap::from([("Hello".into(), "World".into())]),
-        expected_status: StatusCode::BAD_REQUEST,
-    },
-    test_status_callback: TwilioStatusCallbackTestVector {
-        signature: Some("VALID".to_string()),
-        body: HashMap::from([("MessageStatus".into(), "sent".into())]),
-        expected_status: StatusCode::NO_CONTENT,
-    },
+    let response = client.twilio_status_callback(&body, signature).await;
+    assert_eq!(response.status(), expected_status);
 }
 
 #[tokio::test]
@@ -360,7 +346,10 @@ async fn test_notifications_triggers() {
 
     assert_eq!(
         scheduled_notifications_types,
-        vec![NotificationPayloadType::SecurityHub],
+        vec![
+            NotificationPayloadType::SecurityHub,
+            NotificationPayloadType::SecurityHub
+        ],
     );
 
     // Re-apply the same trigger
@@ -394,7 +383,10 @@ async fn test_notifications_triggers() {
     // Should not create a new notification schedule
     assert_eq!(
         scheduled_notifications_types,
-        vec![NotificationPayloadType::SecurityHub],
+        vec![
+            NotificationPayloadType::SecurityHub,
+            NotificationPayloadType::SecurityHub
+        ],
     );
 
     let triggers = bootstrap
@@ -471,6 +463,8 @@ async fn test_notifications_triggers() {
     assert_eq!(
         scheduled_notifications_types,
         vec![
+            NotificationPayloadType::SecurityHub,
+            NotificationPayloadType::SecurityHub,
             NotificationPayloadType::SecurityHub,
             NotificationPayloadType::SecurityHub
         ],

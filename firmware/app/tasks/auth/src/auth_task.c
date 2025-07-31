@@ -755,6 +755,10 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
         // If enrollment was successful, then unlock the device.
         set_authenticated_via_fingerprint();
         auth_state.fingerprint_index = used_index;
+
+        // Clear the enrollment rest animation now that enrollment is complete
+        static led_set_rest_animation_t LED_TASK_DATA rest_msg = {.animation = (uint32_t)ANI_OFF};
+        ipc_send(led_port, &rest_msg, sizeof(rest_msg), IPC_LED_SET_REST_ANIMATION);
       });
     } else if ((onboarding_complete() == SECURE_TRUE)) {  // Fingerprint unlock
       // Give the user some immediate feedback by turning on the LED; the actual matching takes

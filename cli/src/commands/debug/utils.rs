@@ -27,6 +27,30 @@ pub fn get_table_name(environment: &str, base_name: &str) -> String {
     }
 }
 
+pub async fn get_item_dynamo(
+    ddb: &aws_sdk_dynamodb::Client,
+    table_name: &str,
+    partition_key: &str,
+    sort_key: Option<&str>,
+) -> Result<Option<HashMap<String, AttributeValue>>> {
+    let mut get_item = ddb.get_item().table_name(table_name).key(
+        "partition_key",
+        AttributeValue::S(partition_key.to_string()),
+    );
+
+    if let Some(sort) = sort_key {
+        get_item = get_item.key("sort_key", AttributeValue::S(sort.to_string()));
+    }
+
+    let result = get_item.send().await?;
+
+    if let Some(item) = result.item {
+        Ok(Some(item))
+    } else {
+        Ok(None)
+    }
+}
+
 pub async fn query_dynamo(
     ddb: &aws_sdk_dynamodb::Client,
     table_name: &str,

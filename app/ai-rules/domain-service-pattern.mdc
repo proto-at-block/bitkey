@@ -1,0 +1,116 @@
+---
+description: Domain service pattern for encapsulating business logic and domain workflows
+globs: ["**/*Service*.kt"]
+alwaysApply: false
+---
+
+# Domain Service Pattern
+
+## Summary
+
+Defines the Service pattern for encapsulating business logic and domain operations in the Bitkey app. Services provide clear separation between domain and presentation logic, replacing the deprecated Data State Machine pattern with cohesive, domain-centric components that improve maintainability, readability, and testability.
+
+## When to Apply
+
+- When implementing business logic that coordinates multiple operations
+- When creating domain operations that orchestrate repositories, clients, and other services
+- When separating business rules from UI presentation logic
+- When replacing deprecated Data State Machine implementations
+- When designing components that need to be consumed by multiple UI contexts
+
+## How to Apply
+
+### Service Definition
+
+**Create interface-first services:**
+- Define service interfaces in `:public` modules only when intended for use by other modules (most cases)
+- For internal-only services, define interface and implementation in `:impl` module
+- Use domain-specific terminology in method names and parameters
+- Focus on what the service accomplishes for the business domain, not how it's implemented internally
+
+**Service responsibilities:**
+- Encapsulate business logic within well-bounded contexts
+- Coordinate operations across repositories, clients, and other services
+- Maintain internal state and integrity checks
+- Expose domain operations through imperative, predictable APIs
+
+### Consumer Rules
+
+**Who can consume services:**
+- ✅ Presentation logic (UI State Machines, Presenters)
+- ✅ Other Services (for orchestration)
+- ❌ Lower-level components (clients, repositories, DAOs)
+
+**Data access patterns:**
+- Pull data directly from Services in presentation layer
+- Never pass domain state through Screen constructors or UI layers
+- Avoid prop-drilling data between State Machines
+
+## Example
+
+*Note: The following code snippets are for illustration purposes and do not represent actual codebase logic.*
+
+```kotlin
+// ✅ GOOD: Simple, focused service interface
+interface CoachmarkService {
+  suspend fun coachmarksToDisplay(
+    coachmarkIds: Set<CoachmarkIdentifier>
+  ): Result<List<CoachmarkIdentifier>, Error>
+  
+  suspend fun markCoachmarkAsDisplayed(
+    coachmarkId: CoachmarkIdentifier
+  ): Result<Unit, Error>
+  
+  suspend fun resetCoachmarks(): Result<Unit, Error>
+}
+
+// Error handling: Use generic Error or Throwable in public APIs
+// unless presentation logic needs domain-specific error types
+interface PaymentService {
+  suspend fun processPayment(request: PaymentRequest): Result<Payment, PaymentError>
+  suspend fun validateAmount(amount: BitcoinMoney): Result<Unit, Error>
+}
+
+// ✅ GOOD: Service orchestrating domain operations
+interface AccountService {
+  suspend fun createLiteAccount(): Result<Account, CreateAccountError>
+  suspend fun upgradeToFullAccount(
+    requirements: UpgradeRequirements
+  ): Result<FullAccount, UpgradeError>
+}
+
+// ✅ GOOD: Service implementation with clear dependencies
+class CoachmarkServiceImpl(
+  private val storage: CoachmarkStorage,
+  private val policy: CoachmarkDisplayPolicy
+) : CoachmarkService {
+  override suspend fun coachmarksToDisplay(
+    coachmarkIds: Set<CoachmarkIdentifier>
+  ): Result<List<CoachmarkIdentifier>, Error> {
+    // Business logic implementation
+  }
+}
+
+// ❌ BAD: Mixing UI concerns with domain logic
+// CONSEQUENCES: Tight coupling between layers, difficult testing, unclear responsibilities, UI logic in business layer
+interface PaymentService {
+  suspend fun processPayment(request: PaymentRequest)
+  fun getPaymentScreenState(): PaymentScreenState
+  suspend fun showConfirmationDialog(): UserChoice
+}
+
+// ❌ BAD: Repository depending on Service
+// CONSEQUENCES: Circular dependencies, architectural violations, difficult unit testing, unclear data flow
+class UserRepository(
+  private val accountService: AccountService // Services should not be injected into repositories
+)
+```
+
+### Examples from codebase
+- `CoachmarkService`: Simple service managing UI tutorial state
+- `TxVerificationService`: Complex service handling transaction verification operations
+
+## Related Rules
+
+- @ai-rules/strong-typing.mdc (for service method parameters and return types)
+- @ai-rules/module-structure.mdc (for proper service placement in `:public` and `:impl` modules)

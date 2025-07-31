@@ -154,9 +154,9 @@ pub(super) async fn try_cancel_inheritance_claim(
 }
 
 #[rstest]
-#[case::create_with_full_account(AccountType::Full, false, StatusCode::OK)]
-#[case::create_with_lite_account(AccountType::Lite, false, StatusCode::FORBIDDEN)]
-#[case::create_with_existing_claim(AccountType::Full, true, StatusCode::BAD_REQUEST)]
+#[case::full_account(AccountType::Full, false, StatusCode::OK)]
+#[case::lite_account(AccountType::Lite, false, StatusCode::FORBIDDEN)]
+#[case::existing_claim(AccountType::Full, true, StatusCode::BAD_REQUEST)]
 #[tokio::test]
 async fn start_inheritance_claim_test(
     #[case] beneficiary_account_type: AccountType,
@@ -338,8 +338,8 @@ pub(super) async fn try_package_upload(
 }
 
 #[rstest]
-#[case::upload_package(false, StatusCode::OK)]
-#[case::relationship_doesnt_exist(true, StatusCode::BAD_REQUEST)]
+#[case::success(false, StatusCode::OK)]
+#[case::invalid_relationship(true, StatusCode::BAD_REQUEST)]
 #[tokio::test]
 async fn package_upload_test(
     #[case] invalid_relationships: bool,
@@ -447,28 +447,12 @@ async fn package_upload_test(
 }
 
 #[rstest]
-#[case::cancel_with_benefactor(InheritanceClaimActor::Benefactor, false, StatusCode::OK)]
-#[case::cancel_with_beneficiary(InheritanceClaimActor::Beneficiary, false, StatusCode::OK)]
-#[case::cancel_with_random_account(
-    InheritanceClaimActor::External,
-    false,
-    StatusCode::UNAUTHORIZED
-)]
-#[case::cancel_with_benefactor_and_canceled_claim(
-    InheritanceClaimActor::Benefactor,
-    true,
-    StatusCode::OK
-)]
-#[case::cancel_with_beneficiary_and_canceled_claim(
-    InheritanceClaimActor::Beneficiary,
-    true,
-    StatusCode::OK
-)]
-#[case::cancel_with_external_and_canceled_claim(
-    InheritanceClaimActor::External,
-    true,
-    StatusCode::UNAUTHORIZED
-)]
+#[case::benefactor(InheritanceClaimActor::Benefactor, false, StatusCode::OK)]
+#[case::beneficiary(InheritanceClaimActor::Beneficiary, false, StatusCode::OK)]
+#[case::external_unauthorized(InheritanceClaimActor::External, false, StatusCode::UNAUTHORIZED)]
+#[case::benefactor_canceled_claim(InheritanceClaimActor::Benefactor, true, StatusCode::OK)]
+#[case::beneficiary_canceled_claim(InheritanceClaimActor::Beneficiary, true, StatusCode::OK)]
+#[case::external_canceled_claim(InheritanceClaimActor::External, true, StatusCode::UNAUTHORIZED)]
 #[tokio::test]
 async fn cancel_inheritance_claim(
     #[case] cancel_role: InheritanceClaimActor,
@@ -1464,22 +1448,22 @@ async fn test_delete_relationship_with_claim(
 }
 
 #[rstest]
-#[case::for_beneficiary(
+#[case::beneficiary_role(
     TrustedContactRole::Beneficiary,
     InheritanceClaimActor::Beneficiary,
     true
 )]
-#[case::for_benefactor(
+#[case::benefactor_role(
     TrustedContactRole::Beneficiary,
     InheritanceClaimActor::Beneficiary,
     true
 )]
-#[case::not_created_for_beneficiary(
+#[case::socrec_beneficiary(
     TrustedContactRole::SocialRecoveryContact,
     InheritanceClaimActor::Beneficiary,
     false
 )]
-#[case::not_created_for_benefactor(
+#[case::socrec_benefactor(
     TrustedContactRole::SocialRecoveryContact,
     InheritanceClaimActor::Benefactor,
     false
@@ -1567,9 +1551,9 @@ async fn generate_promotional_codes_upon_creating_recovery_relationship(
 }
 
 #[rstest]
-#[case::with_valid_api_key(Some("FAKE_API_KEY"), StatusCode::OK)]
-#[case::with_invalid_api_key(Some("abc"), StatusCode::UNAUTHORIZED)]
-#[case::without_api_key(None, StatusCode::BAD_REQUEST)]
+#[case::valid_api_key(Some("FAKE_API_KEY"), StatusCode::OK)]
+#[case::invalid_api_key(Some("abc"), StatusCode::UNAUTHORIZED)]
+#[case::no_api_key(None, StatusCode::BAD_REQUEST)]
 #[tokio::test]
 async fn mark_promotion_code_as_redeemed(
     #[case] api_key: Option<&str>,

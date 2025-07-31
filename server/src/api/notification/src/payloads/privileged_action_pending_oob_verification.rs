@@ -99,8 +99,7 @@ mod tests {
             );
             assert!(data_fields.contains_key("verificationURL"));
 
-            let expected_url =
-                "https://example.com/tx-validation-policy?web_auth_token=abc123xyz789";
+            let expected_url = "https://example.com/privileged-action?web_auth_token=abc123xyz789";
             assert_eq!(data_fields.get("verificationURL").unwrap(), &expected_url);
         } else {
             panic!("Email payload was not of expected type");

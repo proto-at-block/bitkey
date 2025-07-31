@@ -15,6 +15,7 @@ import build.wallet.emergencyexitkit.EmergencyExitKitRepository
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
@@ -65,12 +66,14 @@ class CloudBackupHealthRepositoryImpl(
     // Perform sync whenever a sync is requested or when the app
     // enters the foreground.
     combine(
-      syncRequests,
+      syncRequests
+        .onStart { emit(account) }, // Use the account provided in the function call to start
       appSessionManager.appSessionState
-        .filter { appSessionManager.isAppForegrounded() }
-        .onStart { emit(appSessionManager.appSessionState.value) }
-    ) { requestedAccount, _ -> requestedAccount }
-      .onStart { emit(account) } // always perform an initial sync regardless of app state
+        .filter { AppSessionState.FOREGROUND == it }
+        .onStart {
+          appSessionManager.appSessionState.value
+        } // always perform an initial sync regardless of app state.
+    ) { account, _ -> account }
       .filter { it == account }
       .collect(::performSync)
   }

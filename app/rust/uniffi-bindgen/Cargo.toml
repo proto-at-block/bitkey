@@ -4,6 +4,9 @@ name = "uniffi-bindgen"
 publish = { workspace = true }
 version = { workspace = true }
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "uniffi-bindgen"
 

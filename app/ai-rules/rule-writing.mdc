@@ -1,0 +1,222 @@
+---
+description: Guidelines for writing and maintaining AI rules in this codebase
+globs: ["ai-rules/**/*.mdc", "CLAUDE.md", ".claude/**/*.md", ".cursor/**/*.md", ".github/copilot-instructions.md", "README.md"]
+alwaysApply: true
+---
+
+# AI Rule Writing and Maintenance
+
+## Summary
+
+This rule defines standards for creating, updating, and maintaining AI rules in this codebase. It ensures rules are composable, minimal, declarative, and form a consistent foundation for AI guidance. All rules follow Cursor-style metadata format and are designed primarily for Claude Code.
+
+## When to Apply
+
+- When creating any new AI rule file
+- When updating existing AI rules  
+- When maintaining the overall ruleset consistency
+- When referencing rules in CLAUDE.md
+- **When modifying any existing rule file - apply all guidelines in this rule to ensure consistency**
+
+## How to Apply
+
+### Rule Structure
+
+Each rule must follow this exact structure:
+
+```markdown
+---
+description: Brief description of the rule's purpose
+globs: ["**/*.extension"] # File patterns where rule applies
+alwaysApply: false # Set to true only for meta-rules like this one
+---
+
+# Rule Title
+
+## Summary
+One paragraph explaining what this rule does and why it exists.
+
+## When to Apply
+Clear conditions for when this rule should be followed.
+
+## How to Apply
+Specific implementation guidance and steps.
+
+## Example
+Code examples showing good vs bad patterns.
+
+## Related Rules
+References to other rules that complement or interact with this one.
+```
+
+### File Management
+
+**Before creating a new rule:**
+1. Search existing rules to avoid duplication
+2. Check if the topic can be addressed by updating an existing rule
+3. Analyze the codebase to extract real-world patterns as examples
+
+**File naming:**
+- Use kebab-case: `rule-name.mdc`
+- Follow naming guidelines (see below)
+- Place in `ai-rules/` directory
+
+**Naming Guidelines:**
+- **Concise**: Maximum 2-3 words, avoid unnecessary articles (a, the, an)
+- **Descriptive**: Name should clearly indicate the rule's purpose
+- **Domain-focused**: Use domain terminology over generic programming terms
+- **Action-oriented**: Prefer verbs or gerunds when applicable
+
+Examples:
+- ✅ `error-handling.mdc` (concise, clear purpose)
+- ✅ `strong-typing.mdc` (descriptive domain concept)
+- ✅ `api-versioning.mdc` (specific, actionable area)
+- ❌ `guidelines-for-error-handling.mdc` (too verbose)
+- ❌ `stuff.mdc` (not descriptive)
+- ❌ `kotlin-programming-best-practices.mdc` (too broad/generic)
+
+### Rule Distribution and Discovery
+
+**Source of Truth:**
+- All AI rules live in `app/ai-rules/` as the canonical source
+- This directory contains the authoritative versions of all rules
+- Never edit rules outside of this directory
+
+**Index Rule Maintenance:**
+- **Update `bitkey-mobile.mdc`** whenever rules are added, removed, or significantly changed
+- **Add new rules** to the "AI Rule Index" section with high-level descriptions
+- **Write descriptions** that are:
+  - Specific enough for AI assistants to understand when to apply the rule
+  - Brief enough to avoid context overload (1-2 lines maximum)
+  - Focused on the rule's primary purpose and key patterns covered
+  - Written to help AI assistants make effective rule selection decisions
+
+**Rule Symlinks and References:**
+Only create symlinks in `app/.cursor/rules/` for rules that meet these criteria:
+- **Index files** (like `bitkey-mobile.mdc`) that provide entry points and rule discovery
+- **Rules with `alwaysApply: true`** that should be loaded by Cursor/Goose regardless of file attachment
+
+**Rule Application Settings:**
+- **`alwaysApply: true`**: Use ONLY for index files and meta-rules that provide foundational context
+- **`alwaysApply: false`** or omit: Use for all specialized rules that apply to specific contexts
+- **`globs`**: Always specify appropriate file patterns to describe where the rule applies
+
+**AI Tool Integration:**
+
+*Claude and Junie Configuration:*
+- Reference index rules like `@ai-rules/bitkey-mobile.mdc` in prompts and context
+- Index rules guide AI assistants to discover and apply relevant specialized rules
+- Claude and Junie can access rules directly from `ai-rules/` directory
+
+*Cursor and Goose Configuration:*
+- These tools only see rules in `app/.cursor/rules/` directory
+- Create symlinks using: `ln -sf "../ai-rules/rule-name.mdc" "app/.cursor/rules/rule-name.mdc"`
+- Symlinks are required for Cursor/Goose to access and apply rules
+- Only symlink index files and rules that should always be loaded
+
+*GitHub Copilot Configuration:*
+- Add reference in `.github/copilot-instructions.md` using format: `@app/ai-rules/rule-name.mdc`  
+- References use `@app/` prefix since Copilot configuration is in root directory and needs full path to rules
+- Place references in logical order
+- Update when rules are renamed or removed
+
+### Rule Principles
+
+**Composable:** Rules should work together without conflicts and be reusable across different contexts.
+
+**Minimal:** Each rule focuses on one clear concern. Split complex topics into multiple focused rules.
+
+**Declarative:** Describe the desired intent and structure, not just procedural steps.
+
+**Evidence-based:** Extract patterns from the actual codebase, but verify they represent current best practices, not legacy approaches.
+
+**Detailed but code-sourced:** Rules should be detailed and tutorial-like for AI assistance, but avoid duplicating comprehensive API definitions or exhaustive implementation details that can be accessed directly in the codebase. Include illustrative examples and key patterns, while directing readers to reference actual code for complete API signatures and parameter details.
+
+**Include negative consequences:** For every bad pattern or anti-pattern, document the specific negative consequences that result from following the bad pattern. This helps with:
+- Future debugging when AI assists with identifying root causes of bugs
+- Understanding why patterns are discouraged beyond stylistic preferences  
+- Training developers to recognize symptoms of architectural problems
+- Providing context for code review feedback
+
+### Maintenance Guidelines
+
+**Updating existing rules:**
+- Rules can and should be updated to maintain consistency
+- Prefer updating over duplicating
+- Consider impact on related rules
+- Update examples to reflect current codebase patterns
+- **Apply all rule-writing guidelines when making any changes to existing rules**
+- **Ensure modified rules follow the exact structure, principles, and formatting defined in this rule**
+
+**Ruleset evolution:**
+- Regularly review rules for relevance
+- Remove or merge outdated rules
+- Ensure the overall ruleset remains holistic and consistent
+- Document breaking changes in rule updates
+
+**Consistency verification:**
+- **Ensure .mdc files in `ai-rules/` are properly referenced and symlinked where appropriate**
+- When adding/removing/renaming rules, update based on rule type:
+
+*For Index Rules and Always-Apply Rules:*
+  1. Create/modify/remove the `.mdc` file in `ai-rules/`
+  2. Add/update/remove the `@ai-rules/rule-name.mdc` reference in `CLAUDE.md`
+  3. Create/update/remove the symlink in `.cursor/rules/`
+  4. Add/update/remove the `@app/ai-rules/rule-name.mdc` reference in `../.github/copilot-instructions.md`
+
+*For Specialized Rules (no symlinks):*
+  1. Create/modify/remove the `.mdc` file in `ai-rules/`
+  2. Reference in prompts via index rules or as-needed basis
+  3. Update GitHub Copilot references if rule should be broadly available
+
+- Periodically audit for consistency: `ls ai-rules/*.mdc`, `grep @ai-rules CLAUDE.md`, `ls .cursor/rules/`, `grep @app/ai-rules ../.github/copilot-instructions.md`
+
+## Example
+
+```markdown
+# Good Rule Structure
+---
+description: Error handling patterns for Kotlin services
+globs: ["**/*Service.kt", "**/*Repository.kt"]
+alwaysApply: false
+---
+
+# Service Error Handling
+
+## Summary
+Defines consistent error handling patterns for service layer components to ensure predictable exception propagation and user-friendly error messages.
+
+## When to Apply
+- All service layer classes
+- Repository implementations
+- Any component that handles business logic exceptions
+
+## How to Apply
+[Implementation details...]
+
+## Example
+```kotlin
+// ✅ GOOD: Structured error handling
+fun processData(input: String): Result<Data, ServiceError> {
+  return try {
+    val result = validateAndProcess(input)
+    Ok(result)
+  } catch (e: ValidationException) {
+    Err(ServiceError.InvalidInput(e.message))
+  }
+}
+
+// ❌ BAD: Unhandled exceptions
+// CONSEQUENCES: App crashes, poor user experience, difficult debugging, inconsistent error states
+fun processData(input: String): Data {
+  return validateAndProcess(input) // Can throw unhandled exceptions
+}
+```
+
+## Related Rules
+- @ai-rules/strong-typing.mdc (for error result types)
+```
+
+## Related Rules
+
+This is the foundational rule that all other rules should follow. Future rules about specific coding practices, architecture patterns, or conventions should reference this rule for structural guidance.

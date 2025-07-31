@@ -44,35 +44,67 @@ pub trait Command<T, E> {
 macro_rules! command {
     ($struct_name:ident = $generator_name:ident -> $generator_return_type:ty) => {
         pub struct $struct_name {
-            is_first_call: std::sync::atomic::AtomicBool,
+            id: ulid::Ulid,
         }
 
         impl $struct_name {
             pub fn new() -> Self {
-                // New is called when the command is created, so is_first_call is reset to true on creation.
                 Self {
-                    is_first_call: std::sync::atomic::AtomicBool::new(true),
+                    id: ulid::Ulid::new(),
                 }
             }
 
-            fn generator<'a>(&self) -> &'a mut Option<$crate::command_interface::CommandFn<$generator_return_type, CommandError>> {
-                static mut GENERATOR: Option<$crate::command_interface::CommandFn<$generator_return_type, CommandError>> = None;
-                // We have to use unsafe because of Cell<TransferBox> (https://docs.rs/next-gen/latest/src/next_gen/generator_fn.rs.html#88)
-                // and Cell is !Sync https://doc.rust-lang.org/std/cell/struct.Cell.html#impl-Sync-for-Cell%3CT%3E
-                // However, this is safe in practice AS LONG AS a command is only used by one thread at a time and NOT moved
-                // across threads.
-                unsafe {
-                    // Reset generator if it's the first call
-                    if self.is_first_call.swap(false, std::sync::atomic::Ordering::SeqCst) {  // Swap to false, and if it was true, reset the generator
-                        GENERATOR = None;
+            /// This private helper function encapsulates access to the thread-local storage.
+            /// By defining `thread_local!` here, we create a single static instance that is
+            /// shared by all callers of this function, ensuring both generator management
+            /// and drop cleanup operate on the exact same map.
+            fn access_generator_map<F, R>(f: F) -> R
+            where
+                F: FnOnce(&mut std::collections::HashMap<ulid::Ulid, $crate::command_interface::CommandFn<$generator_return_type, $crate::errors::CommandError>>) -> R,
+            {
+                use std::cell::RefCell;
+                use std::collections::HashMap;
+
+                thread_local! {
+                    static GEN_MAP: RefCell<
+                        HashMap<
+                            ulid::Ulid,
+                            $crate::command_interface::CommandFn<
+                                $generator_return_type,
+                                $crate::errors::CommandError,
+                            >,
+                        >
+                    > = RefCell::new(HashMap::new());
+                }
+
+                GEN_MAP.with(|cell| {
+                    let mut map = cell.borrow_mut();
+                    f(&mut map)
+                })
+            }
+
+            /// This helper function centralizes all access to the thread-local storage.
+            /// It gets/creates the generator, resumes it, and cleans it up upon completion.
+            fn run_and_manage_generator(
+                &self,
+                resume_with: Vec<u8>,
+            ) -> next_gen::generator::GeneratorState<Vec<u8>, Result<$generator_return_type, $crate::errors::CommandError>> {
+                Self::access_generator_map(|map| {
+                    // Get or create the generator for this command's unique ID.
+                    let gen = map.entry(self.id).or_insert_with(|| {
+                        next_gen::generator_fn::CallBoxed::call_boxed($generator_name, ())
+                    });
+
+                    // Resume the generator with the provided input.
+                    let result = gen.as_mut().resume(resume_with);
+
+                    // If the generator has returned, it's complete. Remove it from the map.
+                    if let next_gen::generator::GeneratorState::Returned(_) = &result {
+                        map.remove(&self.id);
                     }
 
-                    if GENERATOR.is_none() {
-                        // Create the generator when it's not already set
-                        GENERATOR = Some(next_gen::generator_fn::CallBoxed::call_boxed($generator_name, ()));
-                    }
-                    std::ptr::addr_of_mut!(GENERATOR).as_mut().unwrap()
-                }
+                    result
+                })
             }
         }
 
@@ -82,70 +114,121 @@ macro_rules! command {
             }
         }
 
-        impl $crate::command_interface::Command<$generator_return_type, CommandError> for $struct_name {
+        // Clean up the generator on drop to prevent memory leaks if a command
+        // is dropped before completion.
+        impl Drop for $struct_name {
+            fn drop(&mut self) {
+                // By calling the shared `access_generator_map` function, we ensure
+                // we are removing the generator from the correct thread-local storage.
+                Self::access_generator_map(|map| {
+                    map.remove(&self.id);
+                });
+            }
+        }
+
+        impl $crate::command_interface::Command<$generator_return_type, $crate::errors::CommandError> for $struct_name {
             command!(next_impl $generator_return_type);
         }
     };
 
-    ($struct_name:ident = $generator_name:ident -> $generator_return_type:ty, $($argname:ident: $type:ty),*) => {
+    ($struct_name:ident = $generator_name:ident -> $generator_return_type:ty, $($argname:ident: $type:ty),+) => {
         pub struct $struct_name {
-            $( $argname: $type, )*
-            is_first_call: std::sync::atomic::AtomicBool,  // Track first call with AtomicBool
+            $( $argname: $type, )+
+            id: ulid::Ulid,
         }
 
         impl $struct_name {
-            pub fn new($($argname: $type),*) -> Self {
+            pub fn new($($argname: $type),+) -> Self {
                 Self {
-                    $( $argname ),*,
-                    is_first_call: std::sync::atomic::AtomicBool::new(true),
+                    $( $argname ),+,
+                    id: ulid::Ulid::new(),
                 }
             }
 
-            fn generator<'a>(&self) -> &'a mut Option<$crate::command_interface::CommandFn<$generator_return_type, CommandError>> {
-                static mut GENERATOR: Option<$crate::command_interface::CommandFn<$generator_return_type, CommandError>> = None;
-                unsafe {
-                    // Reset generator if it's the first call
-                    if self.is_first_call.swap(false, std::sync::atomic::Ordering::SeqCst) {
-                        GENERATOR = None;
+            /// This private helper function encapsulates access to the thread-local storage.
+            /// By defining `thread_local!` here, we create a single static instance that is
+            /// shared by all callers of this function, ensuring both generator management
+            /// and drop cleanup operate on the exact same map.
+            fn access_generator_map<F, R>(f: F) -> R
+            where
+                F: FnOnce(&mut std::collections::HashMap<ulid::Ulid, $crate::command_interface::CommandFn<$generator_return_type, $crate::errors::CommandError>>) -> R,
+            {
+                use std::cell::RefCell;
+                use std::collections::HashMap;
+
+                thread_local! {
+                    static GEN_MAP: RefCell<
+                        HashMap<
+                            ulid::Ulid,
+                            $crate::command_interface::CommandFn<
+                                $generator_return_type,
+                                $crate::errors::CommandError,
+                            >,
+                        >
+                    > = RefCell::new(HashMap::new());
+                }
+
+                GEN_MAP.with(|cell| {
+                    let mut map = cell.borrow_mut();
+                    f(&mut map)
+                })
+            }
+
+
+            /// This helper function centralizes all access to the thread-local storage.
+            /// It gets/creates the generator, resumes it, and cleans it up upon completion.
+            fn run_and_manage_generator(
+                &self,
+                resume_with: Vec<u8>
+            ) -> next_gen::generator::GeneratorState<Vec<u8>, Result<$generator_return_type, $crate::errors::CommandError>> {
+                Self::access_generator_map(|map| {
+                    // Get or create the generator for this command's unique ID.
+                    let gen = map.entry(self.id).or_insert_with(|| {
+                        next_gen::generator_fn::CallBoxed::call_boxed(
+                            $generator_name,
+                            ( $( self.$argname.to_owned() ),+, ),
+                        )
+                    });
+
+                    // Resume the generator with the provided input.
+                    let result = gen.as_mut().resume(resume_with);
+
+                    // If the generator has returned, it's complete. Remove it from the map.
+                    if let next_gen::generator::GeneratorState::Returned(_) = &result {
+                        map.remove(&self.id);
                     }
 
-                    if GENERATOR.is_none() {
-                        // Create the generator with arguments when it's not already set
-                        GENERATOR = Some(next_gen::generator_fn::CallBoxed::call_boxed($generator_name, ($(self.$argname.to_owned()),*,)));
-                    }
-                    std::ptr::addr_of_mut!(GENERATOR).as_mut().unwrap()
-                }
+                    result
+                })
             }
         }
 
-        impl $crate::command_interface::Command<$generator_return_type, CommandError> for $struct_name {
+        // Clean up the generator on drop to prevent memory leaks.
+        impl Drop for $struct_name {
+            fn drop(&mut self) {
+                // By calling the shared `access_generator_map` function, we ensure
+                // we are removing the generator from the correct thread-local storage.
+                Self::access_generator_map(|map| {
+                    map.remove(&self.id);
+                });
+            }
+        }
+
+        impl $crate::command_interface::Command<$generator_return_type, $crate::errors::CommandError> for $struct_name {
             command!(next_impl $generator_return_type);
         }
     };
 
     (next_impl $generator_return_type:ty) => {
         fn next(&self, response: Vec<u8>) -> std::result::Result<$crate::command_interface::State<$generator_return_type>, $crate::errors::CommandError> {
-            // Acquire the statically allocated generator. We statically allocate here to to ensure that the generator's state
-            // is preserved across calls to next.
-            // Previously, this code created a new generator per call to next, and we cached the responses from the generator, and
-            // then replayed them into the generator with resume. The code was like this:
-            //      let mut generator = self.generator();
-            //      let mut responses = self._lock.write()?;
-            //      for input in responses.iter() {
-            //          generator.as_mut().resume(input.to_owned());
-            //      }
-            //      responses.push(response.clone());
-            //      let response = generator.as_mut().resume(response);
-            //
-            // This was problematic: the call to `call_boxed()` invokes the generator function, for example `sign_transaction()`.
-            // If that function had side effects, then those re-evaluated lines of code would trigger them multiple times.
-            // This didn't cause any problems because the generator functions were pure, but it was easy to misuse.
-            let generator_opt = self.generator();
-            let response = generator_opt.as_mut().expect("generator must be set").as_mut().resume(response);
+            // Delegate all state management and generator interaction to the helper.
+            let response = self.run_and_manage_generator(response);
 
             match response {
                 next_gen::generator::GeneratorState::Yielded(response) => Ok($crate::command_interface::State::Data { response }),
                 next_gen::generator::GeneratorState::Returned(value) => {
+                    // The generator has already been cleaned up inside run_and_manage_generator.
+                    // We just need to handle the final result.
                     Ok($crate::command_interface::State::Result { value: value? })
                 }
             }
@@ -181,6 +264,7 @@ mod tests {
     use super::command;
     use super::{Command, State};
     use crate::errors::CommandError;
+    use crate::yield_from_;
     use next_gen::generator;
 
     #[generator(yield(Vec<u8>), resume(Vec<u8>))]
@@ -231,6 +315,310 @@ mod tests {
                 response: "unary first argument [\"second argument\"]".into()
             }
         );
+        Ok(())
+    }
+
+    /// Test that two instances of the same command type don't share generator state
+    #[test]
+    fn independent_instances() -> Result<(), CommandError> {
+        let a = Nullary::new();
+        let b = Nullary::new();
+
+        // Both should yield independently
+        assert!(matches!(a.next(vec![])?, State::Data { .. }));
+        assert!(matches!(b.next(vec![])?, State::Data { .. }));
+        Ok(())
+    }
+
+    /// Test that a new instance starts fresh after another completes
+    #[test]
+    fn reset_after_completion() -> Result<(), CommandError> {
+        let cmd = Nullary::new();
+
+        // Drive to completion
+        let _first = cmd.next(vec![])?; // Should yield
+        let _second = cmd.next(vec![])?; // Should return Result
+
+        // A brand-new instance should yield again, not panic or reuse state
+        let fresh = Nullary::new();
+        assert!(matches!(fresh.next(vec![])?, State::Data { .. }));
+        Ok(())
+    }
+
+    /// Test cross-thread isolation
+    #[test]
+    #[cfg_attr(miri, ignore)] // Miri doesn't handle threads well
+    fn per_thread_isolation() -> Result<(), CommandError> {
+        use std::thread;
+
+        let h1 = thread::spawn(|| Nullary::new().next(vec![]).unwrap());
+        let h2 = thread::spawn(|| Nullary::new().next(vec![]).unwrap());
+
+        assert!(matches!(h1.join().unwrap(), State::Data { .. }));
+        assert!(matches!(h2.join().unwrap(), State::Data { .. }));
+        Ok(())
+    }
+
+    /// Test that generators are properly cleaned up when completed
+    #[test]
+    fn generator_cleanup_on_completion() -> Result<(), CommandError> {
+        let cmd = Nullary::new();
+
+        // First call should create and use the generator
+        let first_result = cmd.next(vec![])?;
+        assert!(matches!(first_result, State::Data { .. }));
+
+        // Second call should complete the generator
+        let second_result = cmd.next(vec![])?;
+        assert!(matches!(second_result, State::Result { .. }));
+
+        Ok(())
+    }
+
+    /// Test that calling next() after completion creates a fresh generator
+    #[test]
+    fn fresh_generator_after_completion() -> Result<(), CommandError> {
+        let cmd = Nullary::new();
+
+        // Complete the first generator
+        let _first = cmd.next(vec![])?;
+        let _second = cmd.next(vec![])?; // This completes
+
+        // Next call should create a fresh generator and yield again
+        let third_result = cmd.next(vec![])?;
+        assert!(matches!(third_result, State::Data { .. }));
+
+        Ok(())
+    }
+
+    /// Test address reuse safety - this test verifies that ULID-based keys prevent issues
+    #[test]
+    fn ulid_based_isolation() -> Result<(), CommandError> {
+        // Create many command instances to verify they all get unique IDs
+        let mut commands = Vec::new();
+        for _ in 0..100 {
+            let cmd = Nullary::new();
+            let result = cmd.next(vec![])?;
+            assert!(matches!(result, State::Data { .. }));
+            commands.push(cmd);
+        }
+
+        // All commands should work independently
+        for cmd in &commands {
+            let result = cmd.next(vec![])?;
+            assert!(matches!(result, State::Result { .. }));
+        }
+
+        Ok(())
+    }
+
+    /// Test generator state isolation between instances with same arguments
+    #[test]
+    fn argument_based_isolation() -> Result<(), CommandError> {
+        let cmd1 = Unary::new("test".into());
+        let cmd2 = Unary::new("test".into());
+
+        // Both should yield independently even with same arguments
+        let result1 = cmd1.next(vec![])?;
+        let result2 = cmd2.next(vec![])?;
+
+        assert!(matches!(result1, State::Data { .. }));
+        assert!(matches!(result2, State::Data { .. }));
+
+        // Complete cmd1
+        let _final1 = cmd1.next(vec![])?;
+
+        // cmd2 should still work independently
+        let result2_continued = cmd2.next(vec![])?;
+        assert!(matches!(result2_continued, State::Result { .. }));
+
+        Ok(())
+    }
+
+    /// Test memory behavior under stress - verifies Drop cleanup works
+    #[test]
+    #[ignore] // Run with --ignored for stress testing
+    fn memory_stress_test() -> Result<(), CommandError> {
+        // Create many commands and ensure they don't accumulate in memory
+        for i in 0..10000 {
+            let cmd = Nullary::new();
+            let _first = cmd.next(vec![])?;
+            let _second = cmd.next(vec![])?; // Complete and trigger drop cleanup
+
+            if i % 1000 == 0 {
+                println!("Completed {} command cycles", i);
+            }
+        }
+
+        // If we reach here without OOM, the cleanup is working
+        Ok(())
+    }
+
+    /// Test that Drop cleanup actually removes entries from thread-local storage
+    #[test]
+    fn drop_cleanup_verification() -> Result<(), CommandError> {
+        // Create and drop many commands, then check that we can still create new ones
+        // This indirectly tests that Drop is working (if it weren't, we'd eventually OOM)
+        for _ in 0..1000 {
+            let cmd = Nullary::new();
+            let _result = cmd.next(vec![])?;
+            // cmd is dropped here, triggering cleanup
+        }
+
+        // If we can still create and use commands, cleanup is working
+        let final_cmd = Nullary::new();
+        let result = final_cmd.next(vec![])?;
+        assert!(matches!(result, State::Data { .. }));
+
+        Ok(())
+    }
+
+    /// Test that Drop cleans up a partially executed command.
+    #[test]
+    fn drop_cleanup_on_partial_execution() -> Result<(), CommandError> {
+        // This loop creates many commands that are only partially executed and
+        // then dropped. If the Drop implementation failed to clean up the
+        // generator from the TLS map, this test would eventually consume
+        // a large amount of memory and likely panic or fail.
+        for _ in 0..5000 {
+            let cmd = Nullary::new();
+            // Partially execute the command, causing its state to be stored.
+            let _ = cmd.next(vec![])?;
+            // `cmd` is dropped here, its `Drop` impl should run and clean up.
+        }
+
+        // If the loop completes, it's a strong indicator that cleanup is working.
+        // To be certain, we create one final command to ensure the TLS map
+        // hasn't become corrupted or bloated.
+        let final_cmd = Nullary::new();
+        assert!(matches!(final_cmd.next(vec![])?, State::Data { .. }));
+
+        Ok(())
+    }
+
+    #[generator(yield(Vec<u8>), resume(Vec<u8>))]
+    fn sub_generator() -> Result<String, CommandError> {
+        let data = yield_!("sub_yield".into());
+        Ok(String::from_utf8(data).unwrap_or_default())
+    }
+
+    #[generator(yield(Vec<u8>), resume(Vec<u8>))]
+    fn main_generator() -> Result<String, CommandError> {
+        yield_!("main_yield_1".into());
+        let sub_result = yield_from_!(sub_generator());
+        yield_!("main_yield_2".into());
+        Ok(format!("final: {}", sub_result?))
+    }
+
+    command!(YieldFrom = main_generator -> String);
+
+    #[test]
+    fn yield_from_delegation() -> Result<(), CommandError> {
+        let cmd = YieldFrom::new();
+
+        // 1. First yield from main_generator
+        let state1 = cmd.next(vec![])?;
+        assert_eq!(
+            state1,
+            State::Data {
+                response: "main_yield_1".into()
+            }
+        );
+
+        // 2. Yield from the sub_generator
+        let state2 = cmd.next("from_test_1".into())?;
+        assert_eq!(
+            state2,
+            State::Data {
+                response: "sub_yield".into()
+            }
+        );
+
+        // 3. Resume sub_generator, which returns. Then hit the second yield in main_generator
+        let state3 = cmd.next("from_sub".into())?;
+        assert_eq!(
+            state3,
+            State::Data {
+                response: "main_yield_2".into()
+            }
+        );
+
+        // 4. Final result
+        let state4 = cmd.next("from_test_2".into())?;
+        assert_eq!(
+            state4,
+            State::Result {
+                value: "final: from_sub".to_string()
+            }
+        );
+
+        Ok(())
+    }
+
+    #[generator(yield(Vec<u8>), resume(Vec<u8>))]
+    fn erroring_generator() -> Result<bool, CommandError> {
+        yield_!("about_to_error".into());
+        Err(CommandError::InvalidResponse)
+    }
+
+    command!(Erroring = erroring_generator -> bool);
+
+    #[test]
+    fn generator_error_propagation() -> Result<(), CommandError> {
+        let cmd = Erroring::new();
+
+        // The first call should yield successfully.
+        let state = cmd.next(vec![])?;
+        assert_eq!(
+            state,
+            State::Data {
+                response: "about_to_error".into()
+            }
+        );
+
+        // The second call should return the error from the generator.
+        // The `?` operator in the `command!` macro's `next_impl` will
+        // propagate the internal `Err`.
+        let result = cmd.next(vec![]);
+        assert!(matches!(result, Err(CommandError::InvalidResponse)));
+
+        Ok(())
+    }
+
+    #[generator(yield(Vec<u8>), resume(Vec<u8>))]
+    fn data_echo_generator() -> Result<String, CommandError> {
+        let from_app = yield_!("send_data".into());
+        Ok(format!("app_sent: {}", String::from_utf8_lossy(&from_app)))
+    }
+
+    command!(DataEcho = data_echo_generator -> String);
+
+    #[test]
+    fn resumption_with_data() -> Result<(), CommandError> {
+        let cmd = DataEcho::new();
+
+        // 1. Initial call yields "send_data"
+        let state1 = cmd.next(vec![])?;
+        assert_eq!(
+            state1,
+            State::Data {
+                response: "send_data".into()
+            }
+        );
+
+        // 2. Send specific data back in the second call
+        let data_to_send = "hello_from_test".to_string();
+        let state2 = cmd.next(data_to_send.into_bytes())?;
+
+        // 3. Verify the final result includes the data we sent
+        let expected_result = "app_sent: hello_from_test".to_string();
+        assert_eq!(
+            state2,
+            State::Result {
+                value: expected_result
+            }
+        );
+
         Ok(())
     }
 }

@@ -15,8 +15,9 @@ import build.wallet.crypto.PublicKey
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.keybox.keys.AppKeysGenerator
-import build.wallet.logging.*
+import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
+import build.wallet.logging.logWarn
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
@@ -25,7 +26,6 @@ import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapBoth
@@ -294,7 +294,6 @@ class RotateAuthKeyUIStateMachineImpl(
       fullAccountId = props.account.keybox.fullAccountId,
       screenPresentationStyle = ScreenPresentationStyle.FullScreen,
       appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
-      hardwareVerification = NotRequired, // TODO (W-11240): Enforce paired hardware when rotating auth keys
       onBack = {
         setState(State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = state.appGlobalAndRecoveryAuthKeys))
       }

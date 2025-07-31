@@ -3,6 +3,7 @@ package bitkey.securitycenter
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.firmware.HardwareUnlockInfoService
 import bitkey.privilegedactions.FingerprintResetService
+import bitkey.privilegedactions.FingerprintResetState
 import bitkey.privilegedactions.isDelayAndNotifyReadyToComplete
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -44,30 +45,44 @@ class FingerprintsActionFactoryImpl(
   private fun createFingerprintResetReadyFlow(): Flow<Boolean> {
     return fingerprintResetService
       .fingerprintResetAction()
-      .transformLatest { actionInstance ->
-        val delayAndNotify =
-          actionInstance?.authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
+      .combine(fingerprintResetService.pendingFingerprintResetGrant()) { actionInstance, grant ->
+        when {
+          // Persisted grant is ready to complete immediately
+          grant != null -> FingerprintResetState.GrantReady(grant)
 
-        if (actionInstance == null || delayAndNotify == null) {
-          emit(false)
-          return@transformLatest
-        }
-
-        val readyNow = actionInstance.isDelayAndNotifyReadyToComplete(clock)
-
-        if (readyNow) {
-          emit(true)
-        } else {
-          emit(false)
-
-          val remaining = delayAndNotify.delayEndTime - clock.now()
-          if (remaining.isPositive()) {
-            delay(remaining.inWholeMilliseconds)
+          // Check server-side action
+          else -> {
+            val delayAndNotify = actionInstance?.authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
+            when {
+              actionInstance == null || delayAndNotify == null -> FingerprintResetState.None
+              actionInstance.isDelayAndNotifyReadyToComplete(clock) -> FingerprintResetState.DelayCompleted(actionInstance)
+              else -> FingerprintResetState.DelayInProgress(actionInstance, delayAndNotify)
+            }
           }
-
-          emit(true)
         }
       }
       .distinctUntilChanged()
+      .transformLatest { resetState: FingerprintResetState ->
+        when (resetState) {
+          is FingerprintResetState.GrantReady,
+          is FingerprintResetState.DelayCompleted,
+          -> {
+            emit(true)
+          }
+
+          is FingerprintResetState.DelayInProgress -> {
+            emit(false)
+            val remaining = resetState.delayAndNotify.delayEndTime - clock.now()
+            if (remaining.isPositive()) {
+              delay(remaining.inWholeMilliseconds)
+            }
+            emit(true)
+          }
+
+          is FingerprintResetState.None -> {
+            emit(false)
+          }
+        }
+      }
   }
 }

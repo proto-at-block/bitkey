@@ -9,6 +9,7 @@
 #include "log.h"
 #include "policy.h"
 #include "secure_rng.h"
+#include "secutils.h"
 #include "wallet.h"
 
 #include <string.h>
@@ -51,16 +52,20 @@ static bool sign_with_hw_auth_key(uint8_t* message, uint32_t message_len, uint8_
   extended_key_t key_priv = {0};
   if (!wallet_get_w1_auth_key(&key_priv)) {
     LOGE("Failed to derive auth key");
+    memzero(&key_priv, sizeof(key_priv));
     return false;
   }
 
   uint8_t message_digest[SHA256_DIGEST_SIZE] = {0};
   if (!crypto_hash(message, message_len, message_digest, sizeof(message_digest), ALG_SHA256)) {
     LOGE("Failed to hash message");
+    memzero(&key_priv, sizeof(key_priv));
     return false;
   }
 
-  return bip32_sign(&key_priv, message_digest, signature);
+  bool ret = bip32_sign(&key_priv, message_digest, signature);
+  memzero(&key_priv, sizeof(key_priv));
+  return ret;
 }
 
 static grant_protocol_result_t sign_request(grant_request_t* request) {

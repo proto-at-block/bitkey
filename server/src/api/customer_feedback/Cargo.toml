@@ -9,7 +9,7 @@ debug-embed = ["rust-embed/debug-embed"]
 
 [dependencies]
 aws-config = { workspace = true }
-aws-sdk-kms = "1.15.0"
+aws-sdk-kms = { workspace = true }
 axum = { workspace = true }
 axum-macros = { workspace = true }
 instrumentation = { workspace = true }

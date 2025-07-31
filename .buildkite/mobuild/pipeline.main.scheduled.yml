@@ -5,6 +5,12 @@ notify:
 # Schedules are defined in runway-pipeline-config -> pipelines/mdx-ios/wallet.yaml
 steps:
   - label: "Main branch alpha daily build"
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+          limit: 2
+        - exit_status: 255 # Forced agent shutdown
+          limit: 2
     agents:
       xcode: 16.2.0
       ios: 18.3.1

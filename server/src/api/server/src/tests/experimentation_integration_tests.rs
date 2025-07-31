@@ -1,23 +1,18 @@
 use std::collections::HashMap;
 
+use once_cell::sync::Lazy;
+use rstest::rstest;
+
 use experimentation::routes::{
     GetAccountFeatureFlagsRequest, GetAppInstallationFeatureFlagsRequest,
 };
 use feature_flags::flag::FeatureFlagValue;
 use http::{HeaderMap, HeaderValue, StatusCode};
-use once_cell::sync::Lazy;
 
 use crate::tests::gen_services_with_overrides;
 use crate::tests::lib::{create_default_account_with_predefined_wallet, create_lite_account};
 use crate::tests::requests::axum::TestClient;
-use crate::{tests, GenServiceOverrides};
-
-struct GetFeatureFlagsTestVector {
-    flag_keys: Vec<String>,
-    overriden_feature_flags: Vec<(String, String)>,
-    expected_status: StatusCode,
-    expected_feature_flags: Vec<(String, FeatureFlagValue)>,
-}
+use crate::GenServiceOverrides;
 
 pub static DEFAULT_EXPERIMENTATION_HEADERS: Lazy<HeaderMap> = Lazy::new(|| {
     let mut headers = HeaderMap::new();
@@ -35,9 +30,39 @@ pub static DEFAULT_EXPERIMENTATION_HEADERS: Lazy<HeaderMap> = Lazy::new(|| {
     headers
 });
 
-async fn get_account_feature_flags(vector: GetFeatureFlagsTestVector) {
-    let feature_flag_override = vector
-        .overriden_feature_flags
+#[rstest]
+#[case::invalid_flag(
+    vec!["random_flag".to_string()],
+    vec![],
+    StatusCode::OK,
+    vec![]
+)]
+#[case::all_valid_flags(
+    vec!["flag_1".to_string(), "flag_2".to_string()],
+    vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("false")), (String::from("flag_3"), String::from("false"))],
+    StatusCode::OK,
+    vec![(String::from("flag_1"), FeatureFlagValue::Boolean{boolean: true}), (String::from("flag_2"), FeatureFlagValue::Boolean{boolean: false})]
+)]
+#[case::missing_flags(
+    vec!["flag_not_found".to_string(), "flag_2".to_string()],
+    vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("false")), (String::from("flag_3"), String::from("false"))],
+    StatusCode::OK,
+    vec![(String::from("flag_2"), FeatureFlagValue::Boolean{boolean: false})]
+)]
+#[case::all_types(
+    vec!["flag_1".to_string(), "flag_2".to_string(), "flag_3".to_string()],
+    vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("test")), (String::from("flag_3"), String::from("1.001")), (String::from("flag_4"), String::from("1.002"))],
+    StatusCode::OK,
+    vec![(String::from("flag_1"), FeatureFlagValue::Boolean{boolean: true}), (String::from("flag_2"), FeatureFlagValue::String{string: "test".to_owned()}), (String::from("flag_3"), FeatureFlagValue::Double { double: 1.001 })]
+)]
+#[tokio::test]
+async fn test_get_account_feature_flags(
+    #[case] flag_keys: Vec<String>,
+    #[case] overriden_feature_flags: Vec<(String, String)>,
+    #[case] expected_status: StatusCode,
+    #[case] expected_feature_flags: Vec<(String, FeatureFlagValue)>,
+) {
+    let feature_flag_override = overriden_feature_flags
         .into_iter()
         .collect::<HashMap<String, String>>();
     let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
@@ -52,7 +77,7 @@ async fn get_account_feature_flags(vector: GetFeatureFlagsTestVector) {
             &full_account.id.to_string(),
             DEFAULT_EXPERIMENTATION_HEADERS.clone(),
             &GetAccountFeatureFlagsRequest {
-                flag_keys: vector.flag_keys.clone(),
+                flag_keys: flag_keys.clone(),
             },
         )
         .await;
@@ -60,18 +85,15 @@ async fn get_account_feature_flags(vector: GetFeatureFlagsTestVector) {
         .get_lite_account_feature_flags(
             &lite_account.id.to_string(),
             DEFAULT_EXPERIMENTATION_HEADERS.clone(),
-            &GetAccountFeatureFlagsRequest {
-                flag_keys: vector.flag_keys,
-            },
+            &GetAccountFeatureFlagsRequest { flag_keys },
         )
         .await;
 
-    let expected_flags = vector
-        .expected_feature_flags
+    let expected_flags = expected_feature_flags
         .into_iter()
         .collect::<HashMap<String, FeatureFlagValue>>();
     for response in [full_account_response, lite_account_response] {
-        assert_eq!(response.status_code, vector.expected_status);
+        assert_eq!(response.status_code, expected_status);
         if let Some(body) = response.body {
             for flag in body.flags {
                 assert_eq!(flag.value, *expected_flags.get(&flag.key).unwrap());
@@ -80,37 +102,39 @@ async fn get_account_feature_flags(vector: GetFeatureFlagsTestVector) {
     }
 }
 
-tests! {
-    runner = get_account_feature_flags,
-    test_get_account_feature_flags_with_invalid_flag: GetFeatureFlagsTestVector {
-        flag_keys: vec!["random_flag".to_string()],
-        overriden_feature_flags: vec![],
-        expected_status: StatusCode::OK,
-        expected_feature_flags: vec![],
-    },
-    test_get_account_feature_flags_with_all_valid_flags: GetFeatureFlagsTestVector {
-        flag_keys: vec!["flag_1".to_string(), "flag_2".to_string()],
-        overriden_feature_flags: vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("false")), (String::from("flag_3"), String::from("false"))],
-        expected_status: StatusCode::OK,
-        expected_feature_flags: vec![(String::from("flag_1"), FeatureFlagValue::Boolean{boolean: true}), (String::from("flag_2"), FeatureFlagValue::Boolean{boolean: false})],
-    },
-    test_get_account_feature_flags_with_missing_flags: GetFeatureFlagsTestVector {
-        flag_keys: vec!["flag_not_found".to_string(), "flag_2".to_string()],
-        overriden_feature_flags: vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("false")), (String::from("flag_3"), String::from("false"))],
-        expected_status: StatusCode::OK,
-        expected_feature_flags: vec![(String::from("flag_2"), FeatureFlagValue::Boolean{boolean: false})],
-    },
-    test_get_account_feature_flags_with_all_types_of_flags: GetFeatureFlagsTestVector {
-        flag_keys: vec!["flag_1".to_string(), "flag_2".to_string(), "flag_3".to_string()],
-        overriden_feature_flags: vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("test")), (String::from("flag_3"), String::from("1.001")), (String::from("flag_4"), String::from("1.002"))],
-        expected_status: StatusCode::OK,
-        expected_feature_flags: vec![(String::from("flag_1"), FeatureFlagValue::Boolean{boolean: true}), (String::from("flag_2"), FeatureFlagValue::String{string: "test".to_owned()}), (String::from("flag_3"), FeatureFlagValue::Double { double: 1.001 })],
-    },
-}
-
-async fn get_app_installation_feature_flags(vector: GetFeatureFlagsTestVector) {
-    let feature_flag_override = vector
-        .overriden_feature_flags
+#[rstest]
+#[case::app_invalid_flag(
+    vec!["random_flag".to_string()],
+    vec![],
+    StatusCode::OK,
+    vec![]
+)]
+#[case::app_all_valid_flags(
+    vec!["flag_1".to_string(), "flag_2".to_string()],
+    vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("false")), (String::from("flag_3"), String::from("false"))],
+    StatusCode::OK,
+    vec![(String::from("flag_1"), FeatureFlagValue::Boolean{boolean: true}), (String::from("flag_2"), FeatureFlagValue::Boolean{boolean: false})]
+)]
+#[case::app_missing_flags(
+    vec!["flag_not_found".to_string(), "flag_2".to_string()],
+    vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("false")), (String::from("flag_3"), String::from("false"))],
+    StatusCode::OK,
+    vec![(String::from("flag_2"), FeatureFlagValue::Boolean{boolean: false})]
+)]
+#[case::app_all_types(
+    vec!["flag_1".to_string(), "flag_2".to_string(), "flag_3".to_string()],
+    vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("test")), (String::from("flag_3"), String::from("1.001")), (String::from("flag_4"), String::from("1.002"))],
+    StatusCode::OK,
+    vec![(String::from("flag_1"), FeatureFlagValue::Boolean{boolean: true}), (String::from("flag_2"), FeatureFlagValue::String{string: "test".to_owned()}), (String::from("flag_3"), FeatureFlagValue::Double { double: 1.001 })]
+)]
+#[tokio::test]
+async fn test_get_app_installation_feature_flags(
+    #[case] flag_keys: Vec<String>,
+    #[case] overriden_feature_flags: Vec<(String, String)>,
+    #[case] expected_status: StatusCode,
+    #[case] expected_feature_flags: Vec<(String, FeatureFlagValue)>,
+) {
+    let feature_flag_override = overriden_feature_flags
         .into_iter()
         .collect::<HashMap<String, String>>();
     let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
@@ -119,48 +143,17 @@ async fn get_app_installation_feature_flags(vector: GetFeatureFlagsTestVector) {
     let response = client
         .get_app_installation_feature_flags(
             DEFAULT_EXPERIMENTATION_HEADERS.clone(),
-            &GetAppInstallationFeatureFlagsRequest {
-                flag_keys: vector.flag_keys,
-            },
+            &GetAppInstallationFeatureFlagsRequest { flag_keys },
         )
         .await;
 
-    assert_eq!(response.status_code, vector.expected_status);
+    assert_eq!(response.status_code, expected_status);
     if let Some(body) = response.body {
-        let expected_flags = vector
-            .expected_feature_flags
+        let expected_flags = expected_feature_flags
             .into_iter()
             .collect::<HashMap<String, FeatureFlagValue>>();
         for flag in body.flags {
             assert_eq!(flag.value, *expected_flags.get(&flag.key).unwrap());
         }
     }
-}
-
-tests! {
-    runner = get_app_installation_feature_flags,
-    test_get_app_installation_feature_flags_with_invalid_flag: GetFeatureFlagsTestVector {
-        flag_keys: vec!["random_flag".to_string()],
-        overriden_feature_flags: vec![],
-        expected_status: StatusCode::OK,
-        expected_feature_flags: vec![],
-    },
-    test_get_app_installation_feature_flags_with_all_valid_flags: GetFeatureFlagsTestVector {
-        flag_keys: vec!["flag_1".to_string(), "flag_2".to_string()],
-        overriden_feature_flags: vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("false")), (String::from("flag_3"), String::from("false"))],
-        expected_status: StatusCode::OK,
-        expected_feature_flags: vec![(String::from("flag_1"), FeatureFlagValue::Boolean{boolean: true}), (String::from("flag_2"), FeatureFlagValue::Boolean{boolean: false})],
-    },
-    test_get_app_installation_feature_flags_with_missing_flags: GetFeatureFlagsTestVector {
-        flag_keys: vec!["flag_not_found".to_string(), "flag_2".to_string()],
-        overriden_feature_flags: vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("false")), (String::from("flag_3"), String::from("false"))],
-        expected_status: StatusCode::OK,
-        expected_feature_flags: vec![(String::from("flag_2"), FeatureFlagValue::Boolean{boolean: false})],
-    },
-    test_get_app_installation_feature_flags_with_all_types_of_flags: GetFeatureFlagsTestVector {
-        flag_keys: vec!["flag_1".to_string(), "flag_2".to_string(), "flag_3".to_string()],
-        overriden_feature_flags: vec![(String::from("flag_1"), String::from("true")), (String::from("flag_2"), String::from("test")), (String::from("flag_3"), String::from("1.001")), (String::from("flag_4"), String::from("1.002"))],
-        expected_status: StatusCode::OK,
-        expected_feature_flags: vec![(String::from("flag_1"), FeatureFlagValue::Boolean{boolean: true}), (String::from("flag_2"), FeatureFlagValue::String{string: "test".to_owned()}), (String::from("flag_3"), FeatureFlagValue::Double { double: 1.001 })],
-    },
 }

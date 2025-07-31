@@ -108,10 +108,13 @@ async fn sats_for_threshold(
 
 #[cfg(test)]
 mod tests {
-    use crate::routes::Config;
+    use std::{env, str::FromStr};
+
+    use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
     use exchange_rate::select_exchange_rate_provider;
-    use std::env;
     use types::exchange_rate::RateProvider;
+
+    use crate::routes::Config;
 
     #[test]
     fn test_select_exchange_rate_provider() {
@@ -119,6 +122,10 @@ mod tests {
         // Return LocalRateProvider
         match select_exchange_rate_provider(&Config {
             use_local_currency_exchange: true,
+            wik_pub_key: PublicKey::from_str(
+                "03078451e0c1e12743d2fdd93ae7d03d5cf7813d2f612de10904e1c6a0b87f7071",
+            )
+            .unwrap(),
         }) {
             RateProvider::Local(_provider) => {}
             _ => panic!("Unexpected exchange rate provider returned"),
@@ -127,6 +134,10 @@ mod tests {
         // Return CoingeckoRatePRovider
         match select_exchange_rate_provider(&Config {
             use_local_currency_exchange: false,
+            wik_pub_key: PublicKey::from_str(
+                "03078451e0c1e12743d2fdd93ae7d03d5cf7813d2f612de10904e1c6a0b87f7071",
+            )
+            .unwrap(),
         }) {
             RateProvider::Coingecko(_provider) => {}
             _ => panic!("Unexpected exchange rate provider returned"),

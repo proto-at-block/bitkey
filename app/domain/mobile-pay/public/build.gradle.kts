@@ -16,6 +16,7 @@ kotlin {
         api(libs.kmp.big.number)
         api(projects.domain.bitkeyPrimitivesPublic)
         api(projects.domain.featureFlagPublic)
+        api(projects.domain.txVerificationPublic)
         api(projects.libs.moneyPublic)
         api(projects.domain.walletPublic)
         api(projects.domain.workerPublic)

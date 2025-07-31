@@ -8,7 +8,7 @@ class SymmetricKeyEncryptorFake : SymmetricKeyEncryptor {
   var sealNoMetadataResult: SealedData? = null
   var unsealNoMetadataResult: ByteString? = null
   var unsealError: Boolean = false
-  
+
   // Store the last sealed data for test verification
   var lastSealedData: ByteString? = null
     private set
@@ -19,7 +19,7 @@ class SymmetricKeyEncryptorFake : SymmetricKeyEncryptor {
   ): SealedData {
     // Store the unsealed data for test access
     lastSealedData = unsealedData
-    
+
     return sealNoMetadataResult ?: SealedData(
       ciphertext = unsealedData,
       nonce = key.raw,

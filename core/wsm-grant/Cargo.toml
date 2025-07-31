@@ -1,0 +1,13 @@
+[package]
+edition = { workspace = true }
+name = "wsm-grant"
+publish = { workspace = true }
+version = { workspace = true }
+
+[dependencies]
+anyhow = "1.0.80"
+bitcoin = { workspace = true }
+sha2 = "0.10.8"
+
+[dev-dependencies]
+rand = "0.8.5"

@@ -1,5 +1,6 @@
 package build.wallet.limit
 
+import bitkey.verification.TxVerificationApproval
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -42,7 +43,10 @@ interface MobilePayService {
   /**
    * Signs a PSBT with the mobile pay keyset from f8e.
    */
-  suspend fun signPsbtWithMobilePay(psbt: Psbt): Result<Psbt, Error>
+  suspend fun signPsbtWithMobilePay(
+    psbt: Psbt,
+    grant: TxVerificationApproval?,
+  ): Result<Psbt, Error>
 
   /**
    * Computes if the [transactionAmount] is above the spending limit

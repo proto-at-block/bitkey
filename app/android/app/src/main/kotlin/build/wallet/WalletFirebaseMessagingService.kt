@@ -14,15 +14,19 @@ import build.wallet.libs.platform.impl.R
 import build.wallet.notification.NotificationDismissBroadcastReceiver
 import build.wallet.platform.appVariant
 import build.wallet.platform.config.AppVariant.*
-import build.wallet.platform.config.TouchpointPlatform.*
+import build.wallet.platform.config.TouchpointPlatform.FcmCustomer
+import build.wallet.platform.config.TouchpointPlatform.FcmTeam
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.security.SecureRandom
 import kotlin.uuid.ExperimentalUuidApi
 
 class WalletFirebaseMessagingService : FirebaseMessagingService() {
-  lateinit var appComponent: AndroidAppComponent
+  lateinit var appComponent: Deferred<AndroidAppComponent>
 
   override fun onCreate() {
     appComponent = (application as BitkeyApplication).appComponent
@@ -42,8 +46,8 @@ class WalletFirebaseMessagingService : FirebaseMessagingService() {
   }
 
   override fun onNewToken(token: String) {
-    appComponent.appCoroutineScope.launch {
-      appComponent.deviceTokenManager.addDeviceTokenIfActiveOrOnboardingAccount(
+    CoroutineScope(Dispatchers.Default).launch {
+      appComponent.await().deviceTokenManager.addDeviceTokenIfActiveOrOnboardingAccount(
         deviceToken = token,
         touchpointPlatform = when (appVariant) {
           Customer, Emergency -> FcmCustomer

@@ -2,6 +2,7 @@
 
 package build.wallet.limit
 
+import bitkey.verification.TxVerificationApproval
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.account.getAccount
@@ -101,7 +102,10 @@ class MobilePayServiceImpl(
     return spendingLimitDao.removeAllLimits()
   }
 
-  override suspend fun signPsbtWithMobilePay(psbt: Psbt): Result<Psbt, Error> =
+  override suspend fun signPsbtWithMobilePay(
+    psbt: Psbt,
+    grant: TxVerificationApproval?,
+  ): Result<Psbt, Error> =
     coroutineBinding {
       val account = accountService.getAccount<FullAccount>().bind()
 
@@ -109,7 +113,8 @@ class MobilePayServiceImpl(
         f8eEnvironment = account.config.f8eEnvironment,
         fullAccountId = account.accountId,
         keysetId = account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
-        psbt = psbt
+        psbt = psbt,
+        grant = grant
       ).bind()
     }
 

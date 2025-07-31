@@ -86,22 +86,21 @@ class FingerprintResetStatusCardUiStateMachineImpl(
     }
   }
 
-  private fun durationText(remainingDuration: Duration): String =
-    if (remainingDuration.isPositive()) {
-      val days = remainingDuration.inWholeDays.toInt()
+  private fun durationText(remainingDuration: Duration): String {
+    if (!remainingDuration.isPositive()) {
+      return "Ready to complete"
+    }
+
+    return remainingDuration.toComponents { days, hours, minutes, _, _ ->
       when {
         days > 1 -> "$days days remaining..."
-        days == 1 -> "1 day remaining..."
-        else -> {
-          val hours = remainingDuration.inWholeHours.toInt()
-          when {
-            hours > 1 -> "$hours hours remaining..."
-            hours == 1 -> "1 hour remaining..."
-            else -> "Less than 1 hour remaining..."
-          }
-        }
+        days == 1L -> "1 day remaining..."
+        hours > 1 -> "$hours hours remaining..."
+        hours == 1 -> "1 hour remaining..."
+        minutes > 1 -> "$minutes minutes remaining..."
+        minutes == 1 -> "1 minute remaining..."
+        else -> "Less than 1 minute remaining..."
       }
-    } else {
-      "Ready to complete"
     }
+  }
 }

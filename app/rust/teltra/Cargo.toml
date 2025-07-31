@@ -4,6 +4,9 @@ name = "teltra"
 publish = { workspace = true }
 version = { workspace = true }
 
+[lints]
+workspace = true
+
 [dependencies]
 teltra-sys = { path = "../teltra-sys" }
 thiserror = { workspace = true }

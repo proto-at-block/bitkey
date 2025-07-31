@@ -68,7 +68,6 @@ use super::{
     },
 };
 use crate::{
-    tests,
     tests::{
         gen_services,
         lib::{
@@ -79,16 +78,14 @@ use crate::{
     GenServiceOverrides,
 };
 
-struct OnboardingTestVector {
+async fn onboarding_test(
     include_recovery_auth_pubkey: bool,
     spending_app_xpub: DescriptorPublicKey,
     spending_hw_xpub: DescriptorPublicKey,
     network: Network,
     expected_derivation_path: &'static str,
     expected_status: StatusCode,
-}
-
-async fn onboarding_test(vector: OnboardingTestVector) {
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -97,22 +94,22 @@ async fn onboarding_test(vector: OnboardingTestVector) {
         auth: FullAccountAuthKeysPayload {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
-            recovery: if vector.include_recovery_auth_pubkey {
+            recovery: if include_recovery_auth_pubkey {
                 Some(keys.recovery.public_key)
             } else {
                 None
             },
         },
         spending: SpendingKeysetRequest {
-            network: vector.network,
-            app: vector.spending_app_xpub,
-            hardware: vector.spending_hw_xpub,
+            network,
+            app: spending_app_xpub,
+            hardware: spending_hw_xpub,
         },
         is_test_account: true,
     };
     let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
-        actual_response.status_code, vector.expected_status,
+        actual_response.status_code, expected_status,
         "{}",
         actual_response.body_string
     );
@@ -123,7 +120,7 @@ async fn onboarding_test(vector: OnboardingTestVector) {
             keyset
                 .spending
                 .to_string()
-                .contains(vector.expected_derivation_path),
+                .contains(expected_derivation_path),
             "{}",
             keyset.spending.to_string()
         );
@@ -131,32 +128,44 @@ async fn onboarding_test(vector: OnboardingTestVector) {
     }
 }
 
-tests! {
-    runner = onboarding_test,
-    test_onboarding_valid_keys_without_recovery_authkey_on_testnet: OnboardingTestVector {
-        include_recovery_auth_pubkey: false,
-        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
-        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
-        network: Network::Testnet,
-        expected_derivation_path: "/84'/1'/0'",
-        expected_status: StatusCode::OK,
-    },
-    test_onboarding_valid_keys_with_recovery_authkey_on_testnet: OnboardingTestVector {
-        include_recovery_auth_pubkey: true,
-        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
-        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
-        network: Network::Testnet,
-        expected_derivation_path: "/84'/1'/0'",
-        expected_status: StatusCode::OK,
-    },
+#[rstest]
+#[case::without_recovery_authkey_testnet(
+    false,
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Testnet,
+    "/84'/1'/0'",
+    StatusCode::OK
+)]
+#[case::with_recovery_authkey_testnet(
+    true,
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Testnet,
+    "/84'/1'/0'",
+    StatusCode::OK
+)]
+#[tokio::test]
+async fn test_onboarding(
+    #[case] include_recovery_auth_pubkey: bool,
+    #[case] spending_app_xpub: DescriptorPublicKey,
+    #[case] spending_hw_xpub: DescriptorPublicKey,
+    #[case] network: Network,
+    #[case] expected_derivation_path: &'static str,
+    #[case] expected_status: StatusCode,
+) {
+    onboarding_test(
+        include_recovery_auth_pubkey,
+        spending_app_xpub,
+        spending_hw_xpub,
+        network,
+        expected_derivation_path,
+        expected_status,
+    )
+    .await
 }
 
-struct AddDeviceTokenTestVector {
-    request: AccountAddDeviceTokenRequest,
-    expected_status: StatusCode,
-}
-
-async fn add_device_token_test(vector: AddDeviceTokenTestVector) {
+async fn add_device_token_test(request: AccountAddDeviceTokenRequest, expected_status: StatusCode) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let account = create_full_account(
@@ -168,17 +177,17 @@ async fn add_device_token_test(vector: AddDeviceTokenTestVector) {
     .await;
 
     let actual_response = client
-        .add_device_token(&account.id.to_string(), &vector.request)
+        .add_device_token(&account.id.to_string(), &request)
         .await;
     assert_eq!(
-        actual_response.status_code, vector.expected_status,
+        actual_response.status_code, expected_status,
         "{}",
         actual_response.body_string
     );
     assert_eq!(
         actual_response.status_code,
         client
-            .add_device_token(&account.id.to_string(), &vector.request)
+            .add_device_token(&account.id.to_string(), &request)
             .await
             .status_code,
     );
@@ -199,7 +208,7 @@ async fn add_device_token_test(vector: AddDeviceTokenTestVector) {
                 device_token,
             } = t
             {
-                *device_token == vector.request.device_token
+                *device_token == request.device_token
             } else {
                 false
             }
@@ -208,15 +217,20 @@ async fn add_device_token_test(vector: AddDeviceTokenTestVector) {
     }
 }
 
-tests! {
-    runner = add_device_token_test,
-    test_add_device_token_to_testnet_wallet: AddDeviceTokenTestVector {
-        request: AccountAddDeviceTokenRequest {
-            device_token: "device-token".to_owned(),
-            platform: TouchpointPlatform::ApnsTeam,
-        },
-        expected_status: StatusCode::OK,
+#[rstest]
+#[case::to_testnet_wallet(
+    AccountAddDeviceTokenRequest {
+        device_token: "device-token".to_owned(),
+        platform: TouchpointPlatform::ApnsTeam,
     },
+    StatusCode::OK
+)]
+#[tokio::test]
+async fn test_add_device_token(
+    #[case] request: AccountAddDeviceTokenRequest,
+    #[case] expected_status: StatusCode,
+) {
+    add_device_token_test(request, expected_status).await
 }
 
 enum TouchpointLifecycleTestStep {
@@ -285,23 +299,21 @@ impl TouchpointTestGetters for Touchpoint {
     }
 }
 
-struct TouchpointLifecycleTestVector {
+async fn touchpoint_lifecycle_test(
     onboarding_complete: bool,
     account_type: AccountType,
     steps: Vec<TouchpointLifecycleTestStep>,
-}
-
-async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
+) {
     let clock = Arc::new(OffsetClock::new());
     let (mut context, bootstrap) =
         gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_test_account(&mut context, &bootstrap.services, vector.account_type).await;
+    let account = create_test_account(&mut context, &bootstrap.services, account_type).await;
     let keys = context
         .get_authentication_keys_for_account_id(account.get_id())
         .unwrap();
 
-    if vector.onboarding_complete {
+    if onboarding_complete {
         assert_eq!(
             client
                 .complete_onboarding(&account.get_id().to_string(), &CompleteOnboardingRequest {},)
@@ -328,7 +340,7 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
     let mut last_seen_touchpoint_id = TouchpointId::new(Ulid::default()).unwrap();
     let mut last_seen_privileged_action_instance: Option<PrivilegedActionInstanceOutput> = None;
 
-    for step in vector.steps {
+    for step in steps {
         match step {
             TouchpointLifecycleTestStep::AddPhoneTouchpoint { .. }
             | TouchpointLifecycleTestStep::AddEmailTouchpoint { .. } => {
@@ -616,293 +628,299 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
     }
 }
 
-tests! {
-    runner = touchpoint_lifecycle_test,
-    test_touchpoint_lifecycle: TouchpointLifecycleTestVector {
-        onboarding_complete: false,
-        account_type: AccountType::Full,
-        steps: vec![
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                // Add an invalid phone number fails
-                phone_number: "15555555555".to_owned(),
-                expected_status: StatusCode::BAD_REQUEST,
-                expected_num_touchpoints: 0,
-            },
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                // Add an unsupported country code fails
-                phone_number: "+4402055555555".to_owned(),
-                expected_status: StatusCode::BAD_REQUEST,
-                expected_num_touchpoints: 0,
-            },
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                // Add a valid phone number succeeds
-                phone_number: "+15555555555".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                // Re-add a pending valid phone number succeeds (e.g. abort before verification and start with same number)
-                phone_number: "+15555555555".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                // Add a fresh valid phone number replaces previous pending phone number (e.g. abort before verification and start with new number)
-                phone_number: "+15555555556".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Activate unverified touchpoint id fails
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::BAD_REQUEST,
-                expected_num_touchpoints: 1,
-                expected_active_touchpoint: true,
-                app_signed: true,
-                hw_signed: true,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                // Verify non-existing touchpoint id fails
-                use_last_seen_touchpoint_id: false,
-                use_real_verification_code: true,
-                expected_status: StatusCode::NOT_FOUND,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                // Verify wrong verification code fails
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: false,
-                expected_status: StatusCode::BAD_REQUEST,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                // Verify with correct verification code succeeds
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                // Verify already verified phone number fails
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: true,
-                expected_status: StatusCode::BAD_REQUEST,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                // Re-add already verified phone number succeeds (e.g. abort after verification and start with same number)
-                phone_number: "+15555555556".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                // Verify with correct verification code succeeds
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                // Add a fresh valid phone number replaces previous verified phone number (e.g. abort after verification and start with new number)
-                phone_number: "+15555555557".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                // Verify with correct verification code succeeds
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Activate non-existing touchpoint id fails
-                use_last_seen_touchpoint_id: false,
-                expected_status: StatusCode::BAD_REQUEST,
-                expected_num_touchpoints: 1,
-                expected_active_touchpoint: true,
-                app_signed: false,
-                hw_signed: false,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Activate verified touchpoint succeeds
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-                expected_active_touchpoint: true,
-                app_signed: false,
-                hw_signed: false,
-            },
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                // Add a fresh valid phone number after activation succeeds (e.g. get ready to replace phone number)
-                phone_number: "+15555555558".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 2,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                // Verify with correct verification code succeeds
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 2,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Activate verified touchpoint succeeds and replaces previous active touchpoint
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-                expected_active_touchpoint: true,
-                app_signed: false,
-                hw_signed: false,
-            },
-            TouchpointLifecycleTestStep::AddEmailTouchpoint {
-                // Add an invalid email address fails
-                email_address: "notanemailaddress".to_owned(),
-                expected_status: StatusCode::BAD_REQUEST,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::AddEmailTouchpoint {
-                // Add a valid email address succeeds
-                email_address: "fake@email.invalid".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 2,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                // Verify pending email address with correct verification code succeeds
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 2,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Activate verified touchpoint succeeds
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 2,
-                expected_active_touchpoint: true,
-                app_signed: false,
-                hw_signed: false,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Re-activate activated touchpoint fails
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::BAD_REQUEST,
-                expected_num_touchpoints: 2,
-                expected_active_touchpoint: true,
-                app_signed: false,
-                hw_signed: false,
-            },
-        ],
-    },
-    test_onboarding_complete: TouchpointLifecycleTestVector {
-        onboarding_complete: true,
-        account_type: AccountType::Full,
-        steps: vec![
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                phone_number: "+15555555555".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Activate verified touchpoint without either sig fails
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::FORBIDDEN,
-                expected_num_touchpoints: 1,
-                expected_active_touchpoint: true,
-                app_signed: false,
-                hw_signed: false,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Activate verified touchpoint without app sig fails
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::FORBIDDEN,
-                expected_num_touchpoints: 1,
-                expected_active_touchpoint: true,
-                app_signed: false,
-                hw_signed: true,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Activate verified touchpoint without hw sig fails
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::FORBIDDEN,
-                expected_num_touchpoints: 1,
-                expected_active_touchpoint: true,
-                app_signed: true,
-                hw_signed: false,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                // Activate verified touchpoint with both sigs succeeds
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-                expected_active_touchpoint: true,
-                app_signed: true,
-                hw_signed: true,
-            },
-        ],
-    },
-    test_software_onboarding_not_complete: TouchpointLifecycleTestVector {
-        onboarding_complete: false,
-        account_type: AccountType::Software,
-        steps: vec![
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                phone_number: "+15555555555".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-                expected_active_touchpoint: true,
-                app_signed: false,
-                hw_signed: false,
-            },
-        ],
-    },
-    test_software_onboarding_complete: TouchpointLifecycleTestVector {
-        onboarding_complete: true,
-        account_type: AccountType::Software,
-        steps: vec![
-            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
-                phone_number: "+15555555555".to_owned(),
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::VerifyTouchpoint {
-                use_last_seen_touchpoint_id: true,
-                use_real_verification_code: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
-                use_last_seen_touchpoint_id: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-                app_signed: false,
-                expected_active_touchpoint: false,
-                hw_signed: false,
-            },
-            TouchpointLifecycleTestStep::CompleteActivateTouchpoint {
-                use_last_seen_touchpoint_id: true,
-                use_last_seen_privileged_action_instance: true,
-                expected_status: StatusCode::OK,
-                expected_num_touchpoints: 1,
-            },
-        ],
-    },
+#[rstest]
+#[case::lifecycle(
+    false,
+    AccountType::Full,
+    vec![
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            // Add an invalid phone number fails
+            phone_number: "15555555555".to_owned(),
+            expected_status: StatusCode::BAD_REQUEST,
+            expected_num_touchpoints: 0,
+        },
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            // Add an unsupported country code fails
+            phone_number: "+4402055555555".to_owned(),
+            expected_status: StatusCode::BAD_REQUEST,
+            expected_num_touchpoints: 0,
+        },
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            // Add a valid phone number succeeds
+            phone_number: "+15555555555".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            // Re-add a pending valid phone number succeeds (e.g. abort before verification and start with same number)
+            phone_number: "+15555555555".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            // Add a fresh valid phone number replaces previous pending phone number (e.g. abort before verification and start with new number)
+            phone_number: "+15555555556".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Activate unverified touchpoint id fails
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::BAD_REQUEST,
+            expected_num_touchpoints: 1,
+            expected_active_touchpoint: true,
+            app_signed: true,
+            hw_signed: true,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            // Verify non-existing touchpoint id fails
+            use_last_seen_touchpoint_id: false,
+            use_real_verification_code: true,
+            expected_status: StatusCode::NOT_FOUND,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            // Verify wrong verification code fails
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: false,
+            expected_status: StatusCode::BAD_REQUEST,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            // Verify with correct verification code succeeds
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            // Verify already verified phone number fails
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: true,
+            expected_status: StatusCode::BAD_REQUEST,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            // Re-add already verified phone number succeeds (e.g. abort after verification and start with same number)
+            phone_number: "+15555555556".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            // Verify with correct verification code succeeds
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            // Add a fresh valid phone number replaces previous verified phone number (e.g. abort after verification and start with new number)
+            phone_number: "+15555555557".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            // Verify with correct verification code succeeds
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Activate non-existing touchpoint id fails
+            use_last_seen_touchpoint_id: false,
+            expected_status: StatusCode::BAD_REQUEST,
+            expected_num_touchpoints: 1,
+            expected_active_touchpoint: true,
+            app_signed: false,
+            hw_signed: false,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Activate verified touchpoint succeeds
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+            expected_active_touchpoint: true,
+            app_signed: false,
+            hw_signed: false,
+        },
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            // Add a fresh valid phone number after activation succeeds (e.g. get ready to replace phone number)
+            phone_number: "+15555555558".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 2,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            // Verify with correct verification code succeeds
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 2,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Activate verified touchpoint succeeds and replaces previous active touchpoint
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+            expected_active_touchpoint: true,
+            app_signed: false,
+            hw_signed: false,
+        },
+        TouchpointLifecycleTestStep::AddEmailTouchpoint {
+            // Add an invalid email address fails
+            email_address: "notanemailaddress".to_owned(),
+            expected_status: StatusCode::BAD_REQUEST,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::AddEmailTouchpoint {
+            // Add a valid email address succeeds
+            email_address: "fake@email.invalid".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 2,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            // Verify pending email address with correct verification code succeeds
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 2,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Activate verified touchpoint succeeds
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 2,
+            expected_active_touchpoint: true,
+            app_signed: false,
+            hw_signed: false,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Re-activate activated touchpoint fails
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::BAD_REQUEST,
+            expected_num_touchpoints: 2,
+            expected_active_touchpoint: true,
+            app_signed: false,
+            hw_signed: false,
+        },
+    ]
+)]
+#[case::onboarding_complete(
+    true,
+    AccountType::Full,
+    vec![
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            phone_number: "+15555555555".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Activate verified touchpoint without either sig fails
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::FORBIDDEN,
+            expected_num_touchpoints: 1,
+            expected_active_touchpoint: true,
+            app_signed: false,
+            hw_signed: false,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Activate verified touchpoint without app sig fails
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::FORBIDDEN,
+            expected_num_touchpoints: 1,
+            expected_active_touchpoint: true,
+            app_signed: false,
+            hw_signed: true,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Activate verified touchpoint without hw sig fails
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::FORBIDDEN,
+            expected_num_touchpoints: 1,
+            expected_active_touchpoint: true,
+            app_signed: true,
+            hw_signed: false,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            // Activate verified touchpoint with both sigs succeeds
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+            expected_active_touchpoint: true,
+            app_signed: true,
+            hw_signed: true,
+        },
+    ]
+)]
+#[case::software_not_complete(
+    false,
+    AccountType::Software,
+    vec![
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            phone_number: "+15555555555".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+            expected_active_touchpoint: true,
+            app_signed: false,
+            hw_signed: false,
+        },
+    ]
+)]
+#[case::software_complete(
+    true,
+    AccountType::Software,
+    vec![
+        TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+            phone_number: "+15555555555".to_owned(),
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::VerifyTouchpoint {
+            use_last_seen_touchpoint_id: true,
+            use_real_verification_code: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+        TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+            use_last_seen_touchpoint_id: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+            app_signed: false,
+            expected_active_touchpoint: false,
+            hw_signed: false,
+        },
+        TouchpointLifecycleTestStep::CompleteActivateTouchpoint {
+            use_last_seen_touchpoint_id: true,
+            use_last_seen_privileged_action_instance: true,
+            expected_status: StatusCode::OK,
+            expected_num_touchpoints: 1,
+        },
+    ]
+)]
+#[tokio::test]
+async fn test_touchpoint_lifecycle(
+    #[case] onboarding_complete: bool,
+    #[case] account_type: AccountType,
+    #[case] steps: Vec<TouchpointLifecycleTestStep>,
+) {
+    touchpoint_lifecycle_test(onboarding_complete, account_type, steps).await
 }
 
 #[tokio::test]
@@ -1027,15 +1045,13 @@ async fn test_idempotent_account_creation() {
     assert_eq!(actual_response.status_code, StatusCode::BAD_REQUEST,);
 }
 
-struct IdempotentCreateAccountTestVector {
+async fn idempotent_create_account_test(
     same_app_pubkey: bool,
     same_hardware_pubkey: bool,
     same_recovery_pubkey: bool,
     expected_create_status: StatusCode,
     expected_same_response: bool,
-}
-
-async fn idempotent_create_account_test(vector: IdempotentCreateAccountTestVector) {
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -1058,17 +1074,17 @@ async fn idempotent_create_account_test(vector: IdempotentCreateAccountTestVecto
     let first_create_response = actual_response.body.unwrap();
 
     let new_keys = create_new_authkeys(&mut context);
-    let hw_pubkey = if vector.same_hardware_pubkey {
+    let hw_pubkey = if same_hardware_pubkey {
         keys.hw.public_key
     } else {
         new_keys.hw.public_key
     };
-    let app_pubkey = if vector.same_app_pubkey {
+    let app_pubkey = if same_app_pubkey {
         keys.app.public_key
     } else {
         new_keys.app.public_key
     };
-    let recovery_pubkey = if vector.same_recovery_pubkey {
+    let recovery_pubkey = if same_recovery_pubkey {
         Some(keys.recovery.public_key)
     } else {
         Some(new_keys.recovery.public_key)
@@ -1088,10 +1104,10 @@ async fn idempotent_create_account_test(vector: IdempotentCreateAccountTestVecto
         is_test_account: true,
     };
     let actual_response = client.create_account(&mut context, &second_request).await;
-    assert_eq!(actual_response.status_code, vector.expected_create_status);
+    assert_eq!(actual_response.status_code, expected_create_status);
     if actual_response.status_code == StatusCode::OK {
         let second_create_response = actual_response.body.unwrap();
-        if vector.expected_same_response {
+        if expected_same_response {
             assert_eq!(first_create_response, second_create_response);
         } else {
             assert_ne!(first_create_response, second_create_response);
@@ -1099,29 +1115,35 @@ async fn idempotent_create_account_test(vector: IdempotentCreateAccountTestVecto
     }
 }
 
-tests! {
-    runner = idempotent_create_account_test,
-    test_idempotent_create_account: IdempotentCreateAccountTestVector {
-        same_app_pubkey: true,
-        same_hardware_pubkey: true,
-        same_recovery_pubkey: true,
-        expected_create_status: StatusCode::OK,
-        expected_same_response: true,
-    },
+#[rstest]
+#[case::idempotent(true, true, true, StatusCode::OK, true)]
+#[tokio::test]
+async fn test_idempotent_create_account(
+    #[case] same_app_pubkey: bool,
+    #[case] same_hardware_pubkey: bool,
+    #[case] same_recovery_pubkey: bool,
+    #[case] expected_create_status: StatusCode,
+    #[case] expected_same_response: bool,
+) {
+    idempotent_create_account_test(
+        same_app_pubkey,
+        same_hardware_pubkey,
+        same_recovery_pubkey,
+        expected_create_status,
+        expected_same_response,
+    )
+    .await
 }
 
-struct CreateTestAccountWithNetworkTestVector {
-    network: Network,
+async fn create_test_account_with_network(
+    network: AccountNetwork,
     test_account: bool,
     expected_status: StatusCode,
-}
-
-async fn create_test_account_with_network(vector: CreateTestAccountWithNetworkTestVector) {
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let keys = create_new_authkeys(&mut context);
-    let network = vector.network.into();
     let (_, app_dpub) = create_descriptor_keys(network);
     let (_, hardware_dpub) = create_descriptor_keys(network);
     let first_request = CreateAccountRequest::Full {
@@ -1131,33 +1153,27 @@ async fn create_test_account_with_network(vector: CreateTestAccountWithNetworkTe
             recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
-            network: vector.network,
+            network: Network::from(network),
             app: app_dpub,
             hardware: hardware_dpub,
         },
-        is_test_account: vector.test_account,
+        is_test_account: test_account,
     };
     let actual_response = client.create_account(&mut context, &first_request).await;
-    assert_eq!(actual_response.status_code, vector.expected_status);
+    assert_eq!(actual_response.status_code, expected_status);
 }
 
-tests! {
-    runner = create_test_account_with_network,
-    test_create_test_account_with_bitcoin_network: CreateTestAccountWithNetworkTestVector {
-        network: Network::Bitcoin,
-        test_account: true,
-        expected_status: StatusCode::BAD_REQUEST,
-    },
-    test_create_test_account_with_signet_network: CreateTestAccountWithNetworkTestVector {
-        network: Network::Signet,
-        test_account: true,
-        expected_status: StatusCode::OK,
-    },
-    test_create_full_account_with_bitcoin_network: CreateTestAccountWithNetworkTestVector {
-        network: Network::Bitcoin,
-        test_account: false,
-        expected_status: StatusCode::OK,
-    },
+#[rstest]
+#[case::test_account_bitcoin_network(AccountNetwork::BitcoinMain, true, StatusCode::BAD_REQUEST)]
+#[case::test_account_signet_network(AccountNetwork::BitcoinSignet, true, StatusCode::OK)]
+#[case::full_account_bitcoin_network(AccountNetwork::BitcoinMain, false, StatusCode::OK)]
+#[tokio::test]
+async fn test_create_test_account_with_network(
+    #[case] network: AccountNetwork,
+    #[case] test_account: bool,
+    #[case] expected_status: StatusCode,
+) {
+    create_test_account_with_network(network, test_account, expected_status).await
 }
 
 #[derive(Debug, PartialEq)]
@@ -1171,13 +1187,10 @@ enum CreateAccountKeyReuse {
     OtherAccountSpending,
 }
 
-#[derive(Debug)]
-struct CreateAccountKeyValidationTestVector {
+async fn create_account_key_validation_test(
     key_reuses: Vec<CreateAccountKeyReuse>,
     expected_error: Option<ApiError>,
-}
-
-async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTestVector) {
+) {
     let (mut context, bootstrap) = gen_services().await;
     let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
     let client = TestClient::new(bootstrap.router).await;
@@ -1211,52 +1224,32 @@ async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTe
         .unwrap();
 
     let new_keys = create_new_authkeys(&mut context);
-    let account_app_pubkey = if vector
-        .key_reuses
-        .contains(&CreateAccountKeyReuse::OtherAccountApp)
-    {
+    let account_app_pubkey = if key_reuses.contains(&CreateAccountKeyReuse::OtherAccountApp) {
         other_account.application_auth_pubkey.unwrap()
-    } else if vector
-        .key_reuses
-        .contains(&CreateAccountKeyReuse::OtherRecoveryApp)
-    {
+    } else if key_reuses.contains(&CreateAccountKeyReuse::OtherRecoveryApp) {
         other_recovery.destination_app_auth_pubkey.unwrap()
     } else {
         new_keys.app.public_key
     };
 
-    let account_hardware_pubkey = if vector
-        .key_reuses
-        .contains(&CreateAccountKeyReuse::OtherAccountHw)
-    {
+    let account_hardware_pubkey = if key_reuses.contains(&CreateAccountKeyReuse::OtherAccountHw) {
         other_account.hardware_auth_pubkey
-    } else if vector
-        .key_reuses
-        .contains(&CreateAccountKeyReuse::OtherRecoveryHw)
-    {
+    } else if key_reuses.contains(&CreateAccountKeyReuse::OtherRecoveryHw) {
         other_recovery.destination_hardware_auth_pubkey.unwrap()
     } else {
         new_keys.hw.public_key
     };
 
-    let account_recovery_pubkey = if vector
-        .key_reuses
-        .contains(&CreateAccountKeyReuse::OtherAccountRecovery)
-    {
-        other_account.common_fields.recovery_auth_pubkey.unwrap()
-    } else if vector
-        .key_reuses
-        .contains(&CreateAccountKeyReuse::OtherRecoveryRecovery)
-    {
-        other_recovery.destination_recovery_auth_pubkey.unwrap()
-    } else {
-        new_keys.recovery.public_key
-    };
+    let account_recovery_pubkey =
+        if key_reuses.contains(&CreateAccountKeyReuse::OtherAccountRecovery) {
+            other_account.common_fields.recovery_auth_pubkey.unwrap()
+        } else if key_reuses.contains(&CreateAccountKeyReuse::OtherRecoveryRecovery) {
+            other_recovery.destination_recovery_auth_pubkey.unwrap()
+        } else {
+            new_keys.recovery.public_key
+        };
 
-    let spending_keyset = if vector
-        .key_reuses
-        .contains(&CreateAccountKeyReuse::OtherAccountSpending)
-    {
+    let spending_keyset = if key_reuses.contains(&CreateAccountKeyReuse::OtherAccountSpending) {
         other_account.active_spending_keyset().unwrap().clone()
     } else {
         create_spend_keyset(AccountNetwork::BitcoinSignet).0
@@ -1281,7 +1274,7 @@ async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTe
         )
         .await;
 
-    if let Some(expected_error) = vector.expected_error {
+    if let Some(expected_error) = expected_error {
         let expected_response = expected_error.into_response();
         assert_eq!(
             Response {
@@ -1304,49 +1297,52 @@ async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTe
     }
 }
 
-tests! {
-    runner = create_account_key_validation_test,
-    create_reuse_other_account_app: CreateAccountKeyValidationTestVector {
-        key_reuses: vec![CreateAccountKeyReuse::OtherAccountApp],
-        expected_error: Some(AccountValidationError::AppAuthPubkeyReuseAccount.into()),
-    },
-    create_reuse_other_recovery_app: CreateAccountKeyValidationTestVector {
-        key_reuses: vec![CreateAccountKeyReuse::OtherRecoveryApp],
-        expected_error: Some(AccountValidationError::AppAuthPubkeyReuseRecovery.into()),
-    },
-    create_reuse_other_account_hw: CreateAccountKeyValidationTestVector {
-        key_reuses: vec![CreateAccountKeyReuse::OtherAccountHw],
-        expected_error: Some(AccountValidationError::HwAuthPubkeyReuseAccount.into()),
-    },
-    create_reuse_other_recovery_hw: CreateAccountKeyValidationTestVector {
-        key_reuses: vec![CreateAccountKeyReuse::OtherRecoveryHw],
-        expected_error: Some(AccountValidationError::HwAuthPubkeyReuseRecovery.into()),
-    },
-    create_reuse_other_account_recovery: CreateAccountKeyValidationTestVector {
-        key_reuses: vec![CreateAccountKeyReuse::OtherAccountRecovery],
-        expected_error: Some(AccountValidationError::RecoveryAuthPubkeyReuseAccount.into()),
-    },
-    create_reuse_other_recovery_recovery: CreateAccountKeyValidationTestVector {
-        key_reuses: vec![CreateAccountKeyReuse::OtherRecoveryRecovery],
-        expected_error: Some(AccountValidationError::RecoveryAuthPubkeyReuseRecovery.into()),
-    },
-    create_reuse_other_account_auth: CreateAccountKeyValidationTestVector {
-        key_reuses: vec![CreateAccountKeyReuse::OtherAccountApp, CreateAccountKeyReuse::OtherAccountHw, CreateAccountKeyReuse::OtherAccountRecovery],
-        expected_error: Some(AccountValidationError::AppAuthPubkeyReuseAccount.into()),
-    },
-    create_reuse_other_account_auth_and_spending: CreateAccountKeyValidationTestVector {
-        key_reuses: vec![CreateAccountKeyReuse::OtherAccountApp, CreateAccountKeyReuse::OtherAccountHw, CreateAccountKeyReuse::OtherAccountRecovery, CreateAccountKeyReuse::OtherAccountSpending],
-        expected_error: None,
-    },
+#[rstest]
+#[case::create_reuse_other_account_app(
+    vec![CreateAccountKeyReuse::OtherAccountApp],
+    Some(AccountValidationError::AppAuthPubkeyReuseAccount.into())
+)]
+#[case::create_reuse_other_recovery_app(
+    vec![CreateAccountKeyReuse::OtherRecoveryApp],
+    Some(AccountValidationError::AppAuthPubkeyReuseRecovery.into())
+)]
+#[case::create_reuse_other_account_hw(
+    vec![CreateAccountKeyReuse::OtherAccountHw],
+    Some(AccountValidationError::HwAuthPubkeyReuseAccount.into())
+)]
+#[case::create_reuse_other_recovery_hw(
+    vec![CreateAccountKeyReuse::OtherRecoveryHw],
+    Some(AccountValidationError::HwAuthPubkeyReuseRecovery.into())
+)]
+#[case::create_reuse_other_account_recovery(
+    vec![CreateAccountKeyReuse::OtherAccountRecovery],
+    Some(AccountValidationError::RecoveryAuthPubkeyReuseAccount.into())
+)]
+#[case::create_reuse_other_recovery_recovery(
+    vec![CreateAccountKeyReuse::OtherRecoveryRecovery],
+    Some(AccountValidationError::RecoveryAuthPubkeyReuseRecovery.into())
+)]
+#[case::create_reuse_other_account_auth(
+    vec![CreateAccountKeyReuse::OtherAccountApp, CreateAccountKeyReuse::OtherAccountHw, CreateAccountKeyReuse::OtherAccountRecovery],
+    Some(AccountValidationError::AppAuthPubkeyReuseAccount.into())
+)]
+#[case::create_reuse_other_account_auth_and_spending(
+    vec![CreateAccountKeyReuse::OtherAccountApp, CreateAccountKeyReuse::OtherAccountHw, CreateAccountKeyReuse::OtherAccountRecovery, CreateAccountKeyReuse::OtherAccountSpending],
+    None
+)]
+#[tokio::test]
+async fn test_create_account_key_validation(
+    #[case] key_reuses: Vec<CreateAccountKeyReuse>,
+    #[case] expected_error: Option<ApiError>,
+) {
+    create_account_key_validation_test(key_reuses, expected_error).await
 }
 
-struct IdempotentCreateLiteAccountTestVector {
+async fn idempotent_create_lite_account_test(
     override_recovery_pubkey: bool,
     expected_create_status: StatusCode,
     expected_same_response: bool,
-}
-
-async fn idempotent_create_lite_account_test(vector: IdempotentCreateLiteAccountTestVector) {
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -1360,7 +1356,7 @@ async fn idempotent_create_lite_account_test(vector: IdempotentCreateLiteAccount
     let actual_response = client.create_account(&mut context, &first_request).await;
     assert_eq!(actual_response.status_code, StatusCode::OK);
     let first_create_response = actual_response.body.unwrap();
-    let recovery_pubkey = if vector.override_recovery_pubkey {
+    let recovery_pubkey = if override_recovery_pubkey {
         create_new_authkeys(&mut context).recovery.public_key
     } else {
         keys.recovery.public_key
@@ -1373,10 +1369,10 @@ async fn idempotent_create_lite_account_test(vector: IdempotentCreateLiteAccount
         is_test_account: true,
     };
     let actual_response = client.create_account(&mut context, &second_request).await;
-    assert_eq!(actual_response.status_code, vector.expected_create_status);
+    assert_eq!(actual_response.status_code, expected_create_status);
     if actual_response.status_code == StatusCode::OK {
         let second_create_response = actual_response.body.unwrap();
-        if vector.expected_same_response {
+        if expected_same_response {
             assert_eq!(first_create_response, second_create_response);
         } else {
             assert_ne!(first_create_response, second_create_response);
@@ -1384,18 +1380,21 @@ async fn idempotent_create_lite_account_test(vector: IdempotentCreateLiteAccount
     }
 }
 
-tests! {
-    runner = idempotent_create_lite_account_test,
-    test_idempotent_create_lite_account_with_same_recovery_pubkey: IdempotentCreateLiteAccountTestVector {
-        override_recovery_pubkey: false,
-        expected_create_status: StatusCode::OK,
-        expected_same_response: true,
-    },
-    test_idempotent_create_lite_account_with_different_recovery_pubkey: IdempotentCreateLiteAccountTestVector {
-        override_recovery_pubkey: true,
-        expected_create_status: StatusCode::OK,
-        expected_same_response: false,
-    },
+#[rstest]
+#[case::same_recovery_pubkey(false, StatusCode::OK, true)]
+#[case::different_recovery_pubkey(true, StatusCode::OK, false)]
+#[tokio::test]
+async fn test_idempotent_create_lite_account(
+    #[case] override_recovery_pubkey: bool,
+    #[case] expected_create_status: StatusCode,
+    #[case] expected_same_response: bool,
+) {
+    idempotent_create_lite_account_test(
+        override_recovery_pubkey,
+        expected_create_status,
+        expected_same_response,
+    )
+    .await
 }
 
 #[derive(Debug, PartialEq)]
@@ -1406,13 +1405,10 @@ enum UpgradeAccountKeyReuse {
     OtherRecoveryHw,
 }
 
-#[derive(Debug)]
-struct UpgradeAccountTestVector {
+async fn upgrade_account_test(
     key_reuses: Vec<UpgradeAccountKeyReuse>,
     expected_error: Option<ApiError>,
-}
-
-async fn upgrade_account_test(vector: UpgradeAccountTestVector) {
+) {
     let (mut context, bootstrap) = gen_services().await;
     let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
     let client = TestClient::new(bootstrap.router).await;
@@ -1454,15 +1450,9 @@ async fn upgrade_account_test(vector: UpgradeAccountTestVector) {
         .await
         .unwrap();
 
-    let account_app_keypair = if vector
-        .key_reuses
-        .contains(&UpgradeAccountKeyReuse::OtherAccountApp)
-    {
+    let account_app_keypair = if key_reuses.contains(&UpgradeAccountKeyReuse::OtherAccountApp) {
         other_account_auth_keys.app
-    } else if vector
-        .key_reuses
-        .contains(&UpgradeAccountKeyReuse::OtherRecoveryApp)
-    {
+    } else if key_reuses.contains(&UpgradeAccountKeyReuse::OtherRecoveryApp) {
         other_recovery_auth_keys.app
     } else {
         let (new_app_auth_seckey, new_app_auth_pubkey) = create_keypair();
@@ -1472,15 +1462,9 @@ async fn upgrade_account_test(vector: UpgradeAccountTestVector) {
         }
     };
 
-    let account_hardware_keypair = if vector
-        .key_reuses
-        .contains(&UpgradeAccountKeyReuse::OtherAccountHw)
-    {
+    let account_hardware_keypair = if key_reuses.contains(&UpgradeAccountKeyReuse::OtherAccountHw) {
         other_account_auth_keys.hw
-    } else if vector
-        .key_reuses
-        .contains(&UpgradeAccountKeyReuse::OtherRecoveryHw)
-    {
+    } else if key_reuses.contains(&UpgradeAccountKeyReuse::OtherRecoveryHw) {
         other_recovery_auth_keys.hw
     } else {
         let (new_hw_auth_seckey, new_hw_auth_pubkey) = create_keypair();
@@ -1515,7 +1499,7 @@ async fn upgrade_account_test(vector: UpgradeAccountTestVector) {
         )
         .await;
 
-    if let Some(expected_error) = vector.expected_error {
+    if let Some(expected_error) = expected_error {
         let expected_response = expected_error.into_response();
         assert_eq!(
             Response {
@@ -1538,32 +1522,37 @@ async fn upgrade_account_test(vector: UpgradeAccountTestVector) {
     }
 }
 
-tests! {
-    runner = upgrade_account_test,
-    upgrade_reuse_other_account_app: UpgradeAccountTestVector {
-        key_reuses: vec![UpgradeAccountKeyReuse::OtherAccountApp],
-        expected_error: Some(AccountValidationError::AppAuthPubkeyReuseAccount.into()),
-    },
-    upgrade_reuse_other_recovery_app: UpgradeAccountTestVector {
-        key_reuses: vec![UpgradeAccountKeyReuse::OtherRecoveryApp],
-        expected_error: Some(AccountValidationError::AppAuthPubkeyReuseRecovery.into()),
-    },
-    upgrade_reuse_other_account_hw: UpgradeAccountTestVector {
-        key_reuses: vec![UpgradeAccountKeyReuse::OtherAccountHw],
-        expected_error: Some(AccountValidationError::HwAuthPubkeyReuseAccount.into()),
-    },
-    upgrade_reuse_other_recovery_hw: UpgradeAccountTestVector {
-        key_reuses: vec![UpgradeAccountKeyReuse::OtherRecoveryHw],
-        expected_error: Some(AccountValidationError::HwAuthPubkeyReuseRecovery.into()),
-    },
-    upgrade_reuse_other_account_auth: UpgradeAccountTestVector {
-        key_reuses: vec![UpgradeAccountKeyReuse::OtherAccountApp, UpgradeAccountKeyReuse::OtherAccountHw],
-        expected_error: Some(AccountValidationError::AppAuthPubkeyReuseAccount.into()),
-    },
-    upgrade_success: UpgradeAccountTestVector {
-        key_reuses: vec![],
-        expected_error: None,
-    },
+#[rstest]
+#[case::upgrade_reuse_other_account_app(
+    vec![UpgradeAccountKeyReuse::OtherAccountApp],
+    Some(AccountValidationError::AppAuthPubkeyReuseAccount.into())
+)]
+#[case::upgrade_reuse_other_recovery_app(
+    vec![UpgradeAccountKeyReuse::OtherRecoveryApp],
+    Some(AccountValidationError::AppAuthPubkeyReuseRecovery.into())
+)]
+#[case::upgrade_reuse_other_account_hw(
+    vec![UpgradeAccountKeyReuse::OtherAccountHw],
+    Some(AccountValidationError::HwAuthPubkeyReuseAccount.into())
+)]
+#[case::upgrade_reuse_other_recovery_hw(
+    vec![UpgradeAccountKeyReuse::OtherRecoveryHw],
+    Some(AccountValidationError::HwAuthPubkeyReuseRecovery.into())
+)]
+#[case::upgrade_reuse_other_account_auth(
+    vec![UpgradeAccountKeyReuse::OtherAccountApp, UpgradeAccountKeyReuse::OtherAccountHw],
+    Some(AccountValidationError::AppAuthPubkeyReuseAccount.into())
+)]
+#[case::upgrade_success(
+    vec![],
+    None
+)]
+#[tokio::test]
+async fn test_upgrade_account(
+    #[case] key_reuses: Vec<UpgradeAccountKeyReuse>,
+    #[case] expected_error: Option<ApiError>,
+) {
+    upgrade_account_test(key_reuses, expected_error).await
 }
 
 #[tokio::test]
@@ -1848,15 +1837,11 @@ async fn test_revoked_access_token_add_push_touchpoint() {
     assert_eq!(StatusCode::OK, response.status_code);
 }
 
-struct IdempotentCreateSoftwareAccountTestVector {
+async fn idempotent_create_software_account_test(
     override_app_pubkey: bool,
     override_recovery_pubkey: bool,
     expected_create_status: StatusCode,
     expected_same_response: bool,
-}
-
-async fn idempotent_create_software_account_test(
-    vector: IdempotentCreateSoftwareAccountTestVector,
 ) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
@@ -1872,12 +1857,12 @@ async fn idempotent_create_software_account_test(
     let actual_response = client.create_account(&mut context, &first_request).await;
     assert_eq!(actual_response.status_code, StatusCode::OK);
     let first_create_response = actual_response.body.unwrap();
-    let app_pubkey = if vector.override_app_pubkey {
+    let app_pubkey = if override_app_pubkey {
         create_new_authkeys(&mut context).app.public_key
     } else {
         keys.app.public_key
     };
-    let recovery_pubkey = if vector.override_recovery_pubkey {
+    let recovery_pubkey = if override_recovery_pubkey {
         create_new_authkeys(&mut context).recovery.public_key
     } else {
         keys.recovery.public_key
@@ -1891,10 +1876,10 @@ async fn idempotent_create_software_account_test(
         is_test_account: true,
     };
     let actual_response = client.create_account(&mut context, &second_request).await;
-    assert_eq!(actual_response.status_code, vector.expected_create_status);
+    assert_eq!(actual_response.status_code, expected_create_status);
     if actual_response.status_code == StatusCode::OK {
         let second_create_response = actual_response.body.unwrap();
-        if vector.expected_same_response {
+        if expected_same_response {
             assert_eq!(first_create_response, second_create_response);
         } else {
             assert_ne!(first_create_response, second_create_response);
@@ -1902,32 +1887,30 @@ async fn idempotent_create_software_account_test(
     }
 }
 
-tests! {
-    runner = idempotent_create_software_account_test,
-    test_idempotent_create_software_account_with_same_keys: IdempotentCreateSoftwareAccountTestVector {
-        override_app_pubkey: false,
-        override_recovery_pubkey: false,
-        expected_create_status: StatusCode::OK,
-        expected_same_response: true,
-    },
-    test_idempotent_create_software_account_with_different_app_pubkey: IdempotentCreateSoftwareAccountTestVector {
-        override_app_pubkey: true,
-        override_recovery_pubkey: false,
-        expected_create_status: StatusCode::BAD_REQUEST,
-        expected_same_response: false,
-    },
-    test_idempotent_create_software_account_with_different_recovery_pubkey: IdempotentCreateSoftwareAccountTestVector {
-        override_app_pubkey: false,
-        override_recovery_pubkey: true,
-        expected_create_status: StatusCode::BAD_REQUEST,
-        expected_same_response: false,
-    },
-    test_idempotent_create_software_account_with_different_both_pubkeys: IdempotentCreateSoftwareAccountTestVector {
-        override_app_pubkey: true,
-        override_recovery_pubkey: true,
-        expected_create_status: StatusCode::OK,
-        expected_same_response: false,
-    },
+#[rstest]
+#[case::same_keys(false, false, StatusCode::OK, true)]
+#[case::different_app_pubkey(true, false, StatusCode::BAD_REQUEST, false)]
+#[case::different_recovery_pubkey(false, true, StatusCode::BAD_REQUEST, false)]
+#[case::test_idempotent_create_software_account_with_different_both_pubkeys(
+    true,
+    true,
+    StatusCode::OK,
+    false
+)]
+#[tokio::test]
+async fn test_idempotent_create_software_account(
+    #[case] override_app_pubkey: bool,
+    #[case] override_recovery_pubkey: bool,
+    #[case] expected_create_status: StatusCode,
+    #[case] expected_same_response: bool,
+) {
+    idempotent_create_software_account_test(
+        override_app_pubkey,
+        override_recovery_pubkey,
+        expected_create_status,
+        expected_same_response,
+    )
+    .await
 }
 
 #[tokio::test]

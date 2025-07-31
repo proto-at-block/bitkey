@@ -2,7 +2,8 @@ use crate::service::tests::setup_test_verification;
 
 use super::construct_test_transaction_verification_service;
 use types::transaction_verification::entities::{
-    TransactionVerification::Failed, TransactionVerification::Success,
+    TransactionVerification::{Failed, Success},
+    TransactionVerificationSuccess,
 };
 
 #[tokio::test]
@@ -29,12 +30,14 @@ async fn test_verify_with_confirmation_token_success() {
     // Check that the transaction was updated to success state
     let updated_tx = service.repo.fetch(&tx_id).await.unwrap();
     match updated_tx {
-        Success(success) => {
+        Success(TransactionVerificationSuccess {
+            signed_hw_grant, ..
+        }) => {
             // Verify the signed_hw_grant fields
-            assert_eq!(success.signed_hw_grant.version, 0);
-            assert!(!success.signed_hw_grant.commitment.is_empty());
+            assert_eq!(signed_hw_grant.version, 0);
+            assert!(!signed_hw_grant.commitment.is_empty());
         }
-        _ => panic!("Expected a success transaction verification"),
+        _ => panic!("Expected a success hw grant transaction verification"),
     }
 }
 

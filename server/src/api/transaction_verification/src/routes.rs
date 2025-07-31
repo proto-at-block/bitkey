@@ -222,6 +222,7 @@ async fn put_transaction_verification_policy(
     key_proof: KeyClaims,
     Json(request): Json<PutTransactionVerificationPolicyRequest>,
 ) -> Result<Json<PrivilegedActionResponse<PutTransactionVerificationPolicyResponse>>, ApiError> {
+    let policy = TransactionVerificationPolicy::from(request.policy.clone());
     let account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
@@ -239,7 +240,7 @@ async fn put_transaction_verification_policy(
         .as_ref()
         .map(get_threshold_amount)
         .unwrap_or(u64::MAX);
-    let new_threshold = get_threshold_amount(&request.policy);
+    let new_threshold = get_threshold_amount(&policy);
 
     // Requires out-of-band if we're making verification LESS restrictive (increasing threshold)
     if new_threshold > current_threshold {
@@ -283,7 +284,7 @@ async fn put_transaction_verification_policy(
     }
 
     account_service
-        .put_transaction_verification_policy(&account_id, request.policy)
+        .put_transaction_verification_policy(&account_id, policy)
         .await?;
     Ok(Json(PrivilegedActionResponse::Completed(
         PutTransactionVerificationPolicyResponse {},

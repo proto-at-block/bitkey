@@ -1,5 +1,6 @@
 use crate::error::RecoveryError;
 use crate::metrics;
+use account::service::{FetchAccountInput, Service as AccountService};
 use authn_authz::key_claims::KeyClaims;
 use axum::{
     extract::{Path, State},
@@ -16,7 +17,7 @@ use http_server::{
 use privileged_action::service::{
     authorize_privileged_action::{
         AuthenticationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
-        PrivilegedActionRequestValidator, PrivilegedActionRequestValidatorBuilder,
+        PrivilegedActionRequestValidatorBuilder,
     },
     Service as PrivilegedActionService,
 };
@@ -32,6 +33,8 @@ use types::{
 };
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
+use wsm_common::messages::enclave::GrantRequest;
+use wsm_grant::fp_reset::verify_grant_request_signature;
 use wsm_rust_client::{CreateGrantRequest, Grant, SigningService, WsmClient};
 
 #[derive(Clone, axum_macros::FromRef)]
@@ -39,6 +42,7 @@ pub struct RouteState(
     pub UserPoolService,
     pub PrivilegedActionService,
     pub WsmClient,
+    pub AccountService,
 );
 
 impl RouterBuilder for RouteState {
@@ -82,7 +86,6 @@ struct ApiDoc;
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct ResetFingerprintRequest {
-    pub hw_auth_public_key: PublicKey,
     pub version: u8,
     pub action: u8,
     #[serde_as(as = "Base64")]
@@ -99,7 +102,10 @@ pub struct ResetFingerprintResponse {
     pub grant: Grant,
 }
 
-#[instrument(fields(account_id), skip(privileged_action_service, key_proof))]
+#[instrument(
+    fields(account_id),
+    skip(privileged_action_service, key_proof, account_service, wsm_client)
+)]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/fingerprint-reset",
@@ -117,24 +123,57 @@ pub async fn reset_fingerprint(
     Path(account_id): Path<AccountId>,
     State(privileged_action_service): State<PrivilegedActionService>,
     State(wsm_client): State<WsmClient>,
+    State(account_service): State<AccountService>,
     key_proof: KeyClaims,
     Json(privileged_action_request): Json<PrivilegedActionRequest<ResetFingerprintRequest>>,
 ) -> Result<Json<PrivilegedActionResponse<ResetFingerprintResponse>>, ApiError> {
-    let request_validator: PrivilegedActionRequestValidator<ResetFingerprintRequest, ApiError> =
-        PrivilegedActionRequestValidatorBuilder::default().build()?;
+    let account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
     let authorize_result = privileged_action_service
         .authorize_privileged_action(AuthorizePrivilegedActionInput {
             account_id: &account_id,
             privileged_action_definition: &PrivilegedActionType::ResetFingerprint.into(),
             authentication: AuthenticationContext::KeyClaims(&key_proof),
             privileged_action_request: &privileged_action_request,
-            request_validator,
+            request_validator: PrivilegedActionRequestValidatorBuilder::default()
+                .on_initiate_delay_and_notify(Box::new(move |req: ResetFingerprintRequest| {
+                    Box::pin(async move {
+                        // Build the grant request and verify the signature before initiating D&N
+                        let serialized_request = GrantRequest {
+                            version: req.version,
+                            action: req.action,
+                            device_id: req.device_id,
+                            challenge: req.challenge,
+                            signature: req.signature,
+                        }
+                        .serialize(false);
+
+                        verify_grant_request_signature(
+                            serialized_request.as_slice(),
+                            &req.signature,
+                            &account.hardware_auth_pubkey,
+                        )
+                        .map_err(|_| {
+                            ApiError::GenericUnauthorized(
+                                "Grant request signature failed to verify".to_string(),
+                            )
+                        })?;
+
+                        Ok::<(), ApiError>(())
+                    })
+                }))
+                .build()?,
         })
         .await?;
 
     match authorize_result {
         AuthorizePrivilegedActionOutput::Authorized(request) => {
-            let signed_grant = create_signed_grant(wsm_client, request).await?;
+            let signed_grant =
+                create_signed_grant(wsm_client, request, account.hardware_auth_pubkey).await?;
             let response = PrivilegedActionResponse::Completed(ResetFingerprintResponse {
                 grant: signed_grant,
             });
@@ -147,10 +186,11 @@ pub async fn reset_fingerprint(
 async fn create_signed_grant(
     wsm_client: WsmClient,
     request: ResetFingerprintRequest,
+    hw_auth_public_key: PublicKey,
 ) -> Result<Grant, ApiError> {
     wsm_client
         .create_signed_grant(CreateGrantRequest {
-            hw_auth_public_key: request.hw_auth_public_key,
+            hw_auth_public_key,
             version: request.version,
             action: request.action,
             device_id: request.device_id,

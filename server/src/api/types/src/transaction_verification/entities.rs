@@ -6,6 +6,8 @@ use serde_with::serde_as;
 use strum_macros::{Display, EnumDiscriminants, EnumString};
 use time::{serde::rfc3339, OffsetDateTime};
 
+use crate::account::entities::TransactionVerificationPolicy;
+use crate::account::money::Money;
 use crate::currencies::CurrencyCode;
 use crate::transaction_verification::router::TransactionVerificationGrantView;
 use crate::{account::identifiers::AccountId, transaction_verification::TransactionVerificationId};
@@ -16,6 +18,39 @@ use crate::{account::identifiers::AccountId, transaction_verification::Transacti
 pub enum BitcoinDisplayUnit {
     Bitcoin,
     Satoshi,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct PolicyUpdateMoney {
+    pub amount_sats: u64,
+    pub amount_fiat: u64,
+    pub currency_code: CurrencyCode,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(
+    tag = "state",
+    content = "threshold",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
+pub enum PolicyUpdate {
+    Never,
+    Threshold(PolicyUpdateMoney),
+    Always,
+}
+
+impl From<PolicyUpdate> for TransactionVerificationPolicy {
+    fn from(policy: PolicyUpdate) -> Self {
+        match policy {
+            PolicyUpdate::Never => TransactionVerificationPolicy::Never,
+            PolicyUpdate::Threshold(money) => TransactionVerificationPolicy::Threshold(Money {
+                amount: money.amount_fiat,
+                currency_code: money.currency_code,
+            }),
+            PolicyUpdate::Always => TransactionVerificationPolicy::Always,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumDiscriminants)]

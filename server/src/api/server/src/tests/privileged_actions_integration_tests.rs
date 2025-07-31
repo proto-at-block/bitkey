@@ -6,12 +6,12 @@ use notification::service::FetchForAccountInput;
 use notification::NotificationPayloadType;
 use privileged_action::routes::ProcessPrivilegedActionVerificationRequest;
 use privileged_action::routes::{
-    CancelPendingDelayAndNotifyInstanceByTokenRequest,
-    CancelPendingDelayAndNotifyInstanceByTokenResponse,
+    CancelPendingDelayAndNotifyInstanceByTokenRequest, CancelPendingInstanceResponse,
     ConfigurePrivilegedActionDelayDurationsRequest,
     ConfigurePrivilegedActionDelayDurationsResponse, GetPendingInstancesParams,
     GetPendingInstancesResponse, GetPrivilegedActionDefinitionsResponse,
 };
+use rstest::rstest;
 use time::OffsetDateTime;
 use types::account::entities::Account;
 use types::account::entities::TransactionVerificationPolicy;
@@ -26,14 +26,16 @@ use types::privileged_action::router::generic::{
     PrivilegedActionResponse,
 };
 use types::privileged_action::shared::{PrivilegedActionDelayDuration, PrivilegedActionInstanceId};
+use types::transaction_verification::entities::PolicyUpdate;
 use types::transaction_verification::router::PutTransactionVerificationPolicyRequest;
 use types::{account::AccountType, privileged_action::shared::PrivilegedActionType};
 
 use super::TestContext;
 use super::{lib::create_software_account, requests::CognitoAuthentication};
-use crate::tests;
 use crate::tests::gen_services_with_overrides;
-use crate::tests::lib::{create_account, create_phone_touchpoint, OffsetClock};
+use crate::tests::lib::{
+    create_account, create_email_touchpoint, create_phone_touchpoint, OffsetClock,
+};
 use crate::tests::requests::axum::TestClient;
 use crate::GenServiceOverrides;
 
@@ -132,11 +134,11 @@ async fn get_pending_privileged_action_instances(
     body
 }
 
-async fn cancel_pending_privileged_action_instance(
+async fn cancel_pending_delay_notify_instance(
     client: &TestClient,
     cancellation_token: String,
     expected_status: StatusCode,
-) -> Option<CancelPendingDelayAndNotifyInstanceByTokenResponse> {
+) -> Option<CancelPendingInstanceResponse> {
     let post_resp = client
         .cancel_pending_delay_and_notify_instance_by_token(
             &CancelPendingDelayAndNotifyInstanceByTokenRequest { cancellation_token },
@@ -146,16 +148,27 @@ async fn cancel_pending_privileged_action_instance(
     post_resp.body
 }
 
-struct GetConfigureDelaysTestVector {
-    account_type: AccountType,
-    privileged_action_type: PrivilegedActionType,
-    expected_initiate_status: StatusCode,
-    expected_privileged_action: bool,
+async fn cancel_pending_out_of_band_instance(
+    client: &TestClient,
+    account_id: &AccountId,
+    instance_id: PrivilegedActionInstanceId,
+    expected_status: StatusCode,
+) -> Option<CancelPendingInstanceResponse> {
+    let post_resp = client
+        .cancel_pending_out_of_band_instance(&account_id.to_string(), &instance_id.to_string())
+        .await;
+    assert_eq!(post_resp.status_code, expected_status);
+    post_resp.body
 }
 
 // Tests the get delays and configure delays call, as well as general privileged action mechanism
 //   since configure delays is itself a privileged action
-async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
+async fn get_configure_delays_test(
+    account_type: AccountType,
+    privileged_action_type: PrivilegedActionType,
+    expected_initiate_status: StatusCode,
+    expected_privileged_action: bool,
+) {
     let clock = Arc::new(OffsetClock::new());
     let (mut context, bootstrap) =
         gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
@@ -164,13 +177,13 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
     let account = create_account(
         &mut context,
         &bootstrap.services,
-        vector.account_type.clone(),
+        account_type.clone(),
         false,
     )
     .await;
     create_phone_touchpoint(&bootstrap.services, account.get_id(), true).await;
 
-    let auth = match vector.account_type {
+    let auth = match account_type {
         AccountType::Full => CognitoAuthentication::Wallet {
             is_app_signed: false,
             is_hardware_signed: false,
@@ -197,17 +210,17 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
         &mut context,
         &client,
         account.get_id(),
-        vector.privileged_action_type.clone(),
+        privileged_action_type.clone(),
         &auth,
-        vector.expected_initiate_status,
+        expected_initiate_status,
     )
     .await;
 
-    if !vector.expected_initiate_status.is_success() {
+    if !expected_initiate_status.is_success() {
         return;
     }
 
-    if vector.expected_privileged_action {
+    if expected_privileged_action {
         let PrivilegedActionResponse::Pending(pending_resp) = put_resp.unwrap() else {
             panic!("Expected Pending response");
         };
@@ -224,7 +237,7 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
             &mut context,
             &client,
             account.get_id(),
-            vector.privileged_action_type.clone(),
+            privileged_action_type.clone(),
             &auth,
             StatusCode::CONFLICT,
         )
@@ -275,7 +288,7 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
             .unwrap()
             .definitions
             .into_iter()
-            .find(|d| d.privileged_action_type == vector.privileged_action_type)
+            .find(|d| d.privileged_action_type == privileged_action_type)
             .unwrap()
             .authorization_strategy
     else {
@@ -297,7 +310,7 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
             .unwrap()
             .definitions
             .into_iter()
-            .find(|d| d.privileged_action_type == vector.privileged_action_type)
+            .find(|d| d.privileged_action_type == privileged_action_type)
             .unwrap()
             .authorization_strategy
     else {
@@ -310,7 +323,7 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
     );
     assert_eq!(after_delay_and_notify_definition.delay_duration_secs, 666);
 
-    if vector.expected_privileged_action {
+    if expected_privileged_action {
         // Check whether the notifications were created
         let mut scheduled_notifications = bootstrap
             .services
@@ -365,32 +378,45 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
     }
 }
 
-tests! {
-    runner = get_configure_delays_test,
-    test_successfully_configure_delay: GetConfigureDelaysTestVector {
-        account_type: AccountType::Software,
-        privileged_action_type: PrivilegedActionType::ActivateTouchpoint,
-        expected_initiate_status: StatusCode::OK,
-        expected_privileged_action: true,
-    },
-    test_configure_unconfigurable_delay: GetConfigureDelaysTestVector {
-        account_type: AccountType::Software,
-        privileged_action_type: PrivilegedActionType::ConfigurePrivilegedActionDelays,
-        expected_initiate_status: StatusCode::BAD_REQUEST,
-        expected_privileged_action: false,
-    },
-    test_full_account_configure_delay: GetConfigureDelaysTestVector {
-        account_type: AccountType::Full,
-        privileged_action_type: PrivilegedActionType::ActivateTouchpoint,
-        expected_initiate_status: StatusCode::FORBIDDEN,
-        expected_privileged_action: false,
-    },
-    test_lite_account_configure_delay: GetConfigureDelaysTestVector {
-        account_type: AccountType::Lite,
-        privileged_action_type: PrivilegedActionType::ActivateTouchpoint,
-        expected_initiate_status: StatusCode::UNAUTHORIZED, // Right now, the configure endpoint doesn't accept recovery auth
-        expected_privileged_action: false,
-    },
+#[rstest]
+#[case::success(
+    AccountType::Software,
+    PrivilegedActionType::ActivateTouchpoint,
+    StatusCode::OK,
+    true
+)]
+#[case::unconfigurable(
+    AccountType::Software,
+    PrivilegedActionType::ConfigurePrivilegedActionDelays,
+    StatusCode::BAD_REQUEST,
+    false
+)]
+#[case::full_account(
+    AccountType::Full,
+    PrivilegedActionType::ActivateTouchpoint,
+    StatusCode::FORBIDDEN,
+    false
+)]
+#[case::lite_account(
+    AccountType::Lite,
+    PrivilegedActionType::ActivateTouchpoint,
+    StatusCode::UNAUTHORIZED, // Right now, the configure endpoint doesn't accept recovery auth
+    false
+)]
+#[tokio::test]
+async fn test_get_configure_delays(
+    #[case] account_type: AccountType,
+    #[case] privileged_action_type: PrivilegedActionType,
+    #[case] expected_initiate_status: StatusCode,
+    #[case] expected_privileged_action: bool,
+) {
+    get_configure_delays_test(
+        account_type,
+        privileged_action_type,
+        expected_initiate_status,
+        expected_privileged_action,
+    )
+    .await
 }
 
 #[tokio::test]
@@ -443,7 +469,7 @@ async fn get_instances_cancel_instance_test() {
     .await;
 
     // Cannot cancel with incorrect cancellation token
-    cancel_pending_privileged_action_instance(
+    cancel_pending_delay_notify_instance(
         &client,
         "CANCELLATION_TOKEN".to_string(),
         StatusCode::NOT_FOUND,
@@ -462,7 +488,7 @@ async fn get_instances_cancel_instance_test() {
     };
 
     // Can cancel with correct cancellation token
-    cancel_pending_privileged_action_instance(
+    cancel_pending_delay_notify_instance(
         &client,
         delay_and_notify_output.cancellation_token.clone(),
         StatusCode::OK,
@@ -470,7 +496,7 @@ async fn get_instances_cancel_instance_test() {
     .await;
 
     // Can't re-cancel with correct cancellation token
-    cancel_pending_privileged_action_instance(
+    cancel_pending_delay_notify_instance(
         &client,
         delay_and_notify_output.cancellation_token.clone(),
         StatusCode::CONFLICT,
@@ -548,7 +574,7 @@ async fn get_instances_cancel_instance_test() {
     .await;
 
     // Can't cancel completed instance with correct cancellation token
-    cancel_pending_privileged_action_instance(
+    cancel_pending_delay_notify_instance(
         &client,
         delay_and_notify_output.cancellation_token.clone(),
         StatusCode::CONFLICT,
@@ -615,6 +641,119 @@ async fn get_instances_cancel_instance_test() {
 }
 
 #[tokio::test]
+async fn cancel_out_of_band_instance_test() {
+    let clock = Arc::new(OffsetClock::new());
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = create_account(&mut context, &bootstrap.services, AccountType::Full, false).await;
+    create_email_touchpoint(&bootstrap.services, account.get_id(), true).await;
+
+    let keys = context
+        .get_authentication_keys_for_account_id(account.get_id())
+        .unwrap();
+    client
+        .update_transaction_verification_policy(
+            account.get_id(),
+            true,
+            false,
+            &keys,
+            &PutTransactionVerificationPolicyRequest {
+                policy: PolicyUpdate::Always,
+            },
+        )
+        .await;
+
+    let auth = CognitoAuthentication::Wallet {
+        is_app_signed: true,
+        is_hardware_signed: false,
+    };
+
+    // Create a privileged action instance
+    let put_resp = client
+        .update_transaction_verification_policy(
+            account.get_id(),
+            true,
+            true,
+            &keys,
+            &PutTransactionVerificationPolicyRequest {
+                policy: PolicyUpdate::Never,
+            },
+        )
+        .await;
+
+    // Get pending instances (should be 1)
+    get_pending_privileged_action_instances(
+        &mut context,
+        &client,
+        account.get_id(),
+        &auth,
+        StatusCode::OK,
+        1,
+    )
+    .await;
+
+    let PrivilegedActionResponse::Pending(pending_resp) = put_resp.body.unwrap() else {
+        panic!("Expected Pending response");
+    };
+
+    let instance_id: PrivilegedActionInstanceId = pending_resp.privileged_action_instance.id;
+    // Cancel instance as it's currently pending
+    cancel_pending_out_of_band_instance(
+        &client,
+        account.get_id(),
+        instance_id.clone(),
+        StatusCode::OK,
+    )
+    .await;
+
+    // Can't re-cancel with correct cancellation token
+    cancel_pending_out_of_band_instance(
+        &client,
+        account.get_id(),
+        instance_id,
+        StatusCode::CONFLICT,
+    )
+    .await;
+
+    // Get pending instances (should be 0)
+    get_pending_privileged_action_instances(
+        &mut context,
+        &client,
+        account.get_id(),
+        &auth,
+        StatusCode::OK,
+        0,
+    )
+    .await;
+
+    let mut customer_notifications = bootstrap
+        .services
+        .notification_service
+        .fetch_customer_for_account(FetchForAccountInput {
+            account_id: account.get_id().clone(),
+        })
+        .await
+        .unwrap();
+    customer_notifications.sort_by_key(|n| n.created_at);
+    let customer_notifications_types = customer_notifications
+        .iter()
+        .map(|n| n.payload_type)
+        .collect::<Vec<NotificationPayloadType>>();
+
+    // One of each type for each channel, account only has 1 touchpoint so we expect only 1 per event
+    let expected_customer_notification_types = vec![
+        NotificationPayloadType::PrivilegedActionPendingOutOfBandVerification,
+        NotificationPayloadType::PrivilegedActionCanceledOutOfBandVerification,
+    ];
+
+    assert_eq!(
+        customer_notifications_types,
+        expected_customer_notification_types
+    );
+}
+
+#[tokio::test]
 pub async fn respond_to_privileged_action_request_test() {
     let clock = Arc::new(OffsetClock::new());
     let (mut context, bootstrap) =
@@ -643,7 +782,7 @@ pub async fn respond_to_privileged_action_request_test() {
             true,
             &keys,
             &PutTransactionVerificationPolicyRequest {
-                policy: TransactionVerificationPolicy::Never,
+                policy: PolicyUpdate::Never,
             },
         )
         .await;

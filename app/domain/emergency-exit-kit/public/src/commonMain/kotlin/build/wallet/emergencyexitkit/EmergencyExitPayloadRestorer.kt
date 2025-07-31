@@ -13,6 +13,10 @@ import build.wallet.encrypt.Secp256k1PublicKey
 import com.github.michaelbull.result.Result
 
 interface EmergencyExitPayloadRestorer {
+  companion object {
+    const val EEK_PUBLIC_KEY = "EEK Recovery: Invalid key"
+  }
+
   /**
    * Creates an [AccountRestoration] from an [EmergencyExitKitPayload]
    * and stores the app spending private key (xprv) in the [AppPrivateKeyDao].
@@ -38,18 +42,18 @@ interface EmergencyExitPayloadRestorer {
       localId = keyboxId,
       fullAccountId = FullAccountId("EEK Recovery, no server ID: $keyboxId"),
       activeSpendingKeyset = activeSpendingKeyset,
-      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("EEK Recovery: Invalid key"),
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(EEK_PUBLIC_KEY),
       activeAppKeyBundle = AppKeyBundle(
         localId = appKeyBundleId,
         spendingKey = activeSpendingKeyset.appKey,
-        authKey = PublicKey("EEK Recovery: Invalid key"),
+        authKey = PublicKey(EEK_PUBLIC_KEY),
         networkType = activeSpendingKeyset.networkType,
         recoveryAuthKey = PublicKey("EEK Recovery: Invalid recovery key")
       ),
       activeHwKeyBundle = HwKeyBundle(
         localId = hwKeyBundleId,
         spendingKey = activeSpendingKeyset.hardwareKey,
-        authKey = HwAuthPublicKey(pubKey = Secp256k1PublicKey("EEK Recovery: Invalid key")),
+        authKey = HwAuthPublicKey(pubKey = Secp256k1PublicKey(EEK_PUBLIC_KEY)),
         networkType = activeSpendingKeyset.networkType
       ),
       // TODO [W-11632] EEK recovery of encrypted backups is not supported yet

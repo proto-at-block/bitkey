@@ -9,8 +9,9 @@ use types::account::spend_limit::SpendingLimit;
 use types::currencies::CurrencyCode::{USD, XXX};
 use ulid::Ulid;
 
+use rstest::rstest;
+
 use super::requests::axum::TestClient;
-use crate::tests;
 use crate::tests::gen_services;
 use crate::tests::lib::create_default_account_with_predefined_wallet;
 
@@ -92,12 +93,21 @@ async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
     assert!(resp_body.mobile_pay().is_none());
 }
 
-struct SetupMobilePayWithTimezoneTestVector {
-    time_zone_offset: UtcOffset,
-    expected_status_code: StatusCode,
-}
-
-async fn setup_mobile_pay_with_timezone_test(vector: SetupMobilePayWithTimezoneTestVector) {
+#[rstest]
+#[case::lower_boundary_timezone(
+    UtcOffset::from_hms(-12, 0, 0).unwrap(),
+    StatusCode::OK
+)]
+#[case::utc_timezone(UtcOffset::UTC, StatusCode::OK)]
+#[case::upper_boundary_timezone(
+    UtcOffset::from_hms(14, 0, 0).unwrap(),
+    StatusCode::OK
+)]
+#[tokio::test]
+async fn test_setup_mobile_pay_with_timezone(
+    #[case] time_zone_offset: UtcOffset,
+    #[case] expected_status_code: StatusCode,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let (account, ..) =
@@ -113,30 +123,14 @@ async fn setup_mobile_pay_with_timezone_test(vector: SetupMobilePayWithTimezoneT
             amount: 109_798,
             currency_code: USD,
         },
-        time_zone_offset: vector.time_zone_offset,
+        time_zone_offset,
     });
     let response = client.put_mobile_pay(&account.id, &request, &keys).await;
     assert_eq!(
-        response.status_code, vector.expected_status_code,
+        response.status_code, expected_status_code,
         "{}",
         response.body_string
     );
-}
-
-tests! {
-    runner = setup_mobile_pay_with_timezone_test,
-    test_mobilepay_with_timezone_at_lower_boundary_timezone: SetupMobilePayWithTimezoneTestVector {
-        time_zone_offset: UtcOffset::from_hms(-12, 0, 0).unwrap(),
-        expected_status_code: StatusCode::OK
-    },
-    test_mobilepay_with_timezone_utc: SetupMobilePayWithTimezoneTestVector {
-        time_zone_offset: UtcOffset::UTC,
-        expected_status_code: StatusCode::OK
-    },
-    test_mobilepay_with_timezone_at_upper_boundary_timezone: SetupMobilePayWithTimezoneTestVector {
-        time_zone_offset: UtcOffset::from_hms(14, 0, 0).unwrap(),
-        expected_status_code: StatusCode::OK
-    },
 }
 
 #[tokio::test]
@@ -288,7 +282,8 @@ mod get_mobile_pay_tests {
     use types::currencies::CurrencyCode::{EUR, USD};
     use types::exchange_rate::local_rate_provider::LOCAL_ONE_BTC_IN_FIAT;
 
-    use crate::tests;
+    use rstest::rstest;
+
     use crate::tests::gen_services;
     use crate::tests::lib::create_default_account_with_predefined_wallet;
     use crate::tests::mobile_pay_tests::build_mobile_pay_request;
@@ -317,11 +312,6 @@ mod get_mobile_pay_tests {
         }
     }
 
-    #[derive(Clone, Debug)]
-    struct GetMobilePayTestVector {
-        spending_limit: SpendingLimit,
-    }
-
     // Let o = 10_000_000 (number of sats in 1 BTC)
     // Let r = 22678 (`LocalRateProvider`'s 1 BTC in USD)
     // Let a be amount in USD
@@ -340,14 +330,10 @@ mod get_mobile_pay_tests {
         time_zone_offset: UtcOffset::UTC,
     };
 
-    tests! {
-        runner = get_mobile_pay_balance,
-        test_get_mobile_pay_balance_with_fiat_spending_limit: GetMobilePayTestVector {
-            spending_limit: USD_SPENDING_LIMIT,
-        },
-    }
-
-    async fn get_mobile_pay_balance(vector: GetMobilePayTestVector) {
+    #[rstest]
+    #[case::get_mobile_pay_balance_with_fiat_spending_limit(USD_SPENDING_LIMIT)]
+    #[tokio::test]
+    async fn test_get_mobile_pay_balance(#[case] spending_limit: SpendingLimit) {
         let payee_script_pubkey = Address::from_str("bc1qvh30c5k24q4z2h6e88tvsv7x3xyj7m4g37e498")
             .unwrap()
             .assume_checked()
@@ -371,7 +357,7 @@ mod get_mobile_pay_tests {
             .unwrap();
 
         // Set up mobile pay.
-        let setup_mobile_pay_request = build_mobile_pay_request(vector.spending_limit.clone());
+        let setup_mobile_pay_request = build_mobile_pay_request(spending_limit.clone());
         let mobile_pay_setup_response = client
             .put_mobile_pay(&account.id, &setup_mobile_pay_request, &keys)
             .await;
@@ -419,7 +405,7 @@ mod get_mobile_pay_tests {
             SPENDING_LIMIT_SATS - payee_amount_sats
         );
         assert_eq!(mobile_pay_config.spent.amount, payee_amount_sats);
-        assert_eq!(mobile_pay_config.limit, vector.spending_limit);
+        assert_eq!(mobile_pay_config.limit, spending_limit);
     }
 
     #[tokio::test]

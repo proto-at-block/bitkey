@@ -480,8 +480,14 @@ void handle_fingerprint_reset_finalize(ipc_ref_t* message) {
   rsp->which_msg = fwpb_wallet_rsp_fingerprint_reset_finalize_rsp_tag;
 
   grant_t* grant = (grant_t*)cmd->msg.fingerprint_reset_finalize_cmd.grant.bytes;
+  if (cmd->msg.fingerprint_reset_finalize_cmd.grant.size != sizeof(grant_t)) {
+    rsp->status = fwpb_status_INVALID_ARGUMENT;
+    goto out;
+  }
+
   rsp->status = handle_grant_finalize(grant);
 
+out:
   proto_send_rsp(cmd, rsp);
 }
 

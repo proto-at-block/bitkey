@@ -1,5 +1,6 @@
 use std::fmt::{Display, Formatter, Result};
 use std::mem::discriminant;
+
 use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq)]
@@ -24,6 +25,14 @@ pub enum SpendRuleCheckError {
     CouldNotFetchSpendAmount(String),
     #[error("Transaction requires verification")]
     TransactionVerificationRequired,
+    #[error("Invalid transaction. Commitment does not match regenerated commitment.")]
+    InvalidCommitment,
+    #[error("Could not generate message for transaction verification")]
+    GenerateTransactionVerificationMessage,
+    #[error("Could not generate chained sighashes for transaction verification")]
+    CalculateChainedSighashes,
+    #[error("Could not verify transaction verification message")]
+    VerifyTransactionVerificationMessage(#[from] bdk_utils::bdk::bitcoin::secp256k1::Error),
 }
 
 #[derive(Error, Debug)]
@@ -49,12 +58,5 @@ impl SpendRuleCheckErrors {
         self.0
             .iter()
             .any(|e| discriminant(e) == discriminant(error))
-    }
-
-    pub fn is_transaction_verification_required(&self) -> bool {
-        matches!(
-            self.0.as_slice(),
-            [SpendRuleCheckError::TransactionVerificationRequired]
-        )
     }
 }

@@ -11,6 +11,7 @@ import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.keybox.EekKeyboxMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
@@ -23,16 +24,19 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
 import build.wallet.feature.flags.CheckHardwareIsPairedFeatureFlag
 import build.wallet.feature.setFlagValue
-import build.wallet.nfc.*
+import build.wallet.nfc.NfcException
+import build.wallet.nfc.NfcReaderCapabilityMock
 import build.wallet.nfc.NfcSession.Parameters
 import build.wallet.nfc.NfcSession.RequirePairedHardware
+import build.wallet.nfc.NfcTransactorMock
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
 import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcBodyModel.Status.*
+import build.wallet.statemachine.nfc.NfcBodyModel.Status.Searching
+import build.wallet.statemachine.nfc.NfcBodyModel.Status.Success
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
@@ -186,6 +190,37 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   test("hardware pairing check - feature flag disabled") {
     checkHardwareIsPairedFeatureFlag.setFlagValue(false)
     val propsWithPairing = createProps(requirePairedHardware = Required())
+
+    nfcTransactor.transactResult = Ok(Unit)
+    stateMachine.test(propsWithPairing) {
+      awaitBody<NfcBodyModel> {
+        text.shouldBe("Hold device here behind phone")
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val transactCalls = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<Parameters>()
+
+      // Verify pairing check is NotRequired even though prop is Required
+      transactCalls.requirePairedHardware.shouldBe(RequirePairedHardware.NotRequired)
+      onSuccessCalls.awaitItem()
+
+      awaitBody<NfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+      }
+    }
+  }
+
+  test("hardware pairing check - bypasses check if in EEK mode") {
+    checkHardwareIsPairedFeatureFlag.setFlagValue(true)
+    val propsWithPairing = createProps(requirePairedHardware = Required())
+    accountService.accountState.value = Ok(
+      AccountStatus.ActiveAccount(
+        FullAccountMock.copy(
+          keybox = EekKeyboxMock
+        )
+      )
+    )
 
     nfcTransactor.transactResult = Ok(Unit)
     stateMachine.test(propsWithPairing) {

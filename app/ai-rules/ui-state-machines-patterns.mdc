@@ -1,0 +1,595 @@
+---
+description: Advanced UI State Machine patterns including error handling, retry logic, analytics, and performance optimization
+globs: ["**/*StateMachine*.kt", "**/*UiStateMachine*.kt"]
+alwaysApply: false
+---
+
+# UI State Machine Advanced Patterns
+
+## Summary
+
+Advanced UI State Machine patterns cover sophisticated techniques for error handling, retry logic, performance optimization, analytics integration, and complex side effect management. These patterns enable robust, production-ready UI implementations that gracefully handle edge cases, provide excellent user experience, and maintain optimal performance across different scenarios.
+
+## Remember Key Management
+
+Control when expensive calculations recalculate by using proper dependency keys:
+
+**Without keys - recalculates every recomposition:**
+```kotlin
+// ❌ BAD: Expensive calculation runs on every recomposition
+// CONSEQUENCES: Performance degradation, UI freezing, battery drain, stale data usage
+val result = remember {
+  expensiveCalculation(props.value1, props.value2) // Uses potentially stale values
+}
+```
+
+**With keys - only recalculates when dependencies change:**
+```kotlin
+// ✅ GOOD: Only recalculates when props.value1 or props.value2 change
+val result = remember(props.value1, props.value2) {
+  expensiveCalculation(props.value1, props.value2)
+}
+
+// ✅ GOOD: For reactive streams without dependencies
+val data by remember { service.dataStream }.collectAsState()
+
+// ✅ GOOD: For reactive streams with dependencies  
+val convertedData by remember(converter, inputData) {
+  converter.convertStream(inputData)
+}.collectAsState(initialValue)
+
+// ✅ GOOD: For business logic computations
+val spendingLimitStatus = remember(props.enteredAmount, props.balance) {
+  mobilePayService.determineSpendingLimitStatus(props.enteredAmount, props.balance)
+}
+```
+
+**Key selection guidelines:**
+- Include all external values that affect the computation result
+- Typically 1-4 keys maximum - more suggests the computation should be split
+- Use actual data dependencies, not artificial triggers like `Unit`
+- Very rare edge cases exist where intentional recalculation is needed
+
+## Side Effects
+
+**Use `rememberStableCoroutineScope()` instead of `rememberCoroutineScope()`:**
+
+```kotlin
+@Composable
+override fun model(props: PaymentProps): ScreenModel {
+  val scope = rememberStableCoroutineScope() // ✅ Stable across recompositions
+  
+  return PaymentBodyModel(
+    onProcessPayment = { request ->
+      scope.launch {
+        paymentService.processPayment(request)
+      }
+    }
+  )
+}
+```
+
+**Why:** `rememberStableCoroutineScope()` is a custom function specific to this codebase. It provides a composition-stable coroutine scope that prevents unnecessary recompositions of callback functions. You can find its implementation in the `utils/CoroutineUtils.kt` file.
+
+**Two patterns for side effects:**
+
+**1. LaunchedEffect (Preferred) - For deterministic behavior:**
+- Use for suspend functions and local state updates
+- Automatically cancels/restarts when keys change
+- Enables debouncing through key management
+- Only callable from `@Composable` functions
+
+**2. rememberCoroutineScope - For user-action callbacks:**
+- Use when side effects happen in response to user actions
+- Necessary because model callbacks are not `@Composable`
+- Creates composition-aware coroutine scope
+
+```kotlin
+@Composable
+override fun model(props: PaymentProps): PaymentScreenModel {
+  var paymentState by remember { mutableStateOf(PaymentState.Idle) }
+  val coroutineScope = rememberCoroutineScope()
+  
+  // ✅ LaunchedEffect for prop-driven effects
+  LaunchedEffect(props.autoProcess) {
+    if (props.autoProcess != null) {
+      paymentService.processPayment(props.autoProcess)
+    }
+  }
+  
+  return PaymentScreenModel(
+    state = paymentState,
+    // ✅ rememberCoroutineScope for callbacks
+    onProcessPayment = { request ->
+      coroutineScope.launch {
+        paymentService.processPayment(request)
+      }
+    }
+  )
+}
+```
+
+**Alternative pattern**: Use composition state + LaunchedEffect for complex callback scenarios.
+
+## Error Handling Patterns
+
+**Structured error handling with explicit error states (prefer Type 2):**
+
+```kotlin
+private sealed interface State {
+  data object Loading : State
+  data class Success(val data: Account) : State
+  data class Error(val errorData: ErrorData) : State
+}
+
+@Composable
+override fun model(props: CreateAccountProps): ScreenModel {
+  var state: State by remember { mutableStateOf(State.Loading) }
+  
+  LaunchedEffect(props.inviteCode) {
+    accountService.createAccount(props.inviteCode)
+      .onSuccess { account -> state = State.Success(account) }
+      .onFailure { error -> 
+        state = State.Error(ErrorData(
+          segment = AppSegment.Onboarding,
+          actionDescription = "Creating account",
+          cause = error
+        ))
+      }
+  }
+  
+  return when (val currentState = state) {
+    is State.Loading -> LoadingBodyModel(message = "Creating account...")
+    is State.Success -> SuccessBodyModel(account = currentState.data)
+    is State.Error -> ErrorFormBodyModel(
+      title = "Account creation failed",
+      subline = "Please try again",
+      primaryButtonText = "Try Again",
+      onPrimaryButtonClick = { state = State.Loading },
+      errorData = currentState.errorData
+    )
+  }
+}
+```
+
+**Error handling best practices:**
+- **Prefer Type 2 State Machines** for any UI involving loading/error states
+- **Explicit error states**: Include error information in state classes
+- **Separate error models**: Don't mix error UI with success UI in same model
+- **User-friendly messages**: Convert technical errors to actionable user messages
+- **Recovery paths**: Always provide "try again" or alternative actions
+- **Error logging**: Use `ErrorData` for consistent error reporting
+- **Graceful degradation**: Provide fallbacks when services are unavailable
+
+## Retry Patterns
+
+**Implement retry functionality using boolean request flags:**
+
+```kotlin
+@Composable
+override fun model(props: ServiceProps): ScreenModel {
+  var isRequesting by remember { mutableStateOf(true) }
+  var state: State by remember { mutableStateOf(State.Loading) }
+  
+  if (isRequesting) {
+    LaunchedEffect(Unit) {
+      serviceCall()
+        .onSuccess { data -> 
+          state = State.Success(data)
+          isRequesting = false
+        }
+        .onFailure { error -> 
+          state = State.Error(error)
+          isRequesting = false
+        }
+    }
+  }
+  
+  return when (val currentState = state) {
+    is State.Error -> ErrorFormBodyModel(
+      title = "Operation Failed",
+      onRetry = { isRequesting = true }, // Set flag to trigger retry
+      onBack = props.onBack
+    ).asModalScreen()
+    // ... other states
+  }
+}
+```
+
+**Retry Best Practices:**
+- Use boolean flags (`isRequesting`, `isRefreshing`) to trigger retry operations
+- Use conditional `if (flag)` outside `LaunchedEffect` for cleaner control flow
+- Set flag to `false` after operation completes (success or failure)
+- Set flag to `true` to trigger retry
+
+## Analytics and Screen Tracking
+
+**Screen ID Integration:**
+All FormBodyModel implementations must include proper screen tracking:
+
+```kotlin
+data class SettingsFormBodyModel(...) : FormBodyModel(
+  id = EventTrackerScreenId.SETTINGS_SCREEN, // Required for analytics
+  eventTrackerContext = SettingsEventTrackerContext.ACCOUNT, // Optional context
+  eventTrackerShouldTrack = true, // Default true, set false to disable tracking
+  // ... other parameters
+)
+```
+
+**Screen Tracking Patterns:**
+- **Screen IDs**: Use `EventTrackerScreenId` enum values for consistent tracking
+- **Event Context**: Add `EventTrackerContext` for additional analytics metadata
+- **Conditional Tracking**: Use `eventTrackerShouldTrack = false` to disable tracking when needed
+
+## Performance Optimization
+
+**Expensive Computation Management:**
+```kotlin
+@Composable
+override fun model(props: ComplexProps): ScreenModel {
+  // ✅ GOOD: Cache expensive calculations with proper keys
+  val processedData = remember(props.rawData, props.filters) {
+    expensiveDataProcessing(props.rawData, props.filters)
+  }
+  
+  // ✅ GOOD: Lazy computation for conditional display
+  val expensiveResult = remember(props.shouldCalculate, props.inputData) {
+    if (props.shouldCalculate) {
+      expensiveCalculation(props.inputData)
+    } else {
+      null
+    }
+  }
+  
+  // ✅ GOOD: Debounced effects for user input
+  LaunchedEffect(props.searchQuery) {
+    delay(300) // Debounce user input
+    if (props.searchQuery.isNotEmpty()) {
+      searchService.search(props.searchQuery)
+    }
+  }
+}
+```
+
+**Performance Guidelines:**
+- **Cache expensive calculations**: Use `remember` with proper dependency keys
+- **Lazy evaluation**: Only compute when actually needed
+- **Debounce user input**: Prevent excessive API calls or computations
+- **Early returns**: Exit computation paths when conditions aren't met
+- **Stable references**: Use `rememberStableCoroutineScope()` for callback stability
+
+## Complex Flow Management
+
+**Multi-Step Workflow Example:**
+```kotlin
+@BitkeyInject(ActivityScope::class)
+class PaymentFlowUiStateMachineImpl(
+  private val amountEntryStateMachine: AmountEntryUiStateMachine,
+  private val recipientStateMachine: RecipientSelectionUiStateMachine,
+  private val confirmationStateMachine: PaymentConfirmationUiStateMachine,
+  private val paymentService: PaymentService
+) : PaymentFlowUiStateMachine {
+
+  @Composable
+  override fun model(props: PaymentFlowProps): ScreenModel {
+    var state: State by remember { mutableStateOf(State.EnteringAmount) }
+    
+    return when (val currentState = state) {
+      is State.EnteringAmount -> amountEntryStateMachine.model(
+        AmountEntryProps(
+          onAmountEntered = { amount -> 
+            state = State.SelectingRecipient(amount) 
+          },
+          onBack = props.onExit
+        )
+      )
+      
+      is State.SelectingRecipient -> recipientStateMachine.model(
+        RecipientSelectionProps(
+          amount = currentState.amount,
+          onRecipientSelected = { recipient ->
+            state = State.ConfirmingPayment(currentState.amount, recipient)
+          },
+          onBack = { state = State.EnteringAmount }
+        )
+      )
+      
+      is State.ConfirmingPayment -> confirmationStateMachine.model(
+        PaymentConfirmationProps(
+          amount = currentState.amount,
+          recipient = currentState.recipient,
+          onConfirm = { 
+            state = State.ProcessingPayment(currentState.amount, currentState.recipient)
+          },
+          onBack = { state = State.SelectingRecipient(currentState.amount) }
+        )
+      )
+      
+      is State.ProcessingPayment -> {
+        LaunchedEffect(currentState.amount, currentState.recipient) {
+          paymentService.processPayment(currentState.amount, currentState.recipient)
+            .onSuccess { result -> 
+              props.onPaymentComplete(result)
+            }
+            .onFailure { error ->
+              state = State.PaymentError(error, currentState.amount, currentState.recipient)
+            }
+        }
+        
+        LoadingFormBodyModel(
+          message = "Processing payment...",
+          onBack = { 
+            state = State.ConfirmingPayment(currentState.amount, currentState.recipient)
+          }
+        ).asModalScreen()
+      }
+      
+      is State.PaymentError -> ErrorFormBodyModel(
+        title = "Payment Failed",
+        subline = currentState.error.message ?: "Please try again",
+        onRetry = { 
+          state = State.ProcessingPayment(currentState.amount, currentState.recipient)
+        },
+        onBack = { 
+          state = State.ConfirmingPayment(currentState.amount, currentState.recipient)
+        }
+      ).asModalScreen()
+    }
+  }
+
+  private sealed interface State {
+    data object EnteringAmount : State
+    data class SelectingRecipient(val amount: BitcoinMoney) : State
+    data class ConfirmingPayment(val amount: BitcoinMoney, val recipient: String) : State
+    data class ProcessingPayment(val amount: BitcoinMoney, val recipient: String) : State
+    data class PaymentError(
+      val error: Throwable, 
+      val amount: BitcoinMoney, 
+      val recipient: String
+    ) : State
+  }
+}
+```
+
+## Advanced State Management Techniques
+
+**State Persistence Across Configuration Changes:**
+```kotlin
+@Composable
+override fun model(props: FormProps): ScreenModel {
+  // ✅ GOOD: Persistent state that survives configuration changes
+  var formData by rememberSaveable(stateSaver = FormDataStateSaver) { 
+    mutableStateOf(FormData.empty())
+  }
+  
+  // ✅ GOOD: Restore state from saved instance if available
+  LaunchedEffect(props.initialData) {
+    if (formData.isEmpty() && props.initialData != null) {
+      formData = props.initialData
+    }
+  }
+}
+```
+
+**Complex State Validation:**
+```kotlin
+@Composable
+override fun model(props: ValidationProps): ScreenModel {
+  var inputState by remember { mutableStateOf(InputState()) }
+  
+  // ✅ GOOD: Derived validation state
+  val validationErrors = remember(inputState) {
+    buildList {
+      if (inputState.email.isBlank()) add("Email is required")
+      if (!inputState.email.contains("@")) add("Invalid email format")
+      if (inputState.password.length < 8) add("Password too short")
+    }.toImmutableList()
+  }
+  
+  val isFormValid = remember(validationErrors) {
+    validationErrors.isEmpty()
+  }
+  
+  return FormBodyModel(
+    // ... form content
+    validationErrors = validationErrors,
+    submitEnabled = isFormValid,
+    onSubmit = if (isFormValid) { { /* submit logic */ } } else null
+  ).asModalScreen()
+}
+```
+
+## Testing Considerations
+
+**State Machine Testability Patterns:**
+```kotlin
+// ✅ GOOD: Testable State Machine with dependency injection
+@BitkeyInject(ActivityScope::class)
+class TestableUiStateMachineImpl(
+  private val dataService: DataService,
+  private val validationService: ValidationService
+) : TestableUiStateMachine {
+  
+  @Composable
+  override fun model(props: TestableProps): ScreenModel {
+    // All business logic delegated to injected services
+    val data by remember { dataService.dataStream }.collectAsState()
+    
+    // Simple state management - easy to test
+    var isLoading by remember { mutableStateOf(false) }
+    
+    // Clear side effects - predictable for testing
+    LaunchedEffect(props.triggerValidation) {
+      if (props.triggerValidation) {
+        isLoading = true
+        validationService.validate(data)
+        isLoading = false
+      }
+    }
+    
+    return TestableBodyModel(
+      data = data?.displayValue ?: "No data",
+      isLoading = isLoading,
+      onValidate = { /* trigger validation through props or state */ }
+    ).asRootScreen()
+  }
+}
+```
+
+**Testing Best Practices:**
+- **Dependency injection**: All services and dependencies should be injected
+- **Simple state logic**: Complex logic should be in Services, not State Machines
+- **Predictable side effects**: Use `LaunchedEffect` with clear dependencies
+- **Observable state**: State should be easily observable and mockable
+- **Clear Props interface**: Props should be simple and focused
+
+## Advanced Error Recovery
+
+**Progressive Error Handling:**
+```kotlin
+@Composable
+override fun model(props: RobustProps): ScreenModel {
+  var state: State by remember { mutableStateOf(State.Loading) }
+  var retryCount by remember { mutableStateOf(0) }
+  
+  LaunchedEffect(state, retryCount) {
+    when (state) {
+      is State.Loading -> {
+        try {
+          val result = dataService.fetchCriticalData()
+          state = State.Success(result)
+          retryCount = 0 // Reset on success
+        } catch (error: Exception) {
+          when {
+            retryCount < 3 -> {
+              delay(1000 * (retryCount + 1)) // Exponential backoff
+              retryCount++
+              // Stay in Loading state for automatic retry
+            }
+            error is NetworkException -> {
+              state = State.NetworkError(error)
+            }
+            else -> {
+              state = State.CriticalError(error)
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return when (val currentState = state) {
+    is State.Loading -> LoadingFormBodyModel(
+      message = if (retryCount > 0) "Retrying... ($retryCount/3)" else "Loading..."
+    )
+    is State.NetworkError -> ErrorFormBodyModel(
+      title = "Connection Problem",
+      subline = "Check your internet connection and try again",
+      onRetry = { 
+        state = State.Loading
+        retryCount = 0
+      }
+    )
+    is State.CriticalError -> ErrorFormBodyModel(
+      title = "Something went wrong",
+      subline = "Please contact support if this continues",
+      onRetry = null, // No retry for critical errors
+      onContactSupport = { /* contact support flow */ }
+    )
+    // ... other states
+  }
+}
+```
+
+## Logging Guidelines
+
+- **Minimal UI State Machine logging**: Avoid explicit logging in UI State Machines
+- **Delegate to Services**: Logging should primarily be handled by Services and domain components
+
+## Advanced Example
+
+```kotlin
+data class PaymentProps(
+  val amount: BitcoinMoney,
+  val recipient: String,
+  val onSuccess: () -> Unit,
+  val onBack: () -> Unit
+)
+
+// Type 2 State Machine for handling loading/error/success states
+@BitkeyInject(ActivityScope::class)
+class PaymentUiStateMachineImpl(
+  private val paymentService: PaymentService,
+  private val accountService: AccountService
+) : PaymentUiStateMachine {
+  
+  @Composable
+  override fun model(props: PaymentProps): ScreenModel {
+    var state: State by remember { mutableStateOf(State.Loading) }
+    
+    LaunchedEffect(Unit) {
+      accountService.getActiveAccount()
+        .onSuccess { account -> state = State.Ready(account) }
+        .onFailure { error -> state = State.Error(error) }
+    }
+    
+    return when (val currentState = state) {
+      is State.Loading -> LoadingFormBodyModel(
+        message = "Loading account..."
+      ).asModalScreen()
+      
+      is State.Error -> ErrorFormBodyModel(
+        title = "Failed to load account",
+        subline = currentState.error.message ?: "Please try again",
+        onRetry = { state = State.Loading },
+        onBack = props.onBack
+      ).asModalScreen()
+      
+      is State.Ready -> PaymentFormBodyModel(
+        amount = props.amount,
+        recipient = props.recipient,
+        account = currentState.account,
+        onSubmit = { 
+          state = State.Processing(currentState.account)
+        },
+        onBack = props.onBack
+      ).asModalScreen()
+      
+      is State.Processing -> {
+        LaunchedEffect(currentState.account) {
+          paymentService.processPayment(props.amount, props.recipient, currentState.account)
+            .onSuccess { props.onSuccess() }
+            .onFailure { error -> state = State.ProcessingError(error, currentState.account) }
+        }
+        LoadingFormBodyModel(
+          message = "Processing payment..."
+        ).asModalScreen()
+      }
+      
+      is State.ProcessingError -> ErrorFormBodyModel(
+        title = "Payment Failed",
+        subline = currentState.error.message ?: "Please try again",
+        onRetry = { state = State.Processing(currentState.account) },
+        onBack = { state = State.Ready(currentState.account) }
+      ).asModalScreen()
+    }
+  }
+  
+  private sealed interface State {
+    data object Loading : State
+    data class Error(val error: Throwable) : State
+    data class Ready(val account: Account) : State
+    data class Processing(val account: Account) : State
+    data class ProcessingError(val error: Throwable, val account: Account) : State
+  }
+}
+```
+
+*Note: UI State Machines are conceptually similar to [Workflows](https://square.github.io/workflow/) and React Components, providing reactive state-driven UI composition.*
+
+## Related Rules
+
+- @ai-rules/ui-state-machines-basics.mdc (for core concepts and fundamental patterns)
+- @ai-rules/ui-state-machines-models.mdc (for model design and presentation)
+- @ai-rules/domain-service-pattern.mdc (for business logic delegation)
+- @ai-rules/strong-typing.mdc (for error handling and Result types)

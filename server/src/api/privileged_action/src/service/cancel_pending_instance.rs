@@ -8,9 +8,15 @@ use notification::{
 };
 use serde_json::Value;
 use tracing::instrument;
-use types::privileged_action::repository::{
-    AuthorizationStrategyRecord, DelayAndNotifyRecord, OutOfBandRecord,
-    PrivilegedActionInstanceRecord, RecordStatus,
+use types::{
+    account::{identifiers::AccountId, AccountType},
+    privileged_action::{
+        repository::{
+            AuthorizationStrategyRecord, DelayAndNotifyRecord, OutOfBandRecord,
+            PrivilegedActionInstanceRecord, RecordStatus,
+        },
+        shared::PrivilegedActionInstanceId,
+    },
 };
 
 use super::{error::ServiceError, Service};
@@ -54,29 +60,50 @@ impl Service {
         self.privileged_action_repository
             .persist(&updated_instance)
             .await?;
+        self.send_notification_for_canceled_instance(&updated_instance)
+            .await?;
+        Ok(())
+    }
 
-        let account = &self
-            .account_repository
-            .fetch(&updated_instance.account_id)
+    #[instrument(skip(self))]
+    pub async fn cancel_pending_out_of_band_instance(
+        &self,
+        account_id: &AccountId,
+        instance_id: PrivilegedActionInstanceId,
+    ) -> Result<(), ServiceError> {
+        let instance_record: PrivilegedActionInstanceRecord<Value> = self
+            .privileged_action_repository
+            .fetch_by_id(&instance_id)
             .await?;
 
-        self.notification_service
-            .send_notification(SendNotificationInput {
-                account_id: &updated_instance.account_id,
-                payload_type: NotificationPayloadType::PrivilegedActionCanceledDelayPeriod,
-                payload: &NotificationPayloadBuilder::default()
-                    .privileged_action_canceled_delay_period_payload(Some(
-                        PrivilegedActionCanceledDelayPeriodPayload {
-                            privileged_action_instance_id: updated_instance.id,
-                            account_type: account.into(),
-                            privileged_action_type: updated_instance.privileged_action_type,
-                        },
-                    ))
-                    .build()?,
-                only_touchpoints: None,
-            })
+        if instance_record.account_id != *account_id {
+            return Err(ServiceError::RecordAccountIdForbidden);
+        }
+
+        let AuthorizationStrategyRecord::OutOfBand(out_of_band) =
+            instance_record.authorization_strategy
+        else {
+            return Err(ServiceError::RecordAuthorizationStrategyTypeConflict);
+        };
+
+        if out_of_band.status != RecordStatus::Pending {
+            return Err(ServiceError::RecordOutofBandStatusConflict);
+        }
+
+        let updated_instance = PrivilegedActionInstanceRecord {
+            authorization_strategy: AuthorizationStrategyRecord::OutOfBand(OutOfBandRecord {
+                status: RecordStatus::Canceled,
+                ..out_of_band
+            }),
+            ..instance_record
+        };
+
+        self.privileged_action_repository
+            .persist(&updated_instance)
             .await?;
 
+        self.send_notification_for_canceled_instance(&updated_instance)
+            .await?;
         Ok(())
     }
 
@@ -112,19 +139,61 @@ impl Service {
             .persist(&updated_instance)
             .await?;
 
+        self.send_notification_for_canceled_instance(&updated_instance)
+            .await?;
+        Ok(())
+    }
+
+    async fn send_notification_for_canceled_instance(
+        &self,
+        updated_instance: &PrivilegedActionInstanceRecord<Value>,
+    ) -> Result<(), ServiceError> {
+        let account = self
+            .account_repository
+            .fetch(&updated_instance.account_id)
+            .await?;
+
+        let account_type = AccountType::from(&account);
+        let instance_id = &updated_instance.id;
+        let action_type = updated_instance.privileged_action_type.clone();
+        let (payload_type, payload) = match &updated_instance.authorization_strategy {
+            AuthorizationStrategyRecord::DelayAndNotify(_) => {
+                let payload = NotificationPayloadBuilder::default()
+                    .privileged_action_canceled_delay_period_payload(Some(
+                        PrivilegedActionCanceledDelayPeriodPayload {
+                            privileged_action_instance_id: instance_id.clone(),
+                            account_type,
+                            privileged_action_type: action_type,
+                        },
+                    ))
+                    .build()?;
+                (
+                    NotificationPayloadType::PrivilegedActionCanceledDelayPeriod,
+                    payload,
+                )
+            }
+            AuthorizationStrategyRecord::OutOfBand(_) => {
+                let payload = NotificationPayloadBuilder::default()
+                    .privileged_action_canceled_oob_verification_payload(Some(
+                        PrivilegedActionCanceledOutOfBandVerificationPayload {
+                            privileged_action_instance_id: instance_id.clone(),
+                            privileged_action_type: action_type,
+                        },
+                    ))
+                    .build()?;
+                (
+                    NotificationPayloadType::PrivilegedActionCanceledOutOfBandVerification,
+                    payload,
+                )
+            }
+            _ => return Err(ServiceError::RecordAuthorizationStrategyTypeConflict),
+        };
+
         self.notification_service
             .send_notification(SendNotificationInput {
                 account_id: &updated_instance.account_id,
-                payload_type:
-                    NotificationPayloadType::PrivilegedActionCanceledOutOfBandVerification,
-                payload: &NotificationPayloadBuilder::default()
-                    .privileged_action_canceled_oob_verification_payload(Some(
-                        PrivilegedActionCanceledOutOfBandVerificationPayload {
-                            privileged_action_instance_id: updated_instance.id,
-                            privileged_action_type: updated_instance.privileged_action_type,
-                        },
-                    ))
-                    .build()?,
+                payload_type,
+                payload: &payload,
                 only_touchpoints: None,
             })
             .await?;

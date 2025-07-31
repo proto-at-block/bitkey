@@ -16,12 +16,14 @@ import build.wallet.crypto.random.SecureRandom
 import build.wallet.crypto.random.nextBytes
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
 import build.wallet.feature.flags.CheckHardwareIsPairedFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
@@ -337,6 +339,13 @@ class NfcSessionUIStateMachineImpl(
 
     if (hwPubKey == null) {
       logWarn { "hwPubKey is null, unexpectedly bypassing hardwareIsPaired check" }
+      return NotRequired
+    }
+
+    // In EEK mode we hardcode the value of the pubkey to EEK_PUBLIC_KEY, which isn't valid, so we
+    // have to fail open.
+    if (hwPubKey.value == EmergencyExitPayloadRestorer.EEK_PUBLIC_KEY) {
+      logInfo { "Bypassing hardware checking due to EEK mode" }
       return NotRequired
     }
 

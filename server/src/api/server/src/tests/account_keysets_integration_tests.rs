@@ -1,8 +1,10 @@
 use std::str::FromStr;
 
+use http::StatusCode;
+use rstest::rstest;
+
 use account::service::{tests::create_descriptor_keys, FetchAccountInput};
 use bdk_utils::bdk::keys::DescriptorPublicKey;
-use http::StatusCode;
 use http_server::middlewares::wsm;
 use onboarding::routes::{
     AccountKeyset, CreateAccountRequest, CreateKeysetRequest, RotateSpendingKeysetRequest,
@@ -15,7 +17,6 @@ use types::account::spending::SpendingKeyset;
 use wsm_rust_client::SigningService;
 use wsm_rust_client::{TEST_XPUB_SPEND, TEST_XPUB_SPEND_ORIGIN};
 
-use crate::tests;
 use crate::tests::gen_services;
 use crate::tests::lib::{create_inactive_spending_keyset_for_account, create_new_authkeys};
 use crate::tests::requests::axum::TestClient;
@@ -499,12 +500,15 @@ async fn test_fetch_account_keysets() {
     let account_keysets_response = response.body.unwrap();
     assert_eq!(account_keysets_response.keysets, expected_keysets);
 }
-struct RotateSpendingKeysetTestVector {
-    override_keyset_id: Option<String>,
-    expected_status: StatusCode,
-}
-
-async fn rotate_spending_keyset_test(vector: RotateSpendingKeysetTestVector) {
+#[rstest]
+#[case::success(None, StatusCode::OK)]
+#[case::invalid_keyset_id(Some("this_should_fail".to_string()), StatusCode::BAD_REQUEST)]
+#[case::inexistent_keyset_id(Some(KeysetId::gen().unwrap().to_string()), StatusCode::BAD_REQUEST)]
+#[tokio::test]
+async fn test_rotate_spending_keyset(
+    #[case] override_keyset_id: Option<String>,
+    #[case] expected_status: StatusCode,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -554,13 +558,13 @@ async fn rotate_spending_keyset_test(vector: RotateSpendingKeysetTestVector) {
     let response = client
         .rotate_to_spending_keyset(
             &account_id.to_string(),
-            &vector.override_keyset_id.unwrap_or(keyset_id.to_string()),
+            &override_keyset_id.unwrap_or(keyset_id.to_string()),
             &RotateSpendingKeysetRequest {},
             &keys,
         )
         .await;
     assert_eq!(
-        response.status_code, vector.expected_status,
+        response.status_code, expected_status,
         "{}",
         response.body_string
     );
@@ -585,20 +589,4 @@ async fn rotate_spending_keyset_test(vector: RotateSpendingKeysetTestVector) {
             .active_spending_keyset()
             .expect("Spending keyset should be present");
     }
-}
-
-tests! {
-    runner = rotate_spending_keyset_test,
-    test_successfully_rotate_spending_keyset: RotateSpendingKeysetTestVector {
-        override_keyset_id: None,
-        expected_status: StatusCode::OK,
-    },
-    test_invalid_keyset_id_rotate_spending_keyset: RotateSpendingKeysetTestVector {
-        override_keyset_id: Some("this_should_fail".to_string()),
-        expected_status: StatusCode::BAD_REQUEST,
-    },
-    test_inexistent_keyset_id_rotate_spending_keyset: RotateSpendingKeysetTestVector {
-        override_keyset_id: Some(KeysetId::gen().unwrap().to_string()),
-        expected_status: StatusCode::BAD_REQUEST,
-    },
 }

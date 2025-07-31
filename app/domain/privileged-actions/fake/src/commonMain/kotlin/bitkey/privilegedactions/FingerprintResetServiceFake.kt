@@ -7,11 +7,15 @@ import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.f8e.privilegedactions.PrivilegedActionType
 import build.wallet.account.AccountService
 import build.wallet.account.AccountServiceFake
+import build.wallet.db.DbError
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantRequest
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Clock
@@ -21,16 +25,18 @@ import kotlin.time.Duration.Companion.days
 class FingerprintResetServiceFake(
   override val privilegedActionF8eClient: FingerprintResetF8eClient = FingerprintResetF8eClientFake(
     { throw IllegalStateException("Turbine factory not provided") },
-    Clock.System
+    clock = ClockFake()
   ),
   override val accountService: AccountService = AccountServiceFake(),
   override val clock: Clock,
 ) : FingerprintResetService {
   private val _fingerprintResetAction = MutableStateFlow<PrivilegedActionInstance?>(null)
+  private val _pendingGrant = MutableStateFlow<Grant?>(null)
 
-  var createFingerprintResetPrivilegedActionResult: Result<PrivilegedActionInstance, PrivilegedActionError> = Ok(
-    createDefaultPrivilegedActionInstance()
-  )
+  var createFingerprintResetPrivilegedActionResult: Result<PrivilegedActionInstance, PrivilegedActionError> =
+    Ok(
+      createDefaultPrivilegedActionInstance()
+    )
   var completeFingerprintResetAndGetGrantResult: Result<Grant, PrivilegedActionError> = Ok(
     Grant(
       version = 1,
@@ -39,7 +45,8 @@ class FingerprintResetServiceFake(
     )
   )
   var cancelFingerprintResetResult: Result<Unit, PrivilegedActionError> = Ok(Unit)
-  var getLatestFingerprintResetActionResult: Result<PrivilegedActionInstance?, PrivilegedActionError> = Ok(null)
+  var getLatestFingerprintResetActionResult: Result<PrivilegedActionInstance?, PrivilegedActionError> =
+    Ok(null)
 
   val createFingerprintResetPrivilegedActionCalls = mutableListOf<GrantRequest>()
   val completeFingerprintResetAndGetGrantCalls = mutableListOf<Pair<String, String>>()
@@ -64,7 +71,10 @@ class FingerprintResetServiceFake(
   ): Result<Grant, PrivilegedActionError> {
     completeFingerprintResetAndGetGrantCalls.add(actionId to completionToken)
     return completeFingerprintResetAndGetGrantResult.also { result ->
-      result.onSuccess { _fingerprintResetAction.value = null }
+      result.onSuccess { grant ->
+        _fingerprintResetAction.value = null
+        _pendingGrant.value = grant
+      }
     }
   }
 
@@ -73,7 +83,10 @@ class FingerprintResetServiceFake(
   ): Result<Unit, PrivilegedActionError> {
     cancelFingerprintResetCalls.add(cancellationToken)
     return cancelFingerprintResetResult.also { result ->
-      result.onSuccess { _fingerprintResetAction.value = null }
+      result.onSuccess {
+        _fingerprintResetAction.value = null
+        _pendingGrant.value = null
+      }
     }
   }
 
@@ -113,9 +126,25 @@ class FingerprintResetServiceFake(
   /**
    * Helper method to clear any pending fingerprint reset actions
    */
-  fun clearPendingFingerprintReset() {
-    getLatestFingerprintResetActionResult = Ok(null)
+  fun reset() {
     _fingerprintResetAction.value = null
+    _pendingGrant.value = null
+    getLatestFingerprintResetActionResult = Ok(null)
+
+    createFingerprintResetPrivilegedActionResult = Ok(createDefaultPrivilegedActionInstance())
+    completeFingerprintResetAndGetGrantResult = Ok(
+      Grant(
+        version = 1,
+        serializedRequest = byteArrayOf(1, 2, 3, 4),
+        signature = byteArrayOf(5, 6, 7, 8)
+      )
+    )
+    cancelFingerprintResetResult = Ok(Unit)
+
+    createFingerprintResetPrivilegedActionCalls.clear()
+    completeFingerprintResetAndGetGrantCalls.clear()
+    cancelFingerprintResetCalls.clear()
+    getLatestFingerprintResetActionCalls.clear()
   }
 
   private fun createDefaultPrivilegedActionInstance(): PrivilegedActionInstance {
@@ -130,5 +159,39 @@ class FingerprintResetServiceFake(
         completionToken = "fake-completion-token"
       )
     )
+  }
+
+  override suspend fun getPendingFingerprintResetGrant(): Result<Grant?, DbError> {
+    return Ok(_pendingGrant.value)
+  }
+
+  override suspend fun deleteFingerprintResetGrant(): Result<Unit, DbError> {
+    _pendingGrant.value = null
+    return Ok(Unit)
+  }
+
+  override fun pendingFingerprintResetGrant(): Flow<Grant?> = _pendingGrant
+
+  override suspend fun getFingerprintResetState(): Result<FingerprintResetState, PrivilegedActionError> {
+    return getLatestFingerprintResetAction()
+      .map { pendingAction ->
+        when (val authStrategy = pendingAction?.authorizationStrategy) {
+          is AuthorizationStrategy.DelayAndNotify -> {
+            if (pendingAction.isDelayAndNotifyReadyToComplete(clock)) {
+              FingerprintResetState.DelayCompleted(pendingAction)
+            } else {
+              FingerprintResetState.DelayInProgress(pendingAction, authStrategy)
+            }
+          }
+          else -> {
+            val grant = _pendingGrant.value
+            if (grant != null) {
+              FingerprintResetState.GrantReady(grant)
+            } else {
+              FingerprintResetState.None
+            }
+          }
+        }
+      }
   }
 }

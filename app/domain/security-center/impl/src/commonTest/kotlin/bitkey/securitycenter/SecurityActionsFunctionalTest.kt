@@ -229,9 +229,9 @@ class SecurityActionsFunctionalTest : FunSpec({
     )
 
     var expectedRecommendations = listOf(
+      SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET,
       SecurityActionRecommendation.BACKUP_EAK,
       SecurityActionRecommendation.ADD_FINGERPRINTS,
-      SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET,
       SecurityActionRecommendation.ADD_TRUSTED_CONTACTS,
       SecurityActionRecommendation.UPDATE_FIRMWARE,
       SecurityActionRecommendation.ENABLE_PUSH_NOTIFICATIONS,
@@ -274,8 +274,13 @@ class SecurityActionsFunctionalTest : FunSpec({
       testScenarios.forEach { (scenario, action, recommendationToRemove) ->
         action()
 
-        expectedRecommendations =
+        // Special case: Complete fingerprint reset creates a grant, so recommendation persists
+        expectedRecommendations = if (recommendationToRemove == SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET) {
+          // Don't remove the recommendation, it should persist due to grant being present in the db
+          expectedRecommendations
+        } else {
           expectedRecommendations.filterNot { it == recommendationToRemove }
+        }
 
         testScope.advanceUntilIdle()
 

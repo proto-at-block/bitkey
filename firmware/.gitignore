@@ -21,3 +21,4 @@ monitor.log
 meson.options
 third-party/st-rfal/source/rfal_isoDepPATCHED.c
 .clangd
+.cache

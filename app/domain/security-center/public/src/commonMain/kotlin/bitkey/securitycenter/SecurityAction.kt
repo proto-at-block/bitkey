@@ -39,6 +39,10 @@ enum class SecurityActionRecommendation(
   val actionType: SecurityActionType,
   val hasEducation: Boolean,
 ) {
+  COMPLETE_FINGERPRINT_RESET(
+    actionType = SecurityActionType.FINGERPRINTS,
+    hasEducation = false
+  ),
   PAIR_HARDWARE_DEVICE(
     actionType = SecurityActionType.HARDWARE_DEVICE,
     hasEducation = false
@@ -54,10 +58,6 @@ enum class SecurityActionRecommendation(
   ADD_FINGERPRINTS(
     actionType = SecurityActionType.FINGERPRINTS,
     hasEducation = true
-  ),
-  COMPLETE_FINGERPRINT_RESET(
-    actionType = SecurityActionType.FINGERPRINTS,
-    hasEducation = false
   ),
   ADD_TRUSTED_CONTACTS(
     actionType = SecurityActionType.SOCIAL_RECOVERY,

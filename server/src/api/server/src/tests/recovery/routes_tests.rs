@@ -20,35 +20,35 @@ use crate::Bootstrap;
 const VALID_CREATE_RESPONSE_PATTERN: &str = r#"\{"invitation":\{"recovery_relationship_id":"urn:wallet-recovery-relationship:[^"]+","trusted_contact_alias":"some_alias","trusted_contact_roles":__TC_ROLES__,"code":"[a-zA-Z0-9]+","code_bit_length":\d+,"expires_at":"[^"]+"\}\}"#;
 
 #[rstest]
-#[case::full_account_socrec(
+#[case::socrec(
     AccountType::Full,
     CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: true },
     vec![SocialRecoveryContact],
     StatusCode::OK,
     VALID_CREATE_RESPONSE_PATTERN
 )]
-#[case::full_account_beneficiary(
+#[case::beneficiary(
     AccountType::Full,
     CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: true },
     vec![Beneficiary],
     StatusCode::OK,
     VALID_CREATE_RESPONSE_PATTERN
 )]
-#[case::full_account_multi_role(
+#[case::multi_role(
     AccountType::Full,
     CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: true },
     vec![Beneficiary, SocialRecoveryContact],
     StatusCode::OK,
     VALID_CREATE_RESPONSE_PATTERN
 )]
-#[case::full_account_no_app_sig(
+#[case::no_app_sig(
     AccountType::Full,
     CognitoAuthentication::Wallet{ is_app_signed: false, is_hardware_signed: true },
     vec![SocialRecoveryContact],
     StatusCode::FORBIDDEN,
     "valid signature over access token required by both app and hw auth keys"
 )]
-#[case::full_account_no_hw_sig(
+#[case::no_hw_sig(
     AccountType::Full,
     CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: false },
     vec![SocialRecoveryContact],
@@ -118,25 +118,25 @@ const VALID_GET_RESPONSE_PATTERN: &str = r#"\{"invitations":\[\{"recovery_relati
 const EMPTY_GET_RESPONSE_PATTERN: &str = r#"\{"invitations":\[\],"unendorsed_trusted_contacts":\[\],"endorsed_trusted_contacts":\[\],"customers":\[\]\}"#;
 
 #[rstest]
-#[case::get_socrec_relations_exists(
+#[case::socrec_exists(
     vec![SocialRecoveryContact],
     SocialRecoveryContact,
     StatusCode::OK,
     VALID_GET_RESPONSE_PATTERN
 )]
-#[case::get_beneficiary_relations_exists(
+#[case::beneficiary_exists(
     vec![Beneficiary],
     Beneficiary,
     StatusCode::OK,
     VALID_GET_RESPONSE_PATTERN
 )]
-#[case::get_beneficiary_relations_multi_roles(
+#[case::multi_roles(
     vec![SocialRecoveryContact, Beneficiary],
     Beneficiary,
     StatusCode::OK,
     VALID_GET_RESPONSE_PATTERN
 )]
-#[case::get_beneficiary_relations_none_exists(
+#[case::none_exists(
     vec![SocialRecoveryContact],
     Beneficiary,
     StatusCode::OK,

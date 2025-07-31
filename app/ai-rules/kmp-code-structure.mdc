@@ -1,0 +1,190 @@
+---
+description: Kotlin Multiplatform code structure and organization guidelines
+globs: ["**/*.kt", "**/build.gradle.kts", "settings.gradle.kts"]
+alwaysApply: false
+---
+
+# Kotlin Multiplatform Code Structure
+
+## Summary
+
+Defines the KMP (Kotlin Multiplatform) code structure and organization patterns for the Bitkey mobile app. This rule ensures proper separation between shared and platform-specific code, correct source set usage, and adherence to KMP architectural principles for maintainable, cross-platform development.
+
+## When to Apply
+
+- When creating new KMP modules or modifying existing ones
+- When deciding where to place code (shared vs platform-specific)
+- When working with source sets and compilation units
+- When implementing expect/actual declarations
+- When structuring cross-platform business logic
+- When integrating platform-specific APIs with shared code
+
+## How to Apply
+
+### Shared Code via KMP
+
+**What should be shared:**
+- Domain business logic (state machines, services, use cases)
+- UI presentation models and screen logic
+- UI components and screens via Compose UI Multiplatform
+- Data access layer via DAOs
+- Domain models and data structures
+- SQLDelight-based database layer (generates KMP-compatible code)
+
+**All shared logic resides in `commonMain` and associated source sets.**
+
+### Platform-Specific Code (Not Shared)
+
+**What cannot be shared:**
+- Native platform APIs (cryptography, NFC, phone number parsing)
+- Dependencies not supported in KMP (e.g., BDK artifacts)
+- Platform-specific UI implementations when Compose Multiplatform is insufficient
+
+**Implementation Strategy:**
+- Use **expect/actual classes and functions** wherever applicable
+- Structure platform-specific code to align with shared abstractions
+- Design for future migration to shared modules where feasible
+- Maintain architectural consistency across platforms
+
+### KMP Targets
+
+**Supported targets:**
+- `android` → Android app
+- `ios` → iOS app  
+- `jvm` → For compiling and running shared code and tests
+
+### Source Sets Structure
+
+**Main source sets:**
+- `commonMain`: Common shared logic across all platforms
+- `commonJvmMain`: JVM-specific shared logic (shared between Android and JVM targets)
+- `androidMain`, `iosMain`, `jvmMain`: Platform-specific implementations
+
+**Test source sets:**
+- `commonTest`, `commonJvmTest`: Shared test code
+- `androidUnitTest`, `iosTest`, `jvmTest`: Platform-specific unit tests
+- `commonIntegrationTest`, `commonJvmIntegrationTest`, `jvmIntegrationTest`: Platform-specific integration tests
+
+### Compilation Units
+
+**Available compilation sets:**
+- `main`: Production code (shared and platform-specific)
+- `test`: Unit tests (depends on `main`)
+- `integrationTest`: Integration tests (depends on `main`)
+
+### Code Placement Guidelines
+
+**Default to shared code:**
+- Start with `commonMain` for all new business logic
+- Only move to platform-specific when KMP constraints require it
+- Prefer expect/actual over duplicate implementations
+
+**Platform-specific placement:**
+- Use platform source sets only when absolutely necessary
+- Document why code cannot be shared
+- Design platform code to match shared architectural patterns
+
+## Example
+
+```kotlin
+// ✅ GOOD: Shared business logic in commonMain
+// src/commonMain/kotlin/PaymentService.kt
+interface PaymentService {
+  suspend fun processPayment(request: PaymentRequest): Result<Payment, PaymentError>
+}
+
+class PaymentServiceImpl(
+  private val cryptoProvider: CryptoProvider, // expect/actual
+  private val paymentDao: PaymentDao // shared DAO
+) : PaymentService {
+  override suspend fun processPayment(
+    request: PaymentRequest
+  ): Result<Payment, PaymentError> {
+    // Shared business logic using platform abstractions
+  }
+}
+
+// ✅ GOOD: Platform abstraction using expect/actual
+// src/commonMain/kotlin/CryptoProvider.kt
+expected interface CryptoProvider {
+  suspend fun signTransaction(data: ByteArray): Result<Signature, CryptoError>
+}
+
+// src/androidMain/kotlin/CryptoProvider.kt
+actual class AndroidCryptoProvider : CryptoProvider {
+  actual override suspend fun signTransaction(
+    data: ByteArray
+  ): Result<Signature, CryptoError> {
+    // Android-specific crypto implementation
+  }
+}
+
+// src/iosMain/kotlin/CryptoProvider.kt
+actual class IosCryptoProvider : CryptoProvider {
+  actual override suspend fun signTransaction(
+    data: ByteArray
+  ): Result<Signature, CryptoError> {
+    // iOS-specific crypto implementation
+  }
+}
+
+// ❌ BAD: Duplicating business logic across platforms
+// AndroidPaymentService.kt and IosPaymentService.kt with identical logic
+
+// ❌ BAD: Placing platform-agnostic logic in platform source sets
+// src/androidMain/kotlin/PaymentValidation.kt (should be in commonMain)
+```
+
+```kotlin
+// ✅ GOOD: Shared UI State Machine in commonMain
+// src/commonMain/kotlin/PaymentUiStateMachine.kt
+@BitkeyInject(ActivityScope::class)
+class PaymentUiStateMachineImpl(
+  private val paymentService: PaymentService, // shared service
+  private val biometricsProvider: BiometricsProvider // expect/actual
+) : PaymentUiStateMachine {
+  
+  @Composable
+  override fun model(props: PaymentProps): ScreenModel {
+    // Shared UI logic using platform abstractions
+    var biometricsState by remember { mutableStateOf(BiometricsState.Idle) }
+    
+    return PaymentScreenModel(
+      onAuthenticateWithBiometrics = {
+        // Uses expect/actual biometrics provider
+        biometricsProvider.authenticate()
+      }
+    )
+  }
+}
+```
+
+**Source Set Organization Best Practices:**
+
+```kotlin
+// ✅ GOOD: Module structure
+src/
+  commonMain/kotlin/          // Shared business logic
+    build/wallet/payment/
+      PaymentService.kt
+      PaymentUiStateMachine.kt
+  commonJvmMain/kotlin/       // JVM-specific shared code
+    build/wallet/payment/
+      JvmPaymentUtils.kt
+  androidMain/kotlin/         // Android-specific implementations
+    build/wallet/payment/
+      AndroidCryptoProvider.kt
+  iosMain/kotlin/            // iOS-specific implementations
+    build/wallet/payment/
+      IosCryptoProvider.kt
+  commonTest/kotlin/         // Shared test code
+    build/wallet/payment/
+      PaymentServiceTest.kt
+```
+
+## Related Rules
+
+- @ai-rules/module-structure.mdc (for overall module organization)
+- @ai-rules/strong-typing.mdc (for domain types across platforms)
+- @ai-rules/dao-pattern.mdc (for shared data access layer)
+- @ai-rules/domain-service-pattern.mdc (for shared business logic)

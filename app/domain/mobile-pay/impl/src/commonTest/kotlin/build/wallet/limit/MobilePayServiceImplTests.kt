@@ -3,6 +3,7 @@
 package build.wallet.limit
 
 import app.cash.turbine.test
+import bitkey.verification.FakeTxVerificationApproval
 import bitkey.verification.VerificationRequiredError
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
@@ -12,6 +13,7 @@ import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_ENABLED
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
+import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -47,6 +49,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -374,35 +377,45 @@ class MobilePayServiceImplTests : FunSpec({
 
   test("successfully signing a psbt with mobile pay") {
     accountService.setActiveAccount(FullAccountMock)
-    mobilePayService.signPsbtWithMobilePay(PsbtMock)
+    mobilePayService.signPsbtWithMobilePay(PsbtMock, null)
       .value
       .isServerSigned()
       .shouldBeTrue()
 
-    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBe(PsbtMock)
+    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBeTypeOf<Pair<Psbt, *>>().first.shouldBe(PsbtMock)
   }
 
   test("error signing a psbt with mobile pay") {
     accountService.setActiveAccount(FullAccountMock)
     mobilePaySigningF8eClient.signWithSpecificKeysetResult =
       Err(HttpError.NetworkError(Error("no sign")))
-    mobilePayService.signPsbtWithMobilePay(PsbtMock)
+    mobilePayService.signPsbtWithMobilePay(PsbtMock, null)
       .isErr
       .shouldBeTrue()
 
-    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBe(PsbtMock)
+    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBeTypeOf<Pair<Psbt, *>>().first.shouldBe(PsbtMock)
+  }
+
+  test("successfully signing a psbt with mobile pay with grant") {
+    accountService.setActiveAccount(FullAccountMock)
+    mobilePayService.signPsbtWithMobilePay(PsbtMock, FakeTxVerificationApproval)
+      .value
+      .isServerSigned()
+      .shouldBeTrue()
+
+    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBe(PsbtMock to FakeTxVerificationApproval)
   }
 
   test("verification required while signing a psbt with mobile pay") {
     accountService.setActiveAccount(FullAccountMock)
     mobilePaySigningF8eClient.signWithSpecificKeysetResult =
       Err(VerificationRequiredError)
-    mobilePayService.signPsbtWithMobilePay(PsbtMock)
+    mobilePayService.signPsbtWithMobilePay(PsbtMock, null)
       .getError()
       .shouldNotBeNull()
       .shouldBeInstanceOf<VerificationRequiredError>()
 
-    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBe(PsbtMock)
+    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBeTypeOf<Pair<Psbt, *>>().first.shouldBe(PsbtMock)
   }
 
   test(

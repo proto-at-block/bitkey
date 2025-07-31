@@ -27,6 +27,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.QrCodeScanBodyModel
 import build.wallet.statemachine.ui.awaitBody
@@ -40,6 +41,7 @@ import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldBeEmpty
+import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.utils.io.core.*
 import okio.ByteString.Companion.EMPTY
 import okio.ByteString.Companion.toByteString
@@ -347,6 +349,42 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       awaitBody<EmergencyExitKitCodeNotRecognizedBodyModel>()
+    }
+  }
+
+  test("EEK recovery uses NotRequired for hardware verification") {
+    stateMachine.test(props = props) {
+      awaitBody<EmergencyExitKitImportWalletBodyModel> {
+        onEnterManually()
+      }
+      awaitBody<EmergencyExitKitImportPasteAppKeyBodyModel> {
+        onEnterTextChanged(validData)
+      }
+      awaitBody<EmergencyExitKitImportPasteAppKeyBodyModel> {
+        enteredText.shouldBe(validData)
+        onContinue()
+      }
+      awaitUntilBody<EmergencyExitKitRestoreWalletBodyModel>(
+        matching = { it.onRestore != null }
+      ) {
+        onRestore.shouldNotBeNull().invoke()
+      }
+
+      // Verify that EEK recovery now correctly uses NotRequired for hardware verification
+      // This ensures that the hardware pairing check won't interfere when there's no active account
+      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        // The hardware verification should be NotRequired for EEK recovery
+        hardwareVerification.shouldBeTypeOf<HardwareVerification.NotRequired>()
+
+        // Continue with successful NFC operation
+        onSuccess(CsekFake)
+      }
+
+      awaitBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
     }
   }
 })

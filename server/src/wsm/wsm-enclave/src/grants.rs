@@ -1,14 +1,13 @@
 use anyhow::{bail, Context, Result};
 use bdk::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
-use serde::Serialize;
 use sha2::{Digest, Sha256};
 use wsm_common::bitcoin::secp256k1::ecdsa::Signature;
 use wsm_common::bitcoin::secp256k1::PublicKey;
 use wsm_common::messages::api::GrantResponse;
 use wsm_common::messages::enclave::GrantRequest;
+use wsm_grant::fp_reset::verify_grant_request_signature;
 
 const GRANT_PROTOCOL_VERSION: u8 = 1;
-const GRANT_REQUEST_SIG_PREFIX: &[u8] = b"BKGrantReq";
 const GRANT_SIG_PREFIX: &[u8] = b"BKGrant";
 
 pub struct GrantCreator {
@@ -26,7 +25,11 @@ impl GrantCreator {
             );
         }
 
-        self.verify_grant_request_signature(&request)?;
+        verify_grant_request_signature(
+            &request.serialize(false),
+            &request.signature,
+            &self.hw_auth_public_key,
+        )?;
 
         let grant_signature = self.create_grant_signature(request.version, &request)?;
 
@@ -44,30 +47,12 @@ impl GrantCreator {
         signing_input.push(version);
         signing_input.extend_from_slice(&request.serialize(true));
 
-        let message = create_message(&signing_input)?;
+        let hash = Sha256::digest(&signing_input);
+        let message = Message::from_slice(&hash).context("Failed to create message from hash")?;
         let secp = Secp256k1::new();
 
         Ok(secp.sign_ecdsa(&message, &self.wik_private_key))
     }
-
-    fn verify_grant_request_signature(&self, request: &GrantRequest) -> Result<()> {
-        let mut data = Vec::new();
-
-        data.extend_from_slice(GRANT_REQUEST_SIG_PREFIX);
-        data.extend_from_slice(&request.serialize(false));
-
-        let message = create_message(&data)?;
-
-        let secp = Secp256k1::new();
-        secp.verify_ecdsa(&message, &request.signature, &self.hw_auth_public_key)?;
-
-        Ok(())
-    }
-}
-
-fn create_message(data: &[u8]) -> Result<Message> {
-    let hash = Sha256::digest(data);
-    Message::from_slice(&hash).context("Failed to create message from hash")
 }
 
 #[cfg(test)]
@@ -75,6 +60,7 @@ mod tests {
     use super::*;
     use bdk::bitcoin::secp256k1::rand::rngs::OsRng;
     use bdk::bitcoin::secp256k1::{PublicKey, Secp256k1};
+    use wsm_grant::fp_reset::GRANT_REQUEST_SIG_PREFIX;
 
     fn setup_test_keys() -> (SecretKey, PublicKey, SecretKey) {
         let secp = Secp256k1::new();
@@ -127,7 +113,11 @@ mod tests {
         };
 
         // act
-        let result = processor.verify_grant_request_signature(&request);
+        let result = verify_grant_request_signature(
+            &request.serialize(false),
+            &request.signature,
+            &hw_auth_public_key,
+        );
 
         // assert
         assert!(result.is_ok());

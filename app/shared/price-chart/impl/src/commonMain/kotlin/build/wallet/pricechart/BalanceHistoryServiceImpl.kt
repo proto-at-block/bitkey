@@ -37,7 +37,6 @@ class BalanceHistoryServiceImpl(
   private val transactionsActivityService: TransactionsActivityService,
   private val clock: Clock,
 ) : BalanceHistoryService {
-
   override fun observe(range: ChartRange): Flow<Result<List<BalanceAt>, Error>> {
     return flow {
       // Ensure we have comprehensive transaction data including inactive wallets

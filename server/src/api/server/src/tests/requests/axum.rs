@@ -40,8 +40,7 @@ use onboarding::routes::{
     RotateSpendingKeysetRequest, UpdateDescriptorBackupsResponse, UpgradeAccountRequest,
 };
 use privileged_action::routes::{
-    CancelPendingDelayAndNotifyInstanceByTokenRequest,
-    CancelPendingDelayAndNotifyInstanceByTokenResponse,
+    CancelPendingDelayAndNotifyInstanceByTokenRequest, CancelPendingInstanceResponse,
     ConfigurePrivilegedActionDelayDurationsRequest,
     ConfigurePrivilegedActionDelayDurationsResponse, GetPendingInstancesParams,
     GetPendingInstancesResponse, GetPrivilegedActionDefinitionsResponse,
@@ -85,6 +84,7 @@ use tokio::sync::Mutex;
 use tower::Service;
 use transaction_verification::routes::{
     GetTransactionVerificationPolicyResponse, InitiateTransactionVerificationRequest,
+    ProcessTransactionVerificationTokenRequest, ProcessTransactionVerificationTokenResponse,
     PutTransactionVerificationPolicyResponse,
 };
 use types::account::entities::DescriptorBackupsSet;
@@ -502,6 +502,18 @@ impl TestClient {
             ))
             .authenticated(account_id, Some(keys.app.secret_key), None)
             .get()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn process_transaction_verification_token(
+        &self,
+        verification_id: &TransactionVerificationId,
+        request: &ProcessTransactionVerificationTokenRequest,
+    ) -> Response<ProcessTransactionVerificationTokenResponse> {
+        Request::builder()
+            .uri(format!("/api/tx-verify/{verification_id}"))
+            .put(request)
             .call(&self.router)
             .await
     }
@@ -1484,10 +1496,25 @@ impl TestClient {
     pub(crate) async fn cancel_pending_delay_and_notify_instance_by_token(
         &self,
         request: &CancelPendingDelayAndNotifyInstanceByTokenRequest,
-    ) -> Response<CancelPendingDelayAndNotifyInstanceByTokenResponse> {
+    ) -> Response<CancelPendingInstanceResponse> {
         Request::builder()
             .uri("/api/privileged-actions/cancel".to_string())
             .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn cancel_pending_out_of_band_instance(
+        &self,
+        account_id: &str,
+        instance_id: &str,
+    ) -> Response<CancelPendingInstanceResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/privileged-actions/{instance_id}/cancel"
+            ))
+            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
+            .post(())
             .call(&self.router)
             .await
     }

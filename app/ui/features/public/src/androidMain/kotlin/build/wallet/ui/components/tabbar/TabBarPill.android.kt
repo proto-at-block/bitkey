@@ -28,7 +28,7 @@ actual fun TabBarPill(
   val paint = remember {
     Paint().apply {
       isAntiAlias = true
-      color = android.graphics.Color.WHITE
+      color = Color.Transparent.toArgb()
       setShadowLayer(
         40f,
         0f,

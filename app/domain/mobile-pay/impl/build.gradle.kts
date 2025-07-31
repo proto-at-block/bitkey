@@ -31,6 +31,7 @@ kotlin {
         implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.mobilePayFake)
+        implementation(projects.domain.txVerificationFake)
         implementation(projects.domain.walletFake)
         implementation(projects.libs.moneyFake)
         implementation(projects.libs.sqldelightTesting)

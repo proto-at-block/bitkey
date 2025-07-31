@@ -38,6 +38,7 @@ types = { workspace = true, features = [
   "serde",
 ] }
 userpool = { workspace = true }
+wsm-grant = { workspace = true }
 wsm-rust-client = { workspace = true }
 
 [dev-dependencies]

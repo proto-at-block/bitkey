@@ -28,8 +28,7 @@ pub struct EncryptedAttachment {
     pub private_key_ciphertext: Vec<u8>,
     #[serde_as(as = "Base64")]
     pub public_key: Vec<u8>,
-    #[serde_as(as = "Option<Base64>")]
-    pub sealed_attachment: Option<Vec<u8>>,
+    pub sealed_attachment: Option<String>,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
@@ -52,7 +51,7 @@ mod tests {
             kms_key_id: "test-kms-key-id".to_string(),
             private_key_ciphertext: "encrypted-private-key".as_bytes().to_vec(),
             public_key: "public-key-data".as_bytes().to_vec(),
-            sealed_attachment: Some("sealed-attachment-data".as_bytes().to_vec()),
+            sealed_attachment: Some("sealed-attachment-data".to_string()),
             created_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
             updated_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
         };
@@ -76,7 +75,7 @@ mod tests {
             "kms_key_id": "test-kms-key-id",
             "private_key_ciphertext": "ZW5jcnlwdGVkLXByaXZhdGUta2V5",
             "public_key": "cHVibGljLWtleS1kYXRh",
-            "sealed_attachment": "c2VhbGVkLWF0dGFjaG1lbnQtZGF0YQ==",
+            "sealed_attachment": "sealed-attachment-data",
             "created_at": "2023-01-01T00:00:00Z",
             "updated_at": "2023-01-01T00:00:00Z"
         }"#;
@@ -91,7 +90,7 @@ mod tests {
         assert_eq!(attachment.public_key, "public-key-data".as_bytes().to_vec());
         assert_eq!(
             attachment.sealed_attachment,
-            Some("sealed-attachment-data".as_bytes().to_vec())
+            Some("sealed-attachment-data".to_string())
         );
     }
 

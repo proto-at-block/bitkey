@@ -30,7 +30,8 @@ use super::shared::{
     try_accept_recovery_relationship_invitation, try_create_recovery_relationship,
     try_endorse_recovery_relationship, AccountType, CodeOverride,
 };
-use crate::tests;
+use rstest::rstest;
+
 use crate::tests::gen_services;
 use crate::tests::lib::{create_full_account, create_lite_account};
 use crate::tests::recovery::shared::try_create_relationship;
@@ -184,17 +185,18 @@ async fn try_fetch_social_challenge(
     }
 }
 
-#[derive(Debug)]
-struct StartSocialChallengeTestVector {
-    customer_account_type: AccountType,
-    expected_status_code: StatusCode,
-}
-
-async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
+#[rstest]
+#[case::create_social_challenge_full_account(AccountType::Full, StatusCode::OK)]
+#[case::create_social_challenge_lite_account(AccountType::Lite, StatusCode::INTERNAL_SERVER_ERROR)]
+#[tokio::test]
+async fn test_start_social_challenge(
+    #[case] customer_account_type: AccountType,
+    #[case] expected_status_code: StatusCode,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = match vector.customer_account_type {
+    let customer_account = match customer_account_type {
         AccountType::Full => {
             let account = create_full_account(
                 &mut context,
@@ -236,11 +238,11 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
         &client,
         customer_account.get_id(),
         vec![],
-        vector.expected_status_code,
+        expected_status_code,
     )
     .await;
 
-    if vector.expected_status_code.is_success() {
+    if expected_status_code.is_success() {
         // Customer can fetch the challege
         try_fetch_social_challenge(
             &client,
@@ -290,27 +292,12 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
     }
 }
 
-tests! {
-    runner = start_social_challenge_test,
-    test_create_social_challenge_full_account: StartSocialChallengeTestVector {
-        customer_account_type: AccountType::Full,
-        expected_status_code: StatusCode::OK,
-    },
-    test_create_social_challenge_lite_account: StartSocialChallengeTestVector {
-        customer_account_type: AccountType::Lite,
-        expected_status_code: StatusCode::INTERNAL_SERVER_ERROR,
-    },
-}
-
-#[derive(Debug)]
-struct VerifySocialChallengeTestVector {
+async fn verify_social_challenge_test(
     is_trusted_contact: bool,
     is_trusted_contact_endorsed_by_customer: bool,
     override_counter: bool,
     expected_status_code: StatusCode,
-}
-
-async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -343,7 +330,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
         &context,
         &client,
         &customer_account.id,
-        if vector.is_trusted_contact {
+        if is_trusted_contact {
             &tc_account.id
         } else {
             &other_account.id
@@ -357,7 +344,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
     )
     .await;
 
-    if vector.is_trusted_contact_endorsed_by_customer {
+    if is_trusted_contact_endorsed_by_customer {
         try_endorse_recovery_relationship(
             &context,
             &client,
@@ -388,7 +375,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
                 sealed_dek: "".to_owned(),
             },
         }],
-        if vector.is_trusted_contact_endorsed_by_customer {
+        if is_trusted_contact_endorsed_by_customer {
             StatusCode::OK
         } else {
             StatusCode::BAD_REQUEST
@@ -397,13 +384,13 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
     .await;
 
     // If the trusted contact isn't endorsed, there's no point in continuing
-    if !vector.is_trusted_contact_endorsed_by_customer {
+    if !is_trusted_contact_endorsed_by_customer {
         return;
     }
 
     let start_body = start_body.unwrap();
     let mut rng = rand::thread_rng();
-    let counter = if vector.override_counter {
+    let counter = if override_counter {
         rng.gen::<u32>()
     } else {
         start_body.social_challenge.counter
@@ -416,59 +403,39 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
             .recovery_relationship_info
             .recovery_relationship_id,
         counter,
-        vector.expected_status_code,
+        expected_status_code,
     )
     .await;
 }
 
-tests! {
-    runner = verify_social_challenge_test,
-    test_verify_social_challenge_by_tc: VerifySocialChallengeTestVector {
-        is_trusted_contact: true,
-        is_trusted_contact_endorsed_by_customer: true,
-        override_counter: false,
-        expected_status_code: StatusCode::OK,
-    },
-    test_verify_social_challenge_by_tc_without_endorsement: VerifySocialChallengeTestVector {
-        is_trusted_contact: true,
-        is_trusted_contact_endorsed_by_customer: false,
-        override_counter: false,
-        expected_status_code: StatusCode::OK,
-    },
-    test_verify_social_challenge_by_not_tc: VerifySocialChallengeTestVector {
-        is_trusted_contact: false,
-        is_trusted_contact_endorsed_by_customer: true,
-        override_counter: false,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_verify_social_challenge_by_not_tc_without_endorsement: VerifySocialChallengeTestVector {
-        is_trusted_contact: false,
-        is_trusted_contact_endorsed_by_customer: false,
-        override_counter: false,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_verify_social_challenge_wrong_counter: VerifySocialChallengeTestVector {
-        is_trusted_contact: true,
-        is_trusted_contact_endorsed_by_customer: true,
-        override_counter: true,
-        expected_status_code: StatusCode::NOT_FOUND,
-    },
-    test_verify_social_challenge_wrong_counter_without_endorsement: VerifySocialChallengeTestVector {
-        is_trusted_contact: true,
-        is_trusted_contact_endorsed_by_customer: false,
-        override_counter: true,
-        expected_status_code: StatusCode::NOT_FOUND,
-    },
+#[rstest]
+#[case::by_tc(true, true, false, StatusCode::OK)]
+#[case::by_tc_without_endorsement(true, false, false, StatusCode::OK)]
+#[case::by_not_tc(false, true, false, StatusCode::FORBIDDEN)]
+#[case::by_not_tc_without_endorsement(false, false, false, StatusCode::FORBIDDEN)]
+#[case::wrong_counter(true, true, true, StatusCode::NOT_FOUND)]
+#[case::wrong_counter_without_endorsement(true, false, true, StatusCode::NOT_FOUND)]
+#[tokio::test]
+async fn test_verify_social_challenge(
+    #[case] is_trusted_contact: bool,
+    #[case] is_trusted_contact_endorsed_by_customer: bool,
+    #[case] override_counter: bool,
+    #[case] expected_status_code: StatusCode,
+) {
+    verify_social_challenge_test(
+        is_trusted_contact,
+        is_trusted_contact_endorsed_by_customer,
+        override_counter,
+        expected_status_code,
+    )
+    .await
 }
 
-#[derive(Debug)]
-struct RespondToSocialChallengeTestVector {
+async fn respond_to_social_challenge_test(
     is_trusted_contact: bool,
     is_customer_endorsed: bool,
     expected_status_code: StatusCode,
-}
-
-async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVector) {
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -501,7 +468,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
         &context,
         &client,
         &customer_account.id,
-        if vector.is_trusted_contact {
+        if is_trusted_contact {
             &tc_account.id
         } else {
             &other_account.id
@@ -515,7 +482,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
     )
     .await;
 
-    if vector.is_customer_endorsed {
+    if is_customer_endorsed {
         try_endorse_recovery_relationship(
             &context,
             &client,
@@ -546,7 +513,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
                 sealed_dek: "".to_owned(),
             },
         }],
-        if vector.is_customer_endorsed {
+        if is_customer_endorsed {
             StatusCode::OK
         } else {
             StatusCode::BAD_REQUEST
@@ -555,14 +522,14 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
     .await;
 
     // If the customer isn't endorsed, there's no point in continuing
-    if !vector.is_customer_endorsed {
+    if !is_customer_endorsed {
         return;
     }
 
     let start_body = start_body.unwrap();
     let verify_body = try_verify_social_challenge(
         &client,
-        if vector.is_trusted_contact {
+        if is_trusted_contact {
             &tc_account.id
         } else {
             &other_account.id
@@ -581,11 +548,11 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
         &client,
         &tc_account.id,
         &verify_body.social_challenge.social_challenge_id,
-        vector.expected_status_code,
+        expected_status_code,
     )
     .await;
 
-    if vector.expected_status_code.is_success() {
+    if expected_status_code.is_success() {
         // Fetched challenge reflects response
         try_fetch_social_challenge(
             &client,
@@ -600,7 +567,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
             &client,
             &tc_account.id,
             &verify_body.social_challenge.social_challenge_id,
-            vector.expected_status_code,
+            expected_status_code,
         )
         .await;
 
@@ -643,28 +610,23 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
     assert_eq!(num_social_challenges, 0);
 }
 
-tests! {
-    runner = respond_to_social_challenge_test,
-    test_respond_to_social_challenge_by_tc: RespondToSocialChallengeTestVector {
-        is_trusted_contact: true,
-        is_customer_endorsed: true,
-        expected_status_code: StatusCode::OK,
-    },
-    test_respond_to_social_challenge_by_tc_without_endorsement: RespondToSocialChallengeTestVector {
-        is_trusted_contact: true,
-        is_customer_endorsed: false,
-        expected_status_code: StatusCode::BAD_REQUEST,
-    },
-    test_respond_to_social_challenge_by_not_tc: RespondToSocialChallengeTestVector {
-        is_trusted_contact: false,
-        is_customer_endorsed: true,
-        expected_status_code: StatusCode::FORBIDDEN,
-    },
-    test_respond_to_social_challenge_by_not_tc_without_endorsement: RespondToSocialChallengeTestVector {
-        is_trusted_contact: false,
-        is_customer_endorsed: false,
-        expected_status_code: StatusCode::BAD_REQUEST,
-    },
+#[rstest]
+#[case::by_tc(true, true, StatusCode::OK)]
+#[case::by_tc_without_endorsement(true, false, StatusCode::BAD_REQUEST)]
+#[case::by_not_tc(false, true, StatusCode::FORBIDDEN)]
+#[case::by_not_tc_without_endorsement(false, false, StatusCode::BAD_REQUEST)]
+#[tokio::test]
+async fn test_respond_to_social_challenge(
+    #[case] is_trusted_contact: bool,
+    #[case] is_customer_endorsed: bool,
+    #[case] expected_status_code: StatusCode,
+) {
+    respond_to_social_challenge_test(
+        is_trusted_contact,
+        is_customer_endorsed,
+        expected_status_code,
+    )
+    .await
 }
 
 #[tokio::test]

@@ -93,6 +93,17 @@ public final class iCloudDriveFileStore {
         do {
             let fileURL = try fileURLInDocumentsFolder(fileName)
 
+            // Ensure parent directory exists
+            let parentDir = fileURL.deletingLastPathComponent()
+            if !fileManager.fileExists(atPath: parentDir.path) {
+                log(.info) { "iCloud Drive: creating parent directory=\(parentDir.path)" }
+                try fileManager.createDirectory(
+                    at: parentDir,
+                    withIntermediateDirectories: true,
+                    attributes: nil
+                )
+            }
+
             var error: NSError?
             var writingFailed = true
 

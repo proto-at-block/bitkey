@@ -583,4 +583,90 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       }
     }
   }
+
+  test("test restoration from current backup format with keysets field succeeds") {
+    launchAndPrepareApp()
+    val account = app.onboardFullAccountWithFakeHardware()
+
+    val currentFullAccountKeysWithKeysets = """
+      {
+          "activeSpendingKeyset": {
+              "localId": "${pkMat.activeSpendingKeyset.localId}",
+              "keysetServerId": "${pkMat.activeSpendingKeyset.f8eSpendingKeyset.keysetId}",
+              "appDpub": "${pkMat.activeSpendingKeyset.appKey.key.dpub}",
+              "hardwareDpub": "${pkMat.activeSpendingKeyset.hardwareKey.key.dpub}",
+              "serverDpub": "${pkMat.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub}",
+              "bitcoinNetworkType": "${pkMat.activeSpendingKeyset.networkType}"
+          },
+          "keysets": [
+              {
+                  "localId": "${pkMat.activeSpendingKeyset.localId}",
+                  "keysetServerId": "${pkMat.activeSpendingKeyset.f8eSpendingKeyset.keysetId}",
+                  "appDpub": "${pkMat.activeSpendingKeyset.appKey.key.dpub}",
+                  "hardwareDpub": "${pkMat.activeSpendingKeyset.hardwareKey.key.dpub}",
+                  "serverDpub": "${pkMat.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub}",
+                  "bitcoinNetworkType": "${pkMat.activeSpendingKeyset.networkType}"
+              }
+          ],
+          "appGlobalAuthKeypair": {
+              "publicKey": "${pkMat.appGlobalAuthKeypair.publicKey.value}",
+              "privateKeyHex": "${pkMat.appGlobalAuthKeypair.privateKey.bytes.hex()}"
+          },
+          "appSpendingKeys": {
+              "${pkMat.appSpendingKeys.keys.first().key.dpub}": {
+                  "xprv": "${pkMat.appSpendingKeys.values.first().key.xprv}",
+                  "mnemonics": "${pkMat.appSpendingKeys.values.first().key.mnemonic}"
+              }
+          },
+          "activeHwSpendingKey": "${pkMat.activeHwSpendingKey.key.dpub}",
+          "activeHwAuthKey": "${pkMat.activeHwAuthKey.pubKey}",
+          "rotationAppGlobalAuthKeypair": ${if (pkMat.rotationAppGlobalAuthKeypair != null) "\"${pkMat.rotationAppGlobalAuthKeypair}\"" else "null"}
+      }
+    """.trimIndent()
+
+    val (customPrivateKeyEncryptionKey, sealedMaterial) = relationshipsCrypto.encryptPrivateKeyMaterial(
+      currentFullAccountKeysWithKeysets.encodeUtf8()
+    ).getOrThrow()
+
+    relationshipIdToPkekMap[endorsedTrustedContact.relationshipId] =
+      relationshipsCrypto.encryptPrivateKeyEncryptionKey(
+        endorsedTrustedContact.identityKey,
+        customPrivateKeyEncryptionKey
+      ).getOrThrow()
+
+    val props = RecoveryChallengeUiProps(
+      accountId = account.accountId,
+      actions = app.socRecChallengeRepository.toActions(
+        accountId = account.accountId,
+        isUsingSocRecFakes = true
+      ),
+      relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
+      sealedPrivateKeyMaterial = sealedMaterial,
+      endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+      onExit = { onExitCalls.add(Unit) },
+      onKeyRecovered = { onRecoveryCalls.add(it) }
+    )
+
+    app.runChallengeToContactList(props)
+    simulateRespondToChallenge()
+
+    app.recoveryChallengeUiStateMachine.test(props = props) {
+      awaitUntilBody<LoadingSuccessBodyModel>(
+        SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
+      )
+      awaitUntilBody<FormBodyModel>(
+        NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
+      ).clickPrimaryButton()
+      awaitUntilBody<FormBodyModel> {
+        id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST)
+        primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
+      }
+      awaitUntilBody<LoadingSuccessBodyModel> {
+        id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_RESTORE_APP_KEY)
+        val recoveredKeys = onRecoveryCalls.awaitItem()
+        recoveredKeys.activeSpendingKeyset.shouldBeEqual(pkMat.activeSpendingKeyset)
+        recoveredKeys.keysets.shouldBeEqual(listOf(pkMat.activeSpendingKeyset))
+      }
+    }
+  }
 })

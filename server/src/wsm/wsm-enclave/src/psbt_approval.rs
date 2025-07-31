@@ -1,61 +1,12 @@
-use crate::psbt_verification::verify_inputs_only_have_one_signature;
 use anyhow::Result;
 use bdk::bitcoin::psbt::Input;
 use bdk::bitcoin::{
-    hashes::{sha256, Hash, HashEngine},
     psbt::PartiallySignedTransaction,
-    secp256k1::{Message, Secp256k1, SecretKey},
+    secp256k1::{Secp256k1, SecretKey},
 };
 use rand::random;
 use wsm_common::bitcoin::secp256k1::PublicKey;
 use wsm_common::messages::api::TransactionVerificationGrant;
-
-/// Calculate a SHA256 hash of lexicographically sorted and concatenated PSBT input signatures
-/// The returned chain is [h[0], h[1], ..., h[n]]
-/// h[n] = random_bytes
-/// h[i] = sha256(h[i+1] || sorted_signatures[i]) for i from n-1 down to 0
-/// The commitment is h[0].
-///
-/// Design doc: https://docs.google.com/document/d/1vYALV79uj_DsIEK0sCz2vkkCJ-z-t7q-v4q1vIDWwVY/edit?tab=t.0#heading=h.8toyyilp9b4c
-fn calculate_chained_sighashes(inputs: Vec<Input>) -> Result<Vec<Vec<u8>>> {
-    // Verify that every input has exactly one signature
-    // This enforces our requirement and simplifies signature extraction
-    verify_inputs_only_have_one_signature(&inputs)?;
-
-    // Extract all signature bytes (one from each input)
-    let mut signatures: Vec<Vec<u8>> = inputs
-        .iter()
-        .map(|input| {
-            // We verified above that each input has exactly one signature
-            let (_, signature) = input
-                .partial_sigs
-                .iter()
-                .next()
-                .expect("input should have one signature");
-            signature.to_vec()
-        })
-        .collect();
-
-    // Sort signatures lexicographically
-    signatures.sort();
-
-    // Compute chained sighash using SHA256
-    let n = signatures.len();
-    let mut hash_chain: Vec<Vec<u8>> = Vec::with_capacity(n + 1);
-    let init: [u8; 32] = random();
-    let mut hnext = init.to_vec();
-    hash_chain.push(hnext.clone());
-    for i in 0..n {
-        let mut engine = sha256::Hash::engine();
-        engine.input(&hnext);
-        engine.input(&signatures[n - 1 - i]);
-        hnext = sha256::Hash::from_engine(engine).to_byte_array().to_vec();
-        hash_chain.push(hnext.clone());
-    }
-    hash_chain.reverse();
-
-    Ok(hash_chain)
-}
 
 /// Signs a transaction verification message with the format:
 /// "TVA1" || hw_auth_pubkey || chained_sighashes_final
@@ -75,31 +26,17 @@ fn approve_inputs(
     inputs: Vec<Input>,
 ) -> Result<TransactionVerificationGrant> {
     // Calculate the chained sighashes from lexicographically sorted inputs
-    let reverse_hash_chain = calculate_chained_sighashes(inputs)?;
-
-    // Create a SHA256 hash engine for the final message
-    let mut message_engine = sha256::Hash::engine();
-
-    // Prefix constant for transaction verification requests
-    let prefix = "TVA1";
-
-    // Add prefix to message
-    message_engine.input(prefix.as_bytes());
-
-    // Add hardware auth public key
-    message_engine.input(&hw_auth_public_key.serialize());
+    let init: [u8; 32] = random();
+    let reverse_hash_chain = wsm_grant::tx_verification::calculate_chained_sighashes(inputs, init)?;
 
     // Add commitment (h[n])
     let commitment = reverse_hash_chain
         .first()
         .expect("hash chain cannot be empty");
-    message_engine.input(commitment);
 
-    // Compute final hash
-    let message_hash = sha256::Hash::from_engine(message_engine);
-
-    // Create message from hash
-    let message = Message::from_slice(&message_hash.to_byte_array())?;
+    // Generate the message to sign
+    let message =
+        wsm_grant::tx_verification::generate_message(hw_auth_public_key, commitment.to_owned())?;
 
     // Create secp context
     let secp = Secp256k1::new();
@@ -118,10 +55,16 @@ fn approve_inputs(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use bdk::bitcoin::secp256k1::{rand, Secp256k1};
     use std::collections::BTreeMap;
+
+    use bdk::bitcoin::{
+        hashes::{Hash, HashEngine},
+        secp256k1::{rand, Message, Secp256k1},
+    };
+    use rand::random;
     use wsm_common::bitcoin::bip32::{ChildNumber, DerivationPath, Fingerprint};
+
+    use super::*;
 
     fn generate_random_input(
         secp: &Secp256k1<bdk::bitcoin::secp256k1::All>,

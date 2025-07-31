@@ -11,10 +11,10 @@ use crate::tests::{
 use types::account::{bitcoin::Network, entities::Account, AccountType};
 
 #[rstest]
-#[case::create_with_full_account(AccountType::Full, false, StatusCode::OK, false)]
-#[case::create_with_lite_account(AccountType::Lite, false, StatusCode::FORBIDDEN, false)]
-#[case::create_with_invalid_account(AccountType::Full, true, StatusCode::NOT_FOUND, false)]
-#[case::check_not_found_before_upload(AccountType::Full, false, StatusCode::OK, true)]
+#[case::full_account(AccountType::Full, false, StatusCode::OK, false)]
+#[case::lite_account(AccountType::Lite, false, StatusCode::FORBIDDEN, false)]
+#[case::invalid_account(AccountType::Full, true, StatusCode::NOT_FOUND, false)]
+#[case::not_found_before_upload(AccountType::Full, false, StatusCode::OK, true)]
 #[tokio::test]
 async fn recovery_backup_upload_and_fetch_test(
     #[case] account_type: AccountType,

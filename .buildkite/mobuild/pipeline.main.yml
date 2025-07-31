@@ -4,6 +4,12 @@ notify:
 
 steps:
   - label: "Main branch debug build"
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+          limit: 2
+        - exit_status: 255 # Forced agent shutdown
+          limit: 2
     agents:
       xcode: 16.2.0
       ios: 18.3.1
@@ -11,6 +17,12 @@ steps:
       - squareup/ios-builder#v1.0.0:
           build_action: debug
   - label: "Main branch unit test"
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+          limit: 2
+        - exit_status: 255 # Forced agent shutdown
+          limit: 2
     agents:
       xcode: 16.2.0
       ios: 18.3.1

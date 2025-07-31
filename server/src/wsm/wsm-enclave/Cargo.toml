@@ -27,6 +27,7 @@ serde_with = { workspace = true, features = ["base64"] }
 subprocess = "0.2.9"
 tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
 tower = { workspace = true }
+wsm-grant = { workspace = true }
 
 # path dependencies
 wsm-common = { workspace = true }

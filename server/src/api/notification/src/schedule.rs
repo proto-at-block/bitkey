@@ -206,20 +206,36 @@ impl ScheduleNotificationType {
                 )]
             }
             ScheduleNotificationType::SecurityHubWalletAtRisk => {
-                vec![(
-                    // Starts now
-                    // Sends every 2 days
-                    // Ends after a month
-                    // =
-                    // DAYS 0, 2, 4, ...
-                    NotificationPayloadType::SecurityHub,
-                    now,
-                    Some(NotificationSchedule {
-                        interval: Duration::days(2),
-                        end_date_time: Some(now + Duration::days(31)),
-                        jitter: Some(Duration::ZERO),
-                    }),
-                )]
+                vec![
+                    (
+                        // Starts now
+                        // Sends every 2 days
+                        // Ends after a month
+                        // =
+                        // DAYS 0, 2, 4, 6
+                        NotificationPayloadType::SecurityHub,
+                        now,
+                        Some(NotificationSchedule {
+                            interval: Duration::days(2),
+                            end_date_time: Some(now + Duration::days(7)),
+                            jitter: Some(Duration::ZERO),
+                        }),
+                    ),
+                    (
+                        // Starts 13 days from now
+                        // Sends every week days
+                        // Ends after 90 days
+                        // =
+                        // DAYS 13, 20, 27, ..., 90
+                        NotificationPayloadType::SecurityHub,
+                        now + Duration::days(13),
+                        Some(NotificationSchedule {
+                            interval: Duration::days(7),
+                            end_date_time: Some(now + Duration::days(90)),
+                            jitter: Some(Duration::ZERO),
+                        }),
+                    ),
+                ]
             }
         }
     }

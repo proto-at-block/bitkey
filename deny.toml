@@ -1,8 +1,8 @@
+[graph]
 all-features = true
 
 [advisories]
-unmaintained = "deny"
-vulnerability = "warn"
+unmaintained = "workspace"
 yanked = "deny"
 
 ignore = [
@@ -13,6 +13,7 @@ ignore = [
     "RUSTSEC-2024-0344", # [W-10730] transitively needed by crypto_box and snow.
     "RUSTSEC-2024-0436", # [W-11079] paste is unmaintained but transitively required by uniffi_bindgen
     "RUSTSEC-2025-0010", # [W-11080] ring is unmaintained <17 but transitively required by bdk <1.0
+    "RUSTSEC-2025-0009", # [W-11810] pre-1.0 BDK uses rust-electrum 0.18.0, which uses rustls 
 ]
 
 
@@ -40,21 +41,7 @@ allow = [
     "OpenSSL",
     "Unicode-DFS-2016",
     "Zlib",
-]
-allow-osi-fsf-free = "either"
-copyleft = "deny"
-default = "deny"
-unlicensed = "deny"
-
-deny = [
-    "GPL-1.0",
-    "GPL-2.0",
-    "GPL-3.0",
-    "LGPL-2.0",
-    "LGPL-2.1",
-    "LGPL-3.0",
-    "AGPL-1.0",
-    "AGPL-3.0",
+    "Unicode-3.0",
 ]
 
 confidence-threshold = 0.8

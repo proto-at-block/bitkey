@@ -1,0 +1,33 @@
+---
+alwaysApply: true
+globs: [app/**]
+---
+
+# Bitkey Mobile App Rules
+
+This is the **entry point** for all mobile app AI rules. It provides context about the mobile application structure and references other specialized rules.
+
+## About This App
+
+This is the Bitkey mobile application built with Kotlin Multiplatform (KMP) targeting Android and iOS. The app follows a modular architecture with shared business logic and platform-specific UI implementations.
+
+## AI Rule Index
+
+All AI rules for the Bitkey mobile application:
+
+- **bitkey-mobile.mdc** - Entry point index for all mobile app AI rules and patterns
+- **dao-pattern.mdc** - DAO pattern implementation guidelines for data persistence with SQLDelight
+- **domain-service-pattern.mdc** - Domain service pattern for encapsulating business logic and workflows
+- **f8e-clients.mdc** - Guidelines for implementing F8e API client classes and backend communication
+- **kmp-code-structure.mdc** - Kotlin Multiplatform code structure and organization guidelines
+- **module-structure.mdc** - Module creation, organization, and code placement guidelines
+- **rule-writing.mdc** - Guidelines for writing and maintaining AI rules in this codebase
+- **strong-typing.mdc** - Strong typing guidelines for Kotlin code using value classes and domain types
+- **ui-state-machines-basics.mdc** - Essential UI State Machine patterns and core concepts
+- **ui-state-machines-models.mdc** - Model design and UI presentation patterns for State Machines
+- **ui-state-machines-patterns.mdc** - Advanced UI State Machine patterns and error handling techniques
+- **ui-state-machines.mdc** - Overview and index of UI State Machine implementation guidelines
+
+## Usage
+
+Reference this index rule when working on any mobile app functionality to ensure you're following established patterns and practices. The specialized rules listed above provide detailed guidance for specific areas of development.

@@ -20,7 +20,7 @@ impl From<PrivilegedActionType> for OutOfBandNotificationConfig {
         match action_type {
             PrivilegedActionType::LoosenTransactionVerificationPolicy => {
                 OutOfBandNotificationConfig {
-                    url_path: "/tx-validation-policy",
+                    url_path: "/privileged-action",
                     campaign_types: OutOfBandIterableCampaignType {
                         pending: IterableCampaignType::PrivilegedActionPendingOutOfBandVerification,
                         completed:

@@ -132,6 +132,11 @@ sealed class PrivilegedActionError {
    * Error when multiple pending actions of the expected type are found, but only one was expected.
    */
   data object MultiplePendingActionsFound : PrivilegedActionError()
+
+  /**
+   * Error when a database operation fails
+   */
+  data class DatabaseError(val cause: Throwable) : PrivilegedActionError()
 }
 
 /**

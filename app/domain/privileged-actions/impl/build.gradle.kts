@@ -15,6 +15,7 @@ kotlin {
         api(projects.domain.walletPublic)
         api(projects.domain.hardwarePublic)
         api(projects.domain.featureFlagPublic)
+        api(projects.domain.databasePublic)
       }
     }
 
@@ -27,6 +28,10 @@ kotlin {
         implementation(projects.libs.encryptionFake)
         implementation(projects.domain.hardwareFake)
         implementation(projects.domain.featureFlagFake)
+        implementation(projects.libs.sqldelightFake)
+        implementation(projects.libs.sqldelightTesting)
+        implementation(projects.libs.grantsPublic)
+        implementation(projects.libs.grantsFake)
       }
     }
   }

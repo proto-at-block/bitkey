@@ -62,4 +62,23 @@ data class Grant(
 
     return buffer.readByteString()
   }
+
+  /**
+   * Determines the GrantAction from the Grant's serialized request.
+   */
+  fun getGrantAction(): GrantAction {
+    val expectedLength = GRANT_VERSION_LEN + GRANT_DEVICE_ID_LEN + GRANT_CHALLENGE_LEN + GRANT_ACTION_LEN + GRANT_SIGNATURE_LEN
+    require(serializedRequest.size == expectedLength) {
+      "Invalid serialized request length: ${serializedRequest.size}, expected $expectedLength"
+    }
+
+    // Action byte is at position: version(1) + deviceId(8) + challenge(16) = 25
+    val actionByte = serializedRequest[ACTION_BYTE_INDEX]
+
+    return when (actionByte.toInt()) {
+      GrantAction.FINGERPRINT_RESET.value -> GrantAction.FINGERPRINT_RESET
+      GrantAction.TRANSACTION_VERIFICATION.value -> GrantAction.TRANSACTION_VERIFICATION
+      else -> error("Unknown grant action byte: $actionByte")
+    }
+  }
 }

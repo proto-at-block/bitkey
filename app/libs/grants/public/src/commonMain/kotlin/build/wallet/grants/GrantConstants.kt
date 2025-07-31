@@ -9,9 +9,12 @@ const val GRANT_ACTION_LEN = 1
 const val GRANT_SIGNATURE_LEN = 64
 
 /** Total length of a serialized GrantRequest object, calculated from its parts */
-internal const val SERIALIZED_GRANT_REQUEST_LENGTH =
+const val SERIALIZED_GRANT_REQUEST_LENGTH =
   GRANT_VERSION_LEN +
     GRANT_DEVICE_ID_LEN +
     GRANT_CHALLENGE_LEN +
     GRANT_ACTION_LEN +
     GRANT_SIGNATURE_LEN
+
+/** Index position of the action byte in a serialized GrantRequest */
+const val ACTION_BYTE_INDEX = GRANT_VERSION_LEN + GRANT_DEVICE_ID_LEN + GRANT_CHALLENGE_LEN

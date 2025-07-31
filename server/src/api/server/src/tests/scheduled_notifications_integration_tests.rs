@@ -15,12 +15,13 @@ use notification::{
     NotificationPayloadType,
 };
 use queue::sqs::SqsQueue;
+use rstest::rstest;
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 use types::account::entities::{Factor, TouchpointPlatform};
 use types::account::identifiers::AccountId;
 
 use crate::{
-    create_bootstrap, tests,
+    create_bootstrap,
     tests::{
         gen_services,
         lib::create_default_account_with_predefined_wallet,
@@ -30,16 +31,13 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
-pub struct FetchScheduledNotificationsTestVector {
-    pub entries: Vec<(&'static str, &'static str, &'static str)>,
-    pub account_id: AccountId,
-    pub status: DeliveryStatus,
-    pub cur_time: &'static str,
-    pub expected_num: usize,
-}
-
-async fn fetch_scheduled_notifications_test(input: FetchScheduledNotificationsTestVector) {
+async fn fetch_scheduled_notifications_test(
+    entries: Vec<(&'static str, &'static str, &'static str)>,
+    account_id: AccountId,
+    status: DeliveryStatus,
+    cur_time: &'static str,
+    expected_num: usize,
+) {
     let payload = NotificationPayload {
         recovery_pending_delay_period_payload: Some(RecoveryPendingDelayPeriodPayload {
             initiation_time: OffsetDateTime::now_utc(),
@@ -48,20 +46,19 @@ async fn fetch_scheduled_notifications_test(input: FetchScheduledNotificationsTe
         }),
         ..Default::default()
     };
-    let notifications = input
-        .entries
+    let notifications = entries
         .into_iter()
         .map(|i| {
             let (sharded_execution_date, execution_time, execution_date_time) = i;
             ScheduledNotification {
-                account_id: input.account_id.clone(),
+                account_id: account_id.clone(),
                 unique_id: NotificationId::gen_scheduled(),
                 sharded_execution_date: sharded_execution_date.to_string(),
                 execution_time: execution_time.to_string(),
                 execution_date_time: OffsetDateTime::parse(execution_date_time, &Rfc3339).unwrap(),
                 payload_type: NotificationPayloadType::RecoveryPendingDelayPeriod,
                 payload: payload.clone(),
-                delivery_status: input.status,
+                delivery_status: status,
                 created_at: OffsetDateTime::now_utc(),
                 updated_at: OffsetDateTime::now_utc(),
                 schedule: None,
@@ -74,13 +71,13 @@ async fn fetch_scheduled_notifications_test(input: FetchScheduledNotificationsTe
 
     notification_service
         .persist_scheduled_notifications(PersistScheduledNotificationsInput {
-            account_id: input.account_id.clone(),
+            account_id: account_id.clone(),
             notifications,
         })
         .await
         .unwrap();
 
-    let cur_time = OffsetDateTime::parse(input.cur_time, &Rfc3339).unwrap();
+    let cur_time = OffsetDateTime::parse(cur_time, &Rfc3339).unwrap();
     let fetched_notifications = notification_service
         .fetch_scheduled_for_window(FetchScheduledForWindowInput {
             window_end_time: cur_time,
@@ -88,60 +85,68 @@ async fn fetch_scheduled_notifications_test(input: FetchScheduledNotificationsTe
         })
         .await
         .unwrap();
-    assert_eq!(fetched_notifications.len(), input.expected_num);
+    assert_eq!(fetched_notifications.len(), expected_num);
 }
 
-tests! {
-    runner = fetch_scheduled_notifications_test,
-    test_single_notification_within_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-12-18:0", "01:00:00:000000", "2022-12-18T01:00:00.000000Z")],
-        account_id: AccountId::gen().unwrap(),
-        status: DeliveryStatus::New,
-        cur_time: "2022-12-18T01:02:00.000000Z",
-        expected_num: 1,
-    },
-    test_multiple_notification_within_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-11-18:0", "01:00:00:000000", "2022-11-18T01:00:00.000000Z"), ("2022-11-18:0", "01:01:00:000000", "2022-11-18T01:01:00.000000Z")],
-        account_id: AccountId::gen().unwrap(),
-        status: DeliveryStatus::New,
-        cur_time: "2022-11-18T01:02:00.000000Z",
-        expected_num: 2,
-    },
-    test_multiple_notification_outside_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-10-18:0", "01:00:00:000000", "2022-10-18T01:00:00.000000Z"), ("2022-10-18:0", "01:01:00:000000", "2022-10-18T01:01:00.000000Z")],
-        account_id: AccountId::gen().unwrap(),
-        status: DeliveryStatus::New,
-        cur_time: "2022-10-18T02:00:00.000000Z",
-        expected_num: 0,
-    },
-    test_multiple_notification_one_within_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-09-18:0", "01:00:00:000000", "2022-09-18T01:00:00.000000Z"), ("2022-09-18:0", "01:06:00:000000", "2022-09-18T01:06:00.000000Z")],
-        account_id: AccountId::gen().unwrap(),
-        status: DeliveryStatus::New,
-        cur_time: "2022-09-18T01:11:00.000000Z",
-        expected_num: 1,
-    },
-    test_multiple_notification_midnight_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-08-17:0", "23:59:00:000000", "2022-08-17T23:59:00.000000Z"), ("2022-08-18:0", "00:01:00:000000", "2022-08-18T00:01:00.000000Z")],
-        account_id: AccountId::gen().unwrap(),
-        status: DeliveryStatus::New,
-        cur_time: "2022-08-18T00:02:00.000000Z",
-        expected_num: 2,
-    },
-    test_processing_notifications_within_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-07-17:0", "23:59:00:000000", "2022-07-17T23:59:00.000000Z"), ("2022-07-18:0", "00:01:00:000000", "2022-07-18T00:01:00.000000Z")],
-        account_id: AccountId::gen().unwrap(),
-        status: DeliveryStatus::Enqueued,
-        cur_time: "2022-07-18T00:02:00.000000Z",
-        expected_num: 0,
-    },
-    test_completed_notifications_within_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-06-17:0", "23:59:00:000000", "2022-06-17T23:59:00.000000Z"), ("2022-06-18:0", "00:01:00:000000", "2022-06-18T00:01:00.000000Z")],
-        account_id: AccountId::gen().unwrap(),
-        status: DeliveryStatus::Completed,
-        cur_time: "2022-06-18T00:02:00.000000Z",
-        expected_num: 0,
-    },
+#[rstest]
+#[case::single_within_window(
+    vec![("2022-12-18:0", "01:00:00:000000", "2022-12-18T01:00:00.000000Z")],
+    AccountId::gen().unwrap(),
+    DeliveryStatus::New,
+    "2022-12-18T01:02:00.000000Z",
+    1
+)]
+#[case::multiple_within_window(
+    vec![("2022-11-18:0", "01:00:00:000000", "2022-11-18T01:00:00.000000Z"), ("2022-11-18:0", "01:01:00:000000", "2022-11-18T01:01:00.000000Z")],
+    AccountId::gen().unwrap(),
+    DeliveryStatus::New,
+    "2022-11-18T01:02:00.000000Z",
+    2
+)]
+#[case::multiple_outside_window(
+    vec![("2022-10-18:0", "01:00:00:000000", "2022-10-18T01:00:00.000000Z"), ("2022-10-18:0", "01:01:00:000000", "2022-10-18T01:01:00.000000Z")],
+    AccountId::gen().unwrap(),
+    DeliveryStatus::New,
+    "2022-10-18T02:00:00.000000Z",
+    0
+)]
+#[case::multiple_one_within_window(
+    vec![("2022-09-18:0", "01:00:00:000000", "2022-09-18T01:00:00.000000Z"), ("2022-09-18:0", "01:06:00:000000", "2022-09-18T01:06:00.000000Z")],
+    AccountId::gen().unwrap(),
+    DeliveryStatus::New,
+    "2022-09-18T01:11:00.000000Z",
+    1
+)]
+#[case::multiple_midnight_window(
+    vec![("2022-08-17:0", "23:59:00:000000", "2022-08-17T23:59:00.000000Z"), ("2022-08-18:0", "00:01:00:000000", "2022-08-18T00:01:00.000000Z")],
+    AccountId::gen().unwrap(),
+    DeliveryStatus::New,
+    "2022-08-18T00:02:00.000000Z",
+    2
+)]
+#[case::processing_within_window(
+    vec![("2022-07-17:0", "23:59:00:000000", "2022-07-17T23:59:00.000000Z"), ("2022-07-18:0", "00:01:00:000000", "2022-07-18T00:01:00.000000Z")],
+    AccountId::gen().unwrap(),
+    DeliveryStatus::Enqueued,
+    "2022-07-18T00:02:00.000000Z",
+    0
+)]
+#[case::completed_within_window(
+    vec![("2022-06-17:0", "23:59:00:000000", "2022-06-17T23:59:00.000000Z"), ("2022-06-18:0", "00:01:00:000000", "2022-06-18T00:01:00.000000Z")],
+    AccountId::gen().unwrap(),
+    DeliveryStatus::Completed,
+    "2022-06-18T00:02:00.000000Z",
+    0
+)]
+#[tokio::test]
+async fn test_fetch_scheduled_notifications(
+    #[case] entries: Vec<(&'static str, &'static str, &'static str)>,
+    #[case] account_id: AccountId,
+    #[case] status: DeliveryStatus,
+    #[case] cur_time: &'static str,
+    #[case] expected_num: usize,
+) {
+    fetch_scheduled_notifications_test(entries, account_id, status, cur_time, expected_num).await
 }
 
 #[tokio::test]

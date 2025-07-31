@@ -252,6 +252,7 @@ class SweepDataStateMachineImplTests : FunSpec({
 
       walletForKeyset.signPsbtCalls.awaitItem().shouldBe(PsbtMock)
       serverSigner.signWithSpecificKeysetCalls.awaitItem()
+        .shouldBeTypeOf<Pair<Psbt, *>>().first
         .shouldBeTypeOf<Psbt>()
     }
   }

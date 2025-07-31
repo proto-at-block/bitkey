@@ -3,9 +3,11 @@ package bitkey.privilegedactions
 import bitkey.f8e.fingerprintreset.FingerprintResetRequest
 import bitkey.f8e.fingerprintreset.FingerprintResetResponse
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
+import build.wallet.db.DbError
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantRequest
 import com.github.michaelbull.result.Result
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -47,4 +49,28 @@ interface FingerprintResetService : PrivilegedActionService<FingerprintResetRequ
    * action).
    */
   fun fingerprintResetAction(): StateFlow<PrivilegedActionInstance?>
+
+  /**
+   * Get the current pending fingerprint reset grant, if any exists.
+   */
+  suspend fun getPendingFingerprintResetGrant(): Result<Grant?, DbError>
+
+  /**
+   * Delete the current fingerprint reset grant after successful use.
+   */
+  suspend fun deleteFingerprintResetGrant(): Result<Unit, DbError>
+
+  /**
+   * Observe the current pending fingerprint reset grant, if any exists.
+   *
+   * The flow will emit `null` when there is no pending grant, or the corresponding
+   * [Grant] when one exists in the database.
+   */
+  fun pendingFingerprintResetGrant(): Flow<Grant?>
+
+  /**
+   * Determine the current state of fingerprint reset, combining both server-side actions
+   * and persisted grants to provide a single view of what reset options are available.
+   */
+  suspend fun getFingerprintResetState(): Result<FingerprintResetState, PrivilegedActionError>
 }

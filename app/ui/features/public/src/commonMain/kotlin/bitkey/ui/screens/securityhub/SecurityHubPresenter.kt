@@ -130,11 +130,6 @@ class SecurityHubPresenter(
       appFunctionalityService.status
     }.collectAsState()
 
-    // Helper function to check if the fingerprint reset flow should be shown
-    val shouldShowFingerprintReset = { recommendations: List<SecurityActionRecommendation> ->
-      recommendations.contains(COMPLETE_FINGERPRINT_RESET) || fingerprintResetStatusCard != null
-    }
-
     val cardsModel = CardListModel(
       cards = buildImmutableList {
         // Add hardware recovery status card
@@ -207,54 +202,38 @@ class SecurityHubPresenter(
           securityActions = securityActionsWithRecommendations.securityActions,
           recoveryActions = securityActionsWithRecommendations.recoveryActions,
           onRecommendationClick = { recommendation ->
-            val activeRecommendations = securityActionsWithRecommendations.recommendations
-
-            // If the complete fingerprint reset recommendation is present, always go to the reset flow
-            if (shouldShowFingerprintReset(activeRecommendations)) {
-              uiState = SecurityHubUiState.FingerprintResetState
-            } else {
-              when (recommendation) {
-                COMPLETE_FINGERPRINT_RESET -> {
-                  uiState = SecurityHubUiState.FingerprintResetState
-                }
-                else -> {
-                  if (recommendation.shouldShowEducation()) {
-                    navigator.goTo(
-                      screen = SecurityHubEducationScreen.RecommendationEducation(
-                        recommendation = recommendation,
-                        originScreen = screen,
-                        firmwareData = firmwareUpdateData.firmwareUpdateState
-                      )
-                    )
-                  } else {
-                    navigator.navigateToScreen(
-                      id = recommendation.navigationScreenId(),
+            when (recommendation) {
+              COMPLETE_FINGERPRINT_RESET -> {
+                uiState = SecurityHubUiState.FingerprintResetState
+              }
+              else -> {
+                if (recommendation.shouldShowEducation()) {
+                  navigator.goTo(
+                    screen = SecurityHubEducationScreen.RecommendationEducation(
+                      recommendation = recommendation,
                       originScreen = screen,
-                      firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
-                      onCannotUnlockFingerprints = onCannotUnlockFingerprints
+                      firmwareData = firmwareUpdateData.firmwareUpdateState
                     )
-                  }
+                  )
+                } else {
+                  navigator.navigateToScreen(
+                    id = recommendation.navigationScreenId(),
+                    originScreen = screen,
+                    firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+                    onCannotUnlockFingerprints = onCannotUnlockFingerprints
+                  )
                 }
               }
             }
           },
           onSecurityActionClick = { securityAction ->
-            val activeRecommendations = securityActionsWithRecommendations.recommendations
-
-            // If this is a fingerprint security action and complete fingerprint reset is recommended, go directly to reset flow
-            if (securityAction.navigationScreenId() == NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS &&
-              shouldShowFingerprintReset(activeRecommendations)
-            ) {
-              uiState = SecurityHubUiState.FingerprintResetState
-            } else {
-              navigator.navigateToScreen(
-                id = securityAction.navigationScreenId(),
-                originScreen = screen,
-                firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
-                isFingerprintResetEnabled = isFingerprintResetEnabled,
-                onCannotUnlockFingerprints = onCannotUnlockFingerprints
-              )
-            }
+            navigator.navigateToScreen(
+              id = securityAction.navigationScreenId(),
+              originScreen = screen,
+              firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+              isFingerprintResetEnabled = isFingerprintResetEnabled,
+              onCannotUnlockFingerprints = onCannotUnlockFingerprints
+            )
           },
           onHomeTabClick = {
             scope.launch {

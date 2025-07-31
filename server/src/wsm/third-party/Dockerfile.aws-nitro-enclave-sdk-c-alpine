@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.12
-FROM rust:1.82.0-alpine@sha256:2f42ce0d00c0b14f7fd84453cdc93ff5efec5da7ce03ead6e0b41adb1fbe834e AS builder
+FROM rust:1.86.0-alpine@sha256:661d708cc863ce32007cf46807a72062a80d2944a6fae9e0d83742d2e04d5375 AS builder
 
 RUN apk add --no-cache \
     cmake \

@@ -13,60 +13,75 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATION_OPEN
 import build.wallet.di.AndroidActivityComponent
-import build.wallet.di.AndroidAppComponent
 import build.wallet.logging.logInfo
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.ui.app.App
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {
-  private lateinit var appComponent: AndroidAppComponent
-  private lateinit var activityComponent: AndroidActivityComponent
+  val appComponent by lazy {
+    (application as BitkeyApplication).appComponent
+  }
+
+  val activityComponent by lazy {
+    CoroutineScope(Dispatchers.Default).async {
+      initializeActivityComponent()
+    }
+  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    // Enable support for Splash Screen API for
-    // proper Android 12+ support
-    installSplashScreen()
-    appComponent = (application as BitkeyApplication).appComponent
-    logAppLaunchState(savedInstanceState, application as BitkeyApplication)
+    showSplashScreen()
 
-    lockOrientationToPortrait()
-    drawContentBehindSystemBars()
+    lifecycleScope.launch {
+      // Wait for the app component to be initialized before proceeding
+      val appComponent = appComponent.await()
+      logAppLaunchState(savedInstanceState, application as BitkeyApplication)
 
-    activityComponent = initializeActivityComponent()
-    registerLifecycleObservers()
+      lockOrientationToPortrait()
+      drawContentBehindSystemBars()
+      registerLifecycleObservers()
 
-    maybeHideAppInLauncher()
+      maybeHideAppInLauncher()
 
-    setContent {
-      App(
-        model = activityComponent.appUiStateMachine.model(Unit),
-        deviceInfo = appComponent.deviceInfoProvider.getDeviceInfo(),
-        accelerometer = appComponent.accelerometer,
-        themePreferenceService = activityComponent.themePreferenceService
-      )
-    }
-    createNotificationChannel()
-    logEventIfFromNotification()
+      val activityComponent = activityComponent.await()
 
-    // From a backend notification
-    intent?.extras?.let {
-      Router.route = Route.from(it.toMap())
-    }
+      setContent {
+        App(
+          model = activityComponent.appUiStateMachine.model(Unit),
+          deviceInfo = appComponent.deviceInfoProvider.getDeviceInfo(),
+          accelerometer = appComponent.accelerometer,
+          themePreferenceService = activityComponent.themePreferenceService
+        )
+      }
 
-    // From a deeplink
-    intent?.dataString?.let {
-      Router.route = Route.from(it)
+      createNotificationChannel()
+      logEventIfFromNotification()
+
+      // From a backend notification
+      intent?.extras?.let {
+        Router.route = Route.from(it.toMap())
+      }
+
+      // From a deeplink
+      intent?.dataString?.let {
+        Router.route = Route.from(it)
+      }
     }
   }
 
   override fun onResume() {
     super.onResume()
-    activityComponent.inAppBrowserNavigator.onClose()
+    CoroutineScope(Dispatchers.Default).launch {
+      activityComponent.await().inAppBrowserNavigator.onClose()
+    }
   }
 
   // Handle deep links when the app is already open
@@ -81,6 +96,15 @@ class MainActivity : FragmentActivity() {
     intent?.dataString?.let {
       Router.route = Route.from(it)
     }
+  }
+
+  private fun showSplashScreen() {
+    // Enable support for Splash Screen API for
+    // proper Android 12+ support
+    installSplashScreen()
+      .also {
+        it.setKeepOnScreenCondition { !activityComponent.isCompleted }
+      }
   }
 
   private fun logAppLaunchState(
@@ -109,15 +133,15 @@ class MainActivity : FragmentActivity() {
     }
   }
 
-  private fun createNotificationChannel() {
+  private suspend fun createNotificationChannel() {
     if (VERSION.SDK_INT >= VERSION_CODES.O) {
-      appComponent.notificationChannelRepository.setupChannels()
+      appComponent.await().notificationChannelRepository.setupChannels()
     }
   }
 
-  private fun logEventIfFromNotification() {
+  private suspend fun logEventIfFromNotification() {
     if (intent.extras?.getBoolean("notification") == true) {
-      appComponent.eventTracker.track(ACTION_APP_PUSH_NOTIFICATION_OPEN)
+      appComponent.await().eventTracker.track(ACTION_APP_PUSH_NOTIFICATION_OPEN)
     }
   }
 
@@ -130,21 +154,21 @@ class MainActivity : FragmentActivity() {
     requestedOrientation = SCREEN_ORIENTATION_PORTRAIT
   }
 
-  private fun registerLifecycleObservers() {
+  private suspend fun registerLifecycleObservers() {
     lifecycle.apply {
-      addObserver(appComponent.appLifecycleObserver)
+      addObserver(appComponent.await().appLifecycleObserver)
     }
   }
 
-  private fun initializeActivityComponent(): AndroidActivityComponent {
-    return appComponent.activityComponent(
+  private suspend fun initializeActivityComponent(): AndroidActivityComponent {
+    return appComponent.await().activityComponent(
       fragmentActivity = this,
       lifecycle = lifecycle
     )
   }
 
-  private fun maybeHideAppInLauncher() {
-    appComponent.biometricPreference.isEnabled()
+  private suspend fun maybeHideAppInLauncher() {
+    appComponent.await().biometricPreference.isEnabled()
       .onEach { isEnabled ->
         if (VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
           setRecentsScreenshotEnabled(!isEnabled)

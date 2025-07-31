@@ -1,7 +1,8 @@
 use prost::Message;
+#[cfg(not(feature = "mock-time"))]
+use std::time::SystemTime;
 
 use crate::{errors::EncodeError, log_buffer::LogBuffer};
-use std::time::SystemTime;
 
 const WCA_CLA: u8 = 0x87;
 const WCA_INS_VERSION: u8 = 0x74;
@@ -75,23 +76,26 @@ macro_rules! adpu_from_proto {
 fn get_timestamp() -> u32 {
     #[cfg(feature = "mock-time")]
     {
-        return 1234567890;
+        1234567890
     }
 
-    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => {
-            let seconds_u64 = n.as_secs();
-            let seconds_u32 = seconds_u64 as u32;
-            if seconds_u64 > u32::MAX as u64 {
-                println!("Warning: Current time is greater than u32::MAX");
-                0
-            } else {
-                seconds_u32
+    #[cfg(not(feature = "mock-time"))]
+    {
+        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(n) => {
+                let seconds_u64 = n.as_secs();
+                let seconds_u32 = seconds_u64 as u32;
+                if seconds_u64 > u32::MAX as u64 {
+                    println!("Warning: Current time is greater than u32::MAX");
+                    0
+                } else {
+                    seconds_u32
+                }
             }
-        }
-        Err(_) => {
-            println!("Warning: SystemTime before UNIX EPOCH!");
-            0
+            Err(_) => {
+                println!("Warning: SystemTime before UNIX EPOCH!");
+                0
+            }
         }
     }
 }

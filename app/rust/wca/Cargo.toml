@@ -4,6 +4,9 @@ name = "wca"
 publish = { workspace = true }
 version = { workspace = true }
 
+[lints]
+workspace = true
+
 [features]
 default = ["pcsc"]
 mock-time = []
@@ -29,6 +32,7 @@ serial_test = "3.1.1"
 sha2.workspace = true
 teltra = { path = "../teltra" }
 thiserror = { workspace = true }
+ulid = { version = "1.2.1", features = ["serde"] }
 x509-parser = { version = "0.16.0", features = ["verify"] }
 
 [build-dependencies]

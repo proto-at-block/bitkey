@@ -5,6 +5,9 @@ name = "teltra-sys"
 publish = { workspace = true }
 version = { workspace = true }
 
+[lints]
+workspace = true
+
 [build-dependencies]
 bindgen = "0.72.0"
 make-cmd = "0.1.0"

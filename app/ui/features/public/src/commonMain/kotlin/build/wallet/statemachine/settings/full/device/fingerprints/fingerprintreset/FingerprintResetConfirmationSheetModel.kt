@@ -15,7 +15,7 @@ data class FingerprintResetConfirmationSheetModel(
     toolbar = null,
     header = FormHeaderModel(
       headline = "Wake your Bitkey device",
-      subline = "Press the fingerprint sensor until you see a red light to wake your Bitkey."
+      subline = "Before continuing, press the fingerprint sensor until you see a light."
     ),
     primaryButton = ButtonModel.BitkeyInteractionButtonModel(
       text = "Continue",

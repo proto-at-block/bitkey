@@ -13,6 +13,7 @@ import bitkey.f8e.privilegedactions.PrivilegedActionType
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SignatureUtils
@@ -20,14 +21,19 @@ import build.wallet.grants.GRANT_SIGNATURE_LEN
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
+import build.wallet.logging.logError
+import build.wallet.logging.logInfo
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Clock
@@ -40,8 +46,9 @@ import okio.ByteString.Companion.toByteString
 class FingerprintResetServiceImpl(
   override val privilegedActionF8eClient: FingerprintResetF8eClient,
   override val accountService: AccountService,
-  private val signatureUtils: SignatureUtils,
   override val clock: Clock,
+  private val signatureUtils: SignatureUtils,
+  private val grantDao: GrantDao,
 ) : FingerprintResetService {
   private val fingerprintResetActionCache = MutableStateFlow<PrivilegedActionInstance?>(null)
 
@@ -104,10 +111,6 @@ class FingerprintResetServiceImpl(
       val actionInstance = instances.find { it.id == actionId }
         ?: Err(PrivilegedActionError.NotAuthorized).bind()
 
-      actionInstance.takeIf { it.privilegedActionType == PrivilegedActionType.RESET_FINGERPRINT }
-        ?.authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
-        ?: Err(PrivilegedActionError.UnsupportedActionType).bind()
-
       val auth = Authorization(
         authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
         completionToken = completionToken
@@ -133,7 +136,7 @@ class FingerprintResetServiceImpl(
       // grant once, so as soon as that completes successfully, we reset the cache.
       fingerprintResetActionCache.value = null
 
-      try {
+      val grant = try {
         val serializedRequest = fingerprintResetResponse.serializedRequest.decodeBase64()
           ?: Err(
             PrivilegedActionError.InvalidResponse(
@@ -152,28 +155,54 @@ class FingerprintResetServiceImpl(
       } catch (e: IllegalArgumentException) {
         Err(PrivilegedActionError.InvalidResponse(e)).bind()
       }
+
+      // Persist the grant to the database
+      grantDao.saveGrant(
+        grant = grant
+      ).onFailure { dbError ->
+        // Log the error but don't fail the operation
+        // The grant can still be used even if persistence fails
+        logError { "Failed to persist grant: actionId=$actionId, error=$dbError" }
+      }
+
+      grant
     }
 
   override suspend fun cancelFingerprintReset(
     cancellationToken: String,
-  ): Result<Unit, PrivilegedActionError> {
-    return accountService.getAccount<FullAccount>()
-      .mapError { accountError ->
-        PrivilegedActionError.IncorrectAccountType
-      }
-      .flatMap { account ->
+  ): Result<Unit, PrivilegedActionError> =
+    coroutineBinding {
+      // Check if there's a persisted grant in the database first
+      val persistedGrant = getPendingFingerprintResetGrant().get()
+
+      if (persistedGrant != null) {
+        // If we have a grant in the database, just delete it locally
+        // (the server-side action was already consumed when we retrieved the grant)
+        logInfo { "Cancelling fingerprint reset by deleting persisted grant from database" }
+        grantDao.deleteGrantByAction(GrantAction.FINGERPRINT_RESET)
+          .mapError { dbError ->
+            PrivilegedActionError.DatabaseError(dbError)
+          }
+          .bind()
+
+        fingerprintResetActionCache.value = null
+      } else {
+        // No persisted grant, proceed with server cancellation
+        val account = accountService.getAccount<FullAccount>()
+          .mapError { PrivilegedActionError.IncorrectAccountType }
+          .bind()
+
         privilegedActionF8eClient.cancelFingerprintReset(
           f8eEnvironment = account.config.f8eEnvironment,
           fullAccountId = account.accountId,
           request = CancelPrivilegedActionRequest(cancellationToken = cancellationToken)
         ).mapError { error ->
           PrivilegedActionError.ServerError(error)
-        }
-      }.flatMap { Ok(Unit) }
-      .also { result ->
-        result.onSuccess { fingerprintResetActionCache.value = null }
+        }.bind()
+
+        fingerprintResetActionCache.value = null
       }
-  }
+    }
 
   override suspend fun getLatestFingerprintResetAction(): Result<PrivilegedActionInstance?, PrivilegedActionError> {
     return getPrivilegedActionsByType(PrivilegedActionType.RESET_FINGERPRINT)
@@ -192,6 +221,47 @@ class FingerprintResetServiceImpl(
         )
       }
   }
+
+  override suspend fun getPendingFingerprintResetGrant(): Result<Grant?, DbError> {
+    return grantDao.getGrantByAction(GrantAction.FINGERPRINT_RESET)
+  }
+
+  override suspend fun deleteFingerprintResetGrant(): Result<Unit, DbError> {
+    return grantDao.deleteGrantByAction(GrantAction.FINGERPRINT_RESET)
+  }
+
+  override fun pendingFingerprintResetGrant(): Flow<Grant?> =
+    grantDao.grantByAction(GrantAction.FINGERPRINT_RESET)
+
+  override suspend fun getFingerprintResetState(): Result<FingerprintResetState, PrivilegedActionError> =
+    coroutineBinding {
+      val pendingAction = getLatestFingerprintResetAction().bind()
+
+      when (val authStrategy = pendingAction?.authorizationStrategy) {
+        is AuthorizationStrategy.DelayAndNotify -> {
+          // Check if the delay period has completed
+          if (pendingAction.isDelayAndNotifyReadyToComplete(clock)) {
+            FingerprintResetState.DelayCompleted(pendingAction)
+          } else {
+            FingerprintResetState.DelayInProgress(pendingAction, authStrategy)
+          }
+        }
+        else -> {
+          // No server-side action, check for persisted grant
+          val persistedGrant = getPendingFingerprintResetGrant()
+            .mapError { dbError ->
+              PrivilegedActionError.DatabaseError(dbError)
+            }
+            .bind()
+
+          if (persistedGrant != null) {
+            FingerprintResetState.GrantReady(persistedGrant)
+          } else {
+            FingerprintResetState.None
+          }
+        }
+      }
+    }
 
   private fun derEncodedSignature(signature: ByteArray): ByteString {
     require(signature.size == GRANT_SIGNATURE_LEN) {

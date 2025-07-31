@@ -31,18 +31,6 @@ mod send_customer_notifications_integration_tests;
 mod transaction_integration_tests;
 mod transaction_verification_integration_tests;
 
-#[macro_export]
-macro_rules! tests {
-    (runner = $runner_name:ident, $($test_name:ident: $input:expr,)*) => {
-        $(
-        #[tokio::test]
-        async fn $test_name() {
-            $runner_name($input).await
-        }
-        )*
-    };
-}
-
 #[derive(Debug, Default)]
 pub struct TestContext {
     authentication_keys: HashMap<PublicKey, TestAuthenticationKeys>,

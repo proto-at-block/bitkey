@@ -13,7 +13,6 @@ import build.wallet.balance.utils.MockPriceScenario
 import build.wallet.balance.utils.MockScenarioService
 import build.wallet.balance.utils.MockTransactionScenario
 import build.wallet.compose.collections.buildImmutableList
-import build.wallet.pricechart.BalanceHistoryService
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory

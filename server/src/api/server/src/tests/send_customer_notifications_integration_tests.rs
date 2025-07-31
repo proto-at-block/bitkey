@@ -17,11 +17,11 @@ use notification::{
     },
     DeliveryStatus, NotificationMessage, NotificationPayloadBuilder, NotificationPayloadType,
 };
+use rstest::rstest;
 use time::OffsetDateTime;
 use types::account::entities::{Factor, TouchpointPlatform};
 use types::{account::identifiers::TouchpointId, notification::NotificationChannel};
 
-use crate::tests;
 use crate::tests::{
     gen_services,
     lib::{
@@ -32,12 +32,13 @@ use crate::tests::{
     requests::worker::TestWorker,
 };
 
-#[derive(Debug)]
-pub struct SendCustomerNotificationsTestVector {
-    pub entries: Vec<NotificationChannel>,
-}
-
-async fn send_customer_notifications_test(input: SendCustomerNotificationsTestVector) {
+#[rstest]
+#[case::only_push(vec![NotificationChannel::Push])]
+#[case::only_email(vec![NotificationChannel::Email])]
+#[case::only_sms(vec![NotificationChannel::Sms])]
+#[case::push_and_email(vec![NotificationChannel::Push, NotificationChannel::Email])]
+#[tokio::test]
+async fn test_send_customer_notifications(#[case] entries: Vec<NotificationChannel>) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
 
@@ -81,8 +82,7 @@ async fn send_customer_notifications_test(input: SendCustomerNotificationsTestVe
         lost_factor: Factor::Hw,
     };
 
-    let notifications = input
-        .entries
+    let notifications = entries
         .into_iter()
         .map(|channel| {
             let touchpoint = match channel {
@@ -142,22 +142,6 @@ async fn send_customer_notifications_test(input: SendCustomerNotificationsTestVe
     assert!(fetched_notifications
         .into_iter()
         .all(|n| n.delivery_status == DeliveryStatus::Completed));
-}
-
-tests! {
-    runner = send_customer_notifications_test,
-    test_send_customer_notifications_only_push: SendCustomerNotificationsTestVector {
-        entries: vec![NotificationChannel::Push],
-    },
-    test_send_customer_notifications_only_email: SendCustomerNotificationsTestVector {
-        entries: vec![NotificationChannel::Push],
-    },
-    test_send_customer_notifications_only_sms: SendCustomerNotificationsTestVector {
-        entries: vec![NotificationChannel::Sms],
-    },
-    test_send_customer_notifications_both_push_and_email: SendCustomerNotificationsTestVector {
-        entries: vec![NotificationChannel::Push, NotificationChannel::Email],
-    },
 }
 
 #[tokio::test]

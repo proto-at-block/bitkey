@@ -41,10 +41,10 @@ use crate::{
 };
 
 #[rstest]
-#[case::with_app_factor_and_enabled_inheritance_flag(Factor::App, true)]
-#[case::with_hw_factor_and_enabled_inheritance_flag(Factor::Hw, true)]
-#[case::with_hw_factor_and_disabled_inheritance_flag(Factor::Hw, false)]
-#[case::with_app_factor_and_disabled_inheritance_flag(Factor::App, false)]
+#[case::app_factor_enabled(Factor::App, true)]
+#[case::hw_factor_enabled(Factor::Hw, true)]
+#[case::hw_factor_disabled(Factor::Hw, false)]
+#[case::app_factor_disabled(Factor::App, false)]
 #[tokio::test]
 async fn test_recreate_inheritance_claim_after_completing_delay_notify(
     #[case] delay_notify_factor: Factor,
@@ -193,8 +193,8 @@ async fn test_recreate_inheritance_claim_after_completing_delay_notify(
 }
 
 #[rstest]
-#[case::with_inheritance_flag_disabled(false)]
-#[case::with_inheritance_flag_enabled(true)]
+#[case::flag_disabled(false)]
+#[case::flag_enabled(true)]
 #[tokio::test]
 async fn test_rotate_authentication_keys_with_inheritance_claim(
     #[case] is_inheritance_flag_enabled: bool,

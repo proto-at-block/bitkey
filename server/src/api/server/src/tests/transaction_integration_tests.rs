@@ -1,8 +1,51 @@
-use std::collections::{HashMap, HashSet};
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+    sync::Arc,
+};
 
-use crate::tests;
+use http::StatusCode;
+use mockall::mock;
+use serde_json::json;
+use ulid::Ulid;
+
+use account::service::{tests::default_electrum_rpc_uris, FetchAccountInput};
+use bdk_utils::{
+    bdk::{
+        bitcoin::{
+            bip32::{ExtendedPrivKey, ExtendedPubKey},
+            ecdsa,
+            key::Secp256k1,
+            psbt::{PartiallySignedTransaction, PartiallySignedTransaction as Psbt},
+            secp256k1::Message,
+            Address, Network as BdkNetwork, OutPoint, Txid,
+        },
+        database::AnyDatabase,
+        electrum_client::Error as ElectrumClientError,
+        wallet::{AddressIndex, AddressInfo},
+        Error::Electrum,
+        KeychainKind, SignOptions, Wallet,
+    },
+    error::BdkUtilError,
+    DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait,
+};
+use external_identifier::ExternalIdentifier;
+use mobile_pay::routes::{SignTransactionData, SignTransactionResponse};
+use onboarding::routes::RotateSpendingKeysetRequest;
+use rstest::rstest;
+use types::{
+    account::{bitcoin::Network, identifiers::AccountId, money::Money, spend_limit::SpendingLimit},
+    currencies::{CurrencyCode, CurrencyCode::USD},
+    transaction_verification::{
+        entities::{
+            BitcoinDisplayUnit, PolicyUpdate, PolicyUpdateMoney, TransactionVerification,
+            TransactionVerificationPending,
+        },
+        router::PutTransactionVerificationPolicyRequest,
+        TransactionVerificationId,
+    },
+};
+
 use crate::tests::lib::{
     build_sweep_transaction, build_transaction_with_amount,
     create_default_account_with_predefined_wallet, create_inactive_spending_keyset_for_account,
@@ -11,47 +54,22 @@ use crate::tests::lib::{
 use crate::tests::mobile_pay_tests::build_mobile_pay_request;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::{gen_services, gen_services_with_overrides, GenServiceOverrides};
-use account::service::tests::default_electrum_rpc_uris;
-use account::service::FetchAccountInput;
-use bdk_utils::bdk::bitcoin::bip32::{ExtendedPrivKey, ExtendedPubKey};
-use bdk_utils::bdk::bitcoin::key::Secp256k1;
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk_utils::bdk::bitcoin::secp256k1::Message;
-use bdk_utils::bdk::bitcoin::{ecdsa, Address};
-use bdk_utils::bdk::bitcoin::{Network as BdkNetwork, OutPoint, Txid};
-use bdk_utils::bdk::database::AnyDatabase;
-use bdk_utils::bdk::electrum_client::Error as ElectrumClientError;
-use bdk_utils::bdk::wallet::{AddressIndex, AddressInfo};
-use bdk_utils::bdk::Error::Electrum;
-use bdk_utils::bdk::{KeychainKind, SignOptions, Wallet};
-use bdk_utils::error::BdkUtilError;
-use bdk_utils::{DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait};
-use external_identifier::ExternalIdentifier;
-use http::StatusCode;
-use mobile_pay::routes::SignTransactionData;
-use mobile_pay::routes::SignTransactionResponse;
-use mockall::mock;
-use onboarding::routes::RotateSpendingKeysetRequest;
-use serde_json::json;
-use types::account::bitcoin::Network;
-use types::account::entities::TransactionVerificationPolicy;
-use types::account::identifiers::AccountId;
-use types::account::money::Money;
-use types::account::spend_limit::SpendingLimit;
-use types::currencies::CurrencyCode::USD;
-use types::transaction_verification::entities::TransactionVerification;
-use types::transaction_verification::router::PutTransactionVerificationPolicyRequest;
-use ulid::Ulid;
 
-#[derive(Debug)]
-struct SignTransactionTestVector {
-    override_account_id: bool,
-    with_inputs: Vec<OutPoint>,
-    override_psbt: Option<&'static str>,
-    expected_status: StatusCode,
-    expect_broadcast: bool, // Should the test expect a transaction to be broadcast?
-    broadcast_failure_mode: Option<BroadcastFailureMode>, // Should the test double return an ApiError?
+fn check_psbt(response_body: Option<SignTransactionResponse>, bdk_wallet: &Wallet<AnyDatabase>) {
+    let mut server_and_app_signed_psbt = match response_body {
+        Some(r) => Psbt::from_str(&r.tx).unwrap(),
+        None => return,
+    };
+
+    let sign_options = SignOptions {
+        remove_partial_sigs: false,
+        ..SignOptions::default()
+    };
+
+    let is_finalized = bdk_wallet
+        .finalize_psbt(&mut server_and_app_signed_psbt, sign_options)
+        .unwrap();
+    assert!(is_finalized);
 }
 
 mock! {
@@ -66,12 +84,19 @@ mock! {
     }
 }
 
-async fn sign_transaction_test(vector: SignTransactionTestVector) {
+async fn sign_transaction_test(
+    override_account_id: bool,
+    with_inputs: Vec<OutPoint>,
+    override_psbt: Option<&'static str>,
+    expected_status: StatusCode,
+    expect_broadcast: bool, // Should the test expect a transaction to be broadcast?
+    broadcast_failure_mode: Option<BroadcastFailureMode>, // Should the test double return an ApiError?
+) {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
         .expect_broadcast()
-        .times(if vector.expect_broadcast { 1 } else { 0 })
-        .returning(move |_, _, _| match vector.broadcast_failure_mode {
+        .times(if expect_broadcast { 1 } else { 0 })
+        .returning(move |_, _, _| match broadcast_failure_mode {
             Some(BroadcastFailureMode::Generic) => Err(BdkUtilError::TransactionBroadcastError(
                 Electrum(ElectrumClientError::Message("Fail".to_string())),
             )),
@@ -99,14 +124,14 @@ async fn sign_transaction_test(vector: SignTransactionTestVector) {
         .get_authentication_keys_for_account_id(&account.id)
         .unwrap();
 
-    let app_signed_psbt = if let Some(override_psbt) = vector.override_psbt {
+    let app_signed_psbt = if let Some(override_psbt) = override_psbt {
         override_psbt.to_string()
     } else {
         build_transaction_with_amount(
             &bdk_wallet,
             gen_external_wallet_address(),
             1_000,
-            &vector.with_inputs,
+            &with_inputs,
         )
         .to_string()
     };
@@ -120,7 +145,7 @@ async fn sign_transaction_test(vector: SignTransactionTestVector) {
         ..Default::default()
     };
 
-    let account_id = if vector.override_account_id {
+    let account_id = if override_account_id {
         AccountId::new(Ulid(400)).unwrap()
     } else {
         // In this case, we can setup mobile pay so our code can check some spend conditions
@@ -146,106 +171,128 @@ async fn sign_transaction_test(vector: SignTransactionTestVector) {
         )
         .await;
     assert_eq!(
-        actual_response.status_code, vector.expected_status,
+        actual_response.status_code, expected_status,
         "{}",
         actual_response.body_string
     );
 }
 
-tests! {
-    runner = sign_transaction_test,
-    test_sign_transaction_success: SignTransactionTestVector {
-        override_account_id: false,
-        with_inputs: vec![OutPoint {
-            txid: Txid::from_str("42364e8ad22f93be1321efe2e53eca5337d1935b8c6aea8b648991321ff9d132").unwrap(),
-            vout: 0,
-        },
+#[rstest]
+#[case::test_sign_transaction_success(
+    false,
+    vec![OutPoint {
+        txid: Txid::from_str("42364e8ad22f93be1321efe2e53eca5337d1935b8c6aea8b648991321ff9d132").unwrap(),
+        vout: 0,
+    },
+    OutPoint {
+        txid: Txid::from_str("96b4d4506dc368fe704fa9875002c6a157fca460adc0d1fd0b4e0e6ed734fd64").unwrap(),
+        vout: 0,
+    }],
+    None,
+    StatusCode::OK,
+    true,
+    None
+)]
+#[case::test_sign_transaction_with_no_existing_account(
+    true,
+    vec![],
+    Some("cHNidP8BAIkBAAAAARba0uJxgoOu4Qb4Hl2O4iC/zZhhEJZ7+5HuZDe8gkB5AQAAAAD/////AugDAAAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcbugQEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAAAAAAABAOoCAAAAAAEB97UeXCkIkrURS0D1VEse6bslADCfk6muDzWMawqsSkoAAAAAAP7///8CTW7uAwAAAAAWABT3EVvw7PVw4dEmLqWe/v9ETcBTtKCGAQAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcYCRzBEAiBswJbFVv3ixdepzHonCMI1BujKEjxMHQ2qKmhVjVkiMAIgdcn1gzW+S4utbYQlfMHdVlpmK4T6onLbN+QCda1UVsYBIQJQtXaqHMYW0tBOmIEwjeBpTORXNrsO4FMWhqCf8feXXClTIgABASughgEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAQVpUiECF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYhA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYIQPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbI1OuIgYCF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYEIgnl9CIGA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYBJhPJu0iBgPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbIwR2AHgNACICAhdD9G8Hal+Db8HWJK/VcZGqNv9Mgda3KoB1tbV5Fb5WBCIJ5fQiAgOI/w8ilA1K2/JIPSuFAHJSVf9VYLPw3v8jnM/S+ntQGASYTybtIgID0gWCBvZzdyUGy+uQZ2r1p5o4I6GJ/2eq5rx6IJ4KWyMEdgB4DQAiAgIXQ/RvB2pfg2/B1iSv1XGRqjb/TIHWtyqAdbW1eRW+VgQiCeX0IgIDiP8PIpQNStvySD0rhQByUlX/VWCz8N7/I5zP0vp7UBgEmE8m7SICA9IFggb2c3clBsvrkGdq9aeaOCOhif9nqua8eiCeClsjBHYAeA0A"),
+    StatusCode::NOT_FOUND,
+    false,
+    None
+)]
+#[case::test_sign_transaction_with_invalid_psbt(
+    false,
+    vec![],
+    Some("cHNidP8BAIkBAAAAARba0uJxgoOu4Qb4Hl2O4iC/zZhhEJZ7+5HuZDe8gkB5AQAAAAD/////AugDAAAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcbugQEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAAAAAAABAOoCAAAAAAEB97UeXCkIkrURS0D1VEse6bslADCfk6muDzWMawqsSkoAAAAAAP7///8CTW7uAwAAAAAWABT3EVvw7PVw4dEmLqWe/v9ETcBTtKCGAQAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcYCRzBEAiBswJbFVv3ixdepzHonCMI1BujKEjxMHQ2qKmhVjVkiMAIgdcn1gzW+S4utbYQlfMHdVlpmK4T6onLbN+QCda1UVsYBIQJQtXaqHMYW0tBOmIEwjeBpTORXNrsO4FMWhqCf8feXXClTIgABASughgEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAQVpUiECF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYhA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYIQPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbI1OuIgYCF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYEIgnl9CIGA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYBJhPJu0iBgPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbIwR2AHgNACICAhdD9G8Hal+Db8HWJK/VcZGqNv9Mgda3KoB1tbV5Fb5WBCIJ5fQiAgOI/w8ilA1K2/JIPSuFAHJSVf9VYLPw3v8jnM/S+ntQGASYTybtIgID0gWCBvZzdyUGy+uQZ2r1p5o4I6GJ/2eq5rx6IJ4KWyMEdgB4DQAiAgIXQ/RvB2pfg2/B1iSv1XGRqjb/TIHWtyqAdbW1eRW+VgQiCeX0IgIDiP8PIpQNStvySD0rhQByUlX/VWCz8N7/I5zP0vp7UBgEmE8m7SICA9IFggb2c3clBsvrkGdq9aeaOCOhif9nqua8eiCeClsjBHYAeA0A"),
+    StatusCode::BAD_REQUEST,
+    false,
+    None
+)]
+#[case::test_sign_transaction_fail_broadcast(
+    false,
+    vec![
         OutPoint {
-            txid: Txid::from_str("96b4d4506dc368fe704fa9875002c6a157fca460adc0d1fd0b4e0e6ed734fd64").unwrap(),
+            txid: Txid::from_str("44a61ffbd14496e1b2f419665af8275521fc44679432cbba0b3bac80d3c4f3ab").unwrap(),
             vout: 0,
-        }],
-        override_psbt: None,
-        expected_status: StatusCode::OK,
-        expect_broadcast: true,
-        broadcast_failure_mode: None
-    },
-    test_sign_transaction_with_no_existing_account: SignTransactionTestVector {
-        override_account_id: true,
-        with_inputs: vec![],
-        override_psbt: Some("cHNidP8BAIkBAAAAARba0uJxgoOu4Qb4Hl2O4iC/zZhhEJZ7+5HuZDe8gkB5AQAAAAD/////AugDAAAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcbugQEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAAAAAAABAOoCAAAAAAEB97UeXCkIkrURS0D1VEse6bslADCfk6muDzWMawqsSkoAAAAAAP7///8CTW7uAwAAAAAWABT3EVvw7PVw4dEmLqWe/v9ETcBTtKCGAQAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcYCRzBEAiBswJbFVv3ixdepzHonCMI1BujKEjxMHQ2qKmhVjVkiMAIgdcn1gzW+S4utbYQlfMHdVlpmK4T6onLbN+QCda1UVsYBIQJQtXaqHMYW0tBOmIEwjeBpTORXNrsO4FMWhqCf8feXXClTIgABASughgEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAQVpUiECF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYhA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYIQPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbI1OuIgYCF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYEIgnl9CIGA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYBJhPJu0iBgPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbIwR2AHgNACICAhdD9G8Hal+Db8HWJK/VcZGqNv9Mgda3KoB1tbV5Fb5WBCIJ5fQiAgOI/w8ilA1K2/JIPSuFAHJSVf9VYLPw3v8jnM/S+ntQGASYTybtIgID0gWCBvZzdyUGy+uQZ2r1p5o4I6GJ/2eq5rx6IJ4KWyMEdgB4DQAiAgIXQ/RvB2pfg2/B1iSv1XGRqjb/TIHWtyqAdbW1eRW+VgQiCeX0IgIDiP8PIpQNStvySD0rhQByUlX/VWCz8N7/I5zP0vp7UBgEmE8m7SICA9IFggb2c3clBsvrkGdq9aeaOCOhif9nqua8eiCeClsjBHYAeA0A"),
-        expected_status: StatusCode::NOT_FOUND,
-        expect_broadcast: false,
-        broadcast_failure_mode: None
-    },
-    test_sign_transaction_with_invalid_psbt: SignTransactionTestVector {
-        override_account_id: false,
-        with_inputs: vec![],
-        override_psbt: Some("cHNidP8BAIkBAAAAARba0uJxgoOu4Qb4Hl2O4iC/zZhhEJZ7+5HuZDe8gkB5AQAAAAD/////AugDAAAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcbugQEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAAAAAAABAOoCAAAAAAEB97UeXCkIkrURS0D1VEse6bslADCfk6muDzWMawqsSkoAAAAAAP7///8CTW7uAwAAAAAWABT3EVvw7PVw4dEmLqWe/v9ETcBTtKCGAQAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcYCRzBEAiBswJbFVv3ixdepzHonCMI1BujKEjxMHQ2qKmhVjVkiMAIgdcn1gzW+S4utbYQlfMHdVlpmK4T6onLbN+QCda1UVsYBIQJQtXaqHMYW0tBOmIEwjeBpTORXNrsO4FMWhqCf8feXXClTIgABASughgEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAQVpUiECF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYhA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYIQPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbI1OuIgYCF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYEIgnl9CIGA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYBJhPJu0iBgPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbIwR2AHgNACICAhdD9G8Hal+Db8HWJK/VcZGqNv9Mgda3KoB1tbV5Fb5WBCIJ5fQiAgOI/w8ilA1K2/JIPSuFAHJSVf9VYLPw3v8jnM/S+ntQGASYTybtIgID0gWCBvZzdyUGy+uQZ2r1p5o4I6GJ/2eq5rx6IJ4KWyMEdgB4DQAiAgIXQ/RvB2pfg2/B1iSv1XGRqjb/TIHWtyqAdbW1eRW+VgQiCeX0IgIDiP8PIpQNStvySD0rhQByUlX/VWCz8N7/I5zP0vp7UBgEmE8m7SICA9IFggb2c3clBsvrkGdq9aeaOCOhif9nqua8eiCeClsjBHYAeA0A"),
-        expected_status: StatusCode::BAD_REQUEST,
-        expect_broadcast: false,
-        broadcast_failure_mode: None
-    },
-    test_sign_transaction_fail_broadcast: SignTransactionTestVector {
-        override_account_id: false,
-        with_inputs: vec![
-            OutPoint {
-                txid: Txid::from_str("44a61ffbd14496e1b2f419665af8275521fc44679432cbba0b3bac80d3c4f3ab").unwrap(),
-                vout: 0,
-            }
-        ],
-        override_psbt: None,
-        expected_status: StatusCode::INTERNAL_SERVER_ERROR,
-        expect_broadcast: true,
-        broadcast_failure_mode: Some(BroadcastFailureMode::Generic)
-    },
-    test_sign_transaction_fail_broadcast_electrum: SignTransactionTestVector {
-        override_account_id: false,
-        with_inputs: vec![OutPoint {
-            txid: Txid::from_str("ca801cd4300832038cf47fabdd2c058469ede63f6de558374a4ecb351ac86e32").unwrap(),
-            vout: 0,
-        }],
-        override_psbt: None,
-        expected_status: StatusCode::INTERNAL_SERVER_ERROR,
-        expect_broadcast: true,
-        broadcast_failure_mode: Some(BroadcastFailureMode::ElectrumGeneric)
-    },
-    test_sign_transaction_fail_broadcast_duplicate_tx: SignTransactionTestVector {
-        override_account_id: false,
-        with_inputs: vec![OutPoint {
-            txid: Txid::from_str("2675ee4faa0fa6201cf9a39854d8bf0379d275744a8c38271f9e3c4d44d5b87d").unwrap(),
-            vout: 0,
-        }],
-        override_psbt: None,
-        expected_status: StatusCode::CONFLICT,
-        expect_broadcast: true,
-        broadcast_failure_mode: Some(BroadcastFailureMode::ElectrumDuplicateTx)
-    },
+        }
+    ],
+    None,
+    StatusCode::INTERNAL_SERVER_ERROR,
+    true,
+    Some(BroadcastFailureMode::Generic)
+)]
+#[case::test_sign_transaction_fail_broadcast_electrum(
+    false,
+    vec![OutPoint {
+        txid: Txid::from_str("ca801cd4300832038cf47fabdd2c058469ede63f6de558374a4ecb351ac86e32").unwrap(),
+        vout: 0,
+    }],
+    None,
+    StatusCode::INTERNAL_SERVER_ERROR,
+    true,
+    Some(BroadcastFailureMode::ElectrumGeneric)
+)]
+#[case::test_sign_transaction_fail_broadcast_duplicate_tx(
+    false,
+    vec![OutPoint {
+        txid: Txid::from_str("2675ee4faa0fa6201cf9a39854d8bf0379d275744a8c38271f9e3c4d44d5b87d").unwrap(),
+        vout: 0,
+    }],
+    None,
+    StatusCode::CONFLICT,
+    true,
+    Some(BroadcastFailureMode::ElectrumDuplicateTx)
+)]
+#[tokio::test]
+async fn test_sign_transaction(
+    #[case] override_account_id: bool,
+    #[case] with_inputs: Vec<OutPoint>,
+    #[case] override_psbt: Option<&'static str>,
+    #[case] expected_status: StatusCode,
+    #[case] expect_broadcast: bool,
+    #[case] broadcast_failure_mode: Option<BroadcastFailureMode>,
+) {
+    sign_transaction_test(
+        override_account_id,
+        with_inputs,
+        override_psbt,
+        expected_status,
+        expect_broadcast,
+        broadcast_failure_mode,
+    )
+    .await
 }
 
 #[rstest::rstest]
-#[case::never(TransactionVerificationPolicy::Never, false)]
-#[case::always(TransactionVerificationPolicy::Always, true)]
-#[case::threshold_over_balance(TransactionVerificationPolicy::Threshold(Money{
-    amount: 10_000,
+#[case::never(PolicyUpdate::Never, false, true)]
+#[case::always_without_verification(PolicyUpdate::Always, false, false)]
+#[case::always_with_verification(PolicyUpdate::Always, true, true)]
+#[case::threshold_over_balance(PolicyUpdate::Threshold(PolicyUpdateMoney{
+    amount_sats: 10_000,
+    amount_fiat: 1_179,
     currency_code: USD,
-}), false)]
-#[case::threshold_under_balance(TransactionVerificationPolicy::Threshold(Money{
-    amount: 5,
+}), false, true)]
+#[case::threshold_under_balance_without_verification(PolicyUpdate::Threshold(PolicyUpdateMoney{
+    amount_sats: 5,
+    amount_fiat: 0,
     currency_code: USD,
-}), true)]
+}), false, false)]
+#[case::threshold_under_balance_with_verification(PolicyUpdate::Threshold(PolicyUpdateMoney{
+    amount_sats: 5,
+    amount_fiat: 0,
+    currency_code: USD,
+}), true, true)]
 #[tokio::test]
 async fn test_sign_transaction_with_transaction_verification(
-    #[case] policy: TransactionVerificationPolicy,
-    #[case] expect_transaction_verification: bool,
+    #[case] policy: PolicyUpdate,
+    #[case] include_verification_id: bool,
+    #[case] expect_success: bool,
 ) {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
         .expect_broadcast()
-        .times(if expect_transaction_verification {
-            0
-        } else {
-            1
-        })
+        .times(if expect_success { 1 } else { 0 })
         .returning(move |_, _, _| Ok(()));
 
     let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
@@ -297,46 +344,60 @@ async fn test_sign_transaction_with_transaction_verification(
         update_policy_request.body_string
     );
 
+    let grant = if include_verification_id {
+        let verification_id =
+            TransactionVerificationId::gen().expect("Failed to generate verification id");
+        let pending_verification = TransactionVerificationPending::new(
+            verification_id.clone(),
+            account.id.clone(),
+            app_signed_psbt.clone(),
+            CurrencyCode::USD,
+            BitcoinDisplayUnit::Bitcoin,
+        );
+        let confirmation_token = pending_verification.confirmation_token.clone();
+        bootstrap
+            .services
+            .transaction_verification_repository
+            .persist(&TransactionVerification::Pending(pending_verification))
+            .await
+            .expect("Failed to persist verification");
+        let TransactionVerification::Success(success) = bootstrap
+            .services
+            .transaction_verification_service
+            .verify_with_confirmation_token(&verification_id, &confirmation_token)
+            .await
+            .expect("Failed to verify with confirmation token")
+        else {
+            panic!("Expected success");
+        };
+        Some(success.signed_hw_grant)
+    } else {
+        None
+    };
+
     let response = client
         .sign_transaction_with_keyset(
             &account.id,
             &account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt.to_string(),
-                should_prompt_user: true,
-                ..Default::default()
+                grant,
             },
         )
         .await;
     assert_eq!(
         response.status_code,
-        StatusCode::OK,
+        if expect_success {
+            StatusCode::OK
+        } else {
+            StatusCode::BAD_REQUEST
+        },
         "{}",
         response.body_string
     );
-    if expect_transaction_verification {
-        let SignTransactionResponse::VerificationRequested {
-            verification_id, ..
-        } = response.body.unwrap()
-        else {
-            panic!("Expected a verification response, got a signed transaction");
-        };
-        let verification = bootstrap
-            .services
-            .transaction_verification_service
-            .fetch(&account.id, &verification_id)
-            .await
-            .expect("Failed to fetch verification");
-        assert!(matches!(
-            verification,
-            TransactionVerification::Pending { .. }
-        ));
-        assert_eq!(verification.common_fields().psbt, app_signed_psbt);
-    } else {
-        assert!(
-            matches!(response.body, Some(SignTransactionResponse::Signed { .. })),
-            "Expected a signed transaction, got a verification response"
-        );
+
+    if expect_success {
+        check_psbt(response.body, &bdk_wallet);
     }
 }
 
@@ -347,19 +408,16 @@ enum BroadcastFailureMode {
     ElectrumGeneric,
 }
 
-#[derive(Debug)]
-struct SpendingLimitTransactionTestVector {
+async fn spend_limit_transaction_test(
     max_spend_per_day: u64,
     should_self_addressed_tx: bool,
     invalidate_server_signature: bool,
     expected_status: StatusCode,
-}
-
-async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector) {
+) {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
         .expect_broadcast()
-        .times(if vector.expected_status == StatusCode::OK {
+        .times(if expected_status == StatusCode::OK {
             2
         } else {
             0
@@ -376,7 +434,7 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
     let keys = context
         .get_authentication_keys_for_account_id(&account.id)
         .expect("Keys not found");
-    let recipient = match vector.should_self_addressed_tx {
+    let recipient = match should_self_addressed_tx {
         true => bdk_wallet.get_address(AddressIndex::New).unwrap(),
         false => gen_external_wallet_address(),
     };
@@ -385,7 +443,7 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
     let limit = SpendingLimit {
         active: true,
         amount: Money {
-            amount: vector.max_spend_per_day,
+            amount: max_spend_per_day,
             currency_code: USD,
         },
         ..Default::default()
@@ -403,28 +461,7 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
         mobile_pay_response.body_string
     );
 
-    let check_psbt = |response_body: Option<SignTransactionResponse>| async {
-        let mut server_and_app_signed_psbt = match response_body {
-            Some(SignTransactionResponse::Signed { tx }) => Psbt::from_str(&tx).unwrap(),
-            Some(SignTransactionResponse::VerificationRequired)
-            | Some(SignTransactionResponse::VerificationRequested { .. }) => {
-                panic!("Expected a signed transaction, got a verification response");
-            }
-            None => return,
-        };
-
-        let sign_options = SignOptions {
-            remove_partial_sigs: false,
-            ..SignOptions::default()
-        };
-
-        let is_finalized = bdk_wallet
-            .finalize_psbt(&mut server_and_app_signed_psbt, sign_options)
-            .unwrap();
-        assert!(is_finalized);
-    };
-
-    let _srv_sig = if vector.invalidate_server_signature {
+    let _srv_sig = if invalidate_server_signature {
         "abeda3".to_string()
     } else {
         "".to_string()
@@ -439,88 +476,80 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
         .sign_transaction_with_keyset(&account.id, &account.active_keyset_id, &request_data)
         .await;
     assert_eq!(
-        vector.expected_status, response.status_code,
+        expected_status, response.status_code,
         "{}",
         response.body_string
     );
-    check_psbt(response.body).await;
+    check_psbt(response.body, &bdk_wallet);
 
     let response = client
         .sign_transaction_with_keyset(&account.id, &account.active_keyset_id, &request_data)
         .await;
     assert_eq!(
-        vector.expected_status, response.status_code,
+        expected_status, response.status_code,
         "{}",
         response.body_string
     );
-    check_psbt(response.body).await;
+    check_psbt(response.body, &bdk_wallet);
 }
 
-tests! {
-    runner = spend_limit_transaction_test,
-    test_sign_transaction_with_self_addressed_transaction_and_no_movable_funds: SpendingLimitTransactionTestVector {
-        max_spend_per_day: 0,
-        should_self_addressed_tx: true,
-        invalidate_server_signature: false,
-        expected_status: StatusCode::BAD_REQUEST,
-    },
-    test_sign_transaction_below_spend_limit: SpendingLimitTransactionTestVector {
-        max_spend_per_day: 2033,
-        should_self_addressed_tx: false,
-        invalidate_server_signature: false,
-        expected_status: StatusCode::OK,
-    },
-    test_sign_transaction_above_spend_limit_to_self: SpendingLimitTransactionTestVector {
-        max_spend_per_day: 0,
-        should_self_addressed_tx: true,
-        invalidate_server_signature: false,
-        expected_status: StatusCode::BAD_REQUEST,
-    },
-    test_sign_transaction_above_spend_limit_to_external: SpendingLimitTransactionTestVector {
-        max_spend_per_day: 0,
-        should_self_addressed_tx: false,
-        invalidate_server_signature: false,
-        expected_status: StatusCode::BAD_REQUEST,
-    },
+#[rstest]
+#[case::self_addressed_no_movable_funds(0, true, false, StatusCode::BAD_REQUEST)]
+#[case::below_spend_limit(2033, false, false, StatusCode::OK)]
+#[case::above_limit_to_self(0, true, false, StatusCode::BAD_REQUEST)]
+#[case::above_limit_to_external(0, false, false, StatusCode::BAD_REQUEST)]
+#[tokio::test]
+async fn test_spend_limit_transaction(
+    #[case] max_spend_per_day: u64,
+    #[case] should_self_addressed_tx: bool,
+    #[case] invalidate_server_signature: bool,
+    #[case] expected_status: StatusCode,
+) {
+    spend_limit_transaction_test(
+        max_spend_per_day,
+        should_self_addressed_tx,
+        invalidate_server_signature,
+        expected_status,
+    )
+    .await
 }
 
-struct SweepBypassTransactionTestVector {
+#[rstest]
+#[case::none_spending_limit(None, false, StatusCode::OK)]
+#[case::inactive_spending_limit(
+    Some(SpendingLimit { active: false, amount: Money { amount: 42, currency_code: USD }, ..Default::default() }),
+    false,
+    StatusCode::OK
+)]
+#[case::limit_below_balance(
+    Some(SpendingLimit { active: true, amount: Money { amount: 0, currency_code: USD }, ..Default::default() }),
+    false,
+    StatusCode::OK
+)]
+#[case::to_external_address(None, true, StatusCode::BAD_REQUEST)]
+#[tokio::test]
+async fn test_bypass_mobile_spend_limit_for_sweep(
+    #[case] spending_limit: Option<SpendingLimit>,
+    #[case] target_external_address: bool,
+    #[case] expected_status: StatusCode,
+) {
+    bypass_mobile_spend_limit_for_sweep_test(
+        spending_limit,
+        target_external_address,
+        expected_status,
+    )
+    .await
+}
+
+async fn bypass_mobile_spend_limit_for_sweep_test(
     spending_limit: Option<SpendingLimit>,
     target_external_address: bool,
     expected_status: StatusCode,
-}
-
-tests! {
-    runner = test_bypass_mobile_spend_limit_for_sweep,
-    test_sweep_with_none_spending_limit: SweepBypassTransactionTestVector {
-        spending_limit: None,
-        target_external_address: false,
-        expected_status: StatusCode::OK
-    },
-    test_sweep_with_inactive_spending_limit: SweepBypassTransactionTestVector {
-        spending_limit: Some(SpendingLimit { active: false, amount: Money { amount: 42, currency_code: USD }, ..Default::default() }),
-        target_external_address: false,
-        expected_status: StatusCode::OK
-
-    },
-    test_sweep_with_spending_limit_below_balance: SweepBypassTransactionTestVector {
-        spending_limit: Some(SpendingLimit { active: true, amount: Money { amount: 0, currency_code: USD }, ..Default::default() }),
-        target_external_address: false,
-        expected_status: StatusCode::OK
-
-    },
-    test_sweep_to_external_address: SweepBypassTransactionTestVector {
-        spending_limit: None,
-        target_external_address: true,
-        expected_status: StatusCode::BAD_REQUEST
-    },
-}
-
-async fn test_bypass_mobile_spend_limit_for_sweep(vector: SweepBypassTransactionTestVector) {
+) {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
         .expect_broadcast()
-        .times(if vector.expected_status == StatusCode::OK {
+        .times(if expected_status == StatusCode::OK {
             1
         } else {
             0
@@ -578,7 +607,7 @@ async fn test_bypass_mobile_spend_limit_for_sweep(vector: SweepBypassTransaction
     let active_wallet = active_descriptor_keyset
         .generate_wallet(true, &electrum_rpc_uris)
         .unwrap();
-    let recipient = if vector.target_external_address {
+    let recipient = if target_external_address {
         gen_external_wallet_address()
     } else {
         active_wallet.get_address(AddressIndex::Peek(0)).unwrap()
@@ -586,7 +615,7 @@ async fn test_bypass_mobile_spend_limit_for_sweep(vector: SweepBypassTransaction
 
     let app_signed_psbt = build_sweep_transaction(&bdk_wallet, recipient);
 
-    if let Some(limit) = vector.spending_limit.clone() {
+    if let Some(limit) = spending_limit.clone() {
         // Set up Mobile Pay
         let mobile_pay_request = build_mobile_pay_request(limit.clone());
         let mobile_pay_response = client
@@ -600,27 +629,6 @@ async fn test_bypass_mobile_spend_limit_for_sweep(vector: SweepBypassTransaction
         );
     }
 
-    let check_psbt = |response_body: Option<SignTransactionResponse>| async {
-        let mut server_and_app_signed_psbt = match response_body {
-            Some(SignTransactionResponse::Signed { tx }) => Psbt::from_str(&tx).unwrap(),
-            Some(SignTransactionResponse::VerificationRequired)
-            | Some(SignTransactionResponse::VerificationRequested { .. }) => {
-                panic!("Expected a signed transaction, got a verification response");
-            }
-            None => return,
-        };
-
-        let sign_options = SignOptions {
-            remove_partial_sigs: false,
-            ..SignOptions::default()
-        };
-
-        let is_finalized = bdk_wallet
-            .finalize_psbt(&mut server_and_app_signed_psbt, sign_options)
-            .unwrap();
-        assert!(is_finalized);
-    };
-
     let request_data = SignTransactionData {
         psbt: app_signed_psbt.to_string(),
         ..Default::default()
@@ -631,11 +639,11 @@ async fn test_bypass_mobile_spend_limit_for_sweep(vector: SweepBypassTransaction
         .sign_transaction_with_keyset(&account.id, &inactive_keyset_id, &request_data)
         .await;
     assert_eq!(
-        vector.expected_status, response.status_code,
+        expected_status, response.status_code,
         "{}",
         response.body_string
     );
-    check_psbt(response.body).await;
+    check_psbt(response.body, &bdk_wallet);
 }
 
 #[tokio::test]

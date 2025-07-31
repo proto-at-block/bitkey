@@ -1,5 +1,5 @@
 [workspace]
-members = ["crypto", "enclave-tools", "picocert", "wsm-integrity"]
+members = ["crypto", "enclave-tools", "picocert", "wsm-grant", "wsm-integrity"]
 resolver = "2"
 
 [workspace.package]
@@ -9,6 +9,7 @@ version = "0.1.1"
 
 [workspace.dependencies]
 bitcoin = { version = "0.30.0", features = [
+  "rand",
   "serde",
 ] } # bitcoin version pinned by bdk
 thiserror = "1.0.57"

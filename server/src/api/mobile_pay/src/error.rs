@@ -7,6 +7,7 @@ use errors::ApiError;
 use exchange_rate::error::ExchangeRateError;
 use std::error::Error;
 use thiserror::Error;
+use transaction_verification::error::TransactionVerificationError;
 use types::account::identifiers::KeysetId;
 
 #[derive(Debug, Error)]
@@ -43,21 +44,8 @@ pub enum SigningError {
     MobilePayDatetimeError(#[from] MobilepayDatetimeError),
     #[error("Transaction verification required")]
     TransactionVerificationRequired,
-}
-
-impl SigningError {
-    pub fn to_transaction_verification_if_required(self) -> Self {
-        match &self {
-            SigningError::SpendRuleCheckFailed(errors) => {
-                if errors.is_transaction_verification_required() {
-                    SigningError::TransactionVerificationRequired
-                } else {
-                    self
-                }
-            }
-            _ => self,
-        }
-    }
+    #[error(transparent)]
+    TransactionVerification(#[from] TransactionVerificationError),
 }
 
 impl From<SigningError> for ApiError {
@@ -90,6 +78,7 @@ impl From<SigningError> for ApiError {
                     ApiError::GenericBadRequest(err_msg)
                 }
             }
+            SigningError::TransactionVerification(_) => ApiError::GenericBadRequest(err_msg),
             _ => ApiError::GenericInternalApplicationError(err_msg),
         }
     }

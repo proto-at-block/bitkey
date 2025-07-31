@@ -4,6 +4,9 @@ name = "firmware-ffi"
 publish = { workspace = true }
 version = { workspace = true }
 
+[lints]
+workspace = true
+
 [lib]
 crate-type = ["cdylib", "lib", "staticlib"]
 name = "firmware"

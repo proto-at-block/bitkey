@@ -15,6 +15,8 @@ use crypto::p256_box::P256Box;
 use rustyline::error::ReadlineError;
 use rustyline::{Config, Editor};
 
+use crate::commands::debug::utils::get_item_dynamo;
+
 use super::completion::DebugCompleter;
 use super::state::{DebugState, MGet, ToM, ToS};
 use super::utils::{create_spinner, format_items_yaml, get_table_name, query_dynamo};
@@ -238,21 +240,8 @@ async fn handle_load_descriptors(args: &[&str], state: &mut DebugState) -> Resul
             ));
 
             let ddb = aws_sdk_dynamodb::Client::new(ear_config);
-            let items = query_dynamo(
-                &ddb,
-                &table_name,
-                attachment_id,
-                None,
-                "partition_key = :partition_key",
-                None,
-                None,
-                None,
-            )
-            .await?;
-
-            let item = items
-                .into_iter()
-                .next()
+            let item = get_item_dynamo(&ddb, &table_name, attachment_id, None)
+                .await?
                 .ok_or_else(|| anyhow!("No encrypted attachment found for ID {}", attachment_id))?;
 
             let kms_key_id = item.m_get("kms_key_id")?.to_s()?;

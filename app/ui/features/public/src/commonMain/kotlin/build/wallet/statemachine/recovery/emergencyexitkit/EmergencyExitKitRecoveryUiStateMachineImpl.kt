@@ -22,6 +22,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.platform.permissions.PermissionUiProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachine
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineImpl.State.*
@@ -182,7 +183,8 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
             },
             onCancel = { state = currentState.onBack(props) },
             screenPresentationStyle = ScreenPresentationStyle.Root,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP
+            eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP,
+            hardwareVerification = NotRequired // EEK recovery happens without an active account
           )
         )
       }

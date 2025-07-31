@@ -107,7 +107,7 @@ mod tests {
             kms_key_id: "test-kms-key-id".to_string(),
             private_key_ciphertext: "encrypted-private-key".as_bytes().to_vec(),
             public_key: "public-key-data".as_bytes().to_vec(),
-            sealed_attachment: Some("sealed-attachment-data".as_bytes().to_vec()),
+            sealed_attachment: Some("sealed-attachment-data".to_string()),
             created_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
             updated_at: OffsetDateTime::from_unix_timestamp(1672531200).unwrap(),
         }

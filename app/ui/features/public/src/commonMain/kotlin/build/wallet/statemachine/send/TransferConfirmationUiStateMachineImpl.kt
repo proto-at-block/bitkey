@@ -160,7 +160,8 @@ class TransferConfirmationUiStateMachineImpl(
           onSignError = {
             uiState =
               ReceivedServerSigningErrorUiState(
-                state.appSignedPsbt
+                state.appSignedPsbt,
+                state.grant
               )
           }
         )
@@ -253,7 +254,8 @@ class TransferConfirmationUiStateMachineImpl(
           onContinue = {
             uiState =
               SigningWithHardwareUiState(
-                appSignedPsbt = state.appSignedPsbt
+                appSignedPsbt = state.appSignedPsbt,
+                grant = state.grant
               )
           }
         ).asModalScreen()
@@ -296,11 +298,13 @@ class TransferConfirmationUiStateMachineImpl(
             uiState =
               if (requiredSigner == F8e && spendingLimit != null) {
                 SigningWithServerUiState(
-                  appSignedPsbt = state.appSignedPsbt
+                  appSignedPsbt = state.appSignedPsbt,
+                  grant = state.grant
                 )
               } else {
                 SigningWithHardwareUiState(
-                  appSignedPsbt = state.appSignedPsbt
+                  appSignedPsbt = state.appSignedPsbt,
+                  grant = state.grant
                 )
               }
           },
@@ -495,7 +499,8 @@ class TransferConfirmationUiStateMachineImpl(
     LaunchedEffect("signing-with-server") {
       mobilePayService
         .signPsbtWithMobilePay(
-          psbt = state.appSignedPsbt
+          psbt = state.appSignedPsbt,
+          grant = state.grant
         )
         .onSuccess { appAndServerSignedPsbt ->
           logDebug { "Successfully signed psbt with server: $appAndServerSignedPsbt" }
@@ -709,6 +714,7 @@ private sealed interface TransferConfirmationUiState {
    */
   data class SigningWithHardwareUiState(
     val appSignedPsbt: Psbt,
+    val grant: TxVerificationApproval?,
   ) : TransferConfirmationUiState
 
   /**
@@ -718,6 +724,7 @@ private sealed interface TransferConfirmationUiState {
    */
   data class SigningWithServerUiState(
     val appSignedPsbt: Psbt,
+    val grant: TxVerificationApproval?,
   ) : TransferConfirmationUiState
 
   /**
@@ -747,6 +754,7 @@ private sealed interface TransferConfirmationUiState {
      */
     data class ReceivedServerSigningErrorUiState(
       val appSignedPsbt: Psbt,
+      val grant: TxVerificationApproval?,
     ) : ErrorUiState
   }
 }

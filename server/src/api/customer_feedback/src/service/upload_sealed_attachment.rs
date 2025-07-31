@@ -15,7 +15,7 @@ impl Service {
         &self,
         id: &EncryptedAttachmentId,
         account_id: &AccountId,
-        sealed_attachment: Vec<u8>,
+        sealed_attachment: String,
     ) -> Result<EncryptedAttachment, CustomerFeedbackServiceError> {
         let mut encrypted_attachment = self.encrypted_attachment_repo.fetch_by_id(id).await?;
 
