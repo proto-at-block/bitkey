@@ -1,0 +1,63 @@
+-- Migration to fix multiple active keysets issue
+-- Only the newest keyset (by server ID ULID) should be active per account
+-- This affects spendingKeysetEntity, appKeyBundleEntity, and hwKeyBundleEntity
+
+-- First, mark all keysets and key bundles as inactive
+UPDATE spendingKeysetEntity SET isActive = 0;
+UPDATE appKeyBundleEntity SET isActive = 0;
+UPDATE hwKeyBundleEntity SET isActive = 0;
+
+-- Mark the spending keyset as active for the newest keybox per account
+-- Find keyboxes with the newest keyset (by server ID ULID) for each account
+UPDATE spendingKeysetEntity 
+SET isActive = 1 
+WHERE keyboxId IN (
+  SELECT kb.id
+  FROM keyboxEntity kb
+  INNER JOIN spendingKeysetEntity sk ON sk.keyboxId = kb.id
+  INNER JOIN (
+    SELECT 
+      kb2.accountId,
+      MAX(sk2.serverId) AS maxServerId
+    FROM spendingKeysetEntity sk2
+    INNER JOIN keyboxEntity kb2 ON sk2.keyboxId = kb2.id
+    GROUP BY kb2.accountId
+  ) newest ON kb.accountId = newest.accountId AND sk.serverId = newest.maxServerId
+);
+
+-- Mark the app key bundle as active for the newest keybox per account
+UPDATE appKeyBundleEntity 
+SET isActive = 1 
+WHERE keyboxId IN (
+  SELECT kb.id
+  FROM keyboxEntity kb
+  INNER JOIN spendingKeysetEntity sk ON sk.keyboxId = kb.id
+  INNER JOIN (
+    SELECT 
+      kb2.accountId,
+      MAX(sk2.serverId) AS maxServerId
+    FROM spendingKeysetEntity sk2
+    INNER JOIN keyboxEntity kb2 ON sk2.keyboxId = kb2.id
+    GROUP BY kb2.accountId
+  ) newest ON kb.accountId = newest.accountId AND sk.serverId = newest.maxServerId
+);
+
+-- Mark the hardware key bundle as active for the newest keybox per account
+UPDATE hwKeyBundleEntity 
+SET isActive = 1 
+WHERE keyboxId IN (
+  SELECT kb.id
+  FROM keyboxEntity kb
+  INNER JOIN spendingKeysetEntity sk ON sk.keyboxId = kb.id
+  INNER JOIN (
+    SELECT 
+      kb2.accountId,
+      MAX(sk2.serverId) AS maxServerId
+    FROM spendingKeysetEntity sk2
+    INNER JOIN keyboxEntity kb2 ON sk2.keyboxId = kb2.id
+    GROUP BY kb2.accountId
+  ) newest ON kb.accountId = newest.accountId AND sk.serverId = newest.maxServerId
+);
+
+-- Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

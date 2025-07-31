@@ -13,5 +13,6 @@ inputs = {
     "web-site",
     "web-shop-api",
     "wsm-enclave",
+    "bitkey-reproducible-android-builder",
   ]
 }

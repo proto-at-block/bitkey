@@ -49,12 +49,7 @@ private suspend fun DbSpecDsl.migrateAndInstallFixtures(version: Long) {
         .onFailure { throw failure("SQLDelight Migration Failed: ${it.message}", it) }
 
       this::class.java.classLoader.getResource("fixtures/$targetVersion.sql")
-        ?.readText()
-        ?.let { text ->
-          text.lineSequence()
-            .filterNot { it.trim().startsWith("--") }
-            .joinToString("\n")
-        }
+        ?.readText()?.lineSequence()?.filterNot { it.trim().startsWith("--") }?.joinToString("\n")
         ?.split(';')
         ?.map { it.trim() }
         ?.filter { it.isNotBlank() }
@@ -136,6 +131,25 @@ suspend fun TestScope.usingDatabaseWithFixtures(version: Long, test: suspend DbS
     dsl.migrateAndInstallFixtures(version)
     withClue("Using Database w/Fixtures Version: <$version>") {
       test(dsl)
+    }
+  }
+}
+
+/**
+ * Migrate a database from its current version to the target version without installing fixtures.
+ * This allows you to control the data yourself.
+ */
+suspend fun DbSpecDsl.migrateDatabase(
+  toVersion: Long,
+  fromVersion: Long = 0,
+) {
+  // Run migrations from fromVersion to target version
+  if (fromVersion < toVersion) {
+    (fromVersion + 1..toVersion).forEach { version ->
+      withClue("Migration to database version <$version>") {
+        runCatching { BitkeyDatabase.Schema.migrate(driver, version - 1L, version).await() }
+          .onFailure { throw failure("SQLDelight Migration Failed: ${it.message}", it) }
+      }
     }
   }
 }

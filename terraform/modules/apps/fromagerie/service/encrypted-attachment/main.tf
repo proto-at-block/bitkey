@@ -13,15 +13,7 @@ data "aws_iam_policy_document" "cmk" {
     resources = ["*"]
     principals {
       type        = "AWS"
-      identifiers = ["*"]
-    }
-    condition {
-      test     = "ArnLike"
-      variable = "aws:PrincipalArn"
-      values = [
-        resource.aws_iam_role.encrypted_attachment_reader.arn,
-        "arn:aws:sts::${data.aws_caller_identity.this.account_id}:assumed-role/${resource.aws_iam_role.encrypted_attachment_reader.name}/*"
-      ]
+      identifiers = [resource.aws_iam_role.encrypted_attachment_reader.arn]
     }
     condition {
       test     = "Null"
@@ -36,25 +28,12 @@ data "aws_iam_policy_document" "cmk" {
     resources = ["*"]
     principals {
       type        = "AWS"
-      identifiers = ["*"]
-    }
-    condition {
-      test     = "ArnLike"
-      variable = "aws:PrincipalArn"
-      values = [
-        var.fromagerie_iam_role_arn,
-        "arn:aws:sts::${data.aws_caller_identity.this.account_id}:assumed-role/${var.fromagerie_iam_role_name}/*"
-      ]
+      identifiers = [var.fromagerie_iam_role_arn]
     }
     condition {
       test     = "Null"
       variable = "kms:EncryptionContext:encryptedAttachmentId"
       values   = ["false"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "kms:KeyPairSpec"
-      values   = ["ECC_NIST_P256"]
     }
   }
 

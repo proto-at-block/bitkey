@@ -386,6 +386,10 @@ class BitkeyDatabaseProviderImpl(
       pendingPrivilegedActionsEntityAdapter = PendingPrivilegedActionsEntity.Adapter(
         typeAdapter = EnumColumnAdapter(),
         strategyAdapter = EnumColumnAdapter()
+      ),
+      grantEntityAdapter = GrantEntity.Adapter(
+        actionAdapter = EnumColumnAdapter(),
+        createdAtAdapter = InstantAsIso8601ColumnAdapter
       )
     )
   }

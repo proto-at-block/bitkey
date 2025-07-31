@@ -13,6 +13,7 @@ inputs = {
     "web-site",
     "wsm-api",
     "wsm-enclave",
+    "bitkey-reproducible-android-builder",
   ]
   image_tag_mutability = "MUTABLE"
 }

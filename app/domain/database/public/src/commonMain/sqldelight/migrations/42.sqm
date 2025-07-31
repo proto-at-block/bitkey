@@ -1,0 +1,14 @@
+-- Migration to add grant persistence tables
+import build.wallet.grants.GrantAction;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE grantEntity(
+    action TEXT AS GrantAction NOT NULL PRIMARY KEY,
+    version INTEGER NOT NULL,
+    serializedRequest BLOB NOT NULL,
+    signature BLOB NOT NULL,
+    createdAt TEXT AS Instant NOT NULL
+);
+
+-- Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

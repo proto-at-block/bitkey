@@ -1,0 +1,23 @@
+import build.wallet.grants.GrantAction;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE grantEntity(
+    action TEXT AS GrantAction NOT NULL PRIMARY KEY,
+    version INTEGER NOT NULL,
+    serializedRequest BLOB NOT NULL,
+    signature BLOB NOT NULL,
+    createdAt TEXT AS Instant NOT NULL
+);
+
+-- Insert or replace a grant (overwrites if action already exists)
+insertGrant:
+INSERT OR REPLACE INTO grantEntity(action, version, serializedRequest, signature, createdAt)
+VALUES(?, ?, ?, ?, ?);
+
+-- Get grant by action type
+getGrantByAction:
+SELECT * FROM grantEntity WHERE action = ?;
+
+-- Delete grant by action type
+deleteGrantByAction:
+DELETE FROM grantEntity WHERE action = ?;
