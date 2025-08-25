@@ -1,6 +1,7 @@
 package bitkey.privilegedactions
 
 import build.wallet.db.DbError
+import build.wallet.db.DbQueryError
 import build.wallet.db.DbTransactionError
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
@@ -21,6 +22,7 @@ class GrantDaoFake(
     val grant: Grant,
     val action: GrantAction,
     val createdAt: Instant,
+    val delivered: Boolean = false,
   )
 
   private val grants = MutableStateFlow<Map<GrantAction, GrantRecord>>(emptyMap())
@@ -59,6 +61,22 @@ class GrantDaoFake(
 
   override fun grantByAction(action: GrantAction): Flow<Grant?> {
     return grants.map { grantsMap -> grantsMap[action]?.grant }
+  }
+
+  override suspend fun markAsDelivered(action: GrantAction): Result<Unit, DbError> {
+    val currentRecord = grants.value[action]
+    return currentRecord?.let { record ->
+      val updatedRecord = record.copy(delivered = true)
+      grants.value = grants.value + (action to updatedRecord)
+      Ok(Unit)
+    } ?: Err(DbQueryError(cause = null, message = "Grant not found for action: ${action.name}"))
+  }
+
+  override suspend fun getDeliveredStatus(action: GrantAction): Result<Boolean, DbError> {
+    val record = grants.value[action]
+    return record?.let {
+      Ok(it.delivered)
+    } ?: Err(DbQueryError(cause = null, message = "Grant not found for action: ${action.name}"))
   }
 
   fun reset() {

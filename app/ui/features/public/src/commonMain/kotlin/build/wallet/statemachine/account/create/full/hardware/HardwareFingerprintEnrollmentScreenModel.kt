@@ -27,6 +27,8 @@ fun HardwareFingerprintEnrollmentScreenModel(
   showingIncompleteEnrollmentError: Boolean,
   incompleteEnrollmentErrorOnPrimaryButtonClick: () -> Unit,
   onErrorOverlayClosed: () -> Unit,
+  troubleshootingSheetModel: SheetModel? = null,
+  troubleshootingButton: ButtonModel? = null,
   eventTrackerContext: EventTrackerContext,
   presentationStyle: ScreenPresentationStyle,
   isNavigatingBack: Boolean,
@@ -50,6 +52,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
           size = Footer,
           testTag = "save-fingerprint"
         ),
+      secondaryButton = troubleshootingButton,
       backgroundVideo = PairNewHardwareBodyModel.BackgroundVideo(
         content = BitkeyFingerprint,
         startingPosition = if (isNavigatingBack) END else START
@@ -64,25 +67,26 @@ fun HardwareFingerprintEnrollmentScreenModel(
     ),
   presentationStyle = presentationStyle,
   bottomSheetModel =
-    if (showingIncompleteEnrollmentError) {
-      SheetModel(
-        onClosed = onErrorOverlayClosed,
-        body =
-          ErrorFormBodyModel(
-            title = "Incomplete Fingerprint Scan",
-            subline = "Please continue scanning your fingerprint and try saving again.",
-            primaryButton =
-              ButtonDataModel(
-                text = "Got it",
-                onClick = incompleteEnrollmentErrorOnPrimaryButtonClick
-              ),
-            renderContext = Sheet,
-            eventTrackerScreenId = FINGERPRINT_ENROLLMENT_ERROR_SHEET,
-            eventTrackerContext = eventTrackerContext
-          )
-      )
-    } else {
-      null
+    when {
+      showingIncompleteEnrollmentError -> {
+        SheetModel(
+          onClosed = onErrorOverlayClosed,
+          body =
+            ErrorFormBodyModel(
+              title = "Incomplete Fingerprint Scan",
+              subline = "Please continue scanning your fingerprint and try saving again.",
+              primaryButton =
+                ButtonDataModel(
+                  text = "Got it",
+                  onClick = incompleteEnrollmentErrorOnPrimaryButtonClick
+                ),
+              renderContext = Sheet,
+              eventTrackerScreenId = FINGERPRINT_ENROLLMENT_ERROR_SHEET,
+              eventTrackerContext = eventTrackerContext
+            )
+        )
+      }
+      else -> troubleshootingSheetModel
     },
   themePreference = ThemePreference.Manual(Theme.DARK)
 )

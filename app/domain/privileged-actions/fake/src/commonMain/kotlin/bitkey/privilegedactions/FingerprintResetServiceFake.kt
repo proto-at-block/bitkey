@@ -10,33 +10,27 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.db.DbError
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantRequest
-import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.days
 
 class FingerprintResetServiceFake(
-  override val privilegedActionF8eClient: FingerprintResetF8eClient = FingerprintResetF8eClientFake(
-    { throw IllegalStateException("Turbine factory not provided") },
-    clock = ClockFake()
-  ),
+  override val privilegedActionF8eClient: FingerprintResetF8eClient,
   override val accountService: AccountService = AccountServiceFake(),
   override val clock: Clock,
 ) : FingerprintResetService {
+  val markGrantAsDeliveredCalls = mutableListOf<Unit>()
+  val clearEnrolledFingerprintsCalls = mutableListOf<Unit>()
+  val deleteFingerprintResetGrantCalls = mutableListOf<Unit>()
   private val _fingerprintResetAction = MutableStateFlow<PrivilegedActionInstance?>(null)
   private val _pendingGrant = MutableStateFlow<Grant?>(null)
 
-  var createFingerprintResetPrivilegedActionResult: Result<PrivilegedActionInstance, PrivilegedActionError> =
-    Ok(
-      createDefaultPrivilegedActionInstance()
-    )
   var completeFingerprintResetAndGetGrantResult: Result<Grant, PrivilegedActionError> = Ok(
     Grant(
       version = 1,
@@ -44,32 +38,28 @@ class FingerprintResetServiceFake(
       signature = byteArrayOf(5, 6, 7, 8)
     )
   )
-  var cancelFingerprintResetResult: Result<Unit, PrivilegedActionError> = Ok(Unit)
   var getLatestFingerprintResetActionResult: Result<PrivilegedActionInstance?, PrivilegedActionError> =
     Ok(null)
 
-  val createFingerprintResetPrivilegedActionCalls = mutableListOf<GrantRequest>()
-  val completeFingerprintResetAndGetGrantCalls = mutableListOf<Pair<String, String>>()
-  val cancelFingerprintResetCalls = mutableListOf<String>()
-  val getLatestFingerprintResetActionCalls = mutableListOf<Unit>()
+  var isGrantDelivered: Boolean = false
+  var markGrantAsDeliveredResult: Result<Unit, DbError> = Ok(Unit)
+  var clearEnrolledFingerprintsResult: Result<Unit, Error> = Ok(Unit)
+  var deleteFingerprintResetGrantResult: Result<Unit, DbError> = Ok(Unit)
 
-  override fun fingerprintResetAction(): StateFlow<PrivilegedActionInstance?> =
-    _fingerprintResetAction
+  override val fingerprintResetAction = _fingerprintResetAction
 
   override suspend fun createFingerprintResetPrivilegedAction(
     grantRequest: GrantRequest,
   ): Result<PrivilegedActionInstance, PrivilegedActionError> {
-    createFingerprintResetPrivilegedActionCalls.add(grantRequest)
-    return createFingerprintResetPrivilegedActionResult.also { result ->
-      result.onSuccess { _fingerprintResetAction.value = it }
-    }
+    val result = Ok(createDefaultPrivilegedActionInstance())
+    result.onSuccess { _fingerprintResetAction.value = it }
+    return result
   }
 
   override suspend fun completeFingerprintResetAndGetGrant(
     actionId: String,
     completionToken: String,
   ): Result<Grant, PrivilegedActionError> {
-    completeFingerprintResetAndGetGrantCalls.add(actionId to completionToken)
     return completeFingerprintResetAndGetGrantResult.also { result ->
       result.onSuccess { grant ->
         _fingerprintResetAction.value = null
@@ -81,17 +71,12 @@ class FingerprintResetServiceFake(
   override suspend fun cancelFingerprintReset(
     cancellationToken: String,
   ): Result<Unit, PrivilegedActionError> {
-    cancelFingerprintResetCalls.add(cancellationToken)
-    return cancelFingerprintResetResult.also { result ->
-      result.onSuccess {
-        _fingerprintResetAction.value = null
-        _pendingGrant.value = null
-      }
-    }
+    _fingerprintResetAction.value = null
+    _pendingGrant.value = null
+    return Ok(Unit)
   }
 
   override suspend fun getLatestFingerprintResetAction(): Result<PrivilegedActionInstance?, PrivilegedActionError> {
-    getLatestFingerprintResetActionCalls.add(Unit)
     return getLatestFingerprintResetActionResult.also { result ->
       result.onSuccess { _fingerprintResetAction.value = it }
     }
@@ -131,7 +116,6 @@ class FingerprintResetServiceFake(
     _pendingGrant.value = null
     getLatestFingerprintResetActionResult = Ok(null)
 
-    createFingerprintResetPrivilegedActionResult = Ok(createDefaultPrivilegedActionInstance())
     completeFingerprintResetAndGetGrantResult = Ok(
       Grant(
         version = 1,
@@ -139,12 +123,15 @@ class FingerprintResetServiceFake(
         signature = byteArrayOf(5, 6, 7, 8)
       )
     )
-    cancelFingerprintResetResult = Ok(Unit)
 
-    createFingerprintResetPrivilegedActionCalls.clear()
-    completeFingerprintResetAndGetGrantCalls.clear()
-    cancelFingerprintResetCalls.clear()
-    getLatestFingerprintResetActionCalls.clear()
+    isGrantDelivered = false
+    markGrantAsDeliveredResult = Ok(Unit)
+    clearEnrolledFingerprintsResult = Ok(Unit)
+    deleteFingerprintResetGrantResult = Ok(Unit)
+
+    markGrantAsDeliveredCalls.clear()
+    clearEnrolledFingerprintsCalls.clear()
+    deleteFingerprintResetGrantCalls.clear()
   }
 
   private fun createDefaultPrivilegedActionInstance(): PrivilegedActionInstance {
@@ -166,8 +153,9 @@ class FingerprintResetServiceFake(
   }
 
   override suspend fun deleteFingerprintResetGrant(): Result<Unit, DbError> {
+    deleteFingerprintResetGrantCalls.add(Unit)
     _pendingGrant.value = null
-    return Ok(Unit)
+    return deleteFingerprintResetGrantResult
   }
 
   override fun pendingFingerprintResetGrant(): Flow<Grant?> = _pendingGrant
@@ -193,5 +181,20 @@ class FingerprintResetServiceFake(
           }
         }
       }
+  }
+
+  override suspend fun isGrantDelivered(): Boolean {
+    return isGrantDelivered
+  }
+
+  override suspend fun markGrantAsDelivered(): Result<Unit, DbError> {
+    isGrantDelivered = true
+    markGrantAsDeliveredCalls.add(Unit)
+    return markGrantAsDeliveredResult
+  }
+
+  override suspend fun clearEnrolledFingerprints(): Result<Unit, Error> {
+    clearEnrolledFingerprintsCalls.add(Unit)
+    return clearEnrolledFingerprintsResult
   }
 }

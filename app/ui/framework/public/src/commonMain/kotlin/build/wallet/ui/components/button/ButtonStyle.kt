@@ -56,7 +56,7 @@ fun WalletTheme.buttonStyle(
     buttonTextStyle(
       type =
         when (treatment) {
-          Tertiary, TertiaryNoUnderline -> LabelType.Label2
+          Tertiary, TertiaryNoUnderline, TertiaryNoUnderlineWhite -> LabelType.Label2
           else -> LabelType.Label1
         },
       underline =
@@ -68,7 +68,8 @@ fun WalletTheme.buttonStyle(
   val isTextButton =
     treatment == TertiaryDestructive ||
       treatment == Tertiary ||
-      treatment == TertiaryNoUnderline
+      treatment == TertiaryNoUnderline ||
+      treatment == TertiaryNoUnderlineWhite
   return ButtonStyle(
     textStyle = textStyle,
     shape = RoundedCornerShape(cornerRadius),
@@ -134,6 +135,9 @@ private fun textColor(treatment: ButtonModel.Treatment): Color {
     TertiaryNoUnderline,
     -> colors.foreground
 
+    TertiaryNoUnderlineWhite,
+    -> colors.primaryForeground
+
     TertiaryDestructive -> colors.destructiveForeground
     Translucent, Translucent10 -> colors.translucentForeground
     Grayscale20 -> colors.surfaceCorian
@@ -163,6 +167,9 @@ private fun iconColor(treatment: ButtonModel.Treatment): Color {
     TertiaryNoUnderline,
     -> colors.primaryIcon
 
+    TertiaryNoUnderlineWhite,
+    -> colors.primaryIconForeground
+
     TertiaryDestructive -> colors.destructive
     Translucent, Translucent10 -> colors.translucentForeground
     Grayscale20 -> colors.surfaceCorian
@@ -191,6 +198,7 @@ private fun ButtonModel.Treatment.normalBackgroundColor() =
     TertiaryDestructive,
     Tertiary,
     TertiaryNoUnderline,
+    TertiaryNoUnderlineWhite,
     TertiaryPrimary,
     TertiaryPrimaryNoUnderline,
     -> Color.Transparent
@@ -219,6 +227,7 @@ private fun ButtonModel.Treatment.disabledBackgroundColor() =
     TertiaryDestructive,
     Tertiary,
     TertiaryNoUnderline,
+    TertiaryNoUnderlineWhite,
     TertiaryPrimary,
     TertiaryPrimaryNoUnderline,
     ->

@@ -1,9 +1,11 @@
 package build.wallet.support
 
 import bitkey.account.AccountConfigService
+import build.wallet.account.AccountService
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.analytics.v1.OSType
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -17,14 +19,19 @@ import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.LogLevel
 import build.wallet.logging.dev.LogStore
 import com.github.michaelbull.result.*
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okio.Buffer
 
 @BitkeyInject(AppScope::class)
 class SupportTicketRepositoryImpl(
   private val supportTicketF8eClient: SupportTicketF8eClient,
+  private val encryptedDescriptorAttachmentCryptoService:
+    EncryptedDescriptorAttachmentCryptoService,
+  private val accountService: AccountService,
   private val logStore: LogStore,
   private val appInstallationDao: AppInstallationDao,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
@@ -38,75 +45,89 @@ class SupportTicketRepositoryImpl(
     data: SupportTicketData,
   ): Result<Unit, Error> {
     return withContext(Dispatchers.IO) {
-      val logAttachments = logAttachmentsIfEnabled(data)
+      coroutineBinding {
+        val logAttachments = logAttachmentsIfEnabled(data)
 
-      val attachmentUploadResults =
-        uploadAttachments(
-          accountId = accountId,
-          attachments = data.attachments + logAttachments
-        )
+        val attachmentUploadResults =
+          uploadAttachments(
+            accountId = accountId,
+            attachments = data.attachments + logAttachments
+          )
 
-      val subject =
-        form[SupportTicketField.KnownFieldType.Subject]?.let {
-          data[it] ?: "[ERROR] Empty subject - validation failed."
-        } ?: "[ERROR] Subject field not found!"
-      val description =
-        form[SupportTicketField.KnownFieldType.Description]?.let {
-          data[it] ?: "[ERROR] Empty description - validation failed."
-        } ?: "[ERROR] Description field not found!"
+        val subject =
+          form[SupportTicketField.KnownFieldType.Subject]?.let {
+            data[it] ?: "[ERROR] Empty subject - validation failed."
+          } ?: "[ERROR] Subject field not found!"
+        val description =
+          form[SupportTicketField.KnownFieldType.Description]?.let {
+            data[it] ?: "[ERROR] Empty description - validation failed."
+          } ?: "[ERROR] Description field not found!"
 
-      // For privacy, we want to only include fields that were visible when the user submitted the form
-      val visibleFieldsData =
-        data.asRawValueMap()
-          .filterKeys { form.conditions.evaluate(it, data) is ConditionEvaluationResult.Visible }
+        // For privacy, we want to only include fields that were visible when the user submitted the form
+        val visibleFieldsData =
+          data.asRawValueMap()
+            .filterKeys { form.conditions.evaluate(it, data) is ConditionEvaluationResult.Visible }
 
-      val ticket =
-        CreateTicketDTO(
-          email = data.email.value,
-          formId = form.id,
-          subject = subject,
-          description = description,
-          customFieldValues =
-            visibleFieldsData
-              .mapKeys { (field, _) -> field.id }
-              .mapValues { (_, rawValue) ->
-                when (rawValue) {
-                  is SupportTicketField.RawValue.Bool -> TicketFormFieldDTO.Value.Bool(rawValue.value)
-                  is SupportTicketField.RawValue.Text -> TicketFormFieldDTO.Value.Text(rawValue.value)
-                  is SupportTicketField.RawValue.MultiChoice ->
-                    TicketFormFieldDTO.Value.MultiChoice(
-                      rawValue.values
+        val ticket =
+          CreateTicketDTO(
+            email = data.email.value,
+            formId = form.id,
+            subject = subject,
+            description = description,
+            customFieldValues =
+              visibleFieldsData
+                .mapKeys { (field, _) -> field.id }
+                .mapValues { (_, rawValue) ->
+                  when (rawValue) {
+                    is SupportTicketField.RawValue.Bool -> TicketFormFieldDTO.Value.Bool(rawValue.value)
+                    is SupportTicketField.RawValue.Text -> TicketFormFieldDTO.Value.Text(rawValue.value)
+                    is SupportTicketField.RawValue.MultiChoice ->
+                      TicketFormFieldDTO.Value.MultiChoice(
+                        rawValue.values
+                      )
+                  }
+                },
+            attachments =
+              attachmentUploadResults.map { (attachment, result) ->
+                result.mapBoth(
+                  success = { CreateTicketDTO.AttachmentUploadResultDTO.Success(it) },
+                  failure = {
+                    CreateTicketDTO.AttachmentUploadResultDTO.Failure(
+                      filename = attachment.name,
+                      mimeType = attachment.mimeType.name,
+                      error = it.toString()
                     )
-                }
+                  }
+                )
               },
-          attachments =
-            attachmentUploadResults.map { (attachment, result) ->
-              result.mapBoth(
-                success = { CreateTicketDTO.AttachmentUploadResultDTO.Success(it) },
-                failure = {
-                  CreateTicketDTO.AttachmentUploadResultDTO.Failure(
-                    filename = attachment.name,
-                    mimeType = attachment.mimeType.name,
-                    error = it.toString()
-                  )
-                }
-              )
-            },
-          debugData =
-            if (data.sendDebugData) {
-              getDebugData()
-            } else {
-              null
-            }
-        )
+            debugData =
+              if (data.sendDebugData) {
+                getDebugData()
+              } else {
+                null
+              }
+          )
 
-      val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
-      supportTicketF8eClient
-        .createTicket(
-          f8eEnvironment = f8eEnvironment,
+        // If the user requested to send an encrypted descriptor, we encrypt it and upload it as an attachment
+        val attachmentId = if (data.sendEncryptedDescriptor) {
+          val account = accountService.activeAccount().first() as? FullAccount
+          account?.keybox?.keysets?.let { keysets ->
+            encryptedDescriptorAttachmentCryptoService
+              .encryptAndUploadDescriptor(
+                accountId,
+                keysets
+              ).bind()
+          }
+        } else {
+          null
+        }
+
+        supportTicketF8eClient.createTicket(
+          f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment,
           accountId = accountId,
-          ticket = ticket
-        )
+          ticket = ticket.copy(debugData = ticket.debugData?.copy(descriptorEncryptedAttachmentId = attachmentId))
+        ).bind()
+      }
     }
   }
 
@@ -261,7 +282,9 @@ class SupportTicketRepositoryImpl(
     }
   }
 
-  private fun logAttachmentsIfEnabled(data: SupportTicketData): List<SupportTicketAttachment> {
+  private suspend fun logAttachmentsIfEnabled(
+    data: SupportTicketData,
+  ): List<SupportTicketAttachment> {
     return if (data.sendDebugData) {
       listOf(
         SupportTicketAttachment.Logs(

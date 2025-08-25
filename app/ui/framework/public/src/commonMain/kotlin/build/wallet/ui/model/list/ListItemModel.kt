@@ -53,6 +53,7 @@ enum class ListItemTreatment {
   PRIMARY_TITLE,
   SECONDARY_DISPLAY,
   QUATERNARY,
+  INFO,
 }
 
 enum class ListItemTitleBackgroundTreatment {

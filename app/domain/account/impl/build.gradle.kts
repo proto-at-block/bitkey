@@ -12,8 +12,8 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.platformPublic)
-        api(projects.domain.databasePublic)
+        implementation(projects.libs.platformPublic)
+        implementation(projects.domain.databasePublic)
         implementation(projects.libs.loggingPublic)
       }
     }

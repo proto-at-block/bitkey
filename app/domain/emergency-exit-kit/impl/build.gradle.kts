@@ -26,10 +26,10 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(libs.kmp.wire.runtime)
-        api(projects.domain.accountPublic)
-        api(projects.domain.walletPublic)
-        api(projects.libs.timePublic)
+        implementation(libs.kmp.wire.runtime)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.domain.walletPublic)
+        implementation(projects.libs.timePublic)
         implementation(projects.libs.cloudStorePublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
@@ -75,7 +75,7 @@ kotlin {
 
     val jvmTest by getting {
       dependencies {
-        api(projects.libs.platformFake)
+        implementation(projects.libs.platformFake)
         implementation(projects.libs.platformImpl)
       }
     }

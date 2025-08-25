@@ -11,7 +11,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(libs.kmp.okio)
+        implementation(libs.kmp.okio)
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
       }

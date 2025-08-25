@@ -11,12 +11,13 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.inheritancePublic)
-        api(projects.domain.notificationsPublic)
-        api(projects.domain.metricsPublic)
-        api(projects.libs.queueProcessorPublic)
-        api(projects.domain.recoveryPublic)
-        api(projects.domain.relationshipsPublic)
+        implementation(projects.domain.inheritancePublic)
+        implementation(projects.domain.notificationsPublic)
+        implementation(projects.domain.metricsPublic)
+        implementation(projects.libs.queueProcessorPublic)
+        implementation(projects.domain.privilegedActionsPublic)
+        implementation(projects.domain.recoveryPublic)
+        implementation(projects.domain.relationshipsPublic)
 
         implementation(projects.libs.loggingPublic)
         implementation(projects.domain.securityCenterPublic)

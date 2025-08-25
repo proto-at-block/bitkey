@@ -17,39 +17,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // MARK: - Internal Properties
 
-    let appContext: AppContext
+    let appVariant = AppVariant.current()
+    var appContext: AppContext!
+    var appContextInitializationTask: Task<Void, Never>!
 
-    var window: UIWindow?
+    lazy var window: UIWindow? = UIWindow(frame: UIScreen.main.bounds)
 
     // MARK: - Life Cycle
 
     override init() {
         // Initialize crash reporters first.
-        let appVariant = AppVariant.current()
         initializeBugsnag(appVariant: appVariant)
         initializeDatadog(appVariant: appVariant)
 
-        window = UIWindow(frame: UIScreen.main.bounds)
-        self.appContext = AppContext(appVariant: appVariant, window: window!)
-        appContext.appComponent.loggerInitializer.initialize()
-
-        appContext.appComponent.bugsnagContext.configureCommonMetadata()
-
         super.init()
-
-        // W-8924: Exclude Library/Application Support directory from iCloud backups. Otherwise, if
-        // a user performs an iCloud restore on a new phone, the app will think it is onboarded but
-        // will be missing the necessary keychain keys, resulting in a crash on boot. This is
-        // considered best-effort, both for our code and per Apple's documentation on
-        // isExcludedFromBackup.
-        do {
-            var url = URL(fileURLWithPath: appContext.appComponent.fileDirectoryProvider.appDir())
-            var resourceValues = URLResourceValues()
-            resourceValues.isExcludedFromBackup = true
-            try url.setResourceValues(resourceValues)
-        } catch {
-            log(.error, error: error) { "Failed to exclude appDir from iCloud backup." }
-        }
     }
 
     // MARK: - UIApplicationDelegate
@@ -58,25 +39,51 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        window?.rootViewController = appContext.activityComponent.composeAppUIController
-            .viewController
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        self.window = window
 
-        window?.makeKeyAndVisible()
+        appContextInitializationTask = Task.detached { [weak self] in
+            guard let appVariant = await self?.appVariant else { return }
 
-        appContext.sharingManager.mainWindow = window
+            let context = AppContext(appVariant: appVariant, window: window)
+            context.appComponent.loggerInitializer.initialize()
+            context.appComponent.bugsnagContext.configureCommonMetadata()
 
-        UNUserNotificationCenter.current().delegate = appContext.notificationManager
-        appContext.notificationManager.delegate = self
+            // W-8924: Exclude Library/Application Support directory from iCloud backups. Otherwise, if
+            // a user performs an iCloud restore on a new phone, the app will think it is onboarded
+            // but
+            // will be missing the necessary keychain keys, resulting in a crash on boot. This is
+            // considered best-effort, both for our code and per Apple's documentation on
+            // isExcludedFromBackup.
+            do {
+                var url = URL(fileURLWithPath: context.appComponent.fileDirectoryProvider.appDir())
+                var resourceValues = URLResourceValues()
+                resourceValues.isExcludedFromBackup = true
+                try url.setResourceValues(resourceValues)
+            } catch {
+                log(.error, error: error) { "Failed to exclude appDir from iCloud backup." }
+            }
 
-        // We have videos in our app which, even though they don't have audio, means when they play
-        // they
-        // take over audio control from other apps. This prevents that.
-        try? AVAudioSession.sharedInstance().setCategory(
-            .playback,
-            mode: .default,
-            options: [.mixWithOthers]
-        )
+            UNUserNotificationCenter.current().delegate = context.notificationManager
+            context.notificationManager.delegate = self
 
+            await MainActor.run { [weak self] in
+                self?.appContext = context
+                context.sharingManager.mainWindow = window
+                window.rootViewController = context.activityComponent.composeAppUIController
+                    .viewController
+                window.makeKeyAndVisible()
+
+                // We have videos in our app which, even though they don't have audio, means when
+                // they play
+                // they take over audio control from other apps. This prevents that.
+                try? AVAudioSession.sharedInstance().setCategory(
+                    .playback,
+                    mode: .default,
+                    options: [.mixWithOthers]
+                )
+            }
+        }
         return true
     }
 
@@ -98,22 +105,29 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Notify the session manager that we are now in the foreground.
-        // This is to refresh the session ID if a certain amount of time has passed in the
-        // background.
-        appContext.appComponent.appSessionManager.appDidEnterForeground()
+        Task {
+            await appContextInitializationTask.value
+            guard let appContext else { return }
+            // Notify the session manager that we are now in the foreground.
+            // This is to refresh the session ID if a certain amount of time has passed in the
+            // background.
+            appContext.appComponent.appSessionManager.appDidEnterForeground()
 
-        // Notify the notification manager that we are now in the foreground so it can perform
-        // relevant tasks.
-        appContext.notificationManager.applicationDidEnterForeground(application)
+            // Notify the notification manager that we are now in the foreground so it can perform
+            // relevant tasks.
+            appContext.notificationManager.applicationDidEnterForeground(application)
+        }
     }
 
     func applicationWillResignActive(_: UIApplication) {
-        if !appContext.appComponent.biometricPrompter.isPrompting,
-           !appContext.activityComponent.nfcTransactor
-           .isTransacting
-        {
-            appContext.appComponent.appSessionManager.appDidEnterBackground()
+        Task {
+            await appContextInitializationTask.value
+            guard let appContext else { return }
+            if !appContext.appComponent.biometricPrompter.isPrompting,
+               !appContext.activityComponent.nfcTransactor.isTransacting
+            {
+                appContext.appComponent.appSessionManager.appDidEnterBackground()
+            }
         }
     }
 

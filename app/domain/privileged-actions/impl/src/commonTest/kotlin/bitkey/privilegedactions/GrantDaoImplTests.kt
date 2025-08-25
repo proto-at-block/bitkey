@@ -1,10 +1,12 @@
 package bitkey.privilegedactions
 
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.db.DbError
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantTestHelpers
 import build.wallet.sqldelight.inMemorySqlDriver
+import build.wallet.testing.shouldBeErrOfType
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -117,5 +119,51 @@ class GrantDaoImplTests : FunSpec({
 
     // Delete nonexistent grant (should succeed without error)
     dao.deleteGrantByAction(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(Unit))
+  }
+
+  test("mark grant as delivered") {
+    dao.saveGrant(grant1).shouldBe(Ok(Unit))
+
+    dao.getDeliveredStatus(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(false))
+
+    dao.markAsDelivered(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(Unit))
+
+    dao.getDeliveredStatus(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(true))
+  }
+
+  test("delivered status for nonexistent grant") {
+    dao.getDeliveredStatus(GrantAction.FINGERPRINT_RESET).shouldBeErrOfType<DbError>()
+
+    dao.markAsDelivered(GrantAction.FINGERPRINT_RESET).shouldBeErrOfType<DbError>()
+  }
+
+  test("multiple grants delivered status tracking") {
+    dao.saveGrant(grant1).shouldBe(Ok(Unit))
+    dao.saveGrant(grant2).shouldBe(Ok(Unit))
+
+    dao.getDeliveredStatus(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(false))
+    dao.getDeliveredStatus(GrantAction.TRANSACTION_VERIFICATION).shouldBe(Ok(false))
+
+    dao.markAsDelivered(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(Unit))
+
+    dao.getDeliveredStatus(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(true))
+    dao.getDeliveredStatus(GrantAction.TRANSACTION_VERIFICATION).shouldBe(Ok(false))
+  }
+
+  test("grant replacement resets delivered status to false") {
+    dao.saveGrant(grant1).shouldBe(Ok(Unit))
+    dao.markAsDelivered(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(Unit))
+    dao.getDeliveredStatus(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(true))
+
+    val replacementGrant = Grant(
+      version = 3,
+      serializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.FINGERPRINT_RESET),
+      signature = ByteArray(64) { (it + 150).toByte() }
+    )
+    dao.saveGrant(replacementGrant).shouldBe(Ok(Unit))
+
+    dao.getDeliveredStatus(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(false))
+
+    dao.getGrantByAction(GrantAction.FINGERPRINT_RESET).shouldBe(Ok(replacementGrant))
   }
 })

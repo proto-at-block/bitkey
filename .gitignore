@@ -51,3 +51,4 @@ node_modules
 
 # CLI tool DB file
 cli/wallet.db/*
+/CLAUDE.local.md

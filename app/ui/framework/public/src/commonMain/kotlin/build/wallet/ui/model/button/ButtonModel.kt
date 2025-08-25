@@ -44,6 +44,9 @@ data class ButtonModel(
     // Styled with no background and black text with no underline
     TertiaryNoUnderline,
 
+    // Styled with no background and white text with no underline (for dark backgrounds)
+    TertiaryNoUnderlineWhite,
+
     // Styled with no background and green text with an underline
     TertiaryPrimary,
 
@@ -80,6 +83,7 @@ data class ButtonModel(
           TertiaryPrimary,
           TertiaryPrimaryNoUnderline,
           TertiaryNoUnderline,
+          TertiaryNoUnderlineWhite,
           TertiaryDestructive,
           ->
             IconSize.XSmall

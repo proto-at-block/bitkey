@@ -64,37 +64,29 @@ class TransactionsActivityServiceImpl(
       syncInactiveWallets().bind()
     }.logFailure { "Error syncing transactions activity. " }
 
-  override suspend fun syncActiveAndInactiveWallets(): Result<Unit, Error> =
-    coroutineBinding {
-      bitcoinWalletService.sync().bind()
-      partnershipTransactionsService.syncPendingTransactions().bind()
-
-      val transactions = mockScenarioService.currentTransactionScenario()?.let { _ ->
-        mockScenarioService.generateTransactions()
-      } ?: loadActiveAndInactiveWalletTransactions()
-
-      activeAndInactiveWalletTransactionsCache.value = transactions
-    }.logFailure { "Error syncing transactions activity with inactive wallets. " }
-
   override suspend fun executeWork() {
     val expectedTransactionsEnabledFlow = expectedTransactionsPhase2FeatureFlag.flagValue()
     val bitcoinTransactionsFlow = bitcoinWalletService.transactionsData().map {
       it?.transactions.orEmpty()
     }
+    val allBitcoinTransactionsFlow = getAllBitcoinTransactionsFlow()
     val partnershipsTransactionsFlow = partnershipTransactionsService.transactions
       .map { transactions -> transactions.filter { it.status != null } }
 
     combine(
       expectedTransactionsEnabledFlow,
       bitcoinTransactionsFlow,
+      allBitcoinTransactionsFlow,
       partnershipsTransactionsFlow,
       mockScenarioService.currentTransactionScenarioFlow()
-    ) { expectedTransactionsEnabled, bitcoinTransactions, expectedTransactions, transactionScenario ->
-      transactionScenario?.let { _ ->
-        return@combine mockScenarioService.generateTransactions()
+    ) { expectedTransactionsEnabled, bitcoinTransactions, allBitcoinTransactions, expectedTransactions, transactionScenario ->
+      if (transactionScenario != null) {
+        val mockTransactions = mockScenarioService.generateTransactions()
+        activeAndInactiveWalletTransactionsCache.value = mockTransactions
+        return@combine mockTransactions
       }
 
-      if (expectedTransactionsEnabled.value) {
+      val activeTransactions = if (expectedTransactionsEnabled.value) {
         mergeAndSortTransactions(
           partnershipTransactions = expectedTransactions,
           bitcoinTransactions = bitcoinTransactions
@@ -102,6 +94,18 @@ class TransactionsActivityServiceImpl(
       } else {
         bitcoinTransactions.map { BitcoinWalletTransaction(details = it) }
       }
+
+      val activeAndInactiveTransactions = if (expectedTransactionsEnabled.value) {
+        mergeAndSortTransactions(
+          partnershipTransactions = expectedTransactions,
+          bitcoinTransactions = allBitcoinTransactions
+        )
+      } else {
+        allBitcoinTransactions.map { BitcoinWalletTransaction(details = it) }
+      }
+
+      activeAndInactiveWalletTransactionsCache.value = activeAndInactiveTransactions
+      activeTransactions
     }.collect(transactionsCache)
   }
 
@@ -151,23 +155,6 @@ class TransactionsActivityServiceImpl(
       }
 
       emit(transactions)
-    }
-  }
-
-  private suspend fun loadActiveAndInactiveWalletTransactions(): List<Transaction>? {
-    val expectedTransactionsEnabled = expectedTransactionsPhase2FeatureFlag.flagValue().first()
-    val bitcoinTransactions = getAllBitcoinTransactionsFlow().first()
-    val expectedTransactions = partnershipTransactionsService.transactions
-      .map { transactions -> transactions.filter { it.status != null } }
-      .first()
-
-    return if (expectedTransactionsEnabled.value) {
-      mergeAndSortTransactions(
-        partnershipTransactions = expectedTransactions,
-        bitcoinTransactions = bitcoinTransactions
-      )
-    } else {
-      bitcoinTransactions.map { BitcoinWalletTransaction(details = it) }
     }
   }
 

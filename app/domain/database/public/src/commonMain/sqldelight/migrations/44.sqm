@@ -1,0 +1,7 @@
+import kotlin.Boolean;
+
+-- add delivered boolean column to grantEntity
+ALTER TABLE grantEntity ADD COLUMN delivered INTEGER AS Boolean NOT NULL DEFAULT 0;
+
+-- Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

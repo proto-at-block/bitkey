@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "BitkeyLogoMark.svg",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

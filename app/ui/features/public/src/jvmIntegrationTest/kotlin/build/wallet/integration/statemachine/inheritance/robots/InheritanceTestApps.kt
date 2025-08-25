@@ -1,8 +1,7 @@
 package build.wallet.integration.statemachine.inheritance.robots
 
 import app.cash.turbine.ReceiveTurbine
-import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
+import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.cloud.store.CloudStoreAccountFake
@@ -18,21 +17,19 @@ import build.wallet.statemachine.inheritance.ManagingInheritanceBodyModel
 import build.wallet.statemachine.inheritance.ManagingInheritanceTab
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.recovery.socrec.add.SaveContactBodyModel
-import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringBenefactorNameBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.robots.advanceUntilScreenWithBody
+import build.wallet.statemachine.ui.robots.clickRecoveryContacts
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
-import io.kotest.matchers.types.shouldBeTypeOf
 
 /**
  * Test Applications initialized with an inheritance relationship.
@@ -150,21 +147,11 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
   inviteCode: String,
   protectedCustomerAlias: String,
 ) {
-  awaitUntilBody<MoneyHomeBodyModel>(MoneyHomeEventTrackerScreenId.MONEY_HOME) {
-    trailingToolbarAccessoryModel
-      .shouldNotBeNull()
-      .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
-      .model
-      .onClick()
-  }
+  awaitUntilBody<MoneyHomeBodyModel>()
+    .onSecurityHubTabClick()
 
-  awaitUntilBody<SettingsBodyModel>(SettingsEventTrackerScreenId.SETTINGS) {
-    sectionModels
-      .flatMap { it.rowModels }
-      .firstOrNull { it.title == "Recovery Contacts" }
-      .shouldNotBeNull()
-      .onClick()
-  }
+  awaitUntilBody<SecurityHubBodyModel>()
+    .clickRecoveryContacts()
 
   awaitUntilBody<FormBodyModel> {
     header?.headline.shouldBe("Recovery Contacts")

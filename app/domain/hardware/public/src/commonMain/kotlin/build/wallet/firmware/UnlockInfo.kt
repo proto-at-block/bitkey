@@ -1,5 +1,7 @@
 package build.wallet.firmware
 
+import build.wallet.firmware.EnrolledFingerprints.Companion.FIRST_FINGERPRINT_INDEX
+
 enum class UnlockMethod {
   UNSPECIFIED,
 
@@ -27,7 +29,7 @@ data class UnlockInfo(
     val ONBOARDING_DEFAULT = listOf(
       UnlockInfo(
         unlockMethod = UnlockMethod.BIOMETRICS,
-        fingerprintIdx = 0
+        fingerprintIdx = FIRST_FINGERPRINT_INDEX
       )
     )
   }

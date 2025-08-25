@@ -1,0 +1,201 @@
+---
+description: Choosing between fakes and mocks for test doubles
+globs: ["**/*Fake*.kt", "**/*Mock*.kt", "**/fake/**"]
+alwaysApply: true
+---
+
+# Testing: Fakes vs Mocks
+
+## Summary
+
+**Always prefer fakes over mocks.** Fakes provide realistic behavior leading to reliable, maintainable tests. Mocks are an anti-pattern - use them only when interaction verification is absolutely necessary (< 5% of cases).
+
+## When to Apply
+
+- Creating any test double
+- Deciding between fake vs mock implementation
+- Setting up test dependencies
+
+## How to Apply
+
+### Fakes (Use 95% of Time)
+
+**Why fakes are superior:**
+- Realistic behavior simulates actual functionality
+- State-based verification tests outcomes, not implementation
+- Tests remain stable when internals change
+- Better integration testing
+
+**Implementation pattern:**
+```kotlin
+class SpendingLimitDaoFake : SpendingLimitDao {
+  private var activeLimit: SpendingLimit? = null
+  private val limits = mutableMapOf<LimitId, SpendingLimit>()
+  
+  override suspend fun getActiveLimit(): Result<SpendingLimit?, Error> =
+    Ok(activeLimit)
+  
+  override suspend fun setActiveLimit(limit: SpendingLimit): Result<Unit, Error> {
+    activeLimit = limit
+    limits[limit.id] = limit
+    return Ok(Unit)
+  }
+  
+  fun reset() {
+    activeLimit = null
+    limits.clear()
+  }
+  
+  // Test helpers
+  fun getAllLimits() = limits.values.toList()
+}
+```
+
+**Usage in tests:**
+```kotlin
+test("activates spending limit when set") {
+  val dao = SpendingLimitDaoFake()
+  val service = SpendingLimitService(dao)
+  
+  val limit = SpendingLimit(amount = BitcoinMoney.btc(0.1))
+  service.activateLimit(limit)
+  
+  // Verify through state
+  dao.getActiveLimit().shouldBeOk(limit)
+}
+```
+
+### Mocks (Use < 5% of Time)
+
+**Only use mocks when:**
+- Interaction verification is the primary test goal
+- Testing audit logging or metrics recording
+- Verifying specific method call sequences
+
+**Critical: Never use `.test {}` with mock calls:**
+```kotlin
+// ❌ WRONG - Don't use .test{} for mock verification
+mockService.someMethodCalls.test {
+  awaitItem()  // NON-DETERMINISTIC
+}
+
+// ✅ CORRECT - Use direct awaitItem()
+mockService.someMethodCalls.awaitItem()
+```
+
+**Mock implementation pattern:**
+```kotlin
+class EventTrackerMock(
+  turbine: (name: String) -> Turbine<TrackedAction>
+) : EventTracker {
+  // Track calls with turbine
+  val eventCalls = turbine("event calls")
+  
+  override fun track(
+    action: Action,
+    context: EventTrackerContext?
+  ) {
+    eventCalls += TrackedAction(action, context)
+  }
+}
+
+// Usage in tests:
+class ServiceTests : FunSpec({
+  // Define mocks at spec level - auto cleanup
+  val eventTracker = EventTrackerMock(turbines::create)
+  val service = ServiceImpl(eventTracker)
+  
+  test("tracks event") {
+    service.performAction()
+    
+    // Direct awaitItem for mock verification
+    eventTracker.eventCalls
+      .awaitItem()
+      .action.shouldBe(Action.ACTION_COMPLETED)
+  }
+})
+```
+
+### Decision Framework
+
+```kotlin
+// Need to test data persistence? → FAKE
+val dao = AccountDaoFake()
+
+// Need to test business logic? → FAKE  
+val service = PaymentServiceFake()
+
+// Need to verify audit logging was called? → MOCK
+val auditMock = AuditServiceMock(turbines::create)
+
+// Need to test network retry behavior? → FAKE
+val client = F8eClientFake()
+```
+
+### Anti-Patterns to Avoid
+
+```kotlin
+// ❌ BAD: Fakes should never use turbine
+class BadFake(
+  turbine: (String) -> Turbine<Any>  // DON'T DO THIS IN FAKES
+) : Service
+
+// ❌ BAD: Using mock when fake would work
+val daoMock = DaoMock()  // Just use DaoFake
+
+// ❌ BAD: expect* methods are racy
+mockService.calls.expectNoEvents()  // Non-deterministic
+
+// ✅ GOOD: awaitNoEvents with timeout (use sparingly)
+mockService.calls.awaitNoEvents(100.milliseconds)
+```
+
+## Example
+
+```kotlin
+class MobilePayServiceImplTests : FunSpec({
+  // All test doubles defined at spec level
+  val limitDao = SpendingLimitDaoFake()
+  val f8eClient = MobilePayF8eClientFake()
+  val eventTracker = EventTrackerMock(turbines::create)
+  
+  val service = MobilePayServiceImpl(
+    dao = limitDao,
+    client = f8eClient,
+    eventTracker = eventTracker
+  )
+  
+  beforeTest {
+    limitDao.reset()
+    f8eClient.reset()
+    // Note: turbines auto-reset between tests
+  }
+  
+  test("enables mobile pay and tracks event") {
+    val limit = SpendingLimit(BitcoinMoney.btc(0.1))
+    
+    val result = service.enableMobilePay(limit)
+    
+    // Verify behavior through fakes
+    result.shouldBeOk()
+    limitDao.getActiveLimit().shouldBeOk(limit)
+    f8eClient.getLastSyncedLimit().shouldBe(limit)
+    
+    // Verify event tracking (mock)
+    eventTracker.eventCalls
+      .awaitItem()
+      .action.shouldBe(ACTION_APP_MOBILE_TRANSACTIONS_ENABLED)
+  }
+})
+```
+
+## Module Placement
+
+Both fakes and mocks go in `:fake` modules:
+- `:domain:mobile-pay:fake` - SpendingLimitDaoFake, AuditServiceMock
+- `:domain:auth:fake` - AuthTokenDaoFake, AuthF8eClientFake
+
+## Related Rules
+
+- @ai-rules/testing-basics.mdc (core testing patterns)
+- @ai-rules/testing-coroutines.mdc (turbine usage)

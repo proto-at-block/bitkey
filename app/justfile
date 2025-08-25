@@ -17,7 +17,7 @@ submodules:
 
 # Run Gradle profiler to measure build times
 gradle-profiler:
- gradle-profiler --benchmark --scenario-file gradle/profiler.scenarios --gradle-version $(bin/hermit info gradle | awk '/^Root/ { print $2 }')
+ gradle-profiler --benchmark --scenario-file gradle/benchmarks/profiler.scenarios --gradle-version $(bin/hermit info gradle | awk '/^Root/ { print $2 }')
 
 # Create git tag and branch for Team App release
 create-team-branch version-number:
@@ -95,7 +95,7 @@ ios-snapshots-verify:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
   echo "⚠️⚠️⚠️ Please be aware than verifying snapshots locally may result in flakey failures ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.3.1'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.5'
 
 # Record and update baseline UI snapshots for iOS
 ios-snapshots-record:
@@ -104,27 +104,27 @@ ios-snapshots-record:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=true
   echo "⚠️⚠️⚠️ Only for use for local development, DO NOT COMMIT LOCALLY GENERATED SNAPSHOTS ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.3.1'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.5'
 
 [private]
 ios-snapshot-prework:
   #!/bin/bash
   just install-xcode-clt
   # Check for the specific iOS simulator runtime
-  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-18-3' && echo true || echo false)
+  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-18-5' && echo true || echo false)
   if [ "$runtime" == "false" ]; then
-    echo "You must install the iOS 18.3 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the iOS 18.5 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
   # Check for the specific simulator device
-  devices=$(xcrun simctl list devices | awk '/-- iOS 18.3 --/{flag=1;next}/--/{flag=0}flag')
+  devices=$(xcrun simctl list devices | awk '/-- iOS 18.5 --/{flag=1;next}/--/{flag=0}flag')
   device=$(echo "$devices" | grep -E 'iPhone 16 Pro Max \(.*\)' && echo true || echo false)
   if [ "$device" == "false" ]; then
-    echo "You must install the iPhone 16 Pro Max simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the iPhone 16 Pro Max 18.5 simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
   # Generate Swift Snapshot test cases before generating xcode project
-  {{gradle}} :ui:features:kspKotlinIosSimulatorArm64 --rerun
+  {{gradle}} :ui:features-public:kspKotlinIosSimulatorArm64 --rerun
   just xcodegen
 
 # Configure and onboard local environment:

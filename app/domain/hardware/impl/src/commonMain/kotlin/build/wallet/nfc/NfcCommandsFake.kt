@@ -15,6 +15,7 @@ import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.SignatureUtils
 import build.wallet.encrypt.signResult
 import build.wallet.firmware.*
+import build.wallet.firmware.EnrolledFingerprints.Companion.FIRST_FINGERPRINT_INDEX
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareFeatureFlagCfg
@@ -53,7 +54,7 @@ class NfcCommandsFake(
     diagnostics = null
   )
   private var enrolledFingerprints =
-    EnrolledFingerprints(fingerprintHandles = listOf(FingerprintHandle(index = 0, label = "")))
+    EnrolledFingerprints(fingerprintHandles = listOf(FingerprintHandle(index = FIRST_FINGERPRINT_INDEX, label = "")))
 
   override suspend fun fwupStart(
     session: NfcSession,

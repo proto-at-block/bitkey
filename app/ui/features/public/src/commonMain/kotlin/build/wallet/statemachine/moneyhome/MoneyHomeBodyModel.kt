@@ -44,7 +44,7 @@ data class MoneyHomeBodyModel(
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = EventTrackerScreenInfo(
     eventTrackerScreenId = MoneyHomeEventTrackerScreenId.MONEY_HOME
   ),
-  val onSecurityHubTabClick: (() -> Unit)? = null,
+  val onSecurityHubTabClick: (() -> Unit),
   val isSecurityHubBadged: Boolean = false,
 ) : BodyModel(), BaseMoneyHomeBodyModel {
   @Composable

@@ -19,8 +19,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2025.15.0
-        PROJECT_BUNDLE_VERSION: 3
+        PROJECT_BUNDLE_SHORT_VERSION: 2025.16.0
+        PROJECT_BUNDLE_VERSION: 6
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -203,6 +203,10 @@ targets:
       - name: WalletSnapshotTests
         parallelizable: true
         randomExecutionOrder: true
+      - name: WalletUITests
+        parallelizable: false
+        randomExecutionOrder: false
+        skipped: true
   WalletUnitTests:
     platform: iOS
     type: bundle.unit-test
@@ -213,6 +217,10 @@ targets:
       path: Wallet/Tests/Info.plist
     dependencies:
     - target: Wallet
+    settings:
+      configs:
+        Debug:
+          DEVELOPMENT_TEAM: EYF346PHUG
     scheme:
       testTargets:
         - WalletUnitTests
@@ -229,12 +237,34 @@ targets:
     - target: Wallet
     - package: swift-snapshot-testing
       product: SnapshotTesting
+    settings:
+      configs:
+        Debug:
+          DEVELOPMENT_TEAM: EYF346PHUG
     scheme:
       testTargets:
         - WalletSnapshotTests
       gatherCoverageData: true
       commandLineArguments:
         -is-recording ${SNAPSHOT_TESTS_RECORD}: true
+  WalletUITests:
+    platform: iOS
+    type: bundle.ui-testing
+    sources:
+    - Wallet/Tests/UITests
+    info:
+      path: Wallet/Tests/Info.plist
+    dependencies:
+    - target: Wallet
+    settings:
+      configs:
+        Debug:
+          DEVELOPMENT_TEAM: EYF346PHUG
+          PRODUCT_BUNDLE_IDENTIFIER: world.bitkey.dev.uitests
+    scheme:
+      testTargets:
+        - WalletUITests
+      gatherCoverageData: true
 settings:
   base:
     IPHONEOS_DEPLOYMENT_TARGET: 15.2

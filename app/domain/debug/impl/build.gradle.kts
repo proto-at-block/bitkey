@@ -13,15 +13,15 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.databasePublic)
-        api(projects.domain.inAppSecurityPublic)
-        api(projects.domain.inheritancePublic)
-        api(projects.domain.metricsPublic)
-        api(projects.domain.relationshipsPublic)
-        api(projects.domain.notificationsPublic)
-        api(projects.domain.walletPublic)
-        api(projects.libs.platformPublic)
-        api(projects.domain.securityCenterPublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.domain.inAppSecurityPublic)
+        implementation(projects.domain.inheritancePublic)
+        implementation(projects.domain.metricsPublic)
+        implementation(projects.domain.relationshipsPublic)
+        implementation(projects.domain.notificationsPublic)
+        implementation(projects.domain.walletPublic)
+        implementation(projects.libs.platformPublic)
+        implementation(projects.domain.securityCenterPublic)
       }
     }
 

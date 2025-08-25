@@ -11,10 +11,10 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.accountPublic)
-        api(projects.domain.databasePublic)
-        api(projects.domain.debugPublic)
-        api(projects.domain.f8eClientPublic)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.domain.debugPublic)
+        implementation(projects.domain.f8eClientPublic)
         // TODO: break impl dependency.
         implementation(projects.domain.f8eClientImpl)
       }

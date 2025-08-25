@@ -7,11 +7,7 @@ import build.wallet.availability.InactiveApp
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.money.currency.USD
-import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.partnerships.*
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.platform.links.DeepLinkHandler
@@ -52,7 +48,6 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.datetime.Instant
 
 class HomeUiStateMachineImplTests : FunSpec({
-
   val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
   val appFunctionalityService = AppFunctionalityServiceFake()
   val expectedTransactionNoticeUiStateMachine = object : ExpectedTransactionNoticeUiStateMachine,
@@ -72,7 +67,6 @@ class HomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
   val partnershipsTransactionsService = PartnershipTransactionsServiceMock(
     clearCalls = turbines.create("clear calls"),
@@ -83,7 +77,6 @@ class HomeUiStateMachineImplTests : FunSpec({
     getCalls = turbines.create("get transaction by id calls")
   )
   val appScope = TestScope()
-  val securityHubFeatureFlag = SecurityHubFeatureFlag(FeatureFlagDaoFake())
 
   val stateMachine =
     HomeUiStateMachineImpl(
@@ -146,7 +139,6 @@ class HomeUiStateMachineImplTests : FunSpec({
     cloudBackupHealthRepository.reset()
     Router.reset()
     partnershipsTransactionsService.reset()
-    securityHubFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
   }
 
   suspend fun awaitSyncLoopCall() {
@@ -225,7 +217,8 @@ class HomeUiStateMachineImplTests : FunSpec({
         )
       }
 
-      partnershipsTransactionsService.getCalls.awaitItem().shouldBe(PartnershipTransactionId("01J91MGSEQ5JA0Q456ZQBN61D4"))
+      partnershipsTransactionsService.getCalls.awaitItem()
+        .shouldBe(PartnershipTransactionId("01J91MGSEQ5JA0Q456ZQBN61D4"))
     }
   }
 
@@ -262,7 +255,8 @@ class HomeUiStateMachineImplTests : FunSpec({
       }
 
       inAppBrowserNavigator.onCloseCalls.awaitItem()
-      partnershipsTransactionsService.getCalls.awaitItem().shouldBe(PartnershipTransactionId("not-found-id"))
+      partnershipsTransactionsService.getCalls.awaitItem()
+        .shouldBe(PartnershipTransactionId("not-found-id"))
     }
   }
 

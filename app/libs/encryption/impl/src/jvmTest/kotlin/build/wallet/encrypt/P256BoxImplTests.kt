@@ -23,14 +23,13 @@ class P256BoxImplTests : FunSpec({
     val plaintext = "Hello, world!".encodeUtf8()
     val sealedData = p256Box.encrypt(
       bobKeyPair.publicKey,
-      aliceKeyPair.privateKey,
+      aliceKeyPair,
       nonce,
       plaintext
     )
 
     // Bob decrypts
     val decrypted = p256Box.decrypt(
-      aliceKeyPair.publicKey,
       bobKeyPair.privateKey,
       sealedData
     )
@@ -46,14 +45,13 @@ class P256BoxImplTests : FunSpec({
     val plaintext = ByteString.EMPTY
     val sealedData = p256Box.encrypt(
       bobKeyPair.publicKey,
-      aliceKeyPair.privateKey,
+      aliceKeyPair,
       nonce,
       plaintext
     )
 
     // Bob decrypts
     val decrypted = p256Box.decrypt(
-      aliceKeyPair.publicKey,
       bobKeyPair.privateKey,
       sealedData
     )
@@ -69,7 +67,7 @@ class P256BoxImplTests : FunSpec({
     val plaintext = "Hello, world!".encodeUtf8()
     val sealedData = p256Box.encrypt(
       bobKeyPair.publicKey,
-      aliceKeyPair.privateKey,
+      aliceKeyPair,
       nonce,
       plaintext
     )
@@ -85,7 +83,7 @@ class P256BoxImplTests : FunSpec({
 
     // Bob attempts to decrypt
     shouldThrow<P256BoxException> {
-      p256Box.decrypt(aliceKeyPair.publicKey, bobKeyPair.privateKey, modifiedSealedData)
+      p256Box.decrypt(bobKeyPair.privateKey, modifiedSealedData)
     }
   }
 
@@ -113,7 +111,7 @@ class P256BoxImplTests : FunSpec({
     val plaintext = "Hello, world!".encodeUtf8()
     val sealedData = p256Box.encrypt(
       bobKeyPair.publicKey,
-      aliceKeyPair.privateKey,
+      aliceKeyPair,
       nonce,
       plaintext
     )
@@ -121,7 +119,7 @@ class P256BoxImplTests : FunSpec({
     // Bob attempts to decrypt the sealed data with the wrong key
     val charlieKeyPair = p256Box.generateKeyPair()
     shouldThrow<P256BoxException> {
-      p256Box.decrypt(aliceKeyPair.publicKey, charlieKeyPair.privateKey, sealedData)
+      p256Box.decrypt(charlieKeyPair.privateKey, sealedData)
     }
   }
 })

@@ -58,6 +58,16 @@ buildCache {
   }
 }
 
+/**
+ * Transforms hierarchical module paths into unique Gradle project names while preserving directory structure.
+ * 
+ * Example: module(":domain:wallet:impl") creates:
+ * - Gradle project: ":domain:wallet-impl" (unique name for artifacts)
+ * - Directory: /domain/wallet/impl/ (original structure preserved)
+ * 
+ * This solves Gradle's limitation where modules with same names (e.g., multiple ":impl" modules)
+ * would conflict during artifact generation and Maven publishing.
+ */
 fun module(name: String) {
   val nameParts = name.split(":").filter { it.isNotBlank() }
   val projectName =

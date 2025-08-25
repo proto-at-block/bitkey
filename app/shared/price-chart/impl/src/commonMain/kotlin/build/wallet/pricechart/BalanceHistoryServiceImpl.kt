@@ -39,9 +39,6 @@ class BalanceHistoryServiceImpl(
 ) : BalanceHistoryService {
   override fun observe(range: ChartRange): Flow<Result<List<BalanceAt>, Error>> {
     return flow {
-      // Ensure we have comprehensive transaction data including inactive wallets
-      transactionsActivityService.syncActiveAndInactiveWallets()
-
       // Get confirmed transactions from active and inactive keysets
       val confirmedTxs = loadConfirmedTransactions()
 
@@ -225,10 +222,13 @@ class BalanceHistoryServiceImpl(
     return alignedRates
   }
 
-  private suspend fun loadConfirmedTransactions(): List<BitcoinTransaction> =
-    transactionsActivityService.activeAndInactiveWalletTransactions.first()
-      ?.mapNotNull { (it as? Transaction.BitcoinWalletTransaction)?.details }
+  private suspend fun loadConfirmedTransactions(): List<BitcoinTransaction> {
+    val transactions = transactionsActivityService.activeAndInactiveWalletTransactions
+      .first { it != null }
+
+    return transactions?.mapNotNull { (it as? Transaction.BitcoinWalletTransaction)?.details }
       ?.filter { it.confirmationStatus is Confirmed }
       ?.sortedBy { it.confirmationTime() }
       ?: emptyList()
+  }
 }

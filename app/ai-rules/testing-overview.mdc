@@ -1,0 +1,116 @@
+---
+description: Testing entry point and index for the Bitkey mobile app
+globs: ["**/*Tests.kt", "**/src/commonTest/**", "**/src/jvmTest/**", "**/src/androidUnitTest/**", "**/src/iosTest/**", "**/src/jvmIntegrationTest/**"]
+alwaysApply: true
+---
+
+# Testing Overview
+
+## Summary
+
+Entry point for all testing guidelines in the Bitkey mobile app. Tests should be behavioral, isolated, and written once to run everywhere via KMP. Strongly prefer fakes over mocks for realistic behavior and maintainable tests.
+
+## Testing Philosophy
+
+**Core Principles:**
+- **Write once, run everywhere**: Use `commonTest` whenever possible
+- **Behavioral focus**: Test what components do, not how
+- **Fakes over mocks**: Always prefer realistic behavior (95% fakes, 5% mocks)
+- **Complete isolation**: Each test runs in a hermetic environment
+- **Clear natural language**: Test names describe behavior as sentences
+- **Turbines for async verification**: Use `turbines::create` for deterministic mock tracking
+
+## Quick Reference
+
+| Component | Primary Rule | Supporting Rules |
+|-----------|-------------|------------------|
+| **Services** | @ai-rules/testing-services.mdc | testing-basics, testing-coroutines |
+| **State Machines** | @ai-rules/testing-state-machines.mdc | testing-basics, testing-coroutines |
+| **DAOs** | See DAO implementation tests | testing-basics |
+| **F8e Clients** | Use fakes in `:fake` modules | testing-basics, testing-fakes-mocks |
+| **Async/Flows** | @ai-rules/testing-coroutines.mdc | testing-basics |
+| **Integration** | @ai-rules/testing-integration.mdc | All testing rules |
+
+## Testing Rules Structure
+
+### Foundation
+**@ai-rules/testing-basics.mdc** - Core patterns every test should follow
+- Test naming and organization
+- Platform strategy (commonTest preference)
+- Assertion styles
+- Test isolation patterns
+
+### Test Doubles
+**@ai-rules/testing-fakes-mocks.mdc** - Choosing between fakes and mocks
+- When to use fakes (95% of cases)
+- When mocks are necessary (5% of cases)
+- Implementation patterns for both
+
+### Async Testing
+**@ai-rules/testing-coroutines.mdc** - Testing async operations
+- Turbine for Flow testing
+- Suspend function patterns
+- Deterministic async verification
+
+### Component Testing
+**@ai-rules/testing-services.mdc** - Domain service testing patterns
+**@ai-rules/testing-state-machines.mdc** - UI State Machine testing
+
+### Integration Testing
+**@ai-rules/testing-integration.mdc** - End-to-end testing with AppTester
+
+## Getting Started
+
+```kotlin
+// Example: Testing a Service
+class MobilePayServiceImplTests : FunSpec({
+  // 1. Use fakes for dependencies
+  val spendingLimitDao = SpendingLimitDaoFake()
+  val f8eClient = MobilePayF8eClientFake()
+  
+  val service = MobilePayServiceImpl(
+    dao = spendingLimitDao,
+    client = f8eClient
+  )
+  
+  // 2. Reset state before each test
+  beforeTest {
+    spendingLimitDao.reset()
+    f8eClient.reset()
+  }
+  
+  // 3. Name tests as behavior descriptions
+  test("enables mobile pay when valid limit is provided") {
+    // Explicit setup
+    val limit = SpendingLimit(amount = BitcoinMoney.btc(0.1))
+    
+    // Execute behavior
+    val result = service.enableMobilePay(limit)
+    
+    // Verify outcome
+    result.shouldBeOk()
+    spendingLimitDao.getActiveLimit().shouldBe(limit)
+  }
+  
+  test("returns error when f8e rejects limit") {
+    f8eClient.setShouldFail(true)
+    
+    val result = service.enableMobilePay(SpendingLimitMock)
+    
+    result.shouldBeErr()
+    result.error.shouldBeTypeOf<MobilePayError.ServerRejected>()
+  }
+})
+```
+
+## Testing Modules
+
+**Core:** `:libs:testing:public` - shouldBeOk, shouldBeErr extensions
+**Specialized:** `:libs:sqldelight:testing`, `:libs:state-machine:testing`, `:ui:features:testing`
+**Integration:** `:shared:integration-testing:public` - AppTester framework
+
+## Related Rules
+
+- @ai-rules/domain-service-pattern.mdc (service architecture)
+- @ai-rules/ui-state-machines.mdc (state machine architecture)
+- @ai-rules/module-structure.mdc (test module placement)

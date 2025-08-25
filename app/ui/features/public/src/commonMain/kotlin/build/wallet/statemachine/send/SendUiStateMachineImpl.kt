@@ -120,7 +120,9 @@ class SendUiStateMachineImpl(
               onEnterAddressClick = {
                 uiState = SelectingRecipientUiState(recipientAddress = null)
               },
-              onClose = props.onExit,
+              onClose = {
+                uiState = SelectingRecipientUiState(recipientAddress = null)
+              },
               onRecipientScanned = { address ->
                 uiState =
                   EnteringAmountUiState(

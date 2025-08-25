@@ -10,12 +10,12 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.privilegedActionsPublic)
-        api(projects.domain.f8eClientPublic)
-        api(projects.domain.walletPublic)
-        api(projects.domain.hardwarePublic)
-        api(projects.domain.featureFlagPublic)
-        api(projects.domain.databasePublic)
+        implementation(projects.domain.privilegedActionsPublic)
+        implementation(projects.domain.f8eClientPublic)
+        implementation(projects.domain.walletPublic)
+        implementation(projects.domain.hardwarePublic)
+        implementation(projects.domain.featureFlagPublic)
+        implementation(projects.domain.databasePublic)
       }
     }
 

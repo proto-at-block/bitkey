@@ -8,6 +8,8 @@ import build.wallet.email.Email
 interface SupportTicketData {
   val email: Email
   val sendDebugData: Boolean
+
+  val sendEncryptedDescriptor: Boolean
   val attachments: List<SupportTicketAttachment>
 
   val fields: Set<SupportTicketField<*>>
@@ -32,6 +34,7 @@ interface SupportTicketData {
   object Empty : SupportTicketData {
     override val email = Email("")
     override val sendDebugData: Boolean = true
+    override val sendEncryptedDescriptor: Boolean = false
     override val attachments: List<SupportTicketAttachment> = emptyList()
     override val fields: Set<SupportTicketField<*>> = emptySet()
 

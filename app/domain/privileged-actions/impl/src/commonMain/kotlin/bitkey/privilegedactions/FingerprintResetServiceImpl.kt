@@ -10,6 +10,7 @@ import bitkey.f8e.privilegedactions.ContinuePrivilegedActionRequest
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.f8e.privilegedactions.PrivilegedActionInstanceRef
 import bitkey.f8e.privilegedactions.PrivilegedActionType
+import bitkey.firmware.HardwareUnlockInfoService
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
 import build.wallet.bitkey.account.FullAccount
@@ -23,6 +24,9 @@ import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.logging.logError
 import build.wallet.logging.logInfo
+import build.wallet.worker.RetryStrategy
+import build.wallet.worker.RunStrategy
+import build.wallet.worker.TimeoutStrategy
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -35,12 +39,12 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Clock
 import okio.ByteString
 import okio.ByteString.Companion.decodeBase64
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.toByteString
+import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(AppScope::class)
 class FingerprintResetServiceImpl(
@@ -49,11 +53,20 @@ class FingerprintResetServiceImpl(
   override val clock: Clock,
   private val signatureUtils: SignatureUtils,
   private val grantDao: GrantDao,
-) : FingerprintResetService {
+  private val hardwareUnlockInfoService: HardwareUnlockInfoService,
+) : FingerprintResetService, FingerprintResetSyncWorker {
   private val fingerprintResetActionCache = MutableStateFlow<PrivilegedActionInstance?>(null)
 
-  override fun fingerprintResetAction(): StateFlow<PrivilegedActionInstance?> =
-    fingerprintResetActionCache
+  override val runStrategy: Set<RunStrategy> = setOf(RunStrategy.Startup())
+  override val timeout: TimeoutStrategy = TimeoutStrategy.Always(30.seconds)
+  override val retryStrategy: RetryStrategy = RetryStrategy.Always(retries = 1, delay = 1.seconds)
+
+  override suspend fun executeWork() {
+    // Sync the latest fingerprint reset status on app launch to avoid UI flashing. Best effort.
+    getLatestFingerprintResetAction()
+  }
+
+  override val fingerprintResetAction = fingerprintResetActionCache
 
   /**
    * Create a fingerprint reset privileged action using a GrantRequest
@@ -228,6 +241,19 @@ class FingerprintResetServiceImpl(
 
   override suspend fun deleteFingerprintResetGrant(): Result<Unit, DbError> {
     return grantDao.deleteGrantByAction(GrantAction.FINGERPRINT_RESET)
+  }
+
+  override suspend fun isGrantDelivered(): Boolean {
+    return grantDao.getDeliveredStatus(GrantAction.FINGERPRINT_RESET)
+      .get() ?: false
+  }
+
+  override suspend fun markGrantAsDelivered(): Result<Unit, DbError> {
+    return grantDao.markAsDelivered(GrantAction.FINGERPRINT_RESET)
+  }
+
+  override suspend fun clearEnrolledFingerprints(): Result<Unit, Error> {
+    return Ok(hardwareUnlockInfoService.clear())
   }
 
   override fun pendingFingerprintResetGrant(): Flow<Grant?> =

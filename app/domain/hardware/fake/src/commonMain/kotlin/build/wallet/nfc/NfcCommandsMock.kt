@@ -69,10 +69,16 @@ class NfcCommandsMock(
       enabled = true
     )
   )
+  private val defaultProvideGrantResult = true
+  private val defaultStartFingerprintEnrollmentResult = true
+  private val defaultDeleteFingerprintResult = true
 
   private var enrollmentResult = defaultEnrollmentResult
   private var enrolledFingerprints = defaultEnrolledFingerprints
   private var firmwareFeatureFlags = defaultFirmwareFeatureFlags
+  private var provideGrantResult = defaultProvideGrantResult
+  private var startFingerprintEnrollmentResult = defaultStartFingerprintEnrollmentResult
+  private var deleteFingerprintResult = defaultDeleteFingerprintResult
 
   private var keyIndex = 0
 
@@ -121,7 +127,7 @@ class NfcCommandsMock(
   override suspend fun deleteFingerprint(
     session: NfcSession,
     index: Int,
-  ): Boolean = true.also { deleteFingerprintCalls.add(index) }
+  ): Boolean = deleteFingerprintResult.also { deleteFingerprintCalls.add(index) }
 
   override suspend fun getEnrolledFingerprints(session: NfcSession) =
     enrolledFingerprints
@@ -190,7 +196,8 @@ class NfcCommandsMock(
   override suspend fun startFingerprintEnrollment(
     session: NfcSession,
     fingerprintHandle: FingerprintHandle,
-  ) = true.also { startFingerprintEnrollmentCalls.add(fingerprintHandle) }
+  ) =
+    startFingerprintEnrollmentResult.also { startFingerprintEnrollmentCalls.add(fingerprintHandle) }
 
   override suspend fun version(session: NfcSession): UShort = 1u
 
@@ -232,7 +239,7 @@ class NfcCommandsMock(
   override suspend fun provideGrant(
     session: NfcSession,
     grant: Grant,
-  ) = true.also { provideGrantCalls.add(grant) }
+  ) = provideGrantResult.also { provideGrantCalls.add(grant) }
 
   fun setEnrollmentStatus(enrollmentStatus: FingerprintEnrollmentStatus) {
     this.enrollmentResult.status = enrollmentStatus
@@ -246,10 +253,25 @@ class NfcCommandsMock(
     this.firmwareFeatureFlags = firmwareFeatureFlags
   }
 
+  fun setProvideGrantResult(result: Boolean) {
+    this.provideGrantResult = result
+  }
+
+  fun setStartFingerprintEnrollmentResult(result: Boolean) {
+    this.startFingerprintEnrollmentResult = result
+  }
+
+  fun setDeleteFingerprintResult(result: Boolean) {
+    this.deleteFingerprintResult = result
+  }
+
   fun reset() {
     enrollmentResult = defaultEnrollmentResult
     enrolledFingerprints = defaultEnrolledFingerprints
     firmwareFeatureFlags = defaultFirmwareFeatureFlags
+    provideGrantResult = defaultProvideGrantResult
+    startFingerprintEnrollmentResult = defaultStartFingerprintEnrollmentResult
+    deleteFingerprintResult = defaultDeleteFingerprintResult
   }
 }
 

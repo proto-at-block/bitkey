@@ -11,9 +11,9 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.databasePublic)
-        api(projects.libs.moneyPublic)
-        api(projects.shared.balanceUtilsImpl)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.libs.moneyPublic)
+        implementation(projects.shared.balanceUtilsImpl)
       }
     }
 

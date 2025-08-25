@@ -19,4 +19,6 @@ data class TicketDebugDataDTO(
   val hardwareSerialNumber: String,
   @SerialName("feature_flags")
   val featureFlags: Map<String, String>,
+  @SerialName("descriptor_encrypted_attachment_id")
+  val descriptorEncryptedAttachmentId: String? = null,
 )

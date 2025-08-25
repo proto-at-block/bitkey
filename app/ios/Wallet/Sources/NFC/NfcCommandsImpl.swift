@@ -328,12 +328,25 @@ public final class NfcCommandsImpl: NfcCommands {
         guard let grantPayloadBytes = grant.toBytes()?.toByteArray().asUInt8Array() else {
             fatalError("Failed to serialize Grant for device command")
         }
-        return try await .init(
-            bool: FingerprintResetFinalize(
-                grantPayload: grantPayloadBytes
+        do {
+            return try await .init(
+                bool: FingerprintResetFinalize(
+                    grantPayload: grantPayloadBytes
+                )
+                .transceive(session: session)
             )
-            .transceive(session: session)
-        )
+        } catch let error as NSError {
+            if error
+                .isKotlinNfcCommandError(containing: "command was unsuccessful: general error")
+            {
+                // grant probably already consumed, so we just return false instead
+                // TODO: W-11906 - improve grant delivery errors
+                return .init(bool: false)
+            } else {
+                // rethrow other command errors
+                throw error
+            }
+        }
     }
 }
 
@@ -463,5 +476,17 @@ private extension firmware.UnlockMethod {
 private extension firmware.FingerprintHandle {
     func toSharedFingerprintHandle() -> Shared.FingerprintHandle {
         return Shared.FingerprintHandle(index: Int32(self.index), label: self.label)
+    }
+}
+
+private extension NSError {
+    func isKotlinNfcCommandError(containing message: String) -> Bool {
+        guard domain == "KotlinException",
+              let kotlinException = userInfo["KotlinException"] as? NfcException.CommandError,
+              let errorMessage = kotlinException.message
+        else {
+            return false
+        }
+        return errorMessage.contains(message)
     }
 }

@@ -2,16 +2,7 @@ package build.wallet.ui.app.wallet.card
 
 import app.cash.paparazzi.DeviceConfig
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.ui.app.moneyhome.card.PreviewCloudBackupHealthCard
-import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeCardBuyOwnBitkey
-import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeCardDeviceUpdate
-import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeCardInvitationExpired
-import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeCardInvitationPending
-import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeCardReplacementPending
-import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeCardReplacementReady
-import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeCardWalletsProtecting
-import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeGettingStarted
-import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomePriceCard
+import build.wallet.ui.app.moneyhome.card.*
 import io.kotest.core.spec.style.FunSpec
 
 class MoneyHomeCardSnapshots : FunSpec({
@@ -59,12 +50,6 @@ class MoneyHomeCardSnapshots : FunSpec({
     }
   }
 
-  test("Money Home Card Device Update") {
-    paparazzi.snapshot {
-      PreviewMoneyHomeCardDeviceUpdate()
-    }
-  }
-
   test("Money Home Card Replacement Pending") {
     paparazzi.snapshot {
       PreviewMoneyHomeCardReplacementPending()
@@ -98,12 +83,6 @@ class MoneyHomeCardSnapshots : FunSpec({
   test("Money Home Card Expired Invitation") {
     paparazzi.snapshot {
       PreviewMoneyHomeCardInvitationExpired()
-    }
-  }
-
-  test("Cloud Backup Health Card") {
-    paparazzi.snapshot {
-      PreviewCloudBackupHealthCard()
     }
   }
 })

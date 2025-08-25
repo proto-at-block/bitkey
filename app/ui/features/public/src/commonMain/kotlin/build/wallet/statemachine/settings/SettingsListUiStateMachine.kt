@@ -30,8 +30,6 @@ data class SettingsListUiProps(
   sealed interface SettingsListRow {
     val onClick: () -> Unit
 
-    data class BitkeyDevice(override val onClick: () -> Unit) : SettingsListRow
-
     data class CustomElectrumServer(override val onClick: () -> Unit) : SettingsListRow
 
     data class AppearancePreference(override val onClick: () -> Unit) : SettingsListRow
@@ -42,19 +40,13 @@ data class SettingsListUiProps(
 
     data class NotificationPreferences(override val onClick: () -> Unit) : SettingsListRow
 
-    data class CriticalAlerts(override val onClick: () -> Unit) : SettingsListRow
-
     data class ContactUs(override val onClick: () -> Unit) : SettingsListRow
 
     data class TrustedContacts(override val onClick: () -> Unit) : SettingsListRow
 
-    data class CloudBackupHealth(override val onClick: () -> Unit) : SettingsListRow
-
     data class RotateAuthKey(override val onClick: () -> Unit) : SettingsListRow
 
     data class DebugMenu(override val onClick: () -> Unit) : SettingsListRow
-
-    data class Biometric(override val onClick: () -> Unit) : SettingsListRow
 
     data class UtxoConsolidation(override val onClick: () -> Unit) : SettingsListRow
 

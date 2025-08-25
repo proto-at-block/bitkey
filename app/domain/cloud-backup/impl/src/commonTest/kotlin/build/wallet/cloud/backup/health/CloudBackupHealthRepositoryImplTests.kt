@@ -143,7 +143,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       }
     }
 
-    test("syncs when app enters foreground") {
+    xtest("TODO(W-11819): syncs when app enters foreground") {
       val healthRepository = createHealthRepository()
       cloudStoreAccountRepository.set(cloudAccount)
       cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)

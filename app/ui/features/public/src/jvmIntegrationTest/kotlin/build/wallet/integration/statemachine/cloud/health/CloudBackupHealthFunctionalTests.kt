@@ -1,30 +1,29 @@
 package build.wallet.integration.statemachine.cloud.health
 
+import bitkey.securitycenter.SecurityActionState
+import bitkey.securitycenter.SecurityActionType
+import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_DETECTED
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_INITIATE
-import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETTINGS
 import build.wallet.cloud.store.CloudFileStoreFake
 import build.wallet.cloud.store.CloudFileStoreResult
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.platform.data.MimeType
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardBodyModel
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.StateMachineTester
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
-import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
-import build.wallet.statemachine.ui.matchers.shouldHaveCard
-import build.wallet.statemachine.ui.robots.clickSettings
-import build.wallet.statemachine.ui.robots.clickTrailingButton
+import build.wallet.statemachine.ui.robots.clickAppCloudBackup
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
-import build.wallet.ui.model.icon.IconImage
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
 import io.kotest.core.NamedTag
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.spec.style.scopes.RootTestWithConfigBuilder
@@ -49,20 +48,20 @@ class CloudBackupHealthFunctionalTests : FunSpec({
     }
   }
 
-  test("Cloud backup health dashboard is visible with warning icon")
+  test("Cloud backup health dashboard is visible with critical state")
     .withTags(CLOUD_ACCESS_FAILURE) {
       val app = launchAppAndOnboard()
       app.appUiStateMachine.test(props = Unit) {
         awaitUntilBody<MoneyHomeBodyModel>(MONEY_HOME) {
-          clickSettings()
+          onSecurityHubTabClick()
         }
-        awaitUntilBody<SettingsBodyModel>(SETTINGS) {
-          cloudBackupHealthRow.shouldNotBeNull()
-            .specialTrailingIconModel.shouldNotBeNull().run {
-              iconImage.shouldBe(IconImage.LocalImage(Icon.SmallIconInformationFilled))
-              iconTint.shouldBe(IconTint.Warning)
-              iconSize.shouldBe(IconSize.Small)
-            }
+        awaitUntilBody<SecurityHubBodyModel>(
+          matching = {
+            it.recoveryActions.isNotEmpty()
+          }
+        ) {
+          recoveryActions.find { it.type() == SecurityActionType.APP_KEY_BACKUP }
+            .shouldNotBeNull().state().shouldBe(SecurityActionState.HasCriticalActions)
         }
         cancelAndIgnoreRemainingEvents()
       }
@@ -174,50 +173,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
   }
-
-  test("Cloud backup health card appears on money home screen")
-    .withTags(CLOUD_ACCESS_FAILURE) {
-      val app = launchAppAndOnboard()
-      app.appUiStateMachine.test(props = Unit) {
-        awaitUntilBody<MoneyHomeBodyModel>(
-          id = MONEY_HOME,
-          matching = { body ->
-            body.cardsModel.cards.any {
-              it.title?.string?.contains("Problem with Fake Cloud Store") == true
-            }
-          }
-        ) {
-          cardsModel
-            .shouldHaveCard("Problem with Fake Cloud Store\naccount access")
-            .clickTrailingButton()
-          awaitUntilBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING)
-          awaitUntilBody<CloudSignInModelFake>()
-        }
-        cancelAndIgnoreRemainingEvents()
-      }
-    }
-
-  test("Cloud backup health card does not appear on money home screen") {
-    val app = launchAppAndOnboard()
-    app.appUiStateMachine.test(props = Unit) {
-      awaitUntilBody<MoneyHomeBodyModel>(
-        MONEY_HOME,
-        matching = { body ->
-          body.cardsModel.cards.none {
-            it.title?.string?.contains("Problem with Fake Cloud Store") == true
-          }
-        }
-      )
-      cancelAndIgnoreRemainingEvents()
-    }
-  }
 })
-
-private val SettingsBodyModel.cloudBackupHealthRow
-  get() =
-    sectionModels
-      .flatMap { it.rowModels }
-      .firstOrNull { it.title == "Cloud Backup" }
 
 private fun namedTags(vararg tagNames: String) = tagNames.map(::NamedTag).toSet()
 
@@ -232,10 +188,8 @@ private suspend inline fun StateMachineTester<Unit, ScreenModel>.shouldNavigateT
   validate: CloudBackupHealthDashboardBodyModel.() -> Unit = {},
 ): CloudBackupHealthDashboardBodyModel {
   awaitUntilBody<MoneyHomeBodyModel>(MONEY_HOME) {
-    clickSettings()
+    onSecurityHubTabClick()
   }
-  awaitUntilBody<SettingsBodyModel>(SETTINGS) {
-    cloudBackupHealthRow.shouldNotBeNull().onClick()
-  }
+  awaitUntilBody<SecurityHubBodyModel>().clickAppCloudBackup()
   return awaitUntilBody<CloudBackupHealthDashboardBodyModel>(validate = validate)
 }

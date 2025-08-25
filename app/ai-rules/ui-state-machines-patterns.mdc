@@ -1,7 +1,7 @@
 ---
 description: Advanced UI State Machine patterns including error handling, retry logic, analytics, and performance optimization
 globs: ["**/*StateMachine*.kt", "**/*UiStateMachine*.kt"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # UI State Machine Advanced Patterns

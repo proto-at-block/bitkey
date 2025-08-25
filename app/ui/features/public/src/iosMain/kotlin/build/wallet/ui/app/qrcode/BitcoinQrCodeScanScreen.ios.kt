@@ -29,6 +29,8 @@ import platform.UIKit.UIColor
 import platform.UIKit.UIView
 import platform.darwin.NSObject
 import platform.darwin.dispatch_get_main_queue
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 private sealed class PermissionState {
   data object Unset : PermissionState()
@@ -154,7 +156,7 @@ private fun UIKitScannerView(
 }
 
 @Suppress("UnusedPrivateClass")
-@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class, ExperimentalAtomicApi::class)
 private class CameraScannerController(
   private val camera: AVCaptureDevice,
   private val onDataScanned: (String) -> Unit,
@@ -162,6 +164,7 @@ private class CameraScannerController(
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
   private lateinit var cameraPreview: AVCaptureVideoPreviewLayer
   private lateinit var captureSession: AVCaptureSession
+  private var hasScannedData = AtomicBoolean(false)
 
   fun setup(viewLayer: CALayer) {
     check(!::captureSession.isInitialized) {
@@ -222,6 +225,7 @@ private class CameraScannerController(
     }
   }
 
+  @OptIn(ExperimentalAtomicApi::class)
   override fun captureOutput(
     output: AVCaptureOutput,
     didOutputMetadataObjects: List<*>,
@@ -232,7 +236,11 @@ private class CameraScannerController(
         ?.let { it as? AVMetadataMachineReadableCodeObject }
         ?.takeIf { it.type == AVMetadataObjectTypeQRCode && !it.stringValue.isNullOrBlank() }
         ?.stringValue
-        ?.run(onDataScanned)
+        ?.let { qrData ->
+          if (hasScannedData.compareAndSet(false, newValue = true)) {
+            onDataScanned(qrData)
+          }
+        }
     }
   }
 

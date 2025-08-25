@@ -9,6 +9,7 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.crypto.SealedData
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EnrolledFingerprints
+import build.wallet.firmware.EnrolledFingerprints.Companion.FIRST_FINGERPRINT_INDEX
 import build.wallet.firmware.EventFragment
 import build.wallet.firmware.FingerprintEnrollmentResult
 import build.wallet.firmware.FingerprintEnrollmentStatus
@@ -238,7 +239,10 @@ interface NfcCommands {
    */
   suspend fun startFingerprintEnrollment(
     session: NfcSession,
-    fingerprintHandle: FingerprintHandle = FingerprintHandle(0, ""),
+    fingerprintHandle: FingerprintHandle = FingerprintHandle(
+      FIRST_FINGERPRINT_INDEX,
+      ""
+    ),
   ): Boolean
 
   /**

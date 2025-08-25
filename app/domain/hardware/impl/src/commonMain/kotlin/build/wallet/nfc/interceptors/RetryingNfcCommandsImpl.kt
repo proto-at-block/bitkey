@@ -9,17 +9,20 @@ import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareFeatureFlagCfg
+import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.logging.logWarn
+import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcException.CanBeRetried
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import okio.ByteString
 
 private const val MAX_NFC_COMMAND_RETRIES = 5
+private const val IOS_TAG_RESPONSE_ERROR_MESSAGE = "Tag response error / no response"
 
 /**
  * Retries NFC commands that are idempotent.
@@ -65,7 +68,30 @@ private class RetryingNfcCommandsImpl(
     appPropertiesOffset: UInt,
     signatureOffset: UInt,
     fwupMode: FwupMode,
-  ) = retry { commands.fwupFinish(session, appPropertiesOffset, signatureOffset, fwupMode) }
+  ) = try {
+    commands.fwupFinish(session, appPropertiesOffset, signatureOffset, fwupMode)
+  } catch (e: CanBeRetried.TransceiveFailure) {
+    // For some iOS devices: If we get a "Tag response error", it might actually be success
+    // since the device resets immediately after sending the response and before the
+    // mobile app can read it. We treat "TransceiveFailure" containing "Tag response error"
+    // as WillApplyPatch since the firmware transfer completed successfully (we reached fwupFinish step).
+    if (e.message == IOS_TAG_RESPONSE_ERROR_MESSAGE) {
+      logWarn(tag = "NFC", throwable = e) {
+        "fwupFinish failed with error ${e.message} - treating as success since firmware transfer completed - mode: ${fwupMode.name}"
+      }
+      // Return WillApplyPatch to indicate firmware will apply the update asynchronously
+      // This matches the expected firmware behavior where device resets after responding
+      FwupFinishResponseStatus.WillApplyPatch
+    } else {
+      // Do not retry fwupFinish for other errors - this command is not idempotent.
+      // The firmware may have already applied the update, and retrying could cause undefined behavior
+      logWarn(tag = "NFC", throwable = e) { "fwupFinish TransceiveFailure - mode: ${fwupMode.name}" }
+      throw e
+    }
+  } catch (e: NfcException) {
+    logWarn(tag = "NFC", throwable = e) { "fwupFinish failed - mode: ${fwupMode.name}" }
+    throw e
+  }
 
   override suspend fun getAuthenticationKey(session: NfcSession) =
     retry { commands.getAuthenticationKey(session) }

@@ -1,5 +1,8 @@
 package build.wallet.ui.model.alert
 
+import dev.zacsweers.redacted.annotations.Redacted
+
+@Redacted
 sealed interface AlertModel
 
 /**

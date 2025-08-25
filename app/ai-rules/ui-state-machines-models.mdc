@@ -1,7 +1,7 @@
 ---
 description: UI State Machine model types, FormBodyModel patterns, presentation styles, and immutable collections
 globs: ["**/*StateMachine*.kt", "**/*UiStateMachine*.kt", "**/*Model*.kt"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # UI State Machine Models

@@ -1,9 +1,7 @@
 package build.wallet.statemachine.send
 
 import build.wallet.ui.model.Model
-import dev.zacsweers.redacted.annotations.Redacted
 
-@Redacted
 data class TransactionDetailsModel(
   val transactionDetailModelType: TransactionDetailModelType,
   val transactionSpeedText: String,

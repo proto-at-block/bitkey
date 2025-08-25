@@ -31,10 +31,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
   val clock = ClockFake()
-  val fingerprintResetF8eClient = FingerprintResetF8eClientFake(
-    turbine = turbines::create,
-    clock = clock
-  )
+  val fingerprintResetF8eClient = FingerprintResetF8eClientFake(clock)
   val accountService = AccountServiceFake()
   val fingerprintResetService = FingerprintResetServiceFake(
     privilegedActionF8eClient = fingerprintResetF8eClient,

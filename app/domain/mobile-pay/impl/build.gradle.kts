@@ -12,14 +12,14 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(libs.kmp.kotlin.datetime)
-        api(libs.kmp.okio)
-        api(projects.domain.accountPublic)
-        api(projects.domain.debugPublic)
-        api(projects.libs.moneyPublic)
-        api(projects.libs.ktorClientPublic)
-        api(projects.domain.databasePublic)
-        api(projects.domain.walletPublic)
+        implementation(libs.kmp.kotlin.datetime)
+        implementation(libs.kmp.okio)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.domain.debugPublic)
+        implementation(projects.libs.moneyPublic)
+        implementation(projects.libs.ktorClientPublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.domain.walletPublic)
       }
     }
 

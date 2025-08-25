@@ -45,4 +45,21 @@ interface GrantDao {
    * @return A flow that emits the current grant or null if not found
    */
   fun grantByAction(action: GrantAction): Flow<Grant?>
+
+  /**
+   * Marks a grant as delivered by action type.
+   * This is used to track which grants have been successfully delivered to the hardware.
+   *
+   * @param action The type of grant action to mark as delivered
+   */
+  suspend fun markAsDelivered(action: GrantAction): Result<Unit, DbError>
+
+  /**
+   * Gets the delivered status for a grant by action type.
+   *
+   * @param action The type of grant action
+   * @return true if the grant has been delivered, false if not delivered
+   * @throws DbError if the grant doesn't exist
+   */
+  suspend fun getDeliveredStatus(action: GrantAction): Result<Boolean, DbError>
 }

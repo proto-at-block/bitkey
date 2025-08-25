@@ -198,4 +198,9 @@ sealed class Route {
     val event: String?,
     val partnerTransactionId: String?,
   ) : Route()
+
+  /**
+   * Navigates to the hardware recovery flow which initializes a new recovery
+   */
+  data object InitiateHardwareRecovery : Route()
 }

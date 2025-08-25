@@ -11,8 +11,8 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(libs.kmp.okio)
-        api(projects.libs.platformPublic)
+        implementation(libs.kmp.okio)
+        implementation(projects.libs.platformPublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
       }
@@ -20,9 +20,9 @@ kotlin {
 
     val androidMain by getting {
       dependencies {
-        api(libs.android.google.api.client)
-        api(libs.android.google.auth)
-        api(libs.jvm.google.drive)
+        implementation(libs.android.google.api.client)
+        implementation(libs.android.google.auth)
+        implementation(libs.jvm.google.drive)
       }
     }
 

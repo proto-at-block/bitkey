@@ -450,9 +450,6 @@ input.character-input.incorrect {
     bottom: 0;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    justify-content: start;
 }
 
 #successScreen.active {

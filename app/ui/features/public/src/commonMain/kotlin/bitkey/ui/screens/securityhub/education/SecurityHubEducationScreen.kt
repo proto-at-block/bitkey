@@ -3,6 +3,7 @@ package bitkey.ui.screens.securityhub.education
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import bitkey.privilegedactions.FingerprintResetAvailabilityService
 import bitkey.securitycenter.SecurityAction
 import bitkey.securitycenter.SecurityActionRecommendation
 import bitkey.ui.framework.Navigator
@@ -14,7 +15,6 @@ import bitkey.ui.screens.securityhub.navigateToScreen
 import bitkey.ui.screens.securityhub.navigationScreenId
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.fwup.FirmwareData
 import build.wallet.statemachine.core.ScreenModel
 
@@ -48,7 +48,7 @@ sealed class SecurityHubEducationScreen(
 
 @BitkeyInject(ActivityScope::class)
 class SecurityHubEducationScreenPresenter(
-  val fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
+  val fingerprintResetAvailabilityService: FingerprintResetAvailabilityService,
 ) : ScreenPresenter<SecurityHubEducationScreen> {
   @Composable
   override fun model(
@@ -60,7 +60,8 @@ class SecurityHubEducationScreenPresenter(
       is SecurityHubEducationScreen.RecommendationEducation -> screen.recommendation.navigationScreenId()
     }
 
-    val isFingerprintResetEnabled by fingerprintResetFeatureFlag.flagValue().collectAsState()
+    val isFingerprintResetEnabled by fingerprintResetAvailabilityService.isAvailable()
+      .collectAsState(false)
 
     return SecurityHubEducationBodyModel(
       actionType = when (screen) {
@@ -80,7 +81,7 @@ class SecurityHubEducationScreenPresenter(
           id = navigationId,
           originScreen = screen.originScreen,
           firmwareUpdateData = screen.firmwareData,
-          isFingerprintResetEnabled = isFingerprintResetEnabled.value,
+          isFingerprintResetEnabled = isFingerprintResetEnabled,
           onCannotUnlockFingerprints = {
             navigator.goTo(
               SecurityHubScreen(

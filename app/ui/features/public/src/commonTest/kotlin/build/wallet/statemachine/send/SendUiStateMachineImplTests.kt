@@ -22,6 +22,7 @@ import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.platform.permissions.PermissionUiProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
@@ -341,6 +342,44 @@ class SendUiStateMachineImplTests : FunSpec({
 
         awaitBodyMock<TransferAmountEntryUiProps> {
           initialAmount.currency.shouldBe(BTC)
+        }
+      }
+    }
+  }
+
+  context("QR scanner dismissal behavior") {
+    test("closing QR scanner returns to address entry") {
+      stateMachine.test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onScanQrCodeClick()
+        }
+
+        awaitBodyMock<PermissionUiProps> {
+          onGranted()
+        }
+
+        awaitBodyMock<BitcoinQrCodeScanUiProps> {
+          onClose()
+        }
+
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          address.shouldBeNull()
+        }
+      }
+    }
+
+    test("dismissing camera permission returns to address entry") {
+      stateMachine.test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onScanQrCodeClick()
+        }
+
+        awaitBodyMock<PermissionUiProps> {
+          onExit()
+        }
+
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          address.shouldBeNull()
         }
       }
     }

@@ -257,7 +257,7 @@ async fn handle_load_descriptors(args: &[&str], state: &mut DebugState) -> Resul
             let sealed_attachment = item.m_get("sealed_attachment")?.to_s()?;
 
             let parts: Vec<_> = sealed_attachment.split('.').collect();
-            let [_, ciphertext_str, nonce_str, public_key_str] = parts.as_slice() else {
+            let [_, nonce_str, ciphertext_str, public_key_str] = parts.as_slice() else {
                 return Err(anyhow!(
                     "Invalid sealed attachment format for {}",
                     attachment_id

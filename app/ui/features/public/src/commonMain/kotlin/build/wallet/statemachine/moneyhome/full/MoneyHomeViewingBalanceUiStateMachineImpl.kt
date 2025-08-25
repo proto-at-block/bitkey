@@ -19,8 +19,6 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.SecurityHubFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.home.GettingStartedTask
@@ -47,12 +45,9 @@ import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
 import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsUiStateMachine
-import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiProps
 import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiProps
-import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
 import build.wallet.statemachine.moneyhome.card.inheritance.InheritanceCardUiProps
-import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.*
@@ -60,9 +55,6 @@ import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransact
 import build.wallet.statemachine.partnerships.AddBitcoinBottomSheetDisplayState
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
-import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
-import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
-import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
 import build.wallet.statemachine.settings.full.device.fingerprints.AddAdditionalFingerprintGettingStartedModel
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
@@ -107,7 +99,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val transactionsActivityService: TransactionsActivityService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val securityActionsService: SecurityActionsService,
-  private val securityHubFeatureFlag: SecurityHubFeatureFlag,
   private val refreshExecutor: RefreshExecutor,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
@@ -295,18 +286,15 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               onClick = StandardClick({ props.onSettings() })
             )
           ),
-          onSecurityHubTabClick = if (securityHubFeatureFlag.isEnabled()) {
-            {
-              props.onGoToSecurityHub()
-              scope.launch {
-                haptics.vibrate(effect = HapticsEffect.LightClick)
-                coachmarkService.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubHomeCoachmark)
-              }
+          onSecurityHubTabClick = {
+            props.onGoToSecurityHub()
+            scope.launch {
+              haptics.vibrate(effect = HapticsEffect.LightClick)
+              coachmarkService.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubHomeCoachmark)
             }
-          } else {
-            null
           },
-          isSecurityHubBadged = securityActionsService.hasRecommendationsRequiringAttention().collectAsState(false).value
+          isSecurityHubBadged = securityActionsService.hasRecommendationsRequiringAttention()
+            .collectAsState(false).value
         ),
         bottomSheetModel =
           MoneyHomeBottomSheetModel(
@@ -355,17 +343,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     return moneyHomeCardsUiStateMachine.model(
       props =
         MoneyHomeCardsProps(
-          cloudBackupHealthCardUiProps = CloudBackupHealthCardUiProps(
-            onActionClick = { status ->
-              props.setState(FixingCloudBackupState(status))
-            }
-          ),
-          deviceUpdateCardUiProps =
-            DeviceUpdateCardUiProps(
-              onUpdateDevice = { firmwareData ->
-                props.setState(FwupFlowUiState(firmwareData = firmwareData))
-              }
-            ),
           gettingStartedCardUiProps =
             GettingStartedCardUiProps(
               onAddBitcoin = {
@@ -398,27 +375,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               },
               onShowAlert = onShowAlert,
               onDismissAlert = onDismissAlert
-            ),
-          hardwareRecoveryStatusCardUiProps =
-            HardwareRecoveryStatusCardUiProps(
-              account = props.account as FullAccount,
-              onClick = {
-                props.setState(
-                  ViewHardwareRecoveryStatusUiState(InstructionsStyle.Independent)
-                )
-              }
-            ),
-          recoveryContactCardsUiProps =
-            RecoveryContactCardsUiProps(
-              onClick = { props.setState(props.state.copy(selectedContact = it)) }
-            ),
-          setupHardwareCardUiProps =
-            SetupHardwareCardUiProps(
-              onReplaceDevice = {
-                props.setState(
-                  ViewHardwareRecoveryStatusUiState(InstructionsStyle.ResumedRecoveryAttempt)
-                )
-              }
             ),
           startSweepCardUiProps = StartSweepCardUiProps(
             onStartSweepClicked = props.onStartSweepFlow

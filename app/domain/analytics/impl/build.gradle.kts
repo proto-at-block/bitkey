@@ -13,15 +13,15 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(libs.kmp.kotlin.datetime)
-        api(projects.domain.accountPublic)
-        api(projects.domain.debugPublic)
-        api(projects.libs.keyValueStorePublic)
-        api(projects.libs.queueProcessorPublic)
-        api(projects.libs.platformPublic)
-        api(projects.libs.timePublic)
-        api(projects.domain.databasePublic)
-        api(projects.domain.hardwarePublic)
+        implementation(libs.kmp.kotlin.datetime)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.domain.debugPublic)
+        implementation(projects.libs.keyValueStorePublic)
+        implementation(projects.libs.queueProcessorPublic)
+        implementation(projects.libs.platformPublic)
+        implementation(projects.libs.timePublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.domain.hardwarePublic)
         // TODO: remove dependency on :impl
         implementation(projects.libs.queueProcessorImpl) {
           because("Depends on PeriodicProcessorImpl")
@@ -34,17 +34,17 @@ kotlin {
 
     commonTest {
       dependencies {
-        api(libs.kmp.kotlin.datetime)
-        api(projects.domain.accountFake)
-        api(projects.domain.analyticsFake) {
+        implementation(libs.kmp.kotlin.datetime)
+        implementation(projects.domain.accountFake)
+        implementation(projects.domain.analyticsFake) {
           exclude(projects.domain.analyticsPublic)
         }
-        api(projects.domain.f8eClientFake)
-        api(projects.domain.featureFlagFake)
-        api(projects.libs.keyValueStoreFake)
-        api(projects.libs.moneyFake)
-        api(projects.libs.platformFake)
-        api(projects.libs.timeFake)
+        implementation(projects.domain.f8eClientFake)
+        implementation(projects.domain.featureFlagFake)
+        implementation(projects.libs.keyValueStoreFake)
+        implementation(projects.libs.moneyFake)
+        implementation(projects.libs.platformFake)
+        implementation(projects.libs.timeFake)
         implementation(projects.domain.debugFake)
         implementation(projects.libs.queueProcessorFake)
         implementation(projects.libs.sqldelightTesting)

@@ -3,26 +3,34 @@ package bitkey.privilegedactions
 import app.cash.turbine.test
 import bitkey.f8e.fingerprintreset.FingerprintResetRequest
 import bitkey.f8e.fingerprintreset.FingerprintResetResponse
+import bitkey.f8e.privilegedactions.*
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.f8e.privilegedactions.AuthorizationStrategyType
-import bitkey.f8e.privilegedactions.ContinuePrivilegedActionRequest
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.f8e.privilegedactions.PrivilegedActionType
 import build.wallet.account.AccountServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.coroutines.turbine.turbines
+import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitUntilNotNull
+import build.wallet.db.DbError
 import build.wallet.encrypt.SignatureUtilsMock
+import build.wallet.firmware.HardwareUnlockInfoServiceFake
+import build.wallet.firmware.UnlockInfo
+import build.wallet.firmware.UnlockMethod
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.grants.GrantTestHelpers
 import build.wallet.ktor.result.EmptyResponseBody
+import build.wallet.testing.shouldBeErrOfType
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.util.encodeBase64
+import io.ktor.util.*
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import okio.ByteString.Companion.decodeHex
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -31,17 +39,18 @@ class FingerprintResetServiceImplTests : FunSpec({
   val clock = ClockFake()
 
   val fingerprintResetF8eClient = FingerprintResetF8eClientFake(
-    turbines::create,
     clock
   )
 
   val accountService = AccountServiceFake()
   val signatureUtils = SignatureUtilsMock()
   val grantDao = GrantDaoFake(clock)
+  val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
 
   lateinit var service: FingerprintResetServiceImpl
 
-  val mockDerSignature = "3045022100b6e8f2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2022003f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2"
+  val mockDerSignature =
+    "3045022100b6e8f2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2022003f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2"
 
   fun createMockGrant(signatureOffset: Int = 0) =
     Grant(
@@ -53,12 +62,15 @@ class FingerprintResetServiceImplTests : FunSpec({
   beforeEach {
     accountService.setActiveAccount(FullAccountMock)
     grantDao.reset()
+    fingerprintResetF8eClient.reset()
+    hardwareUnlockInfoService.clear()
     service = FingerprintResetServiceImpl(
       privilegedActionF8eClient = fingerprintResetF8eClient,
       accountService = accountService,
       signatureUtils = signatureUtils,
       clock = clock,
-      grantDao = grantDao
+      grantDao = grantDao,
+      hardwareUnlockInfoService = hardwareUnlockInfoService
     )
   }
 
@@ -66,7 +78,8 @@ class FingerprintResetServiceImplTests : FunSpec({
     val testVersion = 1
     val testDeviceId = byteArrayOf(-76, 53, 34, -1, -2, -20, 80, -61)
     val testChallengeBytes = listOf(12, 255, 0, 128).map { (it and 0xFF).toByte() }.toByteArray()
-    val testSignature = "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498"
+    val testSignature =
+      "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498"
     val grantRequest = GrantRequest(
       version = testVersion.toByte(),
       deviceId = testDeviceId,
@@ -92,7 +105,8 @@ class FingerprintResetServiceImplTests : FunSpec({
 
     result shouldBe Ok(expectedInstance)
 
-    fingerprintResetF8eClient.createPrivilegedActionCalls.awaitItem().apply {
+    fingerprintResetF8eClient.createPrivilegedActionCalls.size shouldBe 1
+    fingerprintResetF8eClient.createPrivilegedActionCalls[0].apply {
       shouldBeTypeOf<FingerprintResetRequest>()
       version shouldBe testVersion
       action shouldBe GrantAction.FINGERPRINT_RESET.value
@@ -133,7 +147,7 @@ class FingerprintResetServiceImplTests : FunSpec({
 
     val result = service.getPrivilegedActions()
 
-    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.awaitItem()
+    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.size shouldBe 1
 
     result.value.size shouldBe 2
     result.value[0].status shouldBe PrivilegedActionStatus.AUTHORIZED
@@ -180,7 +194,8 @@ class FingerprintResetServiceImplTests : FunSpec({
 
     val result = service.continueAction(actionInstance)
 
-    fingerprintResetF8eClient.continuePrivilegedActionCalls.awaitItem().apply {
+    fingerprintResetF8eClient.continuePrivilegedActionCalls.size shouldBe 1
+    fingerprintResetF8eClient.continuePrivilegedActionCalls[0].apply {
       shouldBeTypeOf<ContinuePrivilegedActionRequest>()
       privilegedActionInstance.id shouldBe actionInstance.id
       privilegedActionInstance.authorizationStrategy.completionToken shouldBe "test-token"
@@ -215,8 +230,8 @@ class FingerprintResetServiceImplTests : FunSpec({
       "completion-token"
     )
 
-    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.awaitItem()
-    fingerprintResetF8eClient.continuePrivilegedActionCalls.awaitItem()
+    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.size shouldBe 1
+    fingerprintResetF8eClient.continuePrivilegedActionCalls.size shouldBe 1
 
     result.isErr shouldBe true
     result.error.shouldBeTypeOf<PrivilegedActionError.InvalidResponse>()
@@ -254,8 +269,8 @@ class FingerprintResetServiceImplTests : FunSpec({
       "completion-token"
     )
 
-    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.awaitItem()
-    fingerprintResetF8eClient.continuePrivilegedActionCalls.awaitItem()
+    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.size shouldBe 1
+    fingerprintResetF8eClient.continuePrivilegedActionCalls.size shouldBe 1
     result.isOk shouldBe true
 
     val persistedGrant = grantDao.getGrantByAction(GrantAction.FINGERPRINT_RESET)
@@ -296,8 +311,8 @@ class FingerprintResetServiceImplTests : FunSpec({
       "completion-token"
     )
 
-    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.awaitItem()
-    fingerprintResetF8eClient.continuePrivilegedActionCalls.awaitItem()
+    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.size shouldBe 1
+    fingerprintResetF8eClient.continuePrivilegedActionCalls.size shouldBe 1
 
     // Should still succeed even if grant persistence fails
     result.isOk shouldBe true
@@ -319,9 +334,9 @@ class FingerprintResetServiceImplTests : FunSpec({
     val persistedGrant = grantDao.getGrantByAction(GrantAction.FINGERPRINT_RESET)
     persistedGrant shouldBe Ok(null)
 
-    service.fingerprintResetAction().value shouldBe null
+    service.fingerprintResetAction.value shouldBe null
 
-    fingerprintResetF8eClient.cancelFingerprintResetCalls.expectNoEvents()
+    fingerprintResetF8eClient.cancelFingerprintResetCalls.size shouldBe 0
   }
 
   test("cancelFingerprintReset makes server call when no grant exists") {
@@ -331,14 +346,14 @@ class FingerprintResetServiceImplTests : FunSpec({
 
     val result = service.cancelFingerprintReset("cancellation-token")
 
-    fingerprintResetF8eClient.cancelFingerprintResetCalls.awaitItem()
+    fingerprintResetF8eClient.cancelFingerprintResetCalls.size shouldBe 1
 
     result shouldBe Ok(Unit)
 
     val persistedGrant = grantDao.getGrantByAction(GrantAction.FINGERPRINT_RESET)
     persistedGrant shouldBe Ok(null)
 
-    service.fingerprintResetAction().value shouldBe null
+    service.fingerprintResetAction.value shouldBe null
   }
 
   test("getPendingFingerprintResetGrant returns null when no grant exists in cache or database") {
@@ -358,16 +373,11 @@ class FingerprintResetServiceImplTests : FunSpec({
       accountService = accountService,
       signatureUtils = signatureUtils,
       clock = clock,
-      grantDao = grantDao
+      grantDao = grantDao,
+      hardwareUnlockInfoService = hardwareUnlockInfoService
     )
 
-    val result = service.getPendingFingerprintResetGrant()
-
-    result shouldBe Ok(grant)
-
-    service.pendingFingerprintResetGrant().test {
-      awaitItem() shouldBe grant
-    }
+    service.getPendingFingerprintResetGrant() shouldBe Ok(grant)
   }
 
   test("getPendingFingerprintResetGrant returns latest grant from database") {
@@ -392,17 +402,9 @@ class FingerprintResetServiceImplTests : FunSpec({
       accountService = accountService,
       signatureUtils = signatureUtils,
       clock = clock,
-      grantDao = grantDao
+      grantDao = grantDao,
+      hardwareUnlockInfoService = hardwareUnlockInfoService
     )
-
-    newService.pendingFingerprintResetGrant().test {
-      val firstItem = awaitItem()
-      if (firstItem == null) {
-        awaitItem() shouldBe grant
-      } else {
-        firstItem shouldBe grant
-      }
-    }
 
     newService.getPendingFingerprintResetGrant() shouldBe Ok(grant)
   }
@@ -415,25 +417,80 @@ class FingerprintResetServiceImplTests : FunSpec({
       accountService = accountService,
       signatureUtils = signatureUtils,
       clock = clock,
-      grantDao = grantDao
+      grantDao = grantDao,
+      hardwareUnlockInfoService = hardwareUnlockInfoService
     )
 
-    freshService.pendingFingerprintResetGrant().test {
-      awaitItem() shouldBe null
-    }
-
+    // Verify no grant initially
     freshService.getPendingFingerprintResetGrant() shouldBe Ok(null)
 
     val grant = createMockGrant()
     grantDao.saveGrant(grant) shouldBe Ok(Unit)
 
-    val result = freshService.getPendingFingerprintResetGrant()
-    result shouldBe Ok(grant)
+    // Verify the grant is now available in the service's state
+    freshService.getPendingFingerprintResetGrant() shouldBe Ok(grant)
+  }
 
-    freshService.pendingFingerprintResetGrant().test {
-      awaitItem() shouldBe grant
+  test("grant delivery status lifecycle") {
+    // No grant initially - should return false
+    service.isGrantDelivered() shouldBe false
+
+    // Grant exists but not delivered - should return false
+    val grant = createMockGrant()
+    grantDao.saveGrant(grant) shouldBe Ok(Unit)
+    service.isGrantDelivered() shouldBe false
+
+    // Mark as delivered - should succeed and return true afterward
+    val result = service.markGrantAsDelivered()
+    result shouldBe Ok(Unit)
+    service.isGrantDelivered() shouldBe true
+  }
+
+  test("markGrantAsDelivered fails when no grant exists") {
+    grantDao.getGrantByAction(GrantAction.FINGERPRINT_RESET) shouldBe Ok(null)
+
+    val result = service.markGrantAsDelivered()
+
+    result.shouldBeErrOfType<DbError>()
+  }
+
+  test("clearEnrolledFingerprints succeeds") {
+    hardwareUnlockInfoService.replaceAllUnlockInfo(
+      listOf(
+        UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 0),
+        UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 1),
+        UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 2)
+      )
+    )
+
+    val result = service.clearEnrolledFingerprints()
+
+    result shouldBe Ok(Unit)
+
+    hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).first() shouldBe 0
+  }
+
+  test("executeWork warms privileged action cache") {
+    val actionInstance = PrivilegedActionInstance(
+      id = "test-id-1",
+      privilegedActionType = PrivilegedActionType.RESET_FINGERPRINT,
+      authorizationStrategy = AuthorizationStrategy.DelayAndNotify(
+        authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
+        delayStartTime = clock.now().minus(5.days),
+        delayEndTime = clock.now().minus(10.hours),
+        cancellationToken = "test-token",
+        completionToken = "test-token"
+      )
+    )
+
+    fingerprintResetF8eClient.getPrivilegedActionInstancesResult = Ok(listOf(actionInstance))
+
+    createBackgroundScope().launch {
+      service.executeWork()
     }
 
-    freshService.getPendingFingerprintResetGrant() shouldBe Ok(grant)
+    service.fingerprintResetAction.test {
+      awaitUntilNotNull().shouldBe(actionInstance)
+    }
   }
 })

@@ -1,8 +1,11 @@
 package build.wallet.ui.model
 
+import dev.zacsweers.redacted.annotations.Redacted
+
 /**
  * Marker interface for UI models.
  */
+@Redacted
 interface Model {
   /**
    A stable value that identifies the uniqueness of this model. This should not change simply if the

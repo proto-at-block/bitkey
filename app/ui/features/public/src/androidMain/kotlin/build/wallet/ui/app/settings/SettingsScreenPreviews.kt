@@ -5,9 +5,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.settings.SettingsBodyModel
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -58,12 +55,7 @@ fun SettingsScreen(securityHubClickHandler: (() -> Unit)? = null) {
                 SettingsBodyModel.RowModel(
                   icon = Icon.SmallIconCloud,
                   title = "Cloud Backup",
-                  isDisabled = false,
-                  specialTrailingIconModel = IconModel(
-                    icon = Icon.SmallIconInformationFilled,
-                    iconSize = IconSize.Small,
-                    iconTint = IconTint.Warning
-                  )
+                  isDisabled = false
                 ) {},
                 SettingsBodyModel.RowModel(
                   icon = Icon.SmallIconLock,

@@ -1,6 +1,6 @@
 package build.wallet.statemachine.settings.full.feedback
 
-import build.wallet.bitkey.f8e.AccountId
+import build.wallet.bitkey.account.Account
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.support.SupportTicketData
@@ -12,7 +12,7 @@ import build.wallet.support.SupportTicketForm
 interface FeedbackFormUiStateMachine : StateMachine<FeedbackFormUiProps, ScreenModel>
 
 data class FeedbackFormUiProps(
-  val accountId: AccountId,
+  val account: Account,
   val formStructure: SupportTicketForm,
   val initialData: SupportTicketData,
   val onBack: () -> Unit,

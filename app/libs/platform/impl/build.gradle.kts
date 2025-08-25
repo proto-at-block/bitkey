@@ -12,9 +12,9 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(libs.kmp.okio)
-        api(projects.libs.keyValueStorePublic)
-        api(projects.libs.loggingPublic)
+        implementation(libs.kmp.okio)
+        implementation(projects.libs.keyValueStorePublic)
+        implementation(projects.libs.loggingPublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
       }

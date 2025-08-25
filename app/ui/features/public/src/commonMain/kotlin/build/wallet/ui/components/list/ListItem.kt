@@ -8,9 +8,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.components.coachmark.CoachmarkPresenter
@@ -42,6 +44,7 @@ fun ListItem(
 
     ListItem(
       modifier = modifier,
+      listItemTreatment = model.treatment,
       title = AnnotatedString(title),
       titleLabel = titleLabel,
       allowFontScaling = allowFontScaling,
@@ -56,6 +59,7 @@ fun ListItem(
             when (treatment) {
               PRIMARY -> Primary
               SECONDARY -> Secondary
+              INFO -> Secondary
               TERTIARY -> Tertiary
               QUATERNARY -> Quaternary
               PRIMARY_TITLE -> Jumbo
@@ -71,6 +75,7 @@ fun ListItem(
           QUATERNARY -> LabelType.Label3
           PRIMARY_TITLE -> LabelType.Title1
           SECONDARY_DISPLAY -> LabelType.Display2
+          INFO -> LabelType.Body4Regular
         },
       listItemTitleBackgroundTreatment = listItemTitleBackgroundTreatment,
       secondaryText =
@@ -118,6 +123,7 @@ fun ListItem(
 @Composable
 fun ListItem(
   modifier: Modifier = Modifier,
+  listItemTreatment: ListItemTreatment? = null,
   title: String,
   allowFontScaling: Boolean = true,
   contentAlignment: Alignment.Horizontal = Alignment.Start,
@@ -140,6 +146,7 @@ fun ListItem(
 ) {
   ListItem(
     modifier = modifier,
+    listItemTreatment = listItemTreatment,
     title = AnnotatedString(title),
     allowFontScaling = allowFontScaling,
     contentAlignment = contentAlignment,
@@ -179,6 +186,7 @@ fun ListItem(
 @Composable
 fun ListItem(
   modifier: Modifier = Modifier,
+  listItemTreatment: ListItemTreatment? = null,
   title: AnnotatedString,
   allowFontScaling: Boolean = true,
   contentAlignment: Alignment.Horizontal = Alignment.Start,
@@ -318,6 +326,9 @@ fun ListItem(
           ListItemPickerMenu(model = pickerMenu)
         }
       },
+    verticalPadding = if (listItemTreatment == INFO) 0.dp else 16.dp,
+    horizontalPadding = if (listItemTreatment == INFO) 16.dp else 0.dp,
+    offset = if (listItemTreatment == INFO) Offset(0f, -12f) else Offset.Zero,
     collapseContent = collapseContent,
     testTag = testTag,
     coachmark = coachmark
@@ -342,6 +353,9 @@ private fun ListItem(
   specialTrailingAccessoryContent: @Composable (BoxScope.() -> Unit)?,
   topAccessoryContent: @Composable (BoxScope.() -> Unit)?,
   pickerMenuContent: @Composable (BoxScope.() -> Unit)?,
+  verticalPadding: Dp = 16.dp,
+  horizontalPadding: Dp = 0.dp,
+  offset: Offset = Offset.Zero,
   coachmark: CoachmarkModel?,
   collapseContent: Boolean = false,
   testTag: String? = null,
@@ -362,7 +376,7 @@ private fun ListItem(
         .then(modifier)
   ) {
     Column {
-      var verticalPadding = 16.dp
+      var verticalPadding = verticalPadding
 
       topAccessoryContent?.let {
         verticalPadding = 8.dp
@@ -383,8 +397,10 @@ private fun ListItem(
           Modifier
             .fillMaxWidth()
             .padding(
-              vertical = verticalPadding
-            ),
+              vertical = verticalPadding,
+              horizontal = horizontalPadding
+            )
+            .offset(offset.x.dp, offset.y.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {

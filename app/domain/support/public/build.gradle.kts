@@ -15,6 +15,7 @@ kotlin {
         api(projects.domain.bitkeyPrimitivesPublic)
         api(projects.libs.contactMethodPublic)
         api(projects.libs.platformPublic)
+        api(projects.domain.walletPublic)
       }
     }
   }

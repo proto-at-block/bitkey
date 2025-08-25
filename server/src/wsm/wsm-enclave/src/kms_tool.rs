@@ -10,6 +10,7 @@ use wsm_common::{
     try_with_log_and_error, wsm_log,
 };
 
+use crate::native_kms_client::fetch_secret_from_kms;
 use crate::settings::RunMode;
 
 pub struct KmsTool {
@@ -158,5 +159,38 @@ impl SecretFetcher for FakeFetcher {
         );
         // use 256 0 bits as a key if we're running in dev/test
         Ok([0u8; 32].to_vec())
+    }
+}
+
+/// This fetcher uses the native AWS SDK to fetch the secret from KMS.
+struct NativeFetcher;
+
+impl SecretFetcher for NativeFetcher {
+    fn fetch_secret_from_kms(
+        &self,
+        request: &KmsRequest,
+        log_buffer: &mut LogBuffer,
+    ) -> Result<Vec<u8>, KmsToolError> {
+        // TODO [W-11815]: We use a blocking call here to be interoperable with the existing Fetcher,
+        // which forces the caller to wait for the secret to be fetched, since it uses a shell
+        //subprocess. We should remove this once we deprecate the existing Fetcher.
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                match fetch_secret_from_kms(request, log_buffer).await {
+                    Ok(res) => Ok(res.into()),
+                    Err(e) => {
+                        wsm_log!(
+                            log_buffer,
+                            &format!("Error when fetching secret from KMS: {:?}", e)
+                        );
+
+                        Err(KmsToolError {
+                            message: format!("Error when fetching secret from KMS: {:?}", e),
+                            log_buffer: log_buffer.clone(),
+                        })
+                    }
+                }
+            })
+        })
     }
 }

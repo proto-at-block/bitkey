@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * Service for handling fingerprint reset operations
  */
-interface FingerprintResetService : PrivilegedActionService<FingerprintResetRequest, FingerprintResetResponse> {
+@Suppress("TooManyFunctions")
+interface FingerprintResetService :
+  PrivilegedActionService<FingerprintResetRequest, FingerprintResetResponse> {
   /**
    * Create a fingerprint reset privileged action using a GrantRequest
    */
@@ -48,7 +50,7 @@ interface FingerprintResetService : PrivilegedActionService<FingerprintResetRequ
    * the underlying action state changes (e.g. after creating, completing, or cancelling an
    * action).
    */
-  fun fingerprintResetAction(): StateFlow<PrivilegedActionInstance?>
+  val fingerprintResetAction: StateFlow<PrivilegedActionInstance?>
 
   /**
    * Get the current pending fingerprint reset grant, if any exists.
@@ -73,4 +75,19 @@ interface FingerprintResetService : PrivilegedActionService<FingerprintResetRequ
    * and persisted grants to provide a single view of what reset options are available.
    */
   suspend fun getFingerprintResetState(): Result<FingerprintResetState, PrivilegedActionError>
+
+  /**
+   * Check if the current fingerprint reset grant has been delivered to the device.
+   */
+  suspend fun isGrantDelivered(): Boolean
+
+  /**
+   * Mark the current fingerprint reset grant as delivered to the device.
+   */
+  suspend fun markGrantAsDelivered(): Result<Unit, DbError>
+
+  /**
+   * Clear all enrolled fingerprints from the device.
+   */
+  suspend fun clearEnrolledFingerprints(): Result<Unit, Error>
 }

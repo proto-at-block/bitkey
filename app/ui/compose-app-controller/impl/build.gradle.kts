@@ -13,8 +13,8 @@ kotlin {
   sourceSets {
     iosMain {
       dependencies {
-        api(projects.ui.featuresPublic)
-        api(projects.ui.frameworkPublic)
+        implementation(projects.ui.featuresPublic)
+        implementation(projects.ui.frameworkPublic)
       }
     }
   }

@@ -2,6 +2,7 @@ package build.wallet.ui.model.toast
 
 import build.wallet.platform.random.uuid
 import build.wallet.ui.model.icon.IconModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * View model for a toast that's displayed and automatically dismisses after a short period of time.
@@ -10,6 +11,7 @@ import build.wallet.ui.model.icon.IconModel
  * @property id - the unique identifier of the toast
  * @property iconStrokeColor - whether the leading icon should have specific stroke color instead of being transparent
  */
+@Redacted
 data class ToastModel(
   val leadingIcon: IconModel?,
   val title: String,

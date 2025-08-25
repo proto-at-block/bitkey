@@ -48,11 +48,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun securityHubFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    SecurityHubFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun transactionVerificationFlag(featureFlagDao: FeatureFlagDao) =
     TxVerificationFeatureFlag(featureFlagDao)
 
@@ -112,6 +107,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun encryptedDescriptorUploadFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    EncryptedDescriptorSupportUploadFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun atRiskNotificationsFeatureFlag(featureFlagDao: FeatureFlagDao) =
     AtRiskNotificationsFeatureFlag(featureFlagDao)
 
@@ -127,7 +127,6 @@ interface FeatureFlagsComponent {
     softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
     utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
     mobileRealTimeMetricsFeatureFlag: MobileRealTimeMetricsFeatureFlag,
-    securityHubFeatureFlag: SecurityHubFeatureFlag,
     usSmsFeatureFlag: UsSmsFeatureFlag,
     checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
     fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
@@ -135,13 +134,13 @@ interface FeatureFlagsComponent {
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
     inheritanceUseEncryptedDescriptorFeatureFlag: InheritanceUseEncryptedDescriptorFeatureFlag,
     encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
+    encryptedDescriptorSupportUploadFeatureFlag: EncryptedDescriptorSupportUploadFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       softwareWalletIsEnabledFeatureFlag,
       expectedTransactionsPhase2FeatureFlag,
       mobileRealTimeMetricsFeatureFlag,
-      securityHubFeatureFlag,
       usSmsFeatureFlag,
       checkHardwareIsPairedFeatureFlag,
       fingerprintResetFeatureFlag,
@@ -158,7 +157,8 @@ interface FeatureFlagsComponent {
       asyncNfcSigningFeatureFlag,
       txVerificationFeatureFlag,
       inheritanceUseEncryptedDescriptorFeatureFlag,
-      encryptedDescriptorBackupsFeatureFlag
+      encryptedDescriptorBackupsFeatureFlag,
+      encryptedDescriptorSupportUploadFeatureFlag
     )
   }
 }

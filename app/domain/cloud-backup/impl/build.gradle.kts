@@ -14,15 +14,15 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.emergencyExitKitPublic)
-        api(projects.libs.loggingPublic)
-        api(projects.libs.keyValueStorePublic)
-        api(projects.libs.platformPublic)
-        api(projects.domain.accountPublic)
-        api(projects.domain.recoveryPublic)
-        api(projects.domain.relationshipsPublic)
-        api(projects.libs.cloudStorePublic)
-        api(projects.domain.authPublic)
+        implementation(projects.domain.emergencyExitKitPublic)
+        implementation(projects.libs.loggingPublic)
+        implementation(projects.libs.keyValueStorePublic)
+        implementation(projects.libs.platformPublic)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.domain.recoveryPublic)
+        implementation(projects.domain.relationshipsPublic)
+        implementation(projects.libs.cloudStorePublic)
+        implementation(projects.domain.authPublic)
         implementation(projects.libs.stdlibPublic)
         implementation(libs.kmp.settings)
       }

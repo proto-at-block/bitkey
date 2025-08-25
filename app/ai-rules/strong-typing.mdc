@@ -1,7 +1,7 @@
 ---
 description: Strong typing guidelines for Kotlin code
 globs: ["**/*.kt"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Strong Typing

@@ -1,10 +1,6 @@
 package bitkey.recovery
 
-import bitkey.account.AccountConfigService
-import bitkey.account.DefaultAccountConfig
-import bitkey.account.FullAccountConfig
-import bitkey.account.LiteAccountConfig
-import bitkey.account.SoftwareAccountConfig
+import bitkey.account.*
 import bitkey.backup.DescriptorBackup
 import bitkey.f8e.account.UpdateDescriptorBackupsF8eClient
 import bitkey.recovery.DescriptorBackupError.DecryptionError
@@ -34,14 +30,8 @@ import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.logging.logDebug
 import build.wallet.logging.logError
 import build.wallet.platform.random.UuidGenerator
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.binding
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.get
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.onFailure
 import okio.ByteString.Companion.encodeUtf8
 
 @BitkeyInject(AppScope::class)
@@ -245,25 +235,28 @@ class DescriptorBackupServiceImpl(
         .map { it.keybox }
         .bind()
 
-      val allKeysets = if (!keybox.canUseKeyboxKeysets) {
+      if (keybox.canUseKeyboxKeysets) {
+        // If the local keysets are authoritative, we can use them directly
+        logDebug { "Using local keysets for Lost Hardware recovery" }
+        DescriptorBackupPreparedData.EncryptOnly(
+          keysetsToEncrypt = keybox.keysets + newActiveKeyset
+        )
+      } else {
+        // Otherwise, we must retrieve the latest keysets from f8e
         logDebug { "Retrieving f8e keysets for Lost Hardware recovery" }
-        // If the local keysets are not authoritative, we need to retrieve keysets
-        // from f8e.
-        listKeysetsF8eClient.listKeysets(
+
+        // Includes the most recent spending keyset
+        val f8eKeysets = listKeysetsF8eClient.listKeysets(
           f8eEnvironment = accountConfig.f8eEnvironment,
           fullAccountId = accountId
         ).onFailure { logError { "Failed to list keysets from F8e: $it" } }
           .mapError { DescriptorBackupError.NetworkError(it) }
           .bind().keysets
-      } else {
-        // Otherwise, we take our local keysets and append the new one
-        logDebug { "Using local keysets Lost Hardware recovery" }
-        keybox.keysets + newActiveKeyset
-      }
 
-      DescriptorBackupPreparedData.EncryptOnly(
-        keysetsToEncrypt = allKeysets
-      )
+        DescriptorBackupPreparedData.EncryptOnly(
+          keysetsToEncrypt = f8eKeysets
+        )
+      }
     }
 
   private suspend fun prepareForAppRecovery(
@@ -283,12 +276,13 @@ class DescriptorBackupServiceImpl(
 
       val existingEncryptedDescriptors = listKeysetsResponse.descriptorBackups.orEmpty()
       val wrappedSsek = listKeysetsResponse.wrappedSsek
+      val f8eKeysets = listKeysetsResponse.keysets
 
       if (existingEncryptedDescriptors.isEmpty() && wrappedSsek == null) {
         // This is our first time uploading descriptor backups!
         // TODO(W-11606): Handle there being no keysets returned from f8e
         return@coroutineBinding DescriptorBackupPreparedData.EncryptOnly(
-          keysetsToEncrypt = listKeysetsResponse.keysets // contains most recent keyset
+          keysetsToEncrypt = f8eKeysets // contains most recent keyset
         )
       } else if (existingEncryptedDescriptors.isEmpty() || wrappedSsek == null) {
         Err(DecryptionError(cause = IllegalStateException("must have both encrypted descriptors and a ssek"))).bind()
@@ -298,8 +292,37 @@ class DescriptorBackupServiceImpl(
         "Found ${existingEncryptedDescriptors.size} existing encrypted descriptor backups on F8e"
       }
 
-      // TODO(W-11639): Ensure idempotency - only include the new keyset if it hasn't already been uploaded
-      val newKeysets = listOf(newActiveKeyset)
+      // If we do not have backups for all keysets, we cannot use them. This could happen if we enabled
+      // the feature flag, uploaded backups, then disabled the FF and the user performed another recovery.
+      // We instead fallback to re-encrypting all of the keysets.
+      val existingBackups = existingEncryptedDescriptors.map { it.keysetId }.toSet()
+      val f8eKeysetIds = f8eKeysets.map { it.f8eSpendingKeyset.keysetId }.toSet()
+
+      // Exclude the new active keyset from comparison since we expect it to not have a backup yet
+      val missingBackups = f8eKeysetIds - newActiveKeyset.f8eSpendingKeyset.keysetId - existingBackups
+
+      if (missingBackups.isNotEmpty()) {
+        logDebug {
+          "Detected mismatch: ${missingBackups.size} keysets without descriptor backups. " +
+            "This likely indicates the descriptor backup flag was enabled then disabled. " +
+            "Falling back to encrypt-only mode with all keysets."
+        }
+
+        return@coroutineBinding DescriptorBackupPreparedData.EncryptOnly(
+          keysetsToEncrypt = f8eKeysets
+        )
+      }
+
+      // Check if the new keyset has already been backed up; this could happen on a retry, such as if
+      // we get a network failure but the server did actually receive the backup.
+      val newKeysets = if (existingBackups.contains(newActiveKeyset.f8eSpendingKeyset.keysetId)) {
+        logDebug {
+          "New keyset ${newActiveKeyset.f8eSpendingKeyset.keysetId} already exists in backups, skipping"
+        }
+        emptyList()
+      } else {
+        listOf(newActiveKeyset)
+      }
 
       // If we happen to have the unwrapped SSEK available, perhaps because this is a retry and it
       // was previously populated, we make use of it!

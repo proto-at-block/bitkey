@@ -33,7 +33,7 @@ class LogStoreInMemoryImpl : LogStoreInMemory {
       .distinctUntilChanged()
   }
 
-  override fun getCurrentLogs(
+  override suspend fun getCurrentLogs(
     minimumLevel: LogLevel,
     tag: String?,
   ): List<Entity> {

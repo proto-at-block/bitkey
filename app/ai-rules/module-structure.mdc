@@ -1,7 +1,7 @@
 ---
 description: Module creation, organization, and code placement guidelines for the Bitkey mobile app
 globs: ["**/*.kt", "**/build.gradle.kts", "settings.gradle.kts"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Module Creation and Organization
@@ -110,6 +110,30 @@ XCFramework Assembly (:shared:xc-framework)
 - Single, small features
 - Modules with only 1-2 classes
 - Functionality that closely mirrors existing modules
+
+### Gradle Module Naming and Task Execution
+
+**Module Path Transformation:**
+The project uses a custom `module()` function in `settings.gradle.kts` that transforms hierarchical paths into unique Gradle project names:
+- **Directory structure**: `:domain:wallet:impl` → `/domain/wallet/impl/`
+- **Gradle project name**: `:domain:wallet:impl` → `:domain:wallet-impl`
+- **Purpose**: Prevents naming conflicts when multiple modules share the same leaf name (e.g., multiple `:impl` modules)
+
+**Running Gradle Tasks:**
+When executing module-specific Gradle tasks, use the transformed name:
+```bash
+# Correct - uses transformed project name
+gradle :domain:wallet-impl:jvmTest
+
+# Incorrect - this module doesn't exist in Gradle
+gradle :domain:wallet:impl:jvmTest  # ❌ Won't work
+```
+
+**Dependency References:**
+In `build.gradle.kts` files, use the transformed names:
+```kotlin
+implementation(projects.domain.walletImpl)
+```
 
 ## Example
 

@@ -114,7 +114,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
   test("prepareDescriptorBackupsForRecovery for hardware recovery with incomplete local keysets") {
     val accountId = FullAccountId("test-account")
     val newKeyset = createFakeSpendingKeyset("new-keyset")
-    val f8eKeysets = listOf(createFakeSpendingKeyset("existing-keyset"))
+    val f8eKeysets = listOf(newKeyset, createFakeSpendingKeyset("existing-keyset"))
 
     accountService.accountState.value = Ok(
       ActiveAccount(
@@ -165,6 +165,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
   test("prepareDescriptorBackupsForRecovery for app recovery with existing descriptors") {
     val accountId = FullAccountId("test-account")
     val newKeyset = createFakeSpendingKeyset("new-keyset")
+    val existingKeyset = createFakeSpendingKeyset("existing-keyset")
     val existingDescriptors = listOf(
       DescriptorBackup(
         keysetId = "existing-keyset",
@@ -174,7 +175,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
 
     listKeysetsF8eClient.result = Ok(
       ListKeysetsResponse(
-        keysets = emptyList(),
+        keysets = listOf(existingKeyset, newKeyset),
         descriptorBackups = existingDescriptors,
         wrappedSsek = SealedSsekFake
       )
@@ -200,6 +201,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
   test("prepareDescriptorBackupsForRecovery for app recovery with available SSEK") {
     val accountId = FullAccountId("test-account")
     val newKeyset = createFakeSpendingKeyset("new-keyset")
+    val existingKeyset = createFakeSpendingKeyset("existing-keyset")
     val existingDescriptors = listOf(
       DescriptorBackup(
         keysetId = "existing-keyset",
@@ -212,7 +214,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
 
     listKeysetsF8eClient.result = Ok(
       ListKeysetsResponse(
-        keysets = emptyList(),
+        keysets = listOf(existingKeyset, newKeyset),
         descriptorBackups = existingDescriptors,
         wrappedSsek = SealedSsekFake
       )
@@ -237,7 +239,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
   test("prepareDescriptorBackupsForRecovery for app recovery with no descriptor backups") {
     val accountId = FullAccountId("test-account")
     val newKeyset = createFakeSpendingKeyset("new-keyset")
-    val f8eKeysets = listOf(createFakeSpendingKeyset("f8e-keyset"))
+    val f8eKeysets = listOf(newKeyset, createFakeSpendingKeyset("f8e-keyset"))
 
     listKeysetsF8eClient.result = Ok(
       ListKeysetsResponse(
@@ -287,5 +289,89 @@ class DescriptorBackupServiceImplTests : FunSpec({
     result.size shouldBe 2
     result[0].f8eSpendingKeyset.keysetId shouldBe "existing-keyset"
     result[1].f8eSpendingKeyset.keysetId shouldBe "new-keyset"
+  }
+
+  test("prepareDescriptorBackupsForRecovery - app recovery dedupes with already uploaded backups") {
+    val accountId = FullAccountId("test-account")
+    val duplicateKeyset = createFakeSpendingKeyset("keyset-2")
+    val keyset1 = createFakeSpendingKeyset("keyset-1")
+    val keyset3 = createFakeSpendingKeyset("keyset-3")
+    val existingDescriptors = listOf(
+      DescriptorBackup(
+        keysetId = "keyset-1",
+        sealedDescriptor = XCiphertext("encrypted-1")
+      ),
+      DescriptorBackup(
+        keysetId = "keyset-2", // Matches our new keyset
+        sealedDescriptor = XCiphertext("encrypted-2")
+      ),
+      DescriptorBackup(
+        keysetId = "keyset-3",
+        sealedDescriptor = XCiphertext("encrypted-3")
+      )
+    )
+
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = listOf(keyset1, duplicateKeyset, keyset3),
+        descriptorBackups = existingDescriptors,
+        wrappedSsek = SealedSsekFake
+      )
+    )
+
+    val result = service.prepareDescriptorBackupsForRecovery(
+      accountId = accountId,
+      factorToRecover = PhysicalFactor.App,
+      f8eSpendingKeyset = duplicateKeyset.f8eSpendingKeyset,
+      appSpendingKey = duplicateKeyset.appKey,
+      hwSpendingKey = duplicateKeyset.hardwareKey
+    ).get()
+
+    result.shouldNotBeNull().shouldBeInstanceOf<DescriptorBackupPreparedData.NeedsUnsealed>()
+      .apply {
+        descriptorsToDecrypt shouldContainExactly existingDescriptors
+        keysetsToEncrypt shouldBe emptyList() // Should be empty due to duplicate keyset-2
+        sealedSsek shouldBe SealedSsekFake
+      }
+  }
+
+  test("prepareDescriptorBackupsForRecovery - app recovery falls back to EncryptOnly when keysets missing backups") {
+    val accountId = FullAccountId("test-account")
+    val newKeyset = createFakeSpendingKeyset(keysetId = "new-keyset")
+    val keysetWithBackup = createFakeSpendingKeyset("keyset-with-backup")
+    val keysetWithoutBackup = createFakeSpendingKeyset("keyset-without-backup")
+
+    val existingDescriptors = listOf(
+      DescriptorBackup(
+        keysetId = "keyset-with-backup",
+        sealedDescriptor = XCiphertext("encrypted")
+      )
+    )
+
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = listOf(keysetWithBackup, keysetWithoutBackup, newKeyset), // F8e has 3 keysets
+        descriptorBackups = existingDescriptors, // But only 1 descriptor backup
+        wrappedSsek = SealedSsekFake
+      )
+    )
+
+    val result = service.prepareDescriptorBackupsForRecovery(
+      accountId = accountId,
+      factorToRecover = PhysicalFactor.App,
+      f8eSpendingKeyset = newKeyset.f8eSpendingKeyset,
+      appSpendingKey = newKeyset.appKey,
+      hwSpendingKey = newKeyset.hardwareKey
+    ).get()
+
+    // Should fall back to EncryptOnly due to missing descriptor backup for keysetWithoutBackup
+    result.shouldNotBeNull().shouldBeInstanceOf<DescriptorBackupPreparedData.EncryptOnly>().apply {
+      val keysetIds = keysetsToEncrypt.map { it.f8eSpendingKeyset.keysetId }
+      keysetIds shouldContainExactly listOf(
+        "keyset-with-backup",
+        "keyset-without-backup",
+        "new-keyset"
+      )
+    }
   }
 })

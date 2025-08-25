@@ -13,20 +13,20 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.datadogPublic)
-        api(projects.libs.memfaultPublic)
-        api(projects.libs.queueProcessorPublic)
+        implementation(projects.libs.datadogPublic)
+        implementation(projects.libs.memfaultPublic)
+        implementation(projects.libs.queueProcessorPublic)
         // TODO: remove dependency on :impl
         implementation(projects.libs.queueProcessorImpl) {
           because("Depends on PeriodicProcessorImpl")
         }
-        api(projects.domain.accountPublic)
-        api(projects.domain.cloudBackupPublic)
-        api(projects.domain.databasePublic)
-        api(projects.libs.keyValueStorePublic)
-        api(projects.domain.analyticsPublic)
-        api(projects.domain.walletPublic)
-        api(projects.libs.grantsPublic)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.domain.cloudBackupPublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.libs.keyValueStorePublic)
+        implementation(projects.domain.analyticsPublic)
+        implementation(projects.domain.walletPublic)
+        implementation(projects.libs.grantsPublic)
         implementation(libs.kmp.okio)
         implementation(projects.libs.stdlibPublic)
         implementation(libs.kmp.settings)

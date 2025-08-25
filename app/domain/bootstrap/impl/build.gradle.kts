@@ -11,8 +11,8 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.accountPublic)
-        api(projects.domain.featureFlagPublic)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.domain.featureFlagPublic)
       }
     }
 

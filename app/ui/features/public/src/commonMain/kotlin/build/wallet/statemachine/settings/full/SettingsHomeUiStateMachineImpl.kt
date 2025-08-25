@@ -88,9 +88,6 @@ class SettingsHomeUiStateMachineImpl(
                   onBack = props.onBack,
                   supportedRows =
                     setOfNotNull(
-                      SettingsListUiProps.SettingsListRow.BitkeyDevice {
-                        state = ShowingBitkeyDeviceSettingsUiState
-                      },
                       SettingsListUiProps.SettingsListRow.CustomElectrumServer {
                         state = ShowingCustomElectrumServerSettingsUiState
                       },
@@ -103,9 +100,6 @@ class SettingsHomeUiStateMachineImpl(
                       SettingsListUiProps.SettingsListRow.NotificationPreferences {
                         state = ShowingNotificationPreferencesUiState
                       },
-                      SettingsListUiProps.SettingsListRow.CriticalAlerts {
-                        state = ShowingRecoveryChannelsUiState
-                      },
                       SettingsListUiProps.SettingsListRow.MobilePay {
                         state = ShowingMobilePaySettingsUiState
                       },
@@ -115,18 +109,12 @@ class SettingsHomeUiStateMachineImpl(
                       SettingsListUiProps.SettingsListRow.TrustedContacts {
                         state = ShowingTrustedContactsUiState
                       },
-                      SettingsListUiProps.SettingsListRow.CloudBackupHealth {
-                        state = ShowingCloudBackupHealthUiState
-                      },
                       SettingsListUiProps.SettingsListRow.RotateAuthKey {
                         state = ShowingRotateAuthKeyUiState
                       },
                       SettingsListUiProps.SettingsListRow.DebugMenu {
                         state = ShowingDebugMenuUiState
                       }.takeIf { appVariant.showDebugMenu },
-                      SettingsListUiProps.SettingsListRow.Biometric {
-                        state = ShowingBiometricSettingUiState
-                      },
                       SettingsListUiProps.SettingsListRow.UtxoConsolidation {
                         state = ShowingUtxoConsolidationUiState
                       },
@@ -207,7 +195,7 @@ class SettingsHomeUiStateMachineImpl(
         feedbackUiStateMachine.model(
           props =
             FeedbackUiProps(
-              accountId = props.account.accountId,
+              account = props.account,
               onBack = { state = ShowingAllSettingsUiState }
             )
         )

@@ -1,12 +1,12 @@
 package build.wallet.integration.statemachine.recovery
 
 import app.cash.turbine.turbineScope
+import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_BACKUP_NOT_FOUND
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
-import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.feature.setFlagValue
@@ -17,7 +17,6 @@ import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.input.VerificationCodeInputFormBodyModel
 import build.wallet.statemachine.core.testIn
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -31,17 +30,16 @@ import build.wallet.statemachine.recovery.inprogress.RecoverYourAppKeyBodyModel
 import build.wallet.statemachine.recovery.lostapp.initiate.RecoveryConflictBodyModel
 import build.wallet.statemachine.recovery.sweep.ZeroBalancePromptBodyModel
 import build.wallet.statemachine.recovery.verification.ChooseRecoveryNotificationVerificationMethodModel
-import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.robots.clickBitkeyDevice
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.deleteBackupsFromFakeCloud
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.tags.TestTag.FlakyTest
 import build.wallet.ui.model.alert.ButtonAlertModel
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -146,7 +144,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
         ).onStopRecovery.shouldNotBeNull().invoke()
         lostHwAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>()
           .onPrimaryButtonClick()
-        lostHwAppTester.awaitUntilBody<FormBodyModel>(SETTINGS_DEVICE_INFO)
+        lostHwAppTester.awaitUntilBody<SecurityHubBodyModel>()
       }
     }
   }
@@ -157,20 +155,14 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostHardwareRe
   isContested: Boolean,
 ): DelayAndNotifyNewKeyReady {
   awaitUntilBody<MoneyHomeBodyModel>()
-    .trailingToolbarAccessoryModel
-    .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
-    .model.onClick.invoke()
+    .onSecurityHubTabClick()
 
-  awaitUntilBody<SettingsBodyModel>()
-    .sectionModels.flatMap { it.rowModels }
-    .find { it.title == "Bitkey Device" }
-    .shouldNotBeNull()
-    .onClick()
+  awaitUntilBody<SecurityHubBodyModel>()
+    .clickBitkeyDevice()
 
   awaitUntilBody<DeviceSettingsFormBodyModel>(
     matching = { it.replaceDeviceEnabled && it.replacementPending == null }
   ).onReplaceDevice()
-
   awaitUntilBody<HardwareReplacementInstructionsModel>()
     .clickPrimaryButton()
   awaitUntilBody<NewDeviceReadyQuestionBodyModel>()
@@ -214,6 +206,9 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateAndCompleteLos
 
   awaitUntilBody<ZeroBalancePromptBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
     .onDone()
+
+  awaitUntilBody<SecurityHubBodyModel>().onHomeTabClick()
+  awaitUntilBody<MoneyHomeBodyModel>()
 }
 
 private suspend fun StateMachineTester<Unit, ScreenModel>.verifyCommsForLostHardware() {
@@ -338,12 +333,8 @@ private suspend fun TestScope.testWithTwoApps(
       )
 
     if (isContested) {
-      // Initiate lost hw recovery and back out to Settings screen. Backing out is a hack
-      // to allow waiting for a new FormScreenModel as a recovery canceled screen.
+      // Initiate lost hw recovery
       lostHwAppTester.initiateLostHardwareRecovery(isContested = false)
-        .onBack.shouldNotBeNull()()
-      lostHwAppTester.awaitUntilBody<DeviceSettingsFormBodyModel>()
-        .onBack()
 
       // Cancel through lost app recovery.
       lostAppAppTester.cancelThroughLostAppRecovery()

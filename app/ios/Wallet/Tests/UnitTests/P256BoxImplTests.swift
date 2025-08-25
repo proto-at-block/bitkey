@@ -18,16 +18,15 @@ struct P256BoxImplTests {
         let plaintext = OkioByteString.companion.encodeUtf8("Hello, world!")
         let sealedData = try p256Box.encrypt(
             theirPublicKey: bobKeyPair.publicKey,
-            myPrivateKey: aliceKeyPair.privateKey,
+            myKeyPair: aliceKeyPair,
             nonce: nonce,
-            plaintext_: plaintext
+            plaintext: plaintext
         )
 
         // Bob decrypts
         let decrypted = try p256Box.decrypt(
-            theirPublicKey: aliceKeyPair.publicKey,
             myPrivateKey: bobKeyPair.privateKey,
-            sealedData_: sealedData
+            sealedData: sealedData
         )
 
         #expect(decrypted == plaintext)
@@ -43,16 +42,15 @@ struct P256BoxImplTests {
         let plaintext = OkioByteString.companion.encodeUtf8("")
         let sealedData = try p256Box.encrypt(
             theirPublicKey: bobKeyPair.publicKey,
-            myPrivateKey: aliceKeyPair.privateKey,
+            myKeyPair: aliceKeyPair,
             nonce: nonce,
-            plaintext_: plaintext
+            plaintext: plaintext
         )
 
         // Bob decrypts
         let decrypted = try p256Box.decrypt(
-            theirPublicKey: aliceKeyPair.publicKey,
             myPrivateKey: bobKeyPair.privateKey,
-            sealedData_: sealedData
+            sealedData: sealedData
         )
 
         #expect(decrypted == plaintext)
@@ -66,30 +64,29 @@ struct P256BoxImplTests {
         // Alice encrypts
         let nonce = try nonceGenerator.generateXNonce()
         let plaintext = OkioByteString.companion.encodeUtf8("Hello, world!")
-        let ciphertextWithMetadata = try p256Box.encrypt(
+        let sealedData = try p256Box.encrypt(
             theirPublicKey: bobKeyPair.publicKey,
-            myPrivateKey: aliceKeyPair.privateKey,
+            myKeyPair: aliceKeyPair,
             nonce: nonce,
-            plaintext_: plaintext
+            plaintext: plaintext
         )
-        let sealedData = try ciphertextWithMetadata.toXSealedData()
+        let xSealedData = try sealedData.toXSealedData()
 
         // Flip a bit in the sealed data
-        var modifiedCiphertext = sealedData.ciphertext.toByteArray().asUInt8Array()
+        var modifiedCiphertext = xSealedData.ciphertext.toByteArray().asUInt8Array()
         modifiedCiphertext[0] ^= 1
         let modifiedSealedData = Shared.XSealedData(
-            header: sealedData.header,
+            header: xSealedData.header,
             ciphertext: OkioKt.ByteString(data: Data(modifiedCiphertext)),
-            nonce: sealedData.nonce,
-            publicKey: nil
+            nonce: xSealedData.nonce,
+            publicKey: xSealedData.publicKey
         )
 
         // Bob attempts to decrypt
         #expect(throws: (any Error).self) {
             try p256Box.decrypt(
-                theirPublicKey: aliceKeyPair.publicKey,
                 myPrivateKey: bobKeyPair.privateKey,
-                sealedData_: modifiedSealedData.toOpaqueCiphertext()
+                sealedData: modifiedSealedData.toOpaqueCiphertext()
             )
         }
     }
@@ -104,18 +101,17 @@ struct P256BoxImplTests {
         let plaintext = OkioByteString.companion.encodeUtf8("Hello, world!")
         let sealedData = try p256Box.encrypt(
             theirPublicKey: bobKeyPair.publicKey,
-            myPrivateKey: aliceKeyPair.privateKey,
+            myKeyPair: aliceKeyPair,
             nonce: nonce,
-            plaintext_: plaintext
+            plaintext: plaintext
         )
 
         // Bob attempts to decrypt
         let charlieKeyPair = p256Box.generateKeyPair()
         #expect(throws: (any Error).self) {
             try p256Box.decrypt(
-                theirPublicKey: aliceKeyPair.publicKey,
                 myPrivateKey: charlieKeyPair.privateKey,
-                sealedData_: sealedData
+                sealedData: sealedData
             )
         }
     }

@@ -41,5 +41,3 @@ popd
 
 echo "Uploading $artifact_ipa_file and $artifact_hash_file to app/$release_type/$release_version"
 gh release upload "app/$release_type/$release_version" "$artifacts_dir/$artifact_ipa_file" "$artifacts_dir/$artifact_hash_file"
-
-bundle exec fastlane "upload_wallet_${release_type}_build_symbols"

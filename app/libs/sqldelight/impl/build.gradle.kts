@@ -11,11 +11,11 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.keyValueStorePublic)
-        api(projects.libs.loggingPublic)
-        api(projects.libs.platformPublic)
-        api(libs.kmp.kotlin.result)
-        api(libs.kmp.sqldelight.runtime)
+        implementation(projects.libs.keyValueStorePublic)
+        implementation(projects.libs.loggingPublic)
+        implementation(projects.libs.platformPublic)
+        implementation(libs.kmp.kotlin.result)
+        implementation(libs.kmp.sqldelight.runtime)
         implementation(libs.kmp.settings)
         implementation(projects.libs.stdlibPublic)
       }

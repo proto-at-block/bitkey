@@ -116,9 +116,7 @@ class DeviceSettingsScreenPresenter(
         val goToRecovery = remember(replaceDeviceEnabled, appFunctionalityStatus) {
           {
             when {
-              replaceDeviceEnabled -> Router.route = Route.NavigationDeeplink(
-                screen = NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
-              )
+              replaceDeviceEnabled -> Router.route = Route.InitiateHardwareRecovery
               else -> {
                 alertModel = AppFunctionalityStatusAlertModel(
                   status = appFunctionalityStatus as AppFunctionalityStatus.LimitedFunctionality,

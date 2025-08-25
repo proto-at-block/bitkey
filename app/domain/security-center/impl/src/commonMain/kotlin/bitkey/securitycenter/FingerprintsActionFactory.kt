@@ -44,7 +44,7 @@ class FingerprintsActionFactoryImpl(
 
   private fun createFingerprintResetReadyFlow(): Flow<Boolean> {
     return fingerprintResetService
-      .fingerprintResetAction()
+      .fingerprintResetAction
       .combine(fingerprintResetService.pendingFingerprintResetGrant()) { actionInstance, grant ->
         when {
           // Persisted grant is ready to complete immediately

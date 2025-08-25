@@ -200,7 +200,7 @@ class HomeUiStateMachineImpl(
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE -> {
-                uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery))
+                uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery(true)))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_SECURITY_HUB -> {
@@ -245,6 +245,10 @@ class HomeUiStateMachineImpl(
               else -> false
             }
           }
+          is Route.InitiateHardwareRecovery -> {
+            uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery(false)))
+            true
+          }
         }
       }
     }
@@ -278,7 +282,7 @@ class HomeUiStateMachineImpl(
                   )
                 )
                 BannerType.MissingCommunication -> uiState.copy(presentedScreen = RecoveryChannelSettings)
-                BannerType.MissingHardware -> uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery))
+                BannerType.MissingHardware -> uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery(isContinuingRecovery = true)))
               }
             }
           )

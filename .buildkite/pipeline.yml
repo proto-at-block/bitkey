@@ -1,3 +1,4 @@
+# https://github.com/squareup/runway-pipeline-config/blob/main/pipelines/wallet/wallet-release-build.yaml
 steps:
   - label: "Build customer app for verification"
     timeout_in_minutes: 60

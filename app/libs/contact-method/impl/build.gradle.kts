@@ -11,20 +11,20 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.platformPublic)
+        implementation(projects.libs.platformPublic)
         implementation(projects.libs.stdlibPublic)
       }
     }
 
     val commonJvmMain by getting {
       dependencies {
-        api(libs.android.lib.phone.number)
+        implementation(libs.android.lib.phone.number)
       }
     }
 
     val jvmTest by getting {
       dependencies {
-        api(projects.libs.platformFake)
+        implementation(projects.libs.platformFake)
       }
     }
   }

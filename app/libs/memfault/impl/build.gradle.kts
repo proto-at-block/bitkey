@@ -12,8 +12,8 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.availabilityPublic)
-        api(projects.libs.ktorClientPublic)
+        implementation(projects.domain.availabilityPublic)
+        implementation(projects.libs.ktorClientPublic)
         implementation(projects.domain.f8eClientPublic)
         implementation(projects.libs.loggingPublic)
       }

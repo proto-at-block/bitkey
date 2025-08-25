@@ -1,7 +1,7 @@
 ---
 description: Domain service pattern for encapsulating business logic and domain workflows
 globs: ["**/*Service*.kt"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Domain Service Pattern

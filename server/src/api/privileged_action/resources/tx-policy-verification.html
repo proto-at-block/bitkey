@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transaction Verification</title>
+    <title>Increase Transaction Verification Limit</title>
     <link rel="stylesheet" href="/static/main.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <script type="text/javascript" src="/static/main.js"></script>
+    <script type="text/javascript" src="/static/policy/main.js"></script>
 </head>
 <body>
     <header class="secure-banner">
@@ -29,7 +29,7 @@
                     style="width: 80px; height: 80px;"
                 >
             </div>
-            <h1 class="loading-text">Loading transaction details...</h1>
+            <h1 class="loading-text">Loading verification limit details...</h1>
         </div>
     </div>
 
@@ -38,53 +38,34 @@
 
         <!-- Amount Confirmation Screen -->
         <div id="amountConfirmation" class="verification-container">
-            <h1>Is this the correct amount?</h1>
-            <p class="subtitle">This is the amount you're sending—before fees.</p>
-
-            <div class="amount-card">
-                <div class="amount-card-content">
-                    <span class="amount-label">Send amount</span>
-                    <div class="amount-values">
-                        <span id="amountFiat" class="amount-value">$AMOUNT_FIAT</span>
-                        <span id="amountSats" class="amount-sats">$AMOUNT_SATS</span>
-                    </div>
-                </div>
-            </div>
+            <h1>Increase transaction verification limit to <span class="inline-block amountFiat" data-amount-fiat></span></h1>
+            <p class="subtitle">You can cancel to continue using your current verification limit. </p>
         </div>
-
-        <!-- Address Verification Screen -->
-        <main id="addressVerification" class="verification-container">
-            <h1>Enter the missing characters in the recipient's address</h1>
-
-            <div id="addressGrid" class="address-grid">
-                <!-- Generated address grid will go here -->
-            </div>
-        </main>
 
         <!-- Success Screen -->
         <div id="successScreen" class="verification-container">
-            <img src="/static/success.svg" alt="Success" class="success-icon">
-            <h1>Address Verified, you're all set</h1>
+            <h1>Your verification limit is now <span class="inline-block amountFiat" data-amount-fiat></span></h1>
+            <p class="subtitle">You will only be asked to verify transactions above your new limit. </p>
             <p class="subtitle">You can return to the Bitkey app on your mobile device.</p>
-
-            <div id="fullAddressText" class="address-grid">
-                <!-- Generated address text will go here -->
-            </div>
-
         </div>
+
+        <!-- Cancellation Screen -->
+        <main id="cancellationScreen" class="verification-container">
+            <h1>Your verification limit has not been changed</h1>
+            <p class="subtitle">You can change your limit in the Bitkey app. </p> 
+        </main>                
 
     </div>
 
     <!-- Button container with top border -->
     <div class="button-container">
         <div class="action-buttons" id="amountButtons">
-            <button class="secondary-button">No</button>
-            <button class="primary-button">Yes, it's correct</button>
+            <button id="yesBtn" class="primary-button">Approve</button>
+            <button id="noBtn" class="secondary-button">Cancel</button>
         </div>
-        <div class="action-buttons" id="verificationButtons" style="display: none;">
-            <button id="cancelBtn" class="secondary-button">I can't find one</button>
-            <button id="confirmBtn" class="primary-button">Continue</button>
-        </div>
+        <div class="action-buttons" id="supportButtons" style="display: none;">
+            <a class="primary-button" href="https://bitkey.world/links/app" data-app-link="true">Return to Bitkey</a>
+        </div>         
     </div>
     
     <!-- MOCK DATA: This will be replaced by the server with real data -->

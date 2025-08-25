@@ -37,7 +37,7 @@ interface LogStore {
    * Returns current list of log entities above the [minimumLevel].
    * If [tag] is specified, only log entities with the same log are returned.
    */
-  fun getCurrentLogs(
+  suspend fun getCurrentLogs(
     minimumLevel: LogLevel,
     tag: String?,
   ): List<Entity>

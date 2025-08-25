@@ -12,8 +12,8 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(libs.kmp.kotlin.datetime)
-        api(projects.domain.workerPublic)
+        implementation(libs.kmp.kotlin.datetime)
+        implementation(projects.domain.workerPublic)
         implementation(projects.domain.databasePublic)
         implementation(projects.libs.datadogPublic)
       }

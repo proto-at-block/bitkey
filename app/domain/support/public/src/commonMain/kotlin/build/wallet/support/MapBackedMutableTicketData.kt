@@ -9,7 +9,7 @@ internal class MapBackedMutableTicketData(
 ) : MutableSupportTicketData {
   override var email: Email = initialData.email
   override var sendDebugData: Boolean = initialData.sendDebugData
-
+  override var sendEncryptedDescriptor: Boolean = initialData.sendEncryptedDescriptor
   private val mutableAttachments = initialData.attachments.toMutableList()
   override val attachments: List<SupportTicketAttachment> = mutableAttachments
 
@@ -40,6 +40,7 @@ internal class MapBackedMutableTicketData(
     ImmutableSupportTicketData(
       email = email,
       sendDebugData = sendDebugData,
+      sendEncryptedDescriptor = sendEncryptedDescriptor,
       attachments = attachments.toImmutableList(),
       data = values.toImmutableMap()
     )

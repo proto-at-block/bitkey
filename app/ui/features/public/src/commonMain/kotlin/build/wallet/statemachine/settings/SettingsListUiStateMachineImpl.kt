@@ -4,8 +4,6 @@ import androidx.compose.runtime.*
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.cloud.backup.CloudBackupHealthRepository
-import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
@@ -13,17 +11,12 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.SecurityHubFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.settings.SettingsBodyModel.RowModel
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -35,9 +28,7 @@ import kotlin.reflect.KClass
 @BitkeyInject(ActivityScope::class)
 class SettingsListUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
-  private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val coachmarkService: CoachmarkService,
-  private val securityHubFeatureFlag: SecurityHubFeatureFlag,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
@@ -66,36 +57,22 @@ class SettingsListUiStateMachineImpl(
           props = props,
           appFunctionalityStatus = appFunctionalityStatus,
           title = "General",
-          rowTypes = if (securityHubFeatureFlag.isEnabled()) {
-            immutableListOf(
-              MobilePay::class,
-              AppearancePreference::class,
-              NotificationPreferences::class,
-              RotateAuthKey::class,
-              InheritanceManagement::class
-            )
-          } else {
-            immutableListOf(
-              MobilePay::class,
-              BitkeyDevice::class,
-              AppearancePreference::class,
-              NotificationPreferences::class
-            )
-          }
+          rowTypes = immutableListOf(
+            MobilePay::class,
+            AppearancePreference::class,
+            NotificationPreferences::class,
+            RotateAuthKey::class,
+            InheritanceManagement::class
+          )
         ),
         SettingsSection(
           props = props,
           appFunctionalityStatus = appFunctionalityStatus,
           title = "Security & Recovery",
           rowTypes = immutableListOf(
-            Biometric::class,
-            InheritanceManagement::class,
-            RotateAuthKey::class,
-            CloudBackupHealth::class,
-            CriticalAlerts::class,
             TrustedContacts::class
           )
-        ).takeIf { !securityHubFeatureFlag.isEnabled() || props.isLiteAccount },
+        ).takeIf { props.isLiteAccount },
         SettingsSection(
           props = props,
           appFunctionalityStatus = appFunctionalityStatus,
@@ -134,17 +111,13 @@ class SettingsListUiStateMachineImpl(
     @Suppress("UnstableCollections")
     rowTypes: List<KClass<out SettingsListRow>>,
   ): SettingsBodyModel.SectionModel? {
-    val appKeyBackupStatus by remember {
-      cloudBackupHealthRepository.appKeyBackupStatus()
-    }.collectAsState()
-
     // Build the row models based on if the parent wants to show the row for the section
     val rowModels =
-      remember(appFunctionalityStatus, appKeyBackupStatus) {
+      remember(appFunctionalityStatus) {
         rowTypes.mapNotNull { rowType ->
           props.supportedRows
             .firstOrNull { rowType.isInstance(it) }
-            ?.rowModel(appFunctionalityStatus, props, appKeyBackupStatus)
+            ?.rowModel(appFunctionalityStatus, props)
         }
       }
 
@@ -159,23 +132,18 @@ class SettingsListUiStateMachineImpl(
   private fun SettingsListRow.rowModel(
     appFunctionalityStatus: AppFunctionalityStatus,
     props: SettingsListUiProps,
-    appKeyBackupStatus: AppKeyBackupStatus?,
   ): RowModel {
     val (icon: Icon, title: String) =
       when (this) {
         is MobilePay -> Pair(SmallIconMobileLimit, "Transfers")
-        is BitkeyDevice -> Pair(SmallIconBitkey, "Bitkey Device")
         is AppearancePreference -> Pair(SmallIconPaintBrush, "Appearance")
         is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
-        is CriticalAlerts -> Pair(SmallIconWarning, "Critical Alerts")
         is CustomElectrumServer -> Pair(SmallIconElectrum, "Custom Electrum Server")
         is ContactUs -> Pair(SmallIconMessage, "Contact Us")
         is HelpCenter -> Pair(SmallIconQuestion, "Help Center")
         is TrustedContacts -> Pair(SmallIconShieldPerson, "Recovery Contacts")
-        is CloudBackupHealth -> Pair(SmallIconCloud, "Cloud Backup")
         is RotateAuthKey -> Pair(SmallIconPhone, "Mobile Devices")
         is DebugMenu -> Pair(SmallIconInformation, "Debug Menu")
-        is Biometric -> Pair(SmallIconLock, "App Security")
         is UtxoConsolidation -> Pair(SmallIconConsolidation, "UTXO Consolidation")
         is InheritanceManagement -> Pair(SmallIconInheritance, "Inheritance")
         is ExportTools -> Pair(SmallIconDocument, "Exports")
@@ -185,7 +153,6 @@ class SettingsListUiStateMachineImpl(
       icon = icon,
       title = title,
       isDisabled = !isRowEnabled,
-      specialTrailingIconModel = getSpecialTrailingIconModel(appKeyBackupStatus),
       onClick = {
         if (isRowEnabled) {
           onClick()
@@ -205,37 +172,15 @@ class SettingsListUiStateMachineImpl(
     )
   }
 
-  private fun SettingsListRow.getSpecialTrailingIconModel(
-    appKeyBackupStatus: AppKeyBackupStatus?,
-  ): IconModel? {
-    return when (this) {
-      is CloudBackupHealth -> {
-        IconModel(
-          icon = SmallIconInformationFilled,
-          iconSize = IconSize.Small,
-          iconTint = IconTint.Warning
-        ).takeIf {
-          appKeyBackupStatus != null &&
-            appKeyBackupStatus is AppKeyBackupStatus.ProblemWithBackup
-        }
-      }
-      else -> null
-    }
-  }
-
   private fun SettingsListRow.isRowEnabled(
     appFunctionalityStatus: AppFunctionalityStatus,
   ): Boolean {
     return when (this) {
-      // Rows that are always available
-      is BitkeyDevice ->
-        true
-
       is MobilePay ->
         appFunctionalityStatus.featureStates.mobilePay == Available
       is AppearancePreference ->
         appFunctionalityStatus.featureStates.fiatExchangeRates == Available
-      is NotificationPreferences, is CriticalAlerts ->
+      is NotificationPreferences ->
         appFunctionalityStatus.featureStates.notifications == Available
       is CustomElectrumServer ->
         appFunctionalityStatus.featureStates.customElectrumServer == Available
@@ -243,14 +188,11 @@ class SettingsListUiStateMachineImpl(
         appFunctionalityStatus.featureStates.securityAndRecovery == Available
       is HelpCenter ->
         appFunctionalityStatus.featureStates.helpCenter == Available
-      is CloudBackupHealth ->
-        appFunctionalityStatus.featureStates.cloudBackupHealth == Available
       is RotateAuthKey ->
         appFunctionalityStatus.featureStates.securityAndRecovery == Available
       is ContactUs ->
         appFunctionalityStatus.featureStates.helpCenter == Available
       is DebugMenu -> true
-      is Biometric -> true
       is ExportTools -> appFunctionalityStatus.featureStates.exportTools == Available
       is UtxoConsolidation -> appFunctionalityStatus.featureStates.utxoConsolidation == Available
       is InheritanceManagement -> appFunctionalityStatus.featureStates.helpCenter == Available

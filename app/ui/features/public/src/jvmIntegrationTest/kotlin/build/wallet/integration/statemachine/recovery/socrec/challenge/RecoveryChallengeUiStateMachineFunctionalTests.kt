@@ -26,6 +26,7 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.platform.permissions.EnableNotificationsBodyModel
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -456,6 +457,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         primaryButton?.onClick?.invoke()
       }
       awaitUntilBody<LoadingSuccessBodyModel>(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
+      awaitUntilBody<EnableNotificationsBodyModel>()
     }
   }
 
@@ -505,6 +507,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         primaryButton?.onClick?.invoke()
       }
       awaitUntilBody<LoadingSuccessBodyModel>(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
+      awaitUntilBody<EnableNotificationsBodyModel>()
     }
   }
   test("test restoration from old backup with inactiveSpendingKeysets field succeeds") {

@@ -631,7 +631,9 @@ class AppUiStateMachineImpl(
     DisposableEffect(screenModel.key) {
       logInfo(
         tag = "Screen" // This tag is used by a Datadog dashboard.
-      ) { "${screenModel.body}" }
+      ) {
+        "bodyName=${screenModel.body::class.qualifiedName} screenId=${screenModel.eventInfoToTrack()?.screenId}"
+      }
 
       onDispose { }
     }

@@ -119,9 +119,6 @@ private fun SettingsSection(model: SettingsBodyModel.SectionModel) {
               )
           ),
         trailingAccessory = ListItemAccessory.drillIcon().takeIf { !rowModel.isDisabled },
-        specialTrailingAccessory = rowModel.specialTrailingIconModel?.let { model ->
-          ListItemAccessory.IconAccessory(model = model)
-        },
         onClick = rowModel.onClick,
         showNewCoachmark = rowModel.showNewCoachmark
       )

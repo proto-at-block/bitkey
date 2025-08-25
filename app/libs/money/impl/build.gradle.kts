@@ -13,12 +13,12 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.accountPublic)
-        api(projects.domain.availabilityPublic)
-        api(projects.domain.debugPublic)
-        api(projects.domain.f8eClientPublic)
-        api(projects.libs.ktorClientPublic)
-        api(projects.domain.databasePublic)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.domain.availabilityPublic)
+        implementation(projects.domain.debugPublic)
+        implementation(projects.domain.f8eClientPublic)
+        implementation(projects.libs.ktorClientPublic)
+        implementation(projects.domain.databasePublic)
         implementation(projects.libs.loggingPublic)
       }
     }

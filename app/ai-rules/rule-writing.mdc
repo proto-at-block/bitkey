@@ -8,15 +8,15 @@ alwaysApply: true
 
 ## Summary
 
-This rule defines standards for creating, updating, and maintaining AI rules in this codebase. It ensures rules are composable, minimal, declarative, and form a consistent foundation for AI guidance. All rules follow Cursor-style metadata format and are designed primarily for Claude Code.
+Standards for creating, updating, and maintaining AI rules in this codebase. Ensures rules are composable, minimal, declarative, and form a consistent foundation for AI guidance across all AI assistants.
 
 ## When to Apply
 
-- When creating any new AI rule file
-- When updating existing AI rules  
-- When maintaining the overall ruleset consistency
-- When referencing rules in CLAUDE.md
-- **When modifying any existing rule file - apply all guidelines in this rule to ensure consistency**
+- Creating new AI rule files
+- Updating existing AI rules  
+- Maintaining ruleset consistency
+- Referencing rules in configurations
+- **Modifying any existing rule file**
 
 ## How to Apply
 
@@ -51,125 +51,88 @@ References to other rules that complement or interact with this one.
 
 ### File Management
 
-**Before creating a new rule:**
-1. Search existing rules to avoid duplication
-2. Check if the topic can be addressed by updating an existing rule
-3. Analyze the codebase to extract real-world patterns as examples
+**Before creating:** Search existing rules, check if topic can be addressed by updating existing rule, analyze codebase for real patterns.
 
-**File naming:**
-- Use kebab-case: `rule-name.mdc`
-- Follow naming guidelines (see below)
-- Place in `ai-rules/` directory
+**Naming:** Use kebab-case (`rule-name.mdc`) in `ai-rules/` directory. Be concise (2-3 words max), descriptive, domain-focused, and action-oriented.
 
-**Naming Guidelines:**
-- **Concise**: Maximum 2-3 words, avoid unnecessary articles (a, the, an)
-- **Descriptive**: Name should clearly indicate the rule's purpose
-- **Domain-focused**: Use domain terminology over generic programming terms
-- **Action-oriented**: Prefer verbs or gerunds when applicable
-
-Examples:
-- ✅ `error-handling.mdc` (concise, clear purpose)
-- ✅ `strong-typing.mdc` (descriptive domain concept)
-- ✅ `api-versioning.mdc` (specific, actionable area)
-- ❌ `guidelines-for-error-handling.mdc` (too verbose)
-- ❌ `stuff.mdc` (not descriptive)
-- ❌ `kotlin-programming-best-practices.mdc` (too broad/generic)
+**Examples:**
+- ✅ `error-handling.mdc`, `strong-typing.mdc`, `api-versioning.mdc`
+- ❌ `guidelines-for-error-handling.mdc`, `stuff.mdc`, `kotlin-programming-best-practices.mdc`
 
 ### Rule Distribution and Discovery
 
-**Source of Truth:**
-- All AI rules live in `app/ai-rules/` as the canonical source
-- This directory contains the authoritative versions of all rules
-- Never edit rules outside of this directory
+**Source of Truth:** All AI rules live in `app/ai-rules/` as canonical source. Never edit rules outside this directory.
 
-**Index Rule Maintenance:**
-- **Update `bitkey-mobile.mdc`** whenever rules are added, removed, or significantly changed
-- **Add new rules** to the "AI Rule Index" section with high-level descriptions
-- **Write descriptions** that are:
-  - Specific enough for AI assistants to understand when to apply the rule
-  - Brief enough to avoid context overload (1-2 lines maximum)
-  - Focused on the rule's primary purpose and key patterns covered
-  - Written to help AI assistants make effective rule selection decisions
+**Index Maintenance:** Update `bitkey-mobile.mdc` whenever rules are added/removed/changed. Add new rules with brief, specific descriptions (1-2 lines max) focused on primary purpose.
 
-**Rule Symlinks and References:**
-Only create symlinks in `app/.cursor/rules/` for rules that meet these criteria:
-- **Index files** (like `bitkey-mobile.mdc`) that provide entry points and rule discovery
-- **Rules with `alwaysApply: true`** that should be loaded by Cursor/Goose regardless of file attachment
+**Rule Index Reference:** The complete, authoritative list of all AI rules is maintained in `@ai-rules/bitkey-mobile.mdc`. This index serves as the single source of truth for rule discovery and is automatically referenced by all AI assistant configurations.
+
+**Symlinks:** Only create symlinks in `app/.cursor/rules/` for index files and rules with `alwaysApply: true`.
 
 **Rule Application Settings:**
-- **`alwaysApply: true`**: Use ONLY for index files and meta-rules that provide foundational context
-- **`alwaysApply: false`** or omit: Use for all specialized rules that apply to specific contexts
-- **`globs`**: Always specify appropriate file patterns to describe where the rule applies
+- **`alwaysApply: true`**: Index files and meta-rules only
+- **`alwaysApply: false`**: Specialized rules for specific contexts
+- **`globs`**: Always specify file patterns where rule applies
 
 **AI Tool Integration:**
 
-*Claude and Junie Configuration:*
-- Reference index rules like `@ai-rules/bitkey-mobile.mdc` in prompts and context
-- Index rules guide AI assistants to discover and apply relevant specialized rules
-- Claude and Junie can access rules directly from `ai-rules/` directory
+**ALL AI assistants must be configured when creating rules:**
 
-*Cursor and Goose Configuration:*
-- These tools only see rules in `app/.cursor/rules/` directory
-- Create symlinks using: `ln -sf "../ai-rules/rule-name.mdc" "app/.cursor/rules/rule-name.mdc"`
-- Symlinks are required for Cursor/Goose to access and apply rules
-- Only symlink index files and rules that should always be loaded
+Most rules are automatically included via the index (`@ai-rules/bitkey-mobile.mdc`). For rules with `alwaysApply: true`, additional direct references may be needed in individual AI configuration files.
 
-*GitHub Copilot Configuration:*
-- Add reference in `.github/copilot-instructions.md` using format: `@app/ai-rules/rule-name.mdc`  
-- References use `@app/` prefix since Copilot configuration is in root directory and needs full path to rules
-- Place references in logical order
-- Update when rules are renamed or removed
+*Claude Code:* Update `CLAUDE.md` with direct rule references or reference via index (automatic)
+
+*Junie:* Reference via index (automatic) or direct reference in `.junie/guidelines.md` for always-apply rules
+
+*Firebender:* Uses Cursor rules configuration - reference via index (automatic) or create symlinks in `app/.cursor/rules/` for always-apply rules
+
+*Cursor:* Create symlinks in `app/.cursor/rules/` using `ln -sf "../../ai-rules/rule-name.mdc" "rule-name.mdc"`
+
+*Goose:* Update `app/.goosehints` file with relative path `ai-rules/rule-name.mdc` and brief 1-2 line description of when to apply the rule. **CRITICAL:** Goose does not understand @ notation and requires explicit relative file paths with contextual descriptions for rule discovery and application.
+
+*GitHub Copilot:* Reference via index (automatic) or add direct reference in `.github/copilot-instructions.md` for always-apply rules: `@app/ai-rules/rule-name.mdc`
 
 ### Rule Principles
 
-**Composable:** Rules should work together without conflicts and be reusable across different contexts.
+**Composable:** Work together without conflicts, reusable across contexts.
 
-**Minimal:** Each rule focuses on one clear concern. Split complex topics into multiple focused rules.
+**Minimal:** One clear concern per rule. Split complex topics into focused rules.
 
-**Declarative:** Describe the desired intent and structure, not just procedural steps.
+**Declarative:** Describe desired intent and structure, not just procedural steps.
 
-**Evidence-based:** Extract patterns from the actual codebase, but verify they represent current best practices, not legacy approaches.
+**Evidence-based:** Extract patterns from actual codebase, verify they represent current best practices.
 
-**Detailed but code-sourced:** Rules should be detailed and tutorial-like for AI assistance, but avoid duplicating comprehensive API definitions or exhaustive implementation details that can be accessed directly in the codebase. Include illustrative examples and key patterns, while directing readers to reference actual code for complete API signatures and parameter details.
+**Detailed but code-sourced:** Tutorial-like for AI assistance, avoid duplicating comprehensive API definitions. Include illustrative examples and key patterns, direct readers to actual code for complete details.
 
-**Include negative consequences:** For every bad pattern or anti-pattern, document the specific negative consequences that result from following the bad pattern. This helps with:
-- Future debugging when AI assists with identifying root causes of bugs
-- Understanding why patterns are discouraged beyond stylistic preferences  
-- Training developers to recognize symptoms of architectural problems
-- Providing context for code review feedback
+**Concise and AI-optimized:** Keep rules as concise as possible while maintaining necessary detail. Optimize for AI consumption and memory efficiency to avoid wasting tokens. Use clear, direct language and well-structured formatting for maximum readability.
+
+**Include negative consequences:** Document specific negative consequences of bad patterns for debugging, understanding design decisions, recognizing architectural problems, and code review context.
 
 ### Maintenance Guidelines
 
-**Updating existing rules:**
-- Rules can and should be updated to maintain consistency
-- Prefer updating over duplicating
-- Consider impact on related rules
-- Update examples to reflect current codebase patterns
-- **Apply all rule-writing guidelines when making any changes to existing rules**
-- **Ensure modified rules follow the exact structure, principles, and formatting defined in this rule**
+**Rule Updates:** Always update existing rules for consistency rather than duplicating. Apply all rule-writing guidelines when modifying any rule file - ensure exact structure, principles, and formatting compliance.
 
-**Ruleset evolution:**
-- Regularly review rules for relevance
-- Remove or merge outdated rules
-- Ensure the overall ruleset remains holistic and consistent
-- Document breaking changes in rule updates
+**Ruleset Evolution:** Regularly review for relevance, remove/merge outdated rules, maintain holistic consistency, document breaking changes.
 
-**Consistency verification:**
-- **Ensure .mdc files in `ai-rules/` are properly referenced and symlinked where appropriate**
-- When adding/removing/renaming rules, update based on rule type:
+**Related Rules:** Only reference existing rules (verify with `ls ai-rules/*.mdc`), never reference future/planned rules, remove broken references when rules are deleted/renamed.
 
-*For Index Rules and Always-Apply Rules:*
-  1. Create/modify/remove the `.mdc` file in `ai-rules/`
-  2. Add/update/remove the `@ai-rules/rule-name.mdc` reference in `CLAUDE.md`
-  3. Create/update/remove the symlink in `.cursor/rules/`
-  4. Add/update/remove the `@app/ai-rules/rule-name.mdc` reference in `../.github/copilot-instructions.md`
+**New Rule Creation Checklist:**
+1. Create rule file in `ai-rules/`
+2. Add to `bitkey-mobile.mdc` index with clear description
+3. Update AI assistant configurations:
+   - **Claude Code**: Update `CLAUDE.md` with rule references
+   - **Junie**: Auto-reference via `@ai-rules/bitkey-mobile.mdc`
+   - **Firebender**: Uses Cursor rules configuration - create symlink in `.cursor/rules/` (if always-apply)
+   - **Cursor**: Create symlink in `.cursor/rules/` (if always-apply)
+   - **Goose**: Add to `.goosehints` with relative path and brief description
+   - **GitHub Copilot**: Add to `../.github/copilot-instructions.md`
+4. Verify all references point to existing rules
+5. Test rule with multiple AI assistants
 
-*For Specialized Rules (no symlinks):*
-  1. Create/modify/remove the `.mdc` file in `ai-rules/`
-  2. Reference in prompts via index rules or as-needed basis
-  3. Update GitHub Copilot references if rule should be broadly available
-
-- Periodically audit for consistency: `ls ai-rules/*.mdc`, `grep @ai-rules CLAUDE.md`, `ls .cursor/rules/`, `grep @app/ai-rules ../.github/copilot-instructions.md`
+**Consistency Verification:**
+- For Index/Always-Apply Rules: Create/update/remove `.mdc` file → update `CLAUDE.md` → update `.junie/guidelines.md` → update `.goosehints` → create/update/remove `.cursor/rules/` symlink → update `.goosehints` → update `../.github/copilot-instructions.md`
+- For Specialized Rules: Create/update/remove `.mdc` file → reference via index or as-needed → update Goose hints if broadly needed → update GitHub Copilot if broadly needed
+- Audit: `ls ai-rules/*.mdc`, `grep @ai-rules CLAUDE.md`, `grep @ai-rules .junie/guidelines.md`, `grep @ai-rules .goosehints`, `ls .cursor/rules/`, `cat .goosehints`, `grep @app/ai-rules ../.github/copilot-instructions.md`
 
 ## Example
 

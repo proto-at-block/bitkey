@@ -184,43 +184,41 @@ fun MoneyHomeScreen(
       onRefresh = model.onRefresh
     )
 
-    if (model.onSecurityHubTabClick != null) {
-      val hasCoachmark = remember(model.coachmark, coachmarkHeight) {
-        model.coachmark?.identifier == CoachmarkIdentifier.SecurityHubHomeCoachmark && coachmarkHeight != null
-      }
-      TabBar(
-        modifier = Modifier.align(Alignment.BottomCenter)
-          .onGloballyPositioned { layoutCoordinates ->
-            tabBarHeightDp = with(localDensity) { layoutCoordinates.size.height.toDp() + 36.dp }
-            if (hasCoachmark) {
-              val positionInParent = layoutCoordinates.positionInParent()
-              coachmarkOffset = coachmarkHeight?.let { height ->
-                Offset(
-                  0f,
-                  positionInParent.y - height
-                )
-              } ?: Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-            }
+    val hasCoachmark = remember(model.coachmark, coachmarkHeight) {
+      model.coachmark?.identifier == CoachmarkIdentifier.SecurityHubHomeCoachmark && coachmarkHeight != null
+    }
+    TabBar(
+      modifier = Modifier.align(Alignment.BottomCenter)
+        .onGloballyPositioned { layoutCoordinates ->
+          tabBarHeightDp = with(localDensity) { layoutCoordinates.size.height.toDp() + 36.dp }
+          if (hasCoachmark) {
+            val positionInParent = layoutCoordinates.positionInParent()
+            coachmarkOffset = coachmarkHeight?.let { height ->
+              Offset(
+                0f,
+                positionInParent.y - height
+              )
+            } ?: Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
           }
-      ) {
-        listOf(
-          HomeTab.MoneyHome(
-            selected = true,
-            onSelected = {}
-          ),
-          HomeTab.SecurityHub(
-            selected = false,
-            onSelected = model.onSecurityHubTabClick,
-            badged = model.isSecurityHubBadged
-          )
-        ).map {
-          Tab(
-            selected = it.selected,
-            onClick = it.onSelected,
-            icon = it.icon,
-            badged = it.badged
-          )
         }
+    ) {
+      listOf(
+        HomeTab.MoneyHome(
+          selected = true,
+          onSelected = {}
+        ),
+        HomeTab.SecurityHub(
+          selected = false,
+          onSelected = model.onSecurityHubTabClick,
+          badged = model.isSecurityHubBadged
+        )
+      ).map {
+        Tab(
+          selected = it.selected,
+          onClick = it.onSelected,
+          icon = it.icon,
+          badged = it.badged
+        )
       }
     }
   }

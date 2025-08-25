@@ -30,7 +30,7 @@ fun ChooseTxPolicyTypeSheet(
   )
 )
 
-private data class ChooseTxPolicyTypeSheetBody(
+data class ChooseTxPolicyTypeSheetBody(
   override val onBack: () -> Unit,
   val onAlwaysClick: () -> Unit,
   val onAboveAmountClick: () -> Unit,

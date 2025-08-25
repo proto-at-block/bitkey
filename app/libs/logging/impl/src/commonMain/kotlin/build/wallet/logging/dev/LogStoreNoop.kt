@@ -14,7 +14,7 @@ object LogStoreNoop : LogStore {
     return emptyFlow()
   }
 
-  override fun getCurrentLogs(
+  override suspend fun getCurrentLogs(
     minimumLevel: LogLevel,
     tag: String?,
   ): List<LogStore.Entity> {

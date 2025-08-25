@@ -11,7 +11,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.platformPublic)
+        implementation(projects.libs.platformPublic)
       }
     }
     commonTest {

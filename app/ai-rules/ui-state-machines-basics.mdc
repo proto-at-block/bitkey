@@ -1,7 +1,7 @@
 ---
 description: Core UI State Machine concepts, interface, props design, and basic patterns
 globs: ["**/*StateMachine*.kt", "**/*UiStateMachine*.kt"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # UI State Machine Basics

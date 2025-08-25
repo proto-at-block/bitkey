@@ -156,8 +156,9 @@ class MoneyHomeUiStateMachineImpl(
         }
         is MoneyHomeUiProps.Origin.LostHardwareRecovery -> {
           ViewHardwareRecoveryStatusUiState(
-            instructionsStyle = when (props.lostHardwareRecoveryData) {
-              is CompletingRecoveryData -> InstructionsStyle.Independent
+            instructionsStyle = when {
+              props.lostHardwareRecoveryData is CompletingRecoveryData ||
+                !origin.isContinuingRecovery -> InstructionsStyle.Independent
               else -> InstructionsStyle.ResumedRecoveryAttempt
             }
           )

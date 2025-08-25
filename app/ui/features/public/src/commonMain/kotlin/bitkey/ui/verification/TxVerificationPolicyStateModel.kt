@@ -25,11 +25,11 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  * Body model used for managing the user's Transaction Verification Policy.
  */
 internal data class TxVerificationPolicyStateModel(
-  private val formatter: MoneyDisplayFormatter,
-  private val checked: Boolean,
-  private val threshold: VerificationThreshold? = null,
-  private val enabled: Boolean = true,
-  private val updatePolicy: (Boolean) -> Unit,
+  val formatter: MoneyDisplayFormatter,
+  val checked: Boolean,
+  val threshold: VerificationThreshold? = null,
+  val enabled: Boolean = true,
+  val updatePolicy: (Boolean) -> Unit,
   override val onBack: () -> Unit,
 ) : BodyModel() {
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = EventTrackerScreenInfo(

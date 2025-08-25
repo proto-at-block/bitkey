@@ -14,7 +14,6 @@ fun TrustedContactCardModel(
   buttonText: String,
   onClick: () -> Unit,
   buttonTreatment: ButtonModel.Treatment = ButtonModel.Treatment.Primary,
-  isSecurityHub: Boolean = false,
 ) = CardModel(
   leadingImage = CardModel.CardImage.StaticImage(Icon.MediumIconTrustedContact),
   title =
@@ -24,8 +23,7 @@ fun TrustedContactCardModel(
     ),
   subtitle = when {
     Beneficiary == contact.roles.singleOrNull() -> "Beneficiary"
-    isSecurityHub -> "$buttonText Recovery Contact"
-    else -> "Recovery Contact"
+    else -> "$buttonText Recovery Contact"
   },
   trailingButton =
     ButtonModel(

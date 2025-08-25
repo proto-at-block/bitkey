@@ -1,6 +1,6 @@
 package build.wallet.statemachine.settings.full.feedback
 
-import build.wallet.bitkey.f8e.AccountId
+import build.wallet.bitkey.account.Account
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -15,6 +15,6 @@ interface FeedbackUiStateMachine : StateMachine<FeedbackUiProps, ScreenModel>
  * @property onBack - invoked once a back action has occurred
  */
 data class FeedbackUiProps(
-  val accountId: AccountId,
+  val account: Account,
   val onBack: () -> Unit,
 )

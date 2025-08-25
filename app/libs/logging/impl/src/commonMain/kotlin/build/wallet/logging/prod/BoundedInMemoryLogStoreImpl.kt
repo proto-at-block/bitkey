@@ -5,8 +5,12 @@ import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel
 import build.wallet.logging.dev.LogStore
 import build.wallet.logging.dev.LogStore.Entity
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
 
 interface BoundedInMemoryLogStore : LogStore
@@ -17,15 +21,24 @@ interface BoundedInMemoryLogStore : LogStore
  * emitting Flow events.
  */
 @BitkeyInject(AppScope::class)
-class BoundedInMemoryLogStoreImpl : BoundedInMemoryLogStore {
+class BoundedInMemoryLogStoreImpl(
+  val appScope: CoroutineScope,
+) : BoundedInMemoryLogStore {
   private val logs = ArrayDeque<Entity>()
+
+  // this mutex is used to ensure read/write safety when accessing the logs
+  private val mutex = Mutex()
   internal var maxLogEntries: Int = 1000
 
   override fun record(entity: Entity) {
-    if (logs.size >= maxLogEntries) {
-      logs.removeFirst()
+    appScope.launch {
+      mutex.withLock {
+        if (logs.size >= maxLogEntries) {
+          logs.removeFirst()
+        }
+        logs.addLast(entity)
+      }
     }
-    logs.addLast(entity)
   }
 
   override fun logs(
@@ -42,16 +55,20 @@ class BoundedInMemoryLogStoreImpl : BoundedInMemoryLogStore {
     return flowOf(listOf(placeHolder))
   }
 
-  override fun getCurrentLogs(
+  override suspend fun getCurrentLogs(
     minimumLevel: LogLevel,
     tag: String?,
   ): List<Entity> {
-    val snapshot = mutableListOf<Entity>()
-    logs.filterTo(snapshot) { it.level >= minimumLevel && if (tag != null) it.tag == tag else true }
-    return snapshot
+    return mutex.withLock {
+      logs.filter { it.level >= minimumLevel && (tag == null || it.tag == tag) }
+    }
   }
 
   override fun clear() {
-    logs.clear()
+    appScope.launch {
+      mutex.withLock {
+        logs.clear()
+      }
+    }
   }
 }

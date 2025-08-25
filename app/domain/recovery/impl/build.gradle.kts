@@ -11,12 +11,12 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.databasePublic)
-        api(projects.domain.debugPublic)
-        api(projects.domain.f8eClientPublic)
-        api(projects.domain.notificationsPublic)
-        api(projects.domain.walletPublic)
-        api(projects.libs.stdlibPublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.domain.debugPublic)
+        implementation(projects.domain.f8eClientPublic)
+        implementation(projects.domain.notificationsPublic)
+        implementation(projects.domain.walletPublic)
+        implementation(projects.libs.stdlibPublic)
         implementation(projects.libs.queueProcessorPublic)
         implementation(projects.domain.relationshipsPublic)
         implementation(projects.libs.timePublic)

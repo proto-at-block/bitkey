@@ -6,10 +6,11 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRate
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.*
 
 class TxVerificationServiceFake : TxVerificationService {
+  val currentThreshold = MutableStateFlow<VerificationThreshold?>(null)
+
   var requireVerification: Boolean = false
   var verificationResult: Result<ConfirmationFlow<TxVerificationApproval>, Throwable> = Ok(
     flowOf(
@@ -34,7 +35,9 @@ class TxVerificationServiceFake : TxVerificationService {
   }
 
   override fun getCurrentThreshold(): Flow<Result<VerificationThreshold?, Error>> {
-    return flowOf(Ok(null))
+    return currentThreshold.map {
+      Ok(it)
+    }
   }
 
   override fun getPendingPolicy(): Flow<Result<TxVerificationPolicy.Pending?, Error>> {
@@ -45,9 +48,9 @@ class TxVerificationServiceFake : TxVerificationService {
     txVerificationPolicy: TxVerificationPolicy.Active,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, Error> {
-    return Ok(
-      Unit
-    )
+    currentThreshold.update { txVerificationPolicy.threshold }
+
+    return Ok(Unit)
   }
 
   fun reset() {
@@ -58,5 +61,6 @@ class TxVerificationServiceFake : TxVerificationService {
         ConfirmationState.Confirmed(FakeTxVerificationApproval)
       )
     )
+    currentThreshold.value = null
   }
 }

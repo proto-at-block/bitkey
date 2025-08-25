@@ -220,6 +220,7 @@ class SecurityHubPresenter(
                     id = recommendation.navigationScreenId(),
                     originScreen = screen,
                     firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+                    isFingerprintResetEnabled = isFingerprintResetEnabled,
                     onCannotUnlockFingerprints = onCannotUnlockFingerprints
                   )
                 }
@@ -262,7 +263,8 @@ class SecurityHubPresenter(
               navigator.navigateToScreen(
                 id = NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE,
                 originScreen = screen,
-                firmwareUpdateData = firmwareUpdateData.firmwareUpdateState
+                firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+                isFingerprintResetEnabled = isFingerprintResetEnabled
               )
             },
             account = screen.account
@@ -281,7 +283,7 @@ fun Navigator.navigateToScreen(
   id: NavigationScreenId,
   originScreen: SecurityHubScreen,
   firmwareUpdateData: FirmwareData.FirmwareUpdateState,
-  isFingerprintResetEnabled: Boolean = false,
+  isFingerprintResetEnabled: Boolean,
   onCannotUnlockFingerprints: (() -> Unit)? = null,
 ) {
   when (id) {

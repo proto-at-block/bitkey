@@ -9,6 +9,7 @@ use hkdf::Hkdf;
 use p256::{
     ecdh::diffie_hellman,
     elliptic_curve::{sec1::ToEncodedPoint, zeroize::Zeroizing},
+    pkcs8::{DecodePrivateKey, DecodePublicKey},
     PublicKey, SecretKey,
 };
 use rand::rngs::OsRng;
@@ -71,10 +72,18 @@ impl P256Box {
     /// # Errors
     /// - Returns `PublicKeyError` or `SecretKeyError` if keys are malformed
     pub fn new(public_key: &[u8], secret_key: &[u8]) -> Result<Self, P256BoxError> {
-        let sk = SecretKey::from_slice(secret_key).map_err(|_| P256BoxError::SecretKeyError)?;
+        let sk = match secret_key.len() {
+            32 => SecretKey::from_slice(secret_key).map_err(|_| P256BoxError::SecretKeyError)?,
+            _ => SecretKey::from_pkcs8_der(secret_key).map_err(|_| P256BoxError::SecretKeyError)?,
+        };
 
-        let pk =
-            PublicKey::from_sec1_bytes(public_key).map_err(|_| P256BoxError::PublicKeyError)?;
+        let pk = match public_key.len() {
+            91 => PublicKey::from_public_key_der(public_key)
+                .map_err(|_| P256BoxError::PublicKeyError)?,
+            _ => {
+                PublicKey::from_sec1_bytes(public_key).map_err(|_| P256BoxError::PublicKeyError)?
+            }
+        };
 
         // Compute shared secret using ECDH (x-coordinate only)
         let shared_secret = Zeroizing::new(

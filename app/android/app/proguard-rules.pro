@@ -1,3 +1,5 @@
+# Disable obfuscation
+-dontobfuscate
 
 # keep model data classes
 -keep class build.wallet.statemachine.** { *; }

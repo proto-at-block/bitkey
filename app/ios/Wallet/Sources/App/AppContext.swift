@@ -82,7 +82,8 @@ class AppContext {
             wsmVerifier: WsmVerifierImpl(),
             xChaCha20Poly1305: XChaCha20Poly1305Impl(),
             xNonceGenerator: XNonceGeneratorImpl(),
-            noiseInitiator: noiseInitiator
+            noiseInitiator: noiseInitiator,
+            p256Box: P256BoxImpl()
         )
 
         // Create IosActivityComponent

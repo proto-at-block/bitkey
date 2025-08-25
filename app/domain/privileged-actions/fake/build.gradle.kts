@@ -15,6 +15,7 @@ kotlin {
         implementation(projects.domain.f8eClientFake)
         implementation(projects.libs.testingPublic)
         implementation(projects.domain.accountFake)
+        implementation(projects.libs.encryptionFake)
       }
     }
   }

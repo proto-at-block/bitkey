@@ -21,6 +21,8 @@ class StateMapBackedSupportTicketData(
 
   override var email: Email by mutableStateOf(initialData.email)
   override var sendDebugData: Boolean by mutableStateOf(initialData.sendDebugData)
+
+  override var sendEncryptedDescriptor: Boolean by mutableStateOf(initialData.sendEncryptedDescriptor)
   private val mutableAttachments: MutableList<SupportTicketAttachment> = mutableStateListOf()
   override val attachments: List<SupportTicketAttachment> = mutableAttachments
 
@@ -62,6 +64,7 @@ class StateMapBackedSupportTicketData(
     ImmutableSupportTicketData(
       email = email,
       sendDebugData = sendDebugData,
+      sendEncryptedDescriptor = sendEncryptedDescriptor,
       attachments = attachments.toImmutableList(),
       data = data.toImmutableMap()
     )

@@ -42,6 +42,7 @@ kotlin {
 
     jvmTest {
       dependencies {
+        implementation(projects.rust.coreFfi)
         implementation(projects.domain.authImpl)
         implementation(projects.libs.encryptionFake)
         implementation(projects.libs.encryptionImpl)

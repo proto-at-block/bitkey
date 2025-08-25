@@ -12,8 +12,8 @@ kotlin {
     val commonMain by getting {
       dependencies {
         implementation(projects.libs.stdlibPublic)
-        api(libs.kmp.kotlin.result)
-        api(projects.libs.secureEnclavePublic)
+        implementation(libs.kmp.kotlin.result)
+        implementation(projects.libs.secureEnclavePublic)
       }
     }
     val commonJvmMain by getting {

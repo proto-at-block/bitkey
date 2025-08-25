@@ -1,7 +1,5 @@
 package build.wallet.coachmark
 
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -10,11 +8,8 @@ import kotlinx.datetime.Instant
 class CoachmarkVisibilityDeciderTests :
   FunSpec({
 
-    val featureFlagDao = FeatureFlagDaoMock()
-    val securityHubFeatureFlag = SecurityHubFeatureFlag(featureFlagDao)
     val coachmarkVisibilityDecider = CoachmarkVisibilityDecider(
-      ClockFake(),
-      securityHubFeatureFlag
+      ClockFake()
     )
 
     test("return unexpired coachmarks") {

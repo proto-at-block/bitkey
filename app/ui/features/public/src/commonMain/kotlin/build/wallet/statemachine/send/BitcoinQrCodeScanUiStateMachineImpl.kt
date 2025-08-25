@@ -91,7 +91,11 @@ class BitcoinQrCodeScanUiStateMachineImpl(
       }
       is UnrecognizedErrorUiState ->
         UnrecognizedErrorScreen(
-          onDoneClick = props.onClose
+          onDoneClick = {
+            qrCodeDataToHandle = null
+            paymentDataToHandle = null
+            state = ScanningQrCodeUiState(null)
+          }
         )
 
       SelfSendErrorUiState ->

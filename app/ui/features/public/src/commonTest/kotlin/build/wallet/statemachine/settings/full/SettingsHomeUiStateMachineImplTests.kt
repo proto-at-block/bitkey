@@ -126,18 +126,14 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
           .map { it::class }.toSet()
           .shouldBe(
             setOf(
-              SettingsListUiProps.SettingsListRow.BitkeyDevice::class,
               SettingsListUiProps.SettingsListRow.CustomElectrumServer::class,
               SettingsListUiProps.SettingsListRow.AppearancePreference::class,
               SettingsListUiProps.SettingsListRow.HelpCenter::class,
               SettingsListUiProps.SettingsListRow.MobilePay::class,
               SettingsListUiProps.SettingsListRow.NotificationPreferences::class,
-              SettingsListUiProps.SettingsListRow.CriticalAlerts::class,
               SettingsListUiProps.SettingsListRow.ContactUs::class,
               SettingsListUiProps.SettingsListRow.TrustedContacts::class,
-              SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
               SettingsListUiProps.SettingsListRow.RotateAuthKey::class,
-              SettingsListUiProps.SettingsListRow.Biometric::class,
               SettingsListUiProps.SettingsListRow.InheritanceManagement::class,
               SettingsListUiProps.SettingsListRow.UtxoConsolidation::class,
               SettingsListUiProps.SettingsListRow.ExportTools::class
@@ -225,18 +221,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         onExit()
       }
 
-      awaitBodyMock<SettingsListUiProps>()
-    }
-  }
-
-  test("open and close bitkey device settings") {
-    stateMachine().test(props) {
-      awaitBodyMock<SettingsListUiProps> {
-        supportedRows.first { it is SettingsListUiProps.SettingsListRow.BitkeyDevice }.onClick()
-      }
-      awaitBodyMock<DeviceSettingsProps> {
-        onBack()
-      }
       awaitBodyMock<SettingsListUiProps>()
     }
   }

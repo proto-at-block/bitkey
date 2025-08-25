@@ -1,5 +1,6 @@
 package bitkey.ui.screens.securityhub.education
 
+import bitkey.privilegedactions.FingerprintResetAvailabilityServiceImpl
 import bitkey.securitycenter.HardwareDeviceAction
 import bitkey.securitycenter.SecurityActionRecommendation
 import bitkey.securitycenter.SocialRecoveryAction
@@ -9,7 +10,9 @@ import build.wallet.availability.FunctionalityFeatureStates.FeatureState
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.FingerprintResetFeatureFlag
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
+import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.ui.awaitBody
@@ -19,9 +22,12 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class SecurityHubEducationScreenPresenterTests : FunSpec({
 
+  val featureFlagDaoFake = FeatureFlagDaoFake()
   val presenter = SecurityHubEducationScreenPresenter(
-    fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(
-      featureFlagDao = FeatureFlagDaoFake()
+    fingerprintResetAvailabilityService = FingerprintResetAvailabilityServiceImpl(
+      fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDaoFake),
+      fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDaoFake),
+      firmwareDataService = FirmwareDataServiceFake()
     )
   )
 

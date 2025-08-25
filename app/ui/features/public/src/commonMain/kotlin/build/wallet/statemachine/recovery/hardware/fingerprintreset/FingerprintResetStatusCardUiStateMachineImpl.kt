@@ -37,7 +37,7 @@ class FingerprintResetStatusCardUiStateMachineImpl(
         }
     }
 
-    val pendingAction by fingerprintResetService.fingerprintResetAction().collectAsState()
+    val pendingAction by fingerprintResetService.fingerprintResetAction.collectAsState()
 
     return pendingAction?.let { action ->
       val delayAndNotifyStrategy =

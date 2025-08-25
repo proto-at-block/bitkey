@@ -228,4 +228,42 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       }
     }
   }
+
+  test("Dismissing unrecognized error returns to scanning screen") {
+    stateMachine.test(props) {
+      awaitBody<QrCodeScanBodyModel> {
+        onQrCodeScanned(invalidAddressText)
+      }
+
+      awaitBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("We couldn’t recognize this address")
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitBody<QrCodeScanBodyModel> {
+        onQrCodeScanned(validAddress.address)
+      }
+
+      onRecipientScannedCalls.awaitItem().shouldBe(validAddress)
+    }
+  }
+
+  test("Dismissing network mismatch error returns to scanning screen") {
+    stateMachine.test(props) {
+      awaitBody<QrCodeScanBodyModel> {
+        onQrCodeScanned(validSignetAddress)
+      }
+
+      awaitBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("We couldn’t recognize this address")
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitBody<QrCodeScanBodyModel> {
+        onQrCodeScanned(validAddress.address)
+      }
+
+      onRecipientScannedCalls.awaitItem().shouldBe(validAddress)
+    }
+  }
 })

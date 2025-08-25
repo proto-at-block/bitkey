@@ -186,7 +186,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                       }
                     )
                   } else {
-                    uiState = FailureUiState(
+                    uiState = UnrectifiableFailureUiState.CheckingBackupFailure(
                       ErrorData(
                         segment = RecoverySegment.CloudBackup.FullAccount.Creation,
                         cause = cloudBackupError,
@@ -225,9 +225,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                 errorData = errorData
               )
           },
-          onFailure = {
-            uiState = FailureUiState(it)
-          }
+          setUiState = { uiState = it }
         ).asScreen(props.presentationStyle)
 
       is RectifiableFailureUiState ->
@@ -251,8 +249,33 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             )
         )
 
-      is FailureUiState -> FailedToCreateBackupModel(
-        props = props,
+      is UnrectifiableFailureUiState.CheckingBackupFailure -> CheckingBackupFailedModel(
+        onBackupFailed = props.onBackupFailed,
+        presentationStyle = props.presentationStyle,
+        errorData = state.errorData
+      )
+
+      is UnrectifiableFailureUiState.CreatingBackupFailure -> CreatingBackupFailedModel(
+        onBackupFailed = props.onBackupFailed,
+        presentationStyle = props.presentationStyle,
+        errorData = state.errorData
+      )
+
+      is UnrectifiableFailureUiState.UploadingBackupFailure -> UploadingBackupFailedModel(
+        onBackupFailed = props.onBackupFailed,
+        presentationStyle = props.presentationStyle,
+        errorData = state.errorData
+      )
+
+      is UnrectifiableFailureUiState.CreatingEmergencyExitKitFailure -> CreatingEmergencyExitKitFailedModel(
+        onBackupFailed = props.onBackupFailed,
+        presentationStyle = props.presentationStyle,
+        errorData = state.errorData
+      )
+
+      is UnrectifiableFailureUiState.UploadingEmergencyExitKitFailure -> UploadingEmergencyExitKitFailedModel(
+        onBackupFailed = props.onBackupFailed,
+        presentationStyle = props.presentationStyle,
         errorData = state.errorData
       )
 
@@ -364,15 +387,15 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
     state: CreatingAndSavingBackupUiState,
     sealedCsek: SealedCsek,
     onRectifiableError: (RectifiableCloudBackupError, ErrorData) -> Unit,
-    onFailure: (ErrorData) -> Unit,
     onBack: () -> Unit,
+    setUiState: (FullAccountCloudSignInAndBackupUiState) -> Unit,
   ): BodyModel {
     CreateAndSaveBackupEffect(
       props = props,
       state = state,
       onRectifiableError = onRectifiableError,
       sealedCsek = sealedCsek,
-      onFailure = onFailure
+      setUiState = setUiState
     )
 
     return LoadingBodyModel(
@@ -388,7 +411,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
     state: CreatingAndSavingBackupUiState,
     sealedCsek: SealedCsek,
     onRectifiableError: (RectifiableCloudBackupError, ErrorData) -> Unit,
-    onFailure: (ErrorData) -> Unit,
+    setUiState: (FullAccountCloudSignInAndBackupUiState) -> Unit,
   ) {
     LaunchedEffect("create-and-save-backup") {
       coroutineBinding {
@@ -401,11 +424,13 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             )
             .logFailure { "Error creating cloud backup" }
             .onFailure {
-              onFailure(
-                ErrorData(
-                  segment = RecoverySegment.CloudBackup.FullAccount.Creation,
-                  cause = it,
-                  actionDescription = "Creating cloud backup"
+              setUiState(
+                UnrectifiableFailureUiState.CreatingBackupFailure(
+                  ErrorData(
+                    segment = RecoverySegment.CloudBackup.FullAccount.Creation,
+                    cause = it,
+                    actionDescription = "Creating cloud backup"
+                  )
                 )
               )
             }
@@ -437,7 +462,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                 errorData
               )
             } else {
-              onFailure(errorData)
+              setUiState(UnrectifiableFailureUiState.UploadingBackupFailure(errorData))
             }
           }
           .bind()
@@ -451,11 +476,13 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             )
             .logFailure { "Error creating Emergency Exit Kit data" }
             .onFailure {
-              onFailure(
-                ErrorData(
-                  segment = RecoverySegment.EmergencyExit.Creation,
-                  cause = it,
-                  actionDescription = "Creating Emergency Exit Kit"
+              setUiState(
+                UnrectifiableFailureUiState.CreatingEmergencyExitKitFailure(
+                  ErrorData(
+                    segment = RecoverySegment.EmergencyExit.Creation,
+                    cause = it,
+                    actionDescription = "Creating Emergency Exit Kit"
+                  )
                 )
               )
             }
@@ -480,7 +507,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                 errorData
               )
             } else {
-              onFailure(errorData)
+              setUiState(UnrectifiableFailureUiState.UploadingEmergencyExitKitFailure(errorData))
             }
           }
           .bind()
@@ -488,22 +515,6 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
         props.onBackupSaved()
       }
     }
-  }
-
-  @Composable
-  fun FailedToCreateBackupModel(
-    props: FullAccountCloudSignInAndBackupProps,
-    errorData: ErrorData,
-  ): ScreenModel {
-    return ErrorFormBodyModel(
-      title = "We were unable to create backup",
-      subline = "Please try again later.",
-      primaryButton = ButtonDataModel(text = "Done", onClick = {
-        props.onBackupFailed(errorData.cause)
-      }),
-      eventTrackerScreenId = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT,
-      errorData = errorData
-    ).asScreen(props.presentationStyle)
   }
 }
 
@@ -562,9 +573,13 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
   ) : FullAccountCloudSignInAndBackupUiState()
 
   /**
-   * Error during the process.
+   * If we don't previously have a signed CSEK, we sign here in this state.
+   *
+   * @property csek - The CSEK to sign
    */
-  data class FailureUiState(val errorData: ErrorData) : FullAccountCloudSignInAndBackupUiState()
+  data class SealingCsekViaNfcUiState(
+    val csek: Csek,
+  ) : FullAccountCloudSignInAndBackupUiState()
 
   /**
    * Explaining error that may be fixable.
@@ -577,11 +592,44 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
   ) : FullAccountCloudSignInAndBackupUiState()
 
   /**
-   * If we don't previously have a signed CSEK, we sign here in this state.
-   *
-   * @property csek - The CSEK to sign
+   * Base class for all unrectifiable failure states during the backup process.
    */
-  data class SealingCsekViaNfcUiState(
-    val csek: Csek,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  sealed class UnrectifiableFailureUiState : FullAccountCloudSignInAndBackupUiState() {
+    abstract val errorData: ErrorData
+
+    /**
+     * Error during backup checking process.
+     */
+    data class CheckingBackupFailure(
+      override val errorData: ErrorData,
+    ) : UnrectifiableFailureUiState()
+
+    /**
+     * Error during backup creation process.
+     */
+    data class CreatingBackupFailure(
+      override val errorData: ErrorData,
+    ) : UnrectifiableFailureUiState()
+
+    /**
+     * Error during backup upload process.
+     */
+    data class UploadingBackupFailure(
+      override val errorData: ErrorData,
+    ) : UnrectifiableFailureUiState()
+
+    /**
+     * Error during Emergency Exit Kit creation process.
+     */
+    data class CreatingEmergencyExitKitFailure(
+      override val errorData: ErrorData,
+    ) : UnrectifiableFailureUiState()
+
+    /**
+     * Error during Emergency Exit Kit upload process.
+     */
+    data class UploadingEmergencyExitKitFailure(
+      override val errorData: ErrorData,
+    ) : UnrectifiableFailureUiState()
+  }
 }

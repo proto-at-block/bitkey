@@ -49,7 +49,6 @@ fun MoneyHomeScreenFull(
   hideBalance: Boolean = false,
   largeBalance: Boolean = false,
   showSellButton: Boolean = false,
-  securityHub: Boolean = false,
   securityHubBadged: Boolean = false,
 ) {
   MoneyHomeScreen(
@@ -171,7 +170,7 @@ fun MoneyHomeScreenFull(
             onClick = StandardClick {}
           )
         ),
-        onSecurityHubTabClick = if (securityHub) ({}) else null,
+        onSecurityHubTabClick = {},
         isSecurityHubBadged = securityHubBadged
       )
   )

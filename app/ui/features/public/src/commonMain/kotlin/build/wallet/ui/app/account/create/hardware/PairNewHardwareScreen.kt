@@ -64,6 +64,7 @@ fun PairNewHardwareScreen(
     ),
     headerModel = model.header,
     buttonModel = model.primaryButton,
+    secondaryButtonModel = model.secondaryButton,
     backgroundContent = {
       BoxWithConstraints {
         VideoPlayer(
@@ -97,6 +98,7 @@ fun PairNewHardwareScreen(
   toolbarModel: ToolbarModel?,
   headerModel: FormHeaderModel,
   buttonModel: ButtonModel,
+  secondaryButtonModel: ButtonModel? = null,
   isNavigatingBack: Boolean,
   backgroundContent: @Composable () -> Unit,
 ) {
@@ -141,6 +143,10 @@ fun PairNewHardwareScreen(
             )
             Spacer(Modifier.height(24.dp))
             Button(buttonModel)
+            secondaryButtonModel?.let {
+              Spacer(Modifier.height(16.dp))
+              Button(it)
+            }
             Spacer(Modifier.height(24.dp))
           }
         }

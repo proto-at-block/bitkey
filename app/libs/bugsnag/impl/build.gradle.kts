@@ -11,7 +11,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.accountPublic)
+        implementation(projects.domain.accountPublic)
         implementation(projects.libs.loggingPublic)
       }
     }

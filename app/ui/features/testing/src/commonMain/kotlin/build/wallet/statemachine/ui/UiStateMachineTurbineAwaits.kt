@@ -216,8 +216,11 @@ inline fun ScreenModel.toSimpleString(): String {
   return buildString {
     append("ScreenModel(")
     append(body.toSimpleString())
-    bottomSheetModel?.run {
-      append(", bottomSheetModel=SheetModel(body=${body::class.simpleName})")
+    statusBannerModel?.let {
+      append(", statusBannerModel=${it::class.simpleName})")
+    }
+    bottomSheetModel?.let {
+      append(", bottomSheetModel=${it::class.simpleName})")
     }
     append(")")
   }

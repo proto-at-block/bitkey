@@ -21,13 +21,14 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.datadogPublic)
-        api(projects.domain.analyticsPublic)
-        api(projects.domain.authPublic)
-        api(projects.domain.databasePublic)
-        api(projects.domain.notificationsPublic)
-        api(projects.domain.walletPublic)
-        api(projects.libs.platformPublic)
+        implementation(projects.libs.datadogPublic)
+        implementation(projects.domain.analyticsPublic)
+        implementation(projects.domain.authPublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.domain.notificationsPublic)
+        implementation(projects.domain.walletPublic)
+        implementation(projects.libs.platformPublic)
+        api(projects.domain.supportPublic)
         implementation(libs.kmp.ktor.client.content.negotiation)
         implementation(libs.kmp.ktor.client.auth)
         implementation(libs.kmp.ktor.client.core)
@@ -65,12 +66,12 @@ kotlin {
 
     val commonJvmMain by getting {
       dependencies {
-        api(libs.jvm.ktor.client.okhttp)
+        implementation(libs.jvm.ktor.client.okhttp)
       }
     }
     val iosMain by getting {
       dependencies {
-        api(libs.native.ktor.client.darwin)
+        implementation(libs.native.ktor.client.darwin)
       }
     }
 

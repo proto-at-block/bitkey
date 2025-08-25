@@ -11,15 +11,15 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.queueProcessorPublic)
-        api(projects.domain.databasePublic)
-        api(projects.libs.loggingPublic)
+        implementation(projects.libs.queueProcessorPublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.libs.loggingPublic)
       }
     }
 
     commonTest {
       dependencies {
-        api(projects.libs.queueProcessorFake)
+        implementation(projects.libs.queueProcessorFake)
         implementation(projects.libs.testingPublic)
         implementation(projects.libs.queueProcessorTesting)
       }

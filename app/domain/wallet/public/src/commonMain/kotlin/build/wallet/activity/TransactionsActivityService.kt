@@ -18,11 +18,6 @@ interface TransactionsActivityService {
   suspend fun sync(): Result<Unit, Error>
 
   /**
-   * On-demand request to sync on-chain transactions including inactive wallets.
-   */
-  suspend fun syncActiveAndInactiveWallets(): Result<Unit, Error>
-
-  /**
    * Emits latest list of transactions activity.
    */
   val transactions: StateFlow<List<Transaction>?>

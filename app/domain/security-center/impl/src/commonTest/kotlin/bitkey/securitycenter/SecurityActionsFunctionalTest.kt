@@ -85,10 +85,7 @@ class SecurityActionsFunctionalTest : FunSpec({
   val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
-  val fingerprintResetF8eClient = FingerprintResetF8eClientFake(
-    turbines::create,
-    clock
-  )
+  val fingerprintResetF8eClient = FingerprintResetF8eClientFake(clock)
   val fingerprintResetService = FingerprintResetServiceFake(
     fingerprintResetF8eClient,
     accountService,

@@ -11,16 +11,17 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(libs.kmp.kermit)
-        api(projects.domain.accountPublic)
-        api(projects.libs.platformPublic)
-        api(projects.domain.hardwarePublic)
+        implementation(libs.kmp.kermit)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.libs.platformPublic)
+        implementation(projects.domain.hardwarePublic)
+        implementation(libs.kmp.kotlin.coroutines)
       }
     }
     val androidMain by getting {
       dependencies {
-        api(projects.libs.datadogPublic)
-        api(libs.android.datadog.logs)
+        implementation(projects.libs.datadogPublic)
+        implementation(libs.android.datadog.logs)
         implementation(libs.kmp.kermit.bugsnag)
       }
     }
@@ -29,6 +30,10 @@ kotlin {
       dependencies {
         implementation(libs.kmp.kermit.bugsnag)
       }
+    }
+
+    commonTest.dependencies {
+      implementation(projects.libs.testingPublic)
     }
   }
 }

@@ -3,6 +3,7 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
 import app.cash.turbine.ReceiveTurbine
+import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.*
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.LOADING_RESTORING_FROM_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
@@ -36,6 +37,7 @@ import build.wallet.statemachine.recovery.socrec.help.model.EnterRecoveryCodeFor
 import build.wallet.statemachine.recovery.socrec.help.model.VerifyingContactMethodFormBodyModel
 import build.wallet.statemachine.recovery.socrec.list.full.TrustedContactsListBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
+import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringProtectedCustomerNameBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
@@ -94,25 +96,9 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
   inviteCode: String,
   protectedCustomerAlias: String,
 ) {
-  awaitUntilBody<MoneyHomeBodyModel>(
-    MoneyHomeEventTrackerScreenId.MONEY_HOME
-  ) {
-    trailingToolbarAccessoryModel
-      .shouldNotBeNull()
-      .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
-      .model
-      .onClick()
-  }
+  awaitUntilBody<MoneyHomeBodyModel>().onSecurityHubTabClick()
 
-  awaitUntilBody<SettingsBodyModel>(
-    SettingsEventTrackerScreenId.SETTINGS
-  ) {
-    sectionModels
-      .flatMap { it.rowModels }
-      .firstOrNull { it.title == "Recovery Contacts" }
-      .shouldNotBeNull()
-      .onClick()
-  }
+  awaitUntilBody<SecurityHubBodyModel>().clickRecoveryContacts()
 
   awaitUntilBody<TrustedContactsListBodyModel> {
     contacts.shouldBeEmpty()
@@ -430,22 +416,13 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecove
   cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.ProtectedCustomerFake,
 ) {
   awaitUntilBody<MoneyHomeBodyModel>()
-    .trailingToolbarAccessoryModel
-    .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
-    .model.onClick.invoke()
+    .onSecurityHubTabClick()
 
-  awaitUntilBody<SettingsBodyModel>()
-    .sectionModels.flatMap { it.rowModels }
-    .find { it.title == "Bitkey Device" }
-    .shouldNotBeNull()
-    .onClick()
-  awaitUntilBody<FormBodyModel> {
-    mainContentList
-      .filterIsInstance<FormMainContentModel.Button>()
-      .single { it.item.text == "Replace device" }
-      .item.onClick()
-  }
+  awaitUntilBody<SecurityHubBodyModel>()
+    .clickBitkeyDevice()
 
+  awaitUntilBody<DeviceSettingsFormBodyModel>()
+    .onReplaceDevice()
   awaitUntilBody<HardwareReplacementInstructionsModel>()
     .onContinue()
   awaitUntilBody<NewDeviceReadyQuestionBodyModel>()
@@ -489,6 +466,8 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecove
     HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
   )
     .clickPrimaryButton()
+  awaitUntilBody<SecurityHubBodyModel>()
+    .onHomeTabClick()
   awaitUntilBody<MoneyHomeBodyModel>()
   cancelAndIgnoreRemainingEvents()
 }

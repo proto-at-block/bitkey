@@ -13,9 +13,9 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.composeRuntimePublic)
-        api(projects.libs.keyValueStorePublic)
-        api(projects.libs.loggingPublic)
+        implementation(projects.libs.composeRuntimePublic)
+        implementation(projects.libs.keyValueStorePublic)
+        implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
       }
     }

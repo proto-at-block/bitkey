@@ -1,7 +1,7 @@
 ---
 description: Kotlin Multiplatform code structure and organization guidelines
 globs: ["**/*.kt", "**/build.gradle.kts", "settings.gradle.kts"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Kotlin Multiplatform Code Structure

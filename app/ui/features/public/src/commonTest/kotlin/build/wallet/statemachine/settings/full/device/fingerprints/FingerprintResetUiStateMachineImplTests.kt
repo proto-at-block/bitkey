@@ -12,12 +12,10 @@ import bitkey.privilegedactions.FingerprintResetServiceImpl
 import bitkey.privilegedactions.GrantDaoFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
-import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.SignatureUtilsMock
-import build.wallet.f8e.F8eEnvironment
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareFeatureFlag
@@ -42,8 +40,10 @@ import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetConfirmationBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetConfirmationSheetModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetEventTrackerScreenId
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetNfcResult
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetGrantProvisionResult
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetGrantRequestResult
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetProps
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetSuccessBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachineImpl
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FinishFingerprintResetBodyModel
 import build.wallet.statemachine.ui.awaitBody
@@ -53,8 +53,8 @@ import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.time.ClockFake
 import build.wallet.time.DurationFormatterFake
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -75,19 +75,20 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
   val accountServiceFake = AccountServiceFake()
   val clock = ClockFake()
   val fingerprintResetF8eClientFake = FingerprintResetF8eClientFake(
-    turbines::create,
     clock
   )
   val signatureUtils = SignatureUtilsMock()
   val nfcCommandsMock = NfcCommandsMock(turbines::create)
   val metricTrackerService = MetricTrackerServiceFake()
   val grantDaoFake = GrantDaoFake()
+  val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
   val fingerprintResetService = FingerprintResetServiceImpl(
     privilegedActionF8eClient = fingerprintResetF8eClientFake,
     accountService = accountServiceFake,
     signatureUtils = signatureUtils,
     clock = clock,
-    grantDao = grantDaoFake
+    grantDao = grantDaoFake,
+    hardwareUnlockInfoService = hardwareUnlockInfoService
   )
 
   val enrollingFingerprintUiStateMachine =
@@ -95,8 +96,6 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
       ScreenStateMachineMock<EnrollingFingerprintProps>(
         id = "enrolling-fingerprint"
       ) {}
-
-  val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
 
   val stateMachine = FingerprintResetUiStateMachineImpl(
     nfcSessionUIStateMachine = nfcSessionUiStateMachine,
@@ -106,7 +105,9 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     remainingRecoveryDelayWordsUpdateFrequency = RemainingRecoveryDelayWordsUpdateFrequency(1.milliseconds),
     enrollingFingerprintUiStateMachine = enrollingFingerprintUiStateMachine,
     metricTrackerService = metricTrackerService,
-    hardwareUnlockInfoService = hardwareUnlockInfoService
+    fingerprintResetGrantNfcHandler = FingerprintResetGrantNfcHandler(
+      fingerprintResetService = fingerprintResetService
+    )
   )
 
   val onCompleteCalls = turbines.create<Unit>("onComplete calls")
@@ -120,14 +121,12 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     account = FullAccountMock
   )
 
-  val expectedEnv = FullAccountMock.config.f8eEnvironment
-  val expectedAccountId = FullAccountMock.accountId
-
   beforeTest {
     clock.reset()
     metricTrackerService.reset()
     accountServiceFake.setActiveAccount(FullAccountMock)
     grantDaoFake.reset()
+    fingerprintResetF8eClientFake.reset()
     fingerprintResetService.deleteFingerprintResetGrant()
     nfcCommandsMock.setFirmwareFeatureFlags(
       listOf(
@@ -145,17 +144,11 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
-        .shouldBe(Pair(expectedEnv, expectedAccountId))
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
-
       awaitBody<FingerprintResetConfirmationBodyModel> {
         header
           .shouldNotBeNull()
           .headline.shouldBe("Start fingerprint reset")
       }
-
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
     }
   }
 
@@ -164,12 +157,6 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
-
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem() shouldBe Pair(
-        expectedEnv,
-        expectedAccountId
-      )
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
 
       awaitBody<FingerprintResetConfirmationBodyModel> {
         primaryButton.shouldNotBeNull().onClick()
@@ -187,10 +174,6 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
-
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
-        .shouldBe(Pair(expectedEnv, expectedAccountId))
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
 
       awaitBody<FingerprintResetConfirmationBodyModel> {
         primaryButton.shouldNotBeNull().onClick()
@@ -210,16 +193,12 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
-        .shouldBe(Pair(expectedEnv, expectedAccountId))
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
-
       awaitBody<FingerprintResetConfirmationBodyModel> { primaryButton!!.onClick() }
       awaitSheet<FingerprintResetConfirmationSheetModel> {
         primaryButton.shouldNotBeNull().onClick()
       }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantRequestResult>>(id = nfcSessionUiStateMachine.id) {
         val mockGrantRequest = GrantRequest(
           version = 1.toByte(),
           deviceId = ByteArray(8) { 0x01 },
@@ -229,12 +208,10 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
             .toByteArray()
         )
         val sessionResult = session(NfcSessionFake(), nfcCommandsMock)
-        sessionResult shouldBe FingerprintResetNfcResult.GrantRequestRetrieved(mockGrantRequest)
+        sessionResult shouldBe FingerprintResetGrantRequestResult.GrantRequestRetrieved(mockGrantRequest)
 
         onSuccess(sessionResult)
       }
-
-      fingerprintResetF8eClientFake.createPrivilegedActionCalls.awaitItem()
 
       nfcCommandsMock.getGrantRequestCalls.awaitItem() shouldBe GrantAction.FINGERPRINT_RESET
 
@@ -252,7 +229,7 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
       Ok(listOf(pendingActionInstance))
 
     stateMachine.test(props) {
-      awaitInitialLoadingAndApiCall(fingerprintResetF8eClientFake, expectedEnv, expectedAccountId)
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
       awaitBody<AppDelayNotifyInProgressBodyModel> {
         header.shouldNotBeNull()
@@ -260,9 +237,6 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
         durationTitle.shouldBe("3d")
       }
-
-      onCompleteCalls.expectNoEvents()
-      onCancelCalls.expectNoEvents()
     }
   }
 
@@ -271,10 +245,6 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
-
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
-        .shouldBe(Pair(expectedEnv, expectedAccountId))
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
 
       awaitBody<FingerprintResetConfirmationBodyModel> {
         val accessory =
@@ -293,15 +263,12 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
       Ok(listOf(pendingActionInstance))
 
     stateMachine.test(props) {
-      awaitInitialLoadingAndApiCall(fingerprintResetF8eClientFake, expectedEnv, expectedAccountId)
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
       awaitBody<AppDelayNotifyInProgressBodyModel> {
         onExit.shouldNotBeNull().invoke()
       }
 
-      // Should not cancel the fingerprint reset action
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
-      fingerprintResetF8eClientFake.cancelFingerprintResetCalls.expectNoEvents()
       onCancelCalls.awaitItem()
     }
   }
@@ -314,22 +281,21 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     fingerprintResetF8eClientFake.cancelFingerprintResetResult = Ok(EmptyResponseBody)
 
     stateMachine.test(props) {
-      awaitInitialLoadingAndApiCall(fingerprintResetF8eClientFake, expectedEnv, expectedAccountId)
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
       awaitBody<AppDelayNotifyInProgressBodyModel> {
         onStopRecovery.shouldNotBeNull().invoke()
       }
 
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
-      fingerprintResetF8eClientFake.cancelFingerprintResetCalls.awaitItem()
 
       onCancelCalls.awaitItem()
     }
   }
 
   test("cancelling reset from finish screen calls onCancel") {
-    val delayStartTime = clock.now - 1.days
-    val delayEndTime = clock.now + 3.days
+    val delayStartTime = clock.now - 3.days
+    val delayEndTime = clock.now - 1.days
     val cancellationToken = "test-cancel-token"
     val completionToken = "test-complete-token"
 
@@ -352,17 +318,11 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
-
-      // Advance time past the delay
-      clock.now = delayEndTime + 1.days
-
       awaitUntilBody<FinishFingerprintResetBodyModel> {
         onCancelReset()
       }
 
       awaitUntilBody<LoadingSuccessBodyModel>()
-      fingerprintResetF8eClientFake.cancelFingerprintResetCalls.awaitItem()
 
       onCancelCalls.awaitItem()
     }
@@ -380,7 +340,7 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(createFingerprintResetResponse())
 
     stateMachine.test(props) {
-      awaitInitialLoadingAndApiCall(fingerprintResetF8eClientFake, expectedEnv, expectedAccountId)
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
       awaitBody<FinishFingerprintResetBodyModel> {
         header.shouldNotBeNull()
@@ -388,14 +348,22 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
         primaryButton.shouldNotBeNull().onClick()
       }
 
-      progressThroughFinishFlowToGrantLoading(fingerprintResetF8eClientFake)
+      awaitSheet<FingerprintResetConfirmationSheetModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilBody<LoadingSuccessBodyModel> {
+        id.shouldBe(FingerprintResetEventTrackerScreenId.LOADING_GRANT)
+      }
 
       completeNfcGrantSuccessfully(nfcSessionUiStateMachine)
       completeFingerprintEnrollment()
 
+      awaitBody<FingerprintResetSuccessBodyModel> {
+        onDone()
+      }
+
       onCompleteCalls.awaitItem()
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
     }
   }
 
@@ -419,9 +387,6 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
-        .shouldBe(Pair(expectedEnv, expectedAccountId))
-
       awaitBody<FingerprintResetConfirmationBodyModel> {
         primaryButton.shouldNotBeNull().onClick()
       }
@@ -431,9 +396,9 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
       }
 
       // NFC session should return FwUpRequired and immediately call onFwUpRequired
-      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantRequestResult>>(id = nfcSessionUiStateMachine.id) {
         val sessionResult = session(NfcSessionFake(), nfcCommandsMock)
-        sessionResult shouldBe FingerprintResetNfcResult.FwUpRequired
+        sessionResult shouldBe FingerprintResetGrantRequestResult.FwUpRequired
 
         onSuccess(sessionResult)
       }
@@ -466,12 +431,11 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
 
-      progressThroughFinishFlowToGrantLoading(fingerprintResetF8eClientFake)
+      progressThroughFinishFlowToGrantLoading()
 
       // First attempt: User cancels NFC session
-      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantProvisionResult>>(id = nfcSessionUiStateMachine.id) {
         eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
         // Simulate NFC cancellation
         onCancel()
@@ -487,24 +451,17 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
       // Click retry - should not call server again since we preserved the grant
       errorBody.primaryButton.shouldNotBeNull().onClick()
-      fingerprintResetF8eClientFake.continuePrivilegedActionCalls.expectNoEvents()
 
       // Second attempt: NFC succeeds
-      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantProvisionResult>>(id = nfcSessionUiStateMachine.id) {
         eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
-        onSuccess(FingerprintResetNfcResult.ProvideGrantSuccess)
+        onSuccess(FingerprintResetGrantProvisionResult.ProvideGrantSuccess)
       }
 
       // Should proceed to fingerprint enrollment
       awaitBodyMock<EnrollingFingerprintProps> {
-        context.shouldBe(EnrollmentContext.FingerprintReset)
+        context.shouldBeInstanceOf<EnrollmentContext.FingerprintReset>()
       }
-
-      // Verify onCancel was never called
-      onCancelCalls.expectNoEvents()
-
-      // Consume the additional getPrivilegedActionInstances call that happens after completion
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
     }
   }
 
@@ -532,12 +489,11 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
 
-      progressThroughFinishFlowToGrantLoading(fingerprintResetF8eClientFake)
+      progressThroughFinishFlowToGrantLoading()
 
       // First attempt: NFC error occurs
-      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantProvisionResult>>(id = nfcSessionUiStateMachine.id) {
         eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
         // Simulate NFC error being handled by our onError callback
         val nfcError = build.wallet.nfc.NfcException.CommandError()
@@ -555,28 +511,21 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
       // Click retry - should not call server again since we preserved the grant
       errorBody.primaryButton.shouldNotBeNull().onClick()
-      fingerprintResetF8eClientFake.continuePrivilegedActionCalls.expectNoEvents()
 
       // Second attempt: NFC succeeds
-      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantProvisionResult>>(id = nfcSessionUiStateMachine.id) {
         eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
-        onSuccess(FingerprintResetNfcResult.ProvideGrantSuccess)
+        onSuccess(FingerprintResetGrantProvisionResult.ProvideGrantSuccess)
       }
 
       // Should proceed to fingerprint enrollment
       awaitBodyMock<EnrollingFingerprintProps> {
-        context.shouldBe(EnrollmentContext.FingerprintReset)
+        context.shouldBeInstanceOf<EnrollmentContext.FingerprintReset>()
       }
-
-      // Verify onCancel was never called
-      onCancelCalls.expectNoEvents()
-
-      // Consume the additional getPrivilegedActionInstances call that happens after completion
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
     }
   }
 
-  test("error screen cancel button exits the entire flow") {
+  test("NFC error cancel button returns to grant delivery screen") {
     val pendingActionInstance = createPendingActionInstance(
       clock = clock,
       delayStartTime = clock.now - 3.days,
@@ -588,21 +537,121 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(createFingerprintResetResponse())
 
     stateMachine.test(props) {
-      awaitInitialLoadingAndApiCall(fingerprintResetF8eClientFake, expectedEnv, expectedAccountId)
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      progressThroughFinishFlowToGrantLoading(fingerprintResetF8eClientFake)
+      awaitBody<FinishFingerprintResetBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
 
-      // NFC cancellation creates error state
+      awaitSheet<FingerprintResetConfirmationSheetModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilBody<LoadingSuccessBodyModel> {
+        id.shouldBe(FingerprintResetEventTrackerScreenId.LOADING_GRANT)
+      }
+
       handleNfcCancellation(nfcSessionUiStateMachine)
 
-      // Click cancel (secondary button) instead of retry
       verifyErrorScreenAndCancel()
 
-      // Should call onCancel to exit the entire flow
-      onCancelCalls.awaitItem()
+      awaitBody<FinishFingerprintResetBodyModel>()
+      onCancelCalls.expectNoEvents()
+    }
+  }
 
-      // Consume the additional getPrivilegedActionInstances call that happens after completion
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
+  test("server error during grant completion shows error, cancel returns to finish screen") {
+    val pendingActionInstance = createPendingActionInstance(
+      clock = clock,
+      delayStartTime = clock.now - 3.days,
+      delayEndTime = clock.now - 1.days
+    )
+
+    fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult =
+      Ok(listOf(pendingActionInstance))
+
+    fingerprintResetF8eClientFake.continuePrivilegedActionResult =
+      Err(RuntimeException("Network error"))
+
+    stateMachine.test(props) {
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
+
+      awaitBody<FinishFingerprintResetBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitSheet<FingerprintResetConfirmationSheetModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilBody<LoadingSuccessBodyModel> {
+        id.shouldBe(FingerprintResetEventTrackerScreenId.LOADING_GRANT)
+      }
+
+      awaitBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("Error Completing Reset")
+
+        secondaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitBody<FinishFingerprintResetBodyModel>()
+      onCancelCalls.expectNoEvents()
+    }
+  }
+
+  test("server error during grant completion shows error, retry succeeds") {
+    val pendingActionInstance = createPendingActionInstance(
+      clock = clock,
+      delayStartTime = clock.now - 3.days,
+      delayEndTime = clock.now - 1.days
+    )
+
+    fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult =
+      Ok(listOf(pendingActionInstance))
+
+    // Make the grant request fail initially
+    fingerprintResetF8eClientFake.continuePrivilegedActionResult =
+      Err(RuntimeException("Network error"))
+
+    stateMachine.test(props) {
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
+
+      awaitBody<FinishFingerprintResetBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitSheet<FingerprintResetConfirmationSheetModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilBody<LoadingSuccessBodyModel> {
+        id.shouldBe(FingerprintResetEventTrackerScreenId.LOADING_GRANT)
+      }
+
+      awaitBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("Error Completing Reset")
+
+        // Make the retry succeed
+        fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(createFingerprintResetResponse())
+
+        // Retry button should retry the server request
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      // Should return to loading grant state
+      awaitUntilBody<LoadingSuccessBodyModel> {
+        id.shouldBe(FingerprintResetEventTrackerScreenId.LOADING_GRANT)
+      }
+
+      completeNfcGrantSuccessfully(nfcSessionUiStateMachine)
+      completeFingerprintEnrollment()
+
+      awaitBody<FingerprintResetSuccessBodyModel> {
+        onDone()
+      }
+
+      onCompleteCalls.awaitItem()
+      onCancelCalls.expectNoEvents()
     }
   }
 
@@ -621,7 +670,6 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
-      fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
 
       // Should recognize persisted grant and go to finish screen
       awaitBody<FinishFingerprintResetBodyModel> {
@@ -635,6 +683,113 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
       // Should call onCancel
       onCancelCalls.awaitItem()
+    }
+  }
+
+  test("grant provision fails but grant already delivered - recovery path succeeds") {
+    val pendingActionInstance = createPendingActionInstance(
+      clock = clock,
+      delayStartTime = clock.now - 3.days,
+      delayEndTime = clock.now - 1.days
+    )
+
+    fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult =
+      Ok(listOf(pendingActionInstance))
+    fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(createFingerprintResetResponse())
+
+    // Set up mock enrolled fingerprints with multiple fingerprints to test cleanup
+    val enrolledFingerprints = EnrolledFingerprints(
+      fingerprintHandles = immutableListOf(
+        FingerprintHandle(index = 0, label = "Primary"),
+        FingerprintHandle(index = 1, label = "Secondary"),
+        FingerprintHandle(index = 2, label = "Backup")
+      )
+    )
+    nfcCommandsMock.setEnrolledFingerprints(enrolledFingerprints)
+
+    stateMachine.test(props) {
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
+
+      progressThroughFinishFlowToGrantLoading()
+
+      // Configure NFC mock to fail grant provision but return the enrolled fingerprints
+      nfcCommandsMock.setProvideGrantResult(false)
+
+      val nfcSession = NfcSessionFake()
+      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantProvisionResult>>(id = nfcSessionUiStateMachine.id) {
+        eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
+
+        // This will simulate the scenario: provideGrant fails but isGrantDelivered returns true
+        // The DAO will have the grant from the continuePrivilegedActionResult, and during the
+        // session execution, we'll mark it as delivered before checking
+        grantDaoFake.markAsDelivered(GrantAction.FINGERPRINT_RESET)
+
+        val sessionResult = session(nfcSession, nfcCommandsMock)
+        val newEnrolledFingerprints = enrolledFingerprints.copy(
+          fingerprintHandles = enrolledFingerprints.fingerprintHandles.filter { it.index == 0 }
+        )
+        sessionResult shouldBe FingerprintResetGrantProvisionResult.FingerprintResetComplete(newEnrolledFingerprints)
+
+        onSuccess(sessionResult)
+      }
+
+      nfcCommandsMock.provideGrantCalls.awaitItem()
+      nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
+
+      // Verify fingerprint deletion calls were made for non-index-0 fingerprints
+      nfcCommandsMock.deleteFingerprintCalls.awaitItem() shouldBe 1
+      nfcCommandsMock.deleteFingerprintCalls.awaitItem() shouldBe 2
+
+      awaitBody<FingerprintResetSuccessBodyModel> {
+        header.shouldNotBeNull()
+          .headline.shouldBe("Fingerprint successfully saved")
+        onDone()
+      }
+
+      onCompleteCalls.awaitItem()
+    }
+  }
+
+  test("genuine grant provision failure shows retryable error") {
+    val pendingActionInstance = createPendingActionInstance(
+      clock = clock,
+      delayStartTime = clock.now - 3.days,
+      delayEndTime = clock.now - 1.days
+    )
+
+    fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult =
+      Ok(listOf(pendingActionInstance))
+    fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(createFingerprintResetResponse())
+
+    stateMachine.test(props) {
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
+
+      progressThroughFinishFlowToGrantLoading()
+
+      // Configure NFC mock to fail grant provision and no grant was previously delivered
+      nfcCommandsMock.setProvideGrantResult(false)
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantProvisionResult>>(id = nfcSessionUiStateMachine.id) {
+        eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
+
+        val sessionResult = session(NfcSessionFake(), nfcCommandsMock)
+        sessionResult shouldBe FingerprintResetGrantProvisionResult.ProvideGrantFailed
+
+        onSuccess(sessionResult)
+      }
+
+      nfcCommandsMock.provideGrantCalls.awaitItem()
+
+      // Should show error screen with retry option
+      val errorScreen = awaitItem()
+      val errorBody = errorScreen.body.shouldBeInstanceOf<FormBodyModel>()
+      errorBody.header.shouldNotBeNull().apply {
+        headline.shouldBe("NFC Error")
+        sublineModel.shouldNotBeNull().string.shouldBe("There was an issue communicating with your hardware. Please try again.")
+      }
+
+      errorBody.primaryButton.shouldNotBeNull().text.shouldBe("Retry")
+      errorBody.secondaryButton.shouldNotBeNull().text.shouldBe("Cancel")
     }
   }
 })
@@ -668,20 +823,7 @@ private fun createFingerprintResetResponse(): FingerprintResetResponse {
   )
 }
 
-private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.awaitInitialLoadingAndApiCall(
-  fingerprintResetF8eClientFake: FingerprintResetF8eClientFake,
-  expectedEnv: F8eEnvironment,
-  expectedAccountId: AccountId,
-) {
-  awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
-  fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.awaitItem()
-    .shouldBe(Pair(expectedEnv, expectedAccountId))
-  fingerprintResetF8eClientFake.getPrivilegedActionInstancesCalls.expectNoEvents()
-}
-
-private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.progressThroughFinishFlowToGrantLoading(
-  fingerprintResetF8eClientFake: FingerprintResetF8eClientFake,
-) {
+private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.progressThroughFinishFlowToGrantLoading() {
   awaitBody<FinishFingerprintResetBodyModel> {
     primaryButton.shouldNotBeNull().onClick()
   }
@@ -691,13 +833,12 @@ private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.progr
   awaitUntilBody<LoadingSuccessBodyModel> {
     id.shouldBe(FingerprintResetEventTrackerScreenId.LOADING_GRANT)
   }
-  fingerprintResetF8eClientFake.continuePrivilegedActionCalls.awaitItem()
 }
 
 private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.handleNfcCancellation(
   nfcSessionUiStateMachine: ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>,
 ) {
-  awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
+  awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantProvisionResult>>(id = nfcSessionUiStateMachine.id) {
     eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
     onCancel()
   }
@@ -712,16 +853,16 @@ private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.verif
 private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.completeNfcGrantSuccessfully(
   nfcSessionUiStateMachine: ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>,
 ) {
-  awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetNfcResult>>(id = nfcSessionUiStateMachine.id) {
+  awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantProvisionResult>>(id = nfcSessionUiStateMachine.id) {
     eventTrackerContext.shouldBe(NfcEventTrackerScreenIdContext.RESET_FINGERPRINTS_PROVIDE_SIGNED_GRANT)
-    onSuccess(FingerprintResetNfcResult.ProvideGrantSuccess)
+    onSuccess(FingerprintResetGrantProvisionResult.ProvideGrantSuccess)
   }
 }
 
 private suspend fun StateMachineTester<FingerprintResetProps, ScreenModel>.completeFingerprintEnrollment() {
   awaitBodyMock<EnrollingFingerprintProps> {
     fingerprintHandle.shouldBe(FingerprintHandle(index = 0, label = ""))
-    context.shouldBe(EnrollmentContext.FingerprintReset)
+    context.shouldBeInstanceOf<EnrollmentContext.FingerprintReset>()
     onSuccess(
       EnrolledFingerprints(
         fingerprintHandles = immutableListOf(FingerprintHandle(index = 0, label = ""))

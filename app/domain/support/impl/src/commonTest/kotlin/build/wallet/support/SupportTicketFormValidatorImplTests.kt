@@ -63,6 +63,18 @@ class SupportTicketFormValidatorImplTests : DescribeSpec({
           validator.validate(form, data).shouldBeTrue()
         }
       }
+
+      it("succeeds with valid email and any supportRequestedDescriptor setting") {
+        Arb.boolean().checkAll { sendEncryptedDescriptorChecked ->
+          emailValidator.isValid = true
+          val data =
+            buildSupportTicketData {
+              sendEncryptedDescriptor = sendEncryptedDescriptorChecked
+            }
+
+          validator.validate(form, data).shouldBeTrue()
+        }
+      }
     }
   }
 

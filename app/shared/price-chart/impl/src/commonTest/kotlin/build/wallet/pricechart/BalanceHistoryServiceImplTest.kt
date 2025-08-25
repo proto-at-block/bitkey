@@ -360,7 +360,5 @@ private class FakeTransactionsActivityService : TransactionsActivityService {
 
   override suspend fun sync() = Ok(Unit)
 
-  override suspend fun syncActiveAndInactiveWallets() = Ok(Unit)
-
   override fun transactionById(transactionId: String) = flowOf(null)
 }

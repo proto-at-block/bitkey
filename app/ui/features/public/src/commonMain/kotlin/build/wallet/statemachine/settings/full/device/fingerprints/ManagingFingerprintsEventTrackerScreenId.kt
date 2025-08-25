@@ -20,4 +20,7 @@ enum class ManagingFingerprintsEventTrackerScreenId : EventTrackerScreenId {
 
   /** Loading enrolled fingerprints */
   LOADING_ENROLLED_FINGERPRINTS,
+
+  /** Fingerprint troubleshooting sheet for device wake instructions */
+  FINGERPRINT_TROUBLESHOOTING_SHEET,
 }

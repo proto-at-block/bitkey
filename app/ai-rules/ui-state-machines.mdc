@@ -1,7 +1,7 @@
 ---
 description: Overview and index of UI State Machine implementation guidelines
 globs: ["**/*StateMachine*.kt", "**/*UiStateMachine*.kt"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # UI State Machine Implementation

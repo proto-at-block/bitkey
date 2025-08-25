@@ -1,7 +1,7 @@
 ---
 description: DAO pattern implementation guidelines for data persistence
 globs: ["**/*Dao*.kt", "**/database/**/*.kt"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # DAO Pattern Implementation

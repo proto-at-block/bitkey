@@ -24,6 +24,7 @@ data class PairNewHardwareBodyModel(
   override val onBack: (() -> Unit)?,
   val header: FormHeaderModel,
   val primaryButton: ButtonModel,
+  val secondaryButton: ButtonModel? = null,
   val backgroundVideo: BackgroundVideo,
   val isNavigatingBack: Boolean,
   /** Prevent screen dimming from inactivity. */

@@ -105,7 +105,7 @@ class AccountDataStateMachineImpl(
     close the app-level notice without taking action. The next time they open the
     app, the notice will show.
      */
-    var shouldShowSomeoneElseIsRecoveringIfPresent by remember { mutableStateOf(true) }
+    var shouldShowSomeoneElseIsRecoveringIfPresent by remember(activeRecovery) { mutableStateOf(true) }
 
     return when (activeRecovery) {
       is Loading -> CheckingActiveAccountData

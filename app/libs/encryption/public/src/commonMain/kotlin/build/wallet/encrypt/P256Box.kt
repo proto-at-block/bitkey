@@ -1,5 +1,6 @@
 package build.wallet.encrypt
 
+import build.wallet.crypto.KeyPurpose
 import dev.zacsweers.redacted.annotations.Redacted
 import okio.ByteString
 
@@ -40,7 +41,7 @@ interface P256Box {
   @Throws(Error::class)
   fun encrypt(
     theirPublicKey: P256BoxPublicKey,
-    myPrivateKey: P256BoxPrivateKey,
+    myKeyPair: P256BoxKeyPair,
     nonce: XNonce,
     plaintext: ByteString,
   ): XCiphertext
@@ -56,7 +57,6 @@ interface P256Box {
    */
   @Throws(Error::class)
   fun decrypt(
-    theirPublicKey: P256BoxPublicKey,
     myPrivateKey: P256BoxPrivateKey,
     sealedData: XCiphertext,
   ): ByteString
@@ -78,8 +78,10 @@ data class P256BoxPrivateKey(
 
 data class P256BoxPublicKey(
   val bytes: ByteString,
-)
+) : KeyPurpose
 
 sealed class P256BoxError : Error() {
   data object InvalidAlgorithm : P256BoxError()
+
+  data object MissingPublicKey : P256BoxError()
 }

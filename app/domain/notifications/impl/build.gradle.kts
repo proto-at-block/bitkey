@@ -12,16 +12,16 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.contactMethodPublic)
-        api(projects.domain.databasePublic)
-        api(projects.libs.keyValueStorePublic)
-        api(projects.domain.f8eClientPublic)
+        implementation(projects.libs.contactMethodPublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.libs.keyValueStorePublic)
+        implementation(projects.domain.f8eClientPublic)
         implementation(projects.libs.loggingPublic)
         // TODO: remove dependency on :impl
         implementation(projects.libs.queueProcessorImpl) {
           because("Depends on PeriodicProcessorImpl")
         }
-        api(projects.domain.walletPublic)
+        implementation(projects.domain.walletPublic)
       }
     }
 

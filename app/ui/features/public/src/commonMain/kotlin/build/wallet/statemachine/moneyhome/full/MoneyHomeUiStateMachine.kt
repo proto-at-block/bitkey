@@ -39,7 +39,7 @@ data class MoneyHomeUiProps(
 
     data object SecurityHub : Origin()
 
-    data object LostHardwareRecovery : Origin()
+    data class LostHardwareRecovery(val isContinuingRecovery: Boolean) : Origin()
 
     data class PartnershipsSell(
       val partnerId: PartnerId?,

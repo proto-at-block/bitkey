@@ -1,12 +1,16 @@
 package build.wallet.statemachine.settings.full.feedback
 
 import androidx.compose.runtime.*
+import build.wallet.bitkey.account.Account
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.email.Email
+import build.wallet.feature.flags.EncryptedDescriptorSupportUploadFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -19,6 +23,7 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
+import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.model.switch.SwitchModel
 import com.github.michaelbull.result.onFailure
@@ -34,6 +39,8 @@ class FeedbackFormUiStateMachineImpl(
   private val dateTimeFormatter: DateTimeFormatter,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val actionSuccessDuration: ActionSuccessDuration,
+  private val encryptedDescriptorSupportUploadFeatureFlag:
+    EncryptedDescriptorSupportUploadFeatureFlag,
 ) : FeedbackFormUiStateMachine {
   @Composable
   override fun model(props: FeedbackFormUiProps): ScreenModel {
@@ -49,6 +56,7 @@ class FeedbackFormUiStateMachineImpl(
     return when (uiState) {
       is FeedbackFormUiState.FillingForm ->
         FillingForm(
+          account = props.account,
           structure = props.formStructure,
           formData = formData,
           onBack = props.onBack,
@@ -62,7 +70,7 @@ class FeedbackFormUiStateMachineImpl(
 
       is FeedbackFormUiState.SubmittingFormData ->
         SubmittingFormData(
-          accountId = props.accountId,
+          accountId = props.account.accountId,
           structure = props.formStructure,
           data = formData,
           onSuccess = {
@@ -104,6 +112,7 @@ class FeedbackFormUiStateMachineImpl(
 
   @Composable
   private fun FillingForm(
+    account: Account,
     structure: SupportTicketForm,
     formData: StateMapBackedSupportTicketData,
     onBack: () -> Unit,
@@ -143,6 +152,24 @@ class FeedbackFormUiStateMachineImpl(
           )
         }
       )
+      if (encryptedDescriptorSupportUploadFeatureFlag.isEnabled() && account is FullAccount) {
+        add(
+          SupportRequestedDescriptorPickerModel(
+            title = "Has Support requested a wallet descriptor?",
+            options = immutableListOf(true, false),
+            selectedOption = formData.sendEncryptedDescriptor,
+            onOptionSelected = {
+              formData.sendEncryptedDescriptor = it
+            },
+            titleSelector = { if (it == true) "Yes" else "No" }
+          )
+        )
+
+        if (formData.sendEncryptedDescriptor) {
+          add(DeviceInfoLearnMoreModel(LearnMore.EncryptedDescriptor))
+        }
+      }
+
       add(
         AttachmentsModel(
           attachments = formData.attachments.toImmutableList(),
@@ -150,7 +177,12 @@ class FeedbackFormUiStateMachineImpl(
           removeAttachment = { formData.removeAttachment(it) }
         )
       )
-      add(SendDebugDataModel(formData.sendDebugData, formData::sendDebugData::set))
+
+      if (!formData.sendEncryptedDescriptor) {
+        add(SendDebugDataModel(formData.sendDebugData, formData::sendDebugData::set))
+        add(DeviceInfoLearnMoreModel(LearnMore.DeviceInfo))
+      }
+
       add(PrivacyPolicyDisclaimer(onClick = onPrivacyPolicyClick))
     }
 
@@ -542,8 +574,8 @@ class FeedbackFormUiStateMachineImpl(
         items =
           immutableListOf(
             ListItemModel(
-              title = "Send debug data",
-              secondaryText = "Additional identifying information, never your keys.",
+              title = "Send device info",
+              secondaryText = "Basic device and app diagnostic info. No personal data is included.",
               trailingAccessory =
                 ListItemAccessory.SwitchAccessory(
                   SwitchModel(
@@ -558,6 +590,62 @@ class FeedbackFormUiStateMachineImpl(
   )
 
   @Composable
+  private fun SupportRequestedDescriptorPickerModel(
+    title: String,
+    options: ImmutableList<Boolean>,
+    selectedOption: Boolean,
+    onOptionSelected: (Boolean) -> Unit,
+    titleSelector: (Boolean?) -> String,
+  ): FormMainContentModel {
+    return FormMainContentModel.Picker(
+      title = title,
+      fieldModel =
+        ItemPickerModel(
+          selectedOption = selectedOption,
+          options = options,
+          onOptionSelected = { option ->
+            onOptionSelected(option)
+          },
+          titleSelector = titleSelector
+        )
+    )
+  }
+
+  @Composable
+  private fun DeviceInfoLearnMoreModel(type: LearnMore): FormMainContentModel {
+    return FormMainContentModel.ListGroup(
+      listGroupModel =
+        ListGroupModel(
+          items =
+            immutableListOf(
+              ListItemModel(
+                leadingAccessory = null,
+                title = type.title(),
+                treatment = ListItemTreatment.INFO,
+                titleLabel = LabelModel.LinkSubstringModel.from(
+                  substringToOnClick = mapOf(
+                    Pair(
+                      first = "Learn more",
+                      second = {
+                        inAppBrowserNavigator.open(
+                          url = "https://bitkey.world/hc/data-sent-to-cs",
+                          onClose = {}
+                        )
+                      }
+                    )
+                  ),
+                  string = type.text(),
+                  underline = true,
+                  bold = false
+                )
+              )
+            ),
+          style = ListGroupStyle.NONE
+        )
+    )
+  }
+
+  @Composable
   private fun PrivacyPolicyDisclaimer(onClick: () -> Unit) =
     FormMainContentModel.Button(
       item =
@@ -568,6 +656,26 @@ class FeedbackFormUiStateMachineImpl(
           onClick = StandardClick(onClick)
         )
     )
+
+  enum class LearnMore {
+    DeviceInfo,
+    EncryptedDescriptor,
+    ;
+
+    fun title(): String {
+      return when (this) {
+        DeviceInfo -> "Device Info"
+        EncryptedDescriptor -> "Wallet Descriptor"
+      }
+    }
+
+    fun text(): String {
+      return when (this) {
+        DeviceInfo -> "Basic device and app diagnostic info. No personal data is included. Learn more."
+        EncryptedDescriptor -> "By selecting “Yes” you agree to send your wallet descriptor and basic device info. Learn more."
+      }
+    }
+  }
 }
 
 private sealed interface FeedbackFormUiState {

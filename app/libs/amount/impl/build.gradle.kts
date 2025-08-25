@@ -11,13 +11,13 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.platformPublic)
+        implementation(projects.libs.platformPublic)
         implementation(libs.kmp.big.number)
       }
     }
     commonTest {
       dependencies {
-        api(projects.libs.platformFake)
+        implementation(projects.libs.platformFake)
       }
     }
   }

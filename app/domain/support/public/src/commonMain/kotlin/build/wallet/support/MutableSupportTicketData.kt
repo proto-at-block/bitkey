@@ -6,6 +6,8 @@ interface MutableSupportTicketData : SupportTicketData {
   override var email: Email
   override var sendDebugData: Boolean
 
+  override var sendEncryptedDescriptor: Boolean
+
   operator fun <Value : Any> set(
     field: SupportTicketField<Value>,
     value: Value,

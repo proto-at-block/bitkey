@@ -17,8 +17,6 @@ import build.wallet.pricechart.PriceDirection
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
-import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardModel
-import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardModel
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardModel
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedTaskRowModel
 import build.wallet.statemachine.moneyhome.lite.card.BuyOwnBitkeyMoneyHomeCardModel
@@ -118,15 +116,6 @@ fun PreviewMoneyHomeGettingStarted() {
             )
           )
       )
-  )
-}
-
-@Preview
-@Composable
-fun PreviewMoneyHomeCardDeviceUpdate() {
-  MoneyHomeCard(
-    model =
-      DeviceUpdateCardModel(onUpdateDevice = {})
   )
 }
 
@@ -241,17 +230,6 @@ fun PreviewInheritanceMoneyHomeCard() {
     model = InheritanceMoneyHomeCard(
       onIHaveABitkey = {},
       onGetABitkey = {}
-    )
-  )
-}
-
-@Preview
-@Composable
-fun PreviewCloudBackupHealthCard() {
-  MoneyHomeCard(
-    model = CloudBackupHealthCardModel(
-      title = "Problem with Google\naccount access",
-      onActionClick = {}
     )
   )
 }

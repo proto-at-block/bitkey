@@ -35,6 +35,7 @@ import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.rust.firmware.*
+import build.wallet.rust.firmware.CommandException
 import build.wallet.rust.firmware.FirmwareSlot.A
 import build.wallet.rust.firmware.FirmwareSlot.B
 import build.wallet.rust.firmware.SecureBootConfig
@@ -453,17 +454,30 @@ class NfcCommandsImpl(
     session: NfcSession,
     grant: Grant,
   ): Boolean {
-    return executeCommand(
-      session = session,
-      generateCommand = {
-        val grantPayload = grant.toBytes()
-          ?: throw NfcException.CommandError("Failed to serialize Grant for device command")
-        FingerprintResetFinalize(grantPayload = grantPayload.toUByteList())
-      },
-      getNext = { command, data -> command.next(data) },
-      getResponse = { state: BooleanState.Data -> state.response },
-      generateResult = { state: BooleanState.Result -> state.value }
-    )
+    return try {
+      executeCommand(
+        session = session,
+        generateCommand = {
+          val grantPayload = grant.toBytes()
+            ?: throw NfcException.CommandError("Failed to serialize Grant for device command")
+          FingerprintResetFinalize(grantPayload = grantPayload.toUByteList())
+        },
+        getNext = { command, data -> command.next(data) },
+        getResponse = { state: BooleanState.Data -> state.response },
+        generateResult = { state: BooleanState.Result -> state.value }
+      )
+    } catch (e: NfcException.CommandError) {
+      if (e.cause is CommandException.GeneralCommandException &&
+        e.cause?.message == "command was unsuccessful: general error"
+      ) {
+        // grant probably already consumed, so we just return false instead
+        // TODO: W-11906 - improve grant delivery errors
+        return false
+      } else {
+        // rethrow other command errors
+        throw e
+      }
+    }
   }
 }
 

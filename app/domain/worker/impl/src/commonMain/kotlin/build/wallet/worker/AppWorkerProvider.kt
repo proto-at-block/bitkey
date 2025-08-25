@@ -2,6 +2,7 @@ package build.wallet.worker
 
 import bitkey.metrics.MetricTrackerTimeoutPoller
 import bitkey.notifications.NotificationsAppWorker
+import bitkey.privilegedactions.FingerprintResetSyncWorker
 import bitkey.recovery.RecoverySyncWorker
 import bitkey.recovery.fundslost.FundsLostRiskSyncWorker
 import bitkey.securitycenter.SecurityActionsWorker
@@ -77,6 +78,7 @@ class AppWorkerProviderImpl(
   private val fundsLostRiskSyncWorker: FundsLostRiskSyncWorker,
   private val securityActionsWorker: SecurityActionsWorker,
   private val notificationsAppWorker: NotificationsAppWorker,
+  private val fingerprintResetSyncWorker: FingerprintResetSyncWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -109,7 +111,8 @@ class AppWorkerProviderImpl(
       sweepSyncWorker,
       fundsLostRiskSyncWorker,
       securityActionsWorker,
-      notificationsAppWorker
+      notificationsAppWorker,
+      fingerprintResetSyncWorker
     )
   }
 }

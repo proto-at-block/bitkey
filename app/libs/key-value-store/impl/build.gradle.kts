@@ -14,8 +14,8 @@ kotlin {
         languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
       }
       dependencies {
-        api(projects.libs.platformPublic)
-        api(libs.kmp.settings)
+        implementation(projects.libs.platformPublic)
+        implementation(libs.kmp.settings)
         implementation(libs.kmp.settings.coroutines)
       }
     }

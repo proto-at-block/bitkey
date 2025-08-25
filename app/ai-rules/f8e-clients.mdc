@@ -1,7 +1,7 @@
 ---
 description: Guidelines for using and implementing F8e API client classes
 globs: ["**/*.kt"]
-alwaysApply: false
+alwaysApply: true
 ---
 
 # F8e Client Implementation

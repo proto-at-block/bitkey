@@ -8,7 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT_RECTIFIABLE
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING
 import build.wallet.analytics.v1.Action
@@ -24,14 +23,12 @@ import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.CloudSignInFailedState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.CreatingAndSavingBackupState
-import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.NonRectifiableFailureState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.RectifiableFailureState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.ShowingCustomerSupportUiState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.SigningIntoCloudState
+import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.UnrectifiableFailureState
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateLiteMessages
-import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -101,7 +98,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
             liteAccountCloudBackupCreator
               .create(props.liteAccount)
               .getOrElse {
-                state = NonRectifiableFailureState(
+                state = UnrectifiableFailureState.CreatingLiteAccountBackupFailure(
                   errorData = ErrorData(
                     segment = RecoverySegment.CloudBackup.LiteAccount.Creation,
                     cause = it,
@@ -133,7 +130,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
                     )
                   }
                   is UnrectifiableCloudBackupError -> {
-                    NonRectifiableFailureState(
+                    UnrectifiableFailureState.UploadingLiteAccountBackupFailure(
                       errorData = errorData
                     )
                   }
@@ -173,15 +170,19 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
               errorData = uiState.errorData
             )
         )
-      is NonRectifiableFailureState -> {
-        return ErrorFormBodyModel(
-          title = "We were unable to create backup",
-          subline = "Please try again later.",
-          primaryButton = ButtonDataModel(text = "Done", onClick = {
-            props.onBackupFailed(uiState.errorData.cause)
-          }),
-          eventTrackerScreenId = SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT
-        ).asScreen(props.presentationStyle)
+      is UnrectifiableFailureState.CreatingLiteAccountBackupFailure -> {
+        return CreatingBackupFailedModel(
+          onBackupFailed = props.onBackupFailed,
+          presentationStyle = props.presentationStyle,
+          errorData = uiState.errorData
+        )
+      }
+      is UnrectifiableFailureState.UploadingLiteAccountBackupFailure -> {
+        return UploadingBackupFailedModel(
+          onBackupFailed = props.onBackupFailed,
+          presentationStyle = props.presentationStyle,
+          errorData = uiState.errorData
+        )
       }
     }
   }
@@ -240,11 +241,25 @@ private sealed class LiteAccountCloudSignInAndBackupState {
   ) : LiteAccountCloudSignInAndBackupState()
 
   /**
-   * Error during the process
+   * Base class for all unrectifiable failure states during the backup process.
    */
-  data class NonRectifiableFailureState(
-    val errorData: ErrorData,
-  ) : LiteAccountCloudSignInAndBackupState()
+  sealed class UnrectifiableFailureState : LiteAccountCloudSignInAndBackupState() {
+    abstract val errorData: ErrorData
+
+    /**
+     * Error during lite account backup creation process.
+     */
+    data class CreatingLiteAccountBackupFailure(
+      override val errorData: ErrorData,
+    ) : UnrectifiableFailureState()
+
+    /**
+     * Error during lite account backup upload process.
+     */
+    data class UploadingLiteAccountBackupFailure(
+      override val errorData: ErrorData,
+    ) : UnrectifiableFailureState()
+  }
 
   data class ShowingCustomerSupportUiState(
     val urlString: String,

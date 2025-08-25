@@ -29,5 +29,10 @@ data class EnrolledFingerprints(
      * Maximum number of fingerprints that can be enrolled on the hardware device.
      */
     const val MAX_FINGERPRINT_COUNT = 3
+
+    /**
+     * Default index for the first fingerprint.
+     */
+    const val FIRST_FINGERPRINT_INDEX = 0
   }
 }

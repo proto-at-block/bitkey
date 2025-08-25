@@ -1,6 +1,7 @@
 package build.wallet.statemachine.core
 
 import build.wallet.statemachine.core.SheetSize.DEFAULT
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * Model for the sheet, this should be used in along with [ScreenModel].
@@ -9,6 +10,7 @@ import build.wallet.statemachine.core.SheetSize.DEFAULT
  * @param [onClosed] called whenever the sheet gets closed. A state machine should always implement
  * @param [body] model content of the sheet.
  */
+@Redacted
 data class SheetModel(
   val size: SheetSize = DEFAULT,
   val treatment: SheetTreatment = SheetTreatment.STANDARD,

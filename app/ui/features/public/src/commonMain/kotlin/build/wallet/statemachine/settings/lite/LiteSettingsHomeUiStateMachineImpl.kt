@@ -63,7 +63,7 @@ class LiteSettingsHomeUiStateMachineImpl(
       is State.ShowingContactUs ->
         feedbackUiStateMachine.model(
           props = FeedbackUiProps(
-            accountId = props.account.accountId,
+            account = props.account,
             onBack = { uiState = State.ShowingAllSettingsList }
           )
         )

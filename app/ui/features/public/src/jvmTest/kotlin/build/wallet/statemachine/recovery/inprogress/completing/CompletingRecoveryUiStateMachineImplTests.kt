@@ -8,13 +8,16 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
+import build.wallet.cloud.backup.csek.Ssek
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
+import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.transaction.NfcTransactionMock
 import build.wallet.nfc.transaction.SealDelegatedDecryptionKey
 import build.wallet.nfc.transaction.SignChallengeAndSealSeks
 import build.wallet.nfc.transaction.UnsealData
+import build.wallet.nfc.transaction.UnsealSsek
 import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -23,11 +26,13 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Loading
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.*
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ProcessingDescriptorBackupsData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
@@ -45,6 +50,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import okio.ByteString.Companion.encodeUtf8
 
+@Suppress("LargeClass")
 class CompletingRecoveryUiStateMachineImplTests : FunSpec({
   val onExitCalls = turbines.create<Unit>("onExit")
   val onCompleteCalls = turbines.create<Unit>("onComplete")
@@ -493,6 +499,42 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("CheckingCompletionAttemptData shows LoadingBodyModel") {
+    val props = baseProps.copy(
+      completingRecoveryData = CheckingCompletionAttemptData(
+        physicalFactor = PhysicalFactor.App
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+    }
+  }
+
+  test("FetchingSealedDelegatedDecryptionKeyFromF8eData shows LoadingBodyModel") {
+    val props = baseProps.copy(
+      completingRecoveryData = FetchingSealedDelegatedDecryptionKeyFromF8eData(
+        physicalFactor = PhysicalFactor.App
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+    }
+  }
+
+  test("RemovingTrustedContactsData shows LoadingBodyModel") {
+    val props = baseProps.copy(
+      completingRecoveryData = RemovingTrustedContactsData(
+        physicalFactor = PhysicalFactor.App
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+    }
+  }
+
   test("DelegatedDecryptionKeyErrorStateData shows ErrorFormBodyModel") {
     val props = baseProps.copy(
       completingRecoveryData = DelegatedDecryptionKeyErrorStateData(
@@ -744,6 +786,112 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
 
       // Verify callback was invoked
       retryCalls.awaitItem()
+    }
+  }
+
+  test("AwaitingSsekUnsealingData shows NFC session") {
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingSsekUnsealingData(
+        physicalFactor = PhysicalFactor.App,
+        nfcTransaction = UnsealSsek(
+          sealedSsek = SealedSsekFake,
+          success = { },
+          failure = { }
+        )
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>()
+    }
+  }
+
+  test("AwaitingSsekUnsealingData NFC success triggers callback") {
+    val onSuccessCalls = turbines.create<Ssek>("ssek-nfc-success")
+    val testValue = Ssek(SymmetricKeyImpl(raw = "unsealed-ssek".encodeUtf8()))
+    val nfcTransaction = UnsealSsek(
+      sealedSsek = SealedSsekFake,
+      success = { onSuccessCalls += it },
+      failure = { }
+    )
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingSsekUnsealingData(
+        physicalFactor = PhysicalFactor.App,
+        nfcTransaction = nfcTransaction
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<Ssek>> {
+        // Simulate successful NFC transaction
+        onSuccess(testValue)
+      }
+
+      // Verify the transaction's onSuccess callback was triggered
+      onSuccessCalls.awaitItem()
+    }
+  }
+
+  test("UploadingDescriptorBackupsData shows LoadingBodyModel") {
+    val props = baseProps.copy(
+      completingRecoveryData = UploadingDescriptorBackupsData(
+        physicalFactor = PhysicalFactor.App
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(Loading)
+      }
+    }
+  }
+
+  test("HandlingDescriptorEncryption shows LoadingBodyModel") {
+    val props = baseProps.copy(
+      completingRecoveryData = HandlingDescriptorEncryption(
+        physicalFactor = PhysicalFactor.App
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(Loading)
+      }
+    }
+  }
+
+  test("RetrievingDescriptorsForKeyboxData shows LoadingBodyModel") {
+    val props = baseProps.copy(
+      completingRecoveryData = RetrievingDescriptorsForKeyboxData(
+        physicalFactor = PhysicalFactor.App
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(Loading)
+      }
+    }
+  }
+
+  test("FailedToProcessDescriptorBackupsData shows ErrorFormBodyModel") {
+    val onRetryCalls = turbines.create<Unit>("onRetry-descriptor-backups")
+    val props = baseProps.copy(
+      completingRecoveryData = FailedToProcessDescriptorBackupsData(
+        physicalFactor = PhysicalFactor.App,
+        cause = Error("Test error"),
+        onRetry = { onRetryCalls += Unit }
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        // Test that clicking the primary button (retry) triggers callback
+        primaryButton.shouldNotBeNull().onClick.invoke()
+      }
+
+      // Verify callback was invoked
+      onRetryCalls.awaitItem()
     }
   }
 })

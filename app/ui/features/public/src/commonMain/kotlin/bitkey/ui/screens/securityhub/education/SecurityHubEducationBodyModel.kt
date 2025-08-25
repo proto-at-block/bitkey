@@ -3,6 +3,8 @@ package bitkey.ui.screens.securityhub.education
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import bitkey.securitycenter.SecurityActionType
+import bitkey.ui.screens.securityhub.SecurityHubEventTrackerScreenId.*
+import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -14,7 +16,7 @@ data class SecurityHubEducationBodyModel(
   override val onBack: () -> Unit,
   val onContinue: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = actionType.eventTrackerScreenId(),
     onBack = onBack,
     toolbar = null,
     header = FormHeaderModel(
@@ -31,6 +33,17 @@ data class SecurityHubEducationBodyModel(
   @Composable
   override fun render(modifier: Modifier) {
     FormScreen(this)
+  }
+}
+
+private fun SecurityActionType.eventTrackerScreenId(): EventTrackerScreenId {
+  return when (this) {
+    SecurityActionType.EEK_BACKUP -> SECURITY_HUB_EDUCATION_EEK_BACKUP
+    SecurityActionType.FINGERPRINTS -> SECURITY_HUB_EDUCATION_FINGERPRINTS
+    SecurityActionType.SOCIAL_RECOVERY -> SECURITY_HUB_EDUCATION_SOCIAL_RECOVERY
+    SecurityActionType.CRITICAL_ALERTS -> SECURITY_HUB_EDUCATION_CRITICAL_ALERTS
+    SecurityActionType.TRANSACTION_VERIFICATION -> SECURITY_HUB_EDUCATION_TRANSACTION_VERIFICATION
+    else -> error("Unsupported action type: $this")
   }
 }
 

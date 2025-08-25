@@ -177,7 +177,7 @@ class ReinviteTrustedContactUiStateMachineImpl(
             """
             You’ll get a notification when your Recovery Contact accepts your invite.
             
-            You can manage your Recovery Contacts in your Security Hub.
+            You can manage your Recovery Contacts in Security Hub.
             """.trimIndent()
           }
         ).asModalScreen()

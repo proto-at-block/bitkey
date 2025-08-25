@@ -1,6 +1,7 @@
 package build.wallet.integration.statemachine.recovery
 
 import app.cash.turbine.ReceiveTurbine
+import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
@@ -26,7 +27,6 @@ import build.wallet.statemachine.recovery.inprogress.waiting.HardwareDelayNotify
 import build.wallet.statemachine.recovery.sweep.SweepFundsPromptBodyModel
 import build.wallet.statemachine.recovery.sweep.SweepSuccessScreenBodyModel
 import build.wallet.statemachine.recovery.sweep.ZeroBalancePromptBodyModel
-import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
@@ -34,7 +34,6 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.awaitLoadingScreen
 import build.wallet.statemachine.ui.robots.clickBitkeyDevice
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
-import build.wallet.statemachine.ui.robots.clickSettings
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
@@ -81,8 +80,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
       awaitUntilBody<ZeroBalancePromptBodyModel>()
         .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
+      awaitUntilBody<SecurityHubBodyModel>()
       app.awaitNoActiveRecovery()
 
       cancelAndIgnoreRemainingEvents()
@@ -142,8 +140,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     ) {
       // Initiate recovery
       awaitUntilBody<MoneyHomeBodyModel>()
-        .clickSettings()
-      awaitUntilBody<SettingsBodyModel>()
+        .onSecurityHubTabClick()
+      awaitUntilBody<SecurityHubBodyModel>()
         .clickBitkeyDevice()
       awaitUntilBody<DeviceSettingsFormBodyModel>()
         .onReplaceDevice()
@@ -190,7 +188,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<ZeroBalancePromptBodyModel>()
         .onDone()
 
-      awaitUntilBody<MoneyHomeBodyModel>()
+      awaitUntilBody<SecurityHubBodyModel>()
       app.awaitNoActiveRecovery()
 
       cancelAndIgnoreRemainingEvents()
@@ -349,8 +347,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     ) {
       // Go to Bitkey device settings
       awaitUntilBody<MoneyHomeBodyModel>()
-        .clickSettings()
-      awaitUntilBody<SettingsBodyModel>()
+        .onSecurityHubTabClick()
+      awaitUntilBody<SecurityHubBodyModel>()
         .clickBitkeyDevice()
       awaitUntilBody<DeviceSettingsFormBodyModel>()
         .onReplaceDevice()
@@ -382,8 +380,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     ) {
       // Go to Bitkey device settings
       awaitUntilBody<MoneyHomeBodyModel>()
-        .clickSettings()
-      awaitUntilBody<SettingsBodyModel>()
+        .onSecurityHubTabClick()
+      awaitUntilBody<SecurityHubBodyModel>()
         .clickBitkeyDevice()
       awaitUntilBody<DeviceSettingsFormBodyModel>()
         .onManageReplacement.shouldNotBeNull().invoke()
@@ -404,7 +402,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<ZeroBalancePromptBodyModel>()
         .onDone()
 
-      awaitUntilBody<MoneyHomeBodyModel>()
+      awaitUntilBody<SecurityHubBodyModel>()
       app.awaitNoActiveRecovery()
 
       cancelAndIgnoreRemainingEvents()
@@ -438,7 +436,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<SweepSuccessScreenBodyModel>()
         .onDone()
 
-      awaitUntilBody<MoneyHomeBodyModel>()
+      awaitUntilBody<SecurityHubBodyModel>()
       app.awaitNoActiveRecovery()
 
       cancelAndIgnoreRemainingEvents()
@@ -518,7 +516,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<SweepSuccessScreenBodyModel>()
         .onDone()
 
-      awaitUntilBody<MoneyHomeBodyModel>()
+      awaitUntilBody<SecurityHubBodyModel>()
       newApp.awaitNoActiveRecovery()
 
       newApp.waitForFunds()
@@ -556,7 +554,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<SweepSuccessScreenBodyModel>()
         .onDone()
 
-      awaitUntilBody<MoneyHomeBodyModel>()
+      awaitUntilBody<SecurityHubBodyModel>()
       app.awaitNoActiveRecovery()
 
       app.waitForFunds()
@@ -619,7 +617,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
           .onPrimaryButtonClick()
       }
 
-      awaitUntilBody<DeviceSettingsFormBodyModel>()
+      awaitUntilBody<SecurityHubBodyModel>()
 
       app.awaitNoActiveRecovery()
 
@@ -633,15 +631,15 @@ private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNo
 ) {
   app.awaitNoActiveRecovery()
 
-  // Go to Bitkey device settings
+  // Go to Bitkey device settings via Security Hub
   awaitUntilBody<MoneyHomeBodyModel>()
-    .clickSettings()
-  awaitUntilBody<SettingsBodyModel>()
+    .onSecurityHubTabClick()
+  awaitUntilBody<SecurityHubBodyModel>()
     .clickBitkeyDevice()
-  awaitUntilBody<DeviceSettingsFormBodyModel>()
-    .onReplaceDevice()
 
   // Initiate recovery
+  awaitUntilBody<DeviceSettingsFormBodyModel>()
+    .onReplaceDevice()
   awaitUntilBody<HardwareReplacementInstructionsModel>()
     .onContinue()
   awaitUntilBody<NewDeviceReadyQuestionBodyModel>()

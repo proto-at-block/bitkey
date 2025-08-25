@@ -95,6 +95,7 @@ mod aad;
 mod frost;
 mod grants;
 mod kms_tool;
+mod native_kms_client;
 mod noise_cache;
 mod psbt_approval;
 mod psbt_verification;

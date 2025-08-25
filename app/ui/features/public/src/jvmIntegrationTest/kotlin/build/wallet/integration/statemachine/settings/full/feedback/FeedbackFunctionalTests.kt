@@ -53,7 +53,7 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          accountId = account.accountId,
+          account = account,
           onBack = { onBackCalls.add(Unit) }
         )
     ) {
@@ -82,7 +82,7 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          accountId = account.accountId,
+          account = account,
           onBack = { onBackCalls.add(Unit) }
         )
     ) {
@@ -156,7 +156,7 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          accountId = account.accountId,
+          account = account,
           onBack = { onBackCalls.add(Unit) }
         )
     ) {
@@ -196,7 +196,7 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          accountId = account.accountId,
+          account = account,
           onBack = { onBackCalls.add(Unit) }
         )
     ) {
@@ -224,8 +224,8 @@ class FeedbackFunctionalTests : FunSpec({
       const val COUNTRY = 1
       const val CATEGORY = 2
       const val SUBCATEGORY = 3
-      const val SUBJECT = -5
-      const val DESCRIPTION = -4
+      const val SUBJECT = -6
+      const val DESCRIPTION = -5
     }
 
     data class FormFillingContext(

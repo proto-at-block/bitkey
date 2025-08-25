@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.mapNotNull
 class TransactionsActivityServiceFake : TransactionsActivityService {
   override suspend fun sync(): Result<Unit, Error> = Ok(Unit)
 
-  override suspend fun syncActiveAndInactiveWallets(): Result<Unit, Error> = Ok(Unit)
-
   override val transactions = MutableStateFlow<List<Transaction>>(emptyList())
 
   override val activeAndInactiveWalletTransactions = MutableStateFlow<List<Transaction>>(emptyList())

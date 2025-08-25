@@ -21,6 +21,9 @@ enum class FingerprintResetEventTrackerScreenId : EventTrackerScreenId {
   /** Loading screen when completing the fingerprint reset and getting grant */
   LOADING_GRANT,
 
+  /** Success screen shown after fingerprint reset is complete */
+  FINGERPRINT_RESET_SUCCESS,
+
   /** Error shown when starting the reset process fails. */
   ERROR_STARTING_RESET,
 
@@ -32,4 +35,7 @@ enum class FingerprintResetEventTrackerScreenId : EventTrackerScreenId {
 
   /** Error shown when an NFC operation fails unexpectedly. */
   ERROR_NFC_OPERATION_FAILED,
+
+  /** Error shown when the new fingerprint did not successfully enroll. */
+  FINGERPRINT_RESET_ENROLLMENT_TRY_AGAIN,
 }
