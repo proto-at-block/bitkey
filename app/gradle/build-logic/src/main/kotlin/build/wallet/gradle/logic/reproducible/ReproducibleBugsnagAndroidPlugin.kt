@@ -23,7 +23,7 @@ internal class ReproducibleBugsnagAndroidPlugin : Plugin<Project> {
       configureBugsnagUuid(reproducibleBuildVariables)
 
       extensions.configure<BugsnagPluginExtension> {
-        requestTimeoutMs.set(360000L)
+        requestTimeoutMs.set(720000L)
       }
 
       if (!uploadBugsnagMapping) {
