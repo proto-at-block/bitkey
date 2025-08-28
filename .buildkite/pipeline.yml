@@ -1,7 +1,7 @@
 # https://github.com/squareup/runway-pipeline-config/blob/main/pipelines/wallet/wallet-release-build.yaml
 steps:
   - label: "Build customer app for verification"
-    timeout_in_minutes: 60
+    timeout_in_minutes: 90
     command: ".buildkite/build-customer-release-aab.sh"
     notify:
       - slack:
@@ -9,7 +9,7 @@ steps:
             - "#bitkey-releases"
 
   - label: "Build emergency exit kit for verification"
-    timeout_in_minutes: 60
+    timeout_in_minutes: 90
     command: ".buildkite/build-emergency-release-apk.sh"
     notify:
       - slack:
