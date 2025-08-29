@@ -283,6 +283,15 @@ module "address_watchlist_table" {
 
   attributes = [
     { name = "address", type = "S" },
+    { name = "account_id", type = "S" },
+  ]
+
+  global_secondary_indexes = [
+    {
+      name            = "by_account_id"
+      hash_key        = "account_id"
+      projection_type = "ALL"
+    }
   ]
 
   point_in_time_recovery_enabled = true
