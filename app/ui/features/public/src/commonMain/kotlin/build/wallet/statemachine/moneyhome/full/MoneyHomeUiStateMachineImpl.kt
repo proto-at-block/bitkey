@@ -19,10 +19,7 @@ import build.wallet.fwup.FirmwareData
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.onboarding.OnboardingCompletionService
-import build.wallet.partnerships.PartnerId
-import build.wallet.partnerships.PartnershipEvent
-import build.wallet.partnerships.PartnershipTransactionId
-import build.wallet.partnerships.PartnershipTransactionStatus
+import build.wallet.partnerships.*
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.pricechart.ChartType
@@ -45,8 +42,7 @@ import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritance
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.PromptingForFwUpUiState
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.ACTIVITY
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
@@ -114,7 +110,6 @@ class MoneyHomeUiStateMachineImpl(
     }.collectAsState(initial = false)
 
     var hasAutoShownSocialRecoveryScreen by remember { mutableStateOf(false) }
-    val scope = rememberStableCoroutineScope()
 
     LaunchedEffect("mark-onboarding-completed") {
       // Ensure onboarding is recorded for users who completed it before
@@ -163,6 +158,11 @@ class MoneyHomeUiStateMachineImpl(
             }
           )
         }
+        is MoneyHomeUiProps.Origin.PartnershipTransferLink -> {
+          ViewingBalanceUiState(
+            partnerTransferLinkRequest = origin.request
+          )
+        }
         else -> ViewingBalanceUiState()
       }
       mutableStateOf(initialState)
@@ -185,7 +185,6 @@ class MoneyHomeUiStateMachineImpl(
         props = MoneyHomeViewingBalanceUiProps(
           account = props.account,
           lostHardwareRecoveryData = props.lostHardwareRecoveryData,
-          homeBottomSheetModel = props.homeBottomSheetModel,
           homeStatusBannerModel = props.homeStatusBannerModel,
           onSettings = props.onSettings,
           state = state,
@@ -372,7 +371,9 @@ class MoneyHomeUiStateMachineImpl(
 
       ConsolidatingUtxosUiState -> utxoConsolidationUiStateMachine.model(
         props = UtxoConsolidationProps(
-          onConsolidationSuccess = { uiState = ViewingBalanceUiState() },
+          onConsolidationSuccess = {
+            uiState = ViewingBalanceUiState()
+          },
           onBack = { uiState = ViewingBalanceUiState() }
         )
       )
@@ -392,7 +393,9 @@ class MoneyHomeUiStateMachineImpl(
           fullAccount = props.account as FullAccount,
           claimId = state.claimId.value,
           onBack = { uiState = ViewingBalanceUiState() },
-          onBeneficiaryRemoved = { uiState = ViewingBalanceUiState() },
+          onBeneficiaryRemoved = {
+            uiState = ViewingBalanceUiState()
+          },
           onClaimDeclined = { uiState = ViewingBalanceUiState() }
         )
       )
@@ -530,6 +533,7 @@ sealed interface MoneyHomeUiState {
     val bottomSheetDisplayState: BottomSheetDisplayState? = null,
     val urlStringForInAppBrowser: Boolean = false,
     val selectedContact: TrustedContact? = null,
+    val partnerTransferLinkRequest: PartnerTransferLinkRequest? = null,
   ) : MoneyHomeUiState {
     sealed interface BottomSheetDisplayState {
       /**

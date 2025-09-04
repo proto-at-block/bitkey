@@ -12,6 +12,10 @@ kotlin {
     commonMain {
       dependencies {
         implementation(projects.domain.databasePublic)
+        implementation(projects.domain.f8eClientPublic)
+        implementation(projects.domain.walletPublic)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.domain.partnershipsPublic)
         implementation(projects.libs.stdlibPublic)
       }
     }
@@ -25,6 +29,7 @@ kotlin {
         implementation(projects.libs.platformFake)
         implementation(projects.libs.timeFake)
         implementation(projects.libs.testingPublic)
+        implementation(projects.domain.walletFake)
       }
     }
 

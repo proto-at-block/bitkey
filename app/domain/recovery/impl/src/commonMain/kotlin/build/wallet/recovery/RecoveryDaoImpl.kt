@@ -99,7 +99,8 @@ class RecoveryDaoImpl(
       is AttemptingCompletion -> markAsAttemptingCompletion(progress)
       is CompletionAttemptFailedDueToServerCancellation -> markAsCompletionAttemptFailed()
       is RotatedAuthKeys -> markAuthKeysRotated()
-      is RotatedSpendingKeys -> markSpendingKeysRotated(progress)
+      is CreatedSpendingKeys -> markSpendingKeysCreated(progress)
+      is ActivatedSpendingKeys -> markSpendingKeysActivated()
       is UploadedDescriptorBackups -> markUploadedDescriptorBackups(progress)
       DdkBackedUp -> markDdkBackedUp()
       BackedUpToCloud -> markCloudBackedUp()
@@ -161,15 +162,22 @@ class RecoveryDaoImpl(
       }
   }
 
-  private suspend fun markSpendingKeysRotated(
-    progress: RotatedSpendingKeys,
+  private suspend fun markSpendingKeysCreated(
+    progress: CreatedSpendingKeys,
   ): Result<Unit, DbTransactionError> {
     return databaseProvider.database()
       .awaitTransaction {
-        recoveryQueries.markSpendingKeysRotated(
+        recoveryQueries.markSpendingKeysCreated(
           progress.f8eSpendingKeyset.keysetId,
           progress.f8eSpendingKeyset.spendingPublicKey
         )
+      }
+  }
+
+  private suspend fun markSpendingKeysActivated(): Result<Unit, DbTransactionError> {
+    return databaseProvider.database()
+      .awaitTransaction {
+        recoveryQueries.markSpendingKeysActivated()
       }
   }
 
@@ -357,7 +365,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
   queries: RecoveryQueries,
 ): ServerIndependentRecovery? {
   if (authKeysRotated) {
-    if (spendingKeysRotated()) {
+    if (spendingKeysCreated()) {
       // Get the local set of keysets from the recovery table; this is all active + inactive keysets
       // for the account, including the one created by this recovery.
       val storedKeysets = queries.getRecoverySpendingKeysets()
@@ -415,6 +423,27 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
         )
       }
 
+      if (spendingKeysActivated) {
+        return ServerIndependentRecovery.ActivatedSpendingKeys(
+          f8eSpendingKeyset =
+            F8eSpendingKeyset(
+              keysetId = serverKeysetId!!,
+              spendingPublicKey = serverSpendingKey!!
+            ),
+          fullAccountId = account,
+          appSpendingKey = destinationAppSpendingKey,
+          appGlobalAuthKey = destinationAppGlobalAuthKey,
+          appRecoveryAuthKey = destinationAppRecoveryAuthKey,
+          hardwareSpendingKey = destinationHardwareSpendingKey,
+          hardwareAuthKey = destinationHardwareAuthKey,
+          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+          factorToRecover = lostFactor,
+          sealedCsek = sealedCsek!!,
+          sealedSsek = sealedSsek,
+          keysets = storedKeysets
+        )
+      }
+
       if (uploadedDescriptorBackups) {
         return ServerIndependentRecovery.UploadedDescriptorBackups(
           f8eSpendingKeyset =
@@ -435,6 +464,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           keysets = storedKeysets
         )
       } else {
+        // Spending keys have been created but not yet activated
         return ServerIndependentRecovery.CreatedSpendingKeys(
           f8eSpendingKeyset =
             F8eSpendingKeyset(
@@ -472,7 +502,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
   }
 }
 
-private fun LocalRecoveryAttemptEntity.spendingKeysRotated(): Boolean {
+private fun LocalRecoveryAttemptEntity.spendingKeysCreated(): Boolean {
   return serverSpendingKey != null && serverKeysetId != null && sealedCsek != null
 }
 

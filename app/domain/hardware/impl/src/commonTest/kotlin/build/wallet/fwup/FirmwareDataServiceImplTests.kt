@@ -188,4 +188,58 @@ class FirmwareDataServiceImplTests : FunSpec({
     fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
     fwupDataDaoProvider.fwupDataDaoMock.clearCalls.expectNoEvents()
   }
+
+  test("firmwareData switches DAO when hardware fake setting changes") {
+    // Create service with real FwupDataDaoProviderImpl to test DAO switching
+    val realFwupDataDaoImpl = FwupDataDaoMock { name -> turbines.create("real-$name") }
+    val realFwupDataDaoFake = FwupDataDaoMock { name -> turbines.create("fake-$name") }
+    val realFwupDataDaoProvider = FwupDataDaoProviderImpl(
+      fwupDataDaoImpl = realFwupDataDaoImpl,
+      fwupDataDaoFake = realFwupDataDaoFake,
+      accountConfigService = defaultAppConfigService,
+      appCoroutineScope = backgroundScope
+    )
+
+    val serviceWithRealProvider = FirmwareDataServiceImpl(
+      firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+      fwupDataFetcher = fwupDataFetcher,
+      fwupDataDaoProvider = realFwupDataDaoProvider,
+      appSessionManager = appSessionManager,
+      firmwareUpdateSyncFrequency = FirmwareUpdateSyncFrequency()
+    )
+
+    serviceWithRealProvider.firmwareData().test {
+      backgroundScope.launch {
+        serviceWithRealProvider.executeWork()
+      }
+
+      // Initial state: real DAO
+      awaitItem().shouldNotBeNull().apply {
+        firmwareUpdateState.shouldBe(UpToDate)
+      }
+
+      // Set fake fwup data in the fake DAO only
+      realFwupDataDaoFake.fwupDataFlow.value = Ok(FwupDataMock)
+
+      // Switch to fake hardware - should start using fake DAO with its data
+      defaultAppConfigService.setIsHardwareFake(true)
+      testCoroutineScheduler.runCurrent()
+
+      // Should now emit with the fake DAO's data
+      awaitItem().shouldNotBeNull().apply {
+        firmwareUpdateState.shouldBe(PendingUpdate(FwupDataMock))
+      }
+
+      // Switch back to real hardware - should use real DAO (which has no data)
+      defaultAppConfigService.setIsHardwareFake(false)
+      testCoroutineScheduler.runCurrent()
+
+      // The switch to real hardware triggers a clear call on the real DAO
+      realFwupDataDaoImpl.clearCalls.awaitItem()
+
+      awaitItem().shouldNotBeNull().apply {
+        firmwareUpdateState.shouldBe(UpToDate)
+      }
+    }
+  }
 })

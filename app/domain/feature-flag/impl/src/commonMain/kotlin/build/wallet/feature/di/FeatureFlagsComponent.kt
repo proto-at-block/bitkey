@@ -116,6 +116,11 @@ interface FeatureFlagsComponent {
     AtRiskNotificationsFeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun chaincodeDelegationFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    ChaincodeDelegationFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
     coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
@@ -136,6 +141,7 @@ interface FeatureFlagsComponent {
     encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
     encryptedDescriptorSupportUploadFeatureFlag: EncryptedDescriptorSupportUploadFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
+    chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       softwareWalletIsEnabledFeatureFlag,
@@ -146,6 +152,7 @@ interface FeatureFlagsComponent {
       fingerprintResetFeatureFlag,
       fingerprintResetMinFirmwareVersionFeatureFlag,
       atRiskNotificationsFeatureFlag,
+      chaincodeDelegationFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
       utxoMaxConsolidationCountFeatureFlag,

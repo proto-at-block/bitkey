@@ -217,7 +217,7 @@ private func initializeBugsnag(appVariant: AppVariant) {
     let config = BugsnagConfig(appVariant: appVariant)
     // Initialize Bugsnag using iOS SDK
     let bugsnagConfig = BugsnagConfiguration.loadConfig()
-    bugsnagConfig.appHangThresholdMillis = 250
+    bugsnagConfig.appHangThresholdMillis = 500
     bugsnagConfig.enabledBreadcrumbTypes = [.all]
     bugsnagConfig.releaseStage = config.releaseStage
     Bugsnag().initialize(config: bugsnagConfig)

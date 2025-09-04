@@ -40,7 +40,9 @@ import build.wallet.testing.ext.*
 import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
@@ -192,6 +194,51 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       app.awaitNoActiveRecovery()
 
       cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test(
+    "recovery lost hardware - force exiting after spend key gen and before activating takes you back to activating"
+  ) {
+    launchAndPrepareApp()
+
+    app.apply {
+      appUiStateMachine.test(
+        props = Unit,
+        testTimeout = 20.seconds,
+        turbineTimeout = 60.seconds
+      ) {
+        startRecoveryAndAdvanceToDelayNotify(app)
+
+        // Complete recovery
+        awaitUntilBody<DelayAndNotifyNewKeyReady>()
+          .onCompleteRecovery()
+        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
+        cancelAndIgnoreRemainingEvents()
+      }
+
+      relaunchApp()
+
+      app.appUiStateMachine.test(
+        props = Unit,
+        testTimeout = 20.seconds,
+        turbineTimeout = 60.seconds
+      ) {
+        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
+
+        awaitUntilBody<SaveBackupInstructionsBodyModel>()
+          .onBackupClick()
+        awaitUntilBody<CloudSignInModelFake>()
+          .signInSuccess(CloudStoreAccount1Fake)
+        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+        awaitUntilBody<ZeroBalancePromptBodyModel>()
+          .onDone()
+
+        awaitUntilBody<MoneyHomeBodyModel>()
+        app.awaitNoActiveRecovery()
+
+        cancelAndIgnoreRemainingEvents()
+      }
     }
   }
 
@@ -624,7 +671,74 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
   }
+
+  test("lost hardware recovery refreshes descriptor backups if enabled") {
+    app = launchNewApp()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
+    app.onboardFullAccountWithFakeHardware()
+
+    val accountId = app.getActiveFullAccount().accountId
+
+    app.verifyNoDescriptorBackups(accountId)
+    app.verifyCanUseKeyboxKeysets(true)
+
+    app.fakeNfcCommands.wipeDevice()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
+
+    app.performLostHardwareRecovery()
+
+    app.verifyDescriptorBackupsUploaded(accountId, count = 2)
+    app.verifyCanUseKeyboxKeysets(true)
+    app.decryptCloudBackupKeys().keysets.size.shouldBe(2)
+  }
+
+  test("lost hardware recovery clears canUseKeyboxKeysets if backups are disabled") {
+    app = launchNewApp()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
+    app.onboardFullAccountWithFakeHardware()
+
+    val accountId = app.getActiveFullAccount().accountId
+
+    app.verifyDescriptorBackupsUploaded(accountId = accountId, count = 1)
+    app.verifyCanUseKeyboxKeysets(expected = true)
+
+    app.fakeNfcCommands.wipeDevice()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
+
+    app.performLostHardwareRecovery()
+
+    app.verifyDescriptorBackupsUploaded(accountId = accountId, count = 1)
+    app.verifyCanUseKeyboxKeysets(expected = false)
+    app.decryptCloudBackupKeys().keysets.shouldBeEmpty()
+  }
 })
+
+suspend fun AppTester.performLostHardwareRecovery() {
+  appUiStateMachine.test(
+    props = Unit,
+    testTimeout = 60.seconds,
+    turbineTimeout = 60.seconds
+  ) {
+    startRecoveryAndAdvanceToDelayNotify(this@performLostHardwareRecovery)
+
+    // Complete recovery
+    awaitUntilBody<DelayAndNotifyNewKeyReady>()
+      .onCompleteRecovery()
+    awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+    awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      .onBackupClick()
+    awaitUntilBody<CloudSignInModelFake>()
+      .signInSuccess(CloudStoreAccount1Fake)
+    awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+    awaitUntilBody<ZeroBalancePromptBodyModel>()
+      .onDone()
+
+    awaitUntilBody<SecurityHubBodyModel>()
+    awaitNoActiveRecovery()
+
+    cancelAndIgnoreRemainingEvents()
+  }
+}
 
 private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNotify(
   app: AppTester,

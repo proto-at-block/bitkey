@@ -1,9 +1,12 @@
 # Claude Code Configuration
 
-This file configures Claude Code AI assistant for the Bitkey mobile application. It provides context about architectural patterns, coding standards, and implementation guidelines specific to this Kotlin Multiplatform codebase.
+Configuration for the Bitkey mobile app. **Read actual rule content - don't assume based on filenames alone.**
+
+**Apply all rules below during code reviews and code generation.**
 
 @ai-rules/bitkey-mobile.mdc
 @ai-rules/rule-writing.mdc
+@ai-rules/context-gathering.mdc
 @ai-rules/strong-typing.mdc
 @ai-rules/f8e-clients.mdc
 @ai-rules/module-structure.mdc
@@ -13,6 +16,7 @@ This file configures Claude Code AI assistant for the Bitkey mobile application.
 @ai-rules/kmp-code-structure.mdc
 @ai-rules/hermit-environment.mdc
 @ai-rules/gradle-build-system.mdc
+@ai-rules/factory-pattern.mdc
 
 ## AI Rules Index Reference
 

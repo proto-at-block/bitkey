@@ -18,10 +18,15 @@ import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.recovery.DescriptorBackupServiceFake.Companion.HW_DESCRIPTOR_PUBKEY
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
 class DescriptorBackupServiceFake : DescriptorBackupService {
+  companion object {
+    val HW_DESCRIPTOR_PUBKEY = "[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK/*"
+  }
+
   val fakeKeysetList = listOf(SpendingKeysetMock)
   var prepareDescriptorBackupsForRecoveryResult: Result<DescriptorBackupPreparedData, Error> = Ok(
     DescriptorBackupPreparedData.EncryptOnly(fakeKeysetList)
@@ -123,7 +128,7 @@ fun createFakeSpendingKeyset(
       DescriptorPublicKey("[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK/*")
     ),
     hardwareKey = HwSpendingPublicKey(
-      DescriptorPublicKey("[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK/*")
+      DescriptorPublicKey(HW_DESCRIPTOR_PUBKEY)
     )
   )
 }

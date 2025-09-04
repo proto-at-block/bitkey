@@ -137,7 +137,7 @@ pub fn create_spend_keyset(network: Network) -> (SpendingKeyset, Wallet<AnyDatab
     let (app_xprv, app_xpub) = create_descriptor_keys(network);
     let (_, hardware_xpub) = create_descriptor_keys(network);
     let (_, server_xpub) = create_descriptor_keys(network);
-    let keyset = SpendingKeyset::new(
+    let keyset = SpendingKeyset::new_legacy_multi_sig(
         network.to_owned(),
         app_xpub.clone(),
         hardware_xpub.clone(),
@@ -196,7 +196,7 @@ pub async fn create_full_account_for_test(
     account_service
         .create_account_and_keysets(CreateAccountAndKeysetsInput {
             account_id: AccountId::gen().unwrap(),
-            network: spend.network,
+            network: spend.network(),
             keyset_id: KeysetId::new(Ulid::default()).unwrap(),
             auth_key_id: AuthKeysId::new(Ulid::default()).unwrap(),
             keyset: Keyset {
@@ -205,12 +205,7 @@ pub async fn create_full_account_for_test(
                     hardware_pubkey: auth.hardware_pubkey,
                     recovery_pubkey: auth.recovery_pubkey,
                 },
-                spending: SpendingKeyset {
-                    network,
-                    app_dpub: spend.app_dpub,
-                    hardware_dpub: spend.hardware_dpub,
-                    server_dpub: spend.server_dpub,
-                },
+                spending: spend,
             },
             is_test_account: network != Network::BitcoinMain,
         })

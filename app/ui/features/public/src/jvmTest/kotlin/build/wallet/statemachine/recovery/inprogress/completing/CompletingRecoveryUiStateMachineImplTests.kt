@@ -12,12 +12,7 @@ import build.wallet.cloud.backup.csek.Ssek
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SymmetricKeyImpl
-import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.nfc.transaction.NfcTransactionMock
-import build.wallet.nfc.transaction.SealDelegatedDecryptionKey
-import build.wallet.nfc.transaction.SignChallengeAndSealSeks
-import build.wallet.nfc.transaction.UnsealData
-import build.wallet.nfc.transaction.UnsealSsek
+import build.wallet.nfc.transaction.*
 import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -300,7 +295,8 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("AwaitingChallengeAndCsekSignedWithHardwareData NFC success triggers callback") {
-    val onSuccessCalls = turbines.create<SignChallengeAndSealSeks.SignedChallengeAndSeks>("challenge-nfc-success")
+    val onSuccessCalls =
+      turbines.create<SignChallengeAndSealSeks.SignedChallengeAndSeks>("challenge-nfc-success")
     val testValue = SignChallengeAndSealSeks.SignedChallengeAndSeks(
       signedChallenge = HardwareSignedChallenge(
         challenge = mockDelayNotifyChallenge,
@@ -440,7 +436,8 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("SealingDelegatedDecryptionKeyData NFC success triggers callback") {
-    val onSuccessCalls = turbines.create<SealDelegatedDecryptionKey.SealedDataResult>("seal-nfc-success")
+    val onSuccessCalls =
+      turbines.create<SealDelegatedDecryptionKey.SealedDataResult>("seal-nfc-success")
     val testValue = SealDelegatedDecryptionKey.SealedDataResult("sealed-data".encodeUtf8())
     val nfcTransaction = NfcTransactionMock(
       value = testValue,
@@ -599,15 +596,12 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("AwaitingHardwareProofOfPossessionData shows ProofOfPossessionNfcStateMachine") {
-    val addHwFactorProofOfPossessionCalls =
-      turbines.create<HwFactorProofOfPossession>("addHwFactorProofOfPossession-await-hw")
-    val rollbackCalls = turbines.create<Unit>("rollback-await-hw")
     val props = baseProps.copy(
       completingRecoveryData = AwaitingHardwareProofOfPossessionData(
         fullAccountId = FullAccountIdMock,
         appAuthKey = PublicKey("test-key"),
-        addHwFactorProofOfPossession = { addHwFactorProofOfPossessionCalls += it },
-        rollback = { rollbackCalls += Unit }
+        addHwFactorProofOfPossession = {},
+        rollback = {}
       )
     )
 
@@ -698,12 +692,11 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("PerformingSweepData shows SweepUiStateMachine") {
-    val rollbackCalls = turbines.create<Unit>("rollback-sweep")
     val props = baseProps.copy(
       completingRecoveryData = PerformingSweepData(
         physicalFactor = PhysicalFactor.App,
         keybox = KeyboxMock,
-        rollback = { rollbackCalls += Unit }
+        rollback = {}
       )
     )
 
@@ -767,7 +760,7 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("FailedPerformingCloudBackupData shows ErrorFormBodyModelWithOptionalErrorData") {
+  test("FailedPerformingCloudBackupData shows ErrorFormBodyModel") {
     val retryCalls = turbines.create<Unit>("retry-cloud-backup")
     val props = baseProps.copy(
       completingRecoveryData = FailedPerformingCloudBackupData(
@@ -878,6 +871,57 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     val onRetryCalls = turbines.create<Unit>("onRetry-descriptor-backups")
     val props = baseProps.copy(
       completingRecoveryData = FailedToProcessDescriptorBackupsData(
+        physicalFactor = PhysicalFactor.App,
+        cause = Error("Test error"),
+        onRetry = { onRetryCalls += Unit }
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        // Test that clicking the primary button (retry) triggers callback
+        primaryButton.shouldNotBeNull().onClick.invoke()
+      }
+
+      // Verify callback was invoked
+      onRetryCalls.awaitItem()
+    }
+  }
+
+  test("ActivatingSpendingKeysetData shows LoadingBodyModel") {
+    val props = baseProps.copy(
+      completingRecoveryData = ActivatingSpendingKeysetData(
+        physicalFactor = PhysicalFactor.App
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(Loading)
+      }
+    }
+  }
+
+  test("AwaitingHardwareProofOfPossessionForActivationData shows ProofOfPossessionNfcStateMachine") {
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingHardwareProofOfPossessionForActivationData(
+        physicalFactor = PhysicalFactor.Hardware,
+        fullAccountId = FullAccountIdMock,
+        appAuthKey = PublicKey("test-key"),
+        addHardwareProofOfPossession = {},
+        rollback = {}
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<ProofOfPossessionNfcProps>()
+    }
+  }
+
+  test("FailedToActivateSpendingKeysetData shows ErrorFormBodyModel") {
+    val onRetryCalls = turbines.create<Unit>("onRetry-activate-spending-keyset")
+    val props = baseProps.copy(
+      completingRecoveryData = FailedToActivateSpendingKeysetData(
         physicalFactor = PhysicalFactor.App,
         cause = Error("Test error"),
         onRetry = { onRetryCalls += Unit }

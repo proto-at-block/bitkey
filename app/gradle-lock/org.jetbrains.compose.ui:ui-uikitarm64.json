@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-uikitarm64",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-uikitArm64Main-1.8.0.klib": "019ed45415faaddf4defc96bdf0e230045a9ccef87d9663348acd836dc44fd98"
+                        "ui-uikitArm64Main-1.8.1.klib": "f7687897653c3a7749589097f235ca8cd0900ea2ebe7584153925acc516e24a3"
                     }
                 },
                 {
                     "artifacts": {
-                        "ui-uikitarm64-1.8.0-metadata.jar": "40fb418311f749dde109203e369ef311d61391355dee115e18935ba65a962dd3"
+                        "ui-uikitarm64-1.8.1-metadata.jar": "fac94da5f95d82143e71258f7c8cddc01ef03ab5c95ecbd62d091001504694a3"
                     }
                 }
             ],

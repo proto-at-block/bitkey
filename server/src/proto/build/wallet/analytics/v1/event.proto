@@ -3,6 +3,7 @@ package build.wallet.analytics.v1;
 
 message EventBundle {
     repeated Event events = 1;
+    repeated ServerEvent server_events = 2;
 }
 
 message Event {
@@ -326,4 +327,33 @@ message TemplateMatchStats {
 message FingerprintScanStats {
     repeated TemplateMatchStats pass_counts = 1;
     uint32 fail_count = 2;
+}
+
+message ServerEvent {
+    string                event_time        = 1;
+    ServerAction          action            = 2;
+    string                account_id        = 3;
+
+    /** Optional information for the ACTION_SERVER_INHERITANCE_* event */
+    ServerInheritanceInfo inheritance_info  = 4;
+}
+
+enum ServerAction {
+    ACTION_SERVER_UNSPECIFIED                     = 0;
+
+    /** [Server] Submitted an inheritance claim */
+    ACTION_SERVER_INHERITANCE_CLAIM_SUBMITTED     = 1;
+
+    /** [Server] Completed an inheritance claim after the delay window expired */
+    ACTION_SERVER_INHERITANCE_CLAIM_COMPLETED     = 2;
+
+    /** [Server] Cancelled an inheritance claim before it completed */
+    ACTION_SERVER_INHERITANCE_CLAIM_DENIED        = 3;
+
+    // Next tag is 4
+}
+
+message ServerInheritanceInfo {
+    string relationship_id = 1;
+    string claim_id        = 2;
 }

@@ -28,7 +28,7 @@ class LostAppAndCloudRecoveryServiceFake : LostAppAndCloudRecoveryService {
 
   var completeAuthResult: Result<CompletedAuth, Throwable> =
     Ok(
-      CompletedAuth(
+      CompletedAuth.WithDirectKeys(
         accountId = FullAccountIdMock,
         authTokens = AccountAuthTokensMock,
         hwAuthKey = HwAuthPublicKeyMock,
@@ -68,7 +68,7 @@ class LostAppAndCloudRecoveryServiceFake : LostAppAndCloudRecoveryService {
     initiateAuthResult = Ok(InitiateAuthenticationSuccessMock)
     completeAuthResult =
       Ok(
-        CompletedAuth(
+        CompletedAuth.WithDirectKeys(
           accountId = FullAccountIdMock,
           authTokens = AccountAuthTokensMock,
           hwAuthKey = HwAuthPublicKeyMock,

@@ -10,6 +10,7 @@ import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment.Staging
+import build.wallet.feature.isEnabled
 import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.testing.AppTester
 import com.github.michaelbull.result.getOrThrow
@@ -54,6 +55,16 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
     appKeys = appKeys,
     hwActivation = hwActivation
   ).getOrThrow()
+
+  // Upload descriptor backups if the feature flag is enabled
+  if (encryptedDescriptorBackupsFeatureFlag.isEnabled()) {
+    descriptorBackupService.uploadOnboardingDescriptorBackup(
+      accountId = account.accountId,
+      sealedSsekForEncryption = hwActivation.sealedSsek,
+      appAuthKey = appKeys.appKeyBundle.authKey,
+      keysetsToEncrypt = account.keybox.keysets
+    ).getOrThrow()
+  }
 
   if (shouldSetUpNotifications) {
     val addedTouchpoint =

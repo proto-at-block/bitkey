@@ -15,6 +15,18 @@ interface CloudBackupV2Restorer {
     keysInfo: FullAccountKeys,
   ): Result<AccountRestoration, CloudBackupV2RestorerError>
 
+  /**
+   * FOR TESTS ONLY
+   *
+   * You want [restore] or [restoreWithDecryptedKeys] in production code instead.
+   *
+   * Decrypts a cloud backup and returns its corresponding [FullAccountKeys]. [restore] calls this
+   * as an implementation detail.
+   */
+  suspend fun decryptCloudBackup(
+    cloudBackupV2: CloudBackupV2,
+  ): Result<FullAccountKeys, CloudBackupV2RestorerError>
+
   sealed class CloudBackupV2RestorerError : Error() {
     data object PkekMissingError : CloudBackupV2RestorerError()
 

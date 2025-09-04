@@ -1,8 +1,10 @@
 package build.wallet.ui.components.screen
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,32 +51,55 @@ fun Screen(
     model.body,
     model.presentationStyle
   ) { style ->
+    val density = LocalDensity.current
+
+    val statusBannerModel by produceState(model.statusBannerModel, model) {
+      value = model.statusBannerModel ?: value
+    }
+
+    val statusBannerVisible = remember(model.statusBannerModel) {
+      model.statusBannerModel != null
+    }
+
+    val systemStatusBarHeightPx = with(density) {
+      WindowInsets.statusBars.getTop(this)
+    }
+
+    val statusBannerAlpha by animateFloatAsState(
+      targetValue = if (statusBannerVisible) 1f else 0f,
+      label = "status-banner-alpha"
+    )
+
+    val borderRadius by animateDpAsState(
+      targetValue = if (statusBannerVisible) 24.dp else 0.dp,
+      label = "status-banner-border-radius",
+      animationSpec = tween(
+        durationMillis = 300
+      )
+    )
+
+    val backgroundColor by animateColorAsState(
+      targetValue =
+        model.statusBannerModel?.backgroundColor() ?: WalletTheme.colors.background,
+      label = "screen-background-color",
+      animationSpec = if (statusBannerVisible) {
+        tween(
+          durationMillis = 300
+        )
+      } else {
+        tween(
+          durationMillis = 300,
+          delayMillis = 300 // Delay the exit animation to allow the status banner to fade out first
+        )
+      }
+    )
+
     Column(
       modifier = modifier.background(
-        color = model.statusBannerModel?.backgroundColor() ?: WalletTheme.colors.background
+        color = backgroundColor
       ),
       verticalArrangement = Arrangement.Top
     ) {
-      val statusBannerModel by produceState(model.statusBannerModel, model) {
-        value = model.statusBannerModel ?: value
-      }
-      val statusBannerVisible = remember(model.statusBannerModel) {
-        model.statusBannerModel != null
-      }
-
-      val statusBannerAlpha by animateFloatAsState(
-        targetValue = if (statusBannerVisible) 1f else 0f,
-        label = "status-banner-alpha"
-      )
-      val density = LocalDensity.current
-      val systemStatusBarHeightPx = with(density) {
-        WindowInsets.statusBars.getTop(this)
-      }
-      val borderRadius by animateDpAsState(
-        targetValue = if (statusBannerVisible) 24.dp else 0.dp,
-        label = "status-banner-border-radius"
-      )
-
       Box(
         modifier = Modifier
           .background(color = style.statusBarColor)

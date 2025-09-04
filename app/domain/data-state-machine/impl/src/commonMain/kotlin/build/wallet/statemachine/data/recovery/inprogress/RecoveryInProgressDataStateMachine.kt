@@ -552,26 +552,38 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is CreatingSpendingKeysWithF8eState -> {
         LaunchedEffect("create-spending-keys") {
-          rotateF8eSpendingKeyToCompleteRecovery(props, dataState)
+          createF8eSpendingKeyset(props, dataState)
             .onSuccess { f8eSpendingKeyset ->
-              state =
-                if (encryptedDescriptorBackupsFeatureFlag.isEnabled() && dataState.sealedSsek != null) {
-                  ProcessingDescriptorBackupsState(
+              // Set progress to indicate spending keys have been created (not activated yet)
+              recoveryStatusService.setLocalRecoveryProgress(
+                LocalRecoveryAttemptProgress.CreatedSpendingKeys(
+                  f8eSpendingKeyset = f8eSpendingKeyset
+                )
+              )
+                .onSuccess {
+                  state =
+                    if (encryptedDescriptorBackupsFeatureFlag.isEnabled() && dataState.sealedSsek != null) {
+                      ProcessingDescriptorBackupsState(
+                        sealedCsek = dataState.sealedCsek,
+                        sealedSsek = dataState.sealedSsek,
+                        f8eSpendingKeyset = f8eSpendingKeyset,
+                        hardwareProofOfPossession = dataState.hardwareProofOfPossession
+                      )
+                    } else {
+                      ActivatingSpendingKeysetState(
+                        sealedCsek = dataState.sealedCsek,
+                        f8eSpendingKeyset = f8eSpendingKeyset,
+                        hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+                        keysetState = KeysetState.Incomplete
+                      )
+                    }
+                }
+                .onFailure { error ->
+                  state = FailedToCreateSpendingKeysState(
+                    cause = Error(error),
                     sealedCsek = dataState.sealedCsek,
                     sealedSsek = dataState.sealedSsek,
-                    f8eSpendingKeyset = f8eSpendingKeyset,
                     hardwareProofOfPossession = dataState.hardwareProofOfPossession
-                  )
-                } else {
-                  // Feature flag is disabled or sealedSsek is null (app update during recovery), skip descriptor backup flow
-                  PerformingDdkBackupState(
-                    sealedCsek = dataState.sealedCsek,
-                    keybox = createNewKeybox(
-                      props.recovery,
-                      f8eSpendingKeyset,
-                      KeysetState.Incomplete
-                    ),
-                    delegatedDecryptionKey = null
                   )
                 }
             }
@@ -600,7 +612,7 @@ class RecoveryInProgressDataStateMachineImpl(
             )
           },
           rollback = {
-            state = ReadyToCompleteRecoveryState
+            state = calculateInitialState(props.recovery)
           }
         )
       }
@@ -674,6 +686,72 @@ class RecoveryInProgressDataStateMachineImpl(
               sealedSsek = dataState.sealedSsek,
               hardwareProofOfPossession = dataState.hardwareProofOfPossession,
               f8eSpendingKeyset = dataState.f8eSpendingKeyset
+            )
+          }
+        )
+      }
+
+      is ActivatingSpendingKeysetState -> {
+        LaunchedEffect("activate-spending-keyset") {
+          f8eSpendingKeyRotator.activateSpendingKeyset(
+            fullAccountId = props.recovery.fullAccountId,
+            keyset = dataState.f8eSpendingKeyset,
+            appAuthKey = props.recovery.appGlobalAuthKey,
+            hardwareProofOfPossession = dataState.hardwareProofOfPossession
+          )
+            .onSuccess {
+              state = PerformingDdkBackupState(
+                sealedCsek = dataState.sealedCsek,
+                keybox = createNewKeybox(
+                  recovery = props.recovery,
+                  f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                  keysetState = dataState.keysetState
+                ),
+                delegatedDecryptionKey = null
+              )
+            }
+            .onFailure { error ->
+              state = FailedToActivateSpendingKeysetState(
+                sealedCsek = dataState.sealedCsek,
+                f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+                keysetState = dataState.keysetState,
+                cause = Error(error)
+              )
+            }
+        }
+        ActivatingSpendingKeysetData(props.recovery.factorToRecover)
+      }
+
+      is AwaitingHardwareProofOfPossessionForActivationState -> {
+        AwaitingHardwareProofOfPossessionForActivationData(
+          physicalFactor = props.recovery.factorToRecover,
+          addHardwareProofOfPossession = { hwProofOfPossession ->
+            state = ActivatingSpendingKeysetState(
+              sealedCsek = dataState.sealedCsek,
+              f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+              hardwareProofOfPossession = hwProofOfPossession,
+              keysetState = dataState.keysetState
+            )
+          },
+          rollback = {
+            state = calculateInitialState(props.recovery)
+          },
+          appAuthKey = props.recovery.appGlobalAuthKey,
+          fullAccountId = props.recovery.fullAccountId
+        )
+      }
+
+      is FailedToActivateSpendingKeysetState -> {
+        FailedToActivateSpendingKeysetData(
+          physicalFactor = props.recovery.factorToRecover,
+          cause = dataState.cause,
+          onRetry = {
+            state = ActivatingSpendingKeysetState(
+              sealedCsek = dataState.sealedCsek,
+              f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+              hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+              keysetState = dataState.keysetState
             )
           }
         )
@@ -942,14 +1020,11 @@ class RecoveryInProgressDataStateMachineImpl(
                   )
                 )
                 .onSuccess {
-                  state = PerformingDdkBackupState(
+                  state = ActivatingSpendingKeysetState(
                     sealedCsek = dataState.sealedCsek,
-                    keybox = createNewKeybox(
-                      recovery = props.recovery,
-                      f8eSpendingKeyset = dataState.f8eSpendingKeyset,
-                      keysetState = KeysetState.Complete(keysets)
-                    ),
-                    delegatedDecryptionKey = null
+                    f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                    hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+                    keysetState = KeysetState.Complete(keysets)
                   )
                 }
                 .onFailure { error ->
@@ -1078,21 +1153,11 @@ class RecoveryInProgressDataStateMachineImpl(
         .bind()
     }
 
-  private suspend fun rotateF8eSpendingKeyToCompleteRecovery(
+  private suspend fun createF8eSpendingKeyset(
     props: RecoveryInProgressProps,
     state: CreatingSpendingKeysWithF8eState,
   ): Result<F8eSpendingKeyset, Error> =
     coroutineBinding {
-      val f8eSpendingKeyset = f8eSpendingKeyRotator
-        .rotateSpendingKey(
-          fullAccountId = props.recovery.fullAccountId,
-          appSpendingKey = props.recovery.appSpendingKey,
-          hardwareSpendingKey = props.recovery.hardwareSpendingKey,
-          appAuthKey = props.recovery.appGlobalAuthKey,
-          hardwareProofOfPossession = state.hardwareProofOfPossession
-        )
-        .bind()
-
       // TODO(BKR-1094): Use the recovery destination auth key, not the stale ones
       deviceTokenManager.addDeviceTokenIfPresentForAccount(
         fullAccountId = props.recovery.fullAccountId,
@@ -1101,15 +1166,15 @@ class RecoveryInProgressDataStateMachineImpl(
         "Failed to add device token for account during Social Recovery"
       }
 
-      // Set progress to indicate spending keys have been rotated
-      recoveryStatusService.setLocalRecoveryProgress(
-        LocalRecoveryAttemptProgress.RotatedSpendingKeys(
-          f8eSpendingKeyset = f8eSpendingKeyset
+      f8eSpendingKeyRotator
+        .createSpendingKeyset(
+          fullAccountId = props.recovery.fullAccountId,
+          appSpendingKey = props.recovery.appSpendingKey,
+          hardwareSpendingKey = props.recovery.hardwareSpendingKey,
+          appAuthKey = props.recovery.appGlobalAuthKey,
+          hardwareProofOfPossession = state.hardwareProofOfPossession
         )
-      )
         .bind()
-
-      f8eSpendingKeyset
     }
 
   private fun createNewKeybox(
@@ -1209,22 +1274,32 @@ class RecoveryInProgressDataStateMachineImpl(
             f8eSpendingKeyset = recovery.f8eSpendingKeyset
           )
         } else {
-          // Feature flag is disabled or sealedSsek is null (app update during recovery), skip descriptor backup flow
-          PerformingDdkBackupState(
+          // Feature flag is disabled or sealedSsek is null (app update during recovery)
+          // Since we don't have the hardware proof of possession stored in recovery state,
+          // we need to get it again
+          AwaitingHardwareProofOfPossessionForActivationState(
             sealedCsek = recovery.sealedCsek,
-            keybox = createNewKeybox(recovery, recovery.f8eSpendingKeyset, KeysetState.Incomplete),
-            delegatedDecryptionKey = null
+            f8eSpendingKeyset = recovery.f8eSpendingKeyset,
+            keysetState = KeysetState.Incomplete
           )
         }
       }
 
       is UploadedDescriptorBackups -> {
+        AwaitingHardwareProofOfPossessionForActivationState(
+          sealedCsek = recovery.sealedCsek,
+          f8eSpendingKeyset = recovery.f8eSpendingKeyset,
+          keysetState = KeysetState.Complete(recovery.keysets)
+        )
+      }
+
+      is ActivatedSpendingKeys -> {
         PerformingDdkBackupState(
           sealedCsek = recovery.sealedCsek,
           keybox = createNewKeybox(
             recovery = recovery,
             f8eSpendingKeyset = recovery.f8eSpendingKeyset,
-            keysetState = KeysetState.Complete(recovery.keysets)
+            keysetState = if (recovery.keysets.isNotEmpty()) KeysetState.Complete(recovery.keysets) else KeysetState.Incomplete
           ),
           delegatedDecryptionKey = null
         )
@@ -1445,6 +1520,36 @@ class RecoveryInProgressDataStateMachineImpl(
       val sealedCsek: SealedCsek,
       val sealedSsek: SealedSsek?,
       val hardwareProofOfPossession: HwFactorProofOfPossession,
+    ) : State
+
+    /**
+     * State for activating the spending keyset after creation and descriptor backups
+     */
+    data class ActivatingSpendingKeysetState(
+      val sealedCsek: SealedCsek,
+      val f8eSpendingKeyset: F8eSpendingKeyset,
+      val hardwareProofOfPossession: HwFactorProofOfPossession,
+      val keysetState: KeysetState,
+    ) : State
+
+    /**
+     * Awaiting hardware proof of possession to activate the spending keyset.
+     */
+    data class AwaitingHardwareProofOfPossessionForActivationState(
+      val sealedCsek: SealedCsek,
+      val f8eSpendingKeyset: F8eSpendingKeyset,
+      val keysetState: KeysetState,
+    ) : State
+
+    /**
+     * Failure to activate the spending keyset
+     */
+    data class FailedToActivateSpendingKeysetState(
+      val sealedCsek: SealedCsek,
+      val f8eSpendingKeyset: F8eSpendingKeyset,
+      val hardwareProofOfPossession: HwFactorProofOfPossession,
+      val keysetState: KeysetState,
+      val cause: Error,
     ) : State
 
     /**

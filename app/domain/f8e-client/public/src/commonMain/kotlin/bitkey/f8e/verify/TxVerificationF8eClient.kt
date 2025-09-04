@@ -43,6 +43,21 @@ interface TxVerificationF8eClient {
   ): Result<TxVerificationState, Throwable>
 
   /**
+   * Cancel a pending transaction verification request.
+   *
+   * This will invalidate the in-progress verification to avoid confusion
+   * for the user by deactivating the link in the email sent to their account.
+   *
+   * Note: It's important to not block the user if this call fails.
+   * Verifications will eventually expire, so this operation is not critical.
+   */
+  suspend fun cancelVerification(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+    verificationId: TxVerificationId,
+  ): Result<Unit, Throwable>
+
+  /**
    * Request a hardware grant for the specified transaction without verification.
    *
    * @param psbt The transaction to be signed. This must be under the transaction limit amount.

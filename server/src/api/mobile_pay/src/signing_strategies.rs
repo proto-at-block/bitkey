@@ -220,6 +220,9 @@ impl SigningStrategyFactory {
             .spending_keysets
             .get(signing_keyset_id)
             .ok_or_else(|| SigningError::NoSpendKeyset(signing_keyset_id.to_owned()))?
+            .legacy_multi_sig_or(SigningError::InvalidKeysetType(
+                signing_keyset_id.to_owned(),
+            ))?
             .to_owned()
             .into();
 
@@ -329,6 +332,7 @@ impl SigningStrategyFactory {
         let active_descriptor: DescriptorKeyset = full_account
             .active_spending_keyset()
             .ok_or(SigningError::NoActiveSpendKeyset)?
+            .legacy_multi_sig_or(SigningError::ConflictingKeysetType)?
             .to_owned()
             .into();
 

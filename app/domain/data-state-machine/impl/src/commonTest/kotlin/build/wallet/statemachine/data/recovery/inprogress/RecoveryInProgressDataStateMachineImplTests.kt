@@ -42,7 +42,6 @@ import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.*
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.DescriptorBackupServiceFake
-import build.wallet.recovery.LocalRecoveryAttemptProgress.RotatedSpendingKeys
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.*
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.UploadedDescriptorBackups
@@ -78,10 +77,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val csekDao = CsekDaoFake()
   val ssekDao = SsekDaoFake()
   val recoveryAuthCompleter = RecoveryAuthCompleterMock(turbines::create)
-  val f8eSpendingKeyRotator = F8eSpendingKeyRotatorMock()
   val uuid = UuidGeneratorFake()
   val recoveryStatusService =
     RecoveryStatusServiceMock(StillRecoveringInitiatedRecoveryMock, turbines::create)
+  val f8eSpendingKeyRotator = F8eSpendingKeyRotatorMock(recoveryStatusService)
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
   val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
@@ -472,9 +471,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().let {
         it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
         recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-          .shouldBeTypeOf<RotatedSpendingKeys>()
+          .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
           .f8eSpendingKeyset.shouldBe(F8eSpendingKeysetMock)
       }
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
@@ -549,7 +552,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().let {
         it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
         recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-          .shouldBeTypeOf<RotatedSpendingKeys>()
+          .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
           .f8eSpendingKeyset.shouldBe(F8eSpendingKeysetMock)
       }
 
@@ -559,6 +562,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
@@ -631,15 +638,19 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().let {
         it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
         recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-          .shouldBeTypeOf<RotatedSpendingKeys>()
+          .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
           .f8eSpendingKeyset.shouldBe(F8eSpendingKeysetMock)
       }
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
       awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
-
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
@@ -706,7 +717,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().let {
         it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
         recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-          .shouldBeTypeOf<RotatedSpendingKeys>()
+          .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
           .f8eSpendingKeyset.shouldBe(F8eSpendingKeysetMock)
       }
 
@@ -717,6 +728,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       awaitItem().let {
@@ -801,7 +816,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
       awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
 
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
@@ -889,11 +907,16 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
       awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
-
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
@@ -964,18 +987,22 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<RotatedSpendingKeys>()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
       awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
-
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
 
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
@@ -1039,6 +1066,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
+
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
 
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
@@ -1098,8 +1129,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
@@ -1178,10 +1212,16 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
     stateMachine.test(props(recovery)) {
       awaitItem().let {
-        it.shouldBeTypeOf<PerformingDdkBackupData>()
+        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionForActivationData>()
         it.physicalFactor.shouldBe(App)
+        it.addHardwareProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
+
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
@@ -1213,10 +1253,19 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
     stateMachine.test(props(recovery)) {
       awaitItem().let {
+        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionForActivationData>()
+        it.physicalFactor.shouldBe(App)
+        it.addHardwareProofOfPossession(HwFactorProofOfPossession("signed-token"))
+      }
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
+
+      awaitItem().let {
         it.shouldBeTypeOf<PerformingDdkBackupData>()
         it.physicalFactor.shouldBe(App)
       }
-
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
@@ -1336,12 +1385,14 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
       awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
-
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
 
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
@@ -1376,12 +1427,16 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
     stateMachine.test(props(recovery)) {
       awaitItem().let {
-        it.shouldBeTypeOf<PerformingDdkBackupData>()
+        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionForActivationData>()
         it.physicalFactor.shouldBe(App)
-        it.keybox.keysets.size.shouldBe(1)
+        it.addHardwareProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      // Verify that recovery progress is set for DDK backup
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
+
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
@@ -1396,6 +1451,36 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       awaitItem().shouldBeTypeOf<PerformingSweepData>()
+    }
+  }
+
+  test("initial state calculation - ActivatedSpendingKeys starts with uploading the ddk") {
+    val recovery = ActivatedSpendingKeys(
+      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
+      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
+      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
+      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
+      factorToRecover = App,
+      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
+      f8eSpendingKeyset = F8eSpendingKeysetMock,
+      sealedCsek = SealedCsekFake,
+      sealedSsek = SealedSsekFake,
+      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock)
+    )
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<PerformingDdkBackupData>()
+        it.keybox.keysets.shouldBe(recovery.keysets)
+      }
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
+
+      relationshipsService.syncCalls.awaitItem()
+
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -1417,16 +1502,21 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
     stateMachine.test(props(recovery)) {
       awaitItem().let {
-        it.shouldBeTypeOf<PerformingDdkBackupData>()
+        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionForActivationData>()
         it.physicalFactor.shouldBe(App)
-        // Verify that the recovery keysets are used when feature flag is enabled
-        it.keybox.keysets.size.shouldBe(2)
-        it.keybox.keysets.shouldBe(recovery.keysets)
+        it.addHardwareProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      // Verify that recovery progress is set for DDK backup
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
+
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>().let {
+        it.keybox.keysets.shouldBe(recovery.keysets)
+      }
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
+
       relationshipsService.syncCalls.awaitItem()
 
       cancelAndIgnoreRemainingEvents()

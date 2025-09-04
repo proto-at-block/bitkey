@@ -46,4 +46,12 @@ class TxVerificationF8eClientFake : TxVerificationF8eClient {
   ): Result<TxVerificationState, Throwable> {
     return Ok(status)
   }
+
+  override suspend fun cancelVerification(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+    verificationId: TxVerificationId,
+  ): Result<Unit, Throwable> {
+    return Ok(Unit)
+  }
 }

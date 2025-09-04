@@ -12,7 +12,10 @@ import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import okio.ByteString.Companion.toByteString
 
 @Impl

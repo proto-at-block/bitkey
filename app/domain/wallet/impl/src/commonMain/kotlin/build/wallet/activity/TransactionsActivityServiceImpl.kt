@@ -19,6 +19,8 @@ import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
+import build.wallet.logging.logNetworkFailure
 import build.wallet.partnerships.PartnershipTransactionsService
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -169,15 +171,23 @@ class TransactionsActivityServiceImpl(
         return@coroutineBinding emptyList<WatchingWallet>()
       }
 
-      val environment = account.config.f8eEnvironment
       val activeKeysetId = account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
 
-      listKeysetsF8eClient
-        .listKeysets(environment, account.accountId)
-        .logFailure { "Error fetching keysets for comprehensive transaction tracking." }
-        .bind()
-        .keysets
+      // Use local keysets if available and authoritative, otherwise fetch from F8e
+      val inactiveKeysets = if (account.keybox.canUseKeyboxKeysets) {
+        logInfo { "Using local keysets for transaction activity" }
+        account.keybox.keysets
+      } else {
+        logInfo { "Using remote keysets for transaction activity" }
+        listKeysetsF8eClient
+          .listKeysets(account.config.f8eEnvironment, account.accountId)
+          .logNetworkFailure { "Error fetching keysets for comprehensive transaction tracking." }
+          .bind()
+          .keysets
+      }
         .filter { it.f8eSpendingKeyset.keysetId != activeKeysetId }
+
+      inactiveKeysets
         .map {
           val descriptor = it.toWalletDescriptor(account.config.bitcoinNetworkType)
           async(Dispatchers.IO) {

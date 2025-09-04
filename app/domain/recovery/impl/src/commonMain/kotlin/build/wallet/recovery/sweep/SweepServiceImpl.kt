@@ -8,7 +8,6 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
-import build.wallet.worker.BackgroundStrategy.Wait
 import build.wallet.worker.RefreshOperationFilter
 import build.wallet.worker.RunStrategy
 import com.github.michaelbull.result.Result
@@ -30,8 +29,7 @@ class SweepServiceImpl(
       type = RefreshOperationFilter.Subset(TransactionActivityOperations)
     ),
     RunStrategy.Periodic(
-      interval = sweepSyncFrequency.value,
-      backgroundStrategy = Wait
+      interval = sweepSyncFrequency.value
     )
   )
 

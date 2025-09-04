@@ -1,6 +1,7 @@
 package bitkey.recovery
 
 import bitkey.auth.AuthTokenScope.Global
+import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth.WithDirectKeys
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveHwAuthKey
 import build.wallet.testing.ext.getHardwareFactorProofOfPossession
@@ -10,6 +11,7 @@ import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   test("authenticate with hardware and initiate recovery") {
@@ -35,6 +37,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       accountId = account.accountId,
       hwSignedChallenge = signedChallenge
     ).shouldBeOk()
+
+    completedAuth.shouldBeInstanceOf<WithDirectKeys>()
     completedAuth.hwAuthKey.shouldBe(hwAuthKey)
     completedAuth.existingHwSpendingKeys.shouldContainExactly(
       account.keybox.activeHwKeyBundle.spendingKey

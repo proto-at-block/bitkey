@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-graphics-desktop",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-graphics-desktop-1.8.0.jar": "b31a14f8e01b8653bf37788a93008cd38ffd6d8719215063ea61a65a6fd976bf"
+                        "ui-graphics-desktop-1.8.1.jar": "b31a14f8e01b8653bf37788a93008cd38ffd6d8719215063ea61a65a6fd976bf"
                     }
                 }
             ],

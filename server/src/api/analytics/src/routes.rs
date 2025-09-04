@@ -100,7 +100,10 @@ mod local_analytics_test {
             counter_count: 0,
             fingerprint_scan_stats: None,
         }];
-        let event_bundle = EventBundle { events };
+        let event_bundle = EventBundle {
+            events,
+            server_events: vec![],
+        };
 
         // Encode event bundle
         let mut blob = Vec::with_capacity(event_bundle.encoded_len());

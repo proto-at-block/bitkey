@@ -348,3 +348,28 @@ Test(grant_protocol_tests, prevents_substitution_attack, .init = setup, .fini = 
   grant_protocol_result_t res = grant_protocol_verify_grant(&attacker_grant);
   cr_assert_eq(res, GRANT_RESULT_ERROR_REQUEST_MISMATCH);
 }
+
+Test(grant_protocol_tests, grant_already_consumed, .init = setup, .fini = fini) {
+  const bool production = true;
+  grant_protocol_init(production);
+
+  // Generate the grant request.
+  grant_request_t req;
+  asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
+
+  // Mock the server signing the grant.
+  grant_t grant;
+  mock_server_sign_grant(&req, &grant, production);
+
+  // First verification should succeed
+  grant_protocol_result_t res = grant_protocol_verify_grant(&grant);
+  cr_assert_eq(res, GRANT_RESULT_OK);
+
+  // Delete the grant request (simulating consumption)
+  cr_assert_eq(grant_protocol_delete_outstanding_request(), GRANT_RESULT_OK);
+  assert_grant_deleted();
+
+  // Second verification should fail with STORAGE error (file not found)
+  res = grant_protocol_verify_grant(&grant);
+  cr_assert_eq(res, GRANT_RESULT_ERROR_STORAGE);
+}

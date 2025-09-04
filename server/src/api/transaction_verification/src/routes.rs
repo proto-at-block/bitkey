@@ -388,7 +388,10 @@ async fn initiate_transaction_verification(
     let source_descriptor: DescriptorKeyset = account
         .spending_keysets
         .get(&signing_keyset_id)
-        .ok_or_else(|| TransactionVerificationError::NoSpendKeyset(signing_keyset_id))?
+        .ok_or_else(|| TransactionVerificationError::NoSpendKeyset(signing_keyset_id.clone()))?
+        .legacy_multi_sig_or(TransactionVerificationError::InvalidKeysetType(
+            signing_keyset_id,
+        ))?
         .to_owned()
         .into();
     let wallet_provider = DescriptorKeysetWalletProvider::new(source_descriptor, rpc_uris);

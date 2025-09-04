@@ -335,12 +335,14 @@ public final class NfcCommandsImpl: NfcCommands {
                 )
                 .transceive(session: session)
             )
-        } catch let error as NSError {
-            if error
-                .isKotlinNfcCommandError(containing: "command was unsuccessful: general error")
-            {
-                // grant probably already consumed, so we just return false instead
-                // TODO: W-11906 - improve grant delivery errors
+        } catch {
+            // For either of these specific errors, the grant has likely already been used
+            let nsError = error as NSError
+            if nsError.isKotlinNfcFileNotFoundError() {
+                // specific error from newer firmware
+                return .init(bool: false)
+            } else if nsError.isKotlinNfcGeneralError() {
+                // fallback for older firmware
                 return .init(bool: false)
             } else {
                 // rethrow other command errors
@@ -476,17 +478,5 @@ private extension firmware.UnlockMethod {
 private extension firmware.FingerprintHandle {
     func toSharedFingerprintHandle() -> Shared.FingerprintHandle {
         return Shared.FingerprintHandle(index: Int32(self.index), label: self.label)
-    }
-}
-
-private extension NSError {
-    func isKotlinNfcCommandError(containing message: String) -> Bool {
-        guard domain == "KotlinException",
-              let kotlinException = userInfo["KotlinException"] as? NfcException.CommandError,
-              let errorMessage = kotlinException.message
-        else {
-            return false
-        }
-        return errorMessage.contains(message)
     }
 }

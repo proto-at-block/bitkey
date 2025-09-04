@@ -5,6 +5,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.encrypt.toSecp256k1PublicKey
@@ -20,7 +21,7 @@ suspend fun AppTester.awaitNoActiveRecovery() {
   }
 }
 
-suspend fun AppTester.createLostHardwareKeyset(account: FullAccount): SpendingKeyset {
+suspend fun AppTester.createLostHardwareKeyset(account: FullAccount): KeyboxWithNewKeyset {
   // Since we use mock hardware, a keyset that we've lost hardware for is equivalent to
   // a keyset that we've deleted the private keys for
   val newKeyBundle = appKeysGenerator.generateKeyBundle().getOrThrow()
@@ -59,6 +60,22 @@ suspend fun AppTester.createLostHardwareKeyset(account: FullAccount): SpendingKe
     f8eSpendingKeyset = f8eSpendingKeyset
   )
 
-  keyboxDao.saveKeyboxAsActive(account.keybox).getOrThrow()
-  return keyset
+  // Update the account keybox to include the inactive keyset
+  val updatedKeybox = account.keybox.copy(
+    keysets = account.keybox.keysets + keyset
+  )
+
+  keyboxDao.saveKeyboxAsActive(
+    updatedKeybox
+  ).getOrThrow()
+  return KeyboxWithNewKeyset(
+    keybox = updatedKeybox,
+    newKeyset = keyset
+  )
 }
+
+/** A simple encapsulation of the new lost HW keyset and the updated keybox containing that keyset. */
+data class KeyboxWithNewKeyset(
+  val keybox: Keybox,
+  val newKeyset: SpendingKeyset,
+)

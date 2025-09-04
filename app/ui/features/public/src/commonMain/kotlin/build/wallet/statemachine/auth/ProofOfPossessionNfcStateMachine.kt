@@ -92,6 +92,7 @@ data class ProofOfPossessionNfcProps(
   val onBack: () -> Unit,
   val onTokenRefresh: (() -> ScreenModel)? = null,
   val hardwareVerification: HardwareVerification = Required(),
+  val shouldLock: Boolean = true,
   val onTokenRefreshError: (
     (
       isConnectivityError: Boolean,

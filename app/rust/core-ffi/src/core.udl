@@ -37,6 +37,8 @@ interface WsmIntegrityVerifier {
   constructor(PublicKey pubkey);
   [Throws=WsmIntegrityVerifierError]
   boolean verify(string base58_message, string signature);
+  [Throws=WsmIntegrityVerifierError]
+  boolean verify_hex_message(string hex_message, string signature);
 };
 
 [Error]

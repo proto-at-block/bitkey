@@ -13,10 +13,10 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
-import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
+import build.wallet.logging.logNetworkFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.flow.first
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
@@ -83,20 +83,23 @@ class ExportTransactionsServiceImpl(
     coroutineBinding {
       val account = accountService.getAccount<FullAccount>().bind()
 
-      val serverInactiveKeysets = listKeysetsF8eClient
-        .listKeysets(
-          account.keybox.config.f8eEnvironment,
-          account.accountId
-        )
-        .mapError { Error("Failed to fetch keysets") }
-        .logFailure { "Error fetching keysets for an account when exporting transaction history." }
-        .bind()
-        .keysets
-        .filter {
-          it.f8eSpendingKeyset.keysetId != account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
-        }
+      // Use local keysets if available and authoritative, otherwise fetch from F8e
+      val allKeysets = if (account.keybox.canUseKeyboxKeysets) {
+        logInfo { "Using local keysets for exporting transaction history." }
+        account.keybox.keysets
+      } else {
+        logInfo { "Using remote keysets for exporting transaction history." }
+        listKeysetsF8eClient
+          .listKeysets(
+            account.keybox.config.f8eEnvironment,
+            account.accountId
+          )
+          .logNetworkFailure { "Error fetching keysets for an account when exporting transaction history." }
+          .bind()
+          .keysets
+      }
 
-      (serverInactiveKeysets + account.keybox.activeSpendingKeyset)
+      allKeysets
         .map { keyset ->
           WatchingWalletDescriptor(
             identifier = "WatchingWallet ${keyset.localId}",

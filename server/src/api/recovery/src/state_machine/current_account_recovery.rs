@@ -14,7 +14,7 @@ use notification::{
 };
 use time::{format_description::well_known::Rfc3339, Duration};
 use types::account::entities::{
-    CommsVerificationScope, Factor, FullAccount, FullAccountAuthKeysPayload,
+    CommsVerificationScope, Factor, FullAccount, FullAccountAuthKeysInput,
 };
 use types::account::spend_limit::SpendingLimit;
 
@@ -63,7 +63,7 @@ impl RecoveryStateResponse for CurrentAccountRecoveryState {
                 delay_start_time: recovery.created_at,
                 delay_end_time: requirements.delay_end_time,
                 lost_factor: requirements.lost_factor,
-                auth_keys: FullAccountAuthKeysPayload {
+                auth_keys: FullAccountAuthKeysInput {
                     app: destination.app_auth_pubkey,
                     hardware: destination.hardware_auth_pubkey,
                     recovery: destination.recovery_auth_pubkey

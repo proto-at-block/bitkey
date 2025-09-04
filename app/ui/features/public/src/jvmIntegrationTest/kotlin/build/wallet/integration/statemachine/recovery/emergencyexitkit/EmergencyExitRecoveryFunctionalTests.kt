@@ -34,6 +34,8 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
@@ -134,6 +136,19 @@ class EmergencyExitRecoveryFunctionalTests : FunSpec({
         cancelAndIgnoreRemainingEvents()
       }
     }
+
+  test("user text is redacted") {
+    val model = EmergencyExitKitImportPasteAppKeyBodyModel(
+      enteredText = "test",
+      onBack = {},
+      onEnterTextChanged = {},
+      onPasteButtonClick = {},
+      onContinue = {}
+    )
+
+    model.enteredText.shouldContain("test")
+    model.toString().shouldNotContain("test")
+  }
 })
 
 private val FormBodyModel.restoreEmergencyExitButton: ListItemModel

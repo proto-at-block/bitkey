@@ -22,6 +22,7 @@ import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Number
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 fun VerificationCodeInputBodyModel(
   title: String,
@@ -52,6 +53,7 @@ fun VerificationCodeInputBodyModel(
 
 data class VerificationCodeInputFormBodyModel(
   val title: String,
+  @Redacted
   val subtitle: String,
   val value: String,
   val resendCodeContent: ResendCodeContent,

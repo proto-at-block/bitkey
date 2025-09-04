@@ -4,7 +4,7 @@ use tracing::instrument;
 
 use crate::destination::Destination;
 use crate::errors::AnalyticsError;
-use crate::routes::definitions::{Action, Event, EventBundle};
+use crate::routes::definitions::{Action, Event, EventBundle, ServerAction, ServerEvent};
 
 const AUTH_HEADER: &str = "Authorization";
 const AUTH_TYPE: &str = "Basic ";
@@ -35,12 +35,19 @@ pub struct SegmentTrackEventBundle {
     batch: Vec<SegmentTrackEvent>,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(untagged)]
+enum SegmentProperties {
+    Event(Event),
+    ServerEvent(ServerEvent),
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SegmentTrackEvent {
     user_id: String,
     event: String,
-    properties: Event,
+    properties: SegmentProperties,
     timestamp: String,
     #[serde(rename = "type")]
     event_type: String,
@@ -55,7 +62,7 @@ fn translate_events(bundle: EventBundle) -> SegmentTrackEventBundle {
         .events
         .into_iter()
         .map(|e| {
-            let properties = e.clone();
+            let properties = SegmentProperties::Event(e.clone());
             let action = Action::try_from(e.action).unwrap_or(Action::Unspecified);
             SegmentTrackEvent {
                 user_id: e.app_device_id,
@@ -66,9 +73,26 @@ fn translate_events(bundle: EventBundle) -> SegmentTrackEventBundle {
             }
         })
         .collect();
-    SegmentTrackEventBundle {
-        batch: segment_track_events,
-    }
+    let server_events: Vec<SegmentTrackEvent> = bundle
+        .server_events
+        .into_iter()
+        .map(|e| {
+            let properties = SegmentProperties::ServerEvent(e.clone());
+            let action =
+                ServerAction::try_from(e.action).unwrap_or(ServerAction::ActionServerUnspecified);
+            SegmentTrackEvent {
+                user_id: e.account_id,
+                event: ServerAction::as_str_name(&action).to_owned(),
+                properties,
+                timestamp: e.event_time,
+                event_type: String::from(EVENT_TYPE),
+            }
+        })
+        .collect();
+
+    let mut batch = segment_track_events;
+    batch.extend(server_events);
+    SegmentTrackEventBundle { batch }
 }
 
 #[instrument(level = "error")]
@@ -101,8 +125,10 @@ fn api_key_to_auth_header(api_key: String) -> String {
 mod local_analytics_segment_tracker_test {
 
     use crate::{
-        destination::segment_tracker::{api_key_to_auth_header, translate_events},
-        routes::definitions::{Action, Event, EventBundle},
+        destination::segment_tracker::{
+            api_key_to_auth_header, translate_events, SegmentProperties,
+        },
+        routes::definitions::{Action, Event, EventBundle, ServerAction, ServerEvent},
     };
 
     #[test]
@@ -127,6 +153,7 @@ mod local_analytics_segment_tracker_test {
                 counter_count: 0,
                 fingerprint_scan_stats: None,
             }],
+            server_events: vec![],
         };
 
         let segment_event_bundle = translate_events(event_bundle.clone());
@@ -134,7 +161,7 @@ mod local_analytics_segment_tracker_test {
         assert_eq!(segment_event_bundle.batch.len(), event_bundle.events.len());
         assert_eq!(
             segment_event_bundle.batch[0].properties,
-            event_bundle.events[0]
+            SegmentProperties::Event(event_bundle.events[0].clone())
         );
         assert_eq!(
             segment_event_bundle.batch[0].event,
@@ -143,6 +170,38 @@ mod local_analytics_segment_tracker_test {
         assert_eq!(
             segment_event_bundle.batch[0].timestamp,
             event_bundle.events[0].event_time
+        );
+    }
+
+    #[test]
+    fn test_translate_server_event_bundle() {
+        let event_bundle = EventBundle {
+            events: vec![],
+            server_events: vec![ServerEvent {
+                event_time: String::from("test-time"),
+                action: 0,
+                account_id: String::from("test-account-id"),
+                inheritance_info: None,
+            }],
+        };
+
+        let segment_event_bundle = translate_events(event_bundle.clone());
+
+        assert_eq!(
+            segment_event_bundle.batch.len(),
+            event_bundle.server_events.len()
+        );
+        assert_eq!(
+            segment_event_bundle.batch[0].properties,
+            SegmentProperties::ServerEvent(event_bundle.server_events[0].clone())
+        );
+        assert_eq!(
+            segment_event_bundle.batch[0].event,
+            ServerAction::as_str_name(&ServerAction::ActionServerUnspecified)
+        );
+        assert_eq!(
+            segment_event_bundle.batch[0].timestamp,
+            event_bundle.server_events[0].event_time
         );
     }
 

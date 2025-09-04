@@ -1,12 +1,14 @@
 package build.wallet.recovery
 
 import bitkey.auth.AccountAuthTokens
+import bitkey.backup.DescriptorBackup
 import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
+import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Result
@@ -37,7 +39,7 @@ interface LostAppAndCloudRecoveryService {
    * @param session auth session from [initiateAuth] call.
    * @param hwSignedChallenge [InitiateAuthenticationSuccess.challenge] signed with hardware.
    *
-   * @return [CompletedAuth] with access tokens and keys.
+   * @return [CompletedAuth] with access tokens and keys or descriptor backup data requiring NFC interaction.
    */
   suspend fun completeAuth(
     accountId: FullAccountId,
@@ -59,20 +61,41 @@ interface LostAppAndCloudRecoveryService {
   ): Result<Unit, InitiateDelayNotifyRecoveryError>
 
   /**
-   * Represents successful response for [completeAuth]. Contains auth tokens for the account,
-   * newly generated app keys (not rotated yet) and hardware keys.
-   *
-   * @property accountId recovered account ID from authenticating with f8e using hardware.
-   * @property authTokens new auth tokens for the account from authenticating with f8e using hardware.
-   * @property hwAuthKey current auth key of the hardware.
+   * Represents successful response for [completeAuth].
    */
-  data class CompletedAuth(
-    val accountId: FullAccountId,
-    val authTokens: AccountAuthTokens,
-    val hwAuthKey: HwAuthPublicKey,
-    val destinationAppKeys: AppKeyBundle,
-    val existingHwSpendingKeys: List<HwSpendingPublicKey>,
-  )
+  sealed interface CompletedAuth {
+    val accountId: FullAccountId
+    val authTokens: AccountAuthTokens
+    val hwAuthKey: HwAuthPublicKey
+    val destinationAppKeys: AppKeyBundle
+
+    /**
+     * Hardware keys are directly available from keysets).
+     */
+    data class WithDirectKeys(
+      override val accountId: FullAccountId,
+      override val authTokens: AccountAuthTokens,
+      override val hwAuthKey: HwAuthPublicKey,
+      override val destinationAppKeys: AppKeyBundle,
+      val existingHwSpendingKeys: List<HwSpendingPublicKey>,
+    ) : CompletedAuth
+
+    /**
+     * Descriptor backups are available and valid, but require NFC interaction to decrypt the wrapped SSEK.
+     * Consumer needs to:
+     * 1. Use hardware NFC to decrypt the wrapped SSEK
+     * 2. Store the unwrapped SSEK in SsekDao
+     * 3. Use DescriptorBackupService.unsealDescriptors to get hardware keys
+     */
+    data class WithDescriptorBackups(
+      override val accountId: FullAccountId,
+      override val authTokens: AccountAuthTokens,
+      override val hwAuthKey: HwAuthPublicKey,
+      override val destinationAppKeys: AppKeyBundle,
+      val descriptorBackups: List<DescriptorBackup>,
+      val wrappedSsek: SealedSsek,
+    ) : CompletedAuth
+  }
 
   /**
    * Cancels in progress D&N recovery using hardware proof of possession.

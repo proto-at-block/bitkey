@@ -447,6 +447,8 @@ static fwpb_status handle_grant_finalize(grant_t* grant) {
       return fwpb_status_REQUEST_MISMATCH;
     case GRANT_RESULT_ERROR_VERSION_MISMATCH:
       return fwpb_status_VERSION_MISMATCH;
+    case GRANT_RESULT_ERROR_STORAGE:
+      return fwpb_status_FILE_NOT_FOUND;
     default:
       return fwpb_status_ERROR;
   }

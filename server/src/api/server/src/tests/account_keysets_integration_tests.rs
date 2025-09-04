@@ -7,10 +7,11 @@ use account::service::{tests::create_descriptor_keys, FetchAccountInput};
 use bdk_utils::bdk::keys::DescriptorPublicKey;
 use http_server::middlewares::wsm;
 use onboarding::routes::{
-    AccountKeyset, CreateAccountRequest, CreateKeysetRequest, RotateSpendingKeysetRequest,
+    AccountKeyset, CreateAccountRequest, CreateKeysetRequest, LegacyMultiSigAccountKeyset,
+    RotateSpendingKeysetRequest,
 };
 use types::account::bitcoin::Network;
-use types::account::entities::{FullAccountAuthKeysPayload, SpendingKeysetRequest};
+use types::account::entities::{FullAccountAuthKeysInput, SpendingKeysetInput};
 use types::account::identifiers::KeysetId;
 use types::account::keys::FullAccountAuthKeys;
 use types::account::spending::SpendingKeyset;
@@ -36,12 +37,12 @@ async fn test_account_keyset_lifecycle() {
         .create_account(
             &mut context,
             &CreateAccountRequest::Full {
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: active_spend_app.clone(),
                     hardware: active_spend_hw.clone(),
@@ -74,7 +75,7 @@ async fn test_account_keyset_lifecycle() {
         .create_keyset(
             &account_id.to_string(),
             &CreateKeysetRequest {
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: spend_app,
                     hardware: spend_hw,
@@ -149,12 +150,12 @@ async fn test_account_keyset_lifecycle() {
     assert_eq!(account_status_response.keyset_id, active_keyset_id);
     assert_eq!(
         account_status_response.spending,
-        SpendingKeyset {
+        SpendingKeyset::new_legacy_multi_sig(
             network,
-            app_dpub: active_spend_app,
-            hardware_dpub: active_spend_hw,
-            server_dpub: active_spend_server_xpub
-        }
+            active_spend_app,
+            active_spend_hw,
+            active_spend_server_xpub
+        )
     );
 }
 
@@ -172,12 +173,12 @@ async fn test_account_keyset_switch_networks() {
         .create_account(
             &mut context,
             &CreateAccountRequest::Full {
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: active_spend_app.clone(),
                     hardware: active_spend_hw.clone(),
@@ -207,7 +208,7 @@ async fn test_account_keyset_switch_networks() {
         .create_keyset(
             &account_id.to_string(),
             &CreateKeysetRequest {
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: spend_app,
                     hardware: spend_hw,
@@ -239,12 +240,12 @@ async fn test_account_duplicate_spending_keyset() {
         .create_account(
             &mut context,
             &CreateAccountRequest::Full {
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: spend_app.clone(),
                     hardware: spend_hw.clone(),
@@ -274,7 +275,7 @@ async fn test_account_duplicate_spending_keyset() {
         .create_keyset(
             &account_id.to_string(),
             &CreateKeysetRequest {
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: spend_app,
                     hardware: spend_hw,
@@ -319,12 +320,12 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
         .create_account(
             &mut context,
             &CreateAccountRequest::Full {
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: active_spend_app.clone(),
                     hardware: active_spend_hw.clone(),
@@ -353,7 +354,7 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
         .create_keyset(
             &account_id.to_string(),
             &CreateKeysetRequest {
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: spend_app.clone(),
                     hardware: spend_hw.clone(),
@@ -416,12 +417,12 @@ async fn test_fetch_account_keysets() {
         .create_account(
             &mut context,
             &CreateAccountRequest::Full {
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: active_spend_app.clone(),
                     hardware: active_spend_hw.clone(),
@@ -454,7 +455,7 @@ async fn test_fetch_account_keysets() {
         .create_keyset(
             &account_id.to_string(),
             &CreateKeysetRequest {
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: inactive_spend_app.clone(),
                     hardware: inactive_spend_hw.clone(),
@@ -474,20 +475,20 @@ async fn test_fetch_account_keysets() {
     let inactive_server_spend = create_keyset_response.spending;
 
     let expected_keysets = vec![
-        AccountKeyset {
+        AccountKeyset::LegacyMultiSig(LegacyMultiSigAccountKeyset {
             keyset_id: active_keyset_id,
             network: network.into(),
             app_dpub: active_spend_app,
             hardware_dpub: active_spend_hw,
             server_dpub: active_server_spend,
-        },
-        AccountKeyset {
+        }),
+        AccountKeyset::LegacyMultiSig(LegacyMultiSigAccountKeyset {
             keyset_id: inactive_keyset_id,
             network: network.into(),
             app_dpub: inactive_spend_app,
             hardware_dpub: inactive_spend_hw,
             server_dpub: inactive_server_spend,
-        },
+        }),
     ];
 
     let response = client.get_account_keysets(&account_id.to_string()).await;
@@ -519,12 +520,12 @@ async fn test_rotate_spending_keyset(
 
     // First, make an account
     let request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.hw.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: network.into(),
             app: active_spend_app.clone(),
             hardware: active_spend_hw.clone(),

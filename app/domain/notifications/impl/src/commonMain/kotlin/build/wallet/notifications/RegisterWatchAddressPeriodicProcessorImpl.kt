@@ -2,6 +2,7 @@ package build.wallet.notifications
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.platform.app.AppSessionManager
 import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.queueprocessor.PeriodicProcessorImpl
 import kotlin.time.Duration.Companion.minutes
@@ -10,10 +11,12 @@ import kotlin.time.Duration.Companion.minutes
 class RegisterWatchAddressPeriodicProcessorImpl(
   private val queue: RegisterWatchAddressQueue,
   private val processor: RegisterWatchAddressProcessor,
+  appSessionManager: AppSessionManager,
 ) : RegisterWatchAddressPeriodicProcessor,
   PeriodicProcessor by PeriodicProcessorImpl(
     queue = queue,
     processor = processor,
     retryFrequency = 1.minutes,
-    retryBatchSize = 1
+    retryBatchSize = 1,
+    appSessionManager = appSessionManager
   )

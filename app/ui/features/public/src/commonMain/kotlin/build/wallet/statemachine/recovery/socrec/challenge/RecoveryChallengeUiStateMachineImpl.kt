@@ -2,13 +2,13 @@ package build.wallet.statemachine.recovery.socrec.challenge
 
 import androidx.compose.runtime.*
 import bitkey.auth.AuthTokenScope
-import bitkey.serialization.json.decodeFromStringResult
 import build.wallet.analytics.events.screen.context.PushNotificationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.relationships.ChallengeAuthentication
 import build.wallet.bitkey.relationships.ChallengeWrapper
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.SocialChallengeResponse
+import build.wallet.cloud.backup.JsonSerializer
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
@@ -32,7 +32,6 @@ import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(ActivityScope::class)
@@ -42,9 +41,8 @@ class RecoveryChallengeUiStateMachineImpl(
   private val deviceTokenManager: DeviceTokenManager,
   private val challengeCodeFormatter: ChallengeCodeFormatter,
   private val permissionChecker: PermissionChecker,
+  private val jsonSerializer: JsonSerializer,
 ) : RecoveryChallengeUiStateMachine {
-  private val json by lazy { Json { ignoreUnknownKeys = true } }
-
   @Composable
   override fun model(props: RecoveryChallengeUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.StartingChallengeState) }
@@ -201,7 +199,7 @@ class RecoveryChallengeUiStateMachineImpl(
           ).logFailure {
             "Error decrypting SocRec payload during recovery"
           }.flatMap {
-            json.decodeFromStringResult<FullAccountKeys>(it.utf8())
+            jsonSerializer.decodeFromStringResult<FullAccountKeys>(it.utf8())
           }.logFailure {
             "Error decoding SocRec payload during recovery"
           }.onSuccess { pkMat ->

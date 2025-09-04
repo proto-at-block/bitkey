@@ -1,0 +1,224 @@
+use std::str::FromStr;
+
+use account::service::{CreateAccountAndKeysetsInput, Service as AccountService};
+use axum::{extract::State, Json};
+use bdk_utils::bdk::{bitcoin::secp256k1::PublicKey, keys::DescriptorPublicKey};
+use errors::{ApiError, RouteError};
+use external_identifier::ExternalIdentifier;
+use http_server::middlewares::identifier_generator::IdentifierGenerator;
+use notification::clients::iterable::IterableClient;
+use recovery::repository::RecoveryRepository;
+use serde::{Deserialize, Serialize};
+use tracing::{error, instrument};
+use types::account::{
+    entities::{
+        v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2},
+        Account, Keyset,
+    },
+    identifiers::{AccountId, AuthKeysId, KeysetId},
+    keys::FullAccountAuthKeys,
+    spending::SpendingKeyset,
+};
+use userpool::userpool::UserPoolService;
+use utoipa::ToSchema;
+use wsm_rust_client::{SigningService, WsmClient};
+
+use crate::{
+    account_validation::{AccountValidation, AccountValidationRequest},
+    routes::Config,
+    upsert_account_iterable_user,
+};
+
+#[derive(Deserialize, Serialize, Debug, ToSchema)]
+pub struct CreateAccountRequestV2 {
+    pub auth: FullAccountAuthKeysInputV2,
+    pub spend: SpendingKeysetInputV2,
+    #[serde(default)]
+    pub is_test_account: bool,
+}
+
+impl From<&CreateAccountRequestV2> for AccountValidationRequest {
+    fn from(value: &CreateAccountRequestV2) -> Self {
+        AccountValidationRequest::CreateFullAccountV2 {
+            auth: value.auth.clone(),
+            spend: value.spend.clone(),
+            is_test_account: value.is_test_account,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema)]
+pub struct CreateAccountResponseV2 {
+    pub account_id: AccountId,
+    pub keyset_id: KeysetId,
+    pub server_pub: PublicKey,
+    pub server_pub_integrity_sig: String,
+}
+
+impl TryFrom<&Account> for CreateAccountResponseV2 {
+    type Error = ApiError;
+
+    fn try_from(value: &Account) -> Result<Self, Self::Error> {
+        match value {
+            Account::Full(full_account) => {
+                let keyset = full_account
+                    .active_spending_keyset()
+                    .ok_or(RouteError::NoActiveSpendKeyset)?
+                    .private_multi_sig_or(RouteError::ConflictingKeysetType)?;
+                Ok(CreateAccountResponseV2 {
+                    account_id: full_account.id.clone(),
+                    keyset_id: full_account.active_keyset_id.clone(),
+                    server_pub: keyset.server_pub,
+                    server_pub_integrity_sig: keyset.server_pub_integrity_sig.clone(),
+                })
+            }
+            _ => Err(ApiError::GenericInternalApplicationError(
+                "Unexpected account type".to_string(),
+            )),
+        }
+    }
+}
+
+#[instrument(
+    fields(account_id),
+    skip(
+        account_service,
+        recovery_repository,
+        id_generator,
+        user_pool_service,
+        config,
+        iterable_client,
+    )
+)]
+#[utoipa::path(
+    post,
+    path = "/api/v2/accounts",
+    request_body = CreateAccountRequestV2,
+    responses(
+        (status = 200, description = "Account was created", body=CreateAccountResponseV2),
+        (status = 400, description = "Input validation failed")
+    ),
+)]
+pub async fn create_account_v2(
+    State(account_service): State<AccountService>,
+    State(recovery_repository): State<RecoveryRepository>,
+    State(wsm_client): State<WsmClient>,
+    State(id_generator): State<IdentifierGenerator>,
+    State(user_pool_service): State<UserPoolService>,
+    State(config): State<Config>,
+    State(iterable_client): State<IterableClient>,
+    Json(request): Json<CreateAccountRequestV2>,
+) -> Result<Json<CreateAccountResponseV2>, ApiError> {
+    if let Some(v) = AccountValidation::default()
+        .validate(
+            AccountValidationRequest::from(&request),
+            &config,
+            &account_service,
+            &recovery_repository,
+        )
+        .await?
+    {
+        return Ok(Json(CreateAccountResponseV2::try_from(
+            &v.existing_account,
+        )?));
+    }
+
+    let account_id = AccountId::new(id_generator.gen_account_id()).map_err(|e| {
+        let msg = "Failed to generate account id";
+        error!("{msg}: {e}");
+        ApiError::GenericInternalApplicationError(msg.to_string())
+    })?;
+
+    // provide the generated account ID once we have it
+    tracing::Span::current().record("account_id", account_id.to_string());
+
+    // Create Cognito users
+    user_pool_service
+        .create_or_update_account_users_if_necessary(
+            &account_id,
+            Some(request.auth.app_pub),
+            Some(request.auth.hardware_pub),
+            Some(request.auth.recovery_pub),
+        )
+        .await
+        .map_err(|e| {
+            let msg = "Failed to create new accounts in Cognito";
+            error!("{msg}: {e}");
+            ApiError::GenericInternalApplicationError(msg.to_string())
+        })?;
+
+    // Generate a server key in WSM
+    let keyset_id = KeysetId::new(id_generator.gen_spending_keyset_id())
+        .map_err(RouteError::InvalidIdentifier)?;
+    let key = wsm_client
+        .create_root_key(&keyset_id.to_string(), request.spend.network.into())
+        .await
+        .map_err(|e| {
+            let msg = "Failed to create new key in WSM";
+            error!("{msg}: {e}");
+            ApiError::GenericInternalApplicationError(msg.to_string())
+        })?;
+
+    // Attempt to parse the DescriptorPublicKey from the xpub string
+    let server_dpub = DescriptorPublicKey::from_str(&key.xpub).map_err(|e| {
+        let msg = "Failed to parse server dpub from WSM";
+        error!("{msg}: {e}");
+        ApiError::GenericInternalApplicationError(msg.to_string())
+    })?;
+    let server_pub = parse_public_key(server_dpub)?;
+
+    let auth_key_id = AuthKeysId::new(id_generator.gen_spending_keyset_id())
+        .map_err(RouteError::InvalidIdentifier)?;
+
+    let input = CreateAccountAndKeysetsInput {
+        account_id,
+        network: request.spend.network,
+        keyset_id,
+        auth_key_id: auth_key_id.clone(),
+        keyset: Keyset {
+            auth: FullAccountAuthKeys {
+                app_pubkey: request.auth.app_pub,
+                hardware_pubkey: request.auth.hardware_pub,
+                recovery_pubkey: Some(request.auth.recovery_pub),
+            },
+            spending: SpendingKeyset::new_private_multi_sig(
+                request.spend.network,
+                request.spend.app_pub,
+                request.spend.hardware_pub,
+                server_pub,
+                key.pub_sig.clone(),
+            ),
+        },
+        is_test_account: request.is_test_account,
+    };
+    let account = account_service.create_account_and_keysets(input).await?;
+
+    // Attempt to create account Iterable user early, but don't fail the account creation if
+    // this fails. We upsert the users later when they're needed anyway; this is an optimization
+    // to avoid added latency or errors waiting for Iterable user database consistency on first use.
+    upsert_account_iterable_user(&iterable_client, &account.id, None, None)
+        .await
+        .map_or_else(
+            |e| {
+                error!("Failed to create account Iterable user: {e}");
+            },
+            |_| (),
+        );
+
+    Ok(Json(CreateAccountResponseV2 {
+        account_id: account.id,
+        keyset_id: account.active_keyset_id,
+        server_pub,
+        server_pub_integrity_sig: key.pub_sig,
+    }))
+}
+
+fn parse_public_key(dpub: DescriptorPublicKey) -> Result<PublicKey, ApiError> {
+    let DescriptorPublicKey::XPub(xpub) = dpub else {
+        return Err(ApiError::GenericInternalApplicationError(
+            "Expected an xpub".to_string(),
+        ));
+    };
+
+    Ok(xpub.xkey.public_key)
+}

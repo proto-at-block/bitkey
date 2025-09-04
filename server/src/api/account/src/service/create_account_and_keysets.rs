@@ -31,12 +31,7 @@ impl Service {
 
 impl From<CreateAccountAndKeysetsInput> for SpendingKeyset {
     fn from(input: CreateAccountAndKeysetsInput) -> Self {
-        SpendingKeyset::new(
-            input.network,
-            input.keyset.spending.app_dpub,
-            input.keyset.spending.hardware_dpub,
-            input.keyset.spending.server_dpub,
-        )
+        input.keyset.spending
     }
 }
 

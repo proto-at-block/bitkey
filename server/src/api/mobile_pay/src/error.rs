@@ -46,6 +46,10 @@ pub enum SigningError {
     TransactionVerificationRequired,
     #[error(transparent)]
     TransactionVerification(#[from] TransactionVerificationError),
+    #[error("Invalid keyset type: {0}")]
+    InvalidKeysetType(KeysetId),
+    #[error("Conflicting keyset type")]
+    ConflictingKeysetType,
 }
 
 impl From<SigningError> for ApiError {
@@ -64,9 +68,8 @@ impl From<SigningError> for ApiError {
             }
             SigningError::InvalidPsbt(_)
             | SigningError::PsbtParsingFailed(_)
-            | SigningError::CannotBroadcastNonFullySignedPsbt => {
-                ApiError::GenericBadRequest(err_msg)
-            }
+            | SigningError::CannotBroadcastNonFullySignedPsbt
+            | SigningError::InvalidKeysetType(_) => ApiError::GenericBadRequest(err_msg),
             SigningError::SpendRuleCheckFailed(errors) => {
                 if errors.has_error(&SpendRuleCheckError::SpendLimitInactive) {
                     ApiError::GenericForbidden(err_msg)
@@ -79,6 +82,7 @@ impl From<SigningError> for ApiError {
                 }
             }
             SigningError::TransactionVerification(_) => ApiError::GenericBadRequest(err_msg),
+            SigningError::ConflictingKeysetType => ApiError::GenericConflict(err_msg),
             _ => ApiError::GenericInternalApplicationError(err_msg),
         }
     }

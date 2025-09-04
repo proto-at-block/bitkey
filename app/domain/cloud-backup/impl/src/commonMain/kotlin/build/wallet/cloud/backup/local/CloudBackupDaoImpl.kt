@@ -26,7 +26,6 @@ import kotlinx.serialization.json.Json
  * Implementation of [CloudBackupDao] which encodes/decodes encrypted [CloudBackup] as JSON
  * and persists it locally using [EncryptedKeyValueStoreFactory].
  */
-
 @BitkeyInject(AppScope::class)
 class CloudBackupDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
@@ -54,7 +53,7 @@ class CloudBackupDaoImpl(
   }
 
   override suspend fun get(accountId: String): Result<CloudBackup?, BackupStorageError> =
-    coroutineBinding<CloudBackupV2?, BackupStorageError> {
+    coroutineBinding<CloudBackup?, BackupStorageError> {
       val backupJson =
         secureStore()
           .getStringOrNullWithResult(accountId)
@@ -64,6 +63,7 @@ class CloudBackupDaoImpl(
 
       if (backupJson == null) return@coroutineBinding null
 
+      // When V3 is added, try V3 first then fall back to V2. See the cloud backup README.md.
       Json.decodeFromStringResult<CloudBackupV2>(backupJson)
         .mapError(::BackupStorageError)
         .bind()

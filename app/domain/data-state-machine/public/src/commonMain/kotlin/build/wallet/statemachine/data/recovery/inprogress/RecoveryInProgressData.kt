@@ -317,5 +317,32 @@ sealed interface RecoveryInProgressData {
         override val physicalFactor: PhysicalFactor,
       ) : ProcessingDescriptorBackupsData
     }
+
+    /**
+     * Awaiting hardware proof of possession before activating the spending keyset.
+     */
+    data class AwaitingHardwareProofOfPossessionForActivationData(
+      val physicalFactor: PhysicalFactor,
+      val appAuthKey: PublicKey<AppGlobalAuthKey>,
+      val addHardwareProofOfPossession: (HwFactorProofOfPossession) -> Unit,
+      val rollback: () -> Unit,
+      val fullAccountId: FullAccountId,
+    ) : CompletingRecoveryData
+
+    /**
+     * Activating the spending keyset after it has been created and descriptor backups uploaded (if applicable).
+     */
+    data class ActivatingSpendingKeysetData(
+      val physicalFactor: PhysicalFactor,
+    ) : CompletingRecoveryData
+
+    /**
+     * Failed to activate the spending keyset.
+     */
+    data class FailedToActivateSpendingKeysetData(
+      val physicalFactor: PhysicalFactor,
+      val cause: Error,
+      val onRetry: () -> Unit,
+    ) : CompletingRecoveryData
   }
 }

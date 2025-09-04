@@ -21,6 +21,31 @@ where
     OffsetDateTime::from_unix_timestamp(ts).map_err(serde::de::Error::custom)
 }
 
+/// Serialize an optional OffsetDateTime into an optional i64 unix epoch time. Used in structs for DDB TTLs
+pub fn serialize_optional_ts<S>(x: &Option<OffsetDateTime>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match x {
+        Some(dt) => s.serialize_some(&dt.unix_timestamp()),
+        None => s.serialize_none(),
+    }
+}
+
+/// Deserialize an optional i64 representing a unix epoch time into an optional OffsetDateTime. Used in structs for DDB TTLs
+pub fn deserialize_optional_ts<'de, D>(d: D) -> Result<Option<OffsetDateTime>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let ts: Option<i64> = Option::deserialize(d)?;
+    match ts {
+        Some(ts) => OffsetDateTime::from_unix_timestamp(ts)
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+        None => Ok(None),
+    }
+}
+
 pub fn deserialize_ts_vec<'de, D>(deserializer: D) -> Result<Vec<OffsetDateTime>, D::Error>
 where
     D: Deserializer<'de>,

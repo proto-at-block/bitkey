@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.components:components-resources-iosX64",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "library-iosX64Main-1.8.0.klib": "c034f8e9587bc4453d3e2e86354ae902427c44953bfdb404e0f57a3308764854"
+                        "library-iosX64Main-1.8.1.klib": "ca9d49016a6339dd451164746128792ad249b63175f8c77b2b6374a53918f547"
                     }
                 },
                 {
                     "artifacts": {
-                        "library-iosx64-1.8.0-metadata.jar": "6fb4a104d13790629f8ff0b7f258117f6219eac74505176e827b3d624095d5ff"
+                        "library-iosx64-1.8.1-metadata.jar": "45ab2b84218c2110d49883b54a8da72cc807c6614c1d00633eab033b7c00ab7e"
                     }
                 }
             ],

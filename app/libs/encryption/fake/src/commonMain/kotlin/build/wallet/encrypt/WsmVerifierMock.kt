@@ -10,4 +10,10 @@ class WsmVerifierMock : WsmVerifier {
     signature: String,
     keyVariant: WsmIntegrityKeyVariant,
   ): WsmVerifierResult = WsmVerifierResult(true)
+
+  override fun verifyHexMessage(
+    hexMessage: String,
+    signature: String,
+    keyVariant: WsmIntegrityKeyVariant,
+  ): WsmVerifierResult = WsmVerifierResult(true)
 }

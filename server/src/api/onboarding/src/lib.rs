@@ -12,6 +12,7 @@ use types::notification::NotificationCategory;
 pub mod account_validation;
 pub(crate) mod metrics;
 pub mod routes;
+pub mod routes_v2;
 
 async fn upsert_account_iterable_user(
     iterable_client: &IterableClient,

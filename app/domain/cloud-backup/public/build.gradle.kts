@@ -5,6 +5,7 @@ plugins {
   id("build.wallet.kmp")
   alias(libs.plugins.kotlin.serialization)
   id("build.wallet.redacted")
+  id("build.wallet.di")
 }
 
 kotlin {

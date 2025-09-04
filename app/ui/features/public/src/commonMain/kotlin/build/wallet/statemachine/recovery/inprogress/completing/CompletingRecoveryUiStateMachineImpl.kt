@@ -18,11 +18,10 @@ import build.wallet.recovery.getEventId
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request.*
+import build.wallet.statemachine.auth.Request.HwKeyProof
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
@@ -229,6 +228,7 @@ class CompletingRecoveryUiStateMachineImpl(
             appAuthKey = props.completingRecoveryData.appAuthKey,
             onBack = props.completingRecoveryData.rollback,
             hardwareVerification = Required(useRecoveryPubKey = true),
+            shouldLock = false, // Don't lock because we quickly need more NFC transactions
             screenPresentationStyle = props.presentationStyle
           )
         )
@@ -268,6 +268,52 @@ class CompletingRecoveryUiStateMachineImpl(
             ),
           eventTrackerShouldTrack = false
         ).asScreen(props.presentationStyle)
+
+      is ActivatingSpendingKeysetData -> LoadingBodyModel(
+        message = "Activating your keys...",
+        id =
+          props.completingRecoveryData.physicalFactor.getEventId(
+            DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS,
+            HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS
+          ),
+        eventTrackerShouldTrack = false
+      ).asScreen(props.presentationStyle)
+
+      is AwaitingHardwareProofOfPossessionForActivationData -> proofOfPossessionNfcStateMachine.model(
+        ProofOfPossessionNfcProps(
+          HwKeyProof(
+            onSuccess = props.completingRecoveryData.addHardwareProofOfPossession
+          ),
+          fullAccountId = props.completingRecoveryData.fullAccountId,
+          appAuthKey = props.completingRecoveryData.appAuthKey,
+          onBack = props.completingRecoveryData.rollback,
+          hardwareVerification = Required(useRecoveryPubKey = true),
+          shouldLock = false, // Don't lock because we quickly need more NFC transactions
+          screenPresentationStyle = props.presentationStyle
+        )
+      )
+
+      is FailedToActivateSpendingKeysetData -> ErrorFormBodyModel(
+        title = "We were unable to complete your recovery.",
+        subline = "Make sure you are connected to the internet and try again.",
+        primaryButton = ButtonDataModel(
+          text = "Retry",
+          onClick = props.completingRecoveryData.onRetry
+        ),
+        errorData = ErrorData(
+          segment = when (props.completingRecoveryData.physicalFactor) {
+            App -> RecoverySegment.DelayAndNotify.LostApp.Completion
+            Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Completion
+          },
+          actionDescription = "Activating spending keys to complete recovery",
+          cause = props.completingRecoveryData.cause
+        ),
+        eventTrackerScreenId = props.completingRecoveryData.physicalFactor.getEventId(
+          DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS_ERROR,
+          HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS_ERROR
+        ),
+        eventTrackerShouldTrack = false
+      ).asScreen(props.presentationStyle)
 
       RegeneratingTcCertificatesData ->
         LoadingBodyModel(id = null).asScreen(presentationStyle = props.presentationStyle)
@@ -374,16 +420,9 @@ class CompletingRecoveryUiStateMachineImpl(
         ).asScreen(props.presentationStyle)
 
       is FailedPerformingDdkBackupData ->
-        ErrorFormBodyModelWithOptionalErrorData(
-          title = "We were unable to update backup",
-          subline = StringModel("Please try again."),
-          errorData = props.completingRecoveryData.cause?.let { cause ->
-            ErrorData(
-              cause = cause,
-              actionDescription = "Uploading backup after recovery",
-              segment = RecoverySegment.CloudBackup.FullAccount.Upload
-            )
-          },
+        ErrorFormBodyModel(
+          title = "We were unable to update your backup",
+          subline = "Please try again.",
           primaryButton =
             ButtonDataModel(
               text = "Retry",
@@ -394,20 +433,17 @@ class CompletingRecoveryUiStateMachineImpl(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_DDK_UPLOAD_FAILURE,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_DDK_UPLOAD_FAILURE
             ),
-          eventTrackerShouldTrack = false
+          errorData = ErrorData(
+            cause = props.completingRecoveryData.cause ?: Error("DDK backup failed"),
+            actionDescription = "Uploading backup after recovery",
+            segment = RecoverySegment.CloudBackup.FullAccount.Upload
+          )
         ).asScreen(props.presentationStyle)
 
       is FailedPerformingCloudBackupData ->
-        ErrorFormBodyModelWithOptionalErrorData(
-          title = "We were unable to upload backup",
-          subline = StringModel("Please try again."),
-          errorData = props.completingRecoveryData.cause?.let { cause ->
-            ErrorData(
-              cause = cause,
-              actionDescription = "Uploading backup after recovery",
-              segment = RecoverySegment.CloudBackup.FullAccount.Upload
-            )
-          },
+        ErrorFormBodyModel(
+          title = "We were unable to upload your backup",
+          subline = "Please try again.",
           primaryButton =
             ButtonDataModel(
               text = "Retry",
@@ -418,7 +454,11 @@ class CompletingRecoveryUiStateMachineImpl(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_BACKUP_UPLOAD_FAILURE,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_BACKUP_UPLOAD_FAILURE
             ),
-          eventTrackerShouldTrack = false
+          errorData = ErrorData(
+            cause = props.completingRecoveryData.cause ?: Error("Cloud backup failed"),
+            actionDescription = "Uploading backup after recovery",
+            segment = RecoverySegment.CloudBackup.FullAccount.Upload
+          )
         ).asScreen(props.presentationStyle)
 
       is ProcessingDescriptorBackupsData.AwaitingSsekUnsealingData ->

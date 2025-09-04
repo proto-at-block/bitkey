@@ -15,6 +15,7 @@ import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButto
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 fun NotificationOperationApprovalInstructionsFormScreenModel(
   onExit: () -> Unit,
@@ -58,6 +59,7 @@ fun NotificationOperationApprovalInstructionsFormScreenModel(
 
 private data class NotificationOperationApprovalInstructionsBodyModel(
   val onExit: () -> Unit,
+  @Redacted
   val operationDescription: String,
   val onApprove: () -> Unit,
   val isApproveButtonLoading: Boolean,

@@ -187,7 +187,8 @@ class DebugMenuScreenPresenter(
             onSuccess = { uiState = DebugMenuState.ShowingDebugMenu },
             onCancel = { uiState = DebugMenuState.ShowingDebugMenu },
             screenPresentationStyle = Modal,
-            eventTrackerContext = DEBUG
+            eventTrackerContext = DEBUG,
+            shouldLock = false
           )
         )
 

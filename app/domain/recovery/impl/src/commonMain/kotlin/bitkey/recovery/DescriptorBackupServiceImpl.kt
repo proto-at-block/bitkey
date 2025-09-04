@@ -27,8 +27,8 @@ import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
-import build.wallet.logging.logDebug
-import build.wallet.logging.logError
+import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -79,13 +79,17 @@ class DescriptorBackupServiceImpl(
           accountId = accountId,
           accountConfig = accountConfig,
           newActiveKeyset = newActiveKeyset
-        ).bind()
+        )
+          .logFailure { "Failed to prepare descriptor backups for hardware recovery" }
+          .bind()
 
         PhysicalFactor.App -> prepareForAppRecovery(
           accountId = accountId,
           accountConfig = accountConfig,
           newActiveKeyset = newActiveKeyset
-        ).bind()
+        )
+          .logFailure { "Failed to prepare descriptor backups for app recovery" }
+          .bind()
       }
     }
   }
@@ -101,13 +105,15 @@ class DescriptorBackupServiceImpl(
         "must have keysets to encrypt, but had none"
       }
 
-      logDebug { "Uploading initial descriptor backups for account $accountId" }
+      logInfo { "Uploading initial descriptor backups for account $accountId" }
 
       // Seal the descriptors using the provided SSEK
       val encryptedDescriptors = sealDescriptors(
         sealedSsek = sealedSsekForEncryption,
         keysets = keysetsToEncrypt
-      ).bind()
+      )
+        .logFailure { "Failed to seal descriptor backup during onboarding" }
+        .bind()
 
       // Upload the encrypted descriptors to F8e
       uploadBackupsToF8e(
@@ -134,7 +140,9 @@ class DescriptorBackupServiceImpl(
         keysetsToEncrypt = keysetsToEncrypt,
         sealedSsekToEncrypt = sealedSsekForEncryption,
         sealedSsekToDecrypt = sealedSsekForDecryption
-      ).bind()
+      )
+        .logFailure { "Failed to process descriptor backups for recovery" }
+        .bind()
 
       uploadBackupsToF8e(
         accountId = accountId,
@@ -228,7 +236,7 @@ class DescriptorBackupServiceImpl(
     newActiveKeyset: SpendingKeyset,
   ): Result<DescriptorBackupPreparedData, DescriptorBackupError> =
     coroutineBinding {
-      logDebug { "Preparing descriptor backups for Lost Hardware recovery" }
+      logInfo { "Preparing descriptor backups for Lost Hardware recovery" }
 
       val keybox = accountService.getAccount<FullAccount>()
         .mapError { DescriptorBackupError.AccountNotFound }
@@ -237,19 +245,19 @@ class DescriptorBackupServiceImpl(
 
       if (keybox.canUseKeyboxKeysets) {
         // If the local keysets are authoritative, we can use them directly
-        logDebug { "Using local keysets for Lost Hardware recovery" }
+        logInfo { "Using local keysets for Lost Hardware recovery; encrypting all keysets" }
         DescriptorBackupPreparedData.EncryptOnly(
           keysetsToEncrypt = keybox.keysets + newActiveKeyset
         )
       } else {
         // Otherwise, we must retrieve the latest keysets from f8e
-        logDebug { "Retrieving f8e keysets for Lost Hardware recovery" }
+        logInfo { "Retrieving f8e keysets for Lost Hardware recovery" }
 
         // Includes the most recent spending keyset
         val f8eKeysets = listKeysetsF8eClient.listKeysets(
           f8eEnvironment = accountConfig.f8eEnvironment,
           fullAccountId = accountId
-        ).onFailure { logError { "Failed to list keysets from F8e: $it" } }
+        ).logFailure { "Failed to list keysets from F8e" }
           .mapError { DescriptorBackupError.NetworkError(it) }
           .bind().keysets
 
@@ -265,12 +273,12 @@ class DescriptorBackupServiceImpl(
     newActiveKeyset: SpendingKeyset,
   ): Result<DescriptorBackupPreparedData, DescriptorBackupError> =
     coroutineBinding {
-      logDebug { "Preparing descriptor backups for Lost App and Cloud recovery" }
+      logInfo { "Preparing descriptor backups for Lost App and Cloud recovery" }
 
       val listKeysetsResponse = listKeysetsF8eClient.listKeysets(
         f8eEnvironment = accountConfig.f8eEnvironment,
         fullAccountId = accountId
-      ).onFailure { logError { "Failed to list keysets from F8e: $it" } }
+      ).logFailure { "Failed to list keysets from F8e" }
         .mapError { DescriptorBackupError.NetworkError(it) }
         .bind()
 
@@ -281,6 +289,7 @@ class DescriptorBackupServiceImpl(
       if (existingEncryptedDescriptors.isEmpty() && wrappedSsek == null) {
         // This is our first time uploading descriptor backups!
         // TODO(W-11606): Handle there being no keysets returned from f8e
+        logInfo { "No existing encrypted descriptor backups found on F8e, encrypting all f8e keysets." }
         return@coroutineBinding DescriptorBackupPreparedData.EncryptOnly(
           keysetsToEncrypt = f8eKeysets // contains most recent keyset
         )
@@ -288,7 +297,7 @@ class DescriptorBackupServiceImpl(
         Err(DecryptionError(cause = IllegalStateException("must have both encrypted descriptors and a ssek"))).bind()
       }
 
-      logDebug {
+      logInfo {
         "Found ${existingEncryptedDescriptors.size} existing encrypted descriptor backups on F8e"
       }
 
@@ -299,10 +308,11 @@ class DescriptorBackupServiceImpl(
       val f8eKeysetIds = f8eKeysets.map { it.f8eSpendingKeyset.keysetId }.toSet()
 
       // Exclude the new active keyset from comparison since we expect it to not have a backup yet
-      val missingBackups = f8eKeysetIds - newActiveKeyset.f8eSpendingKeyset.keysetId - existingBackups
+      val missingBackups =
+        f8eKeysetIds - newActiveKeyset.f8eSpendingKeyset.keysetId - existingBackups
 
       if (missingBackups.isNotEmpty()) {
-        logDebug {
+        logInfo {
           "Detected mismatch: ${missingBackups.size} keysets without descriptor backups. " +
             "This likely indicates the descriptor backup flag was enabled then disabled. " +
             "Falling back to encrypt-only mode with all keysets."
@@ -316,7 +326,7 @@ class DescriptorBackupServiceImpl(
       // Check if the new keyset has already been backed up; this could happen on a retry, such as if
       // we get a network failure but the server did actually receive the backup.
       val newKeysets = if (existingBackups.contains(newActiveKeyset.f8eSpendingKeyset.keysetId)) {
-        logDebug {
+        logInfo {
           "New keyset ${newActiveKeyset.f8eSpendingKeyset.keysetId} already exists in backups, skipping"
         }
         emptyList()
@@ -359,7 +369,7 @@ class DescriptorBackupServiceImpl(
     coroutineBinding {
       val accountConfig = getFullAccountConfig()
 
-      logDebug { "Uploading ${descriptorBackups.size} descriptor backups to F8e" }
+      logInfo { "Uploading ${descriptorBackups.size} descriptor backups to F8e" }
 
       updateDescriptorBackupsF8eClient.update(
         f8eEnvironment = accountConfig.f8eEnvironment,
@@ -369,7 +379,7 @@ class DescriptorBackupServiceImpl(
         appAuthKey = appAuthKey,
         hwKeyProof = hwKeyProof
       )
-        .onFailure { logError { "Failed to update descriptor backups: $it" } }
+        .logFailure { "Failed to update descriptor backups" }
         .mapError { DescriptorBackupError.NetworkError(it) }
         .bind()
     }
@@ -393,7 +403,7 @@ class DescriptorBackupServiceImpl(
         ).bind()
       } ?: emptyList()
 
-      logDebug { "Decrypted ${decryptedKeysets.size} existing descriptor backups" }
+      logInfo { "Decrypted ${decryptedKeysets.size} existing descriptor backups" }
 
       // 2. Combine all keysets (existing + new)
       val allKeysets = decryptedKeysets + keysetsToEncrypt
@@ -404,7 +414,7 @@ class DescriptorBackupServiceImpl(
         keysets = allKeysets
       ).bind()
 
-      logDebug { "Encrypted ${encryptedNewDescriptors.size} descriptor backups" }
+      logInfo { "Encrypted ${encryptedNewDescriptors.size} descriptor backups" }
 
       ProcessedDescriptorBackupsResult(
         encryptedDescriptors = encryptedNewDescriptors,

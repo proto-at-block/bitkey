@@ -109,6 +109,7 @@ pub struct ClientConfig {
     pub privileged_action_canceled_out_of_band_verification_campaign_id: usize,
     pub privileged_action_completed_out_of_band_verification_campaign_id: usize,
     pub privileged_action_pending_out_of_band_verification_campaign_id: usize,
+    pub privileged_action_delay_notify_update_campaign_id: usize,
     pub social_challenge_response_received_campaign_id: usize,
     pub marketing_channel_id: usize,
     pub transactional_channel_id: usize,
@@ -158,6 +159,7 @@ pub enum IterableCampaignType {
     InheritanceClaimPeriodCompletedAsBeneficiary,
     PrivilegedActionCanceledOutOfBandVerification,
     PrivilegedActionCompletedOutOfBandVerification,
+    PrivilegedActionDelayNotifyUpdate,
     PrivilegedActionPendingOutOfBandVerification,
     RecoveryPendingDelayPeriodLostApp,
     RecoveryPendingDelayPeriodLostHw,
@@ -316,6 +318,9 @@ impl IterableClient {
                     }
                     IterableCampaignType::PrivilegedActionCompletedOutOfBandVerification => {
                         config.privileged_action_completed_out_of_band_verification_campaign_id
+                    }
+                    IterableCampaignType::PrivilegedActionDelayNotifyUpdate => {
+                        config.privileged_action_delay_notify_update_campaign_id
                     }
                     IterableCampaignType::PrivilegedActionPendingOutOfBandVerification => {
                         config.privileged_action_pending_out_of_band_verification_campaign_id

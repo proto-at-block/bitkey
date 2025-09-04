@@ -2,17 +2,17 @@
     "module-identifier": "org.jetbrains.skiko:skiko-iossimulatorarm64",
     "components": [
         {
-            "version": "0.9.4",
+            "version": "0.9.4.2",
             "variants": [
                 {
                     "artifacts": {
                         "skiko-cinterop-uikit.klib": "1ff323fbbfa8997117f866ecbc487955e840a842fa6001ef2ef546fdf8dc6496",
-                        "skiko.klib": "1bb7289dd0e358f8ea60d6b17c01bef4e49733d18c3482984070fef9f7265522"
+                        "skiko.klib": "f6b36e1cd4a2921e0627763c642fd6cee1b95c21ad87b477c7194b8710f8203d"
                     }
                 },
                 {
                     "artifacts": {
-                        "skiko-iossimulatorarm64-0.9.4-metadata.jar": "6b1132c59e4f032ac30fa375b9614d98bf3489b87a4006e0f3c61c9566623b51"
+                        "skiko-iossimulatorarm64-0.9.4.2-metadata.jar": "b5d33e4e5d70d7183b2c06c4d825f8aaf711eff02dfa8ff82cf19273fb1c405f"
                     }
                 }
             ],

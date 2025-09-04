@@ -20,6 +20,7 @@ impl Rule for NoRecoveryWithHardwareAuthPubkeyRule {
         let hw_auth_pubkey = match request {
             AccountValidationRequest::CreateFullAccount { auth, .. } => auth.hardware,
             AccountValidationRequest::UpgradeAccount { auth, .. } => auth.hardware,
+            AccountValidationRequest::CreateFullAccountV2 { auth, .. } => auth.hardware_pub,
             AccountValidationRequest::CreateLiteAccount { .. }
             | AccountValidationRequest::CreateSoftwareAccount { .. } => {
                 return Ok(());

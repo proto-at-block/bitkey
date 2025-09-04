@@ -1,6 +1,5 @@
 package build.wallet.functional.statemachine.data.sweep
 
-import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -59,7 +58,8 @@ class SweepDataStateMachineFunctionalTests : FunSpec({
   test("sweep funds for lost hw recovery").config(tags = setOf(IsolatedTest)) {
     val app = launchNewApp()
     val account = app.onboardFullAccountWithFakeHardware()
-    val lostKeyset: SpendingKeyset = app.createLostHardwareKeyset(account)
+    val keyboxWithNewKeyset = app.createLostHardwareKeyset(account)
+    val lostKeyset = keyboxWithNewKeyset.newKeyset
     val wallet = app.appSpendingWalletProvider.getSpendingWallet(lostKeyset).getOrThrow()
 
     val funding = app.treasuryWallet.fund(wallet, BitcoinMoney.sats(10_000))
@@ -68,7 +68,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec({
     app.setupMobilePay(FiatMoney.usd(100.0))
 
     app.sweepDataStateMachine.test(
-      SweepDataProps(account.keybox) {},
+      SweepDataProps(keyboxWithNewKeyset.keybox) {},
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {

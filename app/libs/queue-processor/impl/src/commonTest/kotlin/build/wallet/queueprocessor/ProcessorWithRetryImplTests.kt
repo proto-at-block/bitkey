@@ -2,6 +2,7 @@ package build.wallet.queueprocessor
 
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.ktor.result.HttpError.NetworkError
+import build.wallet.platform.app.AppSessionManagerFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -16,7 +17,7 @@ class ProcessorWithRetryImplTests : FunSpec({
 
   beforeTest {
     q = MemoryQueueImpl()
-    retryer = PeriodicProcessorImpl(q, processor, 0.seconds, 0)
+    retryer = PeriodicProcessorImpl(q, processor, 0.seconds, 0, AppSessionManagerFake())
     processor.reset()
   }
 

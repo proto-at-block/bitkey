@@ -230,7 +230,6 @@ class FingerprintResetServiceImplTests : FunSpec({
       "completion-token"
     )
 
-    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.size shouldBe 1
     fingerprintResetF8eClient.continuePrivilegedActionCalls.size shouldBe 1
 
     result.isErr shouldBe true
@@ -269,7 +268,6 @@ class FingerprintResetServiceImplTests : FunSpec({
       "completion-token"
     )
 
-    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.size shouldBe 1
     fingerprintResetF8eClient.continuePrivilegedActionCalls.size shouldBe 1
     result.isOk shouldBe true
 
@@ -311,7 +309,6 @@ class FingerprintResetServiceImplTests : FunSpec({
       "completion-token"
     )
 
-    fingerprintResetF8eClient.getPrivilegedActionInstancesCalls.size shouldBe 1
     fingerprintResetF8eClient.continuePrivilegedActionCalls.size shouldBe 1
 
     // Should still succeed even if grant persistence fails

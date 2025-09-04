@@ -51,7 +51,7 @@ use serde_with::{base64::Base64, serde_as};
 use time::Duration;
 use tracing::{event, instrument, Level};
 use types::account::{
-    entities::{Account, CommsVerificationScope, Factor, FullAccountAuthKeysPayload, Touchpoint},
+    entities::{Account, CommsVerificationScope, Factor, FullAccountAuthKeysInput, Touchpoint},
     identifiers::{AccountId, TouchpointId},
 };
 use userpool::userpool::UserPoolService;
@@ -155,7 +155,7 @@ impl From<RouteState> for SwaggerEndpoint {
             CompleteDelayNotifyResponse,
             CreateAccountDelayNotifyRequest,
             Factor,
-            FullAccountAuthKeysPayload,
+            FullAccountAuthKeysInput,
             PendingRecoveryResponse,
             PendingDelayNotifyRecovery,
             RecoveryResponse,
@@ -178,7 +178,7 @@ struct ApiDoc;
 pub struct CreateAccountDelayNotifyRequest {
     pub lost_factor: Factor, // TODO: [W-774] Update visibility of struct after migration
     pub delay_period_num_sec: Option<i64>, // TODO: [W-774] Update visibility of struct after migration
-    pub auth: FullAccountAuthKeysPayload, // TODO: [W-774] Update visibility of struct after migration, [W-973] Remove this before beta
+    pub auth: FullAccountAuthKeysInput, // TODO: [W-774] Update visibility of struct after migration, [W-973] Remove this before beta
 }
 
 #[instrument(

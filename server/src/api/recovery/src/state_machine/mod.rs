@@ -12,7 +12,7 @@ use serde_json::Value;
 use time::serde::rfc3339;
 use time::OffsetDateTime;
 use tracing::{event, Level};
-use types::account::entities::{Account, Factor, FullAccount, FullAccountAuthKeysPayload};
+use types::account::entities::{Account, Factor, FullAccount, FullAccountAuthKeysInput};
 use types::account::identifiers::AccountId;
 use userpool::userpool::UserPoolService;
 use utoipa::ToSchema;
@@ -187,7 +187,7 @@ pub struct PendingDelayNotifyRecovery {
     #[serde(with = "rfc3339")]
     pub delay_end_time: OffsetDateTime,
     pub lost_factor: Factor,
-    pub auth_keys: FullAccountAuthKeysPayload,
+    pub auth_keys: FullAccountAuthKeysInput,
 }
 
 async fn has_recent_contested_delay_notify(

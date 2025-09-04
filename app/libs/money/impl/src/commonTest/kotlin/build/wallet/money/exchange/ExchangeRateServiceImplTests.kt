@@ -6,8 +6,10 @@
 package build.wallet.money.exchange
 
 import app.cash.turbine.test
+import bitkey.account.AccountConfigServiceFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
+import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.SoftwareAccountMock
@@ -36,6 +38,7 @@ class ExchangeRateServiceImplTests : FunSpec({
   val exchangeRateF8eClient = ExchangeRateF8eClientFake()
   val appSessionManager = AppSessionManagerFake()
   val accountService = AccountServiceFake()
+  val accountConfigService = AccountConfigServiceFake()
   val testScope = TestScope()
 
   lateinit var exchangeRateService: ExchangeRateServiceImpl
@@ -54,11 +57,13 @@ class ExchangeRateServiceImplTests : FunSpec({
       reset()
       accountState.value = Ok(ActiveAccount(FullAccountMock))
     }
+    accountConfigService.reset()
 
     exchangeRateService = ExchangeRateServiceImpl(
       exchangeRateDao = exchangeRateDao,
       exchangeRateF8eClient = exchangeRateF8eClient,
       accountService = accountService,
+      accountConfigService = accountConfigService,
       clock = ClockFake(now = Instant.fromEpochSeconds(500)),
       exchangeRateSyncFrequency = ExchangeRateSyncFrequency(syncFrequency),
       appScope = testScope
@@ -150,5 +155,26 @@ class ExchangeRateServiceImplTests : FunSpec({
     testScope.runCurrent()
 
     exchangeRateService.exchangeRates.value.shouldBeEmpty()
+  }
+
+  test("syncs exchange rates during recovery when no account is active") {
+    accountService.accountState.value = Ok(NoAccount)
+    exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
+
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
+
+    exchangeRateService.exchangeRates.value.shouldContainExactly(exchangeRate1)
+    exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRate1)
+  }
+
+  test("prefers active account F8e environment over recovery default") {
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+    exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
+
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
+
+    exchangeRateService.exchangeRates.value.shouldContainExactly(exchangeRate1)
   }
 })

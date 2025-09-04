@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.material3:material3-desktop",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "material3-desktop-1.8.0.jar": "60e764395115a9f76c891ea7a64fbdcc81d2eb995b1527e8f270f7839473f52f"
+                        "material3-desktop-1.8.1.jar": "2345d08d1eddc01d729e1c83caa43f9b1bc8c6fdd16d802300abafd259255c12"
                     }
                 }
             ],

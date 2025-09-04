@@ -601,6 +601,8 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
         .spending_keysets
         .get(&active_keyset_id)
         .unwrap()
+        .optional_legacy_multi_sig()
+        .unwrap()
         .to_owned()
         .into();
     let electrum_rpc_uris = default_electrum_rpc_uris();

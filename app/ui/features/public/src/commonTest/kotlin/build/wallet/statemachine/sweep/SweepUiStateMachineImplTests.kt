@@ -34,6 +34,7 @@ import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
@@ -57,6 +58,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   val startSweepCalls = turbines.create<Unit>("start sweep calls")
   val addHwSignedSweepsCalls =
     turbines.create<Set<Psbt>>("add hw signed psbts calls")
+  val nfcCommandsMock = NfcCommandsMock(turbine = turbines::create)
 
   val nfcSessionUIStateMachine =
     object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
@@ -168,7 +170,7 @@ class SweepUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("sweep and sign with hardware") {
+  test("sweep and sign with hardware for lost app recovery") {
     sweepStateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
@@ -227,10 +229,10 @@ class SweepUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<Set<Psbt>>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        val nfcCommandsMock = NfcCommandsMock(turbine = turbines::create)
         session(NfcSessionFake(), nfcCommandsMock)
         needsHwSign.forEach { nfcCommandsMock.signTransactionCalls.awaitItem() shouldBe it.psbt }
         shouldShowLongRunningOperation.shouldBeTrue()
+        hardwareVerification.shouldBe(Required(true))
         onSuccess(hwSignedPsbts)
       }
       addHwSignedSweepsCalls.awaitItem().shouldBe(hwSignedPsbts)
@@ -242,6 +244,68 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(SweepCompleteData({}))
       awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
+        primaryButton!!.onClick()
+      }
+    }
+  }
+
+  test("sweep and sign with hardware") {
+    sweepStateMachine.test(props.copy(recoveredFactor = null)) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      val sweepPsbts = listOf(
+        SweepPsbt(
+          PsbtMock.copy(id = "app-sign"),
+          App,
+          SpendingKeysetMock
+        ),
+        SweepPsbt(
+          PsbtMock.copy(id = "hw-sign"),
+          Hardware,
+          SpendingKeysetMock2
+        )
+      )
+      val totalFeeAmount =
+        PsbtMock.fee + PsbtMock.fee
+      val totalTransferAmount = PsbtMock.amountBtc + PsbtMock.amountBtc
+      val needsHwSign = sweepPsbts.take(1).toSet()
+      val hwSignedPsbts = setOf(sweepPsbts[1].psbt.copy(base64 = "hw-signed"))
+      sweepDataStateMachine.emitModel(
+        PsbtsGeneratedData(
+          totalFeeAmount,
+          totalTransferAmount,
+          { startSweepCalls += Unit }
+        )
+      )
+      awaitBody<FormBodyModel> {
+        clickPrimaryButton()
+      }
+      startSweepCalls.awaitItem()
+      sweepDataStateMachine.emitModel(
+        AwaitingHardwareSignedSweepsData(
+          needsHwSign = needsHwSign,
+          addHwSignedSweeps = { addHwSignedSweepsCalls += it }
+        )
+      )
+      awaitBodyMock<NfcSessionUIStateMachineProps<Set<Psbt>>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        session(NfcSessionFake(), nfcCommandsMock)
+        needsHwSign.forEach { nfcCommandsMock.signTransactionCalls.awaitItem() shouldBe it.psbt }
+        shouldShowLongRunningOperation.shouldBeTrue()
+        hardwareVerification.shouldBe(Required())
+        onSuccess(hwSignedPsbts)
+      }
+      addHwSignedSweepsCalls.awaitItem().shouldBe(hwSignedPsbts)
+      sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
+      awaitBody<LoadingSuccessBodyModel> {
+        id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_BROADCASTING
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      sweepDataStateMachine.emitModel(SweepCompleteData({}))
+      awaitBody<FormBodyModel> {
+        id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SUCCESS
         primaryButton!!.onClick()
       }
     }

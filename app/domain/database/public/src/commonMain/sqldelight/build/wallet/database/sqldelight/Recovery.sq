@@ -45,15 +45,17 @@ CREATE TABLE localRecoveryAttemptEntity(
   -- presence of above means authKeysRotated status
   serverKeysetId                  TEXT,
   serverSpendingKey               TEXT AS F8eSpendingPublicKey,
-  -- presence of above means spendingKeysRotated status
+  -- presence of above means spending keys were created
   backedUpToCloud                 INTEGER AS Boolean NOT NULL,
   -- presence of above means backed up to cloud status
   ddkBackedUp                     INTEGER AS Boolean NOT NULL DEFAULT 0,
   -- presence of above means we've sealed the ddk with new hardware (HW Recovery) & uploaded to F8e
   sealedSsek                      BLOB AS SealedSsek,
   -- sealed SSEK for descriptor encryption/decryption
-  uploadedDescriptorBackups       INTEGER AS Boolean NOT NULL DEFAULT 0
+  uploadedDescriptorBackups       INTEGER AS Boolean NOT NULL DEFAULT 0,
   -- presence of above means we've uploaded descriptor backups to F8e after rotating spending keys
+  spendingKeysActivated           INTEGER AS Boolean NOT NULL DEFAULT 0
+  -- presence of above means spending keys have been activated
 );
 
 -- Table for storing spending keysets during recovery
@@ -96,9 +98,9 @@ clear {
 }
 
 markAsInitiated:
-INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, sealedSsek, authKeysRotated, serverKeysetId, serverSpendingKey, uploadedDescriptorBackups, ddkBackedUp, backedUpToCloud, hadServerRecovery)
+INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, sealedSsek, authKeysRotated, serverKeysetId, serverSpendingKey, uploadedDescriptorBackups, spendingKeysActivated, ddkBackedUp, backedUpToCloud, hadServerRecovery)
 -- Use stable id to ensure we only ever have a single active set of local pending recovery keys.
-VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, NULL, NULL, 0, 0, 0, 0);
+VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, NULL, NULL, 0, 0, 0, 0, 0);
 
 -- To protect against race conditions where we might not get a server sync between the time we
 -- rotate auth keys to the time we complete our recovery on the app, we clear the server recovery
@@ -117,8 +119,11 @@ UPDATE localRecoveryAttemptEntity SET sealedCsek = :sealedCsek, sealedSsek = :se
 markAttemptedCompletionAsFailed:
 UPDATE localRecoveryAttemptEntity SET sealedCsek = NULL;
 
-markSpendingKeysRotated:
+markSpendingKeysCreated:
 UPDATE localRecoveryAttemptEntity SET serverKeysetId = ?, serverSpendingKey = ?;
+
+markSpendingKeysActivated:
+UPDATE localRecoveryAttemptEntity SET spendingKeysActivated = 1;
 
 markUploadedDescriptorBackups:
 UPDATE localRecoveryAttemptEntity SET uploadedDescriptorBackups = 1;

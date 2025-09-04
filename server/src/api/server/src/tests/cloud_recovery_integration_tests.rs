@@ -15,7 +15,7 @@ use recovery::entities::{RecoveryDestination, RecoveryStatus, RecoveryType};
 use recovery::routes::delay_notify::{AuthenticationKey, RotateAuthenticationKeysRequest};
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
-use types::account::entities::{Factor, FullAccountAuthKeysPayload, SpendingKeysetRequest};
+use types::account::entities::{Factor, FullAccountAuthKeysInput, SpendingKeysetInput};
 use types::account::identifiers::AccountId;
 use types::authn_authz::cognito::CognitoUser;
 
@@ -86,7 +86,7 @@ async fn test_rotate_authentication_keys(
 
     // First, make an account
     let request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: if include_initial_recovery_pubkey {
@@ -95,7 +95,7 @@ async fn test_rotate_authentication_keys(
                 None
             },
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: network.into(),
             app: spending_app_dpub.clone(),
             hardware: spending_hardware_dpub.clone(),

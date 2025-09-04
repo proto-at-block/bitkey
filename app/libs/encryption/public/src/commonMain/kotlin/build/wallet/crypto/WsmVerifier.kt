@@ -18,7 +18,8 @@ data class WsmVerifierResult(
 
 interface WsmVerifier {
   /**
-   * Verifies a message from WSM. The message must have been signed with the WSM Integrity Key.
+   * Verifies a base58check-encoded message from WSM. The message must have been signed with the
+   * WSM Integrity Key.
    *
    * @param base58Message The base58-check encoded message to verify.
    * @param signature The hex-encoded signature to verify against.
@@ -29,6 +30,23 @@ interface WsmVerifier {
   @Throws(Error::class)
   fun verify(
     base58Message: String,
+    signature: String,
+    keyVariant: WsmIntegrityKeyVariant,
+  ): WsmVerifierResult
+
+  /**
+   * Verifies a hex-encoded message from WSM. The message must have been signed with the WSM
+   * Integrity Key.
+   *
+   * @param hexMessage The hex-encoded message to verify.
+   * @param signature The hex-encoded signature to verify against.
+   * @param keyVariant The variant of the WSM Integrity Key to use. Staging and development both use 'test'.
+   * @return True if the signature is valid for the message, false otherwise.
+   * @throws Error If there is an invalid public key or signature.
+   */
+  @Throws(Error::class)
+  fun verifyHexMessage(
+    hexMessage: String,
     signature: String,
     keyVariant: WsmIntegrityKeyVariant,
   ): WsmVerifierResult

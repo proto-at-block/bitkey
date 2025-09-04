@@ -28,6 +28,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.robots.click
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -270,6 +271,82 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
 
     transactionPriorityPreference.preference.shouldBe(preferenceToSet)
     onTransferInitiatedCalls.awaitItem()
+  }
+  test("Verification cancels") {
+    verificationFlag.setFlagValue(true)
+    val preferenceToSet = FASTEST
+    spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
+    txVerificationServiceFake.requireVerification = true
+    txVerificationServiceFake.verificationResult = Ok(
+      flowOf(ConfirmationState.Pending)
+    )
+
+    transactionPriorityPreference.preference.shouldBeNull()
+    mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
+
+    stateMachine.test(
+      props.copy(
+        selectedPriority = preferenceToSet
+      )
+    ) {
+      // CreatingAppSignedPsbt
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<VerifyConfirmation> {
+        onContinue()
+      }
+
+      awaitBody<LoadingSuccessBodyModel> {
+        secondaryButton.shouldNotBeNull().click()
+      }
+
+      awaitBody<TransactionCanceledBodyModel>(TxVerificationEventTrackerScreenId.VERIFICATION_CANCELED) {
+        onExit()
+      }
+      onBackCalls.awaitItem()
+    }
+  }
+
+  test("Verification retry returns to VerifyConfirmation") {
+    verificationFlag.setFlagValue(true)
+    val preferenceToSet = FASTEST
+    spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
+    txVerificationServiceFake.requireVerification = true
+    txVerificationServiceFake.verificationResult = Ok(
+      flowOf(ConfirmationState.Pending)
+    )
+
+    transactionPriorityPreference.preference.shouldBeNull()
+    mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
+
+    stateMachine.test(
+      props.copy(
+        selectedPriority = preferenceToSet
+      )
+    ) {
+      // CreatingAppSignedPsbt
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<VerifyConfirmation> {
+        onContinue()
+      }
+
+      awaitBody<LoadingSuccessBodyModel> {
+        primaryButton.shouldNotBeNull().click()
+      }
+
+      awaitBody<VerifyConfirmation>()
+    }
   }
 
   test("[App+HW w/Verification] successful signing syncs, broadcasts, calls onTransferInitiated") {

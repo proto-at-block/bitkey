@@ -48,17 +48,34 @@ impl WsmIntegrityVerifier {
         base58_message: String,
         signature: String,
     ) -> Result<bool, WsmIntegrityVerifierError> {
+        let unhashed_message = decode_check(&base58_message)
+            .map_err(|_| WsmIntegrityVerifierError::Base58DecodeFailure)?;
+        self.verify_with_unhashed_message(&unhashed_message, &signature)
+    }
+
+    pub fn verify_hex_message(
+        &self,
+        hex_message: String,
+        signature: String,
+    ) -> Result<bool, WsmIntegrityVerifierError> {
+        let unhashed_message =
+            hex::decode(hex_message).map_err(|_| WsmIntegrityVerifierError::Base16DecodeFailure)?;
+        self.verify_with_unhashed_message(&unhashed_message, &signature)
+    }
+
+    fn verify_with_unhashed_message(
+        &self,
+        message: &[u8],
+        signature_hex: &str,
+    ) -> Result<bool, WsmIntegrityVerifierError> {
         // Turns out it's kind of hard for the app to know which context to use, so we allow both.
         // Since 'derive' and 'create' key is essentially the same operation, this is totally fine.
         // If we ever add more context labels, we should not just add them to the list, provided the
         // operation in the enclave is meaningfully different.
         let contexts = vec![WsmContext::DeriveKeyV1, WsmContext::CreateKeyV1];
 
-        let unhashed_message = decode_check(&base58_message)
-            .map_err(|_| WsmIntegrityVerifierError::Base58DecodeFailure)?;
-
-        let signature_bytes =
-            hex::decode(signature).map_err(|_| WsmIntegrityVerifierError::Base16DecodeFailure)?;
+        let signature_bytes = hex::decode(signature_hex)
+            .map_err(|_| WsmIntegrityVerifierError::Base16DecodeFailure)?;
         let sig = Signature::from_compact(&signature_bytes)
             .map_err(|_| WsmIntegrityVerifierError::MalformedSignature)?;
 
@@ -67,15 +84,16 @@ impl WsmIntegrityVerifier {
             .lock()
             .map_err(|_| WsmIntegrityVerifierError::MalformedPublicKey)?;
 
+        let secp = Secp256k1::new();
+
         for ctx in contexts {
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(GLOBAL_CONTEXT);
             hash_input.extend_from_slice(ctx.to_bytes());
-            hash_input.extend_from_slice(&unhashed_message);
+            hash_input.extend_from_slice(message);
 
             let digest = Message::from_hashed_data::<sha256::Hash>(&hash_input);
-            if Secp256k1::new().verify_ecdsa(&digest, &sig, &pk).is_ok() {
-                // Verification successful, exit early
+            if secp.verify_ecdsa(&digest, &sig, &pk).is_ok() {
                 return Ok(true);
             }
         }
@@ -89,7 +107,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_verifier() {
+    fn test_base58_verifier() {
         let test_key = "03078451e0c1e12743d2fdd93ae7d03d5cf7813d2f612de10904e1c6a0b87f7071";
         let raw_key = hex::decode(test_key).unwrap();
         let pk = PublicKey::from_slice(&raw_key).unwrap();
@@ -99,6 +117,21 @@ mod tests {
         let signature = "aa0d883dff66d7d627369e46458faf1bbb7c41e4365ab52541e0d4333b79839218e3dcecb34ee1b671fcf382bf10277ace84b5943e2599eef92d576b5a7a156d";
 
         let result = verifier.verify(message.to_string(), signature.to_string());
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[test]
+    fn test_hex_verifier() {
+        let test_key = "03d388d33c73b382479aa7837859ad49bbee35f15d4202b7b534e1e73ffec1711f";
+        let raw_key = hex::decode(test_key).unwrap();
+        let pk = PublicKey::from_slice(&raw_key).unwrap();
+        let verifier = WsmIntegrityVerifier::new(pk);
+
+        let message = "028363fa1d4dc4ec7cbb60445d020c5579fd337414d4701fdbe5526478976a73a6";
+        let signature = "44158b3ebb2cc0ef6ad9b14dcc5e343b70310fe505b306cb2d09bc96f83428ca6ae9a1377cc72bc75c137fa08837f2cee0fb07b7a94f07cc8db1dcc1476ea327";
+
+        let result = verifier.verify_hex_message(message.to_string(), signature.to_string());
         assert!(result.is_ok());
         assert!(result.unwrap());
     }

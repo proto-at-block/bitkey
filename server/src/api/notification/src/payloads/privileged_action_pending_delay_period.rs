@@ -9,7 +9,11 @@ use types::{
 };
 
 use crate::{
+    email::EmailPayload,
     entities::NotificationCompositeKey,
+    payloads::privileged_action_notification_builder::{
+        DelayAndNotifyNotificationConfig, DelayNotifyEmailDataFields, DelayNotifyStatus,
+    },
     push::{AndroidChannelId, SNSPushPayload},
     sms::SmsPayload,
     NotificationError, NotificationMessage, NotificationPayloadType,
@@ -46,7 +50,8 @@ impl
 
         let formatted_duration = format_duration(duration);
 
-        let definition: PrivilegedActionDefinition = payload.privileged_action_type.into();
+        let privileged_action_type = payload.privileged_action_type;
+        let definition: PrivilegedActionDefinition = privileged_action_type.clone().into();
         let notification_summary = definition
             .authorization_strategies
             .get(&payload.account_type)
@@ -67,11 +72,20 @@ impl
             notification_summary,
             formatted_duration,
         );
+        let email_data_fields = DelayNotifyEmailDataFields::new(
+            DelayNotifyStatus::Pending(formatted_duration),
+            notification_summary,
+        );
+
+        let config = DelayAndNotifyNotificationConfig::from(privileged_action_type);
 
         Ok(NotificationMessage {
             composite_key,
             account_id,
-            email_payload: None,
+            email_payload: Some(EmailPayload::Iterable {
+                campaign_type: config.campaign_types.pending,
+                data_fields: email_data_fields.into(),
+            }),
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
                 android_channel_id: AndroidChannelId::General, // TODO: should we make a new channel?

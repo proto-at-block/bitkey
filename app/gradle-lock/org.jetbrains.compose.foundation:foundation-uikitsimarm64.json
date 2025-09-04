@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.foundation:foundation-uikitsimarm64",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-uikitSimArm64Main-1.8.0.klib": "48df96842d4b910496a1ed6b97ebf85b987453eef81a60099eb4fa2411fb2d14"
+                        "foundation-uikitSimArm64Main-1.8.1.klib": "5e6443983e5bc7f737ed02195a15ab32c71a9a3c4ced2e9e2c3dd75a5b023e1e"
                     }
                 },
                 {
                     "artifacts": {
-                        "foundation-uikitsimarm64-1.8.0-metadata.jar": "41921eac81aa678d3700b340576b0280f42064081f84526bb6f4d5cd09a4a1ca"
+                        "foundation-uikitsimarm64-1.8.1-metadata.jar": "41921eac81aa678d3700b340576b0280f42064081f84526bb6f4d5cd09a4a1ca"
                     }
                 }
             ],

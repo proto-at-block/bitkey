@@ -31,6 +31,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
+import com.github.michaelbull.result.recover
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -160,21 +161,36 @@ class TxVerificationServiceImpl(
         keysetId = account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
       ).logFailure { "Failed to create verification request" }.bind()
 
-      pollForConfirmation {
-        verificationClient.getVerificationStatus(
-          f8eEnvironment = account.config.f8eEnvironment,
-          fullAccountId = account.accountId,
-          verificationId = createResponse.id
-        ).map { status ->
-          when (status) {
-            is TxVerificationState.Success -> ConfirmationState.Confirmed(status.hardwareGrant)
-            is TxVerificationState.Expired -> ConfirmationState.Expired
-            is TxVerificationState.Failed -> ConfirmationState.Rejected
-            is TxVerificationState.Pending -> ConfirmationState.Pending
+      pollForConfirmation(
+        onCancel = {
+          // Attempt to cancel verification with server:
+          coroutineBinding {
+            verificationClient.cancelVerification(
+              f8eEnvironment = account.config.f8eEnvironment,
+              fullAccountId = account.accountId,
+              verificationId = createResponse.id
+            )
+              .logFailure { "Failed to cancel verification request" }
+              .recover { Unit } // Ignore errors, let verification expire.
+              .bind()
           }
-        }.logFailure { "Unexpected error polling verification status. Ignoring" }
-          .getOrElse { ConfirmationState.Pending }
-      }
+        },
+        operation = {
+          verificationClient.getVerificationStatus(
+            f8eEnvironment = account.config.f8eEnvironment,
+            fullAccountId = account.accountId,
+            verificationId = createResponse.id
+          ).map { status ->
+            when (status) {
+              is TxVerificationState.Success -> ConfirmationState.Confirmed(status.hardwareGrant)
+              is TxVerificationState.Expired -> ConfirmationState.Expired
+              is TxVerificationState.Failed -> ConfirmationState.Rejected
+              is TxVerificationState.Pending -> ConfirmationState.Pending
+            }
+          }.logFailure { "Unexpected error polling verification status. Ignoring" }
+            .getOrElse { ConfirmationState.Pending }
+        }
+      )
     }
   }
 

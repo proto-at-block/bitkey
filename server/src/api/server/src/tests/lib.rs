@@ -39,8 +39,8 @@ use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
 use types::account::entities::{
-    Account, Factor, FullAccount, FullAccountAuthKeysPayload, LiteAccount, SoftwareAccount,
-    SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
+    Account, Factor, FullAccount, FullAccountAuthKeysInput, LiteAccount, SoftwareAccount,
+    SpendingKeysetInput, Touchpoint, TouchpointPlatform,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
 use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
@@ -114,12 +114,12 @@ async fn create_default_account_with_predefined_wallet_internal(
         .create_account(
             context,
             &CreateAccountRequest::Full {
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: auth.app_pubkey,
                     hardware: auth.hardware_pubkey,
                     recovery: auth.recovery_pubkey,
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: app_dpub.clone(),
                     hardware: hardware_dpub.clone(),
@@ -197,7 +197,7 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
         .create_keyset(
             &account_id.to_string(),
             &CreateKeysetRequest {
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: network.into(),
                     app: spend_app,
                     hardware: spend_hw,

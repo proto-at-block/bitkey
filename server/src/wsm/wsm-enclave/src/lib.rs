@@ -273,7 +273,7 @@ impl From<KmsToolError> for WsmError {
 }
 
 pub fn sign_with_integrity_key(
-    secp: Secp256k1<All>,
+    secp: &Secp256k1<All>,
     log_buffer: &mut LogBuffer,
     key: &[u8],
     context: &[u8],
@@ -638,8 +638,6 @@ async fn create_key(
     let keystore = route_state.keystore.clone();
     let mut log_buffer = LogBuffer::new();
 
-    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await;
-
     let secp = Secp256k1::new();
 
     let (xprv, xpub) = create_root_key_internal(
@@ -658,22 +656,7 @@ async fn create_key(
         &mut log_buffer,
     )?;
 
-    let keysource = (xpub.fingerprint(), DerivationPath::master());
-    let dpub = calculate_descriptor_pubkey(keysource, &xpub, &mut log_buffer)?;
-
-    let xpub_sig = if let Ok(key) = integrity_key {
-        hex::encode(
-            sign_with_integrity_key(secp, &mut log_buffer, &key, b"CreateKeyV1", &xpub.encode())?
-                .serialize_compact(),
-        )
-    } else {
-        "".to_string()
-    };
-
     Ok(Json(CreateResponse::Single(CreatedKey {
-        xpub,
-        dpub,
-        xpub_sig,
         wrapped_xprv,
         wrapped_xprv_nonce,
     })))
@@ -1312,7 +1295,7 @@ async fn derive_key(
     let keystore = route_state.keystore.clone();
     let mut log_buffer = LogBuffer::new();
 
-    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await;
+    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await?;
 
     let secp = Secp256k1::new();
 
@@ -1338,25 +1321,34 @@ async fn derive_key(
     let keysource = (root_xpub.fingerprint(), request.derivation_path);
     let dpub = calculate_descriptor_pubkey(keysource, &derived_xpub, &mut log_buffer)?;
 
-    let xpub_sig = if let Ok(key) = integrity_key {
+    let (xpub_sig, pub_sig) = (
         hex::encode(
             sign_with_integrity_key(
-                secp,
+                &secp,
                 &mut log_buffer,
-                &key,
+                &integrity_key,
                 b"DeriveKeyV1",
                 &derived_xpub.encode(),
             )?
             .serialize_compact(),
-        )
-    } else {
-        "".to_string()
-    };
+        ),
+        hex::encode(
+            sign_with_integrity_key(
+                &secp,
+                &mut log_buffer,
+                &integrity_key,
+                b"DeriveKeyV1",
+                &derived_xpub.public_key.serialize(),
+            )?
+            .serialize_compact(),
+        ),
+    );
 
     Ok(Json(DeriveResponse(DerivedKey {
         xpub: derived_xpub,
         dpub,
         xpub_sig,
+        pub_sig,
     })))
 }
 
@@ -1703,7 +1695,7 @@ mod tests {
         LoadIntegrityKeyRequest, LoadSecretRequest,
     };
     use wsm_common::messages::{
-        TEST_CMK_ID, TEST_DEK_ID, TEST_DPUB_SPEND, TEST_KEY_ID, TEST_XPUB, TEST_XPUB_SPEND,
+        TEST_CMK_ID, TEST_DEK_ID, TEST_DPUB_SPEND, TEST_KEY_ID, TEST_XPUB_SPEND,
     };
     use wsm_common::wsm_log;
 
@@ -1836,7 +1828,6 @@ mod tests {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let actual_created_key: CreatedKey = serde_json::from_slice(&body).unwrap();
-        assert_eq!(actual_created_key.xpub.to_string(), TEST_XPUB);
         assert!(!actual_created_key.wrapped_xprv.is_empty());
         assert!(!actual_created_key.wrapped_xprv_nonce.is_empty());
     }

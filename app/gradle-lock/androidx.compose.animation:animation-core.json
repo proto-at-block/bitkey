@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.animation:animation-core",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-core-metadata-1.8.0.jar": "22581989eeb4c6b7a1b66916047c24f1bc01372f29295f170c379406aaca1a99"
+                        "animation-core-metadata-1.8.1.jar": "22581989eeb4c6b7a1b66916047c24f1bc01372f29295f170c379406aaca1a99"
                     }
                 }
             ],

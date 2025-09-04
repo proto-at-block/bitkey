@@ -22,6 +22,7 @@ mod mempool_polling_integration_tests;
 mod mobile_pay_tests;
 mod notification_integration_tests;
 mod onboarding_integration_tests;
+mod onboarding_integration_tests_v2;
 mod privileged_actions_integration_tests;
 mod recovery;
 mod register_watch_address_integration_tests;

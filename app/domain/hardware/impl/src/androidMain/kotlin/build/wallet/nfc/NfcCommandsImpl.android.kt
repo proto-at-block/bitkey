@@ -467,12 +467,15 @@ class NfcCommandsImpl(
         generateResult = { state: BooleanState.Result -> state.value }
       )
     } catch (e: NfcException.CommandError) {
-      if (e.cause is CommandException.GeneralCommandException &&
+      // For either of these specific errors, the grant has likely already been used
+      return if (e.cause is CommandException.FileNotFound) {
+        // specific error from newer firmware
+        false
+      } else if (e.cause is CommandException.GeneralCommandException &&
         e.cause?.message == "command was unsuccessful: general error"
       ) {
-        // grant probably already consumed, so we just return false instead
-        // TODO: W-11906 - improve grant delivery errors
-        return false
+        // fallback for older firmware
+        false
       } else {
         // rethrow other command errors
         throw e

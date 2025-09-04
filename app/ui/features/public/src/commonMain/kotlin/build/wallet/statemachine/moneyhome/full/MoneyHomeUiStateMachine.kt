@@ -3,7 +3,6 @@ package build.wallet.statemachine.moneyhome.full
 import build.wallet.bitkey.account.Account
 import build.wallet.partnerships.*
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.ui.model.status.StatusBannerModel
@@ -16,7 +15,6 @@ import build.wallet.ui.model.status.StatusBannerModel
 interface MoneyHomeUiStateMachine : StateMachine<MoneyHomeUiProps, ScreenModel>
 
 /**
- * @property homeBottomSheetModel bottom sheet to show on root Money Home screen
  * @property homeStatusBannerModel status banner to show on root Money Home screen
  * @property onSettings Settings tab item clicked
  * @property origin The origin of money home. Used to control modals that only show during launch.
@@ -24,7 +22,6 @@ interface MoneyHomeUiStateMachine : StateMachine<MoneyHomeUiProps, ScreenModel>
 data class MoneyHomeUiProps(
   val account: Account,
   val lostHardwareRecoveryData: LostHardwareRecoveryData,
-  val homeBottomSheetModel: SheetModel?,
   val homeStatusBannerModel: StatusBannerModel?,
   val onSettings: () -> Unit,
   val onPartnershipsWebFlowCompleted: (PartnerInfo, PartnershipTransaction) -> Unit,
@@ -45,6 +42,10 @@ data class MoneyHomeUiProps(
       val partnerId: PartnerId?,
       val event: PartnershipEvent?,
       val partnerTransactionId: PartnershipTransactionId?,
+    ) : Origin()
+
+    data class PartnershipTransferLink(
+      val request: PartnerTransferLinkRequest,
     ) : Origin()
   }
 }

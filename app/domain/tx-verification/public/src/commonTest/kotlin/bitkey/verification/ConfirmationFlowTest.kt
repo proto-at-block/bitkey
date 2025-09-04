@@ -77,4 +77,27 @@ class ConfirmationFlowTest : FunSpec({
       }
     }
   }
+
+  test("Confirmation poll calls onCancel when flow is canceled") {
+    runTest {
+      var state: ConfirmationState<String> = ConfirmationState.Pending
+      var onCancelCalled = false
+
+      val flow = pollForConfirmation(
+        onCancel = {
+          onCancelCalled = true
+        }
+      ) { state }
+
+      flow.test {
+        awaitItem().shouldBe(ConfirmationState.Pending)
+        advanceTimeBy(5.seconds)
+        awaitItem().shouldBe(ConfirmationState.Pending)
+
+        cancelAndIgnoreRemainingEvents()
+
+        onCancelCalled.shouldBe(true)
+      }
+    }
+  }
 })

@@ -102,10 +102,10 @@ class ExportTransactionsFunctionalTests : FunSpec({
     app.onboardFullAccountWithFakeHardware()
 
     // Make two incoming transactions
-    val initialFundingAmount = btc(0.0001)
+    val initialFundingAmount = btc(0.0003)
     val fundingTransaction1 = app.addSomeFunds(amount = initialFundingAmount)
     val fundingTransaction2 = app.addSomeFunds(amount = initialFundingAmount)
-    app.waitForFunds { it.spendable == btc(0.0002) }
+    app.waitForFunds { it.spendable == btc(0.0006) }
 
     // Consolidate the outputs to produce consolidation transaction
     val (consolidationParams, consolidationTransactionDetail) = app.consolidateAllUtxos()

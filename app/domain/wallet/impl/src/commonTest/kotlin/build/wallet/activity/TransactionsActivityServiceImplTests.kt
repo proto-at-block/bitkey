@@ -27,12 +27,10 @@ import build.wallet.partnerships.PartnershipTransactionStatus.PENDING
 import build.wallet.partnerships.PartnershipTransactionStatus.SUCCESS
 import build.wallet.platform.config.AppVariant
 import build.wallet.store.KeyValueStoreFactoryFake
-import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -48,12 +46,15 @@ class TransactionsActivityServiceImplTests : FunSpec({
     getCalls = turbines.create("get transaction by id calls")
   )
   val bitcoinWalletService = BitcoinWalletServiceFake()
+  val accountService = AccountServiceFake()
+  val listKeysetsF8eClient = ListKeysetsF8eClientMock()
 
   val featureFlag = ExpectedTransactionsPhase2FeatureFlag(FeatureFlagDaoFake())
   lateinit var service: TransactionsActivityServiceImpl
 
   val wallet = SpendingWalletMock(turbines::create)
   val watchingWalletMock = WatchingWalletMock()
+  val watchingWalletProvider = WatchingWalletProviderMock(watchingWalletMock)
 
   fun createMockScenarioService() =
     MockScenarioServiceImpl(
@@ -64,6 +65,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
       mockPriceDataGenerator = MockPriceDataGenerator(Clock.System),
       coroutineScope = TestScope()
     )
+
   val partnershipTxWithMatch = PartnershipTransaction(
     id = PartnershipTransactionId("pending-partnership-with-match"),
     partnerInfo = PartnerInfo(
@@ -110,9 +112,12 @@ class TransactionsActivityServiceImplTests : FunSpec({
   )
 
   beforeTest {
+    listKeysetsF8eClient.reset()
     partnershipTransactionsService.reset()
+    accountService.reset()
     bitcoinWalletService.reset()
     featureFlag.reset()
+    watchingWalletProvider.reset()
 
     bitcoinWalletService.spendingWallet.value = wallet
     bitcoinWalletService.setTransactions(
@@ -127,10 +132,10 @@ class TransactionsActivityServiceImplTests : FunSpec({
       expectedTransactionsPhase2FeatureFlag = featureFlag,
       partnershipTransactionsService = partnershipTransactionsService,
       bitcoinWalletService = bitcoinWalletService,
-      accountService = AccountServiceFake(),
-      watchingWalletProvider = WatchingWalletProviderMock(watchingWalletMock),
+      accountService = accountService,
+      watchingWalletProvider = watchingWalletProvider,
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
-      listKeysetsF8eClient = ListKeysetsF8eClientMock(),
+      listKeysetsF8eClient = listKeysetsF8eClient,
       appScope = TestScope(),
       mockScenarioService = createMockScenarioService()
     )

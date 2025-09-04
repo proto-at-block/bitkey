@@ -8,6 +8,7 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.platform.random.uuid
 import build.wallet.statemachine.automations.AutomaticUiTests
 import build.wallet.ui.app.core.LoadingSuccessScreen
+import build.wallet.ui.model.button.ButtonModel
 
 /**
  * Model for a screen that seamlessly transitions from loading to success
@@ -22,6 +23,8 @@ data class LoadingSuccessBodyModel(
   val message: String? = null,
   val eventTrackerContext: EventTrackerContext? = null,
   val eventTrackerShouldTrack: Boolean = true,
+  val primaryButton: ButtonModel? = null,
+  val secondaryButton: ButtonModel? = null,
 ) : BodyModel(), AutomaticUiTests {
   sealed interface State {
     data object Loading : State
@@ -43,7 +46,8 @@ data class LoadingSuccessBodyModel(
   override val key: String = "${this::class.qualifiedName}-$unique."
 
   override fun automateNextPrimaryScreen() {
-    // No-op necessary: Loading screens better advance on their own.
+    primaryButton?.onClick()
+    // No-op necessary when button is null: Loading screens should advance on its own.
   }
 
   @Composable

@@ -8,6 +8,11 @@ use axum::{
 };
 
 use account::service::{FetchAccountInput, Service as AccountService};
+use analytics::{
+    destination::tracker::Tracker,
+    log_server_event,
+    routes::definitions::{ServerAction, ServerEvent, ServerInheritanceInfo},
+};
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::{generate_electrum_rpc_uris, TransactionBroadcasterTrait};
 use errors::ApiError;
@@ -58,6 +63,7 @@ pub struct RouteState(
     pub FeatureFlagsService,
     pub WsmClient,
     pub Arc<dyn TransactionBroadcasterTrait>,
+    pub Tracker,
 );
 
 impl RouterBuilder for RouteState {
@@ -163,6 +169,26 @@ impl From<RouteState> for SwaggerEndpoint {
 )]
 struct ApiDoc;
 
+async fn log_inheritance_event(tracker: Tracker, account_id: AccountId, claim: &InheritanceClaim) {
+    let inheritance_info = ServerInheritanceInfo {
+        relationship_id: claim.common_fields().recovery_relationship_id.to_string(),
+        claim_id: claim.common_fields().id.to_string(),
+    };
+    let action = match claim {
+        InheritanceClaim::Pending(_) => ServerAction::ActionServerInheritanceClaimSubmitted,
+        InheritanceClaim::Completed(_) => ServerAction::ActionServerInheritanceClaimCompleted,
+        InheritanceClaim::Canceled(_) => ServerAction::ActionServerInheritanceClaimDenied,
+        _ => ServerAction::ActionServerUnspecified,
+    };
+    let event = ServerEvent {
+        action: action.into(),
+        account_id: account_id.to_string(),
+        event_time: OffsetDateTime::now_utc().unix_timestamp().to_string(),
+        inheritance_info: Some(inheritance_info),
+    };
+    log_server_event(tracker, event).await;
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateInheritanceClaimRequest {
     pub recovery_relationship_id: RecoveryRelationshipId,
@@ -195,6 +221,7 @@ pub async fn create_inheritance_claim(
     Path(beneficiary_account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(inheritance_service): State<InheritanceService>,
+    State(tracker): State<Tracker>,
     Json(request): Json<CreateInheritanceClaimRequest>,
 ) -> Result<Json<CreateInheritanceClaimResponse>, ApiError> {
     let Account::Full(beneficiary_account) = &account_service
@@ -216,6 +243,7 @@ pub async fn create_inheritance_claim(
         })
         .await?;
 
+    log_inheritance_event(tracker, beneficiary_account_id, &claim).await;
     Ok(Json(CreateInheritanceClaimResponse {
         claim: claim.into(),
     }))
@@ -381,6 +409,7 @@ pub async fn cancel_inheritance_claim(
     Path((account_id, inheritance_claim_id)): Path<(AccountId, InheritanceClaimId)>,
     State(account_service): State<AccountService>,
     State(inheritance_service): State<InheritanceService>,
+    State(tracker): State<Tracker>,
     Json(request): Json<CancelInheritanceClaimRequest>,
 ) -> Result<Json<CancelInheritanceClaimResponse>, ApiError> {
     let Account::Full(account) = account_service
@@ -399,6 +428,8 @@ pub async fn cancel_inheritance_claim(
             inheritance_claim_id,
         })
         .await?;
+
+    log_inheritance_event(tracker, account_id, &claim).await;
 
     match canceled_by {
         InheritanceRole::Benefactor => {
@@ -518,6 +549,7 @@ pub async fn complete_inheritance_claim(
     State(wsm_client): State<WsmClient>,
     State(transaction_broadcaster): State<Arc<dyn TransactionBroadcasterTrait>>,
     State(feature_flags_service): State<FeatureFlagsService>,
+    State(tracker): State<Tracker>,
     experimentation_claims: ExperimentationClaims,
     Json(request): Json<CompleteInheritanceClaimRequest>,
 ) -> Result<Json<CompleteInheritanceClaimResponse>, ApiError> {
@@ -543,7 +575,7 @@ pub async fn complete_inheritance_claim(
     let psbt = Psbt::from_str(&request.psbt)
         .map_err(|_| ApiError::GenericBadRequest("Invalid PSBT".to_string()))?;
 
-    let claim = inheritance_service
+    let completed_claim = inheritance_service
         .sign_and_complete(SignAndCompleteInheritanceClaimInput {
             signing_processor,
             rpc_uris,
@@ -554,8 +586,11 @@ pub async fn complete_inheritance_claim(
         })
         .await?;
 
+    let claim = InheritanceClaim::Completed(completed_claim);
+    log_inheritance_event(tracker, beneficiary_account_id, &claim).await;
+
     Ok(Json(CompleteInheritanceClaimResponse {
-        claim: InheritanceClaim::Completed(claim).into(),
+        claim: claim.into(),
     }))
 }
 

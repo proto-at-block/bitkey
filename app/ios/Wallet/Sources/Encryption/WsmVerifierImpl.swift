@@ -16,4 +16,16 @@ class WsmVerifierImpl: Shared.WsmVerifier {
             signature: signature
         ))
     }
+
+    func verifyHexMessage(
+        hexMessage: String,
+        signature: String,
+        keyVariant: WsmIntegrityKeyVariant
+    ) throws -> WsmVerifierResult {
+        let verifier = core.WsmIntegrityVerifier(pubkey: keyVariant.pubkey)
+        return try Shared.WsmVerifierResult(isValid: verifier.verifyHexMessage(
+            hexMessage: hexMessage,
+            signature: signature
+        ))
+    }
 }

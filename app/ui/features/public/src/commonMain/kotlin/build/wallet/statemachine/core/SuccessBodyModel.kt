@@ -5,6 +5,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * A screen with a static horizontally left-aligned, vertically top-aligned
@@ -16,6 +17,7 @@ import build.wallet.ui.model.button.ButtonModel
  */
 data class SuccessBodyModel(
   val title: String,
+  @Redacted
   val message: String? = null,
   val primaryButtonModel: ButtonDataModel?,
   override val id: EventTrackerScreenId?,

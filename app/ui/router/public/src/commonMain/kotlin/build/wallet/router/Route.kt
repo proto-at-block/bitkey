@@ -28,6 +28,7 @@ sealed class Route {
   object Context {
     const val PARTNER_TRANSFER_REDIRECT = "partner_transfer"
     const val PARTNER_SALE_REDIRECT = "partner_sale"
+    const val PARTNER_TRANSFER_LINK = "partner_transfer_link"
     const val SCREEN = "screen"
   }
 
@@ -80,6 +81,12 @@ sealed class Route {
                 event = parsedUrl.parameters[QueryParamKeys.EVENT],
                 partnerTransactionId = parsedUrl.parameters[QueryParamKeys.EVENT_ID]
               )
+              Context.PARTNER_TRANSFER_LINK ->
+                PartnerTransferLinkDeeplink(
+                  partner = parsedUrl.parameters[QueryParamKeys.SOURCE],
+                  event = parsedUrl.parameters[QueryParamKeys.EVENT],
+                  eventId = parsedUrl.parameters[QueryParamKeys.EVENT_ID]
+                )
               Context.SCREEN ->
                 parsedUrl.parameters[NotificationPayloadKeys.NAVIGATE_TO_SCREEN_ID]?.let {
                   NavigationScreenId.fromValue(it.toInt())?.let {
@@ -203,4 +210,20 @@ sealed class Route {
    * Navigates to the hardware recovery flow which initializes a new recovery
    */
   data object InitiateHardwareRecovery : Route()
+
+  /**
+   * This is a data class that represents the partner transfer link deeplink route.
+   *
+   * A transfer link links bitkey to an external party, typically by exporting an address
+   * to that partner.
+   *
+   * @param partner The partner name
+   * @param event The event name
+   * @param eventId The tokenized secret to establish the link
+   */
+  data class PartnerTransferLinkDeeplink(
+    val partner: String?,
+    val event: String?,
+    val eventId: String?,
+  ) : Route()
 }

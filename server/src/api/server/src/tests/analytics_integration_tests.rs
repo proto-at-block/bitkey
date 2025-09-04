@@ -1,4 +1,4 @@
-use analytics::routes::definitions::{Event, EventBundle};
+use analytics::routes::definitions::{Event, EventBundle, ServerEvent};
 use http::StatusCode;
 use prost::Message;
 
@@ -10,7 +10,10 @@ async fn event_tracking_request_succeeds_with_valid_request_empty_events() {
     let (_, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let events = EventBundle { events: Vec::new() };
+    let events = EventBundle {
+        events: Vec::new(),
+        server_events: Vec::new(),
+    };
     let mut request = Vec::with_capacity(events.encoded_len());
     let encode_result = events.encode(&mut request);
     assert!(encode_result.is_ok());
@@ -44,6 +47,12 @@ async fn event_tracking_request_succeeds_with_valid_request_non_empty_events() {
             counter_id: String::from("counter_id"),
             counter_count: 0,
             fingerprint_scan_stats: None,
+        }],
+        server_events: vec![ServerEvent {
+            event_time: String::from("test-time"),
+            action: 0,
+            account_id: String::from("test-account-id"),
+            inheritance_info: None,
         }],
     };
 

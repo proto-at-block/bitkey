@@ -4,6 +4,7 @@ import build.wallet.coroutines.flow.launchTicker
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
+import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getError
 import com.github.michaelbull.result.mapError
@@ -18,12 +19,15 @@ internal class PeriodicQueueProcessorImpl<T>(
   private val processor: Processor<T>,
   private val frequency: Duration,
   private val batchSize: Int,
+  private val appSessionManager: AppSessionManager,
 ) : PeriodicProcessor {
   override suspend fun start() {
     coroutineScope {
       launchTicker(frequency) {
-        processQueueInBatches(queue, processor, batchSize)
-          .logFailureOrNetworkingFailure { "Failed to process items in queue" }
+        if (appSessionManager.isAppForegrounded()) {
+          processQueueInBatches(queue, processor, batchSize)
+            .logFailureOrNetworkingFailure { "Failed to process items in queue" }
+        }
       }
     }
   }

@@ -31,8 +31,14 @@ enum class DelayNotifyRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Loading screen shown when creating spending keys for app D+N */
   LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS,
 
+  /** Loading screen shown when activating spending keys for app D+N */
+  LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS,
+
   /** Error screen shown when creating spending keys fails for lost app D+N */
   LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR,
+
+  /** Error screen shown when activating spending keys fails for lost app D+N */
+  LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS_ERROR,
 
   /** Failure screen shown when loading sealed DDK fails */
   LOST_APP_DELAY_NOTIFY_DDK_LOADING_ERROR,

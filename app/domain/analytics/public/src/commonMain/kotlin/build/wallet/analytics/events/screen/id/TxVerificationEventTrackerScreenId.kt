@@ -45,4 +45,9 @@ enum class TxVerificationEventTrackerScreenId : EventTrackerScreenId {
    * Unexpected problem when attempting to verify a transaction.
    */
   VERIFICATION_ERROR,
+
+  /**
+   * Screen shown when the user explicitly cancels a verification request before it is completed.
+   */
+  VERIFICATION_CANCELED,
 }

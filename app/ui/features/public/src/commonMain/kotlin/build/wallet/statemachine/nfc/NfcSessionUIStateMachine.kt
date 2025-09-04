@@ -6,7 +6,7 @@ import bitkey.account.DefaultAccountConfig
 import bitkey.account.FullAccountConfig
 import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
-import build.wallet.account.getAccountOrNull
+import build.wallet.account.getActiveOrOnboardingAccountOrNull
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
@@ -333,7 +333,7 @@ class NfcSessionUIStateMachineImpl(
         else -> null
       }
     } else {
-      accountService.getAccountOrNull<FullAccount>()
+      accountService.getActiveOrOnboardingAccountOrNull<FullAccount>()
         .get()?.keybox?.activeHwKeyBundle?.authKey?.pubKey
     }
 

@@ -18,6 +18,9 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.f8e.onboarding.CreateFullAccountF8eClient
+import build.wallet.f8e.onboarding.CreatePrivateFullAccountF8eClient
+import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.notifications.NotificationTouchpointDao
@@ -41,12 +44,14 @@ interface CreateFullAccountService {
 class CreateFullAccountServiceImpl(
   private val keyboxDao: KeyboxDao,
   private val createFullAccountF8eClient: CreateFullAccountF8eClient,
+  private val createPrivateFullAccountF8eClient: CreatePrivateFullAccountF8eClient,
   private val accountAuthenticator: AccountAuthenticator,
   private val authTokensService: AuthTokensService,
   private val deviceTokenManager: DeviceTokenManager,
   private val uuidGenerator: UuidGenerator,
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val notificationTouchpointDao: NotificationTouchpointDao,
+  private val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
 ) : CreateFullAccountService {
   override suspend fun createAccount(
     keyCrossDraft: WithAppKeysAndHardwareKeys,
@@ -54,10 +59,17 @@ class CreateFullAccountServiceImpl(
     coroutineBinding {
       val accountConfig = keyCrossDraft.config
       // Create a new account on the server and get a server key back.
-      val (f8eSpendingKeyset, accountId) = createFullAccountF8eClient
-        .createAccount(keyCrossDraft)
-        .mapError { AccountCreationF8eError(it) }
-        .bind()
+      val (f8eSpendingKeyset, accountId) = if (chaincodeDelegationFeatureFlag.isEnabled()) {
+        createPrivateFullAccountF8eClient
+          .createPrivateAccount(keyCrossDraft)
+          .mapError { AccountCreationF8eError(it) }
+          .bind()
+      } else {
+        createFullAccountF8eClient
+          .createAccount(keyCrossDraft)
+          .mapError { AccountCreationF8eError(it) }
+          .bind()
+      }
 
       val spendingKeyset = SpendingKeyset(
         localId = uuidGenerator.random(),

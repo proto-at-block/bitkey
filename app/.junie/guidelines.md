@@ -1,6 +1,8 @@
 # Junie AI Assistant Guidelines
 
-This configuration file provides guidelines and context for the Junie AI assistant when working with the Bitkey mobile application codebase. It establishes consistent architectural patterns, coding standards, and implementation approaches for the Kotlin Multiplatform project.
+Guidelines for the Bitkey mobile app. **Read actual rule content - don't assume based on filenames alone.**
+
+**Apply all rules below during code reviews and code generation.**
 
 Follow the AI rules defined in the codebase for consistent code guidance:
 

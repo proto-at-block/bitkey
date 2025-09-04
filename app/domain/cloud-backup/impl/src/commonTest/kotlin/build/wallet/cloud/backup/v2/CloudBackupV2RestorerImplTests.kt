@@ -13,6 +13,7 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.*
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
+import build.wallet.cloud.backup.JsonSerializer
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
@@ -68,7 +69,8 @@ class CloudBackupV2RestorerImplTests : FunSpec({
       symmetricKeyEncryptor = symmetricKeyEncryptor,
       appPrivateKeyDao = appPrivateKeyDao,
       relationshipsKeysDao = relationshipKeysDao,
-      uuidGenerator = UuidGeneratorFake()
+      uuidGenerator = UuidGeneratorFake(),
+      jsonSerializer = JsonSerializer()
     )
 
   test("test restoration from backup to an AccountRestoration") {

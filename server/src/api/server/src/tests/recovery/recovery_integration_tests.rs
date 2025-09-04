@@ -22,7 +22,7 @@ use recovery::routes::delay_notify::{
 };
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
-use types::account::entities::{Factor, FullAccountAuthKeysPayload};
+use types::account::entities::{Factor, FullAccountAuthKeysInput};
 use types::account::identifiers::AccountId;
 use types::account::keys::FullAccountAuthKeys;
 
@@ -112,7 +112,7 @@ async fn test_create_delay_notify(
     let request = CreateAccountDelayNotifyRequest {
         lost_factor,
         delay_period_num_sec: None,
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: create_pubkey(),
             hardware: if lost_factor == Factor::App {
                 account.hardware_auth_pubkey
@@ -222,7 +222,7 @@ async fn test_create_delay_notify(
     let request_with_different_keys = CreateAccountDelayNotifyRequest {
         lost_factor,
         delay_period_num_sec: None,
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: create_pubkey(),
             hardware: if lost_factor == Factor::App {
                 account.hardware_auth_pubkey
@@ -388,7 +388,7 @@ async fn test_cancel_delay_notify(
         let request = CreateAccountDelayNotifyRequest {
             lost_factor,
             delay_period_num_sec: None,
-            auth: FullAccountAuthKeysPayload {
+            auth: FullAccountAuthKeysInput {
                 app: create_pubkey(),
                 hardware: if lost_factor == Factor::App {
                     account.hardware_auth_pubkey
@@ -916,7 +916,7 @@ async fn test_get_status_with_delay_notify(
         assert_eq!(r.lost_factor, Factor::App);
         assert_eq!(
             r.auth_keys,
-            FullAccountAuthKeysPayload {
+            FullAccountAuthKeysInput {
                 app: app_auth_pubkey,
                 hardware: account.hardware_auth_pubkey,
                 recovery: recovery_auth_pubkey
@@ -945,7 +945,7 @@ async fn test_create_lost_hw_delay_notify_with_existing_hardware_auth_key() {
     let request_with_different_keys = CreateAccountDelayNotifyRequest {
         lost_factor: Factor::Hw,
         delay_period_num_sec: None,
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: create_pubkey(),
             hardware: hw_authkey,
             recovery: Some(create_pubkey()),
@@ -1071,7 +1071,7 @@ async fn test_update_delay_for_test_recovery(
             &CreateAccountDelayNotifyRequest {
                 lost_factor: Factor::Hw,
                 delay_period_num_sec,
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: create_pubkey(),
                     hardware: create_pubkey(),
                     recovery: Some(create_pubkey()),
@@ -1275,7 +1275,7 @@ async fn test_reuse_auth_pubkey(
             &CreateAccountDelayNotifyRequest {
                 lost_factor,
                 delay_period_num_sec: Some(Duration::days(7).as_seconds_f32() as i64),
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: recovery_app_pubkey,
                     hardware: recovery_hardware_pubkey,
                     recovery: recovery_recover_pubkey,

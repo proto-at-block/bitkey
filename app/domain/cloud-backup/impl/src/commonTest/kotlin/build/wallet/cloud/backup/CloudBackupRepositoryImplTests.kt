@@ -26,7 +26,8 @@ class CloudBackupRepositoryImplTests : FunSpec({
   val cloudBackupRepository = CloudBackupRepositoryImpl(
     cloudKeyValueStore = cloudKeyValueStore,
     cloudBackupDao = cloudBackupDao,
-    authTokensService = authTokensService
+    authTokensService = authTokensService,
+    jsonSerializer = JsonSerializer()
   )
 
   afterTest {

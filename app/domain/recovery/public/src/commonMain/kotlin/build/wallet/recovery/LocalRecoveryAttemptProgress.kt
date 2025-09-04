@@ -54,14 +54,21 @@ sealed interface LocalRecoveryAttemptProgress {
   data object RotatedAuthKeys : LocalRecoveryAttemptProgress
 
   /**
-   * Successfully created and activated new spending keys on the server.
+   * Successfully created new spending keys on the server.
    */
-  data class RotatedSpendingKeys(
+  data class CreatedSpendingKeys(
     val f8eSpendingKeyset: F8eSpendingKeyset,
   ) : LocalRecoveryAttemptProgress
 
   /**
-   * Successfully uploaded encrypted descriptor backups to F8e after rotating spending keys.
+   * Successfully activated the spending keys on the server.
+   */
+  data class ActivatedSpendingKeys(
+    val f8eSpendingKeyset: F8eSpendingKeyset,
+  ) : LocalRecoveryAttemptProgress
+
+  /**
+   * Successfully uploaded encrypted descriptor backups to F8e after creating spending keys.
    */
   data class UploadedDescriptorBackups(
     val spendingKeysets: List<SpendingKeyset>,

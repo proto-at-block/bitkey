@@ -15,6 +15,7 @@ class RecoveryStatusServiceMock(
   val recoveryStatus = MutableStateFlow<Result<Recovery, Error>>(Ok(recovery))
   val clearCalls = turbine("clear recovery syncer calls")
   val setLocalRecoveryProgressCalls = turbine("set local recovery progress calls")
+  var setLocalRecoveryProgressResult: Result<Unit, Error> = Ok(Unit)
   var clearCallResult: Result<Unit, Error> = Ok(Unit)
 
   override fun status(): Flow<Result<Recovery, Error>> {
@@ -30,11 +31,12 @@ class RecoveryStatusServiceMock(
     progress: LocalRecoveryAttemptProgress,
   ): Result<Unit, Error> {
     setLocalRecoveryProgressCalls += progress
-    return Ok(Unit)
+    return setLocalRecoveryProgressResult
   }
 
   fun reset() {
     recoveryStatus.value = Ok(recovery)
+    setLocalRecoveryProgressResult = Ok(Unit)
     clearCallResult = Ok(Unit)
   }
 }

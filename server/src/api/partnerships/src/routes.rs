@@ -86,6 +86,14 @@ impl RouterBuilder for RouteState {
                 "/api/partnerships/sales/redirects",
                 post(get_sales_redirect),
             )
+            .route(
+                "/api/partnerships/transfer-links",
+                post(list_transfer_link_partners),
+            )
+            .route(
+                "/api/partnerships/transfer-links/redirects",
+                post(get_transfer_link_redirect),
+            )
             .with_state(self.to_owned())
     }
 }
@@ -110,6 +118,8 @@ impl From<RouteState> for SwaggerEndpoint {
         list_sale_quotes,
         get_sales_redirect,
         get_partner_transaction,
+        list_transfer_link_partners,
+        get_transfer_link_redirect,
     ),
     components(
         schemas(
@@ -122,7 +132,10 @@ impl From<RouteState> for SwaggerEndpoint {
             PurchaseOptionsResponse,
             ListSaleQuotesResponse,
             GetRedirectResponse,
+            ListTransferLinkPartnersRequest,
+            ListTransferLinkPartnersResponse,
             GetPartnerTransactionResponse,
+            GetTransferLinkRedirectRequest
         )
     ),
     tags(
@@ -151,7 +164,7 @@ pub struct ListTransferPartnersResponse {
     params(),
     request_body = ListTransferPartnersRequest,
     responses(
-        (status = 200, description = "List of transfer partners was successfully retrieved", body=GetRedirectResponse),
+        (status = 200, description = "List of transfer partners was successfully retrieved", body=ListTransferPartnersResponse),
         (status = 400, description = "Country code is invalid or not supported"),
     ),
 )]
@@ -266,7 +279,7 @@ pub struct GetRedirectResponse {
     post,
     path = "/api/partnerships/purchases/redirect",
     params(),
-    request_body = GetRedirectRequest,
+    request_body = GetPurchaseRedirectRequest,
     responses(
         (status = 200, description = "Purchase redirect URL for a given partner was successfully retrieved", body=GetRedirectResponse),
         (status = 503, description = "Partner is temporarily unavailable"),
@@ -472,6 +485,75 @@ async fn get_sales_redirect(
             request.crypto_currency,
             request.partner,
             request.quote_id,
+        )
+        .await?;
+    Ok(Json(GetRedirectResponse { redirect_info }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ListTransferLinkPartnersRequest {
+    //TODO use ISO country code based enum
+    pub country: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ListTransferLinkPartnersResponse {
+    pub partners: Vec<PartnerInfo>,
+    //TODO replace with partner definition that includes additional partner info
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/partnerships/transfer-links",
+    params(),
+    request_body = ListTransferLinkPartnersRequest,
+    responses(
+        (status = 200, description = "List of transfer partners was successfully retrieved", body=ListTransferLinkPartnersResponse),
+        (status = 400, description = "Country code is invalid or not supported"),
+    ),
+)]
+async fn list_transfer_link_partners(
+    State(partnerships): State<Partnerships>,
+    experimentation_claims: ExperimentationClaims,
+    Json(request): Json<ListTransferLinkPartnersRequest>,
+) -> Result<Json<ListTransferLinkPartnersResponse>, ApiError> {
+    Ok(Json(ListTransferLinkPartnersResponse {
+        partners: partnerships.transfer_link_partners(
+            request.country,
+            &experimentation_claims.account_context_key()?,
+        ),
+    }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GetTransferLinkRedirectRequest {
+    pub partner: String,
+    pub address: String,
+    pub partner_transaction_id: Option<String>,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/partnerships/transfer-links/redirects",
+    params(),
+    request_body = GetTransferLinkRedirectRequest,
+    responses(
+        (status = 200, description = "Transfer link redirect URL for a given partner was successfully retrieved", body=GetRedirectResponse),
+        (status = 503, description = "Partner is temporarily unavailable"),
+    ),
+)]
+async fn get_transfer_link_redirect(
+    State(partnerships): State<Partnerships>,
+    Json(request): Json<GetTransferLinkRedirectRequest>,
+) -> Result<Json<GetRedirectResponse>, ApiError> {
+    let redirect_info = partnerships
+        .transfer_link_redirect_url(
+            request.address,
+            request.partner,
+            request.partner_transaction_id,
         )
         .await?;
     Ok(Json(GetRedirectResponse { redirect_info }))

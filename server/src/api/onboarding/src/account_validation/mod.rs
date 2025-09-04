@@ -4,9 +4,10 @@ use errors::ApiError;
 use recovery::repository::RecoveryRepository;
 use tracing::instrument;
 use types::account::bitcoin::Network;
+use types::account::entities::v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2};
 use types::account::entities::{
-    Account, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload,
-    SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, UpgradeLiteAccountAuthKeysPayload,
+    Account, FullAccountAuthKeysInput, LiteAccountAuthKeysInput, SoftwareAccountAuthKeysInput,
+    SpendingKeysetInput, UpgradeLiteAccountAuthKeysInput,
 };
 
 use self::no_recovery_with_hardware_auth_pubkey::NoRecoveryWithHardwareAuthPubkeyRule;
@@ -33,21 +34,26 @@ pub(crate) mod unique_recovery_auth_pubkey_for_account;
 #[derive(Debug)]
 pub(crate) enum AccountValidationRequest {
     CreateFullAccount {
-        auth: FullAccountAuthKeysPayload,
-        spending: SpendingKeysetRequest,
+        auth: FullAccountAuthKeysInput,
+        spending: SpendingKeysetInput,
         is_test_account: bool,
         spending_network: Network,
     },
     CreateLiteAccount {
-        auth: LiteAccountAuthKeysPayload,
+        auth: LiteAccountAuthKeysInput,
     },
     UpgradeAccount {
-        auth: UpgradeLiteAccountAuthKeysPayload,
+        auth: UpgradeLiteAccountAuthKeysInput,
         is_test_account: bool,
         spending_network: Network,
     },
     CreateSoftwareAccount {
-        auth: SoftwareAccountAuthKeysPayload,
+        auth: SoftwareAccountAuthKeysInput,
+    },
+    CreateFullAccountV2 {
+        auth: FullAccountAuthKeysInputV2,
+        spend: SpendingKeysetInputV2,
+        is_test_account: bool,
     },
 }
 
@@ -129,6 +135,11 @@ fn is_repeat_account_creation(
                 return false;
             };
 
+            let Some(active_spending_keyset) = active_spending_keyset.optional_legacy_multi_sig()
+            else {
+                return false;
+            };
+
             active_auth_keys.app_pubkey == auth.app
                 && active_auth_keys.hardware_pubkey == auth.hardware
                 && active_auth_keys.recovery_pubkey == auth.recovery
@@ -157,6 +168,29 @@ fn is_repeat_account_creation(
 
             active_auth_keys.app_pubkey == auth.app
                 && active_auth_keys.recovery_pubkey == auth.recovery
+        }
+        AccountValidationRequest::CreateFullAccountV2 { auth, spend, .. } => {
+            let Account::Full(full_account) = existing_account else {
+                return false;
+            };
+
+            let (Some(active_auth_keys), Some(active_spending_keyset)) = (
+                full_account.active_auth_keys(),
+                full_account.active_spending_keyset(),
+            ) else {
+                return false;
+            };
+
+            let Some(active_spending_keyset) = active_spending_keyset.optional_private_multi_sig()
+            else {
+                return false;
+            };
+
+            active_auth_keys.app_pubkey == auth.app_pub
+                && active_auth_keys.hardware_pubkey == auth.hardware_pub
+                && active_auth_keys.recovery_pubkey == Some(auth.recovery_pub)
+                && active_spending_keyset.app_pub == spend.app_pub
+                && active_spending_keyset.hardware_pub == spend.hardware_pub
         }
         _ => false,
     }

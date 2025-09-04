@@ -1,6 +1,8 @@
 # Goose AI Rules Reference
 
-AI rule files for the Bitkey mobile app codebase. Reference these rule files when coding - they contain architectural patterns, coding standards, and implementation guidelines specific to this project.
+AI rules for the Bitkey mobile app. **Read actual rule content - don't assume based on filenames alone.**
+
+**Apply all rules below during code reviews and code generation.**
 
 ## Architecture & Structure Rules
 - **ai-rules/bitkey-mobile.mdc** - Entry point index for all mobile app AI rules, architecture patterns, and module organization
@@ -18,6 +20,7 @@ AI rule files for the Bitkey mobile app codebase. Reference these rule files whe
 ## Data Access & Backend Integration
 - **ai-rules/dao-pattern.mdc** - Data Access Object pattern for SQLDelight database operations and local storage
 - **ai-rules/f8e-clients.mdc** - F8e API client implementation patterns, networking, authentication, and error handling
+- **ai-rules/factory-pattern.mdc** - Factory pattern for selecting implementations at runtime based on persisted, runtime, or external state
 
 ## UI & Presentation Layer
 - **ai-rules/ui-state-machines.mdc** - Overview index for UI State Machine patterns using Jetpack Compose Runtime

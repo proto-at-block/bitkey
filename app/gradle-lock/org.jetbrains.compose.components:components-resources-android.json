@@ -2,7 +2,7 @@
     "module-identifier": "org.jetbrains.compose.components:components-resources-android",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {

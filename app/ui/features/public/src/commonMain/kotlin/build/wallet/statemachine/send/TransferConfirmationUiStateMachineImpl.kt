@@ -214,10 +214,25 @@ class TransferConfirmationUiStateMachineImpl(
         }
       ).asModalScreen()
       is VerifyingTransactionUiState -> LoadingBodyModel(
-        message = "Waiting for transaction...",
+        message = "Waiting for verification...",
         onBack = props.onBack,
         id = null,
-        eventTrackerShouldTrack = false
+        eventTrackerShouldTrack = false,
+        primaryButton = ButtonModel(
+          text = "Resend Email",
+          onClick = StandardClick {
+            uiState = ConfirmVerificationUiState(state.psbt)
+          },
+          size = ButtonModel.Size.Footer
+        ),
+        secondaryButton = ButtonModel(
+          text = "Cancel verification",
+          onClick = StandardClick {
+            uiState = CanceledVerificationUiState
+          },
+          treatment = ButtonModel.Treatment.SecondaryDestructive,
+          size = ButtonModel.Size.Footer
+        )
       ).asModalScreen()
       is RejectedConfirmationUiState -> TransactionCanceledBodyModel(
         id = TxVerificationEventTrackerScreenId.VERIFICATION_REJECTED,
@@ -233,6 +248,10 @@ class TransferConfirmationUiStateMachineImpl(
         subline = "Please try again later.",
         primaryButton = ButtonDataModel(text = "Got it", onClick = props.onExit),
         eventTrackerScreenId = TxVerificationEventTrackerScreenId.VERIFICATION_ERROR
+      ).asModalScreen()
+      is CanceledVerificationUiState -> TransactionCanceledBodyModel(
+        id = TxVerificationEventTrackerScreenId.VERIFICATION_CANCELED,
+        onExit = props.onBack
       ).asModalScreen()
       ReceivedBdkErrorUiState ->
         ErrorFormBodyModel(
@@ -682,6 +701,11 @@ private sealed interface TransferConfirmationUiState {
    * Transaction canceled notification when the user has not completed verification in time.
    */
   data object ExpiredConfirmationUiState : TransferConfirmationUiState
+
+  /**
+   * Transaction canceled notification when the user has explicitly canceled the verification.
+   */
+  data object CanceledVerificationUiState : TransferConfirmationUiState
 
   /**
    * Error state shown if verification fails due to an unexpected error.

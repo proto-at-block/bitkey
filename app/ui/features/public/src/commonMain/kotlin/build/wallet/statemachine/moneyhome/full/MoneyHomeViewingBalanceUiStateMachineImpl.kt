@@ -55,6 +55,8 @@ import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransact
 import build.wallet.statemachine.partnerships.AddBitcoinBottomSheetDisplayState
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
+import build.wallet.statemachine.partnerships.transferlink.PartnerTransferLinkProps
+import build.wallet.statemachine.partnerships.transferlink.PartnerTransferLinkUiStateMachine
 import build.wallet.statemachine.settings.full.device.fingerprints.AddAdditionalFingerprintGettingStartedModel
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
@@ -100,6 +102,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val securityActionsService: SecurityActionsService,
   private val refreshExecutor: RefreshExecutor,
+  private val partnerTransferLinkUiStateMachine: PartnerTransferLinkUiStateMachine,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -188,19 +191,17 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                 }
               }
             ),
-          cardsModel =
-            MoneyHomeCardsModel(
-              props = props,
-              onShowAlert = { alertModel = it },
-              onDismissAlert = { alertModel = null }
-            ),
-          buttonsModel =
-            MoneyHomeButtonsModel(
-              props = props,
-              appFunctionalityStatus = appFunctionalityStatus,
-              onShowAlert = { alertModel = it },
-              onDismissAlert = { alertModel = null }
-            ),
+          cardsModel = MoneyHomeCardsModel(
+            props = props,
+            onShowAlert = { alertModel = it },
+            onDismissAlert = { alertModel = null }
+          ),
+          buttonsModel = MoneyHomeButtonsModel(
+            props = props,
+            appFunctionalityStatus = appFunctionalityStatus,
+            onShowAlert = { alertModel = it },
+            onDismissAlert = { alertModel = null }
+          ),
           transactionsModel = transactionsModel?.let {
             ListModel(
               headerText = "Recent activity",
@@ -296,41 +297,57 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           isSecurityHubBadged = securityActionsService.hasRecommendationsRequiringAttention()
             .collectAsState(false).value
         ),
-        bottomSheetModel =
-          MoneyHomeBottomSheetModel(
-            props = props,
-            onShowAlert = { alertModel = it },
-            onDismissAlert = { alertModel = null }
-          ),
+        bottomSheetModel = MoneyHomeBottomSheetModel(
+          props = props,
+          onShowAlert = { alertModel = it },
+          onDismissAlert = { alertModel = null }
+        ),
         statusBannerModel = props.homeStatusBannerModel
       )
 
-    return when (val contact = props.state.selectedContact) {
-      null -> viewingBalanceModel
-      is Invitation ->
-        viewingInvitationUiStateMachine.model(
-          ViewingInvitationProps(
-            hostScreen = viewingBalanceModel,
-            fullAccount = props.account as FullAccount,
-            invitation = contact,
+    return if (props.state.partnerTransferLinkRequest != null) {
+      partnerTransferLinkUiStateMachine.model(
+        PartnerTransferLinkProps(
+          hostScreen = viewingBalanceModel,
+          request = props.state.partnerTransferLinkRequest,
+          onComplete = {
+            // Clear the request and return to normal viewing balance
+            props.setState(props.state.copy(partnerTransferLinkRequest = null))
+          },
+          onExit = {
+            // Clear the request and return to normal viewing balance
+            props.setState(props.state.copy(partnerTransferLinkRequest = null))
+          }
+        )
+      )
+    } else {
+      when (val contact = props.state.selectedContact) {
+        null -> viewingBalanceModel
+        is Invitation ->
+          viewingInvitationUiStateMachine.model(
+            ViewingInvitationProps(
+              hostScreen = viewingBalanceModel,
+              fullAccount = props.account as FullAccount,
+              invitation = contact,
+              onExit = {
+                props.setState(props.state.copy(selectedContact = null))
+              }
+            )
+          )
+        else -> viewingRecoveryContactUiStateMachine.model(
+          ViewingRecoveryContactProps(
+            screenBody = viewingBalanceModel.body,
+            recoveryContact = contact,
+            account = props.account as FullAccount,
+            afterContactRemoved = {
+              props.setState(props.state.copy(selectedContact = null))
+            },
             onExit = {
               props.setState(props.state.copy(selectedContact = null))
             }
           )
         )
-      else -> viewingRecoveryContactUiStateMachine.model(
-        ViewingRecoveryContactProps(
-          screenBody = viewingBalanceModel.body,
-          recoveryContact = contact,
-          account = props.account as FullAccount,
-          afterContactRemoved = {
-            props.setState(props.state.copy(selectedContact = null))
-          },
-          onExit = {
-            props.setState(props.state.copy(selectedContact = null))
-          }
-        )
-      )
+      }
     }
   }
 
@@ -492,140 +509,135 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
   ): SheetModel? {
-    return when (val globalBottomSheet = props.homeBottomSheetModel) {
-      null -> {
-        when (val currentState = props.state.bottomSheetDisplayState) {
-          is Partners ->
-            addBitcoinUiStateMachine.model(
-              props =
-                AddBitcoinUiProps(
-                  account = props.account as FullAccount,
-                  initialState = currentState.initialState,
-                  keybox = props.account.keybox,
-                  onAnotherWalletOrExchange = { props.setState(ReceiveFlowUiState) },
-                  onPartnerRedirected = { redirectMethod, transaction ->
-                    handlePartnerRedirected(
-                      method = redirectMethod,
-                      transaction = transaction,
-                      props = props,
-                      onShowAlert = onShowAlert,
-                      onDismissAlert = onDismissAlert
-                    )
-                  },
-                  onExit = {
-                    props.setState(props.state.copy(bottomSheetDisplayState = null))
-                  },
-                  onSelectCustomAmount = { minAmount, maxAmount ->
-                    props.setState(SelectCustomPartnerPurchaseAmountState(minAmount, maxAmount))
-                  }
-                )
-            )
-          is MobilePay -> {
-            if (currentState.skipped) {
-              LaunchedEffect("skipping-saving-spending-limit") {
-                gettingStartedTaskDao.updateTask(
-                  id = GettingStartedTask.TaskId.EnableSpendingLimit,
-                  state = GettingStartedTask.TaskState.Complete
-                ).onSuccess { eventTracker.track(Action.ACTION_APP_MOBILE_TRANSACTION_SKIP) }
-                props.setState(props.state.copy(bottomSheetDisplayState = null))
-              }
-            }
-            val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
-            MobilePayOnboardingScreenModel(
-              onContinue = { props.setState(SetSpendingLimitFlowUiState) },
-              onSetUpLater = {
-                props.setState(
-                  props.state.copy(
-                    bottomSheetDisplayState = MobilePay(skipped = true)
-                  )
+    return when (val currentState = props.state.bottomSheetDisplayState) {
+      is Partners ->
+        addBitcoinUiStateMachine.model(
+          props =
+            AddBitcoinUiProps(
+              account = props.account as FullAccount,
+              initialState = currentState.initialState,
+              keybox = props.account.keybox,
+              onAnotherWalletOrExchange = { props.setState(ReceiveFlowUiState) },
+              onPartnerRedirected = { redirectMethod, transaction ->
+                handlePartnerRedirected(
+                  method = redirectMethod,
+                  transaction = transaction,
+                  props = props,
+                  onShowAlert = onShowAlert,
+                  onDismissAlert = onDismissAlert
                 )
               },
-              onClosed = onClosed,
-              headerHeadline = "Transfer without hardware",
-              headerSubline = "Spend up to a set daily limit without your Bitkey device.",
-              primaryButtonString = "Got it"
-            ).asSheetModalScreen(onClosed)
-          }
-          is TrustedContact -> {
-            // This has been done here instead of InviteTrustedContactFlowUiStateMachineImpl
-            // It's because when done inside there, due to race condition where
-            // returning ScreenModel shows up first instead of MoneyHomeViewingBalance screen
-            // Maybe due to how long the "gettingStartedTaskDao.updateTask" operation takes
-            if (currentState.skipped) {
-              LaunchedEffect("skipping-invite-task") {
-                gettingStartedTaskDao.updateTask(
-                  id = GettingStartedTask.TaskId.InviteTrustedContact,
-                  state = GettingStartedTask.TaskState.Complete
-                )
+              onExit = {
                 props.setState(props.state.copy(bottomSheetDisplayState = null))
-              }
-            }
-            val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
-            ViewingAddTrustedContactFormBodyModel(
-              onAddTrustedContact = { props.setState(InviteTrustedContactFlow) },
-              onSkip = {
-                props.setState(
-                  props.state.copy(
-                    bottomSheetDisplayState = TrustedContact(
-                      skipped = true
-                    )
-                  )
-                )
               },
-              onClosed = onClosed
-            ).asSheetModalScreen(onClosed)
-          }
-          is AddingAdditionalFingerprint -> {
-            if (currentState.skipped) {
-              LaunchedEffect("skipping-add-additional-fingerprint") {
-                gettingStartedTaskDao.updateTask(
-                  id = GettingStartedTask.TaskId.AddAdditionalFingerprint,
-                  state = GettingStartedTask.TaskState.Complete
-                ).onSuccess {
-                  eventTracker.track(Action.ACTION_APP_ADD_ADDITIONAL_FINGERPRINT_SKIP)
-                }
-                props.setState(props.state.copy(bottomSheetDisplayState = null))
-              }
-            }
-            val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
-            AddAdditionalFingerprintGettingStartedModel(
-              onContinue = { props.setState(AddAdditionalFingerprintUiState) },
-              onSetUpLater = {
-                props.setState(
-                  props.state.copy(
-                    bottomSheetDisplayState = AddingAdditionalFingerprint(skipped = true)
-                  )
-                )
-              },
-              onClosed = onClosed
-            ).asSheetModalScreen(onClosed)
-          }
-          PromptingForFwUpUiState -> {
-            val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
-            val fwupState = remember { firmwareDataService.firmwareData() }
-              .collectAsState()
-              .value.firmwareUpdateState
-
-            PromptingForFingerprintFwUpSheetModel(
-              onCancel = onClosed,
-              onUpdate = {
-                when (fwupState) {
-                  is FirmwareData.FirmwareUpdateState.PendingUpdate -> props.setState(
-                    FwupFlowUiState(fwupState)
-                  )
-                  FirmwareData.FirmwareUpdateState.UpToDate -> props.setState(
-                    props.state.copy(
-                      bottomSheetDisplayState = null
-                    )
-                  )
-                }
+              onSelectCustomAmount = { minAmount, maxAmount ->
+                props.setState(SelectCustomPartnerPurchaseAmountState(minAmount, maxAmount))
               }
             )
+        )
+      is MobilePay -> {
+        if (currentState.skipped) {
+          LaunchedEffect("skipping-saving-spending-limit") {
+            gettingStartedTaskDao.updateTask(
+              id = GettingStartedTask.TaskId.EnableSpendingLimit,
+              state = GettingStartedTask.TaskState.Complete
+            ).onSuccess { eventTracker.track(Action.ACTION_APP_MOBILE_TRANSACTION_SKIP) }
+            props.setState(props.state.copy(bottomSheetDisplayState = null))
           }
-          null -> null
         }
+        val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+        MobilePayOnboardingScreenModel(
+          onContinue = { props.setState(SetSpendingLimitFlowUiState) },
+          onSetUpLater = {
+            props.setState(
+              props.state.copy(
+                bottomSheetDisplayState = MobilePay(skipped = true)
+              )
+            )
+          },
+          onClosed = onClosed,
+          headerHeadline = "Transfer without hardware",
+          headerSubline = "Spend up to a set daily limit without your Bitkey device.",
+          primaryButtonString = "Got it"
+        ).asSheetModalScreen(onClosed)
       }
-      else -> globalBottomSheet
+      is TrustedContact -> {
+        // This has been done here instead of InviteTrustedContactFlowUiStateMachineImpl
+        // It's because when done inside there, due to race condition where
+        // returning ScreenModel shows up first instead of MoneyHomeViewingBalance screen
+        // Maybe due to how long the "gettingStartedTaskDao.updateTask" operation takes
+        if (currentState.skipped) {
+          LaunchedEffect("skipping-invite-task") {
+            gettingStartedTaskDao.updateTask(
+              id = GettingStartedTask.TaskId.InviteTrustedContact,
+              state = GettingStartedTask.TaskState.Complete
+            )
+            props.setState(props.state.copy(bottomSheetDisplayState = null))
+          }
+        }
+        val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+        ViewingAddTrustedContactFormBodyModel(
+          onAddTrustedContact = { props.setState(InviteTrustedContactFlow) },
+          onSkip = {
+            props.setState(
+              props.state.copy(
+                bottomSheetDisplayState = TrustedContact(
+                  skipped = true
+                )
+              )
+            )
+          },
+          onClosed = onClosed
+        ).asSheetModalScreen(onClosed)
+      }
+      is AddingAdditionalFingerprint -> {
+        if (currentState.skipped) {
+          LaunchedEffect("skipping-add-additional-fingerprint") {
+            gettingStartedTaskDao.updateTask(
+              id = GettingStartedTask.TaskId.AddAdditionalFingerprint,
+              state = GettingStartedTask.TaskState.Complete
+            ).onSuccess {
+              eventTracker.track(Action.ACTION_APP_ADD_ADDITIONAL_FINGERPRINT_SKIP)
+            }
+            props.setState(props.state.copy(bottomSheetDisplayState = null))
+          }
+        }
+        val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+        AddAdditionalFingerprintGettingStartedModel(
+          onContinue = { props.setState(AddAdditionalFingerprintUiState) },
+          onSetUpLater = {
+            props.setState(
+              props.state.copy(
+                bottomSheetDisplayState = AddingAdditionalFingerprint(skipped = true)
+              )
+            )
+          },
+          onClosed = onClosed
+        ).asSheetModalScreen(onClosed)
+      }
+      PromptingForFwUpUiState -> {
+        val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+        val fwupState = remember { firmwareDataService.firmwareData() }
+          .collectAsState()
+          .value.firmwareUpdateState
+
+        PromptingForFingerprintFwUpSheetModel(
+          onCancel = onClosed,
+          onUpdate = {
+            when (fwupState) {
+              is FirmwareData.FirmwareUpdateState.PendingUpdate -> props.setState(
+                FwupFlowUiState(fwupState)
+              )
+              FirmwareData.FirmwareUpdateState.UpToDate -> props.setState(
+                props.state.copy(
+                  bottomSheetDisplayState = null
+                )
+              )
+            }
+          }
+        )
+      }
+      null -> null
     }
   }
 

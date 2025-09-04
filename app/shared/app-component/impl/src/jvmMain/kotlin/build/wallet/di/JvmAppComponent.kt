@@ -7,6 +7,7 @@ import bitkey.f8e.privilegedactions.ConfigureDelayDurationF8eClient
 import bitkey.metrics.MetricTrackerService
 import bitkey.onboarding.CreateLiteAccountService
 import bitkey.privilegedactions.FingerprintResetService
+import bitkey.recovery.DescriptorBackupService
 import bitkey.recovery.RecoveryStatusService
 import bitkey.recovery.fundslost.FundsLostRiskService
 import build.wallet.account.AccountService
@@ -22,8 +23,10 @@ import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupV2Restorer
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
+import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.SekGenerator
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.backup.socrec.SocRecCloudBackupSyncWorker
@@ -123,6 +126,8 @@ interface JvmAppComponent {
   val fileDirectoryProvider: FileDirectoryProvider
   val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService
   val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator
+  val cloudBackupV2Restorer: CloudBackupV2Restorer
+  val csekDao: CsekDao
   val fundsRiskLossService: FundsLostRiskService
   val gettingStartedTaskDao: GettingStartedTaskDao
   val inheritanceUpsellService: InheritanceUpsellService
@@ -173,4 +178,5 @@ interface JvmAppComponent {
   val metricTrackerService: MetricTrackerService
   val inheritanceUseEncryptedDescriptorFeatureFlag: InheritanceUseEncryptedDescriptorFeatureFlag
   val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag
+  val descriptorBackupService: DescriptorBackupService
 }

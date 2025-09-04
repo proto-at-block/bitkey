@@ -63,10 +63,10 @@ class DescriptorBackupsF8eFunctionalTests : FunSpec({
       .shouldBe(listOf(descriptorBackup))
 
     // New descriptors need new keysets.
-    val newKeyset = app.createLostHardwareKeyset(account)
+    val keyboxWithNewKeyset = app.createLostHardwareKeyset(account)
     // Create a new backup
     val secondDescriptor = DescriptorBackup(
-      keysetId = newKeyset.f8eSpendingKeyset.keysetId,
+      keysetId = keyboxWithNewKeyset.newKeyset.f8eSpendingKeyset.keysetId,
       sealedDescriptor = XCiphertext("barfoo")
     )
 

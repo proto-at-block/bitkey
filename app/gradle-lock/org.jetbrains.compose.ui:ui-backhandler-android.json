@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-backhandler-android",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-backhandler-release.aar": "2b9bd8be8e729ad6c37e616b0d3126052c20b5133643cb9cfa516c3a5cb71b46"
+                        "ui-backhandler-release.aar": "b274685f6dbdfcb1a7a987af701746ccdf7383af54aafb121e7e86869e5b9028"
                     }
                 }
             ],

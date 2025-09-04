@@ -28,9 +28,12 @@ pub struct CustomerKey {
     /// The bitcoin network type to be used with the customer's root key
     #[serde(default)]
     pub network: Option<Network>,
+    #[serde(default, alias = "integrity_signature")]
+    /// Signature over the server xpub key using the WSM integrity key
+    pub xpub_integrity_sig: Option<String>,
     #[serde(default)]
     /// Signature over the server public key using the WSM integrity key
-    pub integrity_signature: Option<String>,
+    pub pub_integrity_sig: Option<String>,
 }
 
 impl CustomerKey {
@@ -42,7 +45,8 @@ impl CustomerKey {
         dek_id: String,
         xpubs: Vec<DomainFactoredXpub>,
         network: Network,
-        integrity_signature: String,
+        xpub_integrity_sig: String,
+        pub_integrity_sig: String,
     ) -> Self {
         Self {
             root_key_id,
@@ -52,7 +56,8 @@ impl CustomerKey {
             dek_id,
             xpubs,
             network: Some(network),
-            integrity_signature: Some(integrity_signature),
+            xpub_integrity_sig: Some(xpub_integrity_sig),
+            pub_integrity_sig: Some(pub_integrity_sig),
         }
     }
 }
@@ -125,5 +130,31 @@ impl CustomerKeyStore {
             .context("Failed to update customer key integrity signature in DynamoDB")?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::dependencies::customer_key_store::CustomerKey;
+
+    #[test]
+    fn test_backcompat_dserialize() {
+        let old_customer_key = r#"{
+            "root_key_id": "test_root_key_id",
+            "key_ciphertext": "test_key_ciphertext",
+            "key_nonce": "test_key_nonce",
+            "xpub_descriptor": "test_xpub_descriptor",
+            "dek_id": "test_dek_id",
+            "xpubs": [],
+            "network": "signet",
+            "integrity_signature": "test_integrity_signature"
+        }"#;
+
+        let customer_key: CustomerKey = serde_json::from_str(old_customer_key).unwrap();
+        assert_eq!(
+            customer_key.xpub_integrity_sig,
+            Some("test_integrity_signature".to_string())
+        );
+        assert_eq!(customer_key.pub_integrity_sig, None);
     }
 }

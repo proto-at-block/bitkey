@@ -31,8 +31,14 @@ enum class HardwareRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Loading screen shown when creating spending keys for hardware D+N */
   LOST_HW_DELAY_NOTIFY_CREATING_SPENDING_KEYS,
 
+  /** Loading screen shown when activating spending keys for hardware D+N */
+  LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS,
+
   /** Error screen shown when creating spending keys fails for lost hardware D+N */
   LOST_HW_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR,
+
+  /** Error screen shown when activating spending keys fails for lost hardware D+N */
+  LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS_ERROR,
 
   /** Failed to sync socrec relationships error */
   LOST_HW_DELAY_NOTIFY_TRUSTED_CONTACT_SYNC_ERROR,

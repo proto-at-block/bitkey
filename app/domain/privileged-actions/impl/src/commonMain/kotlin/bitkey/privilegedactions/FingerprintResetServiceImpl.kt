@@ -115,22 +115,13 @@ class FingerprintResetServiceImpl(
         .mapError { PrivilegedActionError.IncorrectAccountType }
         .bind()
 
-      val instances = privilegedActionF8eClient.getPrivilegedActionInstances(
-        f8eEnvironment = account.config.f8eEnvironment,
-        fullAccountId = account.accountId
-      ).mapError { throwable: Throwable -> PrivilegedActionError.ServerError(throwable) }
-        .bind()
-
-      val actionInstance = instances.find { it.id == actionId }
-        ?: Err(PrivilegedActionError.NotAuthorized).bind()
-
       val auth = Authorization(
         authorizationStrategyType = AuthorizationStrategyType.DELAY_AND_NOTIFY,
         completionToken = completionToken
       )
 
       val actionRef = PrivilegedActionInstanceRef(
-        id = actionInstance.id,
+        id = actionId,
         authorizationStrategy = auth
       )
 

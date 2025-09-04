@@ -90,7 +90,7 @@ class AppDataDeleterImpl(
       onboardingKeyboxHardwareKeysDao.clear()
       mobilePayService.deleteLocal()
       outgoingTransactionDetailDao.clear()
-      fwupDataDaoProvider.get().clear()
+      fwupDataDaoProvider.get().value.clear()
       firmwareDeviceInfoDao.clear()
       firmwareMetadataDao.clear()
       authTokensService.clear()

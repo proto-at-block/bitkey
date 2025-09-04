@@ -26,13 +26,18 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
 import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClient
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
+import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth.WithDescriptorBackups
+import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth.WithDirectKeys
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
@@ -53,6 +58,7 @@ class LostAppAndCloudRecoveryServiceImpl(
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val initiateAccountDelayNotifyF8eClient: InitiateAccountDelayNotifyF8eClient,
   private val recoveryDao: RecoveryDao,
+  private val useEncryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
 ) : LostAppAndCloudRecoveryService {
   override suspend fun initiateAuth(
     hwAuthKey: HwAuthPublicKey,
@@ -85,23 +91,46 @@ class LostAppAndCloudRecoveryServiceImpl(
         deviceTokenManager.addDeviceTokenIfPresentForAccount(accountId, Global)
 
         val accountConfig = accountConfigService.defaultConfig().value
-        // Get existing keysets
-        val keysets = listKeysetsF8eClient
+        // Get existing keysets and descriptor backups
+        val listKeysetsResponse = listKeysetsF8eClient
           .listKeysets(accountConfig.f8eEnvironment, accountId)
           .bind()
-          .keysets
 
         val destinationAppKeys = appKeysGenerator
           .generateKeyBundle()
           .bind()
 
-        CompletedAuth(
-          accountId = accountId,
-          authTokens = authTokens,
-          hwAuthKey = hwAuthKey,
-          destinationAppKeys = destinationAppKeys,
-          existingHwSpendingKeys = keysets.map { it.hardwareKey }
-        )
+        // Check if we have descriptor backups available
+        val descriptorBackups = listKeysetsResponse.descriptorBackups.orEmpty()
+        val wrappedSsek = listKeysetsResponse.wrappedSsek
+        val keysets = listKeysetsResponse.keysets
+
+        // Backups are valid if they equal the number of keysets we have, or in the future where
+        // we no longer store keysets, when the keysets are empty.
+        val backupsAreUpToDate = descriptorBackups.isNotEmpty() && wrappedSsek != null &&
+          (descriptorBackups.size == keysets.size || keysets.isEmpty())
+
+        if (backupsAreUpToDate && useEncryptedDescriptorBackupsFeatureFlag.isEnabled()) {
+          logInfo { "Using descriptor backups to initiate lost app & cloud recovery" }
+          WithDescriptorBackups(
+            accountId = accountId,
+            authTokens = authTokens,
+            hwAuthKey = hwAuthKey,
+            destinationAppKeys = destinationAppKeys,
+            descriptorBackups = descriptorBackups,
+            wrappedSsek = wrappedSsek
+          )
+        } else {
+          // No descriptor backups available, use keysets directly
+          logInfo { "Using remote keysets to initiate lost app & cloud recovery" }
+          WithDirectKeys(
+            accountId = accountId,
+            authTokens = authTokens,
+            hwAuthKey = hwAuthKey,
+            destinationAppKeys = destinationAppKeys,
+            existingHwSpendingKeys = keysets.map { it.hardwareKey }
+          )
+        }
       }
     }
 

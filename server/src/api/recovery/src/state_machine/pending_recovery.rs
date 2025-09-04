@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use types::account::entities::FullAccountAuthKeysPayload;
+use types::account::entities::FullAccountAuthKeysInput;
 use utoipa::ToSchema;
 
 use super::{
@@ -38,7 +38,7 @@ impl RecoveryStateResponse for PendingRecoveryState {
                 delay_start_time: self.recovery.created_at,
                 delay_end_time: requirements.delay_end_time,
                 lost_factor: requirements.lost_factor,
-                auth_keys: FullAccountAuthKeysPayload {
+                auth_keys: FullAccountAuthKeysInput {
                     app: destination.app_auth_pubkey,
                     hardware: destination.hardware_auth_pubkey,
                     recovery: destination.recovery_auth_pubkey,

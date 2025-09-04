@@ -12,7 +12,7 @@ class SealDelegatedDecryptionKey(
   private val success: suspend (SealedDataResult) -> Unit,
   private val failure: () -> Unit,
   override val needsAuthentication: Boolean = true,
-  override val shouldLock: Boolean = false,
+  override val shouldLock: Boolean = true,
 ) : NfcTransaction<SealedDataResult> {
   override suspend fun session(
     session: NfcSession,

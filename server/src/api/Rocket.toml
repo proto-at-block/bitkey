@@ -97,6 +97,7 @@ analytics_api_url = "https://api.segment.io"
 # Iterable
 iterable.mode = "environment"
 iterable.comms_verification_campaign_id = 9281957
+iterable.privileged_action_delay_notify_update_campaign_id = 14392851
 iterable.privileged_action_canceled_out_of_band_verification_campaign_id = 13993615
 iterable.privileged_action_completed_out_of_band_verification_campaign_id = 13993614
 iterable.privileged_action_pending_out_of_band_verification_campaign_id = 13993611
@@ -172,6 +173,7 @@ analytics_api_url = "https://api.segment.io"
 # Iterable
 iterable.mode = "environment"
 iterable.comms_verification_campaign_id = 9281957
+iterable.privileged_action_delay_notify_update_campaign_id = 14392851
 iterable.privileged_action_canceled_out_of_band_verification_campaign_id = 13993615
 iterable.privileged_action_completed_out_of_band_verification_campaign_id = 13993614
 iterable.privileged_action_pending_out_of_band_verification_campaign_id = 13993611
@@ -248,6 +250,7 @@ analytics_api_url = "https://api.segment.io"
 # Iterable
 iterable.mode = "environment"
 iterable.comms_verification_campaign_id = 9282843
+iterable.privileged_action_delay_notify_update_campaign_id = 14392787
 iterable.privileged_action_canceled_out_of_band_verification_campaign_id = 13993609
 iterable.privileged_action_completed_out_of_band_verification_campaign_id = 13993605
 iterable.privileged_action_pending_out_of_band_verification_campaign_id = 13993591

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.components:components-resources",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "library-metadata-1.8.0.jar": "740b12da94693a6dd17bc01d233b6ae3cc0c09f32c7dcb33ddce7aefc5da8696"
+                        "library-metadata-1.8.1.jar": "740b12da94693a6dd17bc01d233b6ae3cc0c09f32c7dcb33ddce7aefc5da8696"
                     }
                 }
             ],

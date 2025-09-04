@@ -54,7 +54,7 @@ class FirmwareDataServiceImpl(
       launch {
         combine(
           firmwareDeviceInfoDao.deviceInfo(),
-          fwupDataDaoProvider.get().fwupData()
+          fwupDataDaoProvider.get().flatMapLatest { dao -> dao.fwupData() }
         ) { firmwareDeviceInfoResult, fwupDataResult ->
           val firmwareDeviceInfo = firmwareDeviceInfoResult.get()
           val fwupData = fwupDataResult.get()
@@ -81,7 +81,7 @@ class FirmwareDataServiceImpl(
         logError { "Firmware device info null after fwup. This should not happen" }
       }
 
-      fwupDataDaoProvider.get().clear().bind()
+      fwupDataDaoProvider.get().value.clear().bind()
     }
   }
 
@@ -108,9 +108,9 @@ class FirmwareDataServiceImpl(
 
         when (fwupData) {
           // No update needed, clear anything in [FwupDataDao] just in case there's something there
-          null -> fwupDataDaoProvider.get().clear().bind()
+          null -> fwupDataDaoProvider.get().value.clear().bind()
           // There's an update, store it locally to be ready to apply to the HW
-          else -> fwupDataDaoProvider.get().setFwupData(fwupData).bind()
+          else -> fwupDataDaoProvider.get().value.setFwupData(fwupData).bind()
         }
       }
     }

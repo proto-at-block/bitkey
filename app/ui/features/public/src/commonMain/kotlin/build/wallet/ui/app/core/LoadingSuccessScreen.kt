@@ -17,6 +17,7 @@ import bitkey.ui.framework_public.generated.resources.loader_static
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Success
 import build.wallet.ui.app.core.form.FormScreen
+import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
@@ -87,6 +88,22 @@ fun LoadingSuccessScreen(
         // Always show the label regardless of if there's a message or not so that
         // the loading and success states line up
         Label(text = model.message ?: " ", type = LabelType.Title1)
+      }
+    },
+    footerContent = {
+      val buttons = listOfNotNull(
+        model.primaryButton,
+        model.secondaryButton
+      )
+      if (buttons.isNotEmpty()) {
+        Column {
+          buttons.forEach { buttonModel ->
+            if (buttonModel != buttons.first()) {
+              Spacer(modifier = Modifier.height(16.dp))
+            }
+            Button(model = buttonModel)
+          }
+        }
       }
     }
   )

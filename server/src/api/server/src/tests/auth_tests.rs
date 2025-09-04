@@ -12,7 +12,7 @@ use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 use http::StatusCode;
 use onboarding::routes::CreateAccountRequest;
 use rstest::rstest;
-use types::account::entities::{FullAccountAuthKeysPayload, SpendingKeysetRequest};
+use types::account::entities::{FullAccountAuthKeysInput, SpendingKeysetInput};
 use types::account::identifiers::AccountId;
 
 use crate::tests::requests::axum::TestClient;
@@ -114,12 +114,12 @@ async fn auth_with_hw_test(
     let keys = create_new_authkeys(&mut context);
     // First, make an account
     let request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network,
             app: spending_app_xpub,
             hardware: spending_hw_xpub,
@@ -279,12 +279,12 @@ async fn auth_with_recovery_authkey_test(
     let recovery_privkey = keys.recovery.secret_key;
     // First, make an account
     let request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network,
             app: spending_app_xpub,
             hardware: spending_hw_xpub,

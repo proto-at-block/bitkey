@@ -45,9 +45,9 @@ use serde_json::{json, Value};
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network as AccountNetwork;
 use types::account::entities::{
-    DescriptorBackup, DescriptorBackupsSet, Factor, FullAccountAuthKeysPayload,
-    LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, Touchpoint,
-    TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
+    DescriptorBackup, DescriptorBackupsSet, Factor, FullAccountAuthKeysInput,
+    LiteAccountAuthKeysInput, SoftwareAccountAuthKeysInput, SpendingKeysetInput, Touchpoint,
+    TouchpointPlatform, UpgradeLiteAccountAuthKeysInput,
 };
 use types::account::identifiers::{KeysetId, TouchpointId};
 use types::account::AccountType;
@@ -91,7 +91,7 @@ async fn onboarding_test(
 
     let keys = create_new_authkeys(&mut context);
     let request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: if include_recovery_auth_pubkey {
@@ -100,7 +100,7 @@ async fn onboarding_test(
                 None
             },
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network,
             app: spending_app_xpub,
             hardware: spending_hw_xpub,
@@ -931,12 +931,12 @@ async fn test_duplicate_hw_auth_key_fails_onboarding() {
 
     let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::Testnet,
             app: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
             hardware: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
@@ -947,12 +947,12 @@ async fn test_duplicate_hw_auth_key_fails_onboarding() {
     assert_eq!(actual_response.status_code, StatusCode::OK,);
 
     let second_request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: create_pubkey(),
             hardware: keys.hw.public_key,
             recovery: Some(create_pubkey()),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::Testnet,
             app: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
             hardware: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
@@ -971,12 +971,12 @@ async fn test_duplicate_recovery_auth_key_fails_onboarding() {
 
     let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::Testnet,
             app: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
             hardware: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
@@ -988,12 +988,12 @@ async fn test_duplicate_recovery_auth_key_fails_onboarding() {
 
     let new_keys = create_new_authkeys(&mut context);
     let second_request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: new_keys.app.public_key,
             hardware: new_keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::Testnet,
             app: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
             hardware: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
@@ -1012,12 +1012,12 @@ async fn test_idempotent_account_creation() {
 
     let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::Testnet,
             app: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
             hardware: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
@@ -1029,12 +1029,12 @@ async fn test_idempotent_account_creation() {
 
     let new_keys = create_new_authkeys(&mut context);
     let second_request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: new_keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::Testnet,
             app: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
             hardware: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
@@ -1057,12 +1057,12 @@ async fn idempotent_create_account_test(
 
     let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::Testnet,
             app: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
             hardware: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
@@ -1091,12 +1091,12 @@ async fn idempotent_create_account_test(
     };
 
     let second_request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: app_pubkey,
             hardware: hw_pubkey,
             recovery: recovery_pubkey,
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::Testnet,
             app: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
             hardware: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
@@ -1147,12 +1147,12 @@ async fn create_test_account_with_network(
     let (_, app_dpub) = create_descriptor_keys(network);
     let (_, hardware_dpub) = create_descriptor_keys(network);
     let first_request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::from(network),
             app: app_dpub,
             hardware: hardware_dpub,
@@ -1253,18 +1253,21 @@ async fn create_account_key_validation_test(
         other_account.active_spending_keyset().unwrap().clone()
     } else {
         create_spend_keyset(AccountNetwork::BitcoinSignet).0
-    };
+    }
+    .optional_legacy_multi_sig()
+    .unwrap()
+    .clone();
 
     let response = client
         .create_account(
             &mut context,
             &CreateAccountRequest::Full {
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: account_app_pubkey,
                     hardware: account_hardware_pubkey,
                     recovery: Some(account_recovery_pubkey),
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: Network::Signet,
                     app: spending_keyset.app_dpub,
                     hardware: spending_keyset.hardware_dpub,
@@ -1348,7 +1351,7 @@ async fn idempotent_create_lite_account_test(
 
     let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Lite {
-        auth: LiteAccountAuthKeysPayload {
+        auth: LiteAccountAuthKeysInput {
             recovery: keys.recovery.public_key,
         },
         is_test_account: true,
@@ -1363,7 +1366,7 @@ async fn idempotent_create_lite_account_test(
     };
 
     let second_request = CreateAccountRequest::Lite {
-        auth: LiteAccountAuthKeysPayload {
+        auth: LiteAccountAuthKeysInput {
             recovery: recovery_pubkey,
         },
         is_test_account: true,
@@ -1479,18 +1482,22 @@ async fn upgrade_account_test(
         hw: account_hardware_keypair.clone(),
         recovery: lite_account_recovery_keypair,
     });
-    let spending_keyset = create_spend_keyset(AccountNetwork::BitcoinSignet).0;
+    let spending_keyset = create_spend_keyset(AccountNetwork::BitcoinSignet)
+        .0
+        .optional_legacy_multi_sig()
+        .unwrap()
+        .clone();
 
     let response = client
         .upgrade_account(
             &mut context,
             &account.id.to_string(),
             &UpgradeAccountRequest {
-                auth: UpgradeLiteAccountAuthKeysPayload {
+                auth: UpgradeLiteAccountAuthKeysInput {
                     app: account_app_keypair.public_key,
                     hardware: account_hardware_keypair.public_key,
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: Network::Signet,
                     app: spending_keyset.app_dpub,
                     hardware: spending_keyset.hardware_dpub,
@@ -1571,18 +1578,22 @@ async fn test_upgrade_account_idempotency() {
         hw: new_keys.hw.clone(),
         recovery: lite_account_keys.recovery,
     });
-    let spending_keyset = create_spend_keyset(AccountNetwork::BitcoinSignet).0;
+    let spending_keyset = create_spend_keyset(AccountNetwork::BitcoinSignet)
+        .0
+        .optional_legacy_multi_sig()
+        .unwrap()
+        .clone();
 
     let response = client
         .upgrade_account(
             &mut context,
             &account.id.to_string(),
             &UpgradeAccountRequest {
-                auth: UpgradeLiteAccountAuthKeysPayload {
+                auth: UpgradeLiteAccountAuthKeysInput {
                     app: new_keys.app.public_key,
                     hardware: new_keys.hw.public_key,
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: Network::Signet,
                     app: spending_keyset.app_dpub.clone(),
                     hardware: spending_keyset.hardware_dpub.clone(),
@@ -1600,11 +1611,11 @@ async fn test_upgrade_account_idempotency() {
             &mut context,
             &account.id.to_string(),
             &UpgradeAccountRequest {
-                auth: UpgradeLiteAccountAuthKeysPayload {
+                auth: UpgradeLiteAccountAuthKeysInput {
                     app: new_keys.app.public_key,
                     hardware: new_keys.hw.public_key,
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: Network::Signet,
                     app: spending_keyset.app_dpub,
                     hardware: spending_keyset.hardware_dpub,
@@ -1730,12 +1741,12 @@ async fn test_revoked_access_token_add_push_touchpoint() {
 
     // First, make an account
     let request = CreateAccountRequest::Full {
-        auth: FullAccountAuthKeysPayload {
+        auth: FullAccountAuthKeysInput {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: None,
         },
-        spending: SpendingKeysetRequest {
+        spending: SpendingKeysetInput {
             network: Network::Signet,
             app: app_xpub,
             hardware: hw_xpub,
@@ -1848,7 +1859,7 @@ async fn idempotent_create_software_account_test(
 
     let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Software {
-        auth: SoftwareAccountAuthKeysPayload {
+        auth: SoftwareAccountAuthKeysInput {
             app: keys.app.public_key,
             recovery: keys.recovery.public_key,
         },
@@ -1869,7 +1880,7 @@ async fn idempotent_create_software_account_test(
     };
 
     let second_request = CreateAccountRequest::Software {
-        auth: SoftwareAccountAuthKeysPayload {
+        auth: SoftwareAccountAuthKeysInput {
             app: app_pubkey,
             recovery: recovery_pubkey,
         },
@@ -1920,7 +1931,7 @@ async fn software_onboarding_keygen_activation_test() {
 
     let keys = create_new_authkeys(&mut context);
     let request = CreateAccountRequest::Software {
-        auth: SoftwareAccountAuthKeysPayload {
+        auth: SoftwareAccountAuthKeysInput {
             app: keys.app.public_key,
             recovery: keys.recovery.public_key,
         },
@@ -2277,7 +2288,7 @@ async fn test_descriptor_backup(
         .create_keyset(
             &account.id.to_string(),
             &CreateKeysetRequest {
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: AccountNetwork::BitcoinSignet.into(),
                     app: DescriptorPublicKey::from_str("xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y").unwrap(),
                     hardware: DescriptorPublicKey::from_str("xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y").unwrap(),

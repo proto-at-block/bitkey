@@ -8,7 +8,11 @@ use types::{
 };
 
 use crate::{
+    email::EmailPayload,
     entities::NotificationCompositeKey,
+    payloads::privileged_action_notification_builder::{
+        DelayAndNotifyNotificationConfig, DelayNotifyEmailDataFields, DelayNotifyStatus,
+    },
     push::{AndroidChannelId, SNSPushPayload},
     sms::SmsPayload,
     NotificationError, NotificationMessage, NotificationPayloadType,
@@ -38,7 +42,8 @@ impl
         let (composite_key, payload) = v;
         let (account_id, _) = composite_key.clone();
 
-        let definition: PrivilegedActionDefinition = payload.privileged_action_type.into();
+        let privileged_action_type = payload.privileged_action_type;
+        let definition: PrivilegedActionDefinition = privileged_action_type.clone().into();
         let notification_summary = definition
             .authorization_strategies
             .get(&payload.account_type)
@@ -54,15 +59,21 @@ impl
                 )
             })?;
 
+        let config = DelayAndNotifyNotificationConfig::from(privileged_action_type);
         let message = format!(
             "Your request to {} is ready to be completed. Please open your Bitkey app.",
             notification_summary,
         );
+        let email_data_fields =
+            DelayNotifyEmailDataFields::new(DelayNotifyStatus::Completed, notification_summary);
 
         Ok(NotificationMessage {
             composite_key,
             account_id,
-            email_payload: None,
+            email_payload: Some(EmailPayload::Iterable {
+                campaign_type: config.campaign_types.completed,
+                data_fields: email_data_fields.into(),
+            }),
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
                 android_channel_id: AndroidChannelId::General, // TODO: should we make a new channel?

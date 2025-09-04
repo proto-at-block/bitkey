@@ -1,0 +1,10 @@
+import kotlin.Boolean;
+
+-- Add spendingKeysActivated column to track whether spending keys have been activated (not just created)
+-- This supports the separation of spending key creation and activation during recovery
+-- Before, we did both in one step before persisting the keyset, but we only want to activate a single spending keyset
+-- per D&N recovery, so we must activate in a second step post-keyset persistence
+ALTER TABLE localRecoveryAttemptEntity ADD COLUMN spendingKeysActivated INTEGER AS Boolean NOT NULL DEFAULT 0;
+
+-- Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

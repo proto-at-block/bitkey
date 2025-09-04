@@ -1,8 +1,6 @@
 package build.wallet.cloud.backup
 
 import bitkey.auth.AuthTokenScope
-import bitkey.serialization.json.decodeFromStringResult
-import bitkey.serialization.json.encodeToStringResult
 import build.wallet.auth.AuthTokensService
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
@@ -19,13 +17,13 @@ import build.wallet.logging.logInfo
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
-import kotlinx.serialization.json.Json
 
 @BitkeyInject(AppScope::class)
 class CloudBackupRepositoryImpl(
   private val cloudKeyValueStore: CloudKeyValueStore,
   private val cloudBackupDao: CloudBackupDao,
   private val authTokensService: AuthTokensService,
+  private val jsonSerializer: JsonSerializer,
 ) : CloudBackupRepository {
   // Key used to store backups in cloud key-value store
   private val cloudBackupKey = "cloud-backup"
@@ -46,7 +44,8 @@ class CloudBackupRepositoryImpl(
         else ->
           // Found encoded app data
           // Attempt to decode as V2 backup
-          Json.decodeFromStringResult<CloudBackupV2>(backupEncoded)
+          // When V3 is added, try V3 first then fall back to V2. See the cloud backup README.md.
+          jsonSerializer.decodeFromStringResult<CloudBackupV2>(backupEncoded)
             .mapError {
               UnrectifiableCloudBackupError(UnknownAppDataFoundError(it))
             }
@@ -64,7 +63,7 @@ class CloudBackupRepositoryImpl(
       // Encode backup to JSON
       val backupEncoded: String =
         when (backup) {
-          is CloudBackupV2 -> Json.encodeToStringResult<CloudBackupV2>(backup)
+          is CloudBackupV2 -> jsonSerializer.encodeToStringResult<CloudBackupV2>(backup)
         }
           .mapPossibleRectifiableErrors()
           .bind()

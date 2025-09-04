@@ -41,6 +41,9 @@ sealed class NfcException : Error() {
   /** Indicates unsealing the csek failed, likely due to using the wrong device. */
   class CommandErrorSealCsekResponseUnsealException : NfcException()
 
+  /** Indicates that a file was not found */
+  class CommandErrorFileNotFound : NfcException()
+
   class InauthenticHardware(
     override val message: String? = null,
     override val cause: Throwable? = null,

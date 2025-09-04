@@ -118,6 +118,8 @@ pub struct CreatedSigningKey {
     pub xpub: String,
     #[serde(default)]
     pub xpub_sig: String,
+    #[serde(default)]
+    pub pub_sig: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -159,7 +161,9 @@ pub struct GetIntegritySigRequest {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct GetIntegritySigResponse {
-    pub signature: String,
+    #[serde(alias = "signature")]
+    pub xpub_sig: String,
+    pub pub_sig: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

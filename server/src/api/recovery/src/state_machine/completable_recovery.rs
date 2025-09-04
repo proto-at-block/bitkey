@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use feature_flags::flag::evaluate_flag_value;
 use instrumentation::metrics::KeyValue;
 use types::account::entities::Account;
-use types::account::entities::{Factor, FullAccount, FullAccountAuthKeysPayload};
+use types::account::entities::{Factor, FullAccount, FullAccountAuthKeysInput};
 
 use super::{
     rotated_keyset::RotatedKeysetState, RecoveryEvent, RecoveryServices, RecoveryStateResponse,
@@ -40,7 +40,7 @@ impl RecoveryStateResponse for CompletableRecoveryState {
                 delay_start_time: self.recovery.created_at,
                 delay_end_time: requirements.delay_end_time,
                 lost_factor: requirements.lost_factor,
-                auth_keys: FullAccountAuthKeysPayload {
+                auth_keys: FullAccountAuthKeysInput {
                     app: action.destination.app_auth_pubkey,
                     hardware: action.destination.hardware_auth_pubkey,
                     recovery: action.destination.recovery_auth_pubkey

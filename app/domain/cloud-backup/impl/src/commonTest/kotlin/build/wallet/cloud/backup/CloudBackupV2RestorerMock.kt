@@ -3,6 +3,7 @@ package build.wallet.cloud.backup
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.cloud.backup.v2.FullAccountKeys
+import build.wallet.cloud.backup.v2.FullAccountKeysMock
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -19,6 +20,8 @@ class CloudBackupV2RestorerMock : CloudBackupV2Restorer {
     cloudBackupV2: CloudBackupV2,
     keysInfo: FullAccountKeys,
   ) = result
+
+  override suspend fun decryptCloudBackup(cloudBackupV2: CloudBackupV2) = Ok(FullAccountKeysMock)
 
   fun reset() {
     result = Ok(AccountRestorationMock)

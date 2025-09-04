@@ -19,6 +19,7 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.onboarding.model.*
+import build.wallet.f8e.serialization.toJsonString
 import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.setRedactedBody
@@ -32,7 +33,7 @@ import io.ktor.client.request.*
 @BitkeyInject(AppScope::class)
 class CreateAccountF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
-) : CreateFullAccountF8eClient, CreateLiteAccountF8eClient, CreateSoftwareAccountF8eClient {
+) : CreateFullAccountF8eClient, CreateLiteAccountF8eClient, CreateSoftwareAccountF8eClient, CreatePrivateFullAccountF8eClient {
   // Full Account
   override suspend fun createAccount(
     keyCrossDraft: KeyCrossDraft.WithAppKeysAndHardwareKeys,
@@ -70,6 +71,57 @@ class CreateAccountF8eClientImpl(
         f8eSpendingKeyset = F8eSpendingKeyset(
           keysetId = response.keysetId,
           spendingPublicKey = F8eSpendingPublicKey(dpub = response.spending)
+        ),
+        fullAccountId = FullAccountId(response.accountId)
+      )
+    }
+  }
+
+  override suspend fun createPrivateAccount(
+    keyCrossDraft: KeyCrossDraft.WithAppKeysAndHardwareKeys,
+  ): Result<CreateFullAccountF8eClient.Success, F8eError<CreateAccountClientErrorCode>> {
+    return createPrivateAccount(
+      f8eEnvironment = keyCrossDraft.config.f8eEnvironment,
+      requestBody = CreateAccountV2RequestBody(
+        auth = FullCreateAccountV2AuthKeys(
+          appGlobalAuthPublicKey = keyCrossDraft.appKeyBundle.authKey.value,
+          hardwareAuthPublicKey = keyCrossDraft.hardwareKeyBundle.authKey.pubKey.value,
+          recoveryAuthPublicKey = keyCrossDraft.appKeyBundle.recoveryAuthKey.value
+        ),
+        spend = FullCreateAccountV2SpendingKeys(
+          app = keyCrossDraft.appKeyBundle.spendingKey.key.dpub,
+          hardware = keyCrossDraft.hardwareKeyBundle.spendingKey.key.dpub,
+          network = keyCrossDraft.config.bitcoinNetworkType.toJsonString()
+        ),
+        isTestAccount = if (keyCrossDraft.config.isTestAccount) true else null
+      )
+    ).map { response ->
+      val verified = catchingResult {
+        f8eHttpClient.wsmVerifier.verifyHexMessage(
+          hexMessage = response.serverPub,
+          signature = response.serverPubIntegritySig,
+          keyVariant = keyCrossDraft.config.f8eEnvironment.wsmIntegrityKeyVariant
+        ).isValid
+      }.getOrElse { false }
+
+      if (!verified) {
+        // Note: do not remove the '[wsm_integrity_failure]' from the message. We alert on this string in Datadog.
+        logError {
+          "[wsm_integrity_failure] WSM integrity signature verification failed: " +
+            "${response.serverPubIntegritySig} : " +
+            "${response.serverPub} : " +
+            "${response.accountId} : " +
+            response.keysetId
+        }
+        // Just log, don't fail the call.
+      }
+
+      // TODO(W-1192) chaincode delegation code goes here
+
+      CreateFullAccountF8eClient.Success(
+        f8eSpendingKeyset = F8eSpendingKeyset(
+          keysetId = response.keysetId,
+          spendingPublicKey = F8eSpendingPublicKey(dpub = "foo")
         ),
         fullAccountId = FullAccountId(response.accountId)
       )
@@ -116,6 +168,21 @@ class CreateAccountF8eClientImpl(
         post("/api/accounts") {
           withEnvironment(f8eEnvironment)
           withDescription("Create account on f8e")
+          setRedactedBody(requestBody)
+        }
+      }
+      .mapError { it.toF8eError<CreateAccountClientErrorCode>() }
+  }
+
+  private suspend inline fun createPrivateAccount(
+    f8eEnvironment: F8eEnvironment,
+    requestBody: CreateAccountV2RequestBody,
+  ): Result<CreateAccountV2ResponseBody, F8eError<CreateAccountClientErrorCode>> {
+    return f8eHttpClient.unauthenticated()
+      .bodyResult<CreateAccountV2ResponseBody> {
+        post("/api/v2/accounts") {
+          withEnvironment(f8eEnvironment)
+          withDescription("Create a private account on f8e")
           setRedactedBody(requestBody)
         }
       }

@@ -353,12 +353,12 @@ class FwupNfcSessionUiStateMachineImpl(
   }
 
   private suspend fun getSequenceId(): UInt =
-    fwupDataDaoProvider.get().getSequenceId()
+    fwupDataDaoProvider.get().value.getSequenceId()
       .logFailure { "Failed to get fwup sequence ID, using 0 as default." }
       .getOrElse { 0u }
 
   private suspend fun setSequenceId(sequenceId: UInt) {
-    fwupDataDaoProvider.get().setSequenceId(sequenceId)
+    fwupDataDaoProvider.get().value.setSequenceId(sequenceId)
   }
 }
 

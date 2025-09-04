@@ -74,7 +74,7 @@ impl Service {
                 let destination_address_script_pubkey =
                     Address::from_str(input.destination.destination_address())
                         .map_err(ServiceError::InvalidAddress)?
-                        .require_network(spending_keyset.network.into())
+                        .require_network(spending_keyset.network().into())
                         .map_err(ServiceError::InvalidAddress)?
                         .script_pubkey();
                 if !is_addressed_to_wallet(&wallet, &destination_address_script_pubkey)? {

@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.material3:material3-uikitsimarm64",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "material3-uikitSimArm64Main-1.8.0.klib": "550d268ba3d5dbcbd90fb44b906f9a60e080b41edd856867e3d7f1966f1b5bd8"
+                        "material3-uikitSimArm64Main-1.8.1.klib": "550d268ba3d5dbcbd90fb44b906f9a60e080b41edd856867e3d7f1966f1b5bd8"
                     }
                 },
                 {
                     "artifacts": {
-                        "material3-uikitsimarm64-1.8.0-metadata.jar": "158843579739ddfd4a26ccd86dc08dbde836bac9243b4715c6ee32a2f649f2ac"
+                        "material3-uikitsimarm64-1.8.1-metadata.jar": "158843579739ddfd4a26ccd86dc08dbde836bac9243b4715c6ee32a2f649f2ac"
                     }
                 }
             ],

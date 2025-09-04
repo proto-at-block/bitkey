@@ -34,6 +34,8 @@ import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps.Origin
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps.Origin.PartnershipTransferLink
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps.Origin.PartnershipsSell
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiStateMachine
 import build.wallet.statemachine.partnerships.expected.ExpectedTransactionNoticeProps
 import build.wallet.statemachine.partnerships.expected.ExpectedTransactionNoticeUiStateMachine
@@ -139,7 +141,7 @@ class HomeUiStateMachineImpl(
                   ?.let {
                     uiState = uiState.copy(
                       rootScreen = MoneyHome(
-                        origin = Origin.PartnershipsSell(
+                        origin = PartnershipsSell(
                           partnerId = route.partner?.let(::PartnerId),
                           event = route.event?.let(::PartnershipEvent),
                           partnerTransactionId = partnershipTransactionId
@@ -149,6 +151,28 @@ class HomeUiStateMachineImpl(
                   }
               }
             }
+            return@onRouteChange true
+          }
+          is Route.PartnerTransferLinkDeeplink -> {
+            // Close any in-app browser if open
+            // this can happen when a deeplink is triggered from an in-app browser
+            inAppBrowserNavigator.close()
+
+            val request = PartnerTransferLinkRequest.fromRouteParams(
+              partner = route.partner,
+              event = route.event,
+              eventId = route.eventId
+            )
+            if (request != null) {
+              uiState = uiState.copy(
+                rootScreen = MoneyHome(
+                  origin = PartnershipTransferLink(
+                    request = request
+                  )
+                )
+              )
+            }
+
             return@onRouteChange true
           }
           is Route.NavigationDeeplink -> {
@@ -162,45 +186,61 @@ class HomeUiStateMachineImpl(
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE -> {
-                uiState = uiState.copy(rootScreen = Settings(ShowingInheritanceUiState(ManagingInheritanceTab.Beneficiaries)))
+                uiState = uiState.copy(
+                  rootScreen = Settings(
+                    ShowingInheritanceUiState(ManagingInheritanceTab.Beneficiaries)
+                  )
+                )
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY -> {
-                uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingTransactionVerificationPolicyState))
+                uiState =
+                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingTransactionVerificationPolicyState))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE_BENEFACTOR -> {
-                uiState = uiState.copy(rootScreen = Settings(ShowingInheritanceUiState(ManagingInheritanceTab.Inheritance)))
+                uiState = uiState.copy(
+                  rootScreen = Settings(
+                    ShowingInheritanceUiState(ManagingInheritanceTab.Inheritance)
+                  )
+                )
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC -> {
-                uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingBiometricSettingUiState))
+                uiState =
+                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingBiometricSettingUiState))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS -> {
-                uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingRecoveryChannelsUiState))
+                uiState =
+                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingRecoveryChannelsUiState))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH -> {
-                uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingCloudBackupHealthUiState))
+                uiState =
+                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingCloudBackupHealthUiState))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS,
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE,
               -> {
-                uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingBitkeyDeviceSettingsUiState))
+                uiState =
+                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingBitkeyDeviceSettingsUiState))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP -> {
-                uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingCloudBackupHealthUiState))
+                uiState =
+                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingCloudBackupHealthUiState))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS -> {
-                uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingTrustedContactsUiState))
+                uiState =
+                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingTrustedContactsUiState))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE -> {
-                uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery(true)))
+                uiState =
+                  uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery(true)))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_SECURITY_HUB -> {
@@ -221,11 +261,21 @@ class HomeUiStateMachineImpl(
           is Route.RecoveryRelationshipNavigationDeepLink -> {
             return@onRouteChange when (route.screen) {
               NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_BENEFACTOR_INVITE_ACCEPTED -> {
-                uiState = uiState.copy(presentedScreen = RecoveryRelationshipAction(RecoveryRelationshipNotificationAction.BenefactorInviteAccepted, RelationshipId(route.recoveryRelationshipId)))
+                uiState = uiState.copy(
+                  presentedScreen = RecoveryRelationshipAction(
+                    RecoveryRelationshipNotificationAction.BenefactorInviteAccepted,
+                    RelationshipId(route.recoveryRelationshipId)
+                  )
+                )
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_SOCIAL_RECOVERY_PROTECTED_CUSTOMER_INVITE_ACCEPTED -> {
-                uiState = uiState.copy(presentedScreen = RecoveryRelationshipAction(RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted, RelationshipId(route.recoveryRelationshipId)))
+                uiState = uiState.copy(
+                  presentedScreen = RecoveryRelationshipAction(
+                    RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted,
+                    RelationshipId(route.recoveryRelationshipId)
+                  )
+                )
                 true
               }
               else -> false
@@ -234,11 +284,21 @@ class HomeUiStateMachineImpl(
           is Route.InheritanceClaimNavigationDeeplink -> {
             return@onRouteChange when (route.screen) {
               NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_DECLINE_CLAIM -> {
-                uiState = uiState.copy(presentedScreen = InheritanceClaimAction(InheritanceNotificationAction.DenyClaim, route.claimId))
+                uiState = uiState.copy(
+                  presentedScreen = InheritanceClaimAction(
+                    InheritanceNotificationAction.DenyClaim,
+                    route.claimId
+                  )
+                )
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_COMPLETE_CLAIM -> {
-                uiState = uiState.copy(presentedScreen = InheritanceClaimAction(InheritanceNotificationAction.CompleteClaim, route.claimId))
+                uiState = uiState.copy(
+                  presentedScreen = InheritanceClaimAction(
+                    InheritanceNotificationAction.CompleteClaim,
+                    route.claimId
+                  )
+                )
                 true
               }
 
@@ -246,7 +306,8 @@ class HomeUiStateMachineImpl(
             }
           }
           is Route.InitiateHardwareRecovery -> {
-            uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery(false)))
+            uiState =
+              uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery(false)))
             true
           }
         }
@@ -282,7 +343,13 @@ class HomeUiStateMachineImpl(
                   )
                 )
                 BannerType.MissingCommunication -> uiState.copy(presentedScreen = RecoveryChannelSettings)
-                BannerType.MissingHardware -> uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery(isContinuingRecovery = true)))
+                BannerType.MissingHardware -> uiState.copy(
+                  rootScreen = MoneyHome(
+                    origin = Origin.LostHardwareRecovery(
+                      isContinuingRecovery = true
+                    )
+                  )
+                )
               }
             }
           )
@@ -293,7 +360,6 @@ class HomeUiStateMachineImpl(
             props = MoneyHomeUiProps(
               account = props.account,
               lostHardwareRecoveryData = props.lostHardwareRecoveryData,
-              homeBottomSheetModel = null,
               homeStatusBannerModel = homeStatusBannerModel,
               onSettings = {
                 anchorRootScreen = Settings(null)

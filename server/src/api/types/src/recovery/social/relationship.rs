@@ -5,6 +5,7 @@ use std::{
 
 use crate::account::identifiers::AccountId;
 use crate::recovery::trusted_contacts::{TrustedContactInfo, TrustedContactRole};
+use crate::serde::{deserialize_optional_ts, serialize_optional_ts};
 use derive_builder::Builder;
 use external_identifier::ExternalIdentifier;
 use serde::{Deserialize, Serialize};
@@ -91,6 +92,12 @@ pub struct RecoveryRelationshipInvitation {
     pub code_bit_length: usize,
     #[serde(with = "rfc3339")]
     pub expires_at: OffsetDateTime,
+    #[serde(
+        default,
+        serialize_with = "serialize_optional_ts",
+        deserialize_with = "deserialize_optional_ts"
+    )]
+    pub expiring_at: Option<OffsetDateTime>,
     // The enrollment fields are thrown away once the customer has
     // endorsed the Trusted Contact
     pub protected_customer_enrollment_pake_pubkey: String,
@@ -106,6 +113,14 @@ impl RecoveryRelationshipInvitation {
             code: code.to_owned(),
             code_bit_length,
             expires_at: expires_at.to_owned(),
+            expiring_at: Some(expires_at.to_owned()),
+        }
+    }
+
+    pub fn backfill_expiring_at(&self) -> Self {
+        Self {
+            expiring_at: Some(self.expires_at),
+            ..self.clone()
         }
     }
 
@@ -164,6 +179,7 @@ impl RecoveryRelationship {
             code: code.to_owned(),
             code_bit_length,
             expires_at: expires_at.to_owned(),
+            expiring_at: Some(expires_at.to_owned()),
             protected_customer_enrollment_pake_pubkey: protected_customer_enrollment_pake_pubkey
                 .to_owned(),
         })
@@ -184,6 +200,7 @@ impl RecoveryRelationship {
                 code: invitation.code.to_owned(),
                 code_bit_length: invitation.code_bit_length,
                 expires_at: invitation.expires_at.to_owned(),
+                expiring_at: invitation.expiring_at.to_owned(),
                 protected_customer_enrollment_pake_pubkey: invitation
                     .protected_customer_enrollment_pake_pubkey
                     .to_owned(),

@@ -4,6 +4,7 @@ import build.wallet.logging.logError
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.runCatching
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -62,19 +63,25 @@ sealed interface ConfirmationState<out T> {
  */
 fun <T> pollForConfirmation(
   delay: Duration = 5.seconds,
+  onCancel: suspend () -> Unit = {},
   operation: suspend () -> ConfirmationState<T>,
 ): ConfirmationFlow<T> {
   return flow {
-    while (currentCoroutineContext().isActive) {
-      runCatching {
-        operation().also { emit(it) }
-      }.onFailure {
-        logError(throwable = it) { "unexpected error thrown while polling for state" }
-      }.onSuccess {
-        if (it is ConfirmationState.Complete) return@flow
-      }
+    try {
+      while (currentCoroutineContext().isActive) {
+        runCatching {
+          operation().also { emit(it) }
+        }.onFailure {
+          logError(throwable = it) { "unexpected error thrown while polling for state" }
+        }.onSuccess {
+          if (it is ConfirmationState.Complete) return@flow
+        }
 
-      delay(delay)
+        delay(delay)
+      }
+    } catch (e: CancellationException) {
+      onCancel()
+      throw e
     }
   }
 }

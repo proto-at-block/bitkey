@@ -28,7 +28,7 @@ kotlin {
         implementation(projects.domain.notificationsPublic)
         implementation(projects.domain.walletPublic)
         implementation(projects.libs.platformPublic)
-        api(projects.domain.supportPublic)
+        implementation(projects.domain.supportPublic)
         implementation(libs.kmp.ktor.client.content.negotiation)
         implementation(libs.kmp.ktor.client.auth)
         implementation(libs.kmp.ktor.client.core)

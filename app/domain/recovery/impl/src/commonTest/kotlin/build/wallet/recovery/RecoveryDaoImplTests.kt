@@ -25,14 +25,7 @@ import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
-import build.wallet.recovery.LocalRecoveryAttemptProgress.AttemptingCompletion
-import build.wallet.recovery.LocalRecoveryAttemptProgress.BackedUpToCloud
-import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
-import build.wallet.recovery.LocalRecoveryAttemptProgress.DdkBackedUp
-import build.wallet.recovery.LocalRecoveryAttemptProgress.RotatedAuthKeys
-import build.wallet.recovery.LocalRecoveryAttemptProgress.RotatedSpendingKeys
-import build.wallet.recovery.LocalRecoveryAttemptProgress.SweptFunds
-import build.wallet.recovery.LocalRecoveryAttemptProgress.UploadedDescriptorBackups
+import build.wallet.recovery.LocalRecoveryAttemptProgress.*
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.CreatedSpendingKeys
@@ -146,7 +139,7 @@ class RecoveryDaoImplTests : FunSpec({
         )
       )
 
-      setProgressRotatedSpending(dao, serverSpendingKeyset)
+      setProgressCreatedSpending(dao, serverSpendingKeyset)
 
       awaitItem().shouldBe(
         Ok(
@@ -171,6 +164,27 @@ class RecoveryDaoImplTests : FunSpec({
       awaitItem().shouldBe(
         Ok(
           ServerIndependentRecovery.UploadedDescriptorBackups(
+            f8eSpendingKeyset = serverSpendingKeyset,
+            fullAccountId = serverRecovery.fullAccountId,
+            appSpendingKey = keyset.appKey,
+            appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+            appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+            hardwareSpendingKey = keyset.hardwareKey,
+            hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+            factorToRecover = Hardware,
+            sealedCsek = sealedCsek,
+            sealedSsek = sealedSsek,
+            keysets = listOf(spendingKeyset1, spendingKeyset2)
+          )
+        )
+      )
+
+      setProgressActivatedSpending(dao, serverSpendingKeyset)
+
+      awaitItem().shouldBe(
+        Ok(
+          ServerIndependentRecovery.ActivatedSpendingKeys(
             f8eSpendingKeyset = serverSpendingKeyset,
             fullAccountId = serverRecovery.fullAccountId,
             appSpendingKey = keyset.appKey,
@@ -343,12 +357,21 @@ private suspend fun setProgressRotatedAuth(dao: RecoveryDaoImpl) {
   )
 }
 
-private suspend fun setProgressRotatedSpending(
+private suspend fun setProgressCreatedSpending(
   dao: RecoveryDaoImpl,
   serverSpendingKeyset: F8eSpendingKeyset,
 ) {
   dao.setLocalRecoveryProgress(
-    RotatedSpendingKeys(serverSpendingKeyset)
+    CreatedSpendingKeys(serverSpendingKeyset)
+  )
+}
+
+private suspend fun setProgressActivatedSpending(
+  dao: RecoveryDaoImpl,
+  serverSpendingKeyset: F8eSpendingKeyset,
+) {
+  dao.setLocalRecoveryProgress(
+    ActivatedSpendingKeys(serverSpendingKeyset)
   )
 }
 

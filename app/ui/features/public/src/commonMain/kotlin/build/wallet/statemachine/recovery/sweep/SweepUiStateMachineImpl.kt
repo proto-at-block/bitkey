@@ -22,6 +22,7 @@ import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.RecoverySegment
 
 @BitkeyInject(ActivityScope::class)
@@ -159,6 +160,7 @@ class SweepUiStateMachineImpl(
             onCancel = props.onExit,
             screenPresentationStyle = props.presentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_MANY_TRANSACTIONS,
+            hardwareVerification = Required(useRecoveryPubKey = props.recoveredFactor != null),
             shouldShowLongRunningOperation = true
           )
         )

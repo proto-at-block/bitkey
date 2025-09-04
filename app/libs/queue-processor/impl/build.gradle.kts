@@ -22,6 +22,7 @@ kotlin {
         implementation(projects.libs.queueProcessorFake)
         implementation(projects.libs.testingPublic)
         implementation(projects.libs.queueProcessorTesting)
+        implementation(projects.libs.platformFake)
       }
     }
   }

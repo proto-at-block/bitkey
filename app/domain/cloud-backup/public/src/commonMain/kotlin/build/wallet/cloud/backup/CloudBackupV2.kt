@@ -16,6 +16,9 @@ import kotlinx.serialization.Serializable
  * Persists Trusted Contact encrypted keys but Social Recovery with an instance of this
  * backup is still not possible since the backup doesn't contain a Recovery authentication
  * key yet - wasn't implemented at the time.
+ *
+ * **IMPORTANT**: Never modify this class - it must remain immutable for backward compatibility.
+ * @see [CloudBackup] for migration rules.
  */
 @Redacted
 @Serializable

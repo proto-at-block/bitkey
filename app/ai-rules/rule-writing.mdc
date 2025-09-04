@@ -78,7 +78,9 @@ References to other rules that complement or interact with this one.
 
 **ALL AI assistants must be configured when creating rules:**
 
-Most rules are automatically included via the index (`@ai-rules/bitkey-mobile.mdc`). For rules with `alwaysApply: true`, additional direct references may be needed in individual AI configuration files.
+- Most rules are automatically included via the index (`@ai-rules/bitkey-mobile.mdc`).
+- For rules with `alwaysApply: true`, additional direct references may be needed in individual AI configuration files.
+- **CRITICAL:** All AI configuration files must include the instruction that AI assistants MUST read actual rule content, not make assumptions based on filenames alone.
 
 *Claude Code:* Update `CLAUDE.md` with direct rule references or reference via index (automatic)
 

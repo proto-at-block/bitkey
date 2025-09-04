@@ -473,6 +473,7 @@ module "transaction_verification_table" {
   attributes = [
     { name = "partition_key", type = "S" },
     { name = "web_auth_token", type = "S" },
+    { name = "txid", type = "S" },
   ]
 
   global_secondary_indexes = [
@@ -481,6 +482,11 @@ module "transaction_verification_table" {
       hash_key        = "web_auth_token"
       projection_type = "ALL"
     },
+    {
+      name            = "txid_idx"
+      hash_key        = "txid"
+      projection_type = "ALL"
+    }
   ]
 
   point_in_time_recovery_enabled = true

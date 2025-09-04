@@ -21,6 +21,7 @@ impl Rule for NoRecoveryWithAppAuthPubkeyRule {
             AccountValidationRequest::CreateFullAccount { auth, .. } => auth.app,
             AccountValidationRequest::UpgradeAccount { auth, .. } => auth.app,
             AccountValidationRequest::CreateSoftwareAccount { auth, .. } => auth.app,
+            AccountValidationRequest::CreateFullAccountV2 { auth, .. } => auth.app_pub,
             AccountValidationRequest::CreateLiteAccount { .. } => {
                 return Ok(());
             }

@@ -43,6 +43,7 @@ class NfcCommandsMock(
   val setFingerprintLabelCalls = turbine.invoke("SetFingerprintLabel calls")
   val getGrantRequestCalls = turbine.invoke("GetGrantRequest calls")
   val provideGrantCalls = turbine.invoke("ProvideGrant calls")
+  val getNextSpendingKeyCalls = turbine.invoke("GetNextSpendingKey calls")
 
   private val defaultEnrollmentResult = FingerprintEnrollmentResult(
     status = FingerprintEnrollmentStatus.COMPLETE,
@@ -157,6 +158,7 @@ class NfcCommandsMock(
     existingDescriptorPublicKeys: List<HwSpendingPublicKey>,
     network: BitcoinNetworkType,
   ): HwSpendingPublicKey {
+    getNextSpendingKeyCalls.add(existingDescriptorPublicKeys)
     keyIndex += 1
     return spendingPublicKey(keyIndex)
   }

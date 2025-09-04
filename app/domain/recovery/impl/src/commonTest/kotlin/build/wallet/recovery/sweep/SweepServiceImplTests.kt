@@ -201,7 +201,7 @@ class SweepServiceImplTests : FunSpec({
       ),
       RunStrategy.Periodic(
         interval = syncFrequency,
-        backgroundStrategy = BackgroundStrategy.Wait
+        backgroundStrategy = BackgroundStrategy.Skip
       )
     )
   }

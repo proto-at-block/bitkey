@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-geometry-desktop",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-geometry-desktop-1.8.0.jar": "5aaf8b78bed6e56b74ee893172cce2e316813b61d8a22cddc0587a527c5caa27"
+                        "ui-geometry-desktop-1.8.1.jar": "5aaf8b78bed6e56b74ee893172cce2e316813b61d8a22cddc0587a527c5caa27"
                     }
                 }
             ],

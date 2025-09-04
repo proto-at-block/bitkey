@@ -2,6 +2,7 @@ package build.wallet.statemachine.core
 
 import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
+import build.wallet.ui.model.button.ButtonModel
 
 /**
  * A screen with a horizontally left-aligned, vertically top-aligned animated loading icon.
@@ -20,6 +21,8 @@ fun LoadingBodyModel(
   message: String? = null,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
+  primaryButton: ButtonModel? = null,
+  secondaryButton: ButtonModel? = null,
 ): LoadingSuccessBodyModel {
   return LoadingSuccessBodyModel(
     onBack = onBack,
@@ -27,6 +30,8 @@ fun LoadingBodyModel(
     message = message,
     state = LoadingSuccessBodyModel.State.Loading,
     eventTrackerContext = eventTrackerContext,
-    eventTrackerShouldTrack = eventTrackerShouldTrack
+    eventTrackerShouldTrack = eventTrackerShouldTrack,
+    primaryButton = primaryButton,
+    secondaryButton = secondaryButton
   )
 }

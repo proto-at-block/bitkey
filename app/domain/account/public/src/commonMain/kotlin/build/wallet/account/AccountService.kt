@@ -5,6 +5,7 @@ import build.wallet.ensure
 import build.wallet.ensureNotNull
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -51,6 +52,33 @@ suspend inline fun <reified AccountT : Account> AccountService.getAccountOrNull(
       else -> {
         ensure(account is AccountT) {
           Error("No active ${AccountT::class.simpleName} present, found ${account::class.simpleName}.")
+        }
+        account
+      }
+    }
+  }
+
+/**
+ * Returns account of type [AccountT], if one is active or onboarding.
+ * If no active or onboarding account found, returns null.
+ * If a lite account is upgrading to a full account, returns the full account.
+ * If active or onboarding account is not of type [AccountT], returns an error.
+ */
+suspend inline fun <reified AccountT : Account> AccountService.getActiveOrOnboardingAccountOrNull(): Result<AccountT?, Error> =
+  coroutineBinding {
+    val accountStatus = accountStatus().first().get()
+    val account = when (val status = accountStatus) {
+      is AccountStatus.ActiveAccount -> status.account
+      is AccountStatus.LiteAccountUpgradingToFullAccount -> status.onboardingAccount
+      is AccountStatus.OnboardingAccount -> status.account
+      AccountStatus.NoAccount, null -> null
+    }
+
+    when (account) {
+      null -> null
+      else -> {
+        ensure(account is AccountT) {
+          Error("No active or onboarding ${AccountT::class.simpleName} present, found ${account::class.simpleName}.")
         }
         account
       }

@@ -17,7 +17,9 @@ import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.catching
 import build.wallet.ktor.result.setRedactedBody
+import build.wallet.mapUnit
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.BitcoinDisplayUnit
 import com.github.michaelbull.result.Err
@@ -25,6 +27,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.flatMap
 import dev.zacsweers.redacted.annotations.Unredacted
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import kotlinx.datetime.Instant
@@ -105,6 +108,21 @@ class TxVerificationF8eClientImpl(
           else -> Err(IllegalStateException("Unexpected status when getting verification status: ${it.status}"))
         }
       }
+  }
+
+  override suspend fun cancelVerification(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+    verificationId: TxVerificationId,
+  ): Result<Unit, Throwable> {
+    return f8eHttpClient.authenticated()
+      .catching {
+        delete("/api/accounts/${fullAccountId.serverId}/tx-verify/requests/${verificationId.value}") {
+          withDescription("Cancel Tx Verification")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+        }
+      }.mapUnit()
   }
 
   override suspend fun requestGrant(

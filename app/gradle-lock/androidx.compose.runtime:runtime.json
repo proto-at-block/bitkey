@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.runtime:runtime",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-metadata-1.8.0.jar": "a2c86b1ababf345ae76284848c1041872b25a339a81cc39309fccd4217b1d6f9"
+                        "runtime-metadata-1.8.1.jar": "a2c86b1ababf345ae76284848c1041872b25a339a81cc39309fccd4217b1d6f9"
                     }
                 }
             ],

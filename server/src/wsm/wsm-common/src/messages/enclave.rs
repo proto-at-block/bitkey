@@ -252,10 +252,6 @@ pub struct EnclaveSignGrantRequest {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct CreatedKey {
-    pub xpub: ExtendedPubKey,
-    pub dpub: String,
-    #[serde(default)]
-    pub xpub_sig: String,
     pub wrapped_xprv: String,
     pub wrapped_xprv_nonce: String,
 }
@@ -272,6 +268,8 @@ pub struct DerivedKey {
     pub dpub: String,
     #[serde(default)]
     pub xpub_sig: String,
+    #[serde(default)]
+    pub pub_sig: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeriveResponse(pub DerivedKey);

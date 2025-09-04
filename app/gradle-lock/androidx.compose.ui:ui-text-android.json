@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-text-android",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-text-release.aar": "1e229e09be640e3a84a952da01363b74eadb637f0e0b8a61d55947c813bfb90e"
+                        "ui-text-release.aar": "86e45ed16ecffb7b5afc1c515b13e87b829f7b5dcc6239c1f7696b948f0570a9"
                     }
                 }
             ],

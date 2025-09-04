@@ -372,6 +372,9 @@ extension IOCommand {
                 case CommandError.SealCsekResponseUnsealError:
                     throw NfcException.CommandErrorSealCsekResponseUnsealException().asError()
 
+                case CommandError.FileNotFound:
+                    throw NfcException.CommandErrorFileNotFound().asError()
+
                 // If there was an issue with the specific command, it will be thrown as a
                 // `CommandError`
                 case is CommandError:

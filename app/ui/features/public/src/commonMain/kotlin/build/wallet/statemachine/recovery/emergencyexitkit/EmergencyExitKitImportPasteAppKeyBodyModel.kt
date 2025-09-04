@@ -12,8 +12,10 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 data class EmergencyExitKitImportPasteAppKeyBodyModel(
+  @Redacted
   val enteredText: String,
   override val onBack: () -> Unit,
   val onEnterTextChanged: (String) -> Unit,

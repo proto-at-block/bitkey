@@ -26,8 +26,8 @@ use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     TypedHeader,
 };
+use bdk_utils::error::BdkUtilError;
 use bdk_utils::generate_electrum_rpc_uris;
-use bdk_utils::{bdk::miniscript::ToPublicKey, error::BdkUtilError};
 use bdk_utils::{
     bdk::{
         bitcoin::{secp256k1::PublicKey, Network},
@@ -64,11 +64,11 @@ use serde_with::{base64::Base64, serde_as};
 use time::Duration;
 use tracing::{error, event, instrument, Level};
 use types::account::entities::{
+    v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2},
     Account, CommsVerificationScope, DescriptorBackup, DescriptorBackupsSet,
-    FullAccountAuthKeysPayload as FullAccountAuthKeysRequest, Keyset, LiteAccount,
-    LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
-    SoftwareAccountAuthKeysPayload as SoftwareAccountAuthKeysRequest, SpendingKeysetRequest,
-    Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
+    FullAccountAuthKeysInput, Keyset, LiteAccount, LiteAccountAuthKeysInput,
+    SoftwareAccountAuthKeysInput, SpendingKeysetInput, Touchpoint, TouchpointPlatform,
+    UpgradeLiteAccountAuthKeysInput,
 };
 use types::account::spending::SpendingKeyDefinition;
 use types::{
@@ -92,6 +92,9 @@ use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::account_validation::{AccountValidation, AccountValidationRequest};
+use crate::routes_v2::{
+    create_account_v2, CreateAccountRequestV2, CreateAccountResponseV2, __path_create_account_v2,
+};
 use crate::{create_touchpoint_iterable_user, metrics, upsert_account_iterable_user};
 
 static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
@@ -131,6 +134,8 @@ impl RouterBuilder for RouteState {
             .route("/api/accounts", post(create_account))
             .route("/api/bdk-configuration", get(get_bdk_config))
             .route("/api/demo/initiate", post(initiate_demo_mode))
+            // V2 routes
+            .route("/api/v2/accounts", post(create_account_v2))
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
     }
@@ -234,6 +239,9 @@ impl From<RouteState> for SwaggerEndpoint {
         continue_distributed_keygen,
         activate_spending_key_definition,
         update_descriptor_backups,
+
+        // V2 routes
+        create_account_v2
     ),
     components(
         schemas(
@@ -269,19 +277,19 @@ impl From<RouteState> for SwaggerEndpoint {
             CreateKeysetResponse,
             ElectrumServer,
             ElectrumServers,
-            FullAccountAuthKeysRequest,
+            FullAccountAuthKeysInput,
             GetAccountKeysetsResponse,
             GetAccountStatusResponse,
             InitiateDemoModeRequest,
             InitiateDemoModeResponse,
-            LiteAccountAuthKeysRequest,
+            LiteAccountAuthKeysInput,
             RotateSpendingKeysetRequest,
             RotateSpendingKeysetResponse,
-            SpendingKeysetRequest,
+            SpendingKeysetInput,
             TouchpointPlatform,
             UpgradeAccountRequest,
-            UpgradeLiteAccountAuthKeysPayload,
-            SoftwareAccountAuthKeysRequest,
+            UpgradeLiteAccountAuthKeysInput,
+            SoftwareAccountAuthKeysInput,
             InititateDistributedKeygenRequest,
             InititateDistributedKeygenResponse,
             ContinueDistributedKeygenRequest,
@@ -291,6 +299,12 @@ impl From<RouteState> for SwaggerEndpoint {
             DescriptorBackup,
             DescriptorBackupsSet,
             UpdateDescriptorBackupsResponse,
+
+            // V2 types
+            FullAccountAuthKeysInputV2,
+            SpendingKeysetInputV2,
+            CreateAccountRequestV2,
+            CreateAccountResponseV2,
         ),
     ),
     tags(
@@ -807,18 +821,18 @@ pub const TESTNET_DERIVATION_PATH: &str = "m/84'/1'/0'";
 #[serde(untagged)]
 pub enum CreateAccountRequest {
     Full {
-        auth: FullAccountAuthKeysRequest, // TODO: [W-774] Update visibility of struct after migration
-        spending: SpendingKeysetRequest, // TODO: [W-774] Update visibility of struct after migration
+        auth: FullAccountAuthKeysInput, // TODO: [W-774] Update visibility of struct after migration
+        spending: SpendingKeysetInput,  // TODO: [W-774] Update visibility of struct after migration
         #[serde(default)]
         is_test_account: bool,
     },
     Software {
-        auth: SoftwareAccountAuthKeysRequest, // TODO: [W-774] Update visibility of struct after migration
+        auth: SoftwareAccountAuthKeysInput, // TODO: [W-774] Update visibility of struct after migration
         #[serde(default)]
         is_test_account: bool,
     },
     Lite {
-        auth: LiteAccountAuthKeysRequest, // TODO: [W-774] Update visibility of struct after migration
+        auth: LiteAccountAuthKeysInput, // TODO: [W-774] Update visibility of struct after migration
         #[serde(default)]
         is_test_account: bool,
     },
@@ -890,6 +904,7 @@ impl TryFrom<&Account> for CreateAccountResponse {
                 let spending_keyset = full_account
                     .active_spending_keyset()
                     .ok_or(RouteError::NoActiveSpendKeyset)?
+                    .legacy_multi_sig_or(RouteError::ConflictingKeysetType)?
                     .to_owned();
                 (
                     full_account.id.clone(),
@@ -1031,12 +1046,12 @@ pub async fn create_account(
                         hardware_pubkey: hardware_auth_pubkey.unwrap(),
                         recovery_pubkey: recovery_auth_pubkey,
                     },
-                    spending: SpendingKeyset {
-                        network: spending.network.into(),
-                        app_dpub: spending.app,
-                        hardware_dpub: spending.hardware,
-                        server_dpub: spending_server_dpub.clone(),
-                    },
+                    spending: SpendingKeyset::new_legacy_multi_sig(
+                        spending.network.into(),
+                        spending.app,
+                        spending.hardware,
+                        spending_server_dpub.clone(),
+                    ),
                 },
                 is_test_account,
             };
@@ -1109,8 +1124,8 @@ pub async fn create_account(
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema)]
 pub struct UpgradeAccountRequest {
-    pub auth: UpgradeLiteAccountAuthKeysPayload, // TODO: [W-774] Update visibility of struct after migration
-    pub spending: SpendingKeysetRequest, // TODO: [W-774] Update visibility of struct after migration
+    pub auth: UpgradeLiteAccountAuthKeysInput, // TODO: [W-774] Update visibility of struct after migration
+    pub spending: SpendingKeysetInput, // TODO: [W-774] Update visibility of struct after migration
 }
 
 impl From<(&LiteAccount, &UpgradeAccountRequest)> for AccountValidationRequest {
@@ -1168,6 +1183,9 @@ pub async fn upgrade_account(
             let Some(active_spending_keyset) = full_account.active_spending_keyset() else {
                 return Err(RouteError::NoActiveSpendKeyset)?;
             };
+
+            let active_spending_keyset =
+                active_spending_keyset.legacy_multi_sig_or(RouteError::ConflictingKeysetType)?;
 
             if active_auth_keys.app_pubkey == request.auth.app
                 && active_auth_keys.hardware_pubkey == request.auth.hardware
@@ -1249,12 +1267,12 @@ pub async fn upgrade_account(
     let input = UpgradeLiteAccountToFullAccountInput {
         lite_account,
         keyset_id,
-        spending_keyset: SpendingKeyset {
-            network: request.spending.network.into(),
-            app_dpub: request.spending.app,
-            hardware_dpub: request.spending.hardware,
-            server_dpub: spending_server_dpub.clone(),
-        },
+        spending_keyset: SpendingKeyset::new_legacy_multi_sig(
+            request.spending.network.into(),
+            request.spending.app,
+            request.spending.hardware,
+            spending_server_dpub.clone(),
+        ),
         auth_key_id: auth_key_id.clone(),
         auth_keys: FullAccountAuthKeys {
             app_pubkey: request.auth.app,
@@ -1283,7 +1301,7 @@ pub async fn upgrade_account(
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CreateKeysetRequest {
-    pub spending: SpendingKeysetRequest,
+    pub spending: SpendingKeysetInput,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
@@ -1332,14 +1350,23 @@ pub async fn create_keyset(
         })
         .await?;
 
-    if let Some((keyset_id, keyset)) =
-        account
-            .spending_keysets
-            .iter()
-            .find(|(_, spending_keyset)| {
-                spending_keyset.app_dpub == request.spending.app
-                    && spending_keyset.hardware_dpub == request.spending.hardware
-            })
+    if let Some((keyset_id, keyset)) = account
+        .spending_keysets
+        .iter()
+        .filter_map(|(keyset_id, spending_keyset)| {
+            if let Some(k) = spending_keyset.optional_legacy_multi_sig() {
+                if k.app_dpub == request.spending.app
+                    && k.hardware_dpub == request.spending.hardware
+                {
+                    Some((keyset_id, k))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .next()
     {
         let spending_sig = maybe_get_wsm_integrity_sig(&wsm_client, &keyset_id.to_string()).await;
 
@@ -1354,7 +1381,7 @@ pub async fn create_keyset(
     account.active_spending_keyset().map_or(
         Err(RouteError::NoActiveSpendKeyset),
         |active_keyset| {
-            if active_keyset.network != request.spending.network.into() {
+            if active_keyset.network() != request.spending.network.into() {
                 return Err(RouteError::InvalidNetworkForNewKeyset);
             }
             Ok(())
@@ -1377,28 +1404,44 @@ pub async fn create_keyset(
         ApiError::GenericInternalApplicationError(msg.to_string())
     })?;
 
-    let (inactive_spend_keyset_id, inactive_spend_keyset) = account_service
+    let (inactive_spend_keyset_id, _) = account_service
         .create_inactive_spending_keyset(CreateInactiveSpendingKeysetInput {
             account_id,
             spending_keyset_id,
-            spending: SpendingKeyset {
-                network: request.spending.network.into(),
-                app_dpub: request.spending.app,
-                hardware_dpub: request.spending.hardware,
-                server_dpub: spending_server_dpub,
-            },
+            spending: SpendingKeyset::new_legacy_multi_sig(
+                request.spending.network.into(),
+                request.spending.app,
+                request.spending.hardware,
+                spending_server_dpub.clone(),
+            ),
         })
         .await?;
 
     Ok(Json(CreateKeysetResponse {
         keyset_id: inactive_spend_keyset_id,
-        spending: inactive_spend_keyset.server_dpub,
+        spending: spending_server_dpub,
         spending_sig: Some(key.xpub_sig),
     }))
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
-pub struct AccountKeyset {
+#[serde(untagged)]
+pub enum AccountKeyset {
+    LegacyMultiSig(LegacyMultiSigAccountKeyset),
+    PrivateMultiSig(PrivateMultiSigAccountKeyset),
+}
+
+impl AccountKeyset {
+    pub fn keyset_id(&self) -> &KeysetId {
+        match self {
+            AccountKeyset::LegacyMultiSig(legacy_multi_sig) => &legacy_multi_sig.keyset_id,
+            AccountKeyset::PrivateMultiSig(private_multi_sig) => &private_multi_sig.keyset_id,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+pub struct LegacyMultiSigAccountKeyset {
     pub keyset_id: KeysetId,
     pub network: bdk_utils::bdk::bitcoin::Network,
 
@@ -1409,6 +1452,17 @@ pub struct AccountKeyset {
     pub hardware_dpub: DescriptorPublicKey,
     #[serde(with = "bdk_utils::serde::descriptor_key")]
     pub server_dpub: DescriptorPublicKey,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+pub struct PrivateMultiSigAccountKeyset {
+    pub keyset_id: KeysetId,
+    pub network: bdk_utils::bdk::bitcoin::Network,
+
+    // Public Keys
+    pub app_pub: PublicKey,
+    pub hardware_pub: PublicKey,
+    pub server_pub: PublicKey,
 }
 
 #[serde_as]
@@ -1447,14 +1501,27 @@ pub async fn account_keysets(
     let keysets = account
         .spending_keysets
         .into_iter()
-        .map(|(keyset_id, spend_keyset)| AccountKeyset {
-            keyset_id,
-            network: spend_keyset.network.into(),
-            app_dpub: spend_keyset.app_dpub,
-            hardware_dpub: spend_keyset.hardware_dpub,
-            server_dpub: spend_keyset.server_dpub,
+        .map(|(keyset_id, spend_keyset)| match spend_keyset {
+            SpendingKeyset::LegacyMultiSig(legacy_multi_sig) => {
+                AccountKeyset::LegacyMultiSig(LegacyMultiSigAccountKeyset {
+                    keyset_id,
+                    network: legacy_multi_sig.network.into(),
+                    app_dpub: legacy_multi_sig.app_dpub,
+                    hardware_dpub: legacy_multi_sig.hardware_dpub,
+                    server_dpub: legacy_multi_sig.server_dpub,
+                })
+            }
+            SpendingKeyset::PrivateMultiSig(private_multi_sig) => {
+                AccountKeyset::PrivateMultiSig(PrivateMultiSigAccountKeyset {
+                    keyset_id,
+                    network: private_multi_sig.network.into(),
+                    app_pub: private_multi_sig.app_pub,
+                    hardware_pub: private_multi_sig.hardware_pub,
+                    server_pub: private_multi_sig.server_pub,
+                })
+            }
         })
-        .sorted_by_key(|k| k.keyset_id.to_string())
+        .sorted_by_key(|k| k.keyset_id().to_string())
         .collect::<Vec<AccountKeyset>>();
 
     let descriptor_backups_set = account.descriptor_backups_set.as_ref();
@@ -1593,7 +1660,7 @@ pub async fn initiate_distributed_keygen(
             spending_key_definition_id: &key_definition_id,
             spending: SpendingDistributedKey::new(
                 request.network.into(),
-                wsm_response.aggregate_public_key.to_public_key(),
+                wsm_response.aggregate_public_key,
                 false,
             ),
         })
@@ -1977,7 +2044,7 @@ async fn maybe_get_wsm_integrity_sig(wsm_client: &WsmClient, keyset_id: &str) ->
                 error!("{msg}: {e}");
                 None
             },
-            |response| Some(response.signature),
+            |response| Some(response.xpub_sig),
         )
 }
 
@@ -1990,8 +2057,8 @@ mod tests {
         keys::DescriptorPublicKey,
     };
     use types::account::entities::{
-        FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload,
-        SpendingKeysetRequest,
+        FullAccountAuthKeysInput, LiteAccountAuthKeysInput, SoftwareAccountAuthKeysInput,
+        SpendingKeysetInput,
     };
 
     use super::CreateAccountRequest;
@@ -2011,12 +2078,12 @@ mod tests {
 
         let requests = [
             CreateAccountRequest::Full {
-                auth: FullAccountAuthKeysPayload {
+                auth: FullAccountAuthKeysInput {
                     app: public_key,
                     hardware: public_key,
                     recovery: Some(public_key),
                 },
-                spending: SpendingKeysetRequest {
+                spending: SpendingKeysetInput {
                     network: Network::Bitcoin,
                     app: descriptor_public_key.clone(),
                     hardware: descriptor_public_key,
@@ -2024,14 +2091,14 @@ mod tests {
                 is_test_account: true,
             },
             CreateAccountRequest::Software {
-                auth: SoftwareAccountAuthKeysPayload {
+                auth: SoftwareAccountAuthKeysInput {
                     app: public_key,
                     recovery: public_key,
                 },
                 is_test_account: true,
             },
             CreateAccountRequest::Lite {
-                auth: LiteAccountAuthKeysPayload {
+                auth: LiteAccountAuthKeysInput {
                     recovery: public_key,
                 },
                 is_test_account: true,

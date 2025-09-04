@@ -18,4 +18,17 @@ class WsmVerifierImpl : WsmVerifier {
       )
     )
   }
+
+  override fun verifyHexMessage(
+    hexMessage: String,
+    signature: String,
+    keyVariant: WsmIntegrityKeyVariant,
+  ): WsmVerifierResult {
+    return WsmVerifierResult(
+      WsmIntegrityVerifier(keyVariant.pubkey).verifyHexMessage(
+        hexMessage = hexMessage,
+        signature = signature
+      )
+    )
+  }
 }

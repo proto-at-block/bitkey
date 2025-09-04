@@ -1,5 +1,6 @@
 package build.wallet.money.exchange
 
+import bitkey.account.AccountConfigService
 import build.wallet.account.AccountService
 import build.wallet.activity.TransactionActivityOperations
 import build.wallet.bitkey.account.LiteAccount
@@ -25,6 +26,7 @@ class ExchangeRateServiceImpl(
   private val exchangeRateF8eClient: ExchangeRateF8eClient,
   private val clock: Clock,
   private val accountService: AccountService,
+  private val accountConfigService: AccountConfigService,
   exchangeRateSyncFrequency: ExchangeRateSyncFrequency,
   appScope: CoroutineScope,
 ) : ExchangeRateService, ExchangeRateSyncWorker {
@@ -96,9 +98,15 @@ class ExchangeRateServiceImpl(
 
   private fun activeF8eEnvironment(): Flow<F8eEnvironment?> {
     return accountService.activeAccount()
-      // Lite Accounts do not require exchange rates as they have no funds/never see fiat amounts.
-      .map { it.takeIf { it !is LiteAccount } }
-      .map { it?.config?.f8eEnvironment }
+      .map {
+        when (it) {
+          // Lite Accounts do not require exchange rates as they have no funds/never see fiat amounts:
+          is LiteAccount -> null
+          // When there is no account, sync rates with the default config, as it might be needed for recovery steps:
+          null -> accountConfigService.defaultConfig().value.f8eEnvironment
+          else -> it.config.f8eEnvironment
+        }
+      }
   }
 
   private fun List<ExchangeRate>.timeRetrievedForCurrency(currency: Currency): Instant? {

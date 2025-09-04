@@ -13,6 +13,9 @@ package build.wallet.cloud.backup
  * storage (Google Drive or iCloud Keychain).
  *
  * Serialization is handled internally by [CloudBackupRepository].
+ *
+ * Cloud backups use an immutable versioning pattern where each schema change requires
+ * a new data class (e.g., [CloudBackupV2], CloudBackupV3).
  */
 sealed interface CloudBackup {
   val accountId: String

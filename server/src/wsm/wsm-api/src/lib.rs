@@ -143,15 +143,22 @@ async fn create_key(
                 tracing::Level::DEBUG,
                 "create_key called on wallet that already exists"
             );
-            let xpub_sig = if let Some(sig) = ck.integrity_signature {
-                sig
-            } else {
-                "".to_string()
+
+            // These are only modeled as Optional because old keys don't have them, but new keys should
+            // always have them and create_key should only be called on new keys (we handle already existing keys
+            // here for idempotency)
+            // TODO: harden pub_sig similarly after this has baked in the enclave for some time
+            let (Some(xpub_sig), pub_sig) = (ck.xpub_integrity_sig, ck.pub_integrity_sig) else {
+                return Err(ApiError::ServerError(
+                    "Integrity signatures are missing for the customer key".to_string(),
+                ));
             };
+
             Ok(Json(CreatedSigningKey {
                 root_key_id: root_key_id.clone(),
                 xpub: ck.xpub_descriptor,
                 xpub_sig,
+                pub_sig: pub_sig.unwrap_or_default(),
             }))
         }
         None => {
@@ -203,6 +210,7 @@ async fn create_key(
                 }],
                 request.network,
                 spend_key.xpub_sig.clone(),
+                spend_key.pub_sig.clone(),
             );
 
             customer_key_store
@@ -214,6 +222,7 @@ async fn create_key(
                 root_key_id: root_key_id.clone(),
                 xpub: spend_key.dpub,
                 xpub_sig: spend_key.xpub_sig,
+                pub_sig: spend_key.pub_sig,
             }))
         }
     }
@@ -657,17 +666,21 @@ async fn integrity_sig(
     State(state): State<RouteState>,
     request: Json<GetIntegritySigRequest>,
 ) -> Result<Json<GetIntegritySigResponse>, ApiError> {
-    let signature = state
+    let ck = state
         .customer_key_store
         .get_customer_key(&request.root_key_id)
         .await
         .map_err(|e| ApiError::ServerError(format!("Failed to retrieve customer key: {e}")))?
-        .ok_or(ApiError::NotFound("Customer key not found".to_string()))?
-        .integrity_signature
-        .ok_or(ApiError::NotFound(
-            "Integrity signature not found".to_string(),
-        ))?;
-    Ok(Json(GetIntegritySigResponse { signature }))
+        .ok_or(ApiError::NotFound("Customer key not found".to_string()))?;
+
+    let xpub_sig = ck.xpub_integrity_sig.ok_or(ApiError::NotFound(
+        "Xpub integrity signature not found".to_string(),
+    ))?;
+
+    let pub_sig = ck.pub_integrity_sig.ok_or(ApiError::NotFound(
+        "Pub integrity signature not found".to_string(),
+    ))?;
+    Ok(Json(GetIntegritySigResponse { xpub_sig, pub_sig }))
 }
 
 pub async fn axum() -> (TcpListener, Router) {

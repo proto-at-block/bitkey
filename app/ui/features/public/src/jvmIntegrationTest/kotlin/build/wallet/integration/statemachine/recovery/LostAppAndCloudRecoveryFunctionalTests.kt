@@ -30,7 +30,9 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
@@ -207,6 +209,63 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
+  test("force exiting before spending key activation takes you back to spending key activation") {
+    setup()
+
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 20.seconds,
+      turbineTimeout = 10.seconds
+    ) {
+      // Start recovery
+      awaitUntilBody<ChooseAccountAccessModel>()
+        .clickMoreOptionsButton()
+      awaitUntilBody<AccountAccessMoreOptionsFormBodyModel>()
+        .onRestoreYourWalletClick()
+
+      // Attempt to sign in to cloud but no backup
+      awaitUntilBody<CloudSignInModelFake>()
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitUntilBody<CloudWarningBodyModel>()
+        .onCannotAccessCloud()
+
+      // Initiate Delay & Notify recovery
+      awaitUntilBody<RecoverYourAppKeyBodyModel>()
+        .onStartRecovery()
+      awaitUntilBody<EnableNotificationsBodyModel>()
+        .onComplete()
+      awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
+
+      // Start completing recovery
+      awaitUntilBody<DelayAndNotifyNewKeyReady>()
+        .onCompleteRecovery()
+      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
+    }
+
+    relaunchApp()
+
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 20.seconds,
+      turbineTimeout = 10.seconds
+    ) {
+      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
+      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+        .onBackupClick()
+      awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+      awaitUntilBody<ZeroBalancePromptBodyModel>()
+        .onDone()
+
+      awaitUntilBody<MoneyHomeBodyModel>()
+      app.awaitNoActiveRecovery()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
   test("force exiting before cloud backup takes you back to icloud backup") {
     setup()
 
@@ -241,7 +300,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<SaveBackupInstructionsBodyModel>()
     }
 
-    // Force quite app before cloud backup was saved
+    // Force quit app before cloud backup was saved
     relaunchApp()
 
     app.appUiStateMachine.test(
@@ -305,7 +364,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // Force quite app after cloud backup was saved but before sweep
+    // Force quit app after cloud backup was saved but before sweep
     relaunchApp()
 
     app.appUiStateMachine.test(
@@ -354,7 +413,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // Force quite app during D&N wait
+    // Force quit app during D&N wait
     relaunchApp()
 
     app.appUiStateMachine.test(
@@ -513,4 +572,96 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       app.awaitNoActiveRecovery()
     }
   }
+
+  test("lost app recovery refreshes descriptor backups if enabled") {
+    setup()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
+    app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
+
+    val accountId = app.getActiveFullAccount().accountId
+
+    app.verifyNoDescriptorBackups(accountId)
+    app.verifyCanUseKeyboxKeysets(true)
+
+    app.appDataDeleter.deleteAll().getOrThrow()
+    app.cloudBackupDeleter.delete()
+    app.deleteBackupsFromFakeCloud()
+
+    app = app.relaunchApp()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
+
+    app.performRecovery()
+
+    app.verifyDescriptorBackupsUploaded(accountId, 2)
+    app.verifyCanUseKeyboxKeysets(true)
+    app.decryptCloudBackupKeys().keysets.size.shouldBe(2)
+  }
+
+  test("lost app recovery clears canUseKeyboxKeysets if backups are disabled") {
+    setup()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
+    app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
+
+    val accountId = app.getActiveFullAccount().accountId
+
+    app.verifyDescriptorBackupsUploaded(accountId = accountId, count = 1)
+    app.verifyCanUseKeyboxKeysets(expected = true)
+
+    app.appDataDeleter.deleteAll().getOrThrow()
+    app.cloudBackupDeleter.delete()
+    app.deleteBackupsFromFakeCloud()
+
+    app = app.relaunchApp()
+    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
+
+    app.performRecovery()
+
+    app.verifyDescriptorBackupsUploaded(accountId = accountId, count = 1)
+    app.verifyCanUseKeyboxKeysets(expected = false)
+    app.decryptCloudBackupKeys().keysets.shouldBeEmpty()
+  }
 })
+
+suspend fun AppTester.performRecovery() {
+  appUiStateMachine.test(
+    props = Unit,
+    testTimeout = 20.seconds,
+    turbineTimeout = 10.seconds
+  ) {
+    // Start recovery
+    awaitUntilBody<ChooseAccountAccessModel>()
+      .clickMoreOptionsButton()
+    awaitUntilBody<AccountAccessMoreOptionsFormBodyModel>()
+      .onRestoreYourWalletClick()
+
+    // Failing to sign in to cloud
+    awaitUntilBody<CloudSignInModelFake>()
+      .signInFailure(Error())
+    awaitUntilBody<CloudWarningBodyModel>()
+      .onCannotAccessCloud()
+
+    // Initiate Delay & Notify recovery
+    awaitUntilBody<RecoverYourAppKeyBodyModel>()
+      .onStartRecovery()
+    awaitUntilBody<EnableNotificationsBodyModel>()
+      .onComplete()
+
+    // Complete recovery
+    awaitUntilBody<DelayAndNotifyNewKeyReady>()
+      .onCompleteRecovery()
+    awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+    awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      .onBackupClick()
+    awaitUntilBody<CloudSignInModelFake>()
+      .signInSuccess(CloudStoreAccount1Fake)
+
+    awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+    awaitUntilBody<ZeroBalancePromptBodyModel>()
+      .onDone()
+
+    awaitUntilBody<MoneyHomeBodyModel>()
+    awaitNoActiveRecovery()
+
+    cancelAndIgnoreRemainingEvents()
+  }
+}

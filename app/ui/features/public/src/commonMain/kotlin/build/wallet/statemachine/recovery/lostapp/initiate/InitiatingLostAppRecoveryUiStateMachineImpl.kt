@@ -2,6 +2,7 @@ package build.wallet.statemachine.recovery.lostapp.initiate
 
 import androidx.compose.runtime.*
 import bitkey.account.AccountConfigService
+import bitkey.recovery.DescriptorBackupService
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SIGN_AUTH
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
@@ -11,11 +12,17 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.cloud.backup.csek.Sek
+import build.wallet.cloud.backup.csek.SsekDao
+import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.nfc.NfcSession
+import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.platform.signChallenge
+import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.RetreatStyle.Back
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
@@ -33,6 +40,10 @@ import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppReco
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiStateMachineImpl.UiState.ShowingInstructionsState
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.fold
 
 /** UI State Machine for navigating the initiation of lost app recovery. */
 interface InitiatingLostAppRecoveryUiStateMachine :
@@ -49,6 +60,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
   private val recoveryNotificationVerificationUiStateMachine:
     RecoveryNotificationVerificationUiStateMachine,
   private val accountConfigService: AccountConfigService,
+  private val ssekDao: SsekDao,
+  private val descriptorBackupService: DescriptorBackupService,
 ) : InitiatingLostAppRecoveryUiStateMachine {
   @Composable
   override fun model(props: InitiatingLostAppRecoveryUiProps): ScreenModel {
@@ -63,10 +76,13 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
                 uiState = InitiatingViaNfcState
               }
             ).asRootScreen()
+
           InitiatingViaNfcState ->
             nfcSessionUIStateMachine.model(
               NfcSessionUIStateMachineProps(
-                session = { session, commands -> commands.getAuthenticationKey(session) },
+                session = { session, commands ->
+                  commands.getAuthenticationKey(session)
+                },
                 onSuccess = { recoveryData.addHardwareAuthKey(it) },
                 onCancel = { uiState = ShowingInstructionsState },
                 shouldLock = false, // Don't lock because we quickly call [SignChallenge] next
@@ -150,21 +166,51 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
                 commands.signAccessToken(session, recoveryData.completedAuth.authTokens.accessToken)
               )
               val bitcoinNetwork = accountConfigService.defaultConfig().value.bitcoinNetworkType
-              val spendingKey = commands.getNextSpendingKey(
+
+              extractHardwareSpendingKeys(
                 session = session,
-                existingDescriptorPublicKeys = recoveryData.completedAuth.existingHwSpendingKeys,
-                network = bitcoinNetwork
+                commands = commands,
+                completedAuth = recoveryData.completedAuth
+              ).fold(
+                success = { existingKeys ->
+                  val spendingKey = commands.getNextSpendingKey(
+                    session = session,
+                    existingDescriptorPublicKeys = existingKeys,
+                    network = bitcoinNetwork
+                  )
+
+                  // Sign the new app global auth key with the hardware auth key.
+                  val appGlobalAuthKeyHwSignature = commands
+                    .signChallenge(
+                      session,
+                      recoveryData.completedAuth.destinationAppKeys.authKey.value
+                    )
+                    .let(::AppGlobalAuthKeyHwSignature)
+
+                  RotateHwKeysResponse.Success(
+                    proof = proof,
+                    spendingKey = spendingKey,
+                    appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
+                  )
+                },
+                failure = { error ->
+                  RotateHwKeysResponse.Failure(error)
+                }
               )
-
-              // Sign the new app global auth key with the hardware auth key.
-              val appGlobalAuthKeyHwSignature = commands
-                .signChallenge(session, recoveryData.completedAuth.destinationAppKeys.authKey.value)
-                .let(::AppGlobalAuthKeyHwSignature)
-
-              RotateHwKeysResponse(proof, spendingKey, appGlobalAuthKeyHwSignature)
             },
-            onSuccess = { (proof, spendingKey, appGlobalAuthKeyHwSignature) ->
-              recoveryData.onComplete(proof, spendingKey, appGlobalAuthKeyHwSignature)
+            onSuccess = { result ->
+              when (result) {
+                is RotateHwKeysResponse.Success -> {
+                  recoveryData.onComplete(
+                    result.proof,
+                    result.spendingKey,
+                    result.appGlobalAuthKeyHwSignature
+                  )
+                }
+                is RotateHwKeysResponse.Failure -> {
+                  recoveryData.rollback()
+                }
+              }
             },
             onCancel = {
               uiState = ShowingInstructionsState
@@ -223,6 +269,32 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
     }
   }
 
+  private suspend fun extractHardwareSpendingKeys(
+    session: NfcSession,
+    commands: NfcCommands,
+    completedAuth: CompletedAuth,
+  ): Result<List<HwSpendingPublicKey>, Throwable> {
+    return when (completedAuth) {
+      is CompletedAuth.WithDirectKeys -> {
+        Ok(completedAuth.existingHwSpendingKeys)
+      }
+
+      is CompletedAuth.WithDescriptorBackups -> {
+        coroutineBinding {
+          val unsealedSsek = commands.unsealData(session, completedAuth.wrappedSsek)
+          ssekDao.set(completedAuth.wrappedSsek, Sek(SymmetricKeyImpl(unsealedSsek))).bind()
+
+          val keysets = descriptorBackupService.unsealDescriptors(
+            sealedSsek = completedAuth.wrappedSsek,
+            encryptedDescriptorBackups = completedAuth.descriptorBackups
+          ).bind()
+
+          keysets.map { keyset -> keyset.hardwareKey }
+        }
+      }
+    }
+  }
+
   private fun InitiateRecoveryErrorScreenModel(
     cause: Throwable,
     onDoneClicked: () -> Unit,
@@ -259,9 +331,13 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
     data object InitiatingViaNfcState : UiState
   }
 
-  private data class RotateHwKeysResponse(
-    val proof: HwFactorProofOfPossession,
-    val spendingKey: HwSpendingPublicKey,
-    val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
-  )
+  private sealed interface RotateHwKeysResponse {
+    data class Success(
+      val proof: HwFactorProofOfPossession,
+      val spendingKey: HwSpendingPublicKey,
+      val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    ) : RotateHwKeysResponse
+
+    data class Failure(val error: Throwable) : RotateHwKeysResponse
+  }
 }

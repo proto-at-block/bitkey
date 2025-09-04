@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-unit-desktop",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-unit-desktop-1.8.0.jar": "296d23deaa78b508cf95d14cf5bda58a4f3ad5b42d85fcc8becf6e12ffbd037e"
+                        "ui-unit-desktop-1.8.1.jar": "296d23deaa78b508cf95d14cf5bda58a4f3ad5b42d85fcc8becf6e12ffbd037e"
                     }
                 }
             ],

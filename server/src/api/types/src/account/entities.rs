@@ -191,7 +191,7 @@ impl CommsVerificationClaim {
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
-pub struct FullAccountAuthKeysPayload {
+pub struct FullAccountAuthKeysInput {
     // TODO: [W-774] Update visibility of struct after migration
     pub app: PublicKey,
     pub hardware: PublicKey,
@@ -200,27 +200,27 @@ pub struct FullAccountAuthKeysPayload {
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
-pub struct LiteAccountAuthKeysPayload {
+pub struct LiteAccountAuthKeysInput {
     // TODO: [W-774] Update visibility of struct after migration
     pub recovery: PublicKey,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
-pub struct SoftwareAccountAuthKeysPayload {
+pub struct SoftwareAccountAuthKeysInput {
     // TODO: [W-774] Update visibility of struct after migration
     pub app: PublicKey,
     pub recovery: PublicKey,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
-pub struct UpgradeLiteAccountAuthKeysPayload {
+pub struct UpgradeLiteAccountAuthKeysInput {
     // TODO: [W-774] Update visibility of struct after migration
     pub app: PublicKey,
     pub hardware: PublicKey,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
-pub struct SpendingKeysetRequest {
+pub struct SpendingKeysetInput {
     // TODO: [W-774] Update visibility of struct after migration
     pub network: bdk_utils::bdk::bitcoin::Network,
     #[serde(with = "bdk_utils::serde::descriptor_key")]
@@ -370,7 +370,7 @@ impl FullAccount {
 
     pub fn active_descriptor_keyset(&self) -> Option<DescriptorKeyset> {
         self.active_spending_keyset()
-            .map(|keyset| keyset.clone().into())
+            .and_then(|keyset| keyset.optional_legacy_multi_sig().map(|k| k.clone().into()))
     }
 
     pub fn inactive_descriptor_keysets(&self) -> Vec<DescriptorKeyset> {
@@ -380,7 +380,10 @@ impl FullAccount {
                 if *keyset.0 == self.active_keyset_id {
                     None
                 } else {
-                    Some(keyset.1.clone().into())
+                    keyset
+                        .1
+                        .optional_legacy_multi_sig()
+                        .map(|k| k.clone().into())
                 }
             })
             .collect()
@@ -686,6 +689,28 @@ pub struct DescriptorBackup {
     pub sealed_descriptor: String,
 }
 
+pub mod v2 {
+    use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
+    use serde::{Deserialize, Serialize};
+    use utoipa::ToSchema;
+
+    use crate::account::bitcoin::Network;
+
+    #[derive(Deserialize, Serialize, Debug, ToSchema, Clone)]
+    pub struct FullAccountAuthKeysInputV2 {
+        pub app_pub: PublicKey,
+        pub hardware_pub: PublicKey,
+        pub recovery_pub: PublicKey,
+    }
+
+    #[derive(Deserialize, Serialize, Debug, ToSchema, Clone)]
+    pub struct SpendingKeysetInputV2 {
+        pub network: Network,
+        pub app_pub: PublicKey,
+        pub hardware_pub: PublicKey,
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -707,6 +732,7 @@ mod tests {
         entities::{CommonAccountFields, FullAccount},
         identifiers::{AccountId, AuthKeysId, KeysetId},
         spend_limit::SpendingLimit,
+        spending::LegacyMultiSigSpendingKeyset,
     };
 
     #[test]
@@ -760,12 +786,12 @@ mod tests {
                 hardware_pubkey: public_key,
                 recovery_pubkey: Some(public_key),
             },
-            SpendingKeyset {
+            SpendingKeyset::LegacyMultiSig(LegacyMultiSigSpendingKeyset {
                 network: Default::default(),
                 app_dpub: descriptor_public_key.clone(),
                 hardware_dpub: descriptor_public_key.clone(),
                 server_dpub: descriptor_public_key,
-            },
+            }),
             properties.clone(),
         );
 
@@ -818,21 +844,21 @@ mod tests {
             spending_keysets: HashMap::from([
                 (
                     active_keyset_id.clone(),
-                    SpendingKeyset {
+                    SpendingKeyset::LegacyMultiSig(LegacyMultiSigSpendingKeyset {
                         network: Network::BitcoinMain,
                         app_dpub: descriptor_public_key.clone(),
                         hardware_dpub: descriptor_public_key.clone(),
                         server_dpub: descriptor_public_key.clone(),
-                    },
+                    }),
                 ),
                 (
                     KeysetId::gen().unwrap(),
-                    SpendingKeyset {
+                    SpendingKeyset::LegacyMultiSig(LegacyMultiSigSpendingKeyset {
                         network: Network::BitcoinMain,
                         app_dpub: descriptor_public_key.clone(),
                         hardware_dpub: descriptor_public_key.clone(),
                         server_dpub: descriptor_public_key.clone(),
-                    },
+                    }),
                 ),
             ]),
             active_keyset_id,
@@ -856,7 +882,7 @@ mod tests {
             auth_keys: Default::default(),
             spending_keysets: HashMap::from([(
                 keyset_id,
-                SpendingKeyset::new(
+                SpendingKeyset::new_legacy_multi_sig(
                     Network::BitcoinMain,
                     descriptor_public_key.clone(),
                     descriptor_public_key.clone(),

@@ -8,7 +8,6 @@ import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
-import build.wallet.worker.BackgroundStrategy
 import build.wallet.worker.RetryStrategy
 import build.wallet.worker.RunStrategy
 import com.github.michaelbull.result.get
@@ -25,12 +24,10 @@ class TxVerificationSyncWorkerImpl(
   override val runStrategy: Set<RunStrategy> = setOf(
     RunStrategy.Startup(),
     RunStrategy.OnEvent(
-      observer = keyboxDao.activeKeybox(),
-      backgroundStrategy = BackgroundStrategy.Wait
+      observer = keyboxDao.activeKeybox()
     ),
     RunStrategy.OnEvent(
-      observer = featureFlag.flagValue(),
-      backgroundStrategy = BackgroundStrategy.Wait
+      observer = featureFlag.flagValue()
     )
   )
   override val retryStrategy: RetryStrategy = RetryStrategy.Always(

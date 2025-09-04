@@ -70,6 +70,7 @@ class ProofOfPossessionNfcStateMachineImpl(
             actionDescription = props.actionDescription,
             screenPresentationStyle = props.screenPresentationStyle,
             hardwareVerification = props.hardwareVerification,
+            shouldLock = props.shouldLock,
             eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
           )
 

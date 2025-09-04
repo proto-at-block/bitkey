@@ -554,6 +554,9 @@ impl BootstrapBuilder {
     async fn build_router(&self) -> Result<Router, BootstrapError> {
         let profile = self.profile.as_deref();
 
+        let analytics_state = config::extract::<analytics::routes::Config>(profile)?.to_state();
+        let tracker = analytics_state.0.clone();
+
         let privileged_action_state = privileged_action::routes::RouteState(
             self.services.userpool_service.clone(),
             self.services.privileged_action_service.clone(),
@@ -637,6 +640,7 @@ impl BootstrapBuilder {
             self.services.feature_flags_service.clone(),
             self.services.wsm_client.clone(),
             self.services.broadcaster.clone(),
+            tracker,
         );
 
         let relationship_state = recovery::routes::relationship::RouteState(
@@ -694,7 +698,6 @@ impl BootstrapBuilder {
         );
 
         let static_handler_state = secure_site::static_handler::RouteState();
-        let analytics_state = config::extract::<analytics::routes::Config>(profile)?.to_state();
         let health_checks_state = healthcheck::Service;
 
         let linear_state = linear::routes::RouteState::new(config::extract(profile)?);

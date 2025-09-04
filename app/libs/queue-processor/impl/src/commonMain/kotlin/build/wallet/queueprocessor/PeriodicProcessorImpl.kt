@@ -1,5 +1,6 @@
 package build.wallet.queueprocessor
 
+import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
@@ -14,9 +15,10 @@ class PeriodicProcessorImpl<T>(
   private val processor: Processor<T>,
   retryFrequency: Duration,
   retryBatchSize: Int,
+  appSessionManager: AppSessionManager,
 ) : Processor<T>, PeriodicProcessor {
   private val periodicQueueProcessor =
-    PeriodicQueueProcessorImpl(queue, processor, retryFrequency, retryBatchSize)
+    PeriodicQueueProcessorImpl(queue, processor, retryFrequency, retryBatchSize, appSessionManager)
 
   override suspend fun processBatch(batch: List<T>): Result<Unit, Error> {
     return coroutineBinding {

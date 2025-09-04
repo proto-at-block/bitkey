@@ -39,6 +39,8 @@ pub enum TransactionVerificationError {
     WsmError(#[from] WsmError),
     #[error("Invalid web auth token")]
     InvalidWebAuthToken,
+    #[error("Invalid keyset type: {0}")]
+    InvalidKeysetType(KeysetId),
 }
 
 impl From<TransactionVerificationError> for ApiError {
@@ -72,7 +74,8 @@ impl From<TransactionVerificationError> for ApiError {
             | TransactionVerificationError::InvalidTokenForCompletion
             | TransactionVerificationError::NoSpendKeyset(_)
             | TransactionVerificationError::PsbtParsingFailed(_)
-            | TransactionVerificationError::InvalidWebAuthToken => {
+            | TransactionVerificationError::InvalidWebAuthToken
+            | TransactionVerificationError::InvalidKeysetType(_) => {
                 ApiError::GenericBadRequest(err_msg)
             }
         }

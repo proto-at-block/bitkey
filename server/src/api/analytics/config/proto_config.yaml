@@ -9,6 +9,12 @@ messages:
       - serde(rename_all = "camelCase")
       - serde(default)
       - rustfmt::skip
+  - paths: [ServerEvent]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - serde(rename_all = "camelCase")
+      - serde(default)
+      - rustfmt::skip      
   - paths: [EventBundle]
     attrs:
       - derive(serde::Serialize, serde::Deserialize)
@@ -46,11 +52,21 @@ messages:
       - serde(rename_all = "camelCase")
       - serde(default)
       - rustfmt::skip
+  - paths: [ServerInheritanceInfo]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - serde(rename_all = "camelCase")
+      - serde(default)
+      - rustfmt::skip      
 enums:
   - paths: [Action]
     attrs:
       - derive(serde::Serialize, serde::Deserialize)
       - rustfmt::skip
+  - paths: [ServerAction]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - rustfmt::skip      
   - paths: [Client]
     attrs:
       - derive(serde::Serialize, serde::Deserialize)

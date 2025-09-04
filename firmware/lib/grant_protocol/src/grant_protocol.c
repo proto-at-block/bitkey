@@ -122,16 +122,17 @@ static void perform_action(grant_action_t action) {
   }
 }
 
-static bool get_original_request(grant_action_t action, grant_request_t* out_request) {
+static grant_protocol_result_t get_original_request(grant_action_t action,
+                                                    grant_request_t* out_request) {
   LOGD("Action: %d", action);
   switch (action) {
     case ACTION_FINGERPRINT_RESET:
       // Use what we persisted in flash.
       LOGD("Reading original request from flash");
-      return grant_storage_read_request(out_request) == GRANT_RESULT_OK;
+      return grant_storage_read_request(out_request);
     default:
       ASSERT_LOG(false, "Invalid action");
-      return false;
+      return GRANT_RESULT_ERROR_INTERNAL;
   }
 }
 
@@ -181,9 +182,11 @@ grant_protocol_result_t grant_protocol_verify_grant(const grant_t* grant) {
   grant_action_t claimed_action = ((grant_request_t*)grant->serialized_request)->action;
 
   grant_request_t original_request = {0};
-  if (!get_original_request(claimed_action, &original_request)) {
+  grant_protocol_result_t get_request_result =
+    get_original_request(claimed_action, &original_request);
+  if (get_request_result != GRANT_RESULT_OK) {
     LOGE("Failed to get original request");
-    return GRANT_RESULT_ERROR_INTERNAL;
+    return get_request_result;
   }
 
   grant_protocol_result_t result = GRANT_RESULT_ERROR_INTERNAL;

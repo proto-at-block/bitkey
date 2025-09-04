@@ -39,6 +39,7 @@ use onboarding::routes::{
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
     RotateSpendingKeysetRequest, UpdateDescriptorBackupsResponse, UpgradeAccountRequest,
 };
+use onboarding::routes_v2::{CreateAccountRequestV2, CreateAccountResponseV2};
 use privileged_action::routes::{
     CancelPendingDelayAndNotifyInstanceByTokenRequest, CancelPendingInstanceResponse,
     ConfigurePrivilegedActionDelayDurationsRequest,
@@ -1821,5 +1822,23 @@ impl TestClient {
             .put(request)
             .call(&self.router)
             .await
+    }
+
+    // V2 routes
+    pub(crate) async fn create_account_v2(
+        &self,
+        context: &mut TestContext,
+        request: &CreateAccountRequestV2,
+    ) -> Response<CreateAccountResponseV2> {
+        let response: Response<CreateAccountResponseV2> = Request::builder()
+            .uri("/api/v2/accounts")
+            .post(request)
+            .call(&self.router)
+            .await;
+        if let Some(r) = response.body.as_ref() {
+            let account_id = r.account_id.clone();
+            context.associate_with_account(&account_id, request.auth.app_pub);
+        }
+        response
     }
 }

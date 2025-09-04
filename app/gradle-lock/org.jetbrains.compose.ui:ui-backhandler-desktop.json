@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-backhandler-desktop",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-backhandler-desktop-1.8.0.jar": "e2bc1cd9eee36c72d8bfe928ed329603ef79ec000aa136888ef7cd80081692a6"
+                        "ui-backhandler-desktop-1.8.1.jar": "e2bc1cd9eee36c72d8bfe928ed329603ef79ec000aa136888ef7cd80081692a6"
                     }
                 }
             ],

@@ -1,18 +1,19 @@
 package build.wallet.fwup
 
 import app.cash.turbine.Turbine
-import app.cash.turbine.plusAssign
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class FwupDataDaoProviderMock(
   turbine: (name: String) -> Turbine<Any>,
 ) : FwupDataDaoProvider {
   val fwupDataDaoMock = FwupDataDaoMock(turbine)
+  private val daoFlow = MutableStateFlow<FwupDataDao>(fwupDataDaoMock)
 
-  override suspend fun get(): FwupDataDao {
-    return fwupDataDaoMock
-  }
+  override fun get(): StateFlow<FwupDataDao> = daoFlow
 
   fun reset(testName: String) {
     fwupDataDaoMock.reset(testName)
+    daoFlow.value = fwupDataDaoMock
   }
 }
