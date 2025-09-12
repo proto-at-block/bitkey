@@ -4,6 +4,8 @@ namespace core {
   DERSignature compact_signature_to_der([ByRef] CompactSignature compact_signature);
   [Throws=SignatureUtilsError]
   CompactSignature compact_signature_from_der([ByRef] DERSignature der_signature);
+  [Throws=ChaincodeDelegationError]
+  Psbt psbt_with_tweaks(Psbt psbt, ExtendedPrivKey app_root_xprv, ExtendedPubKey server_root_xpub, DescriptorPublicKey hw_dpub);
 };
 
 [Error]
@@ -381,7 +383,24 @@ enum SigningError {
 };
 
 [Error]
+interface ChaincodeDelegationError {
+  KeyDerivation(string reason);
+  TweakComputation(string reason);
+  UnknownKey(Fingerprint fingerprint);
+  KeyMismatch(PublicKey expected, PublicKey actual);
+};
+
+[Error]
 enum SignatureUtilsError {
   "InvalidCompactSignature",
   "InvalidDerSignature",
 };
+
+[Custom]
+typedef string ExtendedPubKey;
+
+[Custom]
+typedef string ExtendedPrivKey;
+
+[Custom]
+typedef string Fingerprint;

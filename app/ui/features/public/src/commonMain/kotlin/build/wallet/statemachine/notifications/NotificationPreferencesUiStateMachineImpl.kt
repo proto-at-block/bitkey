@@ -209,7 +209,8 @@ class NotificationPreferencesUiStateMachineImpl(
                 )
               }
             }
-          }
+          },
+          onMoneyMovementLearnMore = { uiState = UiState.BrowserViewState.MoneyMovementLearnMoreView }
         ).asRootScreen(
           alertModel = openSettingsForPushAlertModel(
             pushEnabled = false,
@@ -257,6 +258,18 @@ class NotificationPreferencesUiStateMachineImpl(
           open = {
             inAppBrowserNavigator.open(
               url = "https://bitkey.world/en-US/legal/terms-of-service",
+              onClose = {
+                setUiState(UiState.MainViewState.Editing)
+              }
+            )
+          }
+        ).asModalScreen()
+      }
+      UiState.BrowserViewState.MoneyMovementLearnMoreView -> {
+        InAppBrowserModel(
+          open = {
+            inAppBrowserNavigator.open(
+              url = "https://bitkey.world/hc/update-notifications-settings",
               onClose = {
                 setUiState(UiState.MainViewState.Editing)
               }
@@ -336,6 +349,8 @@ class NotificationPreferencesUiStateMachineImpl(
       data object TosView : BrowserViewState
 
       data object PrivacyView : BrowserViewState
+
+      data object MoneyMovementLearnMoreView : BrowserViewState
     }
   }
 }

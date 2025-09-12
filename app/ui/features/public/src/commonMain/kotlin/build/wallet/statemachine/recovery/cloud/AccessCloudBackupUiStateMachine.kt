@@ -1,9 +1,9 @@
 package build.wallet.statemachine.recovery.cloud
 
 import build.wallet.cloud.backup.CloudBackup
-import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
+import build.wallet.statemachine.data.keybox.AccountData.StartIntent
 
 /**
  * State machine that handles logging into a cloud storage and looking up [CloudBackup] on cloud
@@ -17,17 +17,19 @@ interface AccessCloudBackupUiStateMachine : StateMachine<AccessCloudBackupUiProp
  * or closed the app, we want to customer to see account picker again instead of reusing the same
  * (Google) account.
  * @property onExit handler for when the flow needs to be exited completely.
- * @property onBackupFound handler for when cloud backup is successfully found.
  * @property onCannotAccessCloudBackup handler for when customer is not able to access cloud storage,
  * or we are not able to find backup on the cloud storage.
  * @property showErrorOnBackupMissing Whether to display a screen if no backup can be loaded
  * or to immediately invoke [onCannotAccessCloudBackup] instead.
  */
 data class AccessCloudBackupUiProps(
-  val forceSignOutFromCloud: Boolean,
+  val startIntent: StartIntent,
+  val inviteCode: String?,
   val onExit: () -> Unit,
-  val onBackupFound: (backup: CloudBackup) -> Unit,
-  val onCannotAccessCloudBackup: (CloudStoreAccount?) -> Unit,
+  val onStartCloudRecovery: (backup: CloudBackup) -> Unit,
+  val onStartLiteAccountRecovery: (backup: CloudBackup) -> Unit,
+  val onStartLostAppRecovery: () -> Unit,
+  val onStartLiteAccountCreation: (String?, StartIntent) -> Unit,
   val onImportEmergencyExitKit: () -> Unit,
-  val showErrorOnBackupMissing: Boolean = true,
+  val showErrorOnBackupMissing: Boolean,
 )

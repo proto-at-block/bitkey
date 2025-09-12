@@ -30,7 +30,8 @@ class NotificationPreferencesFormScreenSnapshots : FunSpec({
             privacyLink = {}
           ),
           ctaModel = null,
-          continueOnClick = {}
+          continueOnClick = {},
+          onMoneyMovementLearnMore = {}
         )
       )
     }
@@ -55,7 +56,8 @@ class NotificationPreferencesFormScreenSnapshots : FunSpec({
             privacyLink = {}
           ),
           ctaModel = null,
-          continueOnClick = {}
+          continueOnClick = {},
+          onMoneyMovementLearnMore = {}
         )
       )
     }
@@ -75,7 +77,8 @@ class NotificationPreferencesFormScreenSnapshots : FunSpec({
           onBack = {},
           tosInfo = null,
           ctaModel = null,
-          continueOnClick = {}
+          continueOnClick = {},
+          onMoneyMovementLearnMore = {}
         )
       )
     }
@@ -100,7 +103,8 @@ class NotificationPreferencesFormScreenSnapshots : FunSpec({
             privacyLink = {}
           ),
           ctaModel = null,
-          continueOnClick = {}
+          continueOnClick = {},
+          onMoneyMovementLearnMore = {}
         )
       )
     }
@@ -125,7 +129,8 @@ class NotificationPreferencesFormScreenSnapshots : FunSpec({
             privacyLink = {}
           ),
           ctaModel = null,
-          continueOnClick = {}
+          continueOnClick = {},
+          onMoneyMovementLearnMore = {}
         )
       )
     }
@@ -150,7 +155,8 @@ class NotificationPreferencesFormScreenSnapshots : FunSpec({
             privacyLink = {}
           ),
           ctaModel = null,
-          continueOnClick = {}
+          continueOnClick = {},
+          onMoneyMovementLearnMore = {}
         )
       )
     }
@@ -178,7 +184,8 @@ class NotificationPreferencesFormScreenSnapshots : FunSpec({
             text = "Agree to our Terms and Privacy Policy to continue.",
             treatment = CallToActionModel.Treatment.WARNING
           ),
-          continueOnClick = {}
+          continueOnClick = {},
+          onMoneyMovementLearnMore = {}
         )
       )
     }

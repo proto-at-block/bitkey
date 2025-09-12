@@ -13,6 +13,7 @@ kotlin {
         api(libs.kmp.kotlin.datetime)
         api(libs.kmp.kotlin.result)
         api(libs.kmp.kermit)
+        implementation(libs.kmp.big.number)
       }
     }
 

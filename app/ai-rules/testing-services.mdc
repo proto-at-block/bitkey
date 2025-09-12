@@ -8,22 +8,21 @@ alwaysApply: true
 
 ## Summary
 
-Testing patterns for domain services that orchestrate business logic. Focus on testing business rules, workflows, and coordination between dependencies. Use fakes for realistic behavior and test both success and failure paths.
+Testing domain services that orchestrate business logic. Test business rules, workflows, and dependency coordination using fakes.
 
 ## When to Apply
 
 - Testing domain service implementations
-- Verifying business rule enforcement
-- Testing service orchestration and workflows
+- Verifying business rule enforcement  
+- Testing service orchestration/workflows
 - Validating error handling and recovery
 
 ## How to Apply
 
-### Basic Service Test Structure
+### Basic Structure
 
 ```kotlin
 class MobilePayServiceImplTests : FunSpec({
-  // All test doubles defined at spec level
   val spendingLimitDao = SpendingLimitDaoFake()
   val f8eClient = MobilePayF8eClientFake()
   val bitcoinWalletService = BitcoinWalletServiceFake()
@@ -40,7 +39,6 @@ class MobilePayServiceImplTests : FunSpec({
     spendingLimitDao.reset()
     f8eClient.reset()
     bitcoinWalletService.reset()
-    // Note: turbines auto-reset between tests
   }
 })
 ```
@@ -49,25 +47,15 @@ class MobilePayServiceImplTests : FunSpec({
 
 ```kotlin
 test("enables mobile pay when wallet has sufficient balance") {
-  // Setup preconditions
   bitcoinWalletService.setBalance(BitcoinMoney.btc(1.0))
+  val limit = SpendingLimit(BitcoinMoney.btc(0.1), SpendingPeriod.Daily)
   
-  val limit = SpendingLimit(
-    amount = BitcoinMoney.btc(0.1),
-    period = SpendingPeriod.Daily
-  )
-  
-  // Execute operation
   val result = service.enableMobilePay(limit)
   
-  // Verify success
   result.shouldBeOk()
-  
-  // Verify state changes
   spendingLimitDao.getActiveLimit().shouldBeOk(limit)
   f8eClient.getLastSyncedLimit().shouldBe(limit)
   
-  // Verify event tracking
   eventTracker.trackEventCalls
     .awaitItem()
     .shouldBeTypeOf<Event.MobilePayEnabled>()
@@ -75,43 +63,32 @@ test("enables mobile pay when wallet has sufficient balance") {
 
 test("returns error when balance insufficient") {
   bitcoinWalletService.setBalance(BitcoinMoney.btc(0.05))
-  
-  val limit = SpendingLimit(
-    amount = BitcoinMoney.btc(0.1),
-    period = SpendingPeriod.Daily
-  )
+  val limit = SpendingLimit(BitcoinMoney.btc(0.1), SpendingPeriod.Daily)
   
   val result = service.enableMobilePay(limit)
   
   result.shouldBeErr()
   result.error.shouldBeTypeOf<MobilePayError.InsufficientBalance>()
-  
-  // Verify no side effects
   spendingLimitDao.getActiveLimit().shouldBeOk(null)
 }
 ```
 
-### Testing Service Workflows
+### Testing Workflows
 
 ```kotlin
 test("syncs spending limit with server periodically") {
-  val limit = SpendingLimitMock
-  spendingLimitDao.setActiveLimit(limit)
+  spendingLimitDao.setActiveLimit(SpendingLimitMock)
   
-  // Test Flow emissions
   service.syncStatus().test {
-    // Initial sync
     awaitItem().shouldBe(SyncStatus.Syncing)
     awaitItem().shouldBe(SyncStatus.Synced)
     
-    // Trigger manual sync
     service.triggerSync()
     
     awaitItem().shouldBe(SyncStatus.Syncing)
     awaitItem().shouldBe(SyncStatus.Synced)
   }
   
-  // Verify server was updated
   f8eClient.getSyncCount().shouldBe(2)
 }
 ```
@@ -120,18 +97,11 @@ test("syncs spending limit with server periodically") {
 
 ```kotlin
 test("retries on transient network errors") {
-  // First attempt fails
   f8eClient.setNextError(NetworkError.Timeout)
+  service.syncWithServer().shouldBeErr()
   
-  val result = service.syncWithServer()
-  
-  result.shouldBeErr()
-  
-  // Retry succeeds
   f8eClient.clearError()
-  val retryResult = service.syncWithServer()
-  
-  retryResult.shouldBeOk()
+  service.syncWithServer().shouldBeOk()
 }
 
 test("handles permanent errors without retry") {
@@ -141,8 +111,6 @@ test("handles permanent errors without retry") {
   
   result.shouldBeErr()
   result.error.shouldBeTypeOf<MobilePayError.AuthenticationRequired>()
-  
-  // Verify no retry attempted
   f8eClient.getRequestCount().shouldBe(1)
 }
 ```
@@ -151,52 +119,34 @@ test("handles permanent errors without retry") {
 
 ```kotlin
 test("handles concurrent limit updates safely") {
-  val limits = (1..10).map { 
-    SpendingLimit(
-      amount = BitcoinMoney.btc(it * 0.01),
-      period = SpendingPeriod.Daily
-    )
-  }
+  val limits = (1..10).map { SpendingLimit(BitcoinMoney.btc(it * 0.01), SpendingPeriod.Daily) }
   
-  // Launch concurrent updates
   val results = limits.map { limit ->
     async { service.updateLimit(limit) }
   }.awaitAll()
   
-  // All should succeed
   results.forEach { it.shouldBeOk() }
   
-  // Final state should be consistent
   val activeLimit = spendingLimitDao.getActiveLimit()
   activeLimit.shouldBeOk()
   limits.shouldContain(activeLimit.value)
 }
 ```
 
-### Testing Complex Business Rules
+### Testing Business Rules
 
 ```kotlin
 test("enforces daily spending limit across multiple transactions") {
-  val dailyLimit = SpendingLimit(
-    amount = BitcoinMoney.btc(0.1),
-    period = SpendingPeriod.Daily
-  )
+  val dailyLimit = SpendingLimit(BitcoinMoney.btc(0.1), SpendingPeriod.Daily)
   service.enableMobilePay(dailyLimit)
   
-  // First transaction succeeds
-  val tx1 = service.createTransaction(BitcoinMoney.btc(0.05))
-  tx1.shouldBeOk()
+  service.createTransaction(BitcoinMoney.btc(0.05)).shouldBeOk()
+  service.createTransaction(BitcoinMoney.btc(0.04)).shouldBeOk()
   
-  // Second transaction within limit succeeds
-  val tx2 = service.createTransaction(BitcoinMoney.btc(0.04))
-  tx2.shouldBeOk()
-  
-  // Third transaction exceeds daily limit
   val tx3 = service.createTransaction(BitcoinMoney.btc(0.02))
   tx3.shouldBeErr()
   tx3.error.shouldBeTypeOf<MobilePayError.DailyLimitExceeded>()
   
-  // Verify remaining balance
   service.getRemainingDailyLimit().shouldBeOk(BitcoinMoney.btc(0.01))
 }
 ```
@@ -205,7 +155,6 @@ test("enforces daily spending limit across multiple transactions") {
 
 ```kotlin
 class RecoveryServiceImplTests : FunSpec({
-  // All test doubles defined at spec level
   val recoveryDao = RecoveryDaoFake()
   val f8eClient = RecoveryF8eClientFake()
   val hardwareService = HardwareServiceFake()
@@ -222,62 +171,48 @@ class RecoveryServiceImplTests : FunSpec({
     recoveryDao.reset()
     f8eClient.reset()
     hardwareService.reset()
-    // Note: turbines auto-reset between tests
   }
   
   test("initiates recovery when hardware is lost") {
-    val account = FullAccountMock
-    recoveryDao.setAccount(account)
+    recoveryDao.setAccount(FullAccountMock)
     
-    val result = service.initiateRecovery(
-      RecoveryType.LostHardware,
-      account.accountId
-    )
+    val result = service.initiateRecovery(RecoveryType.LostHardware, FullAccountMock.accountId)
     
     result.shouldBeOk()
-    
-    // Verify recovery state
     val recovery = result.value
     recovery.type.shouldBe(RecoveryType.LostHardware)
     recovery.status.shouldBe(RecoveryStatus.AwaitingVerification)
     
-    // Verify server notified
     f8eClient.getActiveRecovery().shouldBe(recovery)
     
-    // Verify tracking
     eventTracker.trackEventCalls
       .awaitItem()
       .shouldBeTypeOf<Event.RecoveryInitiated>()
   }
   
   test("completes recovery after verification") {
-    val recovery = RecoveryMock
-    recoveryDao.setActiveRecovery(recovery)
-    
-    // Simulate verification
+    recoveryDao.setActiveRecovery(RecoveryMock)
     hardwareService.setVerificationResult(true)
     
-    val result = service.completeRecovery(recovery.id)
+    val result = service.completeRecovery(RecoveryMock.id)
     
     result.shouldBeOk()
-    
-    // Verify completion
     recoveryDao.getActiveRecovery().shouldBeOk(null)
-    f8eClient.getCompletedRecoveries().shouldContain(recovery.id)
+    f8eClient.getCompletedRecoveries().shouldContain(RecoveryMock.id)
   }
 })
 ```
 
-## Testing Patterns
+## Key Patterns
 
-**Business Logic Focus:** Test what the service does, not how
-**State Verification:** Use fakes to verify state changes
-**Error Path Coverage:** Test all error conditions
-**Workflow Testing:** Verify multi-step operations
+- **Business Logic Focus:** Test what the service does, not how
+- **State Verification:** Use fakes to verify state changes  
+- **Error Path Coverage:** Test all error conditions
+- **Workflow Testing:** Verify multi-step operations
 
 ## Related Rules
 
 - @ai-rules/domain-service-pattern.mdc (service architecture)
-- @ai-rules/testing-basics.mdc (core patterns)
+- @ai-rules/testing-basics.mdc (core patterns)  
 - @ai-rules/testing-fakes-mocks.mdc (test doubles)
 - @ai-rules/testing-coroutines.mdc (async testing)

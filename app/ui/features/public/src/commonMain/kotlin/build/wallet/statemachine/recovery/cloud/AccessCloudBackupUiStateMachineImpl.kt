@@ -1,21 +1,20 @@
 package build.wallet.statemachine.recovery.cloud
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext.APP_RECOVERY
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.isFullAccount
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.router.Route
+import build.wallet.router.Router
 import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingProps
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiStateMachine
@@ -24,13 +23,8 @@ import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.CheckingCloudBackupUiState
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.CloudBackupNotFoundUiState
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.CloudBackupRectifiableErrorState
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.CloudNotSignedInUiState
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.ShowingCustomerSupportUiState
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.ShowingTroubleshootingSteps
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.SigningIntoCloudUiState
+import build.wallet.statemachine.data.keybox.AccountData.StartIntent
+import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.*
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
@@ -46,7 +40,7 @@ class AccessCloudBackupUiStateMachineImpl(
   override fun model(props: AccessCloudBackupUiProps): ScreenModel {
     var state: State by remember {
       mutableStateOf(
-        SigningIntoCloudUiState(forceSignOut = props.forceSignOutFromCloud)
+        SigningIntoCloudUiState
       )
     }
 
@@ -55,7 +49,7 @@ class AccessCloudBackupUiStateMachineImpl(
         cloudSignInUiStateMachine.model(
           props =
             CloudSignInUiProps(
-              forceSignOut = currentState.forceSignOut,
+              forceSignOut = true,
               onSignedIn = { account ->
                 state = CheckingCloudBackupUiState(account)
               },
@@ -81,10 +75,15 @@ class AccessCloudBackupUiStateMachineImpl(
           CloudNotSignedInBodyModel(
             onBack = props.onExit,
             onCannotAccessCloud = {
-              props.onCannotAccessCloudBackup(null)
+              onCannotAccessCloudBackup(
+                intent = props.startIntent,
+                inviteCode = props.inviteCode,
+                onStartLostAppRecovery = props.onStartLostAppRecovery,
+                onStartLiteAccountCreation = props.onStartLiteAccountCreation
+              )
             },
             onCheckCloudAgain = {
-              state = SigningIntoCloudUiState(forceSignOut = true)
+              state = SigningIntoCloudUiState
             },
             onImportEmergencyExitKit = props.onImportEmergencyExitKit,
             onShowTroubleshootingSteps = {
@@ -100,7 +99,7 @@ class AccessCloudBackupUiStateMachineImpl(
             },
             onBack = props.onExit,
             onTryAgain = {
-              state = SigningIntoCloudUiState(forceSignOut = true)
+              state = SigningIntoCloudUiState
             },
             devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
           ).asRootScreen()
@@ -111,31 +110,43 @@ class AccessCloudBackupUiStateMachineImpl(
           cloudBackupRepository.readBackup(currentState.account)
             .onSuccess { backup ->
               when (backup) {
-                null ->
-                  if (props.showErrorOnBackupMissing) {
-                    state = CloudBackupNotFoundUiState(currentState.account)
-                  } else {
-                    props.onCannotAccessCloudBackup(currentState.account)
-                  }
-                else -> props.onBackupFound(backup)
+                null -> if (props.showErrorOnBackupMissing) {
+                  state = CloudBackupNotFoundUiState(currentState.account)
+                } else {
+                  onCannotAccessCloudBackup(
+                    intent = props.startIntent,
+                    inviteCode = props.inviteCode,
+                    onStartLostAppRecovery = props.onStartLostAppRecovery,
+                    onStartLiteAccountCreation = props.onStartLiteAccountCreation
+                  )
+                }
+                else -> handleExistingBackupFound(
+                  backup = backup,
+                  inviteCode = props.inviteCode,
+                  onStartCloudRecovery = props.onStartCloudRecovery,
+                  onStartLiteAccountRecovery = props.onStartLiteAccountRecovery
+                )
               }
             }
             .onFailure { cloudBackupError ->
               when (cloudBackupError) {
                 is RectifiableCloudBackupError -> {
-                  state =
-                    CloudBackupRectifiableErrorState(
-                      cloudStoreAccount = currentState.account,
-                      rectifiableCloudBackupError = cloudBackupError
-                    )
+                  state = CloudBackupRectifiableErrorState(
+                    cloudStoreAccount = currentState.account,
+                    rectifiableCloudBackupError = cloudBackupError
+                  )
                 }
 
-                is UnrectifiableCloudBackupError ->
-                  if (props.showErrorOnBackupMissing) {
-                    state = CloudBackupNotFoundUiState(currentState.account)
-                  } else {
-                    props.onCannotAccessCloudBackup(currentState.account)
-                  }
+                is UnrectifiableCloudBackupError -> if (props.showErrorOnBackupMissing) {
+                  state = CloudBackupNotFoundUiState(currentState.account)
+                } else {
+                  onCannotAccessCloudBackup(
+                    intent = props.startIntent,
+                    inviteCode = props.inviteCode,
+                    onStartLostAppRecovery = props.onStartLostAppRecovery,
+                    onStartLiteAccountCreation = props.onStartLiteAccountCreation
+                  )
+                }
               }
             }
         }
@@ -151,10 +162,15 @@ class AccessCloudBackupUiStateMachineImpl(
         CloudBackupNotFoundBodyModel(
           onBack = props.onExit,
           onCannotAccessCloud = {
-            props.onCannotAccessCloudBackup(currentState.account)
+            onCannotAccessCloudBackup(
+              intent = props.startIntent,
+              inviteCode = props.inviteCode,
+              onStartLostAppRecovery = props.onStartLostAppRecovery,
+              onStartLiteAccountCreation = props.onStartLiteAccountCreation
+            )
           },
           onCheckCloudAgain = {
-            state = SigningIntoCloudUiState(forceSignOut = true)
+            state = SigningIntoCloudUiState
           },
           onImportEmergencyExitKit = props.onImportEmergencyExitKit,
           onShowTroubleshootingSteps = {
@@ -165,7 +181,7 @@ class AccessCloudBackupUiStateMachineImpl(
       is ShowingTroubleshootingSteps ->
         CloudBackupTroubleshootingStepsModel(
           onBack = { state = currentState.fromState },
-          onTryAgain = { state = SigningIntoCloudUiState(forceSignOut = true) }
+          onTryAgain = { state = SigningIntoCloudUiState }
         ).asModalScreen()
 
       is CloudBackupRectifiableErrorState ->
@@ -189,14 +205,45 @@ class AccessCloudBackupUiStateMachineImpl(
     }
   }
 
+  private fun handleExistingBackupFound(
+    backup: CloudBackup,
+    inviteCode: String?,
+    onStartCloudRecovery: (CloudBackup) -> Unit,
+    onStartLiteAccountRecovery: (CloudBackup) -> Unit,
+  ) {
+    if (backup.isFullAccount()) {
+      onStartCloudRecovery(backup)
+    } else if (inviteCode != null) {
+      Router.route = Route.TrustedContactInvite(inviteCode)
+    } else {
+      onStartLiteAccountRecovery(backup)
+    }
+  }
+
+  private fun onCannotAccessCloudBackup(
+    intent: StartIntent,
+    inviteCode: String?,
+    onStartLostAppRecovery: () -> Unit,
+    onStartLiteAccountCreation: (String?, StartIntent) -> Unit,
+  ) {
+    when (intent) {
+      StartIntent.RestoreBitkey -> {
+        // If the customer can't sign in or no backup is available, fall back to Lost App recovery.
+        onStartLostAppRecovery()
+      }
+      StartIntent.BeTrustedContact, StartIntent.BeBeneficiary -> {
+        // For TC/Beneficiary flows with no accessible backup, start lite account creation.
+        onStartLiteAccountCreation(inviteCode, intent)
+      }
+    }
+  }
+
   private sealed interface State {
     /**
      * Checking to see if we have a Cloud account logged in already / initiating the Google Sign
      * In external activity on Android. Shows a loading spinner.
-     *
-     * @property forceSignOut - indicates if we are logging out from any existing account first.
      */
-    data class SigningIntoCloudUiState(val forceSignOut: Boolean) : State
+    data object SigningIntoCloudUiState : State
 
     /**
      * The Cloud account sign in failed / was not logged in.

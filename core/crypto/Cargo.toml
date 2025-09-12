@@ -5,7 +5,8 @@ publish = { workspace = true }
 version = { workspace = true }
 
 [features]
-all = ["noise", "p256_box", "spake2", "ssb"]
+all = ["chaincode_delegation", "noise", "p256_box", "spake2", "ssb"]
+chaincode_delegation = []
 noise = ["dep:p256", "dep:snow"]
 p256_box = ["dep:p256"]
 spake2 = ["dep:boring-sys"]

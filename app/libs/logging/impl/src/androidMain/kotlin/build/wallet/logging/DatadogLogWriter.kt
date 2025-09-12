@@ -42,46 +42,54 @@ class DatadogLogWriter(
     tag: String,
     throwable: Throwable?,
   ) {
-    if (SensitiveDataValidator.isSensitiveData(LogEntry(tag, message))) return
+    val sensitiveDataResult = SensitiveDataValidator.check(LogEntry(tag, message))
+    val safeMessage = when (sensitiveDataResult) {
+      SensitiveDataResult.NoneFound -> message
+      is SensitiveDataResult.Sensitive -> sensitiveDataResult.redactedMessage
+    }
+    val safeTag = when (sensitiveDataResult) {
+      SensitiveDataResult.NoneFound -> tag
+      is SensitiveDataResult.Sensitive -> sensitiveDataResult.redactedTag
+    }
 
     val defaultAttributes =
       mapOf(
-        "tag" to tag
+        "tag" to safeTag
       )
     when (severity) {
       Severity.Verbose ->
         datadogLogger.v(
-          message = message,
+          message = safeMessage,
           throwable = throwable,
           attributes = defaultAttributes
         )
       Severity.Debug ->
         datadogLogger.d(
-          message = message,
+          message = safeMessage,
           throwable = throwable,
           attributes = defaultAttributes
         )
       Severity.Info ->
         datadogLogger.i(
-          message = message,
+          message = safeMessage,
           throwable = throwable,
           attributes = defaultAttributes
         )
       Severity.Warn ->
         datadogLogger.w(
-          message = message,
+          message = safeMessage,
           throwable = throwable,
           attributes = defaultAttributes
         )
       Severity.Error ->
         datadogLogger.e(
-          message = message,
+          message = safeMessage,
           throwable = throwable,
           attributes = defaultAttributes
         )
       Severity.Assert ->
         datadogLogger.wtf(
-          message = message,
+          message = safeMessage,
           throwable = throwable,
           attributes = defaultAttributes
         )

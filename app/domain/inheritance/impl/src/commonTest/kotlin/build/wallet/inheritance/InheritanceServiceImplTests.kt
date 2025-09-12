@@ -33,6 +33,7 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.test.TestScope
 import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.seconds
 
 class InheritanceServiceImplTests : FunSpec({
   val clock = ClockFake()
@@ -73,7 +74,8 @@ class InheritanceServiceImplTests : FunSpec({
   val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val appCoroutineScope = TestScope()
   val claimsRepository = InheritanceClaimsRepositoryMock(
-    updateSingleClaimCalls = turbines.create("update single claim")
+    updateSingleClaimCalls = turbines.create("update single claim"),
+    syncServerClaimsCalls = turbines.create("sync server claims")
   )
   val messageSigner = AppAuthKeyMessageSignerMock()
   val lockClaimF8eClient = LockInheritanceClaimF8eClientFake(
@@ -94,7 +96,8 @@ class InheritanceServiceImplTests : FunSpec({
     transactionFactory = InheritanceTransactionFactoryMock(),
     appAuthKeyMessageSigner = messageSigner,
     inheritanceClaimsRepository = claimsRepository,
-    clock = ClockFake()
+    clock = ClockFake(),
+    inheritanceSyncFrequency = InheritanceSyncFrequency(0.seconds)
   )
 
   beforeTest {
@@ -378,5 +381,11 @@ class InheritanceServiceImplTests : FunSpec({
     completeClaimF8eClient.completeCalls.awaitItem().shouldBe(pendingClaimId)
     claimsRepository.updateSingleClaimCalls.awaitItem().claimId.shouldBe(pendingClaimId)
     result.isOk()
+  }
+
+  test("worker should sync server claims from the repository") {
+    inheritanceService.executeWork()
+
+    claimsRepository.syncServerClaimsCalls.awaitItem()
   }
 })

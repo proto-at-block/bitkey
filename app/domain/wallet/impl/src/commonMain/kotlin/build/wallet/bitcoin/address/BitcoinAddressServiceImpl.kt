@@ -1,5 +1,7 @@
 package build.wallet.bitcoin.address
 
+import bitkey.notifications.NotificationChannel
+import bitkey.notifications.NotificationsPreferencesCachedProvider
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
 import build.wallet.bitcoin.transactions.BitcoinWalletService
@@ -13,14 +15,17 @@ import build.wallet.notifications.RegisterWatchAddressProcessor
 import build.wallet.queueprocessor.process
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.fold
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 @BitkeyInject(AppScope::class)
 class BitcoinAddressServiceImpl(
   private val registerWatchAddressProcessor: RegisterWatchAddressProcessor,
   private val bitcoinWalletService: BitcoinWalletService,
   private val accountService: AccountService,
+  private val notificationsPreferencesCachedProvider: NotificationsPreferencesCachedProvider,
 ) : BitcoinAddressService, BitcoinRegisterWatchAddressWorker {
   private val addressCache = MutableStateFlow<AccountWithAddress?>(null)
 
@@ -29,16 +34,30 @@ class BitcoinAddressServiceImpl(
     addressCache
       .filterNotNull()
       .collect { accountWithAddress ->
-        val account = accountWithAddress.account
-        registerWatchAddressProcessor.process(
-          RegisterWatchAddressContext(
-            address = accountWithAddress.bitcoinAddress,
-            f8eSpendingKeyset = account.keybox.activeSpendingKeyset.f8eSpendingKeyset,
-            accountId = account.accountId.serverId,
-            f8eEnvironment = account.config.f8eEnvironment
+        if (isMoneyMovementNotificationEnabled()) {
+          val account = accountWithAddress.account
+          registerWatchAddressProcessor.process(
+            RegisterWatchAddressContext(
+              address = accountWithAddress.bitcoinAddress,
+              f8eSpendingKeyset = account.keybox.activeSpendingKeyset.f8eSpendingKeyset,
+              accountId = account.accountId.serverId,
+              f8eEnvironment = account.config.f8eEnvironment
+            )
           )
-        )
+        }
       }
+  }
+
+  private suspend fun isMoneyMovementNotificationEnabled(): Boolean {
+    val notificationResult = notificationsPreferencesCachedProvider
+      .getNotificationsPreferences()
+      .first()
+    
+    return notificationResult
+      ?.fold(
+        success = { preferences -> preferences.moneyMovement.isNotEmpty() },
+        failure = { false }
+      ) ?: false
   }
 
   override suspend fun generateAddress(): Result<BitcoinAddress, Throwable> {

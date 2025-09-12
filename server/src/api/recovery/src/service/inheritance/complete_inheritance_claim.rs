@@ -101,7 +101,7 @@ impl Service {
 
         let signed_psbt = broadcaster.finalized_psbt();
 
-        broadcaster.broadcast_transaction(&input.rpc_uris, &descriptor)?;
+        broadcaster.broadcast_transaction(&input.rpc_uris, benefactor_wallet.network())?;
 
         // If the following fails, the transaction would have been broadcast
         // but the claim would remain locked.

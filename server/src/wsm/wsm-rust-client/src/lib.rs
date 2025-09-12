@@ -56,6 +56,14 @@ struct SignPsbtRequest {
 }
 
 #[derive(Deserialize, Serialize)]
+struct SignPsbtRequestV2 {
+    root_key_id: String,
+    app_pub: String,
+    hardware_pub: String,
+    psbt: String,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct SignedPsbt {
     pub psbt: String,
     pub root_key_id: String,
@@ -166,6 +174,13 @@ pub trait SigningService {
         root_key_id: &str,
         descriptor: &str,
         change_descriptor: &str,
+        psbt: &str,
+    ) -> Result<SignedPsbt, Error>;
+    async fn sign_psbt_v2(
+        &self,
+        root_key_id: &str,
+        app_pub: PublicKey,
+        hardware_pub: PublicKey,
         psbt: &str,
     ) -> Result<SignedPsbt, Error>;
     async fn get_key_integrity_sig(
@@ -446,6 +461,29 @@ impl SigningService for WsmClient {
                 root_key_id: root_key_id.to_string(),
                 change_descriptor: change_descriptor.to_string(),
                 descriptor: descriptor.to_string(),
+                psbt: psbt.to_string(),
+            })
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+
+    #[instrument(skip(root_key_id, app_pub, hardware_pub, psbt))]
+    async fn sign_psbt_v2(
+        &self,
+        root_key_id: &str,
+        app_pub: PublicKey,
+        hardware_pub: PublicKey,
+        psbt: &str,
+    ) -> Result<SignedPsbt, Error> {
+        let res = self
+            .client
+            .post(self.endpoint.join("v2/sign-psbt")?)
+            .json(&SignPsbtRequestV2 {
+                root_key_id: root_key_id.to_string(),
+                app_pub: app_pub.to_string(),
+                hardware_pub: hardware_pub.to_string(),
                 psbt: psbt.to_string(),
             })
             .send()

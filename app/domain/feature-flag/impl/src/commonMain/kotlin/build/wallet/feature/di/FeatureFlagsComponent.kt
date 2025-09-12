@@ -92,6 +92,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun onboardingCompletionFailsafeFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    OnboardingCompletionFailsafeFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun fingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao: FeatureFlagDao) =
     FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
 
@@ -142,6 +147,7 @@ interface FeatureFlagsComponent {
     encryptedDescriptorSupportUploadFeatureFlag: EncryptedDescriptorSupportUploadFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
     chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
+    onboardingCompletionFailsafeFeatureFlag: OnboardingCompletionFailsafeFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       softwareWalletIsEnabledFeatureFlag,
@@ -153,6 +159,11 @@ interface FeatureFlagsComponent {
       fingerprintResetMinFirmwareVersionFeatureFlag,
       atRiskNotificationsFeatureFlag,
       chaincodeDelegationFeatureFlag,
+      onboardingCompletionFailsafeFeatureFlag,
+      txVerificationFeatureFlag,
+      inheritanceUseEncryptedDescriptorFeatureFlag,
+      encryptedDescriptorBackupsFeatureFlag,
+      encryptedDescriptorSupportUploadFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
       utxoMaxConsolidationCountFeatureFlag,
@@ -161,11 +172,7 @@ interface FeatureFlagsComponent {
       coachmarksGlobalFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       firmwareCommsLoggingFeatureFlag,
-      asyncNfcSigningFeatureFlag,
-      txVerificationFeatureFlag,
-      inheritanceUseEncryptedDescriptorFeatureFlag,
-      encryptedDescriptorBackupsFeatureFlag,
-      encryptedDescriptorSupportUploadFeatureFlag
+      asyncNfcSigningFeatureFlag
     )
   }
 }

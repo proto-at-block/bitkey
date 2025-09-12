@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class InheritanceClaimsRepositoryMock(
   val updateSingleClaimCalls: Turbine<InheritanceClaim>,
+  val syncServerClaimsCalls: Turbine<Unit>,
   var fetchClaimsResult: Result<InheritanceClaims, Error> = Ok(InheritanceClaims.EMPTY),
 ) : InheritanceClaimsRepository {
   override val claims = MutableStateFlow<Result<InheritanceClaims, Error>>(Ok(InheritanceClaims.EMPTY))
@@ -19,5 +20,9 @@ class InheritanceClaimsRepositoryMock(
 
   override suspend fun updateSingleClaim(claim: InheritanceClaim) {
     updateSingleClaimCalls.add(claim)
+  }
+
+  override suspend fun syncServerClaims() {
+    syncServerClaimsCalls.add(Unit)
   }
 }

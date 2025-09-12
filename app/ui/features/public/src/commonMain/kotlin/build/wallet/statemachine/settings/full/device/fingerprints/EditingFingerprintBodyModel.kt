@@ -4,7 +4,6 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.*
-import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
@@ -74,7 +73,7 @@ data class EditingFingerprintBodyModel(
     secondaryButton = BitkeyInteractionButtonModel(
       text = if (isExistingFingerprint) "Save fingerprint" else "Start fingerprint",
       isEnabled = !isExistingFingerprint || label != textFieldValue,
-      onClick = SheetClosingClick(onSave),
+      onClick = StandardClick(onSave),
       size = ButtonModel.Size.Footer
     ),
     renderContext = RenderContext.Sheet

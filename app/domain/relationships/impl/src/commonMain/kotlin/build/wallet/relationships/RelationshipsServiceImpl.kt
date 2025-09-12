@@ -25,9 +25,8 @@ import build.wallet.mapResult
 import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.datetime.Clock
 import kotlin.random.Random
 

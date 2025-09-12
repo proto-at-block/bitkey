@@ -42,7 +42,6 @@ import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyExitKit
 import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
@@ -53,10 +52,7 @@ import build.wallet.statemachine.home.full.HomeUiProps
 import build.wallet.statemachine.home.full.HomeUiStateMachine
 import build.wallet.statemachine.home.lite.LiteHomeUiProps
 import build.wallet.statemachine.home.lite.LiteHomeUiStateMachine
-import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiProps
-import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiStateMachine
-import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
-import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
+import build.wallet.statemachine.recovery.cloud.*
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiProps
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiStateMachine
 import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiProps
@@ -68,8 +64,6 @@ import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachineImpl
 import build.wallet.statemachine.root.SplashScreenDelay
 import build.wallet.statemachine.root.WelcomeToBitkeyScreenDuration
-import build.wallet.statemachine.start.GettingStartedRoutingProps
-import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.worker.AppWorkerExecutorMock
@@ -103,9 +97,9 @@ class AppUiStateMachineImplTests : FunSpec({
       initialModel = CheckingActiveAccountData
     ) {}
   val loadAppService = LoadAppServiceFake()
-  val gettingStartedRoutingStateMachine =
-    object : GettingStartedRoutingStateMachine,
-      ScreenStateMachineMock<GettingStartedRoutingProps>(id = "getting-started") {}
+  val accessCloudBackupUiStateMachine =
+    object : AccessCloudBackupUiStateMachine,
+      ScreenStateMachineMock<AccessCloudBackupUiProps>(id = "access-cloud-backup") {}
   val liteAccountCloudBackupRestorationUiStateMachine =
     object : LiteAccountCloudBackupRestorationUiStateMachine,
       ScreenStateMachineMock<LiteAccountCloudBackupRestorationUiProps>(
@@ -143,6 +137,7 @@ class AppUiStateMachineImplTests : FunSpec({
     loadAppService.reset()
     loadAppService.appState.value = AppState.Undetermined
     accountDataStateMachine.reset()
+    biometricAuthService.reset()
     stateMachine =
       AppUiStateMachineImpl(
         appVariant = AppVariant.Development,
@@ -160,7 +155,7 @@ class AppUiStateMachineImplTests : FunSpec({
         loadAppService = loadAppService,
         noLongerRecoveringUiStateMachine = noLongerRecoveringUiStateMachine,
         someoneElseIsRecoveringUiStateMachine = someoneElseIsRecoveringUiStateMachine,
-        gettingStartedRoutingStateMachine = gettingStartedRoutingStateMachine,
+        accessCloudBackupUiStateMachine = accessCloudBackupUiStateMachine,
         createLiteAccountUiStateMachine = createLiteAccountUiStateMachine,
         liteAccountCloudBackupRestorationUiStateMachine =
         liteAccountCloudBackupRestorationUiStateMachine,
@@ -191,11 +186,6 @@ class AppUiStateMachineImplTests : FunSpec({
     interstitialUiStateMachine.reset()
   }
 
-  afterTest {
-    appWorkerExecutor.executeAllCalls.awaitItem()
-    biometricAuthService.reset()
-  }
-
   suspend fun EventTrackerMock.awaitSplashScreenEvent() {
     eventCalls.awaitItem().shouldBe(
       TrackedAction(ACTION_APP_SCREEN_IMPRESSION, GeneralEventTrackerScreenId.SPLASH_SCREEN)
@@ -207,6 +197,7 @@ class AppUiStateMachineImplTests : FunSpec({
     stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
+      appWorkerExecutor.executeAllCalls.awaitItem()
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -220,6 +211,8 @@ class AppUiStateMachineImplTests : FunSpec({
         account.shouldBe(ActiveKeyboxLoadedDataMock.account)
         lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
       }
+
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -238,6 +231,8 @@ class AppUiStateMachineImplTests : FunSpec({
         account.shouldBe(ActiveKeyboxLoadedDataMock.account)
         lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
       }
+
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -247,6 +242,8 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<ChooseAccountAccessUiProps>()
+
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -268,13 +265,15 @@ class AppUiStateMachineImplTests : FunSpec({
     stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
+
       awaitBodyMock<LostAppRecoveryUiProps>()
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
   test("RecoveringAccountWithEmergencyExitKit") {
     accountDataStateMachine.emitModel(
-      RecoveringAccountWithEmergencyExitKit(
+      NoActiveAccountData.RecoveringAccountWithEmergencyExitKit(
         onExit = {}
       )
     )
@@ -282,6 +281,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<EmergencyExitKitRecoveryUiStateMachineProps>()
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -291,6 +291,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<NoLongerRecoveringUiProps>()
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -305,6 +306,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<SomeoneElseIsRecoveringUiProps>()
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -322,6 +324,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(SoftwareAccountMock)
       }
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -347,6 +350,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(SoftwareAccountMock)
       }
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -358,6 +362,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<BiometricPromptProps>()
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -381,6 +386,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(FullAccountMock)
       }
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -405,8 +411,8 @@ class AppUiStateMachineImplTests : FunSpec({
 
       loadAppService.appState.value = AppState.Undetermined
 
-      awaitBodyMock<GettingStartedRoutingProps> {
-        onStartLiteAccountCreation("invite-code")
+      awaitBodyMock<AccessCloudBackupUiProps> {
+        onStartLiteAccountCreation("invite-code", AccountData.StartIntent.BeTrustedContact)
       }
 
       awaitBodyMock<CreateLiteAccountUiProps> {
@@ -414,6 +420,7 @@ class AppUiStateMachineImplTests : FunSpec({
       }
 
       awaitBodyMock<LiteHomeUiProps>()
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -438,7 +445,7 @@ class AppUiStateMachineImplTests : FunSpec({
 
       loadAppService.appState.value = AppState.Undetermined
 
-      awaitBodyMock<GettingStartedRoutingProps> {
+      awaitBodyMock<AccessCloudBackupUiProps> {
         onStartLiteAccountRecovery(CloudBackupV2WithLiteAccountMock)
       }
 
@@ -447,6 +454,7 @@ class AppUiStateMachineImplTests : FunSpec({
       }
 
       awaitBodyMock<LiteHomeUiProps>()
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -476,6 +484,7 @@ class AppUiStateMachineImplTests : FunSpec({
       // This is a quirk in mocking the DSM, since once we create the full acount we go back to
       // rendering via the DSM. Once the DSM is done being refactored, this will be Money Home
       awaitBodyMock<ChooseAccountAccessUiProps>()
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -502,6 +511,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(FullAccountMock)
       }
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -530,6 +540,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(FullAccountMock)
       }
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -563,6 +574,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(FullAccountMock)
       }
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -585,6 +597,7 @@ class AppUiStateMachineImplTests : FunSpec({
         account.shouldBe(FullAccountMock)
         isComingFromOnboarding.shouldBe(false)
       }
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -606,6 +619,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(FullAccountMock)
       }
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 
@@ -639,6 +653,7 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(FullAccountMock)
       }
+      appWorkerExecutor.executeAllCalls.awaitItem()
     }
   }
 })

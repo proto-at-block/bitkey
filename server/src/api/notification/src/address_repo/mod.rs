@@ -34,6 +34,10 @@ pub trait AddressWatchlistTrait: DynClone + fmt::Debug + Send + Sync {
         &self,
         addresses: &[Address<NetworkUnchecked>],
     ) -> Result<HashMap<Address<NetworkUnchecked>, AccountIdAndKeysetId>, Error>;
+
+    /// Delete all addresses for an account
+    /// Always succeeds, even if no addresses exist for the account
+    async fn delete_all_addresses(&mut self, account_id: &AccountId) -> Result<(), Error>;
 }
 
 dyn_clone::clone_trait_object!(AddressWatchlistTrait);

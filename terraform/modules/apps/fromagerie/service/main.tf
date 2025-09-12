@@ -424,7 +424,7 @@ resource "aws_ecs_task_definition" "api_user_balance_histogram" {
   task_role_arn            = one(module.api_user_balance_histogram_iam[*].task_role_arn)
   container_definitions    = jsonencode(one(module.api_user_balance_histogram[*].containers))
   cpu                      = 512
-  memory                   = 1024
+  memory                   = 4096
   runtime_platform {
     cpu_architecture = "ARM64"
   }

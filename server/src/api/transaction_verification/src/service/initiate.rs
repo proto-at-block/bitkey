@@ -63,6 +63,16 @@ impl Service {
         } else if !should_prompt_user {
             InitiateVerificationResult::VerificationRequired
         } else {
+            if let Some(tx_verification) = self
+                .repo
+                .fetch_pending_by_txid(&psbt.unsigned_tx.txid())
+                .await?
+            {
+                return Ok(InitiateVerificationResult::VerificationRequested {
+                    verification_id: tx_verification.common_fields().id.clone(),
+                    expiration: tx_verification.common_fields().expires_at,
+                });
+            }
             let tx_verification = TransactionVerification::new_pending(
                 account_id,
                 psbt,

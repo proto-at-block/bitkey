@@ -44,6 +44,7 @@ kotlin {
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.domain.availabilityImpl)
         implementation(projects.domain.cloudBackupFake)
+        implementation(projects.libs.cloudStoreFake)
         implementation(projects.domain.walletFake)
       }
     }

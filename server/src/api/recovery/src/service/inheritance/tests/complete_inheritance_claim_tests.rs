@@ -26,7 +26,7 @@ mock! {
         fn broadcast_transaction(
             &mut self,
             rpc_uris: &ElectrumRpcUris,
-            source_descriptor: &DescriptorKeyset,
+            network: bdk_utils::bdk::bitcoin::Network,
         ) -> Result<(), SigningError>;
 
         fn finalized_psbt(&self) -> Psbt;

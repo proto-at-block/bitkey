@@ -4,9 +4,9 @@ import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.encrypt.MessageSignerFake
 import build.wallet.encrypt.SignatureUtilsMock
+import build.wallet.nfc.BitkeyW1CommandsFake
 import build.wallet.nfc.FakeHardwareKeyStoreFake
 import build.wallet.nfc.FakeHardwareSpendingWalletProvider
-import build.wallet.nfc.NfcCommandsFake
 import build.wallet.nfc.NfcException.UnpairedHardwareError
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
@@ -27,7 +27,7 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
     fakeHardwareKeyStore = fakeHardwareKeyStore,
     descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock()
   )
-  val nfcCommands = NfcCommandsFake(
+  val nfcCommands = BitkeyW1CommandsFake(
     messageSigner,
     signatureUtils,
     fakeHardwareKeyStore,

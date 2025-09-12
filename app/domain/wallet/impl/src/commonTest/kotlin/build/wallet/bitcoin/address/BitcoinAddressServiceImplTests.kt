@@ -1,5 +1,8 @@
 package build.wallet.bitcoin.address
 
+import bitkey.notifications.NotificationChannel
+import bitkey.notifications.NotificationPreferences
+import bitkey.notifications.NotificationsPreferencesCachedProviderMock
 import build.wallet.account.AccountServiceFake
 import build.wallet.bdk.bindings.BdkError.Generic
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
@@ -29,10 +32,19 @@ class BitcoinAddressServiceImplTests : FunSpec({
     Processor<RegisterWatchAddressContext> by processorMock {}
   val transactionService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
-  val service = BitcoinAddressServiceImpl(
+
+  fun createService(
+    notificationPreferences: NotificationPreferences = NotificationPreferences(
+      moneyMovement = emptySet(),
+      productMarketing = emptySet()
+    )
+  ) = BitcoinAddressServiceImpl(
     registerWatchAddressProcessor = registerWatchAddressProcessor,
     bitcoinWalletService = transactionService,
-    accountService = accountService
+    accountService = accountService,
+    notificationsPreferencesCachedProvider = NotificationsPreferencesCachedProviderMock(
+      getNotificationPreferencesResult = Ok(notificationPreferences)
+    )
   )
 
   beforeTest {
@@ -43,8 +55,15 @@ class BitcoinAddressServiceImplTests : FunSpec({
     accountService.reset()
   }
 
-  test("generate new address successfully") {
+  test("generate new address successfully - money movement notifications enabled") {
     accountService.setActiveAccount(FullAccountMock)
+
+    val service = createService(
+      notificationPreferences = NotificationPreferences(
+        moneyMovement = setOf(NotificationChannel.Push),
+        productMarketing = emptySet()
+      )
+    )
 
     createBackgroundScope().launch {
       service.executeWork()
@@ -68,8 +87,34 @@ class BitcoinAddressServiceImplTests : FunSpec({
     )
   }
 
+  test("generate new address successfully - money movement notifications disabled") {
+    accountService.setActiveAccount(FullAccountMock)
+
+    val service = createService(
+      notificationPreferences = NotificationPreferences(
+        moneyMovement = emptySet(),
+        productMarketing = emptySet()
+      )
+    )
+
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    spendingWallet.newAddressResult = Ok(someBitcoinAddress)
+    processorMock.processBatchReturnValues = listOf(Ok(Unit))
+
+    val addressResult = service.generateAddress()
+    addressResult.shouldBe(Ok(someBitcoinAddress))
+
+    // Watch address should not be registered
+    processorMock.processBatchCalls.expectNoEvents()
+  }
+
   test("generate new address - address generation failure") {
     accountService.setActiveAccount(FullAccountMock)
+
+    val service = createService()
 
     val error = Err(Generic(Exception("failed to generate address"), null))
     spendingWallet.newAddressResult = error

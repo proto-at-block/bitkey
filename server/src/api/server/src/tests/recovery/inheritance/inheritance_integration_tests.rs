@@ -806,7 +806,7 @@ mock! {
     impl TransactionBroadcasterTrait for TransactionBroadcaster {
         fn broadcast(
             &self,
-            wallet: Wallet<AnyDatabase>,
+            network: bdk_utils::bdk::bitcoin::Network,
             transaction: &mut Psbt,
             rpc_uris: &ElectrumRpcUris
         ) -> Result<(), BdkUtilError>;

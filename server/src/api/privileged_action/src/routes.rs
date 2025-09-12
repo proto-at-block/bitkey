@@ -22,6 +22,7 @@ use crate::{
         cancel_pending_instance::CancelPendingDelayAndNotifyInstanceByTokenInput,
         configure_delay_duration_for_test::ConfigureDelayDurationForTestInput,
         configure_privileged_action_delay_durations::ConfigurePrivilegedActionDelayDurationsInput,
+        get_pending_instance::GetPendingInstanceInput,
         get_pending_instances::GetPendingInstancesInput,
         get_privileged_action_definitions::GetPrivilegedActionDefinitionsInput,
         Service as PrivilegedActionService,
@@ -86,6 +87,10 @@ impl RouterBuilder for RouteState {
                 get(get_privileged_action_definitions),
             )
             .route(
+                "/api/accounts/:account_id/privileged-actions/:privileged_action_id",
+                get(get_pending_instance),
+            )
+            .route(
                 "/api/accounts/:account_id/privileged-actions/instances",
                 get(get_pending_instances),
             )
@@ -133,6 +138,7 @@ impl From<RouteState> for SwaggerEndpoint {
         cancel_pending_delay_and_notify_instance_by_token,
         cancel_pending_out_of_band_instance,
         configure_privileged_action_delay_durations,
+        get_pending_instance,
         get_pending_instances,
         get_privileged_action_definitions,
         update_delay_duration_for_test,
@@ -155,6 +161,7 @@ impl From<RouteState> for SwaggerEndpoint {
             PrivilegedActionRequest<ConfigurePrivilegedActionDelayDurationsRequest>,
             ConfigurePrivilegedActionDelayDurationsResponse,
             PrivilegedActionResponse<ConfigurePrivilegedActionDelayDurationsResponse>,
+            GetPendingInstanceResponse,
             GetPendingInstancesResponse,
             PrivilegedActionInstance,
             CancelPendingInstanceResponse,
@@ -308,6 +315,36 @@ pub async fn update_delay_duration_for_test(
         })
         .await?;
     Ok(Json(UpdateDelayDurationForTestResponse {}))
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GetPendingInstanceResponse {
+    pub privileged_action_instance: PrivilegedActionInstance,
+}
+
+#[instrument(err, skip(privileged_action_service))]
+#[utoipa::path(
+    get,
+    path = "/api/accounts/{account_id}/privileged-actions/{privileged_action_id}",
+    responses(
+        (status = 200, description = "Pending privileged action instance", body=GetPendingInstanceResponse),
+        (status = 404, description = "Account not found or privileged action not found or not pending")
+    ),
+)]
+pub async fn get_pending_instance(
+    State(privileged_action_service): State<PrivilegedActionService>,
+    Path((account_id, privileged_action_id)): Path<(AccountId, PrivilegedActionInstanceId)>,
+) -> Result<Json<GetPendingInstanceResponse>, ApiError> {
+    Ok(Json(GetPendingInstanceResponse {
+        privileged_action_instance: privileged_action_service
+            .get_pending_instance(GetPendingInstanceInput {
+                account_id: &account_id,
+                privileged_action_id: &privileged_action_id,
+            })
+            .await?
+            .into(),
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]

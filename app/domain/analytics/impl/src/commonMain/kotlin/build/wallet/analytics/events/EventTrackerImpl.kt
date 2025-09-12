@@ -24,7 +24,6 @@ import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform
 import build.wallet.platform.settings.LocaleCountryCodeProvider
 import build.wallet.platform.settings.LocaleCurrencyCodeProvider
-import build.wallet.queueprocessor.process
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.getOrElse
@@ -42,7 +41,7 @@ class EventTrackerImpl(
   private val accountService: AccountService,
   private val accountConfigService: AccountConfigService,
   private val countryCodeProvider: LocaleCountryCodeProvider,
-  private val eventProcessor: AnalyticsEventProcessor,
+  private val eventQueue: AnalyticsEventQueue,
   private val hardwareInfoProvider: HardwareInfoProvider,
   private val appInstallationDao: AppInstallationDao,
   private val platformInfoProvider: PlatformInfoProvider,
@@ -195,7 +194,9 @@ class EventTrackerImpl(
 
       // But only actually track the event if the preference is enabled
       if (analyticsTrackingPreference.get()) {
-        eventProcessor.process(QueueAnalyticsEvent(f8eEnvironment, event))
+        val queueEvent = QueueAnalyticsEvent(f8eEnvironment, event)
+
+        eventQueue.append(queueEvent)
           .logFailure { "Failed to append event to queue: $event" }
       }
     }

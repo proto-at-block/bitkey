@@ -39,6 +39,22 @@ export class FromagerieMonitors extends Construct {
       recipients: criticalDaytimeRecipients,
     });
 
+    // Monitor to detect missing http metrics
+    new Monitor(this, 'fromagerie_breached_min_2xx_count', {
+      query:
+        `sum(last_1h):
+              sum:bitkey.http.response{${[`status:2xx`, `env:${environment}`, `path:*`, `!path:/`, `app_id:world.bitkey.app`].join(",")}}.as_count()
+          < 1`,
+      name: `Breached minimum 2xx http status count on env:${environment}`,
+      message: `Breached minimum 2xx http status count on env:${environment}`,
+      monitorThresholds: {
+        critical: "1",
+      },
+      type: "query alert",
+      tags: [],
+      recipients: criticalDaytimeRecipients,
+    });
+
     new HttpAnomalousStatusCountMonitor(this, 'http_anomalous_4xx_status_count', {
       environment,
       status: "4xx",

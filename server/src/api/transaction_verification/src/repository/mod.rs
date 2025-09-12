@@ -1,14 +1,11 @@
 use async_trait::async_trait;
-use database::aws_sdk_dynamodb::types::ProjectionType::All;
-use database::aws_sdk_dynamodb::types::{GlobalSecondaryIndex, Projection};
+use database::ddb::create_dynamodb_table;
 use database::{
-    aws_sdk_dynamodb::{
-        error::ProvideErrorMetadata,
-        types::{AttributeDefinition, BillingMode, KeySchemaElement, KeyType, ScalarAttributeType},
+    aws_sdk_dynamodb::types::{KeyType, ScalarAttributeType},
+    ddb::{
+        Connection, DatabaseError, DatabaseObject, GlobalSecondaryIndexDef, Repository, TableKey,
     },
-    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
-use tracing::{event, Level};
 
 mod fetch;
 mod persist;
@@ -16,6 +13,8 @@ mod persist;
 pub(crate) const PARTITION_KEY: &str = "partition_key";
 pub(crate) const WEB_AUTH_TOKEN_IDX: &str = "web_auth_token_idx";
 pub(crate) const WEB_AUTH_TOKEN_IDX_PARTITION_KEY: &str = "web_auth_token";
+pub(crate) const TXID_IDX: &str = "txid_idx";
+pub(crate) const TXID_IDX_PARTITION_KEY: &str = "txid";
 
 #[derive(Clone)]
 pub struct TransactionVerificationRepository {
@@ -54,50 +53,45 @@ impl Repository for TransactionVerificationRepository {
 
     async fn create_table(&self) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;
-        let pk_attribute_definition = AttributeDefinition::builder()
-            .attribute_name(PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let pk_key_schema = KeySchemaElement::builder()
-            .attribute_name(PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-        let web_auth_token_key = AttributeDefinition::builder()
-            .attribute_name(WEB_AUTH_TOKEN_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let web_auth_token_key_schema = KeySchemaElement::builder()
-            .attribute_name(WEB_AUTH_TOKEN_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
+        let database_object = self.get_database_object();
 
-        self.connection
-            .client
-            .create_table()
-            .table_name(table_name.clone())
-            .billing_mode(BillingMode::PayPerRequest)
-            .attribute_definitions(pk_attribute_definition)
-            .attribute_definitions(web_auth_token_key)
-            .key_schema(pk_key_schema.clone())
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(WEB_AUTH_TOKEN_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(web_auth_token_key_schema)
-                    .build()?,
-            )
-            .send()
-            .await
-            .map_err(|err| {
-                let service_err = err.into_service_error();
-                event!(
-                    Level::ERROR,
-                    "Could not update TransactionVerification table: {service_err:?} with message: {:?}",
-                    service_err.message()
-                );
-                DatabaseError::CreateTableError(self.get_database_object())
-            })?;
+        let partition_key = TableKey {
+            name: PARTITION_KEY.to_string(),
+            key_type: KeyType::Hash,
+            attribute_type: ScalarAttributeType::S,
+        };
 
-        Ok(())
+        let gsis = vec![
+            // Web Auth Token GSI
+            GlobalSecondaryIndexDef {
+                name: WEB_AUTH_TOKEN_IDX.to_string(),
+                pk: TableKey {
+                    name: WEB_AUTH_TOKEN_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: None,
+            },
+            // Txid GSI
+            GlobalSecondaryIndexDef {
+                name: TXID_IDX.to_string(),
+                pk: TableKey {
+                    name: TXID_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: None,
+            },
+        ];
+
+        create_dynamodb_table(
+            &self.get_connection().client,
+            table_name,
+            database_object,
+            partition_key,
+            None,
+            gsis,
+        )
+        .await
     }
 }

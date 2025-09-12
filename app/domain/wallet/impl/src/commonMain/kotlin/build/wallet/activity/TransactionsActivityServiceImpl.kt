@@ -22,7 +22,6 @@ import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
 import build.wallet.logging.logNetworkFailure
 import build.wallet.partnerships.PartnershipTransactionsService
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.getOrElse
@@ -63,7 +62,6 @@ class TransactionsActivityServiceImpl(
     coroutineBinding {
       bitcoinWalletService.sync().bind()
       partnershipTransactionsService.syncPendingTransactions().bind()
-      syncInactiveWallets().bind()
     }.logFailure { "Error syncing transactions activity. " }
 
   override suspend fun executeWork() {
@@ -114,18 +112,6 @@ class TransactionsActivityServiceImpl(
   override fun transactionById(transactionId: String): Flow<Transaction?> {
     return transactions.map { it?.find { tx -> tx.id == transactionId } }
       .distinctUntilChanged()
-  }
-
-  /**
-   * Sync inactive wallets to ensure we have complete transaction history.
-   */
-  private suspend fun syncInactiveWallets(): Result<Unit, Error> {
-    // Trigger the sync but don't propagate errors to avoid breaking the main sync
-    inactiveWallets.await().getOrElse {
-      logError(throwable = it) { "Failed to sync inactive wallets" }
-      emptyList()
-    }
-    return Ok(Unit)
   }
 
   /**

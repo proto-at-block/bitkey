@@ -23,6 +23,7 @@ impl Rule for UniqueHardwareAuthPubkeyForAccountRule {
             AccountValidationRequest::CreateFullAccount { auth, .. } => auth.hardware,
             AccountValidationRequest::UpgradeAccount { auth, .. } => auth.hardware,
             AccountValidationRequest::CreateFullAccountV2 { auth, .. } => auth.hardware_pub,
+            AccountValidationRequest::UpgradeAccountV2 { auth, .. } => auth.hardware_pub,
             AccountValidationRequest::CreateLiteAccount { .. }
             | AccountValidationRequest::CreateSoftwareAccount { .. } => {
                 return Ok(());

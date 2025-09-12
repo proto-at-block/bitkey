@@ -1,6 +1,7 @@
 package build.wallet.logging.bugsnag
 
 import build.wallet.logging.LogEntry
+import build.wallet.logging.SensitiveDataResult
 import build.wallet.logging.SensitiveDataValidator
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
@@ -40,13 +41,21 @@ internal class BugsnagLogWriter(
     tag: String,
     throwable: Throwable?,
   ) {
-    if (SensitiveDataValidator.isSensitiveData(LogEntry(tag, message))) return
+    val sensitiveDataResult = SensitiveDataValidator.check(LogEntry(tag, message))
+    val safeMessage = when (sensitiveDataResult) {
+      SensitiveDataResult.NoneFound -> message
+      is SensitiveDataResult.Sensitive -> sensitiveDataResult.redactedMessage
+    }
+    val safeTag = when (sensitiveDataResult) {
+      SensitiveDataResult.NoneFound -> tag
+      is SensitiveDataResult.Sensitive -> sensitiveDataResult.redactedTag
+    }
 
-    val nonnullThrowable = throwable ?: HandledError(message)
+    val nonnullThrowable = throwable ?: HandledError(safeMessage)
     kermitBugsnagLogWriter.log(
       severity = severity,
-      message = message,
-      tag = tag,
+      message = safeMessage,
+      tag = safeTag,
       throwable = nonnullThrowable.takeIf { severity >= minErrorSeverity }
     )
   }

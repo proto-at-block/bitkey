@@ -7,7 +7,13 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploader
+import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.FullAccountCloudBackupCreator
+import build.wallet.cloud.backup.local.CloudBackupDao
+import build.wallet.cloud.store.CloudStoreAccountRepository
+import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -29,7 +35,10 @@ class FullAccountAuthKeyRotationServiceImpl(
   private val rotateAuthKeysF8eClient: RotateAuthKeysF8eClient,
   private val keyboxDao: KeyboxDao,
   private val accountAuthenticator: AccountAuthenticator,
-  private val bestEffortFullAccountCloudBackupUploader: BestEffortFullAccountCloudBackupUploader,
+  private val cloudBackupDao: CloudBackupDao,
+  private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
+  private val cloudStoreAccountRepository: CloudStoreAccountRepository,
+  private val cloudBackupRepository: CloudBackupRepository,
   private val relationshipsService: RelationshipsService,
   private val endorseTrustedContactsService: EndorseTrustedContactsService,
 ) : FullAccountAuthKeyRotationService {
@@ -286,7 +295,7 @@ class FullAccountAuthKeyRotationServiceImpl(
         }
         .bind()
 
-      trySynchronizingCloudBackup(rotatedAccount)
+      syncCloudBackup(rotatedAccount)
         .mapError {
           AuthKeyRotationFailure.Unexpected(
             retryRequest = AuthKeyRotationRequest.Resume(newKeys)
@@ -332,24 +341,54 @@ class FullAccountAuthKeyRotationServiceImpl(
       relationshipsService.syncAndVerifyRelationships(newAccount).bind()
     }
 
-  private suspend fun trySynchronizingCloudBackup(account: FullAccount): Result<Unit, Error> {
-    return bestEffortFullAccountCloudBackupUploader
-      .createAndUploadCloudBackup(
-        fullAccount = account
-      )
-      .recoverIf(
-        predicate = {
-          // Ignore the IgnorableErrors
-          it is BestEffortFullAccountCloudBackupUploader.Failure.IgnorableError
-        },
-        transform = {
-          logInternal(
-            level = LogLevel.Debug,
-            throwable = it
-          ) { "Ignoring cloud backup error" }
+  private suspend fun syncCloudBackup(account: FullAccount): Result<Unit, Error> {
+    return coroutineBinding {
+      val currentCloudBackup: CloudBackup = cloudBackupDao
+        .get(accountId = account.accountId.serverId)
+        .toErrorIfNull { IllegalStateException("Error getting cloud backup") }
+        .logFailure(LogLevel.Warn) { "Could not get current cloud backup" }
+        .mapError { Error("Error getting cloud backup", it) }
+        .bind()
+
+      val sealedCsek = when (currentCloudBackup) {
+        is CloudBackupV2 ->
+          currentCloudBackup.fullAccountFields
+            ?.sealedHwEncryptionKey
+            ?.let { Ok(it) }
+            ?: Err(Error("Lite Account backup found"))
+      }.bind()
+
+      val newCloudBackup = fullAccountCloudBackupCreator.create(keybox = account.keybox, sealedCsek = sealedCsek)
+        .logFailure { "Could not upload cloud backup after rotating auth keys" }
+        .bind()
+
+      cloudBackupDao.set(accountId = account.accountId.serverId, backup = newCloudBackup)
+        .logFailure { "Could not set cloud backup" }
+        .onSuccess {
+          logDebug { "Cloud backup stored locally" }
         }
+        .bind()
+
+      val cloudStoreAccount =
+        cloudStoreAccountRepository
+          .currentAccount(cloudServiceProvider())
+          .toErrorIfNull { Error("No cloud store account") }
+          .logFailure { "Could not get cloud store account" }
+          .bind()
+
+      // Upload new cloud backup.
+      cloudBackupRepository.writeBackup(
+        accountId = account.accountId,
+        cloudStoreAccount = cloudStoreAccount,
+        backup = newCloudBackup,
+        requireAuthRefresh = true
       )
-      .logFailure { "Could not upload cloud backup after rotating auth keys" }
+        .logFailure { "Could not upload cloud backup" }
+        .onSuccess {
+          logInfo { "Cloud backup uploaded" }
+        }
+        .bind()
+    }
   }
 
   private fun Result<AccountAuthenticator.AuthData, AuthError>.mapAuthErrorToKeySetValidationFailure(): Result<Unit, KeySetValidationFailure> {

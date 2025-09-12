@@ -68,4 +68,28 @@ impl AddressWatchlistTrait for Service {
             .filter_map(|k| repo.get(k).map(|v| (k.clone(), v.clone())))
             .collect());
     }
+
+    async fn delete_all_addresses(&mut self, account_id: &AccountId) -> Result<(), Error> {
+        let mut repo = self
+            .repository
+            .lock()
+            .map_err(|err| InternalError(err.to_string()))?;
+
+        let addresses_to_remove: Vec<Address<NetworkUnchecked>> = repo
+            .iter()
+            .filter_map(|(address, account_info)| {
+                if account_info.account_id == *account_id {
+                    Some(address.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for address in addresses_to_remove {
+            repo.remove(&address);
+        }
+
+        Ok(())
+    }
 }

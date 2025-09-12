@@ -39,12 +39,15 @@ use onboarding::routes::{
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
     RotateSpendingKeysetRequest, UpdateDescriptorBackupsResponse, UpgradeAccountRequest,
 };
-use onboarding::routes_v2::{CreateAccountRequestV2, CreateAccountResponseV2};
+use onboarding::routes_v2::{
+    CreateAccountRequestV2, CreateAccountResponseV2, CreateKeysetResponseV2,
+    UpgradeAccountRequestV2,
+};
 use privileged_action::routes::{
     CancelPendingDelayAndNotifyInstanceByTokenRequest, CancelPendingInstanceResponse,
     ConfigurePrivilegedActionDelayDurationsRequest,
-    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingInstancesParams,
-    GetPendingInstancesResponse, GetPrivilegedActionDefinitionsResponse,
+    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingInstanceResponse,
+    GetPendingInstancesParams, GetPendingInstancesResponse, GetPrivilegedActionDefinitionsResponse,
     ProcessPrivilegedActionVerificationRequest, ProcessPrivilegedActionVerificationResponse,
     UpdateDelayDurationForTestRequest, UpdateDelayDurationForTestResponse,
 };
@@ -88,6 +91,7 @@ use transaction_verification::routes::{
     ProcessTransactionVerificationTokenRequest, ProcessTransactionVerificationTokenResponse,
     PutTransactionVerificationPolicyResponse,
 };
+use types::account::entities::v2::SpendingKeysetInputV2;
 use types::account::entities::DescriptorBackupsSet;
 use types::account::identifiers::{AccountId, KeysetId};
 use types::notification::NotificationsPreferences;
@@ -904,6 +908,17 @@ impl TestClient {
             .await
     }
 
+    pub(crate) async fn delete_all_watch_addresses(&self, account_id: &AccountId) -> Response<()> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/notifications/addresses"
+            ))
+            .authenticated(account_id, None, None)
+            .delete()
+            .call(&self.router)
+            .await
+    }
+
     pub(crate) async fn get_bdk_configuration(
         &self,
         headers: HeaderMap,
@@ -1463,6 +1478,31 @@ impl TestClient {
             .await
     }
 
+    pub(crate) async fn get_pending_instance(
+        &self,
+        account_id: &str,
+        privileged_action_id: &str,
+        auth: &CognitoAuthentication,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<GetPendingInstanceResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/privileged-actions/{privileged_action_id}"
+            ))
+            .with_authentication(
+                auth,
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .get()
+            .call(&self.router)
+            .await
+    }
+
     pub(crate) async fn get_pending_instances(
         &self,
         account_id: &str,
@@ -1840,5 +1880,43 @@ impl TestClient {
             context.associate_with_account(&account_id, request.auth.app_pub);
         }
         response
+    }
+
+    pub(crate) async fn upgrade_account_v2(
+        &self,
+        context: &mut TestContext,
+        account_id: &str,
+        request: &UpgradeAccountRequestV2,
+    ) -> Response<CreateKeysetResponseV2> {
+        let response: Response<CreateKeysetResponseV2> = Request::builder()
+            .uri(format!("/api/v2/accounts/{account_id}/upgrade"))
+            .recovery_authenticated(&AccountId::from_str(account_id).unwrap())
+            .post(request)
+            .call(&self.router)
+            .await;
+        if response.body.as_ref().is_some() {
+            let account_id = AccountId::from_str(account_id).unwrap();
+            context.associate_with_account(&account_id, request.auth.app_pub);
+        }
+        response
+    }
+
+    pub(crate) async fn create_keyset_v2(
+        &self,
+        account_id: &str,
+        request: &SpendingKeysetInputV2,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<CreateKeysetResponseV2> {
+        let account_id = AccountId::from_str(account_id).expect("Account id not valid");
+        Request::builder()
+            .uri(format!("/api/v2/accounts/{account_id}/keysets"))
+            .authenticated(
+                &account_id,
+                Some(keys.app.secret_key),
+                Some(keys.hw.secret_key),
+            )
+            .post(request)
+            .call(&self.router)
+            .await
     }
 }

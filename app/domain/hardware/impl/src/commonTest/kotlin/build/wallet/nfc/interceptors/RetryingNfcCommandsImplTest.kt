@@ -6,9 +6,9 @@ import build.wallet.encrypt.MessageSignerFake
 import build.wallet.encrypt.SignatureUtilsMock
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
+import build.wallet.nfc.BitkeyW1CommandsFake
 import build.wallet.nfc.FakeHardwareKeyStoreFake
 import build.wallet.nfc.FakeHardwareSpendingWalletProvider
-import build.wallet.nfc.NfcCommandsFake
 import build.wallet.nfc.NfcException.CanBeRetried
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSessionFake
@@ -30,7 +30,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
 
   test("fwupFinish should treat iOS 'Tag response error / no response' as success") {
     var callCount = 0
-    val baseCommands = NfcCommandsFake(
+    val baseCommands = BitkeyW1CommandsFake(
       messageSigner,
       signatureUtils,
       fakeHardwareKeyStore,
@@ -67,7 +67,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
 
   test("fwupFinish should still throw for other TransceiveFailure errors") {
     var callCount = 0
-    val baseCommands = NfcCommandsFake(
+    val baseCommands = BitkeyW1CommandsFake(
       messageSigner,
       signatureUtils,
       fakeHardwareKeyStore,
@@ -104,7 +104,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
 
   test("fwupFinish should throw for TransceiveFailure with null message") {
     var callCount = 0
-    val baseCommands = NfcCommandsFake(
+    val baseCommands = BitkeyW1CommandsFake(
       messageSigner,
       signatureUtils,
       fakeHardwareKeyStore,
@@ -141,7 +141,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
 
   test("version command should retry on TransceiveFailure") {
     var callCount = 0
-    val baseCommands = NfcCommandsFake(
+    val baseCommands = BitkeyW1CommandsFake(
       messageSigner,
       signatureUtils,
       fakeHardwareKeyStore,

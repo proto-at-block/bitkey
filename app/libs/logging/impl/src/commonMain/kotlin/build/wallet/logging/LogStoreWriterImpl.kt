@@ -25,13 +25,23 @@ class LogStoreWriterImpl(
     tag: String,
     throwable: Throwable?,
   ) {
+    val sensitiveDataResult = SensitiveDataValidator.check(LogEntry(tag, message))
+    val safeMessage = when (sensitiveDataResult) {
+      SensitiveDataResult.NoneFound -> message
+      is SensitiveDataResult.Sensitive -> sensitiveDataResult.redactedMessage
+    }
+    val safeTag = when (sensitiveDataResult) {
+      SensitiveDataResult.NoneFound -> tag
+      is SensitiveDataResult.Sensitive -> sensitiveDataResult.redactedTag
+    }
+
     logStore.record(
       Entity(
         time = clock.now(),
         level = severity.toLogLevel(),
-        tag = tag,
+        tag = safeTag,
         throwable = throwable,
-        message = message
+        message = safeMessage
       )
     )
   }

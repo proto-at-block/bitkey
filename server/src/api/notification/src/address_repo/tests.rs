@@ -294,3 +294,123 @@ async fn test_batch_get_mixed_known_and_unknown_query_superset_succeeds<F>(
     // no additional items are in the returned hashmap
     assert_eq!(subset.len(), stored_addresses.len());
 }
+
+#[rstest]
+#[tokio::test]
+async fn test_delete_all_addresses_empty_account(
+    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+) {
+    let acct_id = AccountId::gen().unwrap();
+
+    // Delete all addresses for account with no addresses
+    repo.delete_all_addresses(&acct_id).await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_delete_all_addresses_single_address(
+    #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
+    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+) {
+    let acct_id = AccountId::gen().unwrap();
+
+    // Insert single address
+    repo.insert(&[addr1.clone()], &acct_id).await.unwrap();
+
+    // Delete all addresses
+    repo.delete_all_addresses(&acct_id).await.unwrap();
+
+    // Verify address no longer exists
+    assert!(!repo
+        .get(&[addr1.address.clone()])
+        .await
+        .unwrap()
+        .contains_key(&addr1.address));
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_delete_all_addresses_multiple_addresses(
+    #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
+    #[values(testnet_address(), mainnet_address())] addr2: AddressAndKeysetId,
+    #[values(testnet_address(), mainnet_address())] addr3: AddressAndKeysetId,
+    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+) {
+    let acct_id = AccountId::gen().unwrap();
+
+    // Insert multiple addresses
+    repo.insert(&[addr1.clone(), addr2.clone(), addr3.clone()], &acct_id)
+        .await
+        .unwrap();
+
+    // Delete all addresses
+    repo.delete_all_addresses(&acct_id).await.unwrap();
+
+    // Verify all addresses no longer exist
+    let results = repo
+        .get(&[
+            addr1.address.clone(),
+            addr2.address.clone(),
+            addr3.address.clone(),
+        ])
+        .await
+        .unwrap();
+    assert!(results.is_empty());
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_delete_all_addresses_only_deletes_own_account(
+    #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
+    #[values(testnet_address(), mainnet_address())] addr2: AddressAndKeysetId,
+    #[values(testnet_address(), mainnet_address())] addr3: AddressAndKeysetId,
+    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+) {
+    let acct_id1 = AccountId::gen().unwrap();
+    let acct_id2 = AccountId::gen().unwrap();
+
+    // Insert addresses for both accounts
+    repo.insert(&[addr1.clone(), addr2.clone()], &acct_id1)
+        .await
+        .unwrap();
+    repo.insert(&[addr3.clone()], &acct_id2).await.unwrap();
+
+    // Delete all addresses for account 1
+    repo.delete_all_addresses(&acct_id1).await.unwrap();
+
+    // Verify only account 1's addresses were deleted
+    let results = repo
+        .get(&[
+            addr1.address.clone(),
+            addr2.address.clone(),
+            addr3.address.clone(),
+        ])
+        .await
+        .unwrap();
+    assert!(!results.contains_key(&addr1.address));
+    assert!(!results.contains_key(&addr2.address));
+    assert!(results.contains_key(&addr3.address)); // Account 2's address should remain
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_large_batch_delete_all_succeeds<F>(
+    #[values(testnet_address, mainnet_address)] addr_gen: F,
+    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+) where
+    F: Fn() -> AddressAndKeysetId,
+{
+    let acct_id = AccountId::gen().unwrap();
+    let addrs: Vec<AddressAndKeysetId> = (1..=100).map(|_| addr_gen()).collect();
+
+    // Insert large batch
+    repo.insert(&addrs, &acct_id).await.unwrap();
+
+    // Delete all
+    repo.delete_all_addresses(&acct_id).await.unwrap();
+
+    // Verify all addresses are gone
+    let address_list: Vec<_> = addrs.iter().map(|a| a.address.clone()).collect();
+    let results = repo.get(&address_list).await.unwrap();
+    assert!(results.is_empty());
+}

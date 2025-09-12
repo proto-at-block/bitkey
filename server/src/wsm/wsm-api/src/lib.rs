@@ -33,13 +33,14 @@ use wsm_common::messages::api::{
     GeneratePartialSignaturesRequest, GeneratePartialSignaturesResponse, GetIntegritySigRequest,
     GetIntegritySigResponse, GrantRequest, GrantResponse, InitiateDistributedKeygenRequest,
     InitiateDistributedKeygenResponse, InitiateShareRefreshRequest, InitiateShareRefreshResponse,
-    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse, SignPsbtRequest, SignedPsbt,
+    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse, SignPsbtRequest, SignPsbtRequestV2,
+    SignedPsbt,
 };
 use wsm_common::messages::enclave::{
     EnclaveContinueDistributedKeygenRequest, EnclaveContinueShareRefreshRequest,
     EnclaveCreateKeyRequest, EnclaveCreateSelfSovereignBackupRequest, EnclaveDeriveKeyRequest,
     EnclaveGeneratePartialSignaturesRequest, EnclaveInitiateDistributedKeygenRequest,
-    EnclaveInitiateShareRefreshRequest, EnclaveSignRequest,
+    EnclaveInitiateShareRefreshRequest, EnclaveSignRequest, EnclaveSignRequestV2,
 };
 use wsm_common::messages::DomainFactoredXpub;
 
@@ -69,6 +70,7 @@ impl From<RouteState> for Router {
             .route("/health-check", get(health_check))
             .route("/create-key", post(create_key))
             .route("/sign-psbt", post(sign_psbt))
+            .route("/v2/sign-psbt", post(sign_psbt_v2))
             .route(
                 "/generate-partial-signatures",
                 post(generate_partial_signatures),
@@ -536,6 +538,47 @@ async fn sign_psbt(
             };
             let signed_psbt = enclave_client
                 .sign_psbt(req)
+                .await
+                .map_err(|e| ApiError::ServerError(format!("Error Signing PSBT: {e}")))?;
+            Ok(Json(SignedPsbt {
+                psbt: signed_psbt.psbt,
+                root_key_id: root_key_id.clone(),
+            }))
+        }
+        None => Err(ApiError::NotFound(format!(
+            "Customer signing key for KeySet {root_key_id} not found"
+        ))),
+    }
+}
+
+#[instrument(skip(customer_key_store, enclave_client))]
+async fn sign_psbt_v2(
+    State(customer_key_store): State<CustomerKeyStore>,
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<SignPsbtRequestV2>,
+) -> Result<Json<SignedPsbt>, ApiError> {
+    let root_key_id = &request.root_key_id;
+    let psbt = &request.psbt;
+
+    match customer_key_store
+        .get_customer_key(root_key_id)
+        .await
+        .map_err(|e| {
+            ApiError::ServerError(format!("Could not read customer keys DDB table: {e}"))
+        })? {
+        Some(ck) => {
+            let req = EnclaveSignRequestV2 {
+                root_key_id: root_key_id.to_string(),
+                wrapped_xprv: ck.key_ciphertext,
+                dek_id: ck.dek_id,
+                key_nonce: ck.key_nonce,
+                app_pub: request.app_pub,
+                hardware_pub: request.hardware_pub,
+                psbt: psbt.to_string(),
+                network: ck.network,
+            };
+            let signed_psbt = enclave_client
+                .sign_psbt_v2(req)
                 .await
                 .map_err(|e| ApiError::ServerError(format!("Error Signing PSBT: {e}")))?;
             Ok(Json(SignedPsbt {

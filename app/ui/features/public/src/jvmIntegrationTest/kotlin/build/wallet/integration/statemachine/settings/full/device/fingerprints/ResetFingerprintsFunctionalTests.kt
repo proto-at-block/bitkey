@@ -15,7 +15,6 @@ import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintre
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetConfirmationSheetModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetSuccessBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FinishFingerprintResetBodyModel
-import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilSheet
 import build.wallet.statemachine.ui.robots.clickFingerprints
@@ -90,7 +89,7 @@ class FingerprintResetFunctionalTests : FunSpec({
       awaitUntilBody<FinishFingerprintResetBodyModel> {
         primaryButton.shouldNotBeNull().onClick()
       }
-      awaitSheet<FingerprintResetConfirmationSheetModel> {
+      awaitUntilSheet<FingerprintResetConfirmationSheetModel> {
         onConfirmReset()
       }
       // See the fingerprint instructions and tap the "Save fingerprint" button
@@ -116,13 +115,13 @@ private suspend fun ReceiveTurbine<ScreenModel>.advanceToFingerprintResetConfirm
     .onSecurityHubTabClick()
   awaitUntilBody<SecurityHubBodyModel>()
     .clickFingerprints()
-  awaitSheet<ManageFingerprintsOptionsSheetBodyModel> {
+  awaitUntilSheet<ManageFingerprintsOptionsSheetBodyModel> {
     onCannotUnlock()
   }
   awaitUntilBody<FingerprintResetConfirmationBodyModel> {
     primaryButton.shouldNotBeNull().onClick()
   }
-  awaitSheet<FingerprintResetConfirmationSheetModel> {
+  awaitUntilSheet<FingerprintResetConfirmationSheetModel> {
     onConfirmReset()
   }
 }

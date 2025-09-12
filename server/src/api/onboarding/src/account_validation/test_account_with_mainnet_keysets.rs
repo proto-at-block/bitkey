@@ -33,7 +33,12 @@ impl Rule for TestAccountsWithMainnetKeysetsRule {
                 spend,
                 is_test_account,
                 ..
-            } => (is_test_account, &spend.network),
+            } => (is_test_account, &spend.network.into()),
+            AccountValidationRequest::UpgradeAccountV2 {
+                is_test_account,
+                spend_network,
+                ..
+            } => (is_test_account, spend_network),
             AccountValidationRequest::CreateLiteAccount { .. }
             | AccountValidationRequest::CreateSoftwareAccount { .. } => {
                 return Ok(());

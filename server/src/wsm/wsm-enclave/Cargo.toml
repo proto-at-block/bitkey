@@ -20,7 +20,11 @@ base64 = { workspace = true }
 bdk = { version = "0.29.0", features = ["minimal", "std"] }
 ciborium = "0.2.2"
 config = { workspace = true, features = ["toml"] }
-crypto = { workspace = true, features = ["noise", "ssb"] }
+crypto = { workspace = true, features = [
+  "chaincode_delegation",
+  "noise",
+  "ssb",
+] }
 hex = { workspace = true }
 mime = "0.3.17"
 rand = { workspace = true }
@@ -35,6 +39,7 @@ tower = { workspace = true }
 wsm-grant = { workspace = true }
 
 # path dependencies
+aws-vsock-http = { path = "../aws-vsock-http" }
 wsm-common = { workspace = true }
 
 http-body-util = "0.1.0"

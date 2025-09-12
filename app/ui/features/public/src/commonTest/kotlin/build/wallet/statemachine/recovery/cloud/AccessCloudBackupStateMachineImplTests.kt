@@ -13,6 +13,7 @@ import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
@@ -35,26 +36,35 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
     )
 
   val exitCalls = turbines.create<Unit>("exit calls")
-  val backupFoundCalls = turbines.create<CloudBackup>("backup found calls")
-  val cannotAccessCloudCalls = turbines.create<Unit>("cannot access cloud calls")
   val importEmergencyExitKitCalls = turbines.create<Unit>("import Emergency Exit Kit calls")
+  val onStartCloudRecoveryCalls = turbines.create<CloudBackup>("start cloud recovery calls")
+  val onStartLiteAccountRecoveryCalls = turbines.create<CloudBackup>("start lite account recovery calls")
+  val onStartLostAppRecoveryCalls = turbines.create<Unit>("start lost app recovery calls")
+  val onStartLiteAccountCreationCalls = turbines.create<Unit>("start lite account creation calls")
 
-  val props =
-    AccessCloudBackupUiProps(
-      forceSignOutFromCloud = false,
-      onExit = {
-        exitCalls += Unit
-      },
-      onBackupFound = { backup ->
-        backupFoundCalls += backup
-      },
-      onCannotAccessCloudBackup = {
-        cannotAccessCloudCalls += Unit
-      },
-      onImportEmergencyExitKit = {
-        importEmergencyExitKitCalls += Unit
-      }
-    )
+  val props = AccessCloudBackupUiProps(
+    onExit = {
+      exitCalls += Unit
+    },
+    onImportEmergencyExitKit = {
+      importEmergencyExitKitCalls += Unit
+    },
+    startIntent = AccountData.StartIntent.BeTrustedContact,
+    inviteCode = "inviteCode",
+    onStartCloudRecovery = {
+      onStartCloudRecoveryCalls += it
+    },
+    onStartLiteAccountRecovery = {
+      onStartLiteAccountRecoveryCalls += it
+    },
+    onStartLostAppRecovery = {
+      onStartLostAppRecoveryCalls += Unit
+    },
+    onStartLiteAccountCreation = { _, _ ->
+      onStartLiteAccountCreationCalls += Unit
+    },
+    showErrorOnBackupMissing = true
+  )
 
   afterTest {
     cloudBackupRepository.reset()
@@ -72,7 +82,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      backupFoundCalls.awaitItem().shouldBe(fakeBackup)
+      onStartCloudRecoveryCalls.awaitItem().shouldBe(fakeBackup)
     }
   }
 
@@ -139,7 +149,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         onCannotAccessCloud()
       }
 
-      cannotAccessCloudCalls.awaitItem().shouldBe(Unit)
+      onStartLiteAccountCreationCalls.awaitItem()
     }
   }
 
@@ -170,7 +180,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      cannotAccessCloudCalls.awaitItem().shouldBe(Unit)
+      onStartLiteAccountCreationCalls.awaitItem()
     }
   }
 

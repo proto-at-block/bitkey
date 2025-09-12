@@ -822,3 +822,196 @@ pub async fn respond_to_privileged_action_request_test() {
 
     assert_eq!(resp.status_code, StatusCode::OK);
 }
+
+#[tokio::test]
+async fn get_pending_instance_success_test() {
+    let clock = Arc::new(OffsetClock::new());
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = Account::Software(
+        create_software_account(&mut context, &bootstrap.services, None, false).await,
+    );
+    create_phone_touchpoint(&bootstrap.services, account.get_id(), true).await;
+
+    let keys = context
+        .get_authentication_keys_for_account_id(account.get_id())
+        .unwrap();
+
+    let auth = CognitoAuthentication::Wallet {
+        is_app_signed: false,
+        is_hardware_signed: false,
+    };
+
+    let put_resp = initiate_configure_privileged_action_delays(
+        &mut context,
+        &client,
+        account.get_id(),
+        PrivilegedActionType::ActivateTouchpoint,
+        &auth,
+        StatusCode::OK,
+    )
+    .await;
+
+    let PrivilegedActionResponse::Pending(pending_resp) = put_resp.unwrap() else {
+        panic!("Expected Pending response");
+    };
+
+    let instance_id = &pending_resp.privileged_action_instance.id.to_string();
+    let resp = client
+        .get_pending_instance(&account.get_id().to_string(), instance_id, &auth, &keys)
+        .await;
+
+    assert_eq!(resp.status_code, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn get_pending_instance_not_found_test() {
+    let clock = Arc::new(OffsetClock::new());
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = Account::Software(
+        create_software_account(&mut context, &bootstrap.services, None, false).await,
+    );
+
+    let keys = context
+        .get_authentication_keys_for_account_id(account.get_id())
+        .unwrap();
+
+    let auth = CognitoAuthentication::Wallet {
+        is_app_signed: false,
+        is_hardware_signed: false,
+    };
+
+    // Try to get a non-existent instance
+    let fake_instance_id = "urn:wallet-privileged-action-inst:01HV4Z6K7N8FAKE123456789";
+    let resp = client
+        .get_pending_instance(
+            &account.get_id().to_string(),
+            fake_instance_id,
+            &auth,
+            &keys,
+        )
+        .await;
+
+    assert_eq!(resp.status_code, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn get_pending_instance_different_account_forbidden_test() {
+    let clock = Arc::new(OffsetClock::new());
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create two accounts
+    let account1 = Account::Software(
+        create_software_account(&mut context, &bootstrap.services, None, false).await,
+    );
+    let account2 = Account::Software(
+        create_software_account(&mut context, &bootstrap.services, None, false).await,
+    );
+
+    create_phone_touchpoint(&bootstrap.services, account1.get_id(), true).await;
+
+    let keys2 = context
+        .get_authentication_keys_for_account_id(account2.get_id())
+        .unwrap();
+
+    let auth = CognitoAuthentication::Wallet {
+        is_app_signed: false,
+        is_hardware_signed: false,
+    };
+
+    // Create a privileged action instance for account1
+    let put_resp = initiate_configure_privileged_action_delays(
+        &mut context,
+        &client,
+        account1.get_id(),
+        PrivilegedActionType::ActivateTouchpoint,
+        &auth,
+        StatusCode::OK,
+    )
+    .await;
+
+    let PrivilegedActionResponse::Pending(pending_resp) = put_resp.unwrap() else {
+        panic!("Expected Pending response");
+    };
+
+    // Try to access account1's instance but claim it belongs to account2
+    // This should trigger the service-level account validation
+    let instance_id = &pending_resp.privileged_action_instance.id.to_string();
+    let resp = client
+        .get_pending_instance(&account2.get_id().to_string(), instance_id, &auth, &keys2)
+        .await;
+
+    assert_eq!(resp.status_code, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn get_pending_instance_completed_test() {
+    let clock = Arc::new(OffsetClock::new());
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = Account::Software(
+        create_software_account(&mut context, &bootstrap.services, None, false).await,
+    );
+    create_phone_touchpoint(&bootstrap.services, account.get_id(), true).await;
+
+    let keys = context
+        .get_authentication_keys_for_account_id(account.get_id())
+        .unwrap();
+
+    let auth = CognitoAuthentication::Wallet {
+        is_app_signed: false,
+        is_hardware_signed: false,
+    };
+
+    // Create a privileged action
+    let put_resp = initiate_configure_privileged_action_delays(
+        &mut context,
+        &client,
+        account.get_id(),
+        PrivilegedActionType::ActivateTouchpoint,
+        &auth,
+        StatusCode::OK,
+    )
+    .await;
+
+    let PrivilegedActionResponse::Pending(pending_resp) = put_resp.unwrap() else {
+        panic!("Expected Pending response");
+    };
+
+    let instance_id = &pending_resp.privileged_action_instance.id.to_string();
+
+    let AuthorizationStrategyOutput::DelayAndNotify(delay_and_notify_output) = pending_resp
+        .privileged_action_instance
+        .authorization_strategy
+    else {
+        panic!("Expected DelayAndNotify authorization strategy");
+    };
+
+    // Advance time to after delay period
+    clock.add_offset(delay_and_notify_output.delay_end_time - OffsetDateTime::now_utc());
+
+    // Complete the privileged action
+    let complete_resp = continue_configure_privileged_action_delays(
+        &mut context,
+        &client,
+        account.get_id(),
+        pending_resp.privileged_action_instance.id,
+        delay_and_notify_output.completion_token,
+        &auth,
+        StatusCode::OK,
+    )
+    .await;
+
+    // Try to get the completed instance by ID
+    let resp = client
+        .get_pending_instance(&account.get_id().to_string(), instance_id, &auth, &keys)
+        .await;
+
+    assert_eq!(resp.status_code, StatusCode::NOT_FOUND);
+}

@@ -8,6 +8,9 @@ pub mod keys;
 pub mod signature_utils;
 pub mod signature_verifier;
 
+#[cfg(feature = "chaincode_delegation")]
+pub mod chaincode_delegation;
+
 #[cfg(feature = "noise")]
 pub mod noise;
 

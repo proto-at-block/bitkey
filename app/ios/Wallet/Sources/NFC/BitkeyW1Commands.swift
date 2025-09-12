@@ -2,7 +2,7 @@ import CoreNFC
 import firmware
 import Shared
 
-public final class NfcCommandsImpl: NfcCommands {
+public final class BitkeyW1Commands: NfcCommands {
 
     public func fwupStart(
         session: NfcSession,

@@ -7,228 +7,84 @@ alwaysApply: true
 # Testing Basics
 
 ## Summary
-
-Core testing patterns every Bitkey test should follow. Tests should be behavioral, isolated, explicit, and written in `commonTest` whenever possible. Use Kotest FunSpec, clear natural language names, and prefer fakes over mocks.
+Core patterns: behavioral focus, `commonTest` preference, Kotest FunSpec, natural language names, prefer fakes over mocks.
 
 ## When to Apply
-
-- Writing any test in the codebase
+- Writing any test
 - Setting up test infrastructure
-- Choosing test organization patterns
-- Deciding on assertion styles
 
 ## How to Apply
 
-### Test Naming - Natural Language
-
-Write test names as clear sentences describing behavior:
-- Pattern: `"action/subject + condition + expected result"`
-- Focus on what the system does, not how
-- Make failures self-explanatory
+### Test Naming
+Write clear sentences: `"action/subject + condition + result"`
 
 ```kotlin
 // ✅ GOOD
 test("returns null when user is not found")
 test("creates account and sends welcome email when signup is valid")
-test("throws validation error when email format is invalid")
 
 // ❌ BAD
 test("testNullCase")
-test("checkData")
 test("should work correctly")
 ```
 
-### Test Organization
-
-**Platform Strategy:**
-- **Strongly prefer `commonTest`** - write once, run everywhere
-- Use platform-specific tests only when necessary
-- Never duplicate tests across platforms
-
-**Test Structure:**
-- One test per meaningful scenario
-- Break down by behavior, not by method
-- Keep tests short and focused
-- Prefer explicit code over abstraction
+### Organization & Isolation
+- **Prefer `commonTest`** - write once, run everywhere
+- One test per scenario, explicit setup
+- Reset all fakes in `beforeTest`
 
 ```kotlin
-class BitcoinAddressServiceImplTests : FunSpec({
-  // Explicit setup - no hidden magic
-  val addressDao = BitcoinAddressDaoFake()
-  val service = BitcoinAddressServiceImpl(addressDao)
+class ServiceImplTests : FunSpec({
+  val dao = DaoFake()
+  val service = ServiceImpl(dao)
   
-  beforeTest {
-    addressDao.reset()  // Ensure isolation
-  }
+  beforeTest { dao.reset() }
   
-  test("generates new address when none exist") {
+  test("generates address when none exist") {
     val result = service.generateAddress()
-    
     result.shouldBeOk()
     result.value.index.shouldBe(0)
-  }
-  
-  test("increments index for subsequent addresses") {
-    service.generateAddress()
-    val second = service.generateAddress()
-    
-    second.shouldBeOk()
-    second.value.index.shouldBe(1)
   }
 })
 ```
 
-### Test Isolation
+### Assertions & Coverage
+**Style:** Use method calls: `result.shouldBeOk()`, `value.shouldBe(expected)`
+**Focus:** Public APIs, edge cases, error paths, integration points
+**Avoid:** Private methods, trivial getters, framework functionality
 
-Each test must:
-- Run independently in a hermetic environment
-- Start with clean state via `reset()` methods
-- Not depend on other tests or execution order
-- Clean up resources in `beforeTest` blocks
-
-```kotlin
-beforeTest {
-  // Reset all dependencies to ensure isolation
-  daoFake.reset()
-  serviceMock.reset()
-  eventTracker.reset()
-}
-```
-
-### Assertion Style
-
-Use method call style for consistency:
-
-```kotlin
-// ✅ GOOD - Method call style
-result.shouldBeOk()
-value.shouldBe(expected)
-list.shouldBeEmpty()
-error.shouldBeTypeOf<NetworkError>()
-
-// ❌ BAD - Infix style (avoid for consistency)
-result shouldBeOk()
-value shouldBe expected
-```
-
-### Test Coverage Strategy
-
-**Focus on testing:**
-- Public APIs and externally visible behavior
-- Edge cases and boundary conditions
-- Error handling and failure paths
-- Integration points (persistence, networking)
-
-**Avoid testing:**
-- Private methods (test through public APIs)
-- Trivial getters/setters
-- Framework-provided functionality
-
-### Fakes vs Mocks
-
-**Always prefer fakes (95% of cases):**
-```kotlin
-// ✅ GOOD - Fake with realistic behavior
-val spendingLimitDao = SpendingLimitDaoFake()
-spendingLimitDao.setActiveLimit(testLimit)
-
-// ❌ BAD - Mock when fake would work
-val daoMock = DaoMock(turbines::create)
-daoMock.getLimitResult = Ok(testLimit)
-```
-
-See @ai-rules/testing-fakes-mocks.mdc for detailed guidance.
-
-### Test Data
-
-Use existing mock objects and realistic data:
-
-```kotlin
-// ✅ GOOD
-val account = FullAccountMock
-val request = CreatePaymentRequest(
-  amount = BitcoinMoney.btc(0.001),
-  recipient = "bc1q..."
-)
-
-// ❌ BAD
-val accountId = "test-id"
-val amount = "100"
-```
+### Test Doubles & Data
+**Prefer fakes (95%):** `val dao = SpendingLimitDaoFake()`
+**Use realistic data:** `FullAccountMock`, `BitcoinMoney.btc(0.001)`
 
 ## Example
-
 ```kotlin
-package build.wallet.limit
-
-import build.wallet.testing.shouldBeOk
-import build.wallet.testing.shouldBeErr
-import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
-
 class SpendingLimitServiceImplTests : FunSpec({
   val limitDao = SpendingLimitDaoFake()
-  val f8eClient = MobilePayF8eClientFake()
+  val service = SpendingLimitServiceImpl(limitDao)
   
-  val service = SpendingLimitServiceImpl(
-    dao = limitDao,
-    f8eClient = f8eClient
-  )
-  
-  beforeTest {
-    limitDao.reset()
-    f8eClient.reset()
-  }
+  beforeTest { limitDao.reset() }
   
   test("sets spending limit when amount is valid") {
-    // Explicit setup
-    val limit = SpendingLimit(
-      amount = BitcoinMoney.btc(0.1),
-      period = SpendingPeriod.Daily
-    )
+    val limit = SpendingLimit(BitcoinMoney.btc(0.1), SpendingPeriod.Daily)
     
-    // Execute
     val result = service.setLimit(limit)
     
-    // Verify outcome
     result.shouldBeOk()
     limitDao.getActiveLimit().shouldBe(limit)
   }
   
   test("returns error when amount exceeds maximum") {
-    val excessiveLimit = SpendingLimit(
-      amount = BitcoinMoney.btc(10.0),
-      period = SpendingPeriod.Daily
-    )
+    val excessiveLimit = SpendingLimit(BitcoinMoney.btc(10.0), SpendingPeriod.Daily)
     
     val result = service.setLimit(excessiveLimit)
     
     result.shouldBeErr()
     result.error.shouldBeTypeOf<LimitError.ExceedsMaximum>()
-    limitDao.getActiveLimit().shouldBe(null)  // No side effects
-  }
-  
-  test("syncs with server when network is available") {
-    val limit = SpendingLimitMock
-    f8eClient.setSyncSuccess(true)
-    
-    service.setLimit(limit)
-    val syncResult = service.syncWithServer()
-    
-    syncResult.shouldBeOk()
-    f8eClient.getLastSyncedLimit().shouldBe(limit)
   }
 })
 ```
 
-## Testing Modules
-
-**Core:** `:libs:testing:public` - shouldBeOk/shouldBeErr extensions
-**Fakes:** `:domain:*/fake` modules - Test doubles for each domain
-
 ## Related Rules
-
-- @ai-rules/testing-fakes-mocks.mdc (choosing test doubles)
+- @ai-rules/testing-fakes-mocks.mdc (test doubles)
 - @ai-rules/testing-coroutines.mdc (async testing)
-- @ai-rules/testing-overview.mdc (testing philosophy)

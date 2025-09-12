@@ -10,6 +10,7 @@ package build.wallet.statemachine.core
  */
 enum class Icon {
   Bitcoin,
+  BitcoinB,
   BitcoinOrange,
   BitcoinConsolidation,
   BitcoinBadged,

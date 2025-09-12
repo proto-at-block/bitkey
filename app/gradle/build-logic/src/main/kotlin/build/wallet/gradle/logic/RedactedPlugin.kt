@@ -23,9 +23,9 @@ internal class RedactedPlugin : Plugin<Project> {
     target.run {
       pluginManager.apply<RedactedGradleSubplugin>()
       if (isIntelliJ()) {
-        // Disable redaction when run from Intellij
         extensions.configure(RedactedPluginExtension::class) {
-          enabled.set(false)
+          // Set this to false if you're having issues with redaction interfering with test debugging
+          enabled.set(true)
         }
       }
       kotlin {

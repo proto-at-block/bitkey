@@ -8,13 +8,13 @@ alwaysApply: true
 
 ## Summary
 
-Integration testing patterns using the AppTester framework to test complete workflows and component interactions. Tests run on JVM only and verify end-to-end behavior with real dependencies.
+Integration testing using AppTester framework for end-to-end workflows with real dependencies. JVM only.
 
 ## When to Apply
 
 - Testing end-to-end user workflows
-- Verifying component integration across modules
-- Testing with real database and network layers
+- Verifying cross-module component integration
+- Testing with real database/network layers
 - Validating complete feature functionality
 
 ## How to Apply

@@ -193,11 +193,19 @@ interface NfcCommands {
    */
   suspend fun queryAuthentication(session: NfcSession): Boolean
 
+  /**
+   * Encrypt a chunk of data, typically another key, using the hardware key.
+   *
+   * @param unsealedData a 32-byte key or other data to be encrypted.
+   */
   suspend fun sealData(
     session: NfcSession,
     unsealedData: ByteString,
   ): SealedData
 
+  /**
+   * Decrypt a chunk of data using the hardware symmetric key.
+   */
   suspend fun unsealData(
     session: NfcSession,
     sealedData: SealedData,

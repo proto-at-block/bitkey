@@ -7,6 +7,9 @@ interface OnboardingCompletionDao {
   val onboardingKeyId: String
     get() = "onboarding_completion"
 
+  val fallbackKeyId: String
+    get() = "onboarding_fallback_completion"
+
   /**
    * Records the timestamp when onboarding was completed.
    */

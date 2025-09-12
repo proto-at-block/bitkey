@@ -77,6 +77,7 @@ class InheritanceClaimE2eTests : FunSpec({
         onGoToUtxoConsolidation = { error("No UTXO consolidation expected") }
       )
     ) {
+      apps.beneficiary.app.claimsRepository.syncServerClaims()
       awaitUntilBody<ManagingInheritanceBodyModel>(
         matching = { model ->
           model.benefactors.items.any { it.title == apps.benefactor.name } &&
@@ -135,6 +136,7 @@ class InheritanceClaimE2eTests : FunSpec({
         onGoToUtxoConsolidation = { error("No UTXO consolidation expected") }
       )
     ) {
+      apps.beneficiary.app.claimsRepository.syncServerClaims()
       awaitUntilBody<ManagingInheritanceBodyModel>(
         matching = { model ->
           model.benefactors.items.any { it.title == apps.benefactor.name } &&
@@ -220,12 +222,13 @@ class InheritanceClaimE2eTests : FunSpec({
     apps.benefactor.app.inheritanceManagementUiStateMachine.test(
       turbineTimeout = 60.seconds,
       props = InheritanceManagementUiProps(
-        account = apps.beneficiary.account(),
+        account = apps.benefactor.account(),
         selectedTab = ManagingInheritanceTab.Beneficiaries,
         onBack = { error("No exit calls expected") },
         onGoToUtxoConsolidation = { error("No UTXO consolidation expected") }
       )
     ) {
+      apps.benefactor.app.claimsRepository.syncServerClaims()
       awaitUntilBody<ManagingInheritanceBodyModel>(
         matching = { model ->
           model.beneficiaries.items.any { it.title == apps.beneficiary.name } &&

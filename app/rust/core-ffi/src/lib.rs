@@ -1,8 +1,16 @@
+mod psbt_with_tweaks;
 mod types;
 
+use crate::psbt_with_tweaks::*;
 use crate::types::FfiNetwork;
-use bitcoin::{psbt::Psbt, secp256k1::ecdsa::Signature, Network};
+use bitcoin::{
+    bip32::{ExtendedPrivKey, ExtendedPubKey, Fingerprint},
+    psbt::Psbt,
+    secp256k1::ecdsa::Signature,
+    Network,
+};
 use crypto::chacha20poly1305::{ChaCha20Poly1305Error, XChaCha20Poly1305};
+use crypto::chaincode_delegation::ChaincodeDelegationError;
 use crypto::crypto_box::{CryptoBox, CryptoBoxError, CryptoBoxKeyPair, CryptoBoxKeyPairError};
 use crypto::ecdh::Secp256k1SharedSecret;
 use crypto::frost::{signing::SigningError, FrostShare};

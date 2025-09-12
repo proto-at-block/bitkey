@@ -2,7 +2,7 @@
 edition = "2021"
 name = "bk"
 publish = false
-version = "2025.17.0"
+version = "2025.18.0"
 
 default-run = "bk"
 
@@ -42,6 +42,6 @@ thiserror = "1.0.57"
 time = { version = "0.3.36", features = ["serde", "serde-well-known"] }
 tokio = { version = "1.36.0", features = ["rt-multi-thread"] }
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-subscriber = { version = "=0.3.20", features = ["env-filter"] }
 wca = { path = "../app/rust/wca" }
 zip = "1.0.0"

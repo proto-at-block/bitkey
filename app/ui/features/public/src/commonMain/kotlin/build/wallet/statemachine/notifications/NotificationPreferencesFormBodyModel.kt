@@ -50,6 +50,7 @@ data class NotificationPreferenceFormBodyModel(
   val ctaModel: CallToActionModel?,
   override val onBack: () -> Unit,
   val continueOnClick: (() -> Unit),
+  val onMoneyMovementLearnMore: () -> Unit,
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SELECTION,
     onBack = onBack,
@@ -65,7 +66,14 @@ data class NotificationPreferenceFormBodyModel(
           immutableListOf(
             Statement(
               title = "Transactions",
-              body = "Get notified when you receive sats."
+              body = LabelModel.LinkSubstringModel.from(
+                substringToOnClick = mapOf(
+                  "Learn more" to onMoneyMovementLearnMore
+                ),
+                string = "Get notified when you receive bitcoin. Wallet addresses are stored while notifications are on. They are deleted when turned off. Learn more",
+                underline = true,
+                bold = true
+              )
             )
           )
         ),

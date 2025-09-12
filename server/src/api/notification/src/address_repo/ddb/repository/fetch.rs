@@ -36,7 +36,7 @@ impl AddressRepository {
 
         let batches = reads.chunks(DDB_BATCH_READ_SIZE_MAX).map(|chunk| {
             fetch_batch_chunk(
-                &self.connection.client,
+                &self.get_connection().client,
                 self.get_database_object(),
                 &table_name,
                 chunk,

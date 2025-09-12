@@ -4,7 +4,9 @@ use errors::ApiError;
 use recovery::repository::RecoveryRepository;
 use tracing::instrument;
 use types::account::bitcoin::Network;
-use types::account::entities::v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2};
+use types::account::entities::v2::{
+    FullAccountAuthKeysInputV2, SpendingKeysetInputV2, UpgradeLiteAccountAuthKeysInputV2,
+};
 use types::account::entities::{
     Account, FullAccountAuthKeysInput, LiteAccountAuthKeysInput, SoftwareAccountAuthKeysInput,
     SpendingKeysetInput, UpgradeLiteAccountAuthKeysInput,
@@ -54,6 +56,11 @@ pub(crate) enum AccountValidationRequest {
         auth: FullAccountAuthKeysInputV2,
         spend: SpendingKeysetInputV2,
         is_test_account: bool,
+    },
+    UpgradeAccountV2 {
+        auth: UpgradeLiteAccountAuthKeysInputV2,
+        is_test_account: bool,
+        spend_network: Network,
     },
 }
 

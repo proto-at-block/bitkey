@@ -7,7 +7,6 @@ import build.wallet.bitkey.inheritance.BenefactorClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.inheritance.InheritanceClaims
-import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.inheritance.RetrieveInheritanceClaimsF8eClient
@@ -26,7 +25,6 @@ class InheritanceClaimsRepositoryImpl(
   private val inheritanceClaimsDao: InheritanceClaimsDao,
   private val retrieveInheritanceClaimsF8eClient: RetrieveInheritanceClaimsF8eClient,
   stateScope: CoroutineScope,
-  private val inheritanceSyncFrequency: InheritanceSyncFrequency,
 ) : InheritanceClaimsRepository {
   /**
    * Current account status.
@@ -60,25 +58,7 @@ class InheritanceClaimsRepositoryImpl(
    * This is the latest full set of claims from either the server or by
    * local modification.
    */
-  private val claimsState = MutableStateFlow<Result<InheritanceClaims, Error>?>(null)
-
-  /**
-   * Latest claims from the server.
-   *
-   * This is a cold flow that will continue to emit latest claims from the
-   * server while subscribed to.
-   */
-  private val serverClaims: Flow<Result<InheritanceClaims, Error>> =
-    account.flatMapLatest { account ->
-      tickerFlow(inheritanceSyncFrequency.value)
-        .map {
-          retrieveInheritanceClaimsF8eClient
-            .retrieveInheritanceClaims(
-              account.config.f8eEnvironment,
-              account.accountId
-            )
-        }
-    }.distinctUntilChanged()
+  private val claimsState = MutableStateFlow<Result<InheritanceClaims, Error>>(Ok(InheritanceClaims.EMPTY))
 
   /**
    * Flow of the latest available data about user claims.
@@ -91,11 +71,9 @@ class InheritanceClaimsRepositoryImpl(
    * before load.
    */
   private val claimsFlow = channelFlow {
-    databaseClaims.first().let {
-      send(it)
-    }
+    send(databaseClaims.first())
+
     coroutineScope {
-      launch { syncServerClaims() }
       launch {
         claimsState
           .filterNotNull()
@@ -111,7 +89,7 @@ class InheritanceClaimsRepositoryImpl(
   override val claims: Flow<Result<InheritanceClaims, Error>> = claimsFlow.distinctUntilChanged()
 
   override suspend fun fetchClaims(): Result<InheritanceClaims, Error> {
-    return serverClaims.first()
+    return claimsState.first()
       .onSuccess { newClaims ->
         claimsState.value = Ok(newClaims)
         inheritanceClaimsDao.setInheritanceClaims(newClaims)
@@ -137,14 +115,14 @@ class InheritanceClaimsRepositoryImpl(
     claim: T,
     claimsSelector: (InheritanceClaims) -> List<T>,
     updateClaimsState: (InheritanceClaims, List<T>) -> InheritanceClaims,
-  ): Result<InheritanceClaims, Error>? {
+  ): Result<InheritanceClaims, Error> {
     val currentClaim = claimsState.value
-      ?.get()
+      .get()
       ?.let(claimsSelector)
       ?.find { it.claimId == claim.claimId }
 
     val updatedClaims = claimsSelector(
-      claimsState.value?.get() ?: InheritanceClaims.EMPTY
+      claimsState.value.get() ?: InheritanceClaims.EMPTY
     ).let { claims ->
       if (currentClaim == null) {
         claims + claim
@@ -153,28 +131,24 @@ class InheritanceClaimsRepositoryImpl(
       }
     }
 
-    return claimsState.value?.map { updateClaimsState(it, updatedClaims) }
+    return claimsState.value.map { updateClaimsState(it, updatedClaims) }
   }
 
-  /**
-   * Sync the latest server data with cache and database.
-   *
-   * This will only update the database if the server data is successful,
-   * and it will only update the in-memory state if there is no existing
-   * results.
-   */
-  private suspend fun syncServerClaims() {
-    serverClaims.collect { newClaims ->
-      newClaims.logFailure { "Failed to sync new claims" }
+  override suspend fun syncServerClaims() {
+    val account = account.first()
 
-      if (newClaims.isOk || claimsState.value?.isOk != true) {
-        claimsState.value = newClaims
-      }
+    val newClaims = retrieveInheritanceClaimsF8eClient.retrieveInheritanceClaims(
+      account.config.f8eEnvironment,
+      account.accountId
+    ).logFailure { "Failed to sync new claims" }
 
-      newClaims.onSuccess {
-        inheritanceClaimsDao.setInheritanceClaims(it)
-          .logFailure { "Failed to save new claims to database" }
-      }
+    if (newClaims.isOk || !claimsState.value.isOk) {
+      claimsState.value = newClaims
+    }
+
+    newClaims.onSuccess {
+      inheritanceClaimsDao.setInheritanceClaims(it)
+        .logFailure { "Failed to save new claims to database" }
     }
   }
 }

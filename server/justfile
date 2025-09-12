@@ -104,6 +104,9 @@ grind-signet-coins:
 user-histogram:
   ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- cron user-histogram
 
+decrypt-output encryption_key ciphertext nonce:
+  HISTOGRAM_OUTPUT_ENCRYPTION_KEY="{{encryption_key}}" ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- cron decrypt-output {{ciphertext}} {{nonce}}
+
 # Run the server in debug mode
 migrate-from-unified-keysets:
   ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- worker migrate-from-unified-keyset

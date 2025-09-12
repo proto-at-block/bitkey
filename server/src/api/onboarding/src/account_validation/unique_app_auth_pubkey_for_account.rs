@@ -24,6 +24,7 @@ impl Rule for UniqueAppAuthPubkeyForAccountRule {
             AccountValidationRequest::UpgradeAccount { auth, .. } => auth.app,
             AccountValidationRequest::CreateSoftwareAccount { auth, .. } => auth.app,
             AccountValidationRequest::CreateFullAccountV2 { auth, .. } => auth.app_pub,
+            AccountValidationRequest::UpgradeAccountV2 { auth, .. } => auth.app_pub,
             AccountValidationRequest::CreateLiteAccount { .. } => {
                 return Ok(());
             }

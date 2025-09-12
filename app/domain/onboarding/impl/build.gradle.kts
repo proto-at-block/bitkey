@@ -30,6 +30,7 @@ kotlin {
         implementation(projects.domain.authFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.domain.f8eClientFake)
+        implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.walletFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.sqldelightTesting)

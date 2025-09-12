@@ -7,6 +7,7 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactory
 import build.wallet.bitcoin.lightning.LightningInvoiceParser
+import build.wallet.chaincode.delegation.PsbtUtils
 import build.wallet.cloud.store.CloudFileStore
 import build.wallet.crypto.NoiseInitiator
 import build.wallet.crypto.Spake2
@@ -89,6 +90,7 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val nfcSessionProvider: NfcSessionProvider,
   @get:Provides val pdfAnnotatorFactory: PdfAnnotatorFactory,
   @get:Provides val phoneNumberLibBindings: PhoneNumberLibBindings,
+  @get:Provides val psbtUtils: PsbtUtils,
   @get:Provides val secp256k1KeyGenerator: Secp256k1KeyGenerator,
   @get:Provides val shareGenerator: ShareGenerator,
   @get:Provides val sharingManager: SharingManager,
@@ -153,6 +155,7 @@ expect fun create(
   nfcSessionProvider: NfcSessionProvider,
   pdfAnnotatorFactory: PdfAnnotatorFactory,
   phoneNumberLibBindings: PhoneNumberLibBindings,
+  psbtUtils: PsbtUtils,
   secp256k1KeyGenerator: Secp256k1KeyGenerator,
   shareGenerator: ShareGenerator,
   sharingManager: SharingManager,

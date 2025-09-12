@@ -690,11 +690,9 @@ pub struct DescriptorBackup {
 }
 
 pub mod v2 {
-    use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
+    use bdk_utils::bdk::bitcoin::{secp256k1::PublicKey, Network};
     use serde::{Deserialize, Serialize};
     use utoipa::ToSchema;
-
-    use crate::account::bitcoin::Network;
 
     #[derive(Deserialize, Serialize, Debug, ToSchema, Clone)]
     pub struct FullAccountAuthKeysInputV2 {
@@ -703,9 +701,15 @@ pub mod v2 {
         pub recovery_pub: PublicKey,
     }
 
-    #[derive(Deserialize, Serialize, Debug, ToSchema, Clone)]
+    #[derive(Deserialize, Serialize, Debug, PartialEq, ToSchema, Clone)]
     pub struct SpendingKeysetInputV2 {
         pub network: Network,
+        pub app_pub: PublicKey,
+        pub hardware_pub: PublicKey,
+    }
+
+    #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
+    pub struct UpgradeLiteAccountAuthKeysInputV2 {
         pub app_pub: PublicKey,
         pub hardware_pub: PublicKey,
     }

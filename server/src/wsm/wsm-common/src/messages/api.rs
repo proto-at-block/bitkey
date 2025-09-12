@@ -136,6 +136,14 @@ pub struct SignPsbtRequest {
     pub psbt: String,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct SignPsbtRequestV2 {
+    pub root_key_id: String,
+    pub app_pub: PublicKey,
+    pub hardware_pub: PublicKey,
+    pub psbt: String,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SignedPsbt {
     pub psbt: String,

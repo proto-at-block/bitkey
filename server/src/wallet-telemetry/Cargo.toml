@@ -20,7 +20,7 @@ tracing = { workspace = true }
 tracing-log = "0.2.0"
 tracing-opentelemetry = "0.25.0"
 tracing-serde = "0.1.3"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter", "json"] }
+tracing-subscriber = { version = "=0.3.20", features = ["env-filter", "json"] }
 
 [dev-dependencies]
 async-trait = "0.1"

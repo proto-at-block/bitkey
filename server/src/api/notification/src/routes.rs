@@ -67,7 +67,7 @@ impl RouterBuilder for RouteState {
             )
             .route(
                 "/api/accounts/:account_id/notifications/addresses",
-                post(add_address),
+                post(add_address).delete(delete_addresses),
             )
             .route(
                 "/api/accounts/:account_id/notifications-preferences",
@@ -100,6 +100,7 @@ impl From<RouteState> for SwaggerEndpoint {
     paths(
         send_test_push,
         add_address,
+        delete_addresses,
         set_notifications_preferences,
         get_notifications_preferences,
         set_notifications_triggers,
@@ -194,7 +195,7 @@ impl From<Vec<AddressAndKeysetId>> for RegisterWatchAddressRequest {
 #[serde(rename_all = "snake_case")]
 pub struct RegisterWatchAddressResponse {}
 
-#[instrument(err, skip(account_service))]
+#[instrument(err, skip(account_service, notification_service))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/notifications/addresses",
@@ -210,6 +211,7 @@ pub struct RegisterWatchAddressResponse {}
 pub async fn add_address(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
+    State(notification_service): State<NotificationService>,
     State(mut address_repo_service): State<Box<dyn AddressWatchlistTrait>>,
     Json(request): Json<RegisterWatchAddressRequest>,
 ) -> Result<Json<RegisterWatchAddressResponse>, ApiError> {
@@ -219,12 +221,22 @@ pub async fn add_address(
         })
         .await?;
 
-    let addresses = request
-        .addresses
-        .into_iter()
-        .collect::<Vec<AddressAndKeysetId>>();
+    // Check if money movement notifications are enabled before recording watch addresses
+    let notifications_preferences = notification_service
+        .fetch_notifications_preferences(FetchNotificationsPreferencesInput {
+            account_id: &account_id,
+        })
+        .await?;
 
-    address_repo_service.insert(&addresses, &account_id).await?;
+    // Only insert addresses if money movement notifications are enabled for any channel
+    if !notifications_preferences.money_movement.is_empty() {
+        let addresses = request
+            .addresses
+            .into_iter()
+            .collect::<Vec<AddressAndKeysetId>>();
+
+        address_repo_service.insert(&addresses, &account_id).await?;
+    }
 
     Ok(Json(RegisterWatchAddressResponse {}))
 }
@@ -396,4 +408,34 @@ pub async fn set_notifications_triggers(
         .await?;
 
     Ok(Json(SetNotificationsTriggersResponse {}))
+}
+
+#[instrument(err, skip(account_service, address_repo_service))]
+#[utoipa::path(
+    delete,
+    path = "/api/accounts/{account_id}/notifications/addresses",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    responses(
+        (status = 200, description = "All addresses deleted successfully"),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn delete_addresses(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(mut address_repo_service): State<Box<dyn AddressWatchlistTrait>>,
+) -> Result<(), ApiError> {
+    account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    address_repo_service
+        .delete_all_addresses(&account_id)
+        .await?;
+
+    Ok(())
 }

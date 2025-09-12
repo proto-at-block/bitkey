@@ -8,7 +8,7 @@ import build.wallet.ui.model.icon.IconSize.Regular
 
 sealed class IconImage {
   /**
-   * Represents images generated from "app/style/tokens/icons.json"
+   * Represents images from "app/ui/framework/public/src/commonMain/composeResources/drawable"
    * @property - Refers to [Icon] that represents a saved local image
    */
   data class LocalImage(
@@ -190,6 +190,7 @@ sealed interface IconBackgroundType {
 enum class IconTint {
   Primary,
   Foreground,
+  Background,
   On60,
   On30,
   On10,

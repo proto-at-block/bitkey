@@ -59,7 +59,7 @@ import build.wallet.rust.firmware.UnlockMethod as CoreUnlockMethod
 
 @Impl
 @BitkeyInject(AppScope::class)
-class NfcCommandsImpl(
+class BitkeyW1Commands(
   private val clock: Clock,
 ) : NfcCommands {
   override suspend fun fwupStart(

@@ -5,7 +5,7 @@ use repository::recovery::social::SocialRecoveryRepository;
 use tracing::info;
 use types::recovery::social::relationship::RecoveryRelationship;
 
-const IS_TEST_RUN: bool = true;
+const IS_TEST_RUN: bool = false;
 
 pub(crate) struct AddExpiryToPendingInvitations {
     pub repository: SocialRecoveryRepository,
@@ -23,7 +23,7 @@ impl AddExpiryToPendingInvitations {
 #[async_trait]
 impl Migration for AddExpiryToPendingInvitations {
     fn name(&self) -> &str {
-        "20250712_add_expiry_to_pending_invitations"
+        "20250826_add_expiry_to_pending_invitations"
     }
 
     async fn run(&self) -> Result<(), MigrationError> {

@@ -1,0 +1,75 @@
+-- Remove UNIQUE constraints from appKey, hardwareKey, and serverKey columns
+
+-- Temporarily disable foreign key constraints
+PRAGMA foreign_keys = 0;
+
+-- Create new table without UNIQUE constraints
+CREATE TABLE spendingKeysetEntity_new(
+  id          TEXT NOT NULL PRIMARY KEY,
+  keyboxId    TEXT NOT NULL,
+  serverId    TEXT NOT NULL,
+  appKey      TEXT NOT NULL,
+  hardwareKey TEXT NOT NULL,
+  serverKey   TEXT NOT NULL,
+  isActive    INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity(id) ON DELETE CASCADE
+);
+
+-- Copy data from old table to new table
+INSERT INTO spendingKeysetEntity_new
+SELECT id, keyboxId, serverId, appKey, hardwareKey, serverKey, isActive
+FROM spendingKeysetEntity;
+
+-- Drop old table and index
+DROP INDEX IF EXISTS idx_spendingKeyset_unique_active;
+DROP VIEW IF EXISTS fullAccountView;
+DROP TABLE spendingKeysetEntity;
+
+-- Rename new table to original name
+ALTER TABLE spendingKeysetEntity_new RENAME TO spendingKeysetEntity;
+
+-- Recreate dropped indexes and views
+
+CREATE UNIQUE INDEX idx_spendingKeyset_unique_active
+ON spendingKeysetEntity (keyboxId)
+WHERE isActive = 1;
+
+CREATE VIEW fullAccountView AS
+SELECT
+  fullAccountEntity.accountId AS accountId,
+  keyboxEntity.id AS keyboxId,
+  keyboxEntity.networkType,
+  keyboxEntity.fakeHardware,
+  keyboxEntity.f8eEnvironment,
+  keyboxEntity.isTestAccount,
+  keyboxEntity.isUsingSocRecFakes,
+  keyboxEntity.delayNotifyDuration,
+  keyboxEntity.appGlobalAuthKeyHwSignature,
+  keyboxEntity.canUseKeyboxKeysets,
+  spendingKeysetEntity.id AS spendingPublicKeysetId,
+  spendingKeysetEntity.serverId AS spendingPublicKeysetServerId,
+  spendingKeysetEntity.appKey,
+  spendingKeysetEntity.hardwareKey,
+  spendingKeysetEntity.serverKey,
+  appKeyBundleEntity.id AS appKeyBundleId,
+  appKeyBundleEntity.globalAuthKey,
+  appKeyBundleEntity.recoveryAuthKey,
+  hwKeyBundleEntity.id AS hwKeyBundleId,
+  hwKeyBundleEntity.authKey AS hwAuthKey,
+  hwKeyBundleEntity.spendingKey AS hwSpendingKey
+FROM fullAccountEntity
+-- keybox
+INNER JOIN keyboxEntity
+ON keyboxEntity.accountId = fullAccountEntity.accountId
+-- spending public keyset (active one only)
+INNER JOIN spendingKeysetEntity
+ON spendingKeysetEntity.keyboxId = keyboxEntity.id AND spendingKeysetEntity.isActive = 1
+-- app key bundle (active one only)
+INNER JOIN appKeyBundleEntity
+ON appKeyBundleEntity.keyboxId = keyboxEntity.id AND appKeyBundleEntity.isActive = 1
+-- hw key bundle (active one only)
+INNER JOIN hwKeyBundleEntity
+ON hwKeyBundleEntity.keyboxId = keyboxEntity.id AND hwKeyBundleEntity.isActive = 1;
+
+PRAGMA foreign_keys = 1;
+PRAGMA foreign_key_check;

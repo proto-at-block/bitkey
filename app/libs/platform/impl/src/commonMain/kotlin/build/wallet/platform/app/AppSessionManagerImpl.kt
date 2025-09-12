@@ -3,6 +3,7 @@ package build.wallet.platform.app
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logDebug
+import build.wallet.logging.logInfo
 import build.wallet.platform.random.UuidGenerator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,11 +32,13 @@ class AppSessionManagerImpl(
   override fun getSessionId(): String = sessionId
 
   override fun appDidEnterBackground() {
+    logInfo { "App did enter background" }
     appSessionStateFlow.value = AppSessionState.BACKGROUND
     applicationDidEnterBackgroundTime = clock.now()
   }
 
   override fun appDidEnterForeground() {
+    logInfo { "App did enter foreground" }
     appSessionStateFlow.value = AppSessionState.FOREGROUND
     if (applicationDidEnterBackgroundTime == null) {
       return

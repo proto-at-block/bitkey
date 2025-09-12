@@ -11,7 +11,7 @@ import kotlin.uuid.Uuid
 
 /**
  * Creates a new "background" [CoroutineScope] tied to the test's lifecycle.
- * The scope uses [Dispatchers.Default] dispatcher.
+ * The scope uses [Dispatchers.Unconfined] dispatcher.
  *
  * The primary purpose of this scope is to execute some "background" work (for example to launch
  * a concurrent worker) without blocking the test itself. When the test finishes (successfully or not),
@@ -25,7 +25,7 @@ fun TestScope.createBackgroundScope(
 ): CoroutineScope {
   val job = Job()
   val backgroundScope =
-    CoroutineScope(job + Dispatchers.Default + CoroutineName("BackgroundScope-${Uuid.random()}") + context)
+    CoroutineScope(job + Dispatchers.Unconfined + CoroutineName("BackgroundScope-${Uuid.random()}") + context)
 
   // We cancel the scope after each invocation, as it is common to validate test flakes
   // leveraging kotest's test case invocation config.

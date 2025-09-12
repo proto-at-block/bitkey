@@ -15,6 +15,7 @@ import build.wallet.db.DbTransactionError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ServerRecovery
+import build.wallet.logging.logError
 import build.wallet.recovery.LocalRecoveryAttemptProgress.*
 import build.wallet.recovery.Recovery.*
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery
@@ -547,6 +548,15 @@ private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
 
   // Insert all keysets, if they're available
   if (keybox.keysets.isNotEmpty()) {
+    val hardwareKeys = keybox.keysets.groupBy { it.hardwareKey }
+    val appKeys = keybox.keysets.groupBy { it.appKey }
+    val serverKeys = keybox.keysets.groupBy { it.f8eSpendingKeyset.spendingPublicKey }
+    (hardwareKeys + appKeys + serverKeys)
+      .filter { it.value.size > 1 }
+      .map { it.value.map { it.localId } }
+      .forEach {
+        logError { "Duplicate keys found in keysets: [${it.joinToString()}]" }
+      }
     for (keyset in keybox.keysets) {
       val isActive = keyset.localId == keybox.activeSpendingKeyset.localId
       spendingKeysetQueries.insertKeyset(

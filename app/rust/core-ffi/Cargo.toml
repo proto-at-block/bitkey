@@ -13,7 +13,12 @@ name = "core"
 
 [dependencies]
 bitcoin = { workspace = true, features = ["base64"] }
-crypto = { workspace = true, features = ["noise", "p256_box", "spake2"] }
+crypto = { workspace = true, features = [
+  "chaincode_delegation",
+  "noise",
+  "p256_box",
+  "spake2",
+] }
 frost = { path = "../frost" }
 lightning-support = { path = "../lightning-support" }
 miniscript = { workspace = true }

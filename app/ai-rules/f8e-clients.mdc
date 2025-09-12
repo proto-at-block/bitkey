@@ -7,61 +7,41 @@ alwaysApply: true
 # F8e Client Implementation
 
 ## Summary
-Defines standards for implementing F8e (Fromagerie) client classes that communicate with the backend server. F8e clients provide type-safe, observable network communication built on Ktor client with consistent error handling, authentication, and logging patterns.
+F8e (Fromagerie) clients provide type-safe network communication with consistent error handling, authentication, and logging.
 
 ## When to Apply
-- Creating new F8e client interfaces or implementations
-- Modifying existing F8e client code
+- Creating/modifying F8e client interfaces or implementations
 - Adding mock implementations for testing
-- Working with any networking layer that communicates with F8e backend
 
 ## How to Apply
 
-### Directory Structure
-- **Public interfaces**: `:domain:f8e-client:public`
-- **Implementations**: `:domain:f8e-client:impl` 
-- **Mocks**: `:domain:f8e-client:fake`
-
-### Package Organization
-- **Legacy location**: `build.wallet` (existing clients only). This package structure is deprecated and should not be used for new clients. Existing clients in this package can remain as-is unless there is a specific need to refactor or migrate them.
-- **Required for new clients**: `bitkey.f8e` with domain-specific subpackages. This package structure replaces `build.wallet` for all new client implementations.
-  - Example: `bitkey.f8e.auth`, `bitkey.f8e.recovery`, `bitkey.f8e.onboarding`
-
-### Naming Conventions
-- **Single-call clients**: `[Domain][Action]F8eClient`
-  - Example: `UpgradeAccountF8eClient`, `CreateAccountF8eClient`
-- **Multi-call clients**: `[Domain]F8eClient`
-  - Example: `AuthF8eClient`, `RecoveryF8eClient`
+### Structure & Naming
+- **Modules**: `:domain:f8e-client:public/impl/fake`
+- **Packages**: `bitkey.f8e.*` (new), `build.wallet` (legacy only)
+- **Naming**: `[Domain][Action]F8eClient` (single-call), `[Domain]F8eClient` (multi-call)
 
 ### Method Requirements
-Every client method must:
-- Be a `suspend` function
+Every method must:
+- Be `suspend` function
 - Return `Result<T, NetworkingError>` or `Result<T, F8eError<ErrorCodeType>>`
-- Use `setRedactedBody()` by default for request bodies
-- Only use `setUnredactedBody()` for confirmed safe-to-log data
-- Include `withEnvironment(f8eEnvironment)` for all requests
+- Use `setRedactedBody()` by default (only `setUnredactedBody()` for safe data)
+- Include `withEnvironment(f8eEnvironment)`
 - Include `withAccountId(accountId, tokenScope)` for authenticated requests
-- Use `withDescription()` for observability metadata when helpful
 
 ### Implementation Patterns
-
-**Unauthenticated requests:**
+**Unauthenticated:**
 ```kotlin
 override suspend fun someCall(request: SomeRequest): Result<SomeResponse, NetworkingError> =
   f8eHttpClient.unauthenticated()
     .bodyResult<SomeResponseBody> {
-      post("/api/some-endpoint") {
+      post("/api/endpoint") {
         withEnvironment(f8eEnvironment)
-        setRedactedBody(
-          SomeRequestBody(
-            field = request.field
-          )
-        )
+        setRedactedBody(SomeRequestBody(field = request.field))
       }
     }.map { it.toSomeResponse() }
 ```
 
-**Authenticated requests:**
+**Authenticated:**
 ```kotlin
 override suspend fun someCall(
   f8eEnvironment: F8eEnvironment,
@@ -70,131 +50,66 @@ override suspend fun someCall(
 ): Result<SomeResponse, NetworkingError> =
   f8eHttpClient.authenticated()
     .bodyResult<SomeResponseBody> {
-      post("/api/some-endpoint") {
+      post("/api/endpoint") {
         withEnvironment(f8eEnvironment)
         withAccountId(accountId, AuthTokenScope.Recovery)
-        setRedactedBody(
-          SomeRequestBody(
-            field = request.field
-          )
-        )
+        setRedactedBody(SomeRequestBody(field = request.field))
       }
     }.map { it.toSomeResponse() }
 ```
 
-### Request/Response Bodies
-- **Request bodies** must implement `RedactedRequestBody`
-- **Response bodies** must implement `RedactedResponseBody`
-- Use `EmptyRequestBody` and `EmptyResponseBody` when applicable
-- Use `@SerialName` for JSON field mapping
+### Bodies & Error Handling
+- Request/response bodies implement `RedactedRequestBody`/`RedactedResponseBody`
+- Use `@SerialName` for JSON mapping
+- Use `mapError { it.toF8eError<ErrorCodeType>() }` for F8e errors
+- Prefer typed error codes when available
 
-```kotlin
-@Serializable
-private data class SomeRequestBody(
-  @SerialName("field_name")
-  val fieldName: String,
-) : RedactedRequestBody
-
-@Serializable
-private data class SomeResponseBody(
-  @SerialName("response_field")
-  val responseField: String,
-) : RedactedResponseBody
-```
-
-### Error Handling
-- Use `mapError { it.toF8eError<ErrorCodeType>() }` for F8e-specific errors
-- Use `Result.catching { }` for exception handling
-- Prefer typed error codes over generic `NetworkingError` when F8e provides them
-
-### Dependency Injection
-All implementations must use:
+### DI & Constraints
 ```kotlin
 @BitkeyInject(AppScope::class)
 class SomeF8eClientImpl(
-  private val f8eHttpClient: F8eHttpClient, // or UnauthenticatedF8eHttpClient
+  private val f8eHttpClient: F8eHttpClient,
 ) : SomeF8eClient
 ```
 
-### Implementation Constraints
-- **Stateless**: No instance variables that change between calls
-- **Side-effect-free**: No writes to storage, preferences, or domain services
-- **No unit tests**: Create mocks in `:fake` module instead for dependent component testing
+**Must be**: Stateless, side-effect-free, no unit tests (use mocks in `:fake`)
 
-### Common Anti-Patterns to Avoid
-
+### Anti-Patterns
 ```kotlin
-// ❌ BAD: Using setUnredactedBody() without justification
-// CONSEQUENCES: Sensitive data logged in production, security violations, compliance issues
-f8eHttpClient.unauthenticated()
-  .bodyResult<ResponseBody> {
-    post("/api/endpoint") {
-      setUnredactedBody(requestBody) // Don't do this without verification
-    }
-  }
-
-// ❌ BAD: Not using withEnvironment()
-// CONSEQUENCES: Requests sent to wrong environment, production data corruption, failed requests
-f8eHttpClient.authenticated()
-  .bodyResult<ResponseBody> {
-    post("/api/endpoint") {
-      // Missing withEnvironment(f8eEnvironment)
-      withAccountId(accountId, tokenScope)
-    }
-  }
-
-// ❌ BAD: Stateful F8e client implementation
-// CONSEQUENCES: Race conditions, inconsistent state, difficult testing, memory leaks
-class BadF8eClientImpl : SomeF8eClient {
-  private var cachedData: String? = null // Don't store state
-  
-  override suspend fun someCall(): Result<Response, NetworkingError> {
-    cachedData = "some value" // Violates stateless constraint
-    // ...
-  }
+// ❌ BAD: Unredacted bodies, missing environment, stateful clients
+setUnredactedBody(requestBody) // Security risk
+post("/api/endpoint") { /* missing withEnvironment */ }
+class BadClient {
+  private var cached: String? = null // Don't store state
 }
 ```
 
-### Mock Implementation
-Mocks should provide:
-- Configurable default results in constructor
-- Mutable properties for test control
-- `reset()` method to restore defaults
-- Return errors by default (typically `UnhandledException(NotImplementedError())`)
-
+### Mock Pattern
 ```kotlin
 class SomeF8eClientMock(
-  var defaultResult: Result<SomeResponse, NetworkingError> = Err(UnhandledException(NotImplementedError()))
+  var defaultResult: Result<SomeResponse, NetworkingError> = 
+    Err(UnhandledException(NotImplementedError()))
 ) : SomeF8eClient {
   
-  override suspend fun someCall(request: SomeRequest): Result<SomeResponse, NetworkingError> =
-    defaultResult
-    
+  override suspend fun someCall(request: SomeRequest) = defaultResult
+  
   fun reset() {
     defaultResult = Err(UnhandledException(NotImplementedError()))
   }
 }
 ```
 
-### Documentation
-- Add high-level KDoc to each public method describing the endpoint purpose
-- Class-level documentation is optional unless the client requires complex setup
-
 ## Example
-
 ```kotlin
-// Interface (public)
+// Interface
 interface AuthF8eClient {
-  /**
-   * Authenticate with F8e using hardware proof of possession.
-   */
   suspend fun authenticate(
     f8eEnvironment: F8eEnvironment,
     request: AuthRequest
   ): Result<AuthResponse, F8eError<AuthF8eClientErrorCode>>
 }
 
-// Implementation (impl)
+// Implementation
 @BitkeyInject(AppScope::class)
 class AuthF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
@@ -208,33 +123,13 @@ class AuthF8eClientImpl(
       .bodyResult<AuthResponseBody> {
         post("/api/authenticate") {
           withEnvironment(f8eEnvironment)
-          setRedactedBody(
-            AuthRequestBody(
-              challenge = request.challenge
-            )
-          )
+          setRedactedBody(AuthRequestBody(challenge = request.challenge))
         }
       }
       .mapError { it.toF8eError<AuthF8eClientErrorCode>() }
       .map { it.toAuthResponse() }
 }
-
-// Mock (fake)
-class AuthF8eClientMock(
-  var authenticateResult: Result<AuthResponse, F8eError<AuthF8eClientErrorCode>> = 
-    Err(UnhandledException(NotImplementedError()))
-) : AuthF8eClient {
-  
-  override suspend fun authenticate(
-    f8eEnvironment: F8eEnvironment,
-    request: AuthRequest
-  ): Result<AuthResponse, F8eError<AuthF8eClientErrorCode>> = authenticateResult
-  
-  fun reset() {
-    authenticateResult = Err(UnhandledException(NotImplementedError()))
-  }
-}
 ```
 
 ## Related Rules
-- @ai-rules/strong-typing.mdc (for domain types and Result usage)
+- @ai-rules/strong-typing.mdc (domain types and Result usage)

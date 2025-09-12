@@ -56,6 +56,18 @@ pub struct EnclaveSignRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveSignRequestV2 {
+    pub root_key_id: String,
+    pub wrapped_xprv: String,
+    pub dek_id: String,
+    pub key_nonce: String,
+    pub app_pub: PublicKey,
+    pub hardware_pub: PublicKey,
+    pub psbt: String,
+    pub network: Option<Network>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveGenericSignRequest {
     pub root_key_id: String,
     pub wrapped_xprv: String,

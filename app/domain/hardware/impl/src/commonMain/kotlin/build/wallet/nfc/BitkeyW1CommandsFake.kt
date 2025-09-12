@@ -41,7 +41,7 @@ import okio.ByteString.Companion.toByteString
 
 @Fake
 @BitkeyInject(AppScope::class)
-class NfcCommandsFake(
+class BitkeyW1CommandsFake(
   private val messageSigner: MessageSigner,
   private val signatureUtils: SignatureUtils,
   val fakeHardwareKeyStore: FakeHardwareKeyStore,
@@ -178,7 +178,7 @@ class NfcCommandsFake(
 
   override suspend fun queryAuthentication(session: NfcSession) = true
 
-  /** See [NfcCommandsFake.sealKey] for implementation details. */
+  /** See [BitkeyW1CommandsFake.sealKey] for implementation details. */
   private val sealKeySeparator = "---"
 
   /**

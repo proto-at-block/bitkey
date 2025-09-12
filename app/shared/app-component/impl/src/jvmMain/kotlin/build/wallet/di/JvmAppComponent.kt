@@ -57,8 +57,8 @@ import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.limit.MobilePayService
 import build.wallet.logging.LoggerInitializer
+import build.wallet.nfc.BitkeyW1CommandsFake
 import build.wallet.nfc.FakeHardwareKeyStore
-import build.wallet.nfc.NfcCommandsFake
 import build.wallet.nfc.transaction.PairingTransactionProvider
 import build.wallet.onboarding.*
 import build.wallet.partnerships.PartnershipPurchaseService
@@ -121,7 +121,7 @@ interface JvmAppComponent {
   val f8eNetworkReachabilityService: F8eNetworkReachabilityService
   val fingerprintResetService: FingerprintResetService
   val fakeHardwareKeyStore: FakeHardwareKeyStore
-  val fakeNfcCommands: NfcCommandsFake
+  val fakeNfcCommands: BitkeyW1CommandsFake
   val featureFlagService: FeatureFlagService
   val fileDirectoryProvider: FileDirectoryProvider
   val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService

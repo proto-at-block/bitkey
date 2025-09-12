@@ -8,7 +8,7 @@ use crate::spend_rules::errors::SpendRuleCheckErrors;
 use crate::spend_rules::SpendRuleSet;
 use crate::SERVER_SIGNING_ENABLED;
 use async_trait::async_trait;
-use bdk_utils::bdk::bitcoin::psbt::Psbt;
+use bdk_utils::bdk::bitcoin::{psbt::Psbt, Network};
 use bdk_utils::bdk::SignOptions;
 use bdk_utils::{DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait};
 use feature_flags::service::Service as FeatureFlagsService;
@@ -60,7 +60,7 @@ pub trait Broadcaster: Sized {
     fn broadcast_transaction(
         &mut self,
         rpc_uris: &ElectrumRpcUris,
-        source_descriptor: &DescriptorKeyset,
+        network: bdk_utils::bdk::bitcoin::Network,
     ) -> Result<(), SigningError>;
     fn finalized_psbt(&self) -> Psbt;
 }
@@ -177,13 +177,11 @@ impl Broadcaster for SigningProcessor<Signed> {
     fn broadcast_transaction(
         &mut self,
         rpc_uris: &ElectrumRpcUris,
-        source_descriptor: &DescriptorKeyset,
+        network: Network,
     ) -> Result<(), SigningError> {
         record_histogram(TIME_TO_BROADCAST.to_owned(), &self.state.context, || {
-            let source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
-
             self.transaction_broadcaster
-                .broadcast(source_wallet, &mut self.state.finalized_psbt, rpc_uris)
+                .broadcast(network, &mut self.state.finalized_psbt, rpc_uris)
                 .map_err(SigningError::BdkUtils)
         })
     }
@@ -231,10 +229,9 @@ mod tests {
     use account::service::tests::default_electrum_rpc_uris;
     use async_trait::async_trait;
     use bdk_utils::bdk::bitcoin::psbt::{PartiallySignedTransaction, Psbt};
+    use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
     use bdk_utils::bdk::bitcoin::Network;
-    use bdk_utils::bdk::database::AnyDatabase;
     use bdk_utils::bdk::keys::DescriptorPublicKey;
-    use bdk_utils::bdk::Wallet;
     use bdk_utils::error::BdkUtilError;
     use bdk_utils::{DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait};
     use feature_flags::config::Config;
@@ -313,6 +310,13 @@ mod tests {
                 change_descriptor: &str,
                 psbt: &str,
             ) -> Result<SignedPsbt, Error>;
+            async fn sign_psbt_v2(
+                &self,
+                root_key_id: &str,
+                app_pub: PublicKey,
+                hardware_pub: PublicKey,
+                psbt: &str,
+            ) -> Result<SignedPsbt, Error>;
             async fn get_key_integrity_sig(
                 &self,
                 root_key_id: &str,
@@ -333,7 +337,7 @@ mod tests {
         impl TransactionBroadcasterTrait for Broadcaster {
             fn broadcast(
                 &self,
-                wallet: Wallet<AnyDatabase>,
+                network: Network,
                 transaction: &mut PartiallySignedTransaction,
                 rpc_uris: &ElectrumRpcUris,
             ) -> Result<(), BdkUtilError>;
@@ -585,7 +589,7 @@ mod tests {
             )
             .await
             .unwrap()
-            .broadcast_transaction(&default_electrum_rpc_uris(), &descriptor_for_funded_wallet);
+            .broadcast_transaction(&default_electrum_rpc_uris(), Network::Regtest);
 
         // assert
         assert!(result.is_ok());

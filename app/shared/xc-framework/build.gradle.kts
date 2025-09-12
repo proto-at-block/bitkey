@@ -64,6 +64,7 @@ kotlin {
       projects.domain.walletPublic,
       projects.libs.bitcoinPrimitivesPublic,
       projects.domain.bitkeyPrimitivesPublic,
+      projects.libs.chaincodeDelegationPublic,
       projects.domain.cloudBackupPublic,
       projects.libs.cloudStorePublic,
       projects.libs.encryptionPublic,

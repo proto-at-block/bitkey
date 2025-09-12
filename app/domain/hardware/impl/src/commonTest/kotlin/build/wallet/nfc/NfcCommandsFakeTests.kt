@@ -24,7 +24,7 @@ class NfcCommandsFakeTests : FunSpec({
     fakeHardwareKeyStore = fakeHardwareKeyStore,
     descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock()
   )
-  val nfcCommands = NfcCommandsFake(
+  val nfcCommands = BitkeyW1CommandsFake(
     messageSigner,
     signatureUtils,
     fakeHardwareKeyStore,

@@ -1,3 +1,4 @@
+use crate::chaincode_delegation::ChaincodeDelegateSigner;
 use crate::psbt_verification::verify_inputs_only_have_one_signature;
 use crate::psbt_verification::verify_inputs_pubkey_belongs_to_wallet;
 use crate::psbt_verification::WalletDescriptors;
@@ -72,6 +73,7 @@ use wsm_common::messages::enclave::EnclaveInitiateDistributedKeygenRequest;
 use wsm_common::messages::enclave::EnclaveInitiateDistributedKeygenResponse;
 use wsm_common::messages::enclave::EnclaveInitiateShareRefreshRequest;
 use wsm_common::messages::enclave::EnclaveInitiateShareRefreshResponse;
+use wsm_common::messages::enclave::EnclaveSignRequestV2;
 use wsm_common::messages::enclave::{
     CreateResponse, CreatedKey, DeriveResponse, DerivedKey, EnclaveCreateKeyRequest,
     EnclaveDeriveKeyRequest, EnclaveSignRequest, KmsRequest, LoadIntegrityKeyRequest,
@@ -92,6 +94,7 @@ use crate::kms_tool::{KmsTool, KmsToolError};
 use crate::settings::Settings;
 
 mod aad;
+mod chaincode_delegation;
 mod frost;
 mod grants;
 mod kms_tool;
@@ -629,6 +632,70 @@ fn descriptor_key_to_signer(
         },
     };
     Ok(signer)
+}
+
+async fn sign_psbt_v2(
+    State(keystore): State<KeyStore>,
+    Json(request): Json<EnclaveSignRequestV2>,
+) -> Result<Json<SignedPsbt>, WsmError> {
+    let mut log_buffer = LogBuffer::new();
+
+    let xprv = decode_wrapped_xprv(
+        keystore,
+        &request.wrapped_xprv,
+        &request.key_nonce,
+        &request.dek_id,
+        &request.root_key_id.clone(),
+        request.network,
+        &mut log_buffer,
+    )
+    .await?;
+
+    let secp = Secp256k1::new();
+
+    // During onboarding, the WSM and F8e returns to the App a descriptor public key that is derived
+    // up to the change level (i.e. [fp/84h/0h/0h]xpub1/*), while the wrapped xprv is at the root.
+    // When the app generates the chain code for the server, BIP32 requires it to treats the public
+    // key as if it were at the root level. So, while the app receives a descriptor public key that
+    // is derived up to the change level, we strip it down to just the bare public key, and construct
+    // an extended public key from it as if it were the root public key.
+    //
+    // Therefore in order to work with a private key that is on-par with the bare public key that
+    // the app receives and treats as root, we need to derive the private key up to the account level.
+    let spend_xprv = try_with_log_and_error!(
+        log_buffer,
+        WsmError::ServerError,
+        xprv.derive_priv(
+            &secp,
+            &DerivationPath::from(WSMSupportedDomain::Spend(
+                request.network.unwrap_or(Network::Signet).into()
+            ))
+        )
+    )?;
+
+    // In sign_psbt_v2, we assume that the user is already using a private wallet. Therefore, while
+    // we still have the "extended" server private key, we don't actually use its chaincode for
+    // signing since we'd be relying on the app to provide the BIP32 tweaks computed from a chain
+    // code that the app generated.
+    let chaincode_delegate_signer = ChaincodeDelegateSigner::new(
+        spend_xprv.private_key,
+        request.app_pub,
+        request.hardware_pub,
+    );
+
+    let mut psbt =
+        PartiallySignedTransaction::from_str(request.psbt.as_str()).expect("Could not parse PSBT");
+
+    try_with_log_and_error!(
+        log_buffer,
+        WsmError::ServerError,
+        chaincode_delegate_signer.sign_psbt(&mut psbt, &secp)
+    )?;
+
+    Ok(Json(SignedPsbt {
+        psbt: psbt.to_string(),
+        root_key_id: request.root_key_id,
+    }))
 }
 
 async fn create_key(
@@ -1620,6 +1687,7 @@ impl From<RouteState> for Router {
             .route("/load-secret", post(load_secret))
             .route("/load-integrity-key", post(load_integrity_key))
             .route("/sign-psbt", post(sign_psbt))
+            .route("/v2/sign-psbt", post(sign_psbt_v2))
             .route("/create-key", post(create_key))
             .route("/derive-key", post(derive_key))
             .route("/attestation-doc-from-enclave", get(attestation_doc))

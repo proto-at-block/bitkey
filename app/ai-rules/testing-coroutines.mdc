@@ -8,7 +8,7 @@ alwaysApply: true
 
 ## Summary
 
-Patterns for testing coroutines, Flows, and async operations. Use Turbine for Flow testing with `.test {}`, but use direct `.awaitItem()` for mock verification. Never use non-deterministic `expect*` methods.
+Testing coroutines, Flows, and async operations. Use Turbine `.test {}` for Flow testing, direct `.awaitItem()` for mock verification.
 
 ## When to Apply
 

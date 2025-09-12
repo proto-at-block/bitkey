@@ -7,49 +7,41 @@ alwaysApply: true
 # Domain Service Pattern
 
 ## Summary
-
-Defines the Service pattern for encapsulating business logic and domain operations in the Bitkey app. Services provide clear separation between domain and presentation logic, replacing the deprecated Data State Machine pattern with cohesive, domain-centric components that improve maintainability, readability, and testability.
+Services encapsulate business logic and domain operations, replacing deprecated Data State Machine pattern. Provide clear separation between domain and presentation logic.
 
 ## When to Apply
-
-- When implementing business logic that coordinates multiple operations
-- When creating domain operations that orchestrate repositories, clients, and other services
-- When separating business rules from UI presentation logic
-- When replacing deprecated Data State Machine implementations
-- When designing components that need to be consumed by multiple UI contexts
+- Implementing business logic coordinating multiple operations
+- Creating domain operations orchestrating repositories, clients, services
+- Separating business rules from UI presentation logic
+- Replacing deprecated Data State Machine implementations
 
 ## How to Apply
 
 ### Service Definition
+**Interface-first services:**
+- Define in `:public` modules for cross-module use
+- For internal-only: interface + implementation in `:impl` module
+- Use domain-specific terminology
+- Focus on what service accomplishes, not how
 
-**Create interface-first services:**
-- Define service interfaces in `:public` modules only when intended for use by other modules (most cases)
-- For internal-only services, define interface and implementation in `:impl` module
-- Use domain-specific terminology in method names and parameters
-- Focus on what the service accomplishes for the business domain, not how it's implemented internally
-
-**Service responsibilities:**
-- Encapsulate business logic within well-bounded contexts
-- Coordinate operations across repositories, clients, and other services
-- Maintain internal state and integrity checks
-- Expose domain operations through imperative, predictable APIs
+**Responsibilities:**
+- Encapsulate business logic in bounded contexts
+- Coordinate operations across repositories, clients, services
+- Maintain internal state and integrity
+- Expose domain operations through predictable APIs
 
 ### Consumer Rules
-
-**Who can consume services:**
+**Can consume services:**
 - ✅ Presentation logic (UI State Machines, Presenters)
-- ✅ Other Services (for orchestration)
+- ✅ Other Services (orchestration)
 - ❌ Lower-level components (clients, repositories, DAOs)
 
-**Data access patterns:**
+**Data access:**
 - Pull data directly from Services in presentation layer
-- Never pass domain state through Screen constructors or UI layers
-- Avoid prop-drilling data between State Machines
+- Never pass domain state through Screen constructors
+- Avoid prop-drilling between State Machines
 
 ## Example
-
-*Note: The following code snippets are for illustration purposes and do not represent actual codebase logic.*
-
 ```kotlin
 // ✅ GOOD: Simple, focused service interface
 interface CoachmarkService {
@@ -60,23 +52,6 @@ interface CoachmarkService {
   suspend fun markCoachmarkAsDisplayed(
     coachmarkId: CoachmarkIdentifier
   ): Result<Unit, Error>
-  
-  suspend fun resetCoachmarks(): Result<Unit, Error>
-}
-
-// Error handling: Use generic Error or Throwable in public APIs
-// unless presentation logic needs domain-specific error types
-interface PaymentService {
-  suspend fun processPayment(request: PaymentRequest): Result<Payment, PaymentError>
-  suspend fun validateAmount(amount: BitcoinMoney): Result<Unit, Error>
-}
-
-// ✅ GOOD: Service orchestrating domain operations
-interface AccountService {
-  suspend fun createLiteAccount(): Result<Account, CreateAccountError>
-  suspend fun upgradeToFullAccount(
-    requirements: UpgradeRequirements
-  ): Result<FullAccount, UpgradeError>
 }
 
 // ✅ GOOD: Service implementation with clear dependencies
@@ -92,25 +67,22 @@ class CoachmarkServiceImpl(
 }
 
 // ❌ BAD: Mixing UI concerns with domain logic
-// CONSEQUENCES: Tight coupling between layers, difficult testing, unclear responsibilities, UI logic in business layer
 interface PaymentService {
   suspend fun processPayment(request: PaymentRequest)
-  fun getPaymentScreenState(): PaymentScreenState
-  suspend fun showConfirmationDialog(): UserChoice
+  fun getPaymentScreenState(): PaymentScreenState // UI concern in domain
+  suspend fun showConfirmationDialog(): UserChoice // UI concern
 }
 
 // ❌ BAD: Repository depending on Service
-// CONSEQUENCES: Circular dependencies, architectural violations, difficult unit testing, unclear data flow
 class UserRepository(
-  private val accountService: AccountService // Services should not be injected into repositories
+  private val accountService: AccountService // Circular dependency
 )
 ```
 
-### Examples from codebase
-- `CoachmarkService`: Simple service managing UI tutorial state
-- `TxVerificationService`: Complex service handling transaction verification operations
+**Error handling:** Use generic `Error` in public APIs unless presentation needs domain-specific error types.
+
+**Codebase examples:** `CoachmarkService` (simple), `TxVerificationService` (complex)
 
 ## Related Rules
-
-- @ai-rules/strong-typing.mdc (for service method parameters and return types)
-- @ai-rules/module-structure.mdc (for proper service placement in `:public` and `:impl` modules)
+- @ai-rules/strong-typing.mdc (service method parameters and return types)
+- @ai-rules/module-structure.mdc (service placement in `:public` and `:impl`)

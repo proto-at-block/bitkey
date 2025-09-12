@@ -50,6 +50,7 @@ import build.wallet.ui.components.forms.TextFieldOverflowCharacteristic.Multilin
 import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.label.buildAnnotatedString
 import build.wallet.ui.components.label.toWalletTheme
 import build.wallet.ui.components.layout.CollapsedMoneyView
 import build.wallet.ui.components.layout.CollapsibleLabelContainer
@@ -381,18 +382,7 @@ private fun Explainer(statements: ImmutableList<Statement>) {
                   )
                 }
               }
-            is LabelModel.LinkSubstringModel -> {
-              buildAnnotatedString {
-                append(body.string)
-                body.linkedSubstrings.forEach { linkedSubstring ->
-                  addStyle(
-                    style = SpanStyle(color = WalletTheme.colors.bitkeyPrimary),
-                    start = linkedSubstring.range.first,
-                    end = linkedSubstring.range.last + 1
-                  )
-                }
-              }
-            }
+            is LabelModel.LinkSubstringModel -> body.buildAnnotatedString()
           },
         tint =
           when (item.treatment) {

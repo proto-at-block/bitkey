@@ -5,6 +5,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
+import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.relationships.syncAndVerifyRelationships
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -74,7 +75,9 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
   test("User can successfully rotate keys from proposal") {
     val app = launchNewApp()
-    val account = app.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake
+    )
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
@@ -104,7 +107,9 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
   test("User can successfully rotate keys from settings") {
     val app = launchNewApp()
-    val account = app.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake
+    )
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
@@ -141,7 +146,9 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
   test("Key rotation resumes from previous attempt") {
     val firstAppRun = launchNewApp()
-    val account = firstAppRun.onboardFullAccountWithFakeHardware()
+    val account = firstAppRun.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake
+    )
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
@@ -180,7 +187,9 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
   test("Key rotation fails with a cleared hardware") {
     val firstAppRun = launchNewApp()
-    firstAppRun.onboardFullAccountWithFakeHardware()
+    firstAppRun.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake
+    )
 
     firstAppRun.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
@@ -215,7 +224,9 @@ class RotateAuthKeyFunctionalTests : FunSpec({
    */
   test("Rotating from settings doesn't trigger overlay for MoneyHome") {
     val firstAppRun = launchNewApp()
-    firstAppRun.onboardFullAccountWithFakeHardware()
+    firstAppRun.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake
+    )
 
     firstAppRun.appUiStateMachine.test(Unit) {
       awaitUntilBody<MoneyHomeBodyModel> {

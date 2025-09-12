@@ -1,5 +1,6 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64, Engine as _};
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
+use bdk_utils::bdk::bitcoin::Txid;
 use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -55,7 +56,7 @@ impl From<PolicyUpdate> for TransactionVerificationPolicy {
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumDiscriminants)]
 #[strum_discriminants(derive(Display, EnumString))]
-#[serde(tag = "status", rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(tag = "verification_status", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionVerification {
     Pending(TransactionVerificationPending),
     Expired(TransactionVerificationCommonFields),
@@ -178,6 +179,8 @@ pub struct TransactionVerificationCommonFields {
     #[serde(rename = "partition_key")]
     pub id: TransactionVerificationId,
     #[serde_as(as = "DisplayFromStr")]
+    pub txid: Txid,
+    #[serde_as(as = "DisplayFromStr")]
     pub psbt: Psbt,
     pub account_id: AccountId,
     #[serde(with = "rfc3339")]
@@ -193,6 +196,7 @@ impl TransactionVerificationCommonFields {
         Self {
             id,
             account_id,
+            txid: psbt.unsigned_tx.txid(),
             psbt,
             // figure out expiry
             expires_at: OffsetDateTime::now_utc() + time::Duration::hours(24),

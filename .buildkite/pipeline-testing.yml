@@ -1,0 +1,16 @@
+steps:
+  - label: "Build customer app for verification"
+    timeout_in_minutes: 60
+    command: ".buildkite/build-customer-release-aab.sh"
+    plugins:
+      - ecr#v2.6.0:
+          login: true
+          region: us-west-2
+
+  - label: "Build emergency exit kit for verification"
+    timeout_in_minutes: 60
+    command: ".buildkite/build-emergency-release-apk.sh"
+    plugins:
+      - ecr#v2.6.0:
+          login: true
+          region: us-west-2

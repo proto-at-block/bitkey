@@ -18,6 +18,7 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
   override fun getDrawableResource(icon: Icon): DrawableResource =
     when (icon) {
       Bitcoin -> Res.drawable.bitcoin
+      BitcoinB -> Res.drawable.bitcoin_b
       BitcoinOrange -> Res.drawable.bitcoin_orange
       BitcoinConsolidation -> Res.drawable.bitcoin_consolidation
       BitcoinBadged -> Res.drawable.bitcoin_badged

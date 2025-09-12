@@ -13,6 +13,7 @@ pub mod configure_delay_duration_for_test;
 pub mod configure_privileged_action_delay_durations;
 pub mod error;
 pub mod get_by_web_auth_token;
+pub mod get_pending_instance;
 pub mod get_pending_instances;
 pub mod get_privileged_action_definitions;
 

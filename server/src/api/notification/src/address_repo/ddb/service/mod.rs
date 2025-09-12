@@ -7,12 +7,21 @@ use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use bdk_utils::bdk::bitcoin::Address;
 use database::ddb::Repository;
 use std::collections::HashMap;
+use std::fmt;
 use time::OffsetDateTime;
 use types::account::identifiers::AccountId;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Service {
     repo: AddressRepository,
+}
+
+impl fmt::Debug for Service {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Service")
+            .field("repo", &"AddressRepository")
+            .finish()
+    }
 }
 
 impl Service {
@@ -85,5 +94,13 @@ impl AddressWatchlistTrait for Service {
                 )
             })
             .collect());
+    }
+
+    async fn delete_all_addresses(&mut self, account_id: &AccountId) -> Result<(), Error> {
+        self.repo
+            .delete_all_addresses_for_account(account_id)
+            .await?;
+
+        Ok(())
     }
 }

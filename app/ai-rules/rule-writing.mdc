@@ -96,25 +96,23 @@ References to other rules that complement or interact with this one.
 
 ### Rule Principles
 
-**Composable:** Work together without conflicts, reusable across contexts.
+**Token-optimized:** Target <3000 tokens/rule. Use bullet points, tables, concise sentences.
 
-**Minimal:** One clear concern per rule. Split complex topics into focused rules.
+**Minimal:** One concern per rule. Split complex topics.
 
-**Declarative:** Describe desired intent and structure, not just procedural steps.
+**Composable:** Work together without conflicts.
 
-**Evidence-based:** Extract patterns from actual codebase, verify they represent current best practices.
+**Evidence-based:** Extract patterns from actual codebase.
 
-**Detailed but code-sourced:** Tutorial-like for AI assistance, avoid duplicating comprehensive API definitions. Include illustrative examples and key patterns, direct readers to actual code for complete details.
+**Concise examples:** Show key patterns only. Reference actual code for details.
 
-**Concise and AI-optimized:** Keep rules as concise as possible while maintaining necessary detail. Optimize for AI consumption and memory efficiency to avoid wasting tokens. Use clear, direct language and well-structured formatting for maximum readability.
-
-**Include negative consequences:** Document specific negative consequences of bad patterns for debugging, understanding design decisions, recognizing architectural problems, and code review context.
+**Include consequences:** Document negative outcomes of bad patterns for context.
 
 ### Maintenance Guidelines
 
-**Rule Updates:** Always update existing rules for consistency rather than duplicating. Apply all rule-writing guidelines when modifying any rule file - ensure exact structure, principles, and formatting compliance.
+**Rule Updates:** Update existing rules vs duplicating. Apply token optimization when modifying any rule.
 
-**Ruleset Evolution:** Regularly review for relevance, remove/merge outdated rules, maintain holistic consistency, document breaking changes.
+**Ruleset Evolution:** Review for relevance, merge outdated rules, maintain consistency.
 
 **Related Rules:** Only reference existing rules (verify with `ls ai-rules/*.mdc`), never reference future/planned rules, remove broken references when rules are deleted/renamed.
 

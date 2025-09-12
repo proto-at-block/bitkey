@@ -1,7 +1,6 @@
 package build.wallet.auth
 
 import build.wallet.auth.AuthKeyRotationFailure.Unexpected
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
@@ -10,9 +9,13 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploader.Failure.BreakingError
-import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploader.Failure.IgnorableError
-import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploaderMock
+import build.wallet.cloud.backup.CloudBackupRepositoryFake
+import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
+import build.wallet.cloud.backup.FullAccountCloudBackupCreator
+import build.wallet.cloud.backup.FullAccountCloudBackupCreatorMock
+import build.wallet.cloud.backup.local.CloudBackupDaoFake
+import build.wallet.cloud.store.CloudAccountMock
+import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -32,7 +35,6 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import io.kotest.property.checkAll
@@ -47,25 +49,34 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
   val rotateAuthKeysF8eClient = RotateAuthKeysF8eClientMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
-  val bestEffortFullAccountCloudBackupUploader =
-    BestEffortFullAccountCloudBackupUploaderMock(turbines::create)
   val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val trustedContactKeyAuthenticator = EndorseTrustedContactsServiceMock(turbines::create)
+  val cloudBackupDao = CloudBackupDaoFake()
+  val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
+  val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
+  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudAccount = CloudAccountMock("cloudInstanceId")
 
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceImpl(
     authKeyRotationAttemptDao = authKeyRotationAttemptDao,
     rotateAuthKeysF8eClient = rotateAuthKeysF8eClient,
     keyboxDao = keyboxDao,
     accountAuthenticator = accountAuthenticator,
-    bestEffortFullAccountCloudBackupUploader = bestEffortFullAccountCloudBackupUploader,
+    cloudBackupDao = cloudBackupDao,
+    fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
+    cloudStoreAccountRepository = cloudStoreAccountRepository,
+    cloudBackupRepository = cloudBackupRepository,
     relationshipsService = relationshipsService,
     endorseTrustedContactsService = trustedContactKeyAuthenticator
   )
 
   beforeEach {
     keyboxDao.reset()
-    bestEffortFullAccountCloudBackupUploader.reset()
     rotateAuthKeysF8eClient.reset()
+    cloudBackupDao.reset()
+    fullAccountCloudBackupCreator.reset()
+    cloudStoreAccountRepository.reset()
+    cloudBackupRepository.reset()
   }
 
   val generatedGlobalAuthKey =
@@ -89,6 +100,12 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
         appGlobalAuthKeyHwSignature = generatedGlobalAuthKeyHwSignature
       )
     )
+    cloudBackupDao.set(
+      FullAccountMock.accountId.serverId,
+      CloudBackupV2WithFullAccountMock
+    )
+    cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
+    fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
 
     accountAuthenticator.authResults = mutableListOf(
       // New global key validation
@@ -117,18 +134,28 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
     accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
     accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
     accountAuthenticator.authResults.shouldBeEmpty()
-    bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.awaitItem()
-      .shouldBeTypeOf<FullAccount>()
-      .should { backedUpAccount ->
-        backedUpAccount.keybox.activeAppKeyBundle.authKey shouldBe generatedGlobalAuthKey
-        backedUpAccount.keybox.activeAppKeyBundle.recoveryAuthKey shouldBe generatedRecoveryAuthKey
-        backedUpAccount.keybox.appGlobalAuthKeyHwSignature shouldBe generatedGlobalAuthKeyHwSignature
-      }
+    fullAccountCloudBackupCreator.createCalls.awaitItem()
 
     relationshipsService.syncCalls.awaitItem()
   }
 
   test("resume auth key rotation") {
+    keyboxDao.rotateKeyboxResult = Ok(
+      KeyboxMock.copy(
+        activeAppKeyBundle = KeyboxMock.activeAppKeyBundle.copy(
+          authKey = generateAppAuthKeys.appGlobalAuthPublicKey,
+          recoveryAuthKey = generateAppAuthKeys.appRecoveryAuthPublicKey
+        ),
+        appGlobalAuthKeyHwSignature = generateAppAuthKeys.appGlobalAuthKeyHwSignature
+      )
+    )
+    cloudBackupDao.set(
+      FullAccountMock.accountId.serverId,
+      CloudBackupV2WithFullAccountMock
+    )
+    cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
+    fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
+
     accountAuthenticator.authResults = mutableListOf(
       // New global key validation
       Ok(AccountAuthenticator.AuthData(FullAccountIdMock.serverId, AccountAuthTokensMock)),
@@ -137,16 +164,6 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
     )
 
     val request = AuthKeyRotationRequest.Resume(newKeys = generateAppAuthKeys)
-    keyboxDao.rotateKeyboxResult = Ok(
-      KeyboxMock.copy(
-        activeAppKeyBundle = KeyboxMock.activeAppKeyBundle.copy(
-          authKey = request.newKeys.appGlobalAuthPublicKey,
-          recoveryAuthKey = request.newKeys.appRecoveryAuthPublicKey
-        ),
-        appGlobalAuthKeyHwSignature = request.newKeys.appGlobalAuthKeyHwSignature
-      )
-    )
-
     val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
       request = request,
       account = FullAccountMock
@@ -156,18 +173,12 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
     authKeyRotationAttemptDao.setAuthKeysWrittenCalls.expectNoEvents()
     authKeyRotationAttemptDao.clearCalls.awaitItem()
     keyboxDao.rotateAuthKeysCalls.awaitItem()
-    bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.awaitItem()
-      .shouldBeTypeOf<FullAccount>()
-      .should { backedUpAccount ->
-        backedUpAccount.keybox.activeAppKeyBundle.authKey shouldBe request.newKeys.appGlobalAuthPublicKey
-        backedUpAccount.keybox.activeAppKeyBundle.recoveryAuthKey shouldBe request.newKeys.appRecoveryAuthPublicKey
-        backedUpAccount.keybox.appGlobalAuthKeyHwSignature shouldBe request.newKeys.appGlobalAuthKeyHwSignature
-      }
 
     accountAuthenticator.authCalls.awaitItem() shouldBe request.newKeys.appGlobalAuthPublicKey
     accountAuthenticator.authCalls.awaitItem() shouldBe request.newKeys.appRecoveryAuthPublicKey
     accountAuthenticator.authResults.shouldBeEmpty()
 
+    fullAccountCloudBackupCreator.createCalls.awaitItem()
     relationshipsService.syncCalls.awaitItem()
   }
 
@@ -184,9 +195,13 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       )
     }
 
-    test("ignore ignorable cloud backup failure") {
-      bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupResult =
-        Err(IgnorableError("who cares?"))
+    test("cloud backup succeeds after successful key rotation") {
+      cloudBackupDao.set(
+        FullAccountMock.accountId.serverId,
+        CloudBackupV2WithFullAccountMock
+      )
+      cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
+      fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
 
       accountAuthenticator.authResults = mutableListOf(
         // New global key validation
@@ -215,20 +230,20 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
       accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
       accountAuthenticator.authResults.shouldBeEmpty()
-      bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.awaitItem()
-        .shouldBeTypeOf<FullAccount>()
-        .should { backedUpAccount ->
-          backedUpAccount.keybox.activeAppKeyBundle.authKey shouldBe generatedGlobalAuthKey
-          backedUpAccount.keybox.activeAppKeyBundle.recoveryAuthKey shouldBe generatedRecoveryAuthKey
-          backedUpAccount.keybox.appGlobalAuthKeyHwSignature shouldBe generatedGlobalAuthKeyHwSignature
-        }
+      fullAccountCloudBackupCreator.createCalls.awaitItem()
 
       relationshipsService.syncCalls.awaitItem()
     }
 
-    test("handle breaking cloud backup error") {
-      bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupResult =
-        Err(BreakingError("oh no!"))
+    test("cloud backup failure causes rotation to fail") {
+      cloudBackupDao.set(
+        FullAccountMock.accountId.serverId,
+        CloudBackupV2WithFullAccountMock
+      )
+      cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
+      fullAccountCloudBackupCreator.backupResult = Err(
+        FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.CsekMissing
+      )
 
       accountAuthenticator.authResults = mutableListOf(
         // New global key validation
@@ -260,351 +275,337 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
       accountAuthenticator.authResults.shouldBeEmpty()
       relationshipsService.syncCalls.awaitItem()
-      bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.awaitItem()
-        .shouldBeTypeOf<FullAccount>()
-        .should { backedUpAccount ->
-          backedUpAccount.keybox.activeAppKeyBundle.authKey shouldBe generatedGlobalAuthKey
-          backedUpAccount.keybox.activeAppKeyBundle.recoveryAuthKey shouldBe generatedRecoveryAuthKey
-          backedUpAccount.keybox.appGlobalAuthKeyHwSignature shouldBe generatedGlobalAuthKeyHwSignature
-        }
+      fullAccountCloudBackupCreator.createCalls.awaitItem()
     }
+  }
 
-    test("rotation response doesn't matter") {
-      checkAll(rotateAuthKeysSuccessResponses + rotateAuthKeysFailedResponses) { rotateAuthKeysResponse ->
-        rotateAuthKeysF8eClient.rotateKeysetResult = rotateAuthKeysResponse
+  test("rotation response doesn't matter") {
+    checkAll(rotateAuthKeysSuccessResponses + rotateAuthKeysFailedResponses) { rotateAuthKeysResponse ->
+      cloudBackupDao.set(
+        FullAccountMock.accountId.serverId,
+        CloudBackupV2WithFullAccountMock
+      )
+      cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
+      fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
+      rotateAuthKeysF8eClient.rotateKeysetResult = rotateAuthKeysResponse
 
-        accountAuthenticator.authResults = mutableListOf(
-          // New global key validation
-          authSuccessResponse,
-          // New recovery key validation
-          authSuccessResponse
-        )
+      accountAuthenticator.authResults = mutableListOf(
+        // New global key validation
+        authSuccessResponse,
+        // New recovery key validation
+        authSuccessResponse
+      )
 
-        val request = AuthKeyRotationRequest.Start(
-          hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
-          hwSignedAccountId = "signed-account-id",
-          hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-          newKeys = generateAppAuthKeys
-        )
-        val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
-          request = request,
-          account = FullAccountMock
-        )
-        result.shouldBeOk()
+      val request = AuthKeyRotationRequest.Start(
+        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        hwSignedAccountId = "signed-account-id",
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        newKeys = generateAppAuthKeys
+      )
+      val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
+        request = request,
+        account = FullAccountMock
+      )
+      result.shouldBeOk()
 
-        authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
-        authKeyRotationAttemptDao.clearCalls.awaitItem()
-        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-        keyboxDao.rotateAuthKeysCalls.awaitItem()
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
-        accountAuthenticator.authResults.shouldBeEmpty()
-        bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.awaitItem()
-          .shouldBeTypeOf<FullAccount>()
-          .should { backedUpAccount ->
-            backedUpAccount.keybox.activeAppKeyBundle.authKey shouldBe generatedGlobalAuthKey
-            backedUpAccount.keybox.activeAppKeyBundle.recoveryAuthKey shouldBe generatedRecoveryAuthKey
-            backedUpAccount.keybox.appGlobalAuthKeyHwSignature shouldBe generatedGlobalAuthKeyHwSignature
-          }
+      authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
+      authKeyRotationAttemptDao.clearCalls.awaitItem()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
+      keyboxDao.rotateAuthKeysCalls.awaitItem()
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
+      accountAuthenticator.authResults.shouldBeEmpty()
+      fullAccountCloudBackupCreator.createCalls.awaitItem()
 
-        relationshipsService.syncCalls.awaitItem()
-      }
+      relationshipsService.syncCalls.awaitItem()
     }
+  }
 
-    test("new global key is invalid, old key still works") {
-      authFailedResponses.checkAll { newGlobalKeyResponse ->
-        accountAuthenticator.authResults = mutableListOf(
-          // New global key validation
-          newGlobalKeyResponse,
-          // Old global key validation
-          authSuccessResponse,
-          // Old recovery key validation
-          authSuccessResponse
-        )
+  test("new global key is invalid, old key still works") {
+    authFailedResponses.checkAll { newGlobalKeyResponse ->
+      accountAuthenticator.authResults = mutableListOf(
+        // New global key validation
+        newGlobalKeyResponse,
+        // Old global key validation
+        authSuccessResponse,
+        // Old recovery key validation
+        authSuccessResponse
+      )
 
-        val request = AuthKeyRotationRequest.Start(
-          hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
-          hwSignedAccountId = "signed-account-id",
-          hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-          newKeys = generateAppAuthKeys
-        )
-        val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
-          request = request,
-          account = FullAccountMock
-        )
-        result.shouldBeErrOfType<AuthKeyRotationFailure.Acceptable>()
+      val request = AuthKeyRotationRequest.Start(
+        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        hwSignedAccountId = "signed-account-id",
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        newKeys = generateAppAuthKeys
+      )
+      val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
+        request = request,
+        account = FullAccountMock
+      )
+      result.shouldBeErrOfType<AuthKeyRotationFailure.Acceptable>()
 
-        authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
-        authKeyRotationAttemptDao.clearCalls.awaitItem()
-        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-        keyboxDao.rotateAuthKeysCalls.expectNoEvents()
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.recoveryAuthKey
-        accountAuthenticator.authResults.shouldBeEmpty()
-        bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.expectNoEvents()
-      }
+      authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
+      authKeyRotationAttemptDao.clearCalls.awaitItem()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
+      keyboxDao.rotateAuthKeysCalls.expectNoEvents()
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.recoveryAuthKey
+      accountAuthenticator.authResults.shouldBeEmpty()
     }
+  }
 
-    test("new global key is valid, new recovery key is invalid, old key still works") {
-      authFailedResponses.checkAll { newRecoveryKeyResponse ->
-        accountAuthenticator.authResults = mutableListOf(
-          // New global key validation
-          authSuccessResponse,
-          // New recovery key validation
-          newRecoveryKeyResponse,
-          // Old global key validation
-          authSuccessResponse,
-          // Old recovery key validation
-          authSuccessResponse
-        )
+  test("new global key is valid, new recovery key is invalid, old key still works") {
+    authFailedResponses.checkAll { newRecoveryKeyResponse ->
+      accountAuthenticator.authResults = mutableListOf(
+        // New global key validation
+        authSuccessResponse,
+        // New recovery key validation
+        newRecoveryKeyResponse,
+        // Old global key validation
+        authSuccessResponse,
+        // Old recovery key validation
+        authSuccessResponse
+      )
 
-        val request = AuthKeyRotationRequest.Start(
-          hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
-          hwSignedAccountId = "signed-account-id",
-          hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-          newKeys = generateAppAuthKeys
-        )
-        val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
-          request = request,
-          account = FullAccountMock
-        )
-        result.shouldBeErrOfType<AuthKeyRotationFailure.Acceptable>()
+      val request = AuthKeyRotationRequest.Start(
+        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        hwSignedAccountId = "signed-account-id",
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        newKeys = generateAppAuthKeys
+      )
+      val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
+        request = request,
+        account = FullAccountMock
+      )
+      result.shouldBeErrOfType<AuthKeyRotationFailure.Acceptable>()
 
-        authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
-        authKeyRotationAttemptDao.clearCalls.awaitItem()
-        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-        keyboxDao.rotateAuthKeysCalls.expectNoEvents()
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.recoveryAuthKey
-        accountAuthenticator.authResults.shouldBeEmpty()
-        bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.expectNoEvents()
-      }
+      authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
+      authKeyRotationAttemptDao.clearCalls.awaitItem()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
+      keyboxDao.rotateAuthKeysCalls.expectNoEvents()
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.recoveryAuthKey
+      accountAuthenticator.authResults.shouldBeEmpty()
     }
+  }
 
-    test("new global key is invalid, old global key is invalid") {
-      checkAll(
-        // New global key validation responses
-        authFailedResponses,
-        // Old global key validation responses
-        authFailedResponses
-      ) { newGlobalKeyResponse, oldGlobalKeyResponse ->
-        accountAuthenticator.authResults = mutableListOf(
-          // New global key validation
-          newGlobalKeyResponse,
-          // Old global key validation
-          oldGlobalKeyResponse
-        )
+  test("new global key is invalid, old global key is invalid") {
+    checkAll(
+      // New global key validation responses
+      authFailedResponses,
+      // Old global key validation responses
+      authFailedResponses
+    ) { newGlobalKeyResponse, oldGlobalKeyResponse ->
+      accountAuthenticator.authResults = mutableListOf(
+        // New global key validation
+        newGlobalKeyResponse,
+        // Old global key validation
+        oldGlobalKeyResponse
+      )
 
-        val request = AuthKeyRotationRequest.Start(
-          hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
-          hwSignedAccountId = "signed-account-id",
-          hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-          newKeys = generateAppAuthKeys
-        )
-        val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
-          request = request,
-          account = FullAccountMock
-        )
-        result.shouldBeErrOfType<AuthKeyRotationFailure.AccountLocked>()
+      val request = AuthKeyRotationRequest.Start(
+        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        hwSignedAccountId = "signed-account-id",
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        newKeys = generateAppAuthKeys
+      )
+      val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
+        request = request,
+        account = FullAccountMock
+      )
+      result.shouldBeErrOfType<AuthKeyRotationFailure.AccountLocked>()
 
-        authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
-        authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-        keyboxDao.rotateAuthKeysCalls.expectNoEvents()
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
-        accountAuthenticator.authResults.shouldBeEmpty()
-        bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.expectNoEvents()
-      }
+      authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
+      authKeyRotationAttemptDao.clearCalls.expectNoEvents()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
+      keyboxDao.rotateAuthKeysCalls.expectNoEvents()
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
+      accountAuthenticator.authResults.shouldBeEmpty()
     }
+  }
 
-    test("new recovery key is invalid, old recovery key is invalid") {
-      checkAll(
-        // New recovery key validation responses
-        authFailedResponses,
-        // Old recovery key validation responses
-        authFailedResponses
-      ) { newRecoveryKeyResponse, oldRecoveryKeyResponse ->
-        accountAuthenticator.authResults = mutableListOf(
-          // New global key validation
-          authSuccessResponse,
-          // New recovery key validation
-          newRecoveryKeyResponse,
-          // Old global key validation
-          authSuccessResponse,
-          // Old recovery key validation
-          oldRecoveryKeyResponse
-        )
+  test("new recovery key is invalid, old recovery key is invalid") {
+    checkAll(
+      // New recovery key validation responses
+      authFailedResponses,
+      // Old recovery key validation responses
+      authFailedResponses
+    ) { newRecoveryKeyResponse, oldRecoveryKeyResponse ->
+      accountAuthenticator.authResults = mutableListOf(
+        // New global key validation
+        authSuccessResponse,
+        // New recovery key validation
+        newRecoveryKeyResponse,
+        // Old global key validation
+        authSuccessResponse,
+        // Old recovery key validation
+        oldRecoveryKeyResponse
+      )
 
-        val request = AuthKeyRotationRequest.Start(
-          hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
-          hwSignedAccountId = "signed-account-id",
-          hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-          newKeys = generateAppAuthKeys
-        )
-        val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
-          request = request,
-          account = FullAccountMock
-        )
-        result.shouldBeErrOfType<AuthKeyRotationFailure.AccountLocked>()
+      val request = AuthKeyRotationRequest.Start(
+        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        hwSignedAccountId = "signed-account-id",
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        newKeys = generateAppAuthKeys
+      )
+      val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
+        request = request,
+        account = FullAccountMock
+      )
+      result.shouldBeErrOfType<AuthKeyRotationFailure.AccountLocked>()
 
-        authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
-        authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-        keyboxDao.rotateAuthKeysCalls.expectNoEvents()
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.recoveryAuthKey
-        accountAuthenticator.authResults.shouldBeEmpty()
-        bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.expectNoEvents()
-      }
+      authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
+      authKeyRotationAttemptDao.clearCalls.expectNoEvents()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
+      keyboxDao.rotateAuthKeysCalls.expectNoEvents()
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.recoveryAuthKey
+      accountAuthenticator.authResults.shouldBeEmpty()
     }
+  }
 
-    test("new global key validation fails unexpectedly") {
-      unexpectedAuthResponses.checkAll { newGlobalKeyResponse ->
-        accountAuthenticator.authResults = mutableListOf(
-          // New global key validation
-          newGlobalKeyResponse
-        )
+  test("new global key validation fails unexpectedly") {
+    unexpectedAuthResponses.checkAll { newGlobalKeyResponse ->
+      accountAuthenticator.authResults = mutableListOf(
+        // New global key validation
+        newGlobalKeyResponse
+      )
 
-        val request = AuthKeyRotationRequest.Start(
-          hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
-          hwSignedAccountId = "signed-account-id",
-          hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-          newKeys = generateAppAuthKeys
-        )
-        val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
-          request = request,
-          account = FullAccountMock
-        )
-        result.shouldBeErrOfType<Unexpected>()
+      val request = AuthKeyRotationRequest.Start(
+        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        hwSignedAccountId = "signed-account-id",
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        newKeys = generateAppAuthKeys
+      )
+      val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
+        request = request,
+        account = FullAccountMock
+      )
+      result.shouldBeErrOfType<Unexpected>()
 
-        authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
-        authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-        keyboxDao.rotateAuthKeysCalls.expectNoEvents()
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
-        accountAuthenticator.authCalls.expectNoEvents()
-        accountAuthenticator.authResults.shouldBeEmpty()
-        bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.expectNoEvents()
-      }
+      authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
+      authKeyRotationAttemptDao.clearCalls.expectNoEvents()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
+      keyboxDao.rotateAuthKeysCalls.expectNoEvents()
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
+      accountAuthenticator.authCalls.expectNoEvents()
+      accountAuthenticator.authResults.shouldBeEmpty()
     }
+  }
 
-    test("new global key valid, new recovery key validation fails unexpectedly") {
-      unexpectedAuthResponses.checkAll { newRecoveryKeyResponse ->
-        accountAuthenticator.authResults = mutableListOf(
-          // New global key validation
-          authSuccessResponse,
-          // New recovery key validation
-          newRecoveryKeyResponse
-        )
+  test("new global key valid, new recovery key validation fails unexpectedly") {
+    unexpectedAuthResponses.checkAll { newRecoveryKeyResponse ->
+      accountAuthenticator.authResults = mutableListOf(
+        // New global key validation
+        authSuccessResponse,
+        // New recovery key validation
+        newRecoveryKeyResponse
+      )
 
-        val request = AuthKeyRotationRequest.Start(
-          hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
-          hwSignedAccountId = "signed-account-id",
-          hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-          newKeys = generateAppAuthKeys
-        )
-        val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
-          request = request,
-          account = FullAccountMock
-        )
-        result.shouldBeErrOfType<Unexpected>()
+      val request = AuthKeyRotationRequest.Start(
+        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        hwSignedAccountId = "signed-account-id",
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        newKeys = generateAppAuthKeys
+      )
+      val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
+        request = request,
+        account = FullAccountMock
+      )
+      result.shouldBeErrOfType<Unexpected>()
 
-        authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
-        authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-        keyboxDao.rotateAuthKeysCalls.expectNoEvents()
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
-        accountAuthenticator.authCalls.expectNoEvents()
-        accountAuthenticator.authResults.shouldBeEmpty()
-        bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.expectNoEvents()
-      }
+      authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
+      authKeyRotationAttemptDao.clearCalls.expectNoEvents()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
+      keyboxDao.rotateAuthKeysCalls.expectNoEvents()
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
+      accountAuthenticator.authCalls.expectNoEvents()
+      accountAuthenticator.authResults.shouldBeEmpty()
     }
+  }
 
-    test("new global key invalid, old global key fails unexpectedly") {
-      checkAll(
-        // New global key validation responses
-        authFailedResponses,
-        // Old global key validation responses
-        unexpectedAuthResponses
-      ) { newGlobalKeyResponse, oldGlobalKeyResponse ->
-        accountAuthenticator.authResults = mutableListOf(
-          // New global key validation
-          newGlobalKeyResponse,
-          // Old global key validation
-          oldGlobalKeyResponse
-        )
+  test("new global key invalid, old global key fails unexpectedly") {
+    checkAll(
+      // New global key validation responses
+      authFailedResponses,
+      // Old global key validation responses
+      unexpectedAuthResponses
+    ) { newGlobalKeyResponse, oldGlobalKeyResponse ->
+      accountAuthenticator.authResults = mutableListOf(
+        // New global key validation
+        newGlobalKeyResponse,
+        // Old global key validation
+        oldGlobalKeyResponse
+      )
 
-        val request = AuthKeyRotationRequest.Start(
-          hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
-          hwSignedAccountId = "signed-account-id",
-          hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-          newKeys = generateAppAuthKeys
-        )
-        val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
-          request = request,
-          account = FullAccountMock
-        )
-        result.shouldBeErrOfType<Unexpected>()
+      val request = AuthKeyRotationRequest.Start(
+        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        hwSignedAccountId = "signed-account-id",
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        newKeys = generateAppAuthKeys
+      )
+      val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
+        request = request,
+        account = FullAccountMock
+      )
+      result.shouldBeErrOfType<Unexpected>()
 
-        authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
-        authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-        keyboxDao.rotateAuthKeysCalls.expectNoEvents()
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
-        accountAuthenticator.authResults.shouldBeEmpty()
-        bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.expectNoEvents()
-      }
+      authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
+      authKeyRotationAttemptDao.clearCalls.expectNoEvents()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
+      keyboxDao.rotateAuthKeysCalls.expectNoEvents()
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
+      accountAuthenticator.authResults.shouldBeEmpty()
     }
+  }
 
-    test("new recovery key invalid, old recovery key fails unexpectedly") {
-      checkAll(
-        // New recovery key validation responses
-        authFailedResponses,
-        // Old recovery key validation responses
-        unexpectedAuthResponses
-      ) { newRecoveryKeyResponse, oldRecoveryKeyResponse ->
-        accountAuthenticator.authResults = mutableListOf(
-          // New global key validation
-          authSuccessResponse,
-          // New recovery key validation
-          newRecoveryKeyResponse,
-          // Old global key validation
-          authSuccessResponse,
-          // Old recovery key validation
-          oldRecoveryKeyResponse
-        )
+  test("new recovery key invalid, old recovery key fails unexpectedly") {
+    checkAll(
+      // New recovery key validation responses
+      authFailedResponses,
+      // Old recovery key validation responses
+      unexpectedAuthResponses
+    ) { newRecoveryKeyResponse, oldRecoveryKeyResponse ->
+      accountAuthenticator.authResults = mutableListOf(
+        // New global key validation
+        authSuccessResponse,
+        // New recovery key validation
+        newRecoveryKeyResponse,
+        // Old global key validation
+        authSuccessResponse,
+        // Old recovery key validation
+        oldRecoveryKeyResponse
+      )
 
-        val request = AuthKeyRotationRequest.Start(
-          hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
-          hwSignedAccountId = "signed-account-id",
-          hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-          newKeys = generateAppAuthKeys
-        )
-        val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
-          request = request,
-          account = FullAccountMock
-        )
-        result.shouldBeErrOfType<Unexpected>()
+      val request = AuthKeyRotationRequest.Start(
+        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        hwSignedAccountId = "signed-account-id",
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        newKeys = generateAppAuthKeys
+      )
+      val result = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
+        request = request,
+        account = FullAccountMock
+      )
+      result.shouldBeErrOfType<Unexpected>()
 
-        authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
-        authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-        keyboxDao.rotateAuthKeysCalls.expectNoEvents()
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
-        accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.recoveryAuthKey
-        accountAuthenticator.authResults.shouldBeEmpty()
-        bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.expectNoEvents()
-      }
+      authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
+      authKeyRotationAttemptDao.clearCalls.expectNoEvents()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
+      keyboxDao.rotateAuthKeysCalls.expectNoEvents()
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
+      accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.recoveryAuthKey
+      accountAuthenticator.authResults.shouldBeEmpty()
     }
   }
 }) {

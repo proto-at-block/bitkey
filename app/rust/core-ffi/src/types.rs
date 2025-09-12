@@ -1,6 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::UniffiCustomTypeConverter;
+use bitcoin::bip32::{ExtendedPrivKey, ExtendedPubKey, Fingerprint};
 use bitcoin::{psbt::Psbt, secp256k1::ecdsa::Signature, Network};
 use crypto::frost::FrostShare;
 use crypto::signature_utils::{CompactSignature, DERSignature};
@@ -13,6 +14,9 @@ impl Stringable for crypto::keys::PublicKey {}
 impl Stringable for Signature {}
 impl Stringable for DescriptorPublicKey {}
 impl Stringable for Psbt {}
+impl Stringable for ExtendedPrivKey {}
+impl Stringable for ExtendedPubKey {}
+impl Stringable for Fingerprint {}
 
 impl<T> UniffiCustomTypeConverter for T
 where

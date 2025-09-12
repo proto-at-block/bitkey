@@ -11,7 +11,7 @@ use crate::{
     get_mobile_pay_spending_record, sats_for_limit, sats_for_threshold, MobilePaySpendingRecord,
 };
 use async_trait::async_trait;
-use bdk_utils::bdk::bitcoin::psbt::Psbt;
+use bdk_utils::bdk::bitcoin::{psbt::Psbt, Network};
 use bdk_utils::{DescriptorKeyset, ElectrumRpcUris};
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::flag::ContextKey;
@@ -29,6 +29,7 @@ pub trait SigningStrategy: Sync + Send {
 
 pub struct TransferWithoutHardwareSigningStrategy {
     rpc_uris: ElectrumRpcUris,
+    network: Network,
     source_descriptor: DescriptorKeyset,
     keyset_id: KeysetId,
     signer: SigningProcessor<Validated>,
@@ -44,6 +45,7 @@ impl TransferWithoutHardwareSigningStrategy {
         source_descriptor: DescriptorKeyset,
         keyset_id: KeysetId,
         rpc_uris: &ElectrumRpcUris,
+        network: Network,
         features: &Features,
         mobile_pay_spending_record: MobilePaySpendingRecord,
         screener_service: Arc<ScreenerService>,
@@ -77,6 +79,7 @@ impl TransferWithoutHardwareSigningStrategy {
 
         Ok(Self {
             rpc_uris: rpc_uris.clone(),
+            network,
             source_descriptor,
             keyset_id,
             signer,
@@ -114,7 +117,7 @@ impl SigningStrategy for TransferWithoutHardwareSigningStrategy {
                 .await?;
         }
 
-        broadcaster.broadcast_transaction(&self.rpc_uris, &self.source_descriptor)?;
+        broadcaster.broadcast_transaction(&self.rpc_uris, self.network)?;
 
         Ok(signed_psbt)
     }
@@ -124,6 +127,7 @@ pub struct RecoverySweepSigningStrategy {
     rpc_uris: ElectrumRpcUris,
     signer: SigningProcessor<Validated>,
     source_descriptor: DescriptorKeyset,
+    network: Network,
     keyset_id: KeysetId,
 }
 
@@ -133,6 +137,7 @@ impl RecoverySweepSigningStrategy {
         unsigned_psbt: &Psbt,
         source_descriptor: DescriptorKeyset,
         active_descriptor: DescriptorKeyset,
+        network: Network,
         keyset_id: KeysetId,
         rpc_uris: &ElectrumRpcUris,
         screener_service: Arc<ScreenerService>,
@@ -159,6 +164,7 @@ impl RecoverySweepSigningStrategy {
             rpc_uris: rpc_uris.clone(),
             signer,
             source_descriptor,
+            network,
             keyset_id,
         })
     }
@@ -172,7 +178,7 @@ impl SigningStrategy for RecoverySweepSigningStrategy {
             .sign_transaction(&self.rpc_uris, &self.source_descriptor, &self.keyset_id)
             .await?;
 
-        broadcaster.broadcast_transaction(&self.rpc_uris, &self.source_descriptor)?;
+        broadcaster.broadcast_transaction(&self.rpc_uris, self.network)?;
 
         Ok(broadcaster.finalized_psbt())
     }
@@ -284,6 +290,11 @@ impl SigningStrategyFactory {
             .clone()
             .ok_or(SigningError::MissingMobilePaySettings)?;
 
+        let network = full_account
+            .active_spending_keyset()
+            .ok_or(SigningError::NoActiveSpendKeyset)?
+            .network();
+
         let daily_limit_sats = sats_for_limit(&limit, config, exchange_rate_service).await?;
 
         let features = Features {
@@ -307,6 +318,7 @@ impl SigningStrategyFactory {
             source_descriptor,
             keyset_id.to_owned(),
             rpc_uris,
+            network.into(),
             &features,
             mobile_pay_spending_record,
             screener_service.clone(),
@@ -329,18 +341,23 @@ impl SigningStrategyFactory {
         feature_flags_service: &FeatureFlagsService,
         context_key: Option<ContextKey>,
     ) -> Result<Arc<RecoverySweepSigningStrategy>, SigningError> {
-        let active_descriptor: DescriptorKeyset = full_account
+        let active_spending_keyset = full_account
             .active_spending_keyset()
-            .ok_or(SigningError::NoActiveSpendKeyset)?
+            .ok_or(SigningError::NoActiveSpendKeyset)?;
+
+        let active_descriptor: DescriptorKeyset = active_spending_keyset
             .legacy_multi_sig_or(SigningError::ConflictingKeysetType)?
             .to_owned()
             .into();
+
+        let network = active_spending_keyset.network();
 
         Ok(Arc::new(RecoverySweepSigningStrategy::new(
             signing_processor,
             unsigned_psbt,
             source_descriptor,
             active_descriptor,
+            network.into(),
             keyset_id.to_owned(),
             rpc_uris,
             screener_service.clone(),

@@ -3,6 +3,7 @@ package build.wallet.onboarding
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.map
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
@@ -25,5 +26,18 @@ class OnboardingCompletionServiceImpl(
 
   override suspend fun clearOnboardingTimestamp(): Result<Unit, Error> {
     return onboardingCompletionDao.clearCompletionTimestamp()
+  }
+
+  override suspend fun getFallbackCompletion(): Result<Boolean, Error> {
+    return onboardingCompletionDao.getCompletionTimestamp(
+      id = onboardingCompletionDao.fallbackKeyId
+    ).map { it != null }
+  }
+
+  override suspend fun recordFallbackCompletion(): Result<Unit, Error> {
+    return onboardingCompletionDao.recordCompletion(
+      id = onboardingCompletionDao.fallbackKeyId,
+      timestamp = clock.now()
+    )
   }
 }

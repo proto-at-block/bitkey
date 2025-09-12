@@ -24,8 +24,6 @@ import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform
-import build.wallet.router.Route
-import build.wallet.router.Router
 import build.wallet.statemachine.account.ChooseAccountAccessUiProps
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
 import build.wallet.statemachine.account.create.full.CreateAccountUiProps
@@ -58,8 +56,6 @@ import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecov
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
-import build.wallet.statemachine.start.GettingStartedRoutingProps
-import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
 import build.wallet.worker.AppWorkerExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -79,7 +75,7 @@ class AppUiStateMachineImpl(
   private val loadAppService: LoadAppService,
   private val noLongerRecoveringUiStateMachine: NoLongerRecoveringUiStateMachine,
   private val someoneElseIsRecoveringUiStateMachine: SomeoneElseIsRecoveringUiStateMachine,
-  private val gettingStartedRoutingStateMachine: GettingStartedRoutingStateMachine,
+  private val accessCloudBackupUiStateMachine: AccessCloudBackupUiStateMachine,
   private val createLiteAccountUiStateMachine: CreateLiteAccountUiStateMachine,
   private val liteAccountCloudBackupRestorationUiStateMachine:
     LiteAccountCloudBackupRestorationUiStateMachine,
@@ -505,26 +501,22 @@ class AppUiStateMachineImpl(
           )
         )
 
-      is CheckingCloudBackupData ->
-        gettingStartedRoutingStateMachine.model(
-          GettingStartedRoutingProps(
-            startIntent = accountData.intent,
-            inviteCode = accountData.inviteCode,
-            onStartLiteAccountRecovery = { cloudBackup ->
-              if (accountData.inviteCode != null) {
-                Router.route = Route.TrustedContactInvite(accountData.inviteCode!!)
-              }
-              onStartLiteAccountRecovery(cloudBackup)
-            },
-            onStartCloudRecovery = accountData.onStartCloudRecovery,
-            onStartLostAppRecovery = accountData.onStartLostAppRecovery,
-            onStartLiteAccountCreation = {
-              onStartLiteAccountCreation(it, accountData.intent)
-            },
-            onImportEmergencyExitKit = accountData.onImportEmergencyExitKit,
-            onExit = accountData.onExit
-          )
+      is CheckingCloudBackupData -> accessCloudBackupUiStateMachine.model(
+        AccessCloudBackupUiProps(
+          startIntent = accountData.intent,
+          inviteCode = accountData.inviteCode,
+          onExit = accountData.onExit,
+          onStartCloudRecovery = accountData.onStartCloudRecovery,
+          onStartLiteAccountRecovery = onStartLiteAccountRecovery,
+          onStartLostAppRecovery = accountData.onStartLostAppRecovery,
+          onStartLiteAccountCreation = onStartLiteAccountCreation,
+          onImportEmergencyExitKit = accountData.onImportEmergencyExitKit,
+          showErrorOnBackupMissing = when (accountData.intent) {
+            StartIntent.RestoreBitkey -> true
+            StartIntent.BeTrustedContact, StartIntent.BeBeneficiary -> false
+          }
         )
+      )
     }
   }
 

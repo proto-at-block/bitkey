@@ -45,7 +45,7 @@ impl AddressRepository {
         // Split the requests into chunks < DDB limitation
         let batches = ops
             .chunks(DDB_CHUNK_SIZE_MAX)
-            .map(|chunk| persist_batch_chunk(&self.connection.client, &table_name, chunk));
+            .map(|chunk| persist_batch_chunk(&self.get_connection().client, &table_name, chunk));
 
         // Join on the futures propagating errors
         if let Err(err) = try_join_all(batches).await {

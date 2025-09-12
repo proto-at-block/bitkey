@@ -66,10 +66,11 @@ class AppContext {
                 minSeverity: .info
             )] },
             messageSigner: MessageSignerImpl(),
-            nfcCommandsImpl: NfcCommandsImpl(),
+            nfcCommandsImpl: BitkeyW1Commands(),
             nfcSessionProvider: NfcSessionProviderImpl(),
             pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
             phoneNumberLibBindings: PhoneNumberLibBindingsImpl(),
+            psbtUtils: PsbtUtilsImpl(),
             secp256k1KeyGenerator: secp256k1KeyGenerator,
             shareGenerator: ShareGeneratorImpl(),
             sharingManager: sharingManager,

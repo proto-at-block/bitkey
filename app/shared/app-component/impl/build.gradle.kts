@@ -42,6 +42,7 @@ kotlin {
         api(projects.libs.amountImpl)
         api(projects.libs.bdkBindingsImpl)
         api(projects.libs.bugsnagImpl)
+        api(projects.libs.chaincodeDelegationImpl)
         api(projects.libs.cloudStoreImpl)
         api(projects.libs.contactMethodImpl)
         api(projects.libs.datadogImpl)

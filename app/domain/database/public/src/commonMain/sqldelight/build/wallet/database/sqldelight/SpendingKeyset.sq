@@ -7,9 +7,9 @@ CREATE TABLE spendingKeysetEntity(
   id          TEXT NOT NULL PRIMARY KEY,
   keyboxId    TEXT NOT NULL,
   serverId    TEXT NOT NULL,
-  appKey      TEXT AS AppSpendingPublicKey NOT NULL UNIQUE,
-  hardwareKey TEXT AS HwSpendingPublicKey NOT NULL UNIQUE,
-  serverKey   TEXT AS F8eSpendingPublicKey NOT NULL UNIQUE,
+  appKey      TEXT AS AppSpendingPublicKey NOT NULL,
+  hardwareKey TEXT AS HwSpendingPublicKey NOT NULL,
+  serverKey   TEXT AS F8eSpendingPublicKey NOT NULL,
   isActive    INTEGER AS Boolean NOT NULL DEFAULT 0,
   FOREIGN KEY (keyboxId) REFERENCES keyboxEntity(id) ON DELETE CASCADE
 );

@@ -487,3 +487,90 @@ async fn transaction_verification_verification_flow_test(
         expect_verification_status
     );
 }
+
+#[tokio::test]
+async fn transaction_verification_requires_verification_idempotent() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account, wallet) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    // Set transaction verification policy to ALWAYS
+    let threshold_policy = PolicyUpdate::Always;
+
+    client
+        .update_transaction_verification_policy(
+            &account.id,
+            true, // app signed only
+            false,
+            &keys,
+            &PutTransactionVerificationPolicyRequest {
+                policy: threshold_policy.clone(),
+            },
+        )
+        .await;
+
+    let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
+    let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
+    let mut builder = wallet.build_tx();
+    builder
+        .add_recipient(recipient_address.script_pubkey(), 1000)
+        .fee_rate(FeeRate::default_min_relay_fee());
+    let (mut psbt, _) = builder.finish().unwrap();
+    wallet.sign(&mut psbt, Default::default()).unwrap();
+
+    // Initiate transaction verification
+    let request = InitiateTransactionVerificationRequest {
+        psbt: psbt.to_string(),
+        fiat_currency: USD,
+        bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
+        signing_keyset_id: account.active_keyset_id,
+        should_prompt_user: true,
+    };
+
+    let resp = client
+        .initiate_transaction_verification(&account.id, &keys, &request)
+        .await;
+
+    // Verify the response
+    let original_verification_id = match resp.body.unwrap() {
+        InitiateTransactionVerificationView::VerificationRequested(
+            InitiateTransactionVerificationViewRequested {
+                verification_id,
+                expiration,
+            },
+        ) => {
+            // Transaction requires verification because it's over the threshold
+            assert!(!verification_id.to_string().is_empty());
+            assert!(expiration > OffsetDateTime::now_utc());
+            verification_id
+        }
+        _ => panic!("Expected transaction to require verification"),
+    };
+
+    let idempotent_resp = client
+        .initiate_transaction_verification(&account.id, &keys, &request)
+        .await;
+
+    // Verify the response
+    let idempotent_verification_id = match idempotent_resp.body.unwrap() {
+        InitiateTransactionVerificationView::VerificationRequested(
+            InitiateTransactionVerificationViewRequested {
+                verification_id,
+                expiration,
+            },
+        ) => {
+            // Transaction requires verification because it's over the threshold
+            assert!(!verification_id.to_string().is_empty());
+            assert!(expiration > OffsetDateTime::now_utc());
+            verification_id
+        }
+        _ => panic!("Expected transaction to require verification"),
+    };
+    assert_eq!(original_verification_id, idempotent_verification_id);
+}

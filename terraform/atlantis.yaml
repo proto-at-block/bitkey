@@ -760,8 +760,9 @@ projects:
       enabled: true
       when_modified:
         - '*.tf*'
-        - ./trusted-certs/development/*.crt
-        - '*.tfvars'
+        - ./trusted-certs/bitkey/development/*.crt
+        - ./trusted-certs/proto/development/*.crt
+        - ./tfvars/development/*.tfvars
     execution_order_group: 1
   - name: firmware-signer-staging
     dir: aws/firmware-signer
@@ -770,8 +771,9 @@ projects:
       enabled: true
       when_modified:
         - '*.tf*'
-        - ./trusted-certs/staging/*.crt
-        - '*.tfvars'
+        - ./trusted-certs/bitkey/staging/*.crt
+        - ./trusted-certs/proto/staging/*.crt
+        - ./tfvars/staging/*.tfvars
     execution_order_group: 2
   - name: firmware-signer-production
     dir: aws/firmware-signer
@@ -780,7 +782,8 @@ projects:
       enabled: true
       when_modified:
         - '*.tf*'
-        - ./trusted-certs/production/*.crt
-        - '*.tfvars'
+        - ./trusted-certs/bitkey/production/*.crt
+        - ./trusted-certs/proto/production/*.crt
+        - ./tfvars/production/*.tfvars
     execution_order_group: 3
 version: 3

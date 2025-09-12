@@ -1,10 +1,6 @@
 package build.wallet.inheritance
 
-import build.wallet.bitkey.inheritance.BenefactorClaim
-import build.wallet.bitkey.inheritance.BeneficiaryClaim
-import build.wallet.bitkey.inheritance.InheritanceClaim
-import build.wallet.bitkey.inheritance.InheritanceClaims
-import build.wallet.bitkey.inheritance.isApproved
+import build.wallet.bitkey.inheritance.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.currentCoroutineContext
@@ -53,6 +49,15 @@ interface InheritanceClaimsRepository {
    * Update the state of a single inheritance claim.
    */
   suspend fun updateSingleClaim(claim: InheritanceClaim)
+
+  /**
+   * Sync the latest server data with cache and database.
+   *
+   * This will only update the database if the server data is successful,
+   * and it will only update the in-memory state if there is no existing
+   * results.
+   */
+  suspend fun syncServerClaims()
 }
 
 /**

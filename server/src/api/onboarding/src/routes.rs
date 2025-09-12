@@ -63,6 +63,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 use time::Duration;
 use tracing::{error, event, instrument, Level};
+use types::account::entities::v2::UpgradeLiteAccountAuthKeysInputV2;
 use types::account::entities::{
     v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2},
     Account, CommsVerificationScope, DescriptorBackup, DescriptorBackupsSet,
@@ -93,7 +94,9 @@ use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::account_validation::{AccountValidation, AccountValidationRequest};
 use crate::routes_v2::{
-    create_account_v2, CreateAccountRequestV2, CreateAccountResponseV2, __path_create_account_v2,
+    create_account_v2, create_keyset_v2, upgrade_account_v2, CreateAccountRequestV2,
+    CreateAccountResponseV2, CreateKeysetResponseV2, UpgradeAccountRequestV2,
+    __path_create_account_v2, __path_create_keyset_v2, __path_upgrade_account_v2,
 };
 use crate::{create_touchpoint_iterable_user, metrics, upsert_account_iterable_user};
 
@@ -186,6 +189,11 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/descriptor-backups",
                 put(update_descriptor_backups),
             )
+            // V2 routes
+            .route(
+                "/api/v2/accounts/:account_id/keysets",
+                post(create_keyset_v2),
+            )
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
     }
@@ -193,6 +201,11 @@ impl RouterBuilder for RouteState {
     fn recovery_authed_router(&self) -> Router {
         Router::new()
             .route("/api/accounts/:account_id/upgrade", post(upgrade_account))
+            // V2 routes
+            .route(
+                "/api/v2/accounts/:account_id/upgrade",
+                post(upgrade_account_v2),
+            )
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
     }
@@ -241,7 +254,9 @@ impl From<RouteState> for SwaggerEndpoint {
         update_descriptor_backups,
 
         // V2 routes
-        create_account_v2
+        create_account_v2,
+        upgrade_account_v2,
+        create_keyset_v2,
     ),
     components(
         schemas(
@@ -305,6 +320,9 @@ impl From<RouteState> for SwaggerEndpoint {
             SpendingKeysetInputV2,
             CreateAccountRequestV2,
             CreateAccountResponseV2,
+            UpgradeLiteAccountAuthKeysInputV2,
+            UpgradeAccountRequestV2,
+            CreateKeysetResponseV2
         ),
     ),
     tags(

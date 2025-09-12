@@ -30,6 +30,7 @@ import build.wallet.money.currency.FiatCurrenciesSyncWorker
 import build.wallet.money.exchange.ExchangeRateSyncWorker
 import build.wallet.notifications.NotificationTouchpointSyncWorker
 import build.wallet.notifications.RegisterWatchAddressPeriodicProcessor
+import build.wallet.onboarding.OnboardingCompletionFailsafeWorker
 import build.wallet.partnerships.PartnershipTransactionsSyncWorker
 import build.wallet.recovery.sweep.SweepSyncWorker
 import build.wallet.relationships.EndorseTrustedContactsWorker
@@ -79,6 +80,7 @@ class AppWorkerProviderImpl(
   private val securityActionsWorker: SecurityActionsWorker,
   private val notificationsAppWorker: NotificationsAppWorker,
   private val fingerprintResetSyncWorker: FingerprintResetSyncWorker,
+  private val onboardingCompletionFailsafeWorker: OnboardingCompletionFailsafeWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -112,7 +114,8 @@ class AppWorkerProviderImpl(
       fundsLostRiskSyncWorker,
       securityActionsWorker,
       notificationsAppWorker,
-      fingerprintResetSyncWorker
+      fingerprintResetSyncWorker,
+      onboardingCompletionFailsafeWorker
     )
   }
 }

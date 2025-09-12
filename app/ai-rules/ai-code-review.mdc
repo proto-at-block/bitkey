@@ -1,0 +1,22 @@
+---
+description: AI code review standards
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# AI Code Review
+
+## Summary
+
+Use `@ai-rules/bitkey-mobile.mdc` as primary context for all AI code reviews.
+
+## How to Apply
+
+1. Reference `@ai-rules/bitkey-mobile.mdc` complete rule index
+2. Apply `@ai-rules/context-gathering.mdc` for context discovery  
+3. Use applicable rules based on code changes
+
+## Related Rules
+
+- @ai-rules/bitkey-mobile.mdc (complete rule index)
+- @ai-rules/context-gathering.mdc (context discovery)

@@ -51,6 +51,7 @@ class OnboardFullAccountServiceImpl(
   private val uuidGenerator: UuidGenerator,
   private val createFullAccountService: CreateFullAccountService,
   private val upgradeLiteAccountToFullService: UpgradeLiteAccountToFullService,
+  private val onboardingCompletionService: OnboardingCompletionService,
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val onboardingF8eClient: OnboardingF8eClient,
@@ -189,6 +190,9 @@ class OnboardFullAccountServiceImpl(
           fullAccountId = keybox.fullAccountId
         )
         .bind()
+
+      // Since we have completed onboarding, prevent the fallback worker from running.
+      onboardingCompletionService.recordFallbackCompletion()
 
       // Add getting started tasks for the new keybox
       val gettingStartedTasks = listOf(

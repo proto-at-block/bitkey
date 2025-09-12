@@ -17,11 +17,12 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.inheritance.*
-import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.logDebug
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.relationships.RelationshipsService
+import build.wallet.worker.BackgroundStrategy
+import build.wallet.worker.RunStrategy
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.ImmutableList
@@ -47,6 +48,7 @@ class InheritanceServiceImpl(
   private val appAuthKeyMessageSigner: AppAuthKeyMessageSigner,
   private val inheritanceClaimsRepository: InheritanceClaimsRepository,
   private val clock: Clock,
+  inheritanceSyncFrequency: InheritanceSyncFrequency,
 ) : InheritanceService, InheritanceClaimsSyncWorker {
   override val claims: Flow<List<InheritanceClaim>> =
     inheritanceClaimsRepository.claims
@@ -99,10 +101,16 @@ class InheritanceServiceImpl(
     }
   }.map { it.toImmutableList() }
 
+  override val runStrategy: Set<RunStrategy> = setOf(
+    RunStrategy.Startup(),
+    RunStrategy.Periodic(
+      interval = inheritanceSyncFrequency.value,
+      backgroundStrategy = BackgroundStrategy.Wait
+    )
+  )
+
   override suspend fun executeWork() {
-    // Attempt an initial one-time sync at startup.
-    inheritanceClaimsRepository.fetchClaims()
-      .logFailure(Warn) { "Unable to sync Inheritance Claims" }
+    inheritanceClaimsRepository.syncServerClaims()
   }
 
   override suspend fun createInheritanceInvitation(

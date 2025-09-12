@@ -1,5 +1,5 @@
 ---
-description: DAO pattern implementation guidelines for data persistence
+description: DAO pattern implementation for data persistence with SQLDelight
 globs: ["**/*Dao*.kt", "**/database/**/*.kt"]
 alwaysApply: true
 ---
@@ -8,59 +8,47 @@ alwaysApply: true
 
 ## Summary
 
-Defines the DAO (Data Access Object) pattern for managing data persistence in the Bitkey mobile app. DAOs provide mechanisms for reading from and writing to local storage facilities such as databases (SQLDelight with SQLite), local settings, or file systems while ensuring data integrity and hiding storage implementation details from other components.
+DAO (Data Access Object) pattern for SQLDelight database operations. Provides data persistence abstraction consumed by Services.
 
 ## When to Apply
 
-- When creating new data persistence components
-- When implementing database access for domain entities
-- When working with SQLDelight database operations
-- When building data access layers for services
-- When creating testable data persistence abstractions
-- When integrating with BitkeyDatabaseProvider
+- Creating data persistence components
+- Implementing database access for domain entities  
+- Building data access layers for services
+- Integrating with BitkeyDatabaseProvider
 
 ## How to Apply
 
-### Module Structure
+### Structure
 
-**DAO Placement:**
-- **Interface and Implementation**: Both placed in `:impl` modules
-- **Not Exposed**: DAO interfaces are NOT exposed in `:public` modules
-- **Testing**: Fake implementations provided in `:fake` modules
-- **Consumption**: DAOs consumed by Service classes for business logic
+**Placement:**
+- Interface/Implementation: `:impl` modules only (NOT in `:public`)
+- Fakes: `:fake` modules
+- Consumers: Service classes
 
-### Core DAO Patterns
+### Core Patterns
 
-**1. Result Types:** All DAO methods return `Result<T, Error>` for consistent error handling
+- **Result Types:** `Result<T, Error>` for all methods
+- **Suspend Functions:** All database operations
+- **DI:** `@BitkeyInject(AppScope::class)`
+- **SQLDelight Extensions:**
+  - `awaitTransactionWithResult()` - writes
+  - `awaitAsOneOrNullResult()` - single queries  
+  - `awaitAsListResult()` - list queries
 
-**2. Suspend Functions:** Database operations are suspend functions for async execution
+### Templates
 
-**3. Dependency Injection:** Implementations use `@BitkeyInject(AppScope::class)` for DI
-
-**4. Database Provider:** Use `BitkeyDatabaseProvider` to access the database
-
-**5. SQLDelight Integration:** Use extension functions:
-- `awaitTransactionWithResult()` for write operations
-- `awaitAsOneOrNullResult()` for single record queries
-- `awaitAsListResult()` for list queries
-
-### Implementation Template
-
-**Interface Definition:**
+**Interface:**
 ```kotlin
-// domain/[module]/impl/src/commonMain/kotlin/.../[Entity]Dao.kt
 interface EntityDao {
   suspend fun insertEntity(entity: Entity): Result<Unit, Error>
   suspend fun getEntity(id: EntityId): Result<Entity?, Error>
   suspend fun getAllEntities(): Result<List<Entity>, Error>
-  suspend fun updateEntity(entity: Entity): Result<Unit, Error>
-  suspend fun deleteEntity(id: EntityId): Result<Unit, Error>
 }
 ```
 
-**Implementation Pattern:**
+**Implementation:**
 ```kotlin
-// domain/[module]/impl/src/commonMain/kotlin/.../[Entity]DaoImpl.kt
 @BitkeyInject(AppScope::class)
 class EntityDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
@@ -70,11 +58,7 @@ class EntityDaoImpl(
     databaseProvider.database()
       .entityQueries
       .awaitTransactionWithResult {
-        insertEntity(
-          id = entity.id,
-          name = entity.name,
-          createdAt = entity.createdAt
-        )
+        insertEntity(id = entity.id, name = entity.name)
       }
   
   override suspend fun getEntity(id: EntityId): Result<Entity?, DbError> =
@@ -82,36 +66,12 @@ class EntityDaoImpl(
       .entityQueries
       .getEntity(id)
       .awaitAsOneOrNullResult()
-      .map { dbEntity ->
-        dbEntity?.let {
-          Entity(
-            id = it.id,
-            name = it.name,
-            createdAt = it.created_at
-          )
-        }
-      }
-  
-  override suspend fun getAllEntities(): Result<List<Entity>, DbError> =
-    databaseProvider.database()
-      .entityQueries
-      .getAllEntities()
-      .awaitAsListResult()
-      .map { dbEntities ->
-        dbEntities.map { dbEntity ->
-          Entity(
-            id = dbEntity.id,
-            name = dbEntity.name,
-            createdAt = dbEntity.created_at
-          )
-        }
-      }
+      .map { it?.toEntity() }
 }
 ```
 
-**Fake Implementation:**
+**Fake:**
 ```kotlin
-// domain/[module]/fake/src/commonMain/kotlin/.../[Entity]DaoFake.kt
 class EntityDaoFake : EntityDao {
   private val entities = mutableMapOf<EntityId, Entity>()
   
@@ -120,75 +80,45 @@ class EntityDaoFake : EntityDao {
     return Ok(Unit)
   }
   
-  override suspend fun getEntity(id: EntityId): Result<Entity?, Error> {
-    return Ok(entities[id])
-  }
+  override suspend fun getEntity(id: EntityId): Result<Entity?, Error> =
+    Ok(entities[id])
   
-  override suspend fun getAllEntities(): Result<List<Entity>, Error> {
-    return Ok(entities.values.toList())
-  }
-  
-  fun reset() {
-    entities.clear()
-  }
+  fun reset() = entities.clear()
 }
 ```
 
-### Service Layer Integration
+### Service Integration
 
-**DAOs are consumed by Services:**
+**Services consume DAOs:**
 ```kotlin
-// domain/[module]/public/src/commonMain/kotlin/.../[Entity]Service.kt
-interface EntityService {
-  suspend fun createEntity(request: CreateEntityRequest): Result<Entity, EntityError>
-  val entities: Flow<List<Entity>>
-}
-
-// domain/[module]/impl/src/commonMain/kotlin/.../[Entity]ServiceImpl.kt
 @BitkeyInject(AppScope::class)
 class EntityServiceImpl(
-  private val entityDao: EntityDao, // DAO injected here
-  private val validator: EntityValidator
+  private val entityDao: EntityDao
 ) : EntityService {
   
-  override suspend fun createEntity(
-    request: CreateEntityRequest
-  ): Result<Entity, EntityError> {
-    return validator.validate(request)
-      .flatMap { validRequest ->
-        val entity = Entity(
-          id = generateId(),
-          name = validRequest.name,
-          createdAt = Clock.System.now()
-        )
-        entityDao.insertEntity(entity)
-          .map { entity }
-          .mapError { EntityError.DatabaseError(it) }
-      }
+  override suspend fun createEntity(request: CreateEntityRequest): Result<Entity, EntityError> {
+    val entity = Entity(id = generateId(), name = request.name)
+    return entityDao.insertEntity(entity)
+      .map { entity }
+      .mapError { EntityError.DatabaseError(it) }
   }
   
   override val entities: Flow<List<Entity>> = flow {
-    while (true) {
-      entityDao.getAllEntities()
-        .onSuccess { emit(it) }
-        .onFailure { logFailure("Failed to load entities", it) }
-      delay(30.seconds)
-    }
-  }.flowOn(Dispatchers.IO)
+    entityDao.getAllEntities()
+      .onSuccess { emit(it) }
+      .onFailure { logFailure("Load failed", it) }
+  }
 }
 ```
 
-### Error Handling Patterns
+### Error Handling
 
-**Use specific error types when beneficial:**
 ```kotlin
 sealed interface EntityDaoError : Error {
   data class NotFound(val id: EntityId) : EntityDaoError
-  data class DuplicateKey(val id: EntityId) : EntityDaoError
   data class DatabaseError(val cause: DbError) : EntityDaoError
 }
 
-// In DAO implementation
 override suspend fun getEntity(id: EntityId): Result<Entity, EntityDaoError> =
   databaseProvider.database()
     .entityQueries
@@ -196,72 +126,37 @@ override suspend fun getEntity(id: EntityId): Result<Entity, EntityDaoError> =
     .awaitAsOneOrNullResult()
     .mapError { EntityDaoError.DatabaseError(it) }
     .flatMap { dbEntity ->
-      if (dbEntity == null) {
-        Err(EntityDaoError.NotFound(id))
-      } else {
-        Ok(mapToEntity(dbEntity))
-      }
+      dbEntity?.let { Ok(mapToEntity(it)) }
+        ?: Err(EntityDaoError.NotFound(id))
     }
 ```
 
-### Testing Patterns
+### Testing
 
-**Unit Tests:**
 ```kotlin
-// domain/[module]/impl/src/commonTest/kotlin/.../[Entity]DaoImplTest.kt
 class EntityDaoImplTest : FunSpec({
   val databaseProvider = BitkeyDatabaseProviderMock()
   val dao = EntityDaoImpl(databaseProvider)
   
-  beforeTest {
-    databaseProvider.reset()
-  }
+  beforeTest { databaseProvider.reset() }
   
-  test("should insert and retrieve entity successfully") {
-    // Arrange
+  test("inserts and retrieves entity") {
     val entity = createTestEntity()
-    
-    // Act
     dao.insertEntity(entity).shouldBeOk()
-    val retrieved = dao.getEntity(entity.id).shouldBeOk()
-    
-    // Assert
-    retrieved shouldBe entity
-  }
-  
-  test("should return null for non-existent entity") {
-    // Act
-    val result = dao.getEntity(EntityId("non-existent")).shouldBeOk()
-    
-    // Assert
-    result shouldBe null
+    dao.getEntity(entity.id).shouldBeOk() shouldBe entity
   }
 })
-```
 
-**Service Tests using Fake DAOs:**
-```kotlin
+// Service tests use fake DAOs
 class EntityServiceImplTest : FunSpec({
   val entityDao = EntityDaoFake()
-  val validator = EntityValidatorMock()
-  val service = EntityServiceImpl(entityDao, validator)
+  val service = EntityServiceImpl(entityDao)
   
-  beforeTest {
-    entityDao.reset()
-    validator.reset()
-  }
+  beforeTest { entityDao.reset() }
   
-  test("should create entity when validation passes") {
-    // Arrange
-    val request = CreateEntityRequest(name = "Test Entity")
-    validator.validateResult = Ok(request)
-    
-    // Act
-    val result = service.createEntity(request).shouldBeOk()
-    
-    // Assert
-    result.name shouldBe "Test Entity"
-    entityDao.getEntity(result.id).shouldBeOk() shouldBe result
+  test("creates entity successfully") {
+    val result = service.createEntity(CreateEntityRequest("Test"))
+    result.shouldBeOk().name shouldBe "Test"
   }
 })
 ```
@@ -269,18 +164,11 @@ class EntityServiceImplTest : FunSpec({
 ## Example
 
 ```kotlin
-// Real-world example from the codebase
-// domain/coachmark/impl/src/commonMain/kotlin/build/wallet/coachmark/CoachmarkDao.kt
+// CoachmarkDao from codebase
 interface CoachmarkDao {
-  suspend fun insertCoachmark(
-    id: CoachmarkIdentifier,
-    expiration: Instant,
-  ): Result<Unit, Error>
-  
+  suspend fun insertCoachmark(id: CoachmarkIdentifier, expiration: Instant): Result<Unit, Error>
   suspend fun setViewed(id: CoachmarkIdentifier): Result<Unit, Error>
   suspend fun getCoachmark(id: CoachmarkIdentifier): Result<Coachmark?, Error>
-  suspend fun getAllCoachmarks(): Result<List<Coachmark>, Error>
-  suspend fun resetCoachmarks(): Result<Unit, Error>
 }
 
 @BitkeyInject(AppScope::class)
@@ -295,11 +183,7 @@ class CoachmarkDaoImpl(
     databaseProvider.database()
       .coachmarksQueries
       .awaitTransactionWithResult {
-        createCoachmark(
-          id = id,
-          viewed = false,
-          expiration = expiration
-        )
+        createCoachmark(id = id, viewed = false, expiration = expiration)
       }
   
   override suspend fun getCoachmark(id: CoachmarkIdentifier): Result<Coachmark?, DbError> =
@@ -307,30 +191,18 @@ class CoachmarkDaoImpl(
       .coachmarksQueries
       .getCoachmark(id)
       .awaitAsOneOrNullResult()
-      .map { entity ->
-        entity?.let {
-          Coachmark(
-            id = id,
-            viewed = it.viewed,
-            expiration = it.expiration
-          )
-        }
-      }
-      .logFailure { "Failed to get coachmark: $id" }
+      .map { it?.toCoachmark() }
 }
 
-// Service layer usage
-@BitkeyInject(AppScope::class)
+// Service usage
 class CoachmarkServiceImpl(
   private val coachmarkDao: CoachmarkDao,
 ) : CoachmarkService {
   
   override suspend fun markCoachmarkAsDisplayed(
     coachmarkId: CoachmarkIdentifier
-  ): Result<Unit, Error> {
-    return coachmarkDao.setViewed(coachmarkId)
-      .logFailure { "Failed to mark coachmark as viewed: $coachmarkId" }
-  }
+  ): Result<Unit, Error> =
+    coachmarkDao.setViewed(coachmarkId)
 }
 ```
 

@@ -22,4 +22,14 @@ interface OnboardingCompletionService {
   suspend fun getCompletionTimestamp(): Result<Instant?, Error>
 
   suspend fun clearOnboardingTimestamp(): Result<Unit, Error>
+
+  /**
+   * Returns whether the onboarding fallback worker has ever been successfully run.
+   */
+  suspend fun getFallbackCompletion(): Result<Boolean, Error>
+
+  /**
+   * Records that the onboarding fallback worker has been successfully run.
+   */
+  suspend fun recordFallbackCompletion(): Result<Unit, Error>
 }

@@ -74,6 +74,13 @@ pub(crate) enum CronCommands {
     CoinGrinder,
     /// Gathers histogram of user data for our metrics dashboard and outputs them
     UserHistogram,
+    /// Decrypts the output of the UserHistogram job
+    DecryptOutput {
+        /// The ciphertext to decrypt
+        ciphertext: String,
+        /// The nonce to decrypt with
+        nonce: String,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -204,6 +211,9 @@ async fn main() -> Result<(), Error> {
                     &account_data_provider,
                 )
                 .await?;
+            }
+            CronCommands::DecryptOutput { ciphertext, nonce } => {
+                workers::jobs::user_metrics::decrypt_output::handler(ciphertext, nonce).await?;
             }
         },
     }

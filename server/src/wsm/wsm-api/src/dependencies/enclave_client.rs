@@ -23,7 +23,7 @@ use wsm_common::messages::enclave::{
     EnclaveCreateSelfSovereignBackupResponse, EnclaveDeriveKeyRequest,
     EnclaveGeneratePartialSignaturesRequest, EnclaveGeneratePartialSignaturesResponse,
     EnclaveInitiateDistributedKeygenRequest, EnclaveInitiateDistributedKeygenResponse,
-    EnclaveInitiateShareRefreshRequest, EnclaveInitiateShareRefreshResponse,
+    EnclaveInitiateShareRefreshRequest, EnclaveInitiateShareRefreshResponse, EnclaveSignRequestV2,
     LoadIntegrityKeyRequest,
 };
 use wsm_common::messages::{
@@ -216,6 +216,14 @@ impl EnclaveClient {
     pub async fn sign_psbt(&self, req: EnclaveSignRequest) -> anyhow::Result<SignedPsbt> {
         let result = self
             .post_request_with_dek(SecretRequest::new("sign-psbt", req.dek_id.clone(), req))
+            .await?;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn sign_psbt_v2(&self, req: EnclaveSignRequestV2) -> anyhow::Result<SignedPsbt> {
+        let result = self
+            .post_request_with_dek(SecretRequest::new("v2/sign-psbt", req.dek_id.clone(), req))
             .await?;
         Ok(result.json().await?)
     }

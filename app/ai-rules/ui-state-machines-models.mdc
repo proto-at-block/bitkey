@@ -8,89 +8,63 @@ alwaysApply: true
 
 ## Summary
 
-UI State Machine models are immutable data classes that represent UI presentation state, following a hierarchy from base `Model` to specialized types like `FormBodyModel` and `ScreenModel`. Models contain only raw, displayable data with simple callbacks, while State Machines handle all data processing, type conversion, and business logic delegation. This separation ensures predictable UI rendering, optimal Compose performance, and maintainable architecture.
+Immutable data classes representing UI presentation state. Models contain only raw, displayable data with simple callbacks. State Machines handle data processing, type conversion, and business logic delegation.
 
-## Model Types and Presentation
+## Model Hierarchy
 
-UI State Machines emit different model types based on their presentation needs:
+**Types:**
+- `Model` - Base interface with stable `key`
+- `ComposeModel` - Has `@Composable render()` method
+- `BodyModel` - Screen content with analytics
+- `ScreenModel` - Body + overlays + presentation style
 
-**Model Hierarchy:**
-- `Model` - Base interface with stable `key` for uniqueness
-- `ComposeModel` - Renderable models with `@Composable render()` method
-- `BodyModel` - Abstract base for screen content with analytics and navigation
-- `ScreenModel` - Top-level container managing body + overlays + presentation style
-
-**Primary Model Types:**
-
-**BodyModel** - Main content models:
+**Examples:**
 ```kotlin
-// For general screens
+// BodyModel for general screens
 class SettingsBodyModel(...) : BodyModel() {
   override val eventTrackerScreenInfo = EventTrackerScreenInfo(SETTINGS_SCREEN)
 }
 
-// For structured forms
+// FormBodyModel for structured forms
 class EditProfileFormBodyModel(...) : FormBodyModel(
   id = EDIT_PROFILE_SCREEN,
   toolbar = ToolbarModel(title = "Edit Profile"),
-  header = FormHeaderModel(...),
   mainContentList = listOf(nameField, emailField),
   primaryButton = ButtonModel("Save", onSave)
 )
-```
 
-**ScreenModel** - Complete screen with overlays:
-```kotlin
+// ScreenModel with overlays
 ScreenModel(
   body = bodyModel,
   presentationStyle = ScreenPresentationStyle.Root,
-  alertModel = confirmationAlert,        // Dialogs
-  bottomSheetModel = actionSheet,        // Bottom sheets  
-  toastModel = successToast,             // Notifications
-  statusBannerModel = networkBanner      // Status indicators
+  alertModel = confirmationAlert,
+  bottomSheetModel = actionSheet
 )
 ```
 
-## Common Model Types
-
-**Model Selection Priority (in order of preference):**
+## Model Selection Priority
 
 **1. Common Models (HIGHEST PREFERENCE):**
-Use these pre-built models from `:ui:features:public` whenever possible:
+Use pre-built models from `:ui:features:public`:
+- `LoadingBodyModel` - Loading screen with message/back button
+- `ErrorFormBodyModel` - Error screen with retry/back actions
+- `SuccessBodyModel` - Confirmation screens
+- `FormBodyModel` - Structured forms (settings, lists, input forms)
 
-**Loading Models:**
-- `LoadingBodyModel` - Simple loading screen with optional message and back button
-- `LoadingSuccessBodyModel` - Loading that transitions to success state with optional success message
-
-**Error Models:**
-- `ErrorFormBodyModel` - Standard error screen with title, message, and action buttons (retry, back)
-- Error model variants with different button configurations and styling options
-
-**Success Models:**
-- `SuccessBodyModel` - Confirmation screens for completed actions with success messaging
-
-**Form Models:**
-- `FormBodyModel` - Base class for structured forms with header, content, and action sections
-- Provides consistent form layout with toolbar, main content list, and button arrangements
-- **Use for:** Settings screens, lists, data display, input forms, configuration screens
-- **If components are missing**: Work with design team to update design system and FormBodyModel API to accommodate new requirements rather than creating custom models
-
-**2. Custom FormBodyModel Implementation (SECOND PREFERENCE):**
-When common models don't fit, create custom implementation using `FormBodyModel`:
+**2. Custom FormBodyModel (SECOND PREFERENCE):**
 ```kotlin
-// ✅ GOOD: Custom FormBodyModel for specific needs
 data class KeysetListFormBodyModel(
   val keysetItems: List<String>, // Raw displayable data
-  val activeStatuses: List<String>, // "Active" or "Inactive" 
-  val onKeysetSelected: (String) -> Unit, // Simple callback
+  val activeStatuses: List<String>, // Pre-processed strings
+  val onKeysetSelected: (String) -> Unit,
   val onBack: () -> Unit
 ) : FormBodyModel(
   id = KEYSET_LIST_SCREEN,
-  toolbar = ToolbarModel(title = "Keysets", leadingAccessory = backButton),
+  toolbar = ToolbarModel(title = "Keysets"),
   mainContentList = keysetItems.mapIndexed { index, keysetId ->
     ListItemModel(
       leadingAccessory = keysetId,
-      trailingAccessory = activeStatuses[index], 
+      trailingAccessory = activeStatuses[index],
       onClick = { onKeysetSelected(keysetId) }
     )
   }
@@ -98,18 +72,15 @@ data class KeysetListFormBodyModel(
 ```
 
 **3. ComposeModel (LAST RESORT):**
-Only when FormBodyModel cannot accommodate the UI requirements:
 ```kotlin
-// ❌ Use sparingly - only when FormBodyModel truly insufficient
-// CONSEQUENCES: Inconsistent UI, harder maintenance, potential accessibility issues, design system fragmentation
+// Only when FormBodyModel insufficient
 data class CustomVisualizationBodyModel(
   val chartData: List<Float>, // Raw values only
-  val labelText: String, // Pre-processed display text
-  val onDataPointSelected: (Int) -> Unit, // Simple callback
-  // ... other raw, simple fields
+  val labelText: String, // Pre-processed text
+  val onDataPointSelected: (Int) -> Unit
 ) : ComposeModel {
   @Composable
-  override fun render(modifier: Modifier) { // Always accept and use modifier
+  override fun render(modifier: Modifier) {
     CustomChartVisualization(
       modifier = modifier, // Always use modifier
       data = chartData,
@@ -120,241 +91,156 @@ data class CustomVisualizationBodyModel(
 }
 ```
 
-## Avoiding Generic Models with Conditional UI
+## Avoid Generic Models
 
-**❌ BAD: Generic models with conditional rendering**
+**❌ BAD: Conditional rendering**
 ```kotlin
-// CONSEQUENCES: Unpredictable UI, complex testing, unclear model contracts, recomposition issues
 data class GenericFormBodyModel(
   val isLoading: Boolean,
   val error: String?,
-  val data: Data?,
-  // ... other fields
+  val data: Data?
 ) : FormBodyModel(
-  // Complex conditional logic determining which UI to show
   mainContentList = when {
     isLoading -> listOf(LoadingComponent)
     error != null -> listOf(ErrorComponent(error))
-    data != null -> listOf(DataComponent(data))
-    else -> emptyList()
+    else -> listOf(DataComponent(data))
   }
 )
 ```
 
-**✅ GOOD: Separate models for distinct UI states**
+**✅ GOOD: Separate models per state**
 ```kotlin
-// Create separate, focused models for each UI state
-data class LoadingFormBodyModel(
-  val message: String = "Loading..."
-) : FormBodyModel(
-  mainContentList = listOf(LoadingComponent(message))
-)
-
-data class ErrorFormBodyModel(
-  val error: String,
-  val onRetry: () -> Unit
-) : FormBodyModel(
-  mainContentList = listOf(ErrorComponent(error, onRetry))
-)
-
-data class DataFormBodyModel(
-  val data: Data,
-  val onSubmit: () -> Unit
-) : FormBodyModel(
-  mainContentList = listOf(DataComponent(data, onSubmit))
-)
+data class LoadingFormBodyModel(val message: String = "Loading...") : FormBodyModel(...)
+data class ErrorFormBodyModel(val error: String, val onRetry: () -> Unit) : FormBodyModel(...)
+data class DataFormBodyModel(val data: Data, val onSubmit: () -> Unit) : FormBodyModel(...)
 ```
 
-**Key principles:**
-- **Each model should represent a single, coherent UI state**
-- **Avoid complex conditional logic within model construction**
-- **Use Type 2 State Machines to orchestrate between different models**
-- **Models should be predictable and focused on their specific purpose**
+**Principles:** One model per UI state, use Type 2 State Machines for orchestration.
 
 ## Model Design Guidelines
 
-**Data Composition Rules:**
-- **All models must be immutable `data class`** - never use `sealed class/interface` for models
-- **Pass raw, displayable values** instead of domain objects (e.g., `String` not `SpendingKeyset`)
-- **State Machines handle type conversion**: Convert strong types to raw display values in State Machine
-- **Simple fields only**: Avoid complex data structures in model parameters
-- **Simple callbacks only**: Use `() -> Unit` or `(SimpleType) -> Unit` patterns
-- **Use immutable collections**: Always use `kotlinx.collections.immutable` types for collection fields
+**Rules:**
+- **Immutable `data class`** - never `sealed class/interface`
+- **Raw, displayable values** - `String` not `SpendingKeyset`
+- **State Machines handle conversion** - strong types → raw display values
+- **Simple fields/callbacks** - `() -> Unit` or `(SimpleType) -> Unit`
+- **Immutable collections** - `kotlinx.collections.immutable` types
 
-## Immutable Collections in Models
+## Immutable Collections
 
-**Always use immutable collection types for Compose stability:**
+**Always use for Compose stability:**
 
 ```kotlin
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.ImmutableSet
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.persistentSetOf
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toImmutableSet
+import kotlinx.collections.immutable.*
 
-// ✅ GOOD: Immutable collections in models
+// ✅ GOOD: Immutable collections
 data class TransactionListFormBodyModel(
   val transactions: ImmutableList<String>, // Stable for Compose
-  val selectedIds: ImmutableSet<String>, // Stable for Compose
+  val selectedIds: ImmutableSet<String>,
   val onTransactionSelected: (String) -> Unit
 ) : FormBodyModel(...)
 
 // ❌ BAD: Mutable collections cause recomposition issues
-// CONSEQUENCES: Excessive recompositions, UI lag, poor performance, inconsistent UI state
 data class BadModel(
-  val transactions: List<String>, // Unstable - causes unnecessary recompositions
-  val selectedIds: Set<String>, // Unstable - causes unnecessary recompositions
-  val onTransactionSelected: (String) -> Unit
+  val transactions: List<String>, // Unstable
+  val selectedIds: Set<String> // Unstable
 )
 ```
 
-**Creating immutable collections in State Machines:**
-
+**Convert in State Machine:**
 ```kotlin
 @Composable
 override fun model(props: TransactionProps): ScreenModel {
-  // ✅ GOOD: Use Service methods that return flows/observables
   val transactions by remember { transactionService.transactions }.collectAsState()
   
-  // Convert to immutable collections before passing to models
   val transactionDisplayList = transactions
     .map { it.formattedDescription }
-    .toImmutableList() // Convert to immutable
+    .toImmutableList()
   
-  val selectedTransactionIds = remember(props.selectedIds) {
-    props.selectedIds.toImmutableSet() // Convert to immutable
-  }
+  val selectedIds = props.selectedIds.toImmutableSet()
   
   return TransactionListFormBodyModel(
-    transactions = transactionDisplayList, // ImmutableList
-    selectedIds = selectedTransactionIds, // ImmutableSet
-    onTransactionSelected = { id -> /* handle selection */ }
+    transactions = transactionDisplayList,
+    selectedIds = selectedIds
   ).asRootScreen()
 }
 ```
 
-**Immutable Collection Guidelines:**
-- **ImmutableList**: Use for ordered collections (lists, sequences)
-- **ImmutableSet**: Use for unique collections (sets, distinct items)
-- **Convert at State Machine level**: Transform regular collections to immutable before passing to models
-- **Builder pattern**: Use `persistentListOf()`, `persistentSetOf()` for small static collections
-- **Conversion methods**: Use `.toImmutableList()`, `.toImmutableSet()` for dynamic collections
-- **Performance**: Immutable collections prevent unnecessary Compose recompositions and improve performance
+**Use `ImmutableList` for ordered, `ImmutableSet` for unique collections. Convert at State Machine level.**
 
-## Prohibited Model Patterns
+## Prohibited Patterns
 
 ```kotlin
-// ❌ BAD: Complex domain objects and dependencies
-// CONSEQUENCES: Tight coupling, difficult testing, memory leaks, architectural violations
+// ❌ BAD: Complex objects and dependencies
 data class BadModel(
   val keyset: SpendingKeyset, // Don't pass domain objects
-  val clock: Clock, // Never pass dependencies/components
-  val onAction: suspend () -> Unit // Never suspending callbacks
+  val clock: Clock, // Never dependencies/components
+  val onAction: suspend () -> Unit // No suspend callbacks
 )
 
-// ❌ BAD: Logic in models - data processing belongs in State Machine
-// CONSEQUENCES: Model responsibilities unclear, hard to test logic, recomposition issues, performance problems
+// ❌ BAD: Logic in models
 data class BadLogicModel(
   val keysetId: String
 ) {
-  val formattedKeysetId: String get() = keysetId.chunked(4).joinToString("-") // Don't do this
-  val displayText: String get() = "Keyset: ${formattedKeysetId}" // Don't format in model
+  val formattedKeysetId: String get() = keysetId.chunked(4).joinToString("-") // No
 }
 
 // ✅ GOOD: Raw, simple data
 data class GoodModel(
-  val displayText: String, // Pre-processed in State Machine
-  val isEnabled: Boolean, // Simple boolean state
-  val statusText: String, // Raw display string
-  val onTap: () -> Unit // Simple callback
+  val displayText: String, // Pre-processed
+  val isEnabled: Boolean,
+  val onTap: () -> Unit
 )
 ```
 
-**Model Naming Guidelines:**
-- **Struct types**: Use descriptive, specific names ending with purpose
-  - `KeysetListFormBodyModel` (specific feature + type)
-  - `PaymentConfirmationBodyModel` (action + context + type)
-  - `BiometricSettingsFormBodyModel` (domain + context + type)
-- **Avoid generic names**: `DataModel`, `InfoModel`, `GenericFormModel`
-- **Use domain terminology**: Match business language and feature names
+**Naming:** Use `FeatureActionFormBodyModel` pattern, avoid generic names, match business terminology.
 
-## Reusable Model Helper Functions
+## Helper Functions
 
-Create regular (non-`@Composable`) functions only when there's substantial reused logic:
+**Only for substantial reused logic:**
 ```kotlin
-// ✅ GOOD: Complex reusable model creation with substantial shared logic
+// ✅ GOOD: Complex shared logic
 private fun transactionListFormModel(
   transactions: List<Transaction>,
   isLoading: Boolean,
   onTransactionSelected: (String) -> Unit,
-  onRefresh: () -> Unit,
   onBack: () -> Unit
 ): FormBodyModel {
   val contentList = buildList {
-    if (isLoading) {
-      add(LoadingItemModel())
-    } else {
-      addAll(transactions.map { transaction ->
-        ListItemModel(
-          leadingAccessory = TransactionIconModel(transaction.type),
-          title = transaction.formattedAmount,
-          subtitle = transaction.formattedDate,
-          trailingAccessory = transaction.statusText,
-          onClick = { onTransactionSelected(transaction.id) }
-        )
-      })
-    }
-    add(ButtonModel("Refresh", onRefresh))
+    if (isLoading) add(LoadingItemModel())
+    else addAll(transactions.map { 
+      ListItemModel(title = it.formattedAmount, onClick = { onTransactionSelected(it.id) })
+    })
   }
-  
-  return FormBodyModel(
-    id = TRANSACTION_LIST_SCREEN,
-    toolbar = ToolbarModel(title = "Transactions", leadingAccessory = backButton(onBack)),
-    mainContentList = contentList
-  )
+  return FormBodyModel(id = TRANSACTION_LIST_SCREEN, mainContentList = contentList)
 }
 
-// ❌ BAD: Unnecessary function for simple model creation
-// CONSEQUENCES: Code bloat, harder to understand, unnecessary indirection, maintenance overhead
-private fun errorFormModel(errorText: String): FormBodyModel = 
-  ErrorFormBodyModel(title = "Error", subline = errorText) // Just inline this
+// ❌ BAD: Unnecessary function
+private fun errorFormModel(errorText: String) = ErrorFormBodyModel(title = "Error", subline = errorText)
 ```
 
-**ComposeModel Constraints:**
-- **UI logic only**: Only UI-related state and effects (animations, conditional rendering)
-- **No business logic**: No domain operations, data processing, or side effects
-- **No dependencies**: Don't pass components like Clock or services
-- **Always use modifier**: Accept and apply `modifier: Modifier` parameter
-- **Raw data only**: Pre-process all data in State Machine before passing to model
-- **Model nesting is allowed**: Can nest models as long as it doesn't add complexity to the final model
+**ComposeModel Constraints:** UI logic only, no business logic/dependencies, accept `modifier`, raw data only.
 
-## Model Conversion in State Machines
+## Model Conversion
 
+**State Machine handles all conversion:**
 ```kotlin
-// ✅ GOOD: State Machine handles all conversion and formatting logic
 @Composable
 override fun model(props: KeysetProps): ScreenModel {
   val keysets by remember { keysetService.keysets }.collectAsState()
   
-  // All data processing and formatting happens in State Machine
-  val keysetDisplayItems = keysets.map { keyset ->
-    val rawId = keyset.id.serverId.stringValue
-    // Format the keyset ID here, not in the model
-    rawId.chunked(4).joinToString("-") 
+  // Format data here, not in model
+  val keysetDisplayItems = keysets.map { 
+    it.id.serverId.stringValue.chunked(4).joinToString("-")
   }
-  val statusDisplayItems = keysets.map { keyset ->
-    if (keyset.isActive) "Active" else "Inactive" // Convert to display text
-  }
-  val titleDisplayItems = keysets.map { keyset ->
-    "Keyset: ${keyset.id.serverId.stringValue}" // Format display titles here
+  val statusDisplayItems = keysets.map { 
+    if (it.isActive) "Active" else "Inactive"
   }
   
   return KeysetListFormBodyModel(
-    keysetItems = keysetDisplayItems, // Pre-formatted strings
-    activeStatuses = statusDisplayItems, // Pre-processed strings  
-    titleItems = titleDisplayItems, // Pre-formatted titles
-    onKeysetSelected = { formattedKeysetId -> /* handle selection */ },
+    keysetItems = keysetDisplayItems, // Pre-formatted
+    activeStatuses = statusDisplayItems, // Pre-processed
+    onKeysetSelected = { /* handle */ },
     onBack = props.onBack
   ).asRootScreen()
 }
@@ -362,38 +248,23 @@ override fun model(props: KeysetProps): ScreenModel {
 
 ## Presentation Styles
 
-**Choose presentation style based on user context:**
+**Choose based on context:**
 
-**Root Screens** (`asRootScreen()`) - Primary navigation destinations:
-```kotlin
-HomeBodyModel(...).asRootScreen(
-  statusBannerModel = networkStatus,
-  bottomSheetModel = quickActions
-)
-```
+- **`asRootScreen()`** - Primary navigation destinations
+- **`asModalScreen()`** - Secondary flows over context
+- **`asSheetModalScreen()`** - Contextual actions/forms
+- **`asModalFullScreen()`** - Immersive critical flows
 
-**Modal Screens** (`asModalScreen()`) - Secondary flows over current context:
 ```kotlin
-TransactionDetailsBodyModel(...).asModalScreen(
-  alertModel = confirmationDialog
-)
-```
-
-**Sheet Modals** (`asSheetModalScreen()`) - Contextual actions and forms:
-```kotlin
-ContactFormBodyModel(...).asSheetModalScreen(
-  onClosed = { /* handle dismissal */ }
-)
-```
-
-**Full Screen Modals** (`asModalFullScreen()`) - Immersive critical flows:
-```kotlin
+HomeBodyModel(...).asRootScreen(statusBannerModel = networkStatus)
+TransactionDetailsBodyModel(...).asModalScreen(alertModel = dialog)
+ContactFormBodyModel(...).asSheetModalScreen(onClosed = { })
 OnboardingBodyModel(...).asModalFullScreen()
 ```
 
 ## Overlay Management
 
-**Manage all overlays at ScreenModel level using nullable model state:**
+**Use nullable state at ScreenModel level:**
 
 ```kotlin
 @Composable
@@ -405,15 +276,14 @@ override fun model(props: SettingsProps): ScreenModel {
     onDeleteAccount = {
       alertModel = ButtonAlertModel(
         title = "Delete Account",
-        subline = "This action cannot be undone",
-        onPrimaryButtonClick = { /* confirm deletion */ },
-        onSecondaryButtonClick = { alertModel = null } // Dismiss
+        onPrimaryButtonClick = { /* confirm */ },
+        onSecondaryButtonClick = { alertModel = null }
       )
     },
     onShowHelp = {
       bottomSheet = SheetModel(
         body = HelpBodyModel(...),
-        onClosed = { bottomSheet = null } // Dismiss
+        onClosed = { bottomSheet = null }
       )
     }
   )
@@ -425,82 +295,45 @@ override fun model(props: SettingsProps): ScreenModel {
 }
 ```
 
-**Overlay Types:**
-- **AlertModel** - Confirmation dialogs, error messages
-- **SheetModel** - Bottom sheets with configurable sizing
-- **ToastModel** - Temporary notifications
-- **StatusBannerModel** - System-level status indicators
+**Types:** `AlertModel`, `SheetModel`, `ToastModel`, `StatusBannerModel`.
 
-## Conditional Rendering Patterns
+## Conditional Rendering
 
-**Use nullable model state for overlays:**
-
+**Nullable state for overlays:**
 ```kotlin
-@Composable
-override fun model(props: HomeProps): ScreenModel {
-  var bottomSheet by remember { mutableStateOf<SheetModel?>(null) }
-  
-  val bodyModel = HomeBodyModel(
-    onShowActions = {
-      bottomSheet = SheetModel(
-        body = ActionSheetBodyModel(...),
-        onClosed = { bottomSheet = null } // Dismiss
-      )
-    }
-  )
-  
-  return bodyModel.asRootScreen(bottomSheetModel = bottomSheet)
-}
+var bottomSheet by remember { mutableStateOf<SheetModel?>(null) }
+val bodyModel = HomeBodyModel(
+  onShowActions = {
+    bottomSheet = SheetModel(body = ActionSheetBodyModel(...))
+  }
+)
+return bodyModel.asRootScreen(bottomSheetModel = bottomSheet)
 ```
 
-**Return `null` for feature-based conditional rendering:**
-
+**Return null for features:**
 ```kotlin
 @Composable
 override fun model(props: FeatureCardProps): CardModel? {
-  val featureEnabled by remember { featureFlag.isEnabled }.collectAsState()
-  
-  // Early return prevents unnecessary computation
-  if (!featureEnabled) return null
-  
-  return FeatureCardModel(/* ... */)
+  val enabled by remember { featureFlag.isEnabled }.collectAsState()
+  if (!enabled) return null
+  return FeatureCardModel(...)
 }
 ```
 
-**Conditional patterns:**
-- **Nullable model state**: For overlays (alerts, sheets) - create model when needed, set to `null` to dismiss
-- **`takeIf { condition }`**: For optional UI elements that don't require complex data
-- **`return null`**: For entire components that shouldn't render based on features/permissions
-- **Early returns**: Prevent unnecessary model construction
-- **Conditional callbacks**: `onClick.takeIf { enabled }` for optional event handling
+**Patterns:** Nullable state for overlays, `takeIf {}` for optional elements, `return null` for features, early returns.
 
-## Usage Guidelines
+## Guidelines
 
-- **Always start with common models** - they handle most scenarios
-- **Reference model definitions** in `:ui:features:public` for parameter details and usage examples
-- **Ask for guidance** when common models seem insufficient before creating custom implementations
-- **Check existing implementations** in the codebase for real-world usage patterns
+**Usage:** Start with common models, reference `:ui:features:public` for definitions, check existing implementations.
 
-## Architectural Principles
-
-**Immutable Data Flow:**
-- All models are immutable data classes representing UI state
-- State changes flow unidirectionally through recomposition
-- Events flow up through callback functions
-
-**Callback-Based Events:**
-- Use callbacks for navigation and user actions, not direct Navigator injection
-- Single direction event flow from UI to State Machine logic
-- Enables confident reasoning about state transitions
-
-**Composable Architecture:**
-- State Machines compose other State Machines hierarchically
-- Models contain all rendering data needed by UI frameworks
-- Clear separation between business logic (Services) and presentation logic (State Machines)
+**Architecture:**
+- **Immutable data flow** - models are immutable, state flows unidirectionally
+- **Callback events** - use callbacks not Navigator injection
+- **Composable** - State Machines compose hierarchically, clear business/presentation separation
 
 ## Related Rules
 
-- @ai-rules/ui-state-machines-basics.mdc (for core concepts and state management)
-- @ai-rules/ui-state-machines-patterns.mdc (for error handling and advanced techniques)
-- @ai-rules/strong-typing.mdc (for type safety in models)
-- @ai-rules/module-structure.mdc (for model placement in UI modules)
+- @ai-rules/ui-state-machines-basics.mdc (core concepts)
+- @ai-rules/ui-state-machines-patterns.mdc (advanced techniques)
+- @ai-rules/strong-typing.mdc (type safety)
+- @ai-rules/module-structure.mdc (placement)

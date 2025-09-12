@@ -8,7 +8,7 @@ use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::psbt::Psbt;
 use bdk::bitcoin::secp256k1::PublicKey;
 
-use bdk::bitcoin::{Address, Amount, ScriptBuf};
+use bdk::bitcoin::{Address, Amount, BlockHash, ScriptBuf};
 use bdk::bitcoincore_rpc::RpcApi;
 use bdk::blockchain::rpc::Auth;
 use bdk::blockchain::{
@@ -21,7 +21,7 @@ use bdk::electrum_client::Config as ElectrumConfig;
 use bdk::electrum_client::Error as ElectrumClientError;
 use bdk::miniscript::descriptor::DescriptorXKey;
 use bdk::miniscript::{Descriptor, DescriptorPublicKey};
-use bdk::wallet::AddressIndex;
+use bdk::wallet::{AddressIndex, AddressInfo};
 use bdk::Error::Electrum;
 use bdk::SyncOptions;
 use bdk::{bitcoin::Network, database::MemoryDatabase, Wallet};
@@ -46,7 +46,7 @@ pub mod signature;
 pub trait TransactionBroadcasterTrait: Send + Sync {
     fn broadcast(
         &self,
-        wallet: Wallet<AnyDatabase>,
+        network: Network,
         transaction: &mut PartiallySignedTransaction,
         rpc_uris: &ElectrumRpcUris,
     ) -> Result<(), BdkUtilError>;
@@ -64,14 +64,13 @@ const MIN_RELAY_FEE_NOT_MET_MESSAGE: &str = "min relay fee not met";
 pub struct TransactionBroadcaster;
 
 impl TransactionBroadcasterTrait for TransactionBroadcaster {
-    #[instrument(skip(self, wallet, transaction))]
+    #[instrument(skip(self, transaction))]
     fn broadcast(
         &self,
-        wallet: Wallet<AnyDatabase>,
+        network: Network,
         transaction: &mut PartiallySignedTransaction,
         rpc_uris: &ElectrumRpcUris,
     ) -> Result<(), BdkUtilError> {
-        let network = wallet.network();
         let blockchain = get_blockchain(network, rpc_uris)?;
         blockchain
             .broadcast(&transaction.to_owned().extract_tx())
@@ -545,7 +544,29 @@ impl PsbtWithDerivation for Psbt {
 }
 
 pub fn treasury_fund_address(address: &Address, amount: Amount) {
-    let treasury_rpc_config = RpcConfig {
+    let treasury_blockchain = RpcBlockchain::from_config(&treasury_rpc_config()).unwrap();
+    treasury_blockchain
+        .send_to_address(address, amount, None, None, None, None, None, None)
+        .unwrap();
+}
+
+pub fn generate_block(
+    num_blocks: u64,
+    address_str: &AddressInfo,
+) -> Result<Vec<BlockHash>, Box<dyn std::error::Error>> {
+    let treasury_blockchain = RpcBlockchain::from_config(&treasury_rpc_config()).unwrap();
+    let block_hashes: Vec<BlockHash> = treasury_blockchain.get_jsonrpc_client().call(
+        "generatetoaddress",
+        &[
+            serde_json::value::to_raw_value(&num_blocks)?,
+            serde_json::value::to_raw_value(&address_str.to_string())?,
+        ],
+    )?;
+    Ok(block_hashes)
+}
+
+fn treasury_rpc_config() -> RpcConfig {
+    RpcConfig {
         url: env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
         auth: Auth::UserPass {
             username: env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
@@ -554,11 +575,7 @@ pub fn treasury_fund_address(address: &Address, amount: Amount) {
         network: Network::Regtest,
         wallet_name: env::var("BITCOIND_RPC_WALLET_NAME").unwrap_or("testwallet".to_string()),
         sync_params: None,
-    };
-    let treasury_blockchain = RpcBlockchain::from_config(&treasury_rpc_config).unwrap();
-    treasury_blockchain
-        .send_to_address(address, amount, None, None, None, None, None, None)
-        .unwrap();
+    }
 }
 
 #[cfg(test)]
