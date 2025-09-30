@@ -7,10 +7,6 @@ data class GettingStartedTask(
   enum class TaskId {
     AddBitcoin,
     EnableSpendingLimit,
-
-    // These tasks were moved to Security Hub as recommendations and do not appear on MoneyHome
-    InviteTrustedContact,
-    AddAdditionalFingerprint,
   }
 
   enum class TaskState {

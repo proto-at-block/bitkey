@@ -70,7 +70,7 @@ data class NotificationPreferenceFormBodyModel(
                 substringToOnClick = mapOf(
                   "Learn more" to onMoneyMovementLearnMore
                 ),
-                string = "Get notified when you receive bitcoin. Wallet addresses are stored while notifications are on. They are deleted when turned off. Learn more",
+                string = "Get notified when you receive bitcoin. Wallet addresses are stored on Bitkey servers only while notifications are on. Learn more",
                 underline = true,
                 bold = true
               )

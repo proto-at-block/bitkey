@@ -12,7 +12,10 @@ import build.wallet.cloud.store.CloudError
 import build.wallet.cloud.store.CloudKeyValueStoreFake
 import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeOk
+import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.shouldBe
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -22,12 +25,14 @@ class CloudBackupRepositoryImplTests : FunSpec({
   val cloudKeyValueStore = CloudKeyValueStoreFake()
   val cloudBackupDao = CloudBackupDaoFake()
   val authTokensService = AuthTokensServiceFake()
+  val clock = ClockFake()
 
   val cloudBackupRepository = CloudBackupRepositoryImpl(
     cloudKeyValueStore = cloudKeyValueStore,
     cloudBackupDao = cloudBackupDao,
     authTokensService = authTokensService,
-    jsonSerializer = JsonSerializer()
+    jsonSerializer = JsonSerializer(),
+    clock = clock
   )
 
   afterTest {
@@ -87,7 +92,34 @@ class CloudBackupRepositoryImplTests : FunSpec({
       test("backup exists in cloud-key value store") {
         cloudKeyValueStore.setString(cloudAccount, key = "cloud-backup", value = backupJson)
 
-        cloudBackupRepository.readBackup(cloudAccount).shouldBeOk(backup)
+        cloudBackupRepository.readActiveBackup(cloudAccount).shouldBeOk(backup)
+      }
+
+      test("archiveBackup stores backup under timestamped key") {
+        authTokensService.setTokens(accountId, AccountAuthTokensMock, Recovery)
+        cloudBackupRepository.writeBackup(accountId, cloudAccount, backup, true).shouldBeOk()
+
+        cloudBackupRepository.archiveBackup(cloudAccount, backup).shouldBeOk()
+
+        val keys = cloudKeyValueStore.keys(cloudAccount).shouldBeOk()
+        keys.shouldContain("cloud-backup")
+        val archivedKeys = keys.filter { it.startsWith("cloud-backup-") }
+        archivedKeys.size shouldBe 1
+        cloudKeyValueStore.getString(cloudAccount, archivedKeys.first()).shouldBeOk(backupJson)
+      }
+
+      test("readArchivedBackups() returns only backups that have been archived") {
+        authTokensService.setTokens(accountId, AccountAuthTokensMock, Recovery)
+        cloudBackupRepository.writeBackup(accountId, cloudAccount, backup, true).shouldBeOk()
+        cloudBackupRepository.archiveBackup(cloudAccount, backup).shouldBeOk()
+
+        val backups = cloudBackupRepository.readArchivedBackups(cloudAccount).shouldBeOk()
+        backups.size shouldBe 1
+        backups.all { it == backup } shouldBe true
+      }
+
+      test("readArchivedBackups() returns empty list when none exist") {
+        cloudBackupRepository.readArchivedBackups(cloudAccount).shouldBeOk(emptyList())
       }
     }
   }

@@ -254,6 +254,7 @@ pub fn validate_xpubs(xpubs: &[String]) -> Result<(), ApiError> {
 const RECEIVING_PATH: [ChildNumber; 1] = [ChildNumber::Normal { index: 0 }];
 const CHANGE_PATH: [ChildNumber; 1] = [ChildNumber::Normal { index: 1 }];
 
+#[derive(Clone, Debug)]
 pub struct DescriptorKeyset {
     network: Network,
     app: DescriptorPublicKey,

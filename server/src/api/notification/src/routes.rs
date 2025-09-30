@@ -211,8 +211,8 @@ pub struct RegisterWatchAddressResponse {}
 pub async fn add_address(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
+    State(address_repo_service): State<Box<dyn AddressWatchlistTrait>>,
     State(notification_service): State<NotificationService>,
-    State(mut address_repo_service): State<Box<dyn AddressWatchlistTrait>>,
     Json(request): Json<RegisterWatchAddressRequest>,
 ) -> Result<Json<RegisterWatchAddressResponse>, ApiError> {
     account_service
@@ -425,7 +425,7 @@ pub async fn set_notifications_triggers(
 pub async fn delete_addresses(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
-    State(mut address_repo_service): State<Box<dyn AddressWatchlistTrait>>,
+    State(address_repo_service): State<Box<dyn AddressWatchlistTrait>>,
 ) -> Result<(), ApiError> {
     account_service
         .fetch_account(FetchAccountInput {

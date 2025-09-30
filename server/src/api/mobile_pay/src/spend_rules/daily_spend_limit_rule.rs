@@ -9,6 +9,7 @@ use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
 use bdk_utils::get_total_outflow_for_psbt;
 use time::OffsetDateTime;
+use types::account::spending::PrivateMultiSigSpendingKeyset;
 
 pub(crate) struct DailySpendingLimitRule<'a> {
     wallet: &'a Wallet<AnyDatabase>,
@@ -63,6 +64,38 @@ impl Rule for DailySpendingLimitRule<'_> {
                 total_spent,
                 self.features.daily_limit_sats,
             ))
+        }
+    }
+}
+
+pub(crate) struct DailySpendingLimitRuleV2<'a> {
+    features: &'a Features,
+    private_keyset: &'a PrivateMultiSigSpendingKeyset,
+    spending_history: &'a Vec<&'a SpendingEntry>,
+    now_utc: OffsetDateTime,
+}
+
+impl Rule for DailySpendingLimitRuleV2<'_> {
+    fn check_transaction(
+        &self,
+        psbt: &PartiallySignedTransaction,
+    ) -> Result<(), SpendRuleCheckError> {
+        Err(SpendRuleCheckError::SpendLimitInactive)
+    }
+}
+
+impl<'a> DailySpendingLimitRuleV2<'a> {
+    pub fn new(
+        features: &'a Features,
+        private_keyset: &'a PrivateMultiSigSpendingKeyset,
+        spending_history: &'a Vec<&'a SpendingEntry>,
+        now_utc: OffsetDateTime,
+    ) -> Self {
+        DailySpendingLimitRuleV2 {
+            features,
+            private_keyset,
+            spending_history,
+            now_utc,
         }
     }
 }

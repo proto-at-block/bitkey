@@ -16,14 +16,16 @@ import kotlinx.coroutines.flow.update
 class CloudBackupRepositoryFake : CloudBackupRepository {
   var returnWriteError: CloudBackupError? = null
   var returnReadError: CloudBackupError? = null
-  internal val backups = MutableStateFlow<Map<CloudStoreAccount, CloudBackup>>(emptyMap())
+  internal val backups = MutableStateFlow<Map<CloudStoreAccount, Map<String, CloudBackup>>>(emptyMap())
+  private val key = "cloud-backup"
+  private var archiveKey = 1
 
-  override suspend fun readBackup(
+  override suspend fun readActiveBackup(
     cloudStoreAccount: CloudStoreAccount,
   ): Result<CloudBackup?, CloudBackupError> {
     returnReadError?.let { return Err(it) }
 
-    return Ok(backups.value[cloudStoreAccount])
+    return Ok(backups.value[cloudStoreAccount]?.get(key))
   }
 
   override suspend fun writeBackup(
@@ -36,7 +38,22 @@ class CloudBackupRepositoryFake : CloudBackupRepository {
 
     backups.update {
       it.toMutableMap().apply {
-        this[cloudStoreAccount] = backup
+        this[cloudStoreAccount] = mapOf(key to backup)
+      }
+    }
+    return Ok(Unit)
+  }
+
+  override suspend fun archiveBackup(
+    cloudStoreAccount: CloudStoreAccount,
+    backup: CloudBackup,
+  ): Result<Unit, CloudBackupError> {
+    backups.update {
+      it.toMutableMap().apply {
+        this[cloudStoreAccount] = (this[cloudStoreAccount] ?: emptyMap()).toMutableMap().apply {
+          put("$key-$archiveKey", backup)
+        }
+        archiveKey++
       }
     }
     return Ok(Unit)
@@ -52,10 +69,17 @@ class CloudBackupRepositoryFake : CloudBackupRepository {
     return Ok(Unit)
   }
 
+  override suspend fun readArchivedBackups(
+    cloudStoreAccount: CloudStoreAccount,
+  ): Result<List<CloudBackup>, CloudBackupError> {
+    return Ok(backups.value[cloudStoreAccount]?.values?.toList() ?: emptyList())
+  }
+
   fun reset() {
     backups.value = emptyMap()
     returnWriteError = null
     returnReadError = null
+    archiveKey = 1
   }
 }
 
@@ -71,5 +95,5 @@ suspend fun CloudBackupRepositoryFake.awaitBackup(
   cloudStoreAccount: CloudStoreAccount,
 ): CloudBackup {
   backups.test { awaitUntil { it[cloudStoreAccount] != null } }
-  return readBackup(cloudStoreAccount).shouldBeOk().shouldNotBeNull()
+  return readActiveBackup(cloudStoreAccount).shouldBeOk().shouldNotBeNull()
 }

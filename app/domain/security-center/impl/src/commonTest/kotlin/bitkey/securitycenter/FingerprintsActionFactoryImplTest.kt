@@ -10,14 +10,8 @@ import bitkey.privilegedactions.FingerprintResetServiceFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.firmware.FirmwareDeviceInfoDaoMock
-import build.wallet.firmware.FirmwareDeviceInfoMock
-import build.wallet.firmware.HardwareUnlockInfoServiceFake
-import build.wallet.firmware.UnlockInfo
-import build.wallet.firmware.UnlockMethod
+import build.wallet.firmware.*
 import build.wallet.grants.Grant
-import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -30,7 +24,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class FingerprintsActionFactoryImplTest : FunSpec({
   val clock = ClockFake()
-  val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
   val accountService = AccountServiceFake()
@@ -42,7 +35,6 @@ class FingerprintsActionFactoryImplTest : FunSpec({
   )
 
   val factory = FingerprintsActionFactoryImpl(
-    gettingStartedTaskDao = gettingStartedTaskDao,
     hardwareUnlockInfoService = hardwareUnlockInfoService,
     firmwareDeviceInfoDao = firmwareDeviceInfoDao,
     fingerprintResetService = fingerprintResetService,
@@ -51,7 +43,6 @@ class FingerprintsActionFactoryImplTest : FunSpec({
 
   beforeTest {
     accountService.setActiveAccount(FullAccountMock)
-    gettingStartedTaskDao.reset()
     hardwareUnlockInfoService.clear()
     firmwareDeviceInfoDao.reset()
     fingerprintResetService.reset()
@@ -242,15 +233,6 @@ class FingerprintsActionFactoryImplTest : FunSpec({
     fingerprintResetService.completeFingerprintResetAndGetGrant("test-id", "test-token")
 
     hardwareUnlockInfoService.replaceAllUnlockInfo(emptyList())
-    // No firmware device info set (inactive hardware)
-    gettingStartedTaskDao.addTasks(
-      listOf(
-        GettingStartedTask(
-          id = GettingStartedTask.TaskId.AddAdditionalFingerprint,
-          state = GettingStartedTask.TaskState.Incomplete
-        )
-      )
-    )
 
     factory.create().test {
       val action = awaitItem()
@@ -262,6 +244,23 @@ class FingerprintsActionFactoryImplTest : FunSpec({
         SecurityActionRecommendation.ADD_FINGERPRINTS
       )
       action.state() shouldBe SecurityActionState.HasRecommendationActions
+    }
+  }
+
+  test("should handle transitioning from no device info to having device info") {
+    hardwareUnlockInfoService.replaceAllUnlockInfo(
+      listOf(
+        UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 1),
+        UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 2)
+      )
+    )
+
+    factory.create().test {
+      awaitItem().getRecommendations().shouldContainExactly(SecurityActionRecommendation.ADD_FINGERPRINTS)
+
+      firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
+
+      awaitItem().getRecommendations().shouldBeEmpty()
     }
   }
 })

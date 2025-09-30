@@ -13,9 +13,14 @@ use account::service::{
 use authn_authz::routes::NoiseInitiateBundleRequest;
 
 use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
+use bdk_utils::bdk::bitcoin::bip32::{
+    ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey,
+};
 use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use bdk_utils::bdk::bitcoin::OutPoint;
 use bdk_utils::bdk::keys::DescriptorSecretKey;
+use bdk_utils::bdk::miniscript::descriptor::{DescriptorXKey, Wildcard};
+use bdk_utils::bdk::miniscript::ToPublicKey;
 use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex, AddressInfo};
 use bdk_utils::bdk::{
     bitcoin::psbt::PartiallySignedTransaction, database::AnyDatabase,
@@ -30,6 +35,7 @@ use notification::service::{
     FetchNotificationsPreferencesInput, UpdateNotificationsPreferencesInput,
 };
 use onboarding::routes::{CreateAccountRequest, CreateKeysetRequest};
+use onboarding::routes_v2::CreateAccountRequestV2;
 use rand::thread_rng;
 use recovery::entities::{
     DelayNotifyRecoveryAction, DelayNotifyRequirements, RecoveryAction, RecoveryDestination,
@@ -38,6 +44,7 @@ use recovery::entities::{
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
+use types::account::entities::v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2};
 use types::account::entities::{
     Account, Factor, FullAccount, FullAccountAuthKeysInput, LiteAccount, SoftwareAccount,
     SpendingKeysetInput, Touchpoint, TouchpointPlatform,
@@ -82,12 +89,22 @@ pub(crate) fn create_new_authkeys(context: &mut TestContext) -> TestAuthenticati
     auth_keys
 }
 
+pub(crate) async fn create_default_account_with_private_wallet(
+    context: &mut TestContext,
+    client: &TestClient,
+    services: &Services,
+) -> (FullAccount, BdkWallet<AnyDatabase>) {
+    create_default_account_with_predefined_wallet_internal(context, client, services, true, true)
+        .await
+}
+
 pub(crate) async fn create_default_account_with_predefined_wallet(
     context: &mut TestContext,
     client: &TestClient,
     services: &Services,
 ) -> (FullAccount, BdkWallet<AnyDatabase>) {
-    create_default_account_with_predefined_wallet_internal(context, client, services, true).await
+    create_default_account_with_predefined_wallet_internal(context, client, services, true, false)
+        .await
 }
 
 pub(crate) async fn create_nontest_default_account_with_predefined_wallet(
@@ -95,74 +112,159 @@ pub(crate) async fn create_nontest_default_account_with_predefined_wallet(
     client: &TestClient,
     services: &Services,
 ) -> (FullAccount, BdkWallet<AnyDatabase>) {
-    create_default_account_with_predefined_wallet_internal(context, client, services, false).await
+    create_default_account_with_predefined_wallet_internal(context, client, services, false, false)
+        .await
 }
 
+// Creates an account with predefined, "mocked" customer wallets. Note: depending on whether or not
+// it is a private keyset, the wallet that gets created will be different. For convenience, we
+// provide the wallet descriptors here:
+//
+// Legacy wallet: wsh(sortedmulti(2,[70cb0ceb/84'/1'/0']tpubDD2SKQzFYz1u2xfFnmhtZKvtbk9HvkhkDhE7CurNXXC7XWA94oFZNJSSnepnfUVxBia4gNLCrehNYpZHeAmakkDs6qPo2BE7qSDA9b7rHXg/0/*,[a601ec2c/84'/1'/0']tpubDC7RbD1aXGn242JYyYjv7shKrQMxyTZ4h1ream2sq9ADwBWoDkhHvnsMS4sRiamESzcx1ZEZwWUf4ayQ1UMGutgZFz88q2FSvubWq6yTFWA/0;1/*,[c345e1e9/84'/1'/0']tpubDDC5YGNGhebUAGw8nKsTCTbfutQwAXNzyATcnCsbhCjfdt2a8cpGbojfgAzPnsdsXxVypwjz2uGUV9dpWh211PeYhuHHumjRs7dgRLKcKk1/0;1/*))
+// Private wallet: wsh(sortedmulti(2,[70cb0ceb/84'/1'/0']tpubDD2SKQzFYz1u2xfFnmhtZKvtbk9HvkhkDhE7CurNXXC7XWA94oFZNJSSnepnfUVxBia4gNLCrehNYpZHeAmakkDs6qPo2BE7qSDA9b7rHXg/0;1/*,[a601ec2c/84'/1'/0']tpubDC7RbD1aXGn242JYyYjv7shKrQMxyTZ4h1ream2sq9ADwBWoDkhHvnsMS4sRiamESzcx1ZEZwWUf4ayQ1UMGutgZFz88q2FSvubWq6yTFWA/0;1/*,[dfbc4cf1/84/1/0]tpubDC7dP44ArSSD17nTVFih7g4WFVJtKkmzhH9xaffzV6tAEbVUfxoVWepafD8BPfCeG8vktiZUnpH7rbQqcawrbDoz7CyHRXqzHZB76CAzVek/0;1/*))
+//
+// Note, the difference between the two is that the private wallet uses unhardened derivation paths,
+// whereas the legacy wallet uses hardened derivation paths.
 async fn create_default_account_with_predefined_wallet_internal(
     context: &mut TestContext,
     client: &TestClient,
     services: &Services,
     is_test_account: bool,
+    is_private_wallet: bool,
 ) -> (FullAccount, BdkWallet<AnyDatabase>) {
     let network = Network::BitcoinSignet;
-    let app_dprv = DescriptorSecretKey::from_str("[7699ff15/84'/1'/0']tprv8iy8auG1S2uBHrd5SWEW3gQELVDMoqur43KKPkbVGDXGTmwLZ4P2Lq7iXA6SzWEh5qB7AG26ENcYqLeDVCgRaJDMXJBdn8A8T5VnZJ6A6C9/*").unwrap();
-    let app_dpub = DescriptorPublicKey::from_str("[7699ff15/84'/1'/0']tpubDFfAjKJFaQarBKesL9u6T64LuWjHyB6kdLv6gGdngVKfJGC7BTCcXKjahFxgMfPSgCPyoVFmK4ALuq4L3pk7p2i2FEgBJdGVmbpxty9MQzw/*").unwrap();
-    let hardware_dpub = DescriptorPublicKey::from_str("[08254319/84'/1'/0']tpubDEitjEyJG3W5vcinDWPD1sYtY4EmePDrPXCSs15Q7TkR78Fuyi21X1UpEpYXdoWc9sUJbsWpkd77VN8ZiJMHcnHvUhmsRqapsUdU7Mzrncf/*").unwrap();
+
+    let predefined_keys = predefined_descriptor_public_keys();
+    let (app_dprv, app_dpub) = predefined_keys.app_account_descriptor_keypair();
+    let hardware_dpub = predefined_keys.hardware_account_dpub;
+
     let auth = create_auth_keyset_model(context);
 
-    let response = client
-        .create_account(
-            context,
-            &CreateAccountRequest::Full {
-                auth: FullAccountAuthKeysInput {
-                    app: auth.app_pubkey,
-                    hardware: auth.hardware_pubkey,
-                    recovery: auth.recovery_pubkey,
+    if is_private_wallet {
+        let app_xpub = match &app_dpub {
+            DescriptorPublicKey::XPub(xpub) => xpub.xkey.public_key,
+            _ => panic!("Expected XPub descriptor"),
+        };
+        let hardware_xpub = match &hardware_dpub {
+            DescriptorPublicKey::XPub(xpub) => xpub.xkey.public_key,
+            _ => panic!("Expected XPub descriptor"),
+        };
+
+        let response = client
+            .create_account_v2(
+                context,
+                &CreateAccountRequestV2 {
+                    auth: FullAccountAuthKeysInputV2 {
+                        app_pub: auth.app_pubkey,
+                        hardware_pub: auth.hardware_pubkey,
+                        recovery_pub: auth.recovery_pubkey.unwrap(),
+                    },
+                    spend: SpendingKeysetInputV2 {
+                        network: network.into(),
+                        app_pub: app_xpub.to_public_key().inner,
+                        hardware_pub: hardware_xpub.to_public_key().inner,
+                    },
+                    is_test_account,
                 },
-                spending: SpendingKeysetInput {
-                    network: network.into(),
-                    app: app_dpub.clone(),
-                    hardware: hardware_dpub.clone(),
+            )
+            .await;
+
+        assert_eq!(response.status_code, StatusCode::OK);
+
+        let response = response.body.unwrap();
+
+        let account = services
+            .account_service
+            .fetch_full_account(FetchAccountInput {
+                account_id: &response.account_id,
+            })
+            .await
+            .unwrap();
+
+        let server_dpub = {
+            // The server never has a chain code, so we simulate an app generating one for us
+            let server_root_xpub = predefined_server_root_xpub(network, response.server_pub);
+
+            let unhardened_path = DerivationPath::from_str("m/84/1/0").unwrap();
+            let derived_xpub = server_root_xpub
+                .derive_pub(&Secp256k1::new(), &unhardened_path)
+                .expect("derived server xpub");
+            let origin = (server_root_xpub.fingerprint(), unhardened_path);
+            DescriptorPublicKey::XPub(DescriptorXKey {
+                origin: Some(origin),
+                xkey: derived_xpub,
+                derivation_path: DerivationPath::default(),
+                wildcard: Wildcard::Unhardened,
+            })
+        };
+
+        let wallet = create_bdk_wallet(
+            &app_dprv.to_string(),
+            &app_dpub.to_string(),
+            &hardware_dpub.to_string(),
+            &server_dpub.to_string(),
+            network.into(),
+        );
+
+        let rpc_uris = default_electrum_rpc_uris();
+        let blockchain = get_blockchain(network.into(), &rpc_uris).unwrap();
+        wallet.sync(&blockchain, Default::default()).unwrap();
+
+        (account, wallet)
+    } else {
+        let response = client
+            .create_account(
+                context,
+                &CreateAccountRequest::Full {
+                    auth: FullAccountAuthKeysInput {
+                        app: auth.app_pubkey,
+                        hardware: auth.hardware_pubkey,
+                        recovery: auth.recovery_pubkey,
+                    },
+                    spending: SpendingKeysetInput {
+                        network: network.into(),
+                        app: app_dpub.clone(),
+                        hardware: hardware_dpub.clone(),
+                    },
+                    is_test_account,
                 },
-                is_test_account,
-            },
-        )
-        .await;
+            )
+            .await;
 
-    assert_eq!(
-        response.status_code,
-        StatusCode::OK,
-        "{}",
-        response.body_string
-    );
+        assert_eq!(
+            response.status_code,
+            StatusCode::OK,
+            "{}",
+            response.body_string
+        );
 
-    let response = response.body.unwrap();
-    let server_dpub = response
-        .keyset
-        .expect("Account should have a keyset")
-        .spending;
+        let response = response.body.unwrap();
+        let server_dpub = response
+            .keyset
+            .expect("Account should have a keyset")
+            .spending;
 
-    let account = services
-        .account_service
-        .fetch_full_account(FetchAccountInput {
-            account_id: &response.account_id,
-        })
-        .await
-        .unwrap();
+        let account = services
+            .account_service
+            .fetch_full_account(FetchAccountInput {
+                account_id: &response.account_id,
+            })
+            .await
+            .unwrap();
 
-    let wallet = create_bdk_wallet(
-        &app_dprv.to_string(),
-        &app_dpub.to_string(),
-        &hardware_dpub.to_string(),
-        &server_dpub.to_string(),
-        network.into(),
-    );
+        let wallet = create_bdk_wallet(
+            &app_dprv.to_string(),
+            &app_dpub.to_string(),
+            &hardware_dpub.to_string(),
+            &server_dpub.to_string(),
+            network.into(),
+        );
 
-    let rpc_uris = default_electrum_rpc_uris();
-    let blockchain = get_blockchain(network.into(), &rpc_uris).unwrap();
-    wallet.sync(&blockchain, Default::default()).unwrap();
-
-    (account, wallet)
+        let rpc_uris = default_electrum_rpc_uris();
+        let blockchain = get_blockchain(network.into(), &rpc_uris).unwrap();
+        wallet.sync(&blockchain, Default::default()).unwrap();
+        (account, wallet)
+    }
 }
 
 pub(crate) fn create_auth_keyset_model(context: &mut TestContext) -> FullAccountAuthKeys {
@@ -672,5 +774,62 @@ impl OffsetClock {
 impl Clock for OffsetClock {
     fn now_utc(&self) -> OffsetDateTime {
         OffsetDateTime::now_utc() + self.offset.read().unwrap().to_owned()
+    }
+}
+
+pub(crate) struct PredefinedDescriptorKeys {
+    pub app_root_xprv: ExtendedPrivKey,
+    pub hardware_account_dpub: DescriptorPublicKey,
+}
+
+pub(crate) fn predefined_descriptor_public_keys() -> PredefinedDescriptorKeys {
+    let app_root_xprv = ExtendedPrivKey::from_str("tprv8ZgxMBicQKsPctZDhFn4GFVRDFR8iErZv4FYC577JFFamP3MkG6sTfX6r2jsU7rPwfWCAh6jfXjcwQhnKLfVFvSXZtQQMHpDJgDkfJvaVo4").unwrap();
+    let hardware_dpub = DescriptorPublicKey::from_str("[a601ec2c/84'/1'/0']tpubDC7RbD1aXGn242JYyYjv7shKrQMxyTZ4h1ream2sq9ADwBWoDkhHvnsMS4sRiamESzcx1ZEZwWUf4ayQ1UMGutgZFz88q2FSvubWq6yTFWA/*").unwrap();
+
+    PredefinedDescriptorKeys {
+        app_root_xprv,
+        hardware_account_dpub: hardware_dpub,
+    }
+}
+
+impl PredefinedDescriptorKeys {
+    pub fn app_account_descriptor_keypair(&self) -> (DescriptorSecretKey, DescriptorPublicKey) {
+        let app_account_xprv = self
+            .app_root_xprv
+            .derive_priv(
+                &Secp256k1::new(),
+                &DerivationPath::from_str("m/84'/1'/0'").unwrap(),
+            )
+            .unwrap();
+        let app_dprv = DescriptorSecretKey::XPrv(DescriptorXKey {
+            origin: Some((
+                self.app_root_xprv.fingerprint(&Secp256k1::new()),
+                DerivationPath::from_str("m/84'/1'/0'").unwrap(),
+            )),
+            xkey: app_account_xprv,
+            derivation_path: DerivationPath::default(),
+            wildcard: Wildcard::Unhardened,
+        });
+
+        let app_dpub = app_dprv.to_public(&Secp256k1::new()).unwrap();
+
+        (app_dprv, app_dpub)
+    }
+}
+
+pub(crate) fn predefined_server_root_xpub(
+    network: Network,
+    public_key: PublicKey,
+) -> ExtendedPubKey {
+    let ExtendedPrivKey { chain_code, .. } =
+        ExtendedPrivKey::new_master(network.into(), &[0u8; 32]).unwrap();
+
+    ExtendedPubKey {
+        network: network.into(),
+        depth: 0,
+        parent_fingerprint: Default::default(),
+        child_number: ChildNumber::from_normal_idx(0).expect("root child number"),
+        public_key,
+        chain_code,
     }
 }

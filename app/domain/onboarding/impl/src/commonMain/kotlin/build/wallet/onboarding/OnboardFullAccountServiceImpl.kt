@@ -197,9 +197,7 @@ class OnboardFullAccountServiceImpl(
       // Add getting started tasks for the new keybox
       val gettingStartedTasks = listOf(
         GettingStartedTask(TaskId.AddBitcoin, TaskState.Incomplete),
-        GettingStartedTask(TaskId.InviteTrustedContact, TaskState.Incomplete),
-        GettingStartedTask(TaskId.EnableSpendingLimit, TaskState.Incomplete),
-        GettingStartedTask(TaskId.AddAdditionalFingerprint, TaskState.Incomplete)
+        GettingStartedTask(TaskId.EnableSpendingLimit, TaskState.Incomplete)
       )
 
       gettingStartedTaskDao

@@ -8,12 +8,8 @@ import build.wallet.logging.LogLevel
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
 import build.wallet.platform.data.MimeType
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.mapError
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.drive.Drive
@@ -85,6 +81,22 @@ class GoogleDriveKeyValueStoreImpl(
         drive.deleteExistingEntryFile(entryFile.id).bind()
       }
     }.logFailure(LogLevel.Warn) { "Error deleting value for key=$key from Google Drive" }
+
+  override suspend fun keys(account: GoogleAccount): Result<List<String>, GoogleDriveError> =
+    coroutineBinding {
+      driveClientLock.withLock {
+        val androidAccount = account.credentials.androidAccount().bind()
+        val drive = drive(androidAccount).bind()
+        runInterruptible(Dispatchers.IO) {
+          drive.files()
+            .list()
+            .setSpaces(APP_DATA_FOLDER)
+            .execute()
+            .files
+            .map { it.name }
+        }
+      }
+    }
 
   override suspend fun getString(
     account: GoogleAccount,

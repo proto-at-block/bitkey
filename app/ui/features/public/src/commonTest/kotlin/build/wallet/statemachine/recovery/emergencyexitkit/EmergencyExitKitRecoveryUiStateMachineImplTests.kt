@@ -33,7 +33,7 @@ import build.wallet.statemachine.send.QrCodeScanBodyModel
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
-import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.clickSecondaryButton
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -324,7 +324,7 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
       )
     stateMachine.test(props = props) {
       awaitBody<EmergencyExitKitImportWalletBodyModel> {
-        clickPrimaryButton()
+        clickSecondaryButton()
       }
       awaitBody<EmergencyExitKitImportPasteAppKeyBodyModel> {
         onEnterTextChanged(invalidPayload)

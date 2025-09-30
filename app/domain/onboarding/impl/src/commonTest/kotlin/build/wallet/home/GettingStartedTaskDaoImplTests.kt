@@ -2,10 +2,8 @@ package build.wallet.home
 
 import app.cash.turbine.test
 import build.wallet.database.BitkeyDatabaseProviderImpl
-import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
 import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
 import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
-import build.wallet.home.GettingStartedTask.TaskId.InviteTrustedContact
 import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.sqldelight.inMemorySqlDriver
@@ -16,10 +14,8 @@ import io.kotest.matchers.collections.shouldContainExactly
 class GettingStartedTaskDaoImplTests : FunSpec({
   val sqlDriver = inMemorySqlDriver()
 
-  val task1 = GettingStartedTask(id = InviteTrustedContact, state = Complete)
-  val task2 = GettingStartedTask(id = AddBitcoin, state = Incomplete)
-  val task3 = GettingStartedTask(id = EnableSpendingLimit, state = Incomplete)
-  val task4 = GettingStartedTask(id = AddAdditionalFingerprint, state = Incomplete)
+  val task1 = GettingStartedTask(id = AddBitcoin, state = Incomplete)
+  val task2 = GettingStartedTask(id = EnableSpendingLimit, state = Incomplete)
 
   lateinit var dao: GettingStartedTaskDao
 
@@ -32,9 +28,9 @@ class GettingStartedTaskDaoImplTests : FunSpec({
     dao.getTasks().shouldBeEmpty()
     dao.tasks().test {
       awaitItem().shouldBeEmpty()
-      dao.addTasks(listOf(task1, task2, task3, task4))
-      dao.getTasks().shouldContainExactly(task1, task2, task3, task4)
-      awaitItem().shouldContainExactly(task1, task2, task3, task4)
+      dao.addTasks(listOf(task1, task2))
+      dao.getTasks().shouldContainExactly(task1, task2)
+      awaitItem().shouldContainExactly(task1, task2)
     }
   }
 
@@ -42,11 +38,11 @@ class GettingStartedTaskDaoImplTests : FunSpec({
     dao.getTasks().shouldBeEmpty()
     dao.tasks().test {
       awaitItem().shouldBeEmpty()
-      dao.addTasks(listOf(task1, task2, task3, task4))
-      awaitItem().shouldContainExactly(task1, task2, task3, task4)
+      dao.addTasks(listOf(task1, task2))
+      awaitItem().shouldContainExactly(task1, task2)
 
       dao.updateTask(id = task2.id, state = Complete)
-      awaitItem().shouldContainExactly(task1, task2.copy(state = Complete), task3, task4)
+      awaitItem().shouldContainExactly(task1, task2.copy(state = Complete))
     }
   }
 
@@ -54,8 +50,8 @@ class GettingStartedTaskDaoImplTests : FunSpec({
     dao.getTasks().shouldBeEmpty()
     dao.tasks().test {
       awaitItem().shouldBeEmpty()
-      dao.addTasks(listOf(task1, task2, task3, task4))
-      awaitItem().shouldContainExactly(task1, task2, task3, task4)
+      dao.addTasks(listOf(task1, task2))
+      awaitItem().shouldContainExactly(task1, task2)
 
       dao.clearTasks()
       awaitItem().shouldBeEmpty()

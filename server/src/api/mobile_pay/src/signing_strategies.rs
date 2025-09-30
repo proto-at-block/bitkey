@@ -5,14 +5,16 @@ use crate::error::SigningError;
 use crate::routes::Config;
 use crate::signed_psbt_cache::service::Service as SignedPsbtCacheService;
 use crate::signing_processor::state::{Initialized, Validated};
-use crate::signing_processor::{Broadcaster, Signer, SigningProcessor, SigningValidator};
+use crate::signing_processor::{
+    Broadcaster, Signer, SigningMethod, SigningProcessor, SigningValidator,
+};
 use crate::spend_rules::SpendRuleSet;
 use crate::{
     get_mobile_pay_spending_record, sats_for_limit, sats_for_threshold, MobilePaySpendingRecord,
 };
 use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::{psbt::Psbt, Network};
-use bdk_utils::{DescriptorKeyset, ElectrumRpcUris};
+use bdk_utils::ElectrumRpcUris;
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
@@ -20,17 +22,18 @@ use screener::service::Service as ScreenerService;
 use std::sync::Arc;
 use types::account::entities::{FullAccount, TransactionVerificationPolicy};
 use types::account::identifiers::KeysetId;
+use types::account::spending::SpendingKeyset;
 use types::transaction_verification::router::TransactionVerificationGrantView;
 
 #[async_trait]
 pub trait SigningStrategy: Sync + Send {
-    async fn execute(&self) -> Result<Psbt, SigningError>;
+    async fn execute(self: Box<Self>) -> Result<Psbt, SigningError>;
 }
 
 pub struct TransferWithoutHardwareSigningStrategy {
     rpc_uris: ElectrumRpcUris,
     network: Network,
-    source_descriptor: DescriptorKeyset,
+    signing_method: SigningMethod,
     keyset_id: KeysetId,
     signer: SigningProcessor<Validated>,
     today_spending_record: DailySpendingRecord,
@@ -42,7 +45,7 @@ impl TransferWithoutHardwareSigningStrategy {
     pub fn new(
         signing_validator: SigningProcessor<Initialized>,
         unsigned_psbt: Psbt,
-        source_descriptor: DescriptorKeyset,
+        signing_method: SigningMethod,
         keyset_id: KeysetId,
         rpc_uris: &ElectrumRpcUris,
         network: Network,
@@ -55,32 +58,50 @@ impl TransferWithoutHardwareSigningStrategy {
         transaction_verification_features: Option<TransactionVerificationFeatures>,
         context_key: Option<ContextKey>,
     ) -> Result<Self, SigningError> {
-        let unsynced_source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
-
+        let mut today_spending_record = mobile_pay_spending_record.today.clone();
         // bundle up yesterday and today's spending records for spend rule checking
         let spending_entries = mobile_pay_spending_record.spending_entries();
 
-        let signer = signing_validator.validate(
-            &unsigned_psbt,
-            SpendRuleSet::mobile_pay(
-                &unsynced_source_wallet,
-                features,
-                &spending_entries,
-                screener_service,
-                transaction_verification_features,
-                feature_flags_service,
-                context_key,
-            ),
-        )?;
+        let signer = match &signing_method {
+            SigningMethod::LegacyMobilePay { source_descriptor } => {
+                let unsynced_source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
 
-        // Update the daily spending record object with the PSBT. Will be persisted after signing.
-        let mut today_spending_record = mobile_pay_spending_record.today.clone();
-        today_spending_record.update_with_psbt(&unsynced_source_wallet, &unsigned_psbt);
+                let processor = signing_validator.validate(
+                    &unsigned_psbt,
+                    SpendRuleSet::mobile_pay(
+                        &unsynced_source_wallet,
+                        features,
+                        &spending_entries,
+                        screener_service,
+                        transaction_verification_features,
+                        feature_flags_service,
+                        context_key,
+                    ),
+                )?;
+                // Update the daily spending record object with the PSBT. Will be persisted after signing.
+                today_spending_record.update_with_psbt(&unsynced_source_wallet, &unsigned_psbt);
+
+                processor
+            }
+            SigningMethod::PrivateMobilePay { source_keyset } => signing_validator.validate(
+                &unsigned_psbt,
+                SpendRuleSet::mobile_pay_v2(
+                    source_keyset,
+                    features,
+                    &spending_entries,
+                    screener_service,
+                    transaction_verification_features,
+                    feature_flags_service,
+                    context_key,
+                ),
+            )?,
+            _ => return Err(SigningError::InvalidSigningMethodForStrategy),
+        };
 
         Ok(Self {
             rpc_uris: rpc_uris.clone(),
             network,
-            source_descriptor,
+            signing_method,
             keyset_id,
             signer,
             today_spending_record,
@@ -92,10 +113,12 @@ impl TransferWithoutHardwareSigningStrategy {
 
 #[async_trait]
 impl SigningStrategy for TransferWithoutHardwareSigningStrategy {
-    async fn execute(&self) -> Result<Psbt, SigningError> {
+    async fn execute(
+        self: Box<TransferWithoutHardwareSigningStrategy>,
+    ) -> Result<Psbt, SigningError> {
         let mut broadcaster = self
             .signer
-            .sign_transaction(&self.rpc_uris, &self.source_descriptor, &self.keyset_id)
+            .sign_transaction(&self.rpc_uris, &self.signing_method, &self.keyset_id)
             .await?;
 
         let signed_psbt = broadcaster.finalized_psbt();
@@ -126,7 +149,7 @@ impl SigningStrategy for TransferWithoutHardwareSigningStrategy {
 pub struct RecoverySweepSigningStrategy {
     rpc_uris: ElectrumRpcUris,
     signer: SigningProcessor<Validated>,
-    source_descriptor: DescriptorKeyset,
+    signing_method: SigningMethod,
     network: Network,
     keyset_id: KeysetId,
 }
@@ -135,8 +158,7 @@ impl RecoverySweepSigningStrategy {
     pub fn new(
         signing_validator: SigningProcessor<Initialized>,
         unsigned_psbt: &Psbt,
-        source_descriptor: DescriptorKeyset,
-        active_descriptor: DescriptorKeyset,
+        signing_method: SigningMethod,
         network: Network,
         keyset_id: KeysetId,
         rpc_uris: &ElectrumRpcUris,
@@ -144,26 +166,46 @@ impl RecoverySweepSigningStrategy {
         feature_flags_service: FeatureFlagsService,
         context_key: Option<ContextKey>,
     ) -> Result<Self, SigningError> {
-        let unsynced_source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
+        let signer = match &signing_method {
+            SigningMethod::LegacySweep {
+                source_descriptor,
+                active_descriptor,
+            } => {
+                let unsynced_source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
+                // W-9888: A full sync is required here, because we don't have derivation path information in
+                // the PSBT for sweep outputs so we need to generate addresses and check one-by-one.
+                let active_wallet = active_descriptor.generate_wallet(true, rpc_uris)?;
+                signing_validator.validate(
+                    unsigned_psbt,
+                    SpendRuleSet::sweep(
+                        &unsynced_source_wallet,
+                        &active_wallet,
+                        screener_service,
+                        feature_flags_service,
+                        context_key,
+                    ),
+                )?
+            }
+            SigningMethod::PrivateSweep {
+                source_keyset,
+                active_keyset,
+            } => signing_validator.validate(
+                unsigned_psbt,
+                SpendRuleSet::sweep_v2(
+                    source_keyset,
+                    active_keyset,
+                    screener_service,
+                    feature_flags_service,
+                    context_key,
+                ),
+            )?,
+            _ => return Err(SigningError::InvalidSigningMethodForStrategy),
+        };
 
-        // W-9888: A full sync is required here, because we don't have derivation path information in
-        // the PSBT for sweep outputs so we need to generate addresses and check one-by-one.
-        let active_wallet = active_descriptor.generate_wallet(true, rpc_uris)?;
-
-        let signer = signing_validator.validate(
-            unsigned_psbt,
-            SpendRuleSet::sweep(
-                &unsynced_source_wallet,
-                &active_wallet,
-                screener_service,
-                feature_flags_service,
-                context_key,
-            ),
-        )?;
         Ok(Self {
             rpc_uris: rpc_uris.clone(),
             signer,
-            source_descriptor,
+            signing_method,
             network,
             keyset_id,
         })
@@ -172,10 +214,10 @@ impl RecoverySweepSigningStrategy {
 
 #[async_trait]
 impl SigningStrategy for RecoverySweepSigningStrategy {
-    async fn execute(&self) -> Result<Psbt, SigningError> {
+    async fn execute(self: Box<Self>) -> Result<Psbt, SigningError> {
         let mut broadcaster = self
             .signer
-            .sign_transaction(&self.rpc_uris, &self.source_descriptor, &self.keyset_id)
+            .sign_transaction(&self.rpc_uris, &self.signing_method, &self.keyset_id)
             .await?;
 
         broadcaster.broadcast_transaction(&self.rpc_uris, self.network)?;
@@ -221,26 +263,58 @@ impl SigningStrategyFactory {
         grant: Option<TransactionVerificationGrantView>,
         rpc_uris: &ElectrumRpcUris,
         context_key: Option<ContextKey>,
-    ) -> Result<Arc<dyn SigningStrategy>, SigningError> {
-        let source_descriptor: DescriptorKeyset = full_account
+    ) -> Result<Box<dyn SigningStrategy>, SigningError> {
+        let source_keyset = full_account
             .spending_keysets
             .get(signing_keyset_id)
-            .ok_or_else(|| SigningError::NoSpendKeyset(signing_keyset_id.to_owned()))?
-            .legacy_multi_sig_or(SigningError::InvalidKeysetType(
-                signing_keyset_id.to_owned(),
-            ))?
-            .to_owned()
-            .into();
+            .ok_or_else(|| SigningError::NoSpendKeyset(signing_keyset_id.to_owned()))?;
 
         let is_for_transfer_without_hw = full_account.active_keyset_id == *signing_keyset_id;
 
-        let signing_strategy: Arc<dyn SigningStrategy> = if is_for_transfer_without_hw {
+        let signing_method = match source_keyset {
+            SpendingKeyset::LegacyMultiSig(legacy_source) => {
+                if is_for_transfer_without_hw {
+                    SigningMethod::LegacyMobilePay {
+                        source_descriptor: legacy_source.clone().into(),
+                    }
+                } else {
+                    let active_keyset = full_account
+                        .active_spending_keyset()
+                        .ok_or(SigningError::NoActiveSpendKeyset)?
+                        .legacy_multi_sig_or(SigningError::ConflictingKeysetType)?;
+
+                    SigningMethod::LegacySweep {
+                        source_descriptor: legacy_source.clone().into(),
+                        active_descriptor: active_keyset.clone().into(),
+                    }
+                }
+            }
+            SpendingKeyset::PrivateMultiSig(source_keyset) => {
+                if is_for_transfer_without_hw {
+                    SigningMethod::PrivateMobilePay {
+                        source_keyset: source_keyset.clone(),
+                    }
+                } else {
+                    let active_keyset = full_account
+                        .active_spending_keyset()
+                        .ok_or(SigningError::NoActiveSpendKeyset)?
+                        .private_multi_sig_or(SigningError::ConflictingKeysetType)?;
+
+                    SigningMethod::PrivateSweep {
+                        source_keyset: source_keyset.clone(),
+                        active_keyset: active_keyset.clone(),
+                    }
+                }
+            }
+        };
+
+        let signing_strategy: Box<dyn SigningStrategy> = if is_for_transfer_without_hw {
             Self::create_transfer_without_hardware_signing_strategy(
                 full_account,
                 &config,
                 self.signing_processor.clone(),
                 unsigned_psbt,
-                source_descriptor,
+                signing_method,
                 signing_keyset_id,
                 grant,
                 rpc_uris,
@@ -257,8 +331,8 @@ impl SigningStrategyFactory {
                 full_account,
                 self.signing_processor.clone(),
                 &unsigned_psbt,
+                signing_method,
                 rpc_uris,
-                source_descriptor,
                 signing_keyset_id,
                 &self.screener_service,
                 &self.feature_flags_service,
@@ -274,7 +348,7 @@ impl SigningStrategyFactory {
         config: &Config,
         signing_processor: SigningProcessor<Initialized>,
         unsigned_psbt: Psbt,
-        source_descriptor: DescriptorKeyset,
+        signing_method: SigningMethod,
         keyset_id: &KeysetId,
         grant: Option<TransactionVerificationGrantView>,
         rpc_uris: &ElectrumRpcUris,
@@ -284,7 +358,7 @@ impl SigningStrategyFactory {
         signed_psbt_cache_service: &SignedPsbtCacheService,
         feature_flags_service: &FeatureFlagsService,
         context_key: Option<ContextKey>,
-    ) -> Result<Arc<TransferWithoutHardwareSigningStrategy>, SigningError> {
+    ) -> Result<Box<TransferWithoutHardwareSigningStrategy>, SigningError> {
         let limit = full_account
             .spending_limit
             .clone()
@@ -312,10 +386,10 @@ impl SigningStrategyFactory {
         let mobile_pay_spending_record =
             get_mobile_pay_spending_record(&full_account.id, daily_spend_record_service).await?;
 
-        Ok(Arc::new(TransferWithoutHardwareSigningStrategy::new(
+        Ok(Box::new(TransferWithoutHardwareSigningStrategy::new(
             signing_processor,
             unsigned_psbt,
-            source_descriptor,
+            signing_method,
             keyset_id.to_owned(),
             rpc_uris,
             network.into(),
@@ -334,29 +408,23 @@ impl SigningStrategyFactory {
         full_account: &FullAccount,
         signing_processor: SigningProcessor<Initialized>,
         unsigned_psbt: &Psbt,
+        signing_method: SigningMethod,
         rpc_uris: &ElectrumRpcUris,
-        source_descriptor: DescriptorKeyset,
         keyset_id: &KeysetId,
         screener_service: &Arc<ScreenerService>,
         feature_flags_service: &FeatureFlagsService,
         context_key: Option<ContextKey>,
-    ) -> Result<Arc<RecoverySweepSigningStrategy>, SigningError> {
+    ) -> Result<Box<RecoverySweepSigningStrategy>, SigningError> {
         let active_spending_keyset = full_account
             .active_spending_keyset()
             .ok_or(SigningError::NoActiveSpendKeyset)?;
 
-        let active_descriptor: DescriptorKeyset = active_spending_keyset
-            .legacy_multi_sig_or(SigningError::ConflictingKeysetType)?
-            .to_owned()
-            .into();
-
         let network = active_spending_keyset.network();
 
-        Ok(Arc::new(RecoverySweepSigningStrategy::new(
+        Ok(Box::new(RecoverySweepSigningStrategy::new(
             signing_processor,
             unsigned_psbt,
-            source_descriptor,
-            active_descriptor,
+            signing_method,
             network.into(),
             keyset_id.to_owned(),
             rpc_uris,

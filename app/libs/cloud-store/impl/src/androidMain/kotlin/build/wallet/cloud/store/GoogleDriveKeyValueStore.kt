@@ -35,4 +35,9 @@ interface GoogleDriveKeyValueStore {
     account: GoogleAccount,
     key: String,
   ): Result<Unit, GoogleDriveError>
+
+  /**
+   * Retrieves all of the names of items stored at the appDataFolder in Google Drive
+   */
+  suspend fun keys(account: GoogleAccount): Result<List<String>, GoogleDriveError>
 }

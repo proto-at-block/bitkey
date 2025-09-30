@@ -2,6 +2,7 @@
 use http::StatusCode;
 use rand::distributions::{Alphanumeric, DistString};
 use rstest::rstest;
+use std::time::{SystemTime, UNIX_EPOCH};
 use time::OffsetDateTime;
 
 // Internal crate imports
@@ -253,7 +254,10 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm() {
     let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
     let mut builder = wallet.build_tx();
     builder
-        .add_recipient(recipient_address.script_pubkey(), 1000)
+        .add_recipient(
+            recipient_address.script_pubkey(),
+            get_unique_test_amount(1000),
+        )
         .fee_rate(FeeRate::default_min_relay_fee());
     let (mut psbt, _) = builder.finish().unwrap();
     wallet.sign(&mut psbt, Default::default()).unwrap();
@@ -321,7 +325,10 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
     let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
     let mut builder = wallet.build_tx();
     builder
-        .add_recipient(recipient_address.script_pubkey(), 1000)
+        .add_recipient(
+            recipient_address.script_pubkey(),
+            get_unique_test_amount(1000),
+        )
         .fee_rate(FeeRate::default_min_relay_fee());
     let (mut psbt, _) = builder.finish().unwrap();
     wallet.sign(&mut psbt, Default::default()).unwrap();
@@ -408,7 +415,10 @@ async fn transaction_verification_verification_flow_test(
     let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
     let mut builder = wallet.build_tx();
     builder
-        .add_recipient(recipient_address.script_pubkey(), 1000)
+        .add_recipient(
+            recipient_address.script_pubkey(),
+            get_unique_test_amount(1000),
+        )
         .fee_rate(FeeRate::default_min_relay_fee());
     let (mut psbt, _) = builder.finish().unwrap();
     wallet.sign(&mut psbt, Default::default()).unwrap();
@@ -519,7 +529,10 @@ async fn transaction_verification_requires_verification_idempotent() {
     let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
     let mut builder = wallet.build_tx();
     builder
-        .add_recipient(recipient_address.script_pubkey(), 1000)
+        .add_recipient(
+            recipient_address.script_pubkey(),
+            get_unique_test_amount(1000),
+        )
         .fee_rate(FeeRate::default_min_relay_fee());
     let (mut psbt, _) = builder.finish().unwrap();
     wallet.sign(&mut psbt, Default::default()).unwrap();
@@ -573,4 +586,14 @@ async fn transaction_verification_requires_verification_idempotent() {
         _ => panic!("Expected transaction to require verification"),
     };
     assert_eq!(original_verification_id, idempotent_verification_id);
+}
+
+/// Helper function to generate random amounts so we don't end up with the same txids
+fn get_unique_test_amount(base_amount: u64) -> u64 {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    // Use last 3 digits of timestamp to add variance while keeping amount reasonable
+    base_amount + (timestamp % 1000)
 }

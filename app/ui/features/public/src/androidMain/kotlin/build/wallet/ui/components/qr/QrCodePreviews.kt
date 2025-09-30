@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import build.wallet.statemachine.qr.QRMatrix
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -13,7 +14,12 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 internal fun QrCodePreview() {
   PreviewWalletTheme {
     Box(modifier = Modifier.size(300.dp)) {
-      QrCode(data = "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+      QrCodeV2(
+        matrix = QRMatrix(
+          columnWidth = 0,
+          data = BooleanArray(0)
+        )
+      )
     }
   }
 }

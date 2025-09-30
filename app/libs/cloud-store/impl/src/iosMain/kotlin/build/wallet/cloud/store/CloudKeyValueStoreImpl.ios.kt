@@ -38,4 +38,11 @@ class CloudKeyValueStoreImpl(
       else -> error("Cloud store account type $account is not supported")
     }
   }
+
+  override suspend fun keys(account: CloudStoreAccount): Result<List<String>, CloudError> {
+    return when (account) {
+      is iCloudAccount -> iCloudKeyValueStore.keys(account)
+      else -> error("Cloud store account type $account is not supported")
+    }
+  }
 }

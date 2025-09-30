@@ -24,8 +24,8 @@ data class EmergencyExitKitImportWalletBodyModel(
       )
     ),
     header = FormHeaderModel(
-      headline = "Import your wallet using your Emergency Exit Kit",
-      subline = "Your Emergency Exit Kit is a PDF document located in your device's cloud backup."
+      headline = "Use your Emergency Exit Kit",
+      subline = "Your Emergency Exit Kit is a PDF document that allows you to exit Bitkey in extreme cases."
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.Explainer(
@@ -37,21 +37,21 @@ data class EmergencyExitKitImportWalletBodyModel(
           ),
           FormMainContentModel.Explainer.Statement(
             leadingIcon = Icon.SmallIconQrCode,
-            title = "Scan or Import manually",
+            title = "Scan or enter manually",
             body = "Scan the QR code for easy access to your Bitkey backup or enter the details manually."
           )
         )
       )
     ),
     primaryButton = ButtonModel(
+      text = "Scan QR code",
+      size = ButtonModel.Size.Footer,
+      onClick = StandardClick(onScanQRCode)
+    ),
+    secondaryButton = ButtonModel(
       text = "Enter details manually",
       treatment = ButtonModel.Treatment.Secondary,
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onEnterManually)
-    ),
-    secondaryButton = ButtonModel(
-      text = "Scan QR code",
-      size = ButtonModel.Size.Footer,
-      onClick = StandardClick(onScanQRCode)
     )
   )

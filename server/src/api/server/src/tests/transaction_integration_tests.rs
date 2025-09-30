@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    env,
     str::FromStr,
     sync::Arc,
 };
@@ -8,7 +7,6 @@ use std::{
 use crypto::chaincode_delegation::{psbt_with_tweaks, HwAccountLevelDescriptorPublicKeys, Keyset};
 use http::StatusCode;
 
-use http_server::middlewares::wsm;
 use mockall::mock;
 use serde_json::json;
 use ulid::Ulid;
@@ -18,38 +16,33 @@ use bdk_utils::{
     bdk::{
         self,
         bitcoin::{
-            bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey, KeySource},
+            bip32::{ExtendedPrivKey, ExtendedPubKey},
             ecdsa,
-            hashes::{sha512, Hash, HashEngine, Hmac, HmacEngine},
+            hashes::Hash,
             key::Secp256k1,
             psbt::{PartiallySignedTransaction, PartiallySignedTransaction as Psbt},
-            secp256k1::{All, Message},
-            Address, Amount, Network as BdkNetwork, OutPoint, Txid,
+            secp256k1::Message,
+            Address, Network as BdkNetwork, OutPoint, Txid,
         },
-        blockchain::{rpc::Auth, Blockchain, ConfigurableBlockchain, RpcBlockchain, RpcConfig},
-        database::{AnyDatabase, MemoryDatabase},
+        database::AnyDatabase,
         electrum_client::Error as ElectrumClientError,
-        keys::{DerivableKey, DescriptorKey, DescriptorPublicKey, DescriptorSecretKey},
-        miniscript::{psbt::PsbtExt, Segwitv0},
-        wallet::{wallet_name_from_descriptor, AddressIndex, AddressInfo},
+        keys::DescriptorPublicKey,
+        miniscript::descriptor::DescriptorXKey,
+        wallet::{AddressIndex, AddressInfo},
         Error::Electrum,
         KeychainKind, SignOptions, Wallet,
     },
     error::BdkUtilError,
-    generate_block, treasury_fund_address, DescriptorKeyset, ElectrumRpcUris,
-    TransactionBroadcasterTrait,
+    DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait,
 };
 use external_identifier::ExternalIdentifier;
 use mobile_pay::routes::{SignTransactionData, SignTransactionResponse};
-use onboarding::{routes::RotateSpendingKeysetRequest, routes_v2::CreateAccountRequestV2};
+use onboarding::routes::RotateSpendingKeysetRequest;
 use rstest::rstest;
 use types::{
     account::{
-        bitcoin::Network,
-        entities::v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2},
-        identifiers::AccountId,
-        money::Money,
-        spend_limit::SpendingLimit,
+        bitcoin::Network, identifiers::AccountId, money::Money, spend_limit::SpendingLimit,
+        spending::SpendingKeyset,
     },
     currencies::CurrencyCode::{self, USD},
     transaction_verification::{
@@ -61,12 +54,12 @@ use types::{
         TransactionVerificationId,
     },
 };
-use wsm_rust_client::SigningService;
 
 use crate::tests::lib::{
     build_sweep_transaction, build_transaction_with_amount,
-    create_default_account_with_predefined_wallet, create_inactive_spending_keyset_for_account,
-    create_new_authkeys, gen_external_wallet_address,
+    create_default_account_with_predefined_wallet, create_default_account_with_private_wallet,
+    create_inactive_spending_keyset_for_account, gen_external_wallet_address,
+    predefined_descriptor_public_keys, predefined_server_root_xpub,
 };
 use crate::tests::mobile_pay_tests::build_mobile_pay_request;
 use crate::tests::requests::axum::TestClient;
@@ -198,12 +191,12 @@ async fn sign_transaction_test(
 #[case::test_sign_transaction_success(
     false,
     vec![OutPoint {
-        txid: Txid::from_str("42364e8ad22f93be1321efe2e53eca5337d1935b8c6aea8b648991321ff9d132").unwrap(),
+        txid: Txid::from_str("4ee151877683e05a6c0cecc54e9e5a3af3a3741850285e73a908898b66312d7b").unwrap(),
         vout: 0,
     },
     OutPoint {
-        txid: Txid::from_str("96b4d4506dc368fe704fa9875002c6a157fca460adc0d1fd0b4e0e6ed734fd64").unwrap(),
-        vout: 0,
+        txid: Txid::from_str("8a65b99a749c974cefc465a1156bce0b7cf7d990fa256fc605124c913d19aeb3").unwrap(),
+        vout: 1,
     }],
     None,
     StatusCode::OK,
@@ -230,7 +223,7 @@ async fn sign_transaction_test(
     false,
     vec![
         OutPoint {
-            txid: Txid::from_str("44a61ffbd14496e1b2f419665af8275521fc44679432cbba0b3bac80d3c4f3ab").unwrap(),
+            txid: Txid::from_str("bf3e40a813154cfca0bf52e7323491c4b6a4c6a67bf48abb2feed82a886fcb07").unwrap(),
             vout: 0,
         }
     ],
@@ -242,7 +235,7 @@ async fn sign_transaction_test(
 #[case::test_sign_transaction_fail_broadcast_electrum(
     false,
     vec![OutPoint {
-        txid: Txid::from_str("ca801cd4300832038cf47fabdd2c058469ede63f6de558374a4ecb351ac86e32").unwrap(),
+        txid: Txid::from_str("e8ea0e7bf354897e850a664a687d508983708ad3dee40cd0c95001c6e490c97c").unwrap(),
         vout: 0,
     }],
     None,
@@ -253,7 +246,7 @@ async fn sign_transaction_test(
 #[case::test_sign_transaction_fail_broadcast_duplicate_tx(
     false,
     vec![OutPoint {
-        txid: Txid::from_str("2675ee4faa0fa6201cf9a39854d8bf0379d275744a8c38271f9e3c4d44d5b87d").unwrap(),
+        txid: Txid::from_str("2f00e1e8466c18ee5044c1868bc985a566b46559384f6bde00ffbd7e46fe456c").unwrap(),
         vout: 0,
     }],
     None,
@@ -1020,287 +1013,111 @@ async fn test_fail_if_signed_with_different_wallet() {
 
 #[tokio::test]
 async fn test_sign_psbt_v2_happy_path() {
-    let (mut context, bootstrap) = gen_services().await;
+    let mut broadcaster_mock = MockTransactionBroadcaster::new();
+    broadcaster_mock
+        .expect_broadcast()
+        .times(0)
+        .returning(|_, _, _| Ok(()));
+    let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
-    let secp = Secp256k1::new();
 
-    let app_root_xprv = ExtendedPrivKey::new_master(BdkNetwork::Regtest, &[1; 32]).unwrap();
-    let app_account_xprv = app_root_xprv
-        .derive_priv(&secp, &DerivationPath::from_str("m/84'/0'/0'").unwrap())
-        .unwrap();
+    let (account, wallet) =
+        create_default_account_with_private_wallet(&mut context, &client, &bootstrap.services)
+            .await;
 
-    // This is given to use from the HW
-    let (hw_ext_desc_pub, hw_int_desc_pub) = {
-        let hw_root_xprv = ExtendedPrivKey::new_master(BdkNetwork::Regtest, &[2; 32]).unwrap();
-        let (_, hw_ext_desc_pub) = derive_descriptor_keypair(
-            &secp,
-            &hw_root_xprv,
-            DerivationPath::from_str("m/84'/0'/0'").unwrap(),
-            ChildNumber::from_normal_idx(0).expect("external index"),
-        )
-        .unwrap();
-        let (_, hw_int_desc_pub) = derive_descriptor_keypair(
-            &secp,
-            &hw_root_xprv,
-            DerivationPath::from_str("m/84'/0'/0'").unwrap(),
-            ChildNumber::from_normal_idx(1).expect("internal index"),
-        )
-        .unwrap();
-
-        (hw_ext_desc_pub, hw_int_desc_pub)
-    };
-
-    let spending_app_xpub = ExtendedPubKey::from_priv(&secp, &app_account_xprv);
-    let spending_hw_xpub = match &hw_ext_desc_pub {
-        DescriptorPublicKey::XPub(xpub) => xpub.xkey,
-        _ => panic!("Expected XPub descriptor"),
-    };
-
-    let keys = create_new_authkeys(&mut context);
-    let request = CreateAccountRequestV2 {
-        auth: FullAccountAuthKeysInputV2 {
-            app_pub: keys.app.public_key,
-            hardware_pub: keys.hw.public_key,
-            recovery_pub: keys.recovery.public_key,
+    let limit = SpendingLimit {
+        active: true,
+        amount: Money {
+            amount: 5_000,
+            currency_code: USD,
         },
-        spend: SpendingKeysetInputV2 {
-            network: BdkNetwork::Regtest,
-            app_pub: spending_app_xpub.public_key,
-            hardware_pub: spending_hw_xpub.public_key,
-        },
-        is_test_account: true,
-    };
-    let actual_response = client.create_account_v2(&mut context, &request).await;
-    assert_eq!(actual_response.status_code, StatusCode::OK);
-    let create_response = actual_response.body.unwrap();
-    let _ = bootstrap
-        .services
-        .account_service
-        .fetch_full_account(FetchAccountInput {
-            account_id: &create_response.account_id,
-        })
-        .await
-        .unwrap();
-
-    // A hardcoded chaincode with ZERO-ed out seed. DO NOT use this in production.
-    let server_chaincode = {
-        let mut hmac_engine: HmacEngine<sha512::Hash> = HmacEngine::new(b"Bitcoin seed");
-        hmac_engine.input(&[0u8; 32]);
-        let hmac_result: Hmac<sha512::Hash> = Hmac::from_engine(hmac_engine);
-        hmac_result[32..]
-            .try_into()
-            .expect("half of hmac is guaranteed to be 32 bytes")
-    };
-    // We construct the server's xpub by combining the chain code we generate above with the
-    // raw public key provided to us.
-    let server_root_xpub = ExtendedPubKey {
-        network: BdkNetwork::Regtest,
-        depth: 0,
-        parent_fingerprint: Default::default(),
-        child_number: ChildNumber::from_normal_idx(0).expect("root child number"),
-        public_key: create_response.server_pub,
-        chain_code: server_chaincode,
+        ..Default::default()
     };
 
-    let (external_descriptor_str, internal_descriptor_str) = generate_wallet_descriptors(
-        &secp,
-        app_root_xprv,
-        server_root_xpub,
-        &(hw_ext_desc_pub.clone(), hw_int_desc_pub),
+    // In this case, we can setup mobile pay so our code can check some spend conditions
+    let request = build_mobile_pay_request(limit);
+    let mobile_pay_response = client
+        .put_mobile_pay(
+            &account.id,
+            &request,
+            &context
+                .get_authentication_keys_for_account_id(&account.id)
+                .unwrap(),
+        )
+        .await;
+    assert_eq!(
+        mobile_pay_response.status_code,
+        StatusCode::OK,
+        "{}",
+        mobile_pay_response.body_string
     );
 
-    let wallet: Wallet<MemoryDatabase> = Wallet::new(
-        &external_descriptor_str,
-        Some(&internal_descriptor_str),
-        BdkNetwork::Regtest,
-        MemoryDatabase::new(),
-    )
-    .expect("Unable to create wallet");
+    // Simulate app signing a PSBT
+    let app_signed_psbt = {
+        let (psbt, _details) = {
+            let mut builder = wallet.build_tx();
+            builder
+                .add_recipient(
+                    wallet
+                        .get_address(AddressIndex::Peek(0))
+                        .unwrap()
+                        .script_pubkey(),
+                    30_000,
+                )
+                .enable_rbf()
+                .fee_rate(bdk::FeeRate::from_sat_per_vb(1.0));
+            builder.finish().expect("Failed to build transaction")
+        };
 
-    let rpc_config = RpcConfig {
-        url: env::var("REGTEST_BITCOIND_SERVER_URI")
-            .unwrap_or("127.0.0.1:18443".to_string())
-            .to_string(),
-        auth: Auth::UserPass {
-            username: env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
-            password: env::var("BITCOIND_RPC_PASSWORD").unwrap_or("test".to_string()),
-        },
-        network: BdkNetwork::Regtest,
-        wallet_name: wallet_name_from_descriptor(
-            &external_descriptor_str,
-            Some(&internal_descriptor_str),
-            BdkNetwork::Regtest,
-            &secp,
+        let predefined_keys = predefined_descriptor_public_keys();
+        let hw_descriptor_public_keys = match predefined_keys.hardware_account_dpub {
+            DescriptorPublicKey::XPub(DescriptorXKey {
+                origin: Some(origin),
+                xkey,
+                ..
+            }) => HwAccountLevelDescriptorPublicKeys::new(origin.0, xkey),
+            _ => panic!("Unsupported"),
+        };
+
+        let keyset = match account
+            .spending_keysets
+            .get(&account.active_keyset_id)
+            .unwrap()
+        {
+            SpendingKeyset::PrivateMultiSig(k) => k,
+            SpendingKeyset::LegacyMultiSig(_) => panic!("Legacy multi sig not supported"),
+        };
+
+        let mut psbt = psbt_with_tweaks(
+            psbt,
+            &Keyset {
+                hw_descriptor_public_keys: HwAccountLevelDescriptorPublicKeys::new(
+                    hw_descriptor_public_keys.root_fingerprint(),
+                    hw_descriptor_public_keys.account_xpub(),
+                ),
+                server_root_xpub: predefined_server_root_xpub(keyset.network, keyset.server_pub),
+                app_root_xprv: predefined_keys.app_root_xprv,
+            },
         )
-        .unwrap(),
-        sync_params: None,
-    };
-    let blockchain = RpcBlockchain::from_config(&rpc_config).unwrap();
-    let funding_address = wallet.get_address(AddressIndex::Peek(0)).unwrap();
-    treasury_fund_address(&funding_address, Amount::from_sat(50_000));
-    generate_block(1, &funding_address).unwrap();
-    wallet.sync(&blockchain, Default::default()).unwrap();
-
-    let (psbt, _details) = {
-        let mut builder = wallet.build_tx();
-        builder
-            .add_recipient(
-                wallet
-                    .get_address(AddressIndex::Peek(0))
-                    .unwrap()
-                    .script_pubkey(),
-                30_000,
-            )
-            .enable_rbf()
-            .fee_rate(bdk::FeeRate::from_sat_per_vb(1.0));
-        builder.finish().expect("Failed to build transaction")
-    };
-
-    let mut psbt = psbt_with_tweaks(
-        psbt,
-        &Keyset {
-            hw_descriptor_public_keys: HwAccountLevelDescriptorPublicKeys::new(
-                hw_ext_desc_pub.master_fingerprint(),
-                spending_hw_xpub,
-            ),
-            server_root_xpub,
-            app_root_xprv,
-        },
-    )
-    .unwrap();
-
-    wallet.sign(&mut psbt, SignOptions::default()).unwrap();
-
-    let wsm_service = http_server::config::extract::<wsm::Config>("test".into())
-        .unwrap()
-        .to_client()
         .unwrap();
 
-    let result = wsm_service
-        .client
-        .sign_psbt_v2(
-            &create_response.keyset_id.to_string(),
-            spending_app_xpub.public_key,
-            spending_hw_xpub.public_key,
-            &psbt.to_string(),
+        wallet.sign(&mut psbt, SignOptions::default()).unwrap();
+
+        psbt
+    };
+
+    let response = client
+        .sign_transaction_with_keyset(
+            &account.id,
+            &account.active_keyset_id,
+            &SignTransactionData {
+                psbt: app_signed_psbt.to_string(),
+                ..Default::default()
+            },
         )
         .await;
 
-    match result {
-        Ok(signed_psbt) => {
-            let psbt = Psbt::from_str(&signed_psbt.psbt).unwrap();
-            let finalized = psbt.finalize(&secp).unwrap();
-
-            let final_tx = finalized.extract_tx();
-            blockchain
-                .broadcast(&final_tx)
-                .expect("Failed to broadcast transaction");
-        }
-        Err(e) => {
-            println!("Error: {:?}", e);
-        }
-    }
-
-    static HARDENED_PATH: [ChildNumber; 3] = [
-        ChildNumber::Hardened { index: 84 },
-        ChildNumber::Hardened { index: 0 },
-        ChildNumber::Hardened { index: 0 },
-    ];
-
-    fn generate_wallet_descriptors(
-        secp: &Secp256k1<All>,
-        app_root_xprv: ExtendedPrivKey,
-        server_root_xpub: ExtendedPubKey,
-        hw_descriptor_public_keys: &(DescriptorPublicKey, DescriptorPublicKey),
-    ) -> (String, String) {
-        let (app_ext_desc_xprv, _) = derive_descriptor_keypair(
-            secp,
-            &app_root_xprv,
-            DerivationPath::from(HARDENED_PATH.as_ref()),
-            ChildNumber::from_normal_idx(0).expect("external index"),
-        )
-        .expect("app external descriptor key");
-        let (app_int_desc_xprv, _app_int_desc_xpub_) = derive_descriptor_keypair(
-            secp,
-            &app_root_xprv,
-            DerivationPath::from(HARDENED_PATH.as_ref()),
-            ChildNumber::from_normal_idx(1).expect("internal index"),
-        )
-        .expect("app internal descriptor key");
-
-        let (server_ext_desc_xpub, _) = derive_descriptor_public_key(
-            secp,
-            &server_root_xpub,
-            DerivationPath::from_str("m/84/0/0").expect("external path"),
-            ChildNumber::from_normal_idx(0).expect("external index"),
-        );
-        let (server_int_desc_xpub, _) = derive_descriptor_public_key(
-            secp,
-            &server_root_xpub,
-            DerivationPath::from_str("m/84/0/0").expect("external path"),
-            ChildNumber::from_normal_idx(1).expect("internal index"),
-        );
-
-        // Construct descriptor strings manually
-        let external_descriptor_str = format!(
-            "wsh(sortedmulti(2,{},{},{}))",
-            app_ext_desc_xprv, hw_descriptor_public_keys.0, server_ext_desc_xpub
-        );
-
-        let internal_descriptor_str = format!(
-            "wsh(sortedmulti(2,{},{},{}))",
-            app_int_desc_xprv, hw_descriptor_public_keys.1, server_int_desc_xpub
-        );
-
-        (external_descriptor_str, internal_descriptor_str)
-    }
-
-    fn derive_descriptor_keypair(
-        secp: &Secp256k1<All>,
-        root_xprv: &ExtendedPrivKey,
-        account_level_path: DerivationPath,
-        change_index: ChildNumber,
-    ) -> Result<(DescriptorSecretKey, DescriptorPublicKey), bdk::Error> {
-        let derived_xprv = root_xprv.derive_priv(secp, &account_level_path)?;
-        let origin: KeySource = (root_xprv.fingerprint(secp), account_level_path);
-
-        let derived_xprv_desc_key: DescriptorKey<Segwitv0> = derived_xprv.into_descriptor_key(
-            Some(origin.clone()),
-            DerivationPath::from([change_index].as_ref()),
-        )?;
-
-        match derived_xprv_desc_key {
-            DescriptorKey::Secret(desc_seckey, _, _) => {
-                let desc_pubkey = desc_seckey
-                    .to_public(secp)
-                    .map_err(|e| bdk::Error::Generic(e.to_string()))?;
-                Ok((desc_seckey, desc_pubkey))
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    fn derive_descriptor_public_key(
-        secp: &Secp256k1<All>,
-        root_xpub: &ExtendedPubKey,
-        unhardened_path: DerivationPath,
-        change_index: ChildNumber,
-    ) -> (DescriptorPublicKey, KeySource) {
-        let derived_xpub = root_xpub
-            .derive_pub(secp, &unhardened_path)
-            .expect("derived server xpub");
-        let origin = (root_xpub.fingerprint(), unhardened_path);
-
-        let derived_xpub_desc_key: DescriptorKey<Segwitv0> = derived_xpub
-            .into_descriptor_key(
-                Some(origin.clone()),
-                DerivationPath::from([change_index].as_ref()),
-            )
-            .expect("descriptor key");
-
-        match derived_xpub_desc_key {
-            DescriptorKey::Public(desc_pubkey, _, _) => (desc_pubkey, origin),
-            _ => unreachable!(),
-        }
-    }
+    assert_eq!(response.status_code, StatusCode::FORBIDDEN);
+    check_psbt(response.body, &wallet);
 }

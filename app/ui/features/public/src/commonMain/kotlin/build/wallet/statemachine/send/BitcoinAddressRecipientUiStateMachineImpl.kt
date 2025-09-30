@@ -27,8 +27,7 @@ class BitcoinAddressRecipientUiStateMachineImpl(
       mutableStateOf(
         State(
           enteredText = props.address?.address.orEmpty(),
-          validInvoiceInClipboard = props.validInvoiceInClipboard,
-          customPasteTriggered = false
+          validInvoiceInClipboard = props.validInvoiceInClipboard
         )
       )
     }
@@ -98,7 +97,7 @@ class BitcoinAddressRecipientUiStateMachineImpl(
       enteredText = state.enteredText,
       warningText = bitcoinAddressWarningText,
       onEnteredTextChanged = { enteredText ->
-        state = state.copy(enteredText = enteredText, customPasteTriggered = false)
+        state = state.copy(enteredText = enteredText)
       },
       showPasteButton = showPasteButton,
       onBack = props.onBack,
@@ -114,16 +113,15 @@ class BitcoinAddressRecipientUiStateMachineImpl(
           when (parsedPaymentData) {
             is BIP21 ->
               state =
-                state.copy(enteredText = parsedPaymentData.bip21PaymentData.onchainInvoice.address.address, customPasteTriggered = true)
+                state.copy(enteredText = parsedPaymentData.bip21PaymentData.onchainInvoice.address.address)
 
-            is Onchain -> state = state.copy(enteredText = parsedPaymentData.bitcoinAddress.address, customPasteTriggered = true)
+            is Onchain -> state = state.copy(enteredText = parsedPaymentData.bitcoinAddress.address)
             else -> {}
           }
         }
       },
       showSelfSendWarningWithRedirect = bitcoinAddressResult == BitcoinAddressResult.SelfSend,
-      onGoToUtxoConsolidation = props.onGoToUtxoConsolidation,
-      customPasteTriggered = state.customPasteTriggered
+      onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
     )
   }
 
@@ -154,7 +152,6 @@ class BitcoinAddressRecipientUiStateMachineImpl(
 
   private data class State(
     val enteredText: String,
-    val customPasteTriggered: Boolean,
     val validInvoiceInClipboard: ParsedPaymentData?,
   )
 }

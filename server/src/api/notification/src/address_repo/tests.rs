@@ -51,7 +51,7 @@ fn testnet_address() -> AddressAndKeysetId {
 #[tokio::test]
 async fn test_first_insert_succeeds(
     #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
     let acct_id = AccountId::gen().unwrap();
 
@@ -72,7 +72,7 @@ async fn test_first_insert_succeeds(
 async fn test_two_separate_inserts_succeeds(
     #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
     #[values(testnet_address(), mainnet_address())] addr2: AddressAndKeysetId,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
     let acct_id = AccountId::gen().unwrap();
 
@@ -103,7 +103,7 @@ async fn test_two_separate_inserts_succeeds(
 async fn test_batch_insert_succeeds(
     #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
     #[values(testnet_address(), mainnet_address())] addr2: AddressAndKeysetId,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
     let acct_id = AccountId::gen().unwrap();
 
@@ -149,7 +149,7 @@ async fn test_get_without_insert_returns_none(
 #[tokio::test]
 async fn test_second_insert_same_acct_succeeds(
     #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
     let acct_id = AccountId::gen().unwrap();
 
@@ -161,7 +161,7 @@ async fn test_second_insert_same_acct_succeeds(
 #[tokio::test]
 async fn test_second_insert_diff_acct_errors(
     #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
     let acct_id1 = AccountId::gen().unwrap();
     let acct_id2 = AccountId::gen().unwrap();
@@ -174,7 +174,7 @@ async fn test_second_insert_diff_acct_errors(
 #[tokio::test]
 async fn test_large_batch_insert_succeeds<F>(
     #[values(testnet_address, mainnet_address)] addr_gen: F,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) where
     F: Fn() -> AddressAndKeysetId,
 {
@@ -200,7 +200,7 @@ async fn test_large_batch_insert_succeeds<F>(
 #[tokio::test]
 async fn test_large_batch_get_succeeds<F>(
     #[values(testnet_address, mainnet_address)] addr_gen: F,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) where
     F: Fn() -> AddressAndKeysetId,
 {
@@ -230,7 +230,7 @@ async fn test_large_batch_get_succeeds<F>(
 #[tokio::test]
 async fn test_batch_get_mixed_known_and_unknown_repo_superset_succeeds<F>(
     #[values(testnet_address, mainnet_address)] addr_gen: F,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) where
     F: Fn() -> AddressAndKeysetId,
 {
@@ -260,7 +260,7 @@ async fn test_batch_get_mixed_known_and_unknown_repo_superset_succeeds<F>(
 #[tokio::test]
 async fn test_batch_get_mixed_known_and_unknown_query_superset_succeeds<F>(
     #[values(testnet_address, mainnet_address)] addr_gen: F,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) where
     F: Fn() -> AddressAndKeysetId,
 {
@@ -298,7 +298,7 @@ async fn test_batch_get_mixed_known_and_unknown_query_superset_succeeds<F>(
 #[rstest]
 #[tokio::test]
 async fn test_delete_all_addresses_empty_account(
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
     let acct_id = AccountId::gen().unwrap();
 
@@ -310,7 +310,7 @@ async fn test_delete_all_addresses_empty_account(
 #[tokio::test]
 async fn test_delete_all_addresses_single_address(
     #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
     let acct_id = AccountId::gen().unwrap();
 
@@ -334,7 +334,7 @@ async fn test_delete_all_addresses_multiple_addresses(
     #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
     #[values(testnet_address(), mainnet_address())] addr2: AddressAndKeysetId,
     #[values(testnet_address(), mainnet_address())] addr3: AddressAndKeysetId,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
     let acct_id = AccountId::gen().unwrap();
 
@@ -364,7 +364,7 @@ async fn test_delete_all_addresses_only_deletes_own_account(
     #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
     #[values(testnet_address(), mainnet_address())] addr2: AddressAndKeysetId,
     #[values(testnet_address(), mainnet_address())] addr3: AddressAndKeysetId,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
     let acct_id1 = AccountId::gen().unwrap();
     let acct_id2 = AccountId::gen().unwrap();
@@ -396,7 +396,7 @@ async fn test_delete_all_addresses_only_deletes_own_account(
 #[tokio::test]
 async fn test_large_batch_delete_all_succeeds<F>(
     #[values(testnet_address, mainnet_address)] addr_gen: F,
-    #[values(memory_repo(), ddb_repo().await)] mut repo: impl AddressWatchlistTrait,
+    #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) where
     F: Fn() -> AddressAndKeysetId,
 {

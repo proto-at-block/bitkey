@@ -130,7 +130,7 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
           }
         }
         QrCodeScanBodyModel(
-          headline = "Import your wallet",
+          headline = "Scan your Emergency Exit Kit",
           reticleLabel = "Scan the QR code in section 4 of the PDF",
           onClose = { state = currentState.onBack(props) },
           onQrCodeScanned = { rawData ->

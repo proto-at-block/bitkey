@@ -23,7 +23,7 @@ mod tests;
 pub trait AddressWatchlistTrait: DynClone + fmt::Debug + Send + Sync {
     /// Insert a list of addresses associated with a single AccountId
     async fn insert(
-        &mut self,
+        &self,
         addresses: &[AddressAndKeysetId],
         account_id: &AccountId,
     ) -> Result<(), Error>;
@@ -37,7 +37,7 @@ pub trait AddressWatchlistTrait: DynClone + fmt::Debug + Send + Sync {
 
     /// Delete all addresses for an account
     /// Always succeeds, even if no addresses exist for the account
-    async fn delete_all_addresses(&mut self, account_id: &AccountId) -> Result<(), Error>;
+    async fn delete_all_addresses(&self, account_id: &AccountId) -> Result<(), Error>;
 }
 
 dyn_clone::clone_trait_object!(AddressWatchlistTrait);

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use strum_macros::Display;
 use time::OffsetDateTime;
 use tracing::instrument;
+use types::account::spending::PrivateMultiSigSpendingKeyset;
 
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::database::AnyDatabase;
@@ -18,7 +19,11 @@ use self::daily_spend_limit_rule::DailySpendingLimitRule;
 use self::no_psbt_outputs_belong_to_wallet_rule::NoPsbtOutputsBelongToWalletRule;
 use crate::daily_spend_record::entities::SpendingEntry;
 use crate::entities::{Features, TransactionVerificationFeatures};
+use crate::spend_rules::all_psbt_inputs_belong_to_wallet_rule::AllPsbtInputsBelongToWalletRuleV2;
+use crate::spend_rules::all_psbt_outputs_belong_to_wallet_rule::AllPsbtOutputsBelongToWalletRuleV2;
+use crate::spend_rules::daily_spend_limit_rule::DailySpendingLimitRuleV2;
 use crate::spend_rules::errors::SpendRuleCheckError;
+use crate::spend_rules::no_psbt_outputs_belong_to_wallet_rule::NoPsbtOutputsBelongToWalletRuleV2;
 use crate::spend_rules::transaction_verification_rule::TransactionVerificationRule;
 
 mod address_screening_rule;
@@ -86,6 +91,35 @@ impl<'a> SpendRuleSet<'a> {
         }
     }
 
+    pub fn mobile_pay_v2(
+        private_keyset: &'a PrivateMultiSigSpendingKeyset,
+        features: &'a Features,
+        spending_history: &'a Vec<&'a SpendingEntry>,
+        screener_service: Arc<ScreenerService>,
+        transaction_verification_features: Option<TransactionVerificationFeatures>,
+        feature_flags_service: FeatureFlagsService,
+        context_key: Option<ContextKey>,
+    ) -> Self {
+        SpendRuleSet::MobilePay {
+            rules: vec![
+                Box::new(AddressScreeningRule::new(
+                    private_keyset.network.into(),
+                    screener_service,
+                    feature_flags_service,
+                    context_key,
+                )),
+                Box::new(DailySpendingLimitRuleV2::new(
+                    features,
+                    private_keyset,
+                    spending_history,
+                    OffsetDateTime::now_utc(),
+                )),
+                Box::new(AllPsbtInputsBelongToWalletRuleV2::new(private_keyset)),
+                Box::new(NoPsbtOutputsBelongToWalletRuleV2::new(private_keyset)),
+            ],
+        }
+    }
+
     pub fn sweep(
         source_wallet: &'a Wallet<AnyDatabase>,
         destination_wallet: &'a Wallet<AnyDatabase>,
@@ -103,6 +137,27 @@ impl<'a> SpendRuleSet<'a> {
                 )),
                 Box::new(AllPsbtInputsBelongToWalletRule::new(source_wallet)),
                 Box::new(AllPsbtOutputsBelongToWalletRule::new(destination_wallet)),
+            ],
+        }
+    }
+
+    pub fn sweep_v2(
+        source_keyset: &'a PrivateMultiSigSpendingKeyset,
+        destination_keyset: &'a PrivateMultiSigSpendingKeyset,
+        screener_service: Arc<ScreenerService>,
+        feature_flags_service: FeatureFlagsService,
+        context_key: Option<ContextKey>,
+    ) -> Self {
+        SpendRuleSet::Sweep {
+            rules: vec![
+                Box::new(AddressScreeningRule::new(
+                    source_keyset.network.into(),
+                    screener_service,
+                    feature_flags_service,
+                    context_key,
+                )),
+                Box::new(AllPsbtInputsBelongToWalletRuleV2::new(source_keyset)),
+                Box::new(AllPsbtOutputsBelongToWalletRuleV2::new(destination_keyset)),
             ],
         }
     }

@@ -107,7 +107,7 @@ class AccessCloudBackupUiStateMachineImpl(
 
       is CheckingCloudBackupUiState -> {
         LaunchedEffect("check cloud account for backup") {
-          cloudBackupRepository.readBackup(currentState.account)
+          cloudBackupRepository.readActiveBackup(currentState.account)
             .onSuccess { backup ->
               when (backup) {
                 null -> if (props.showErrorOnBackupMissing) {

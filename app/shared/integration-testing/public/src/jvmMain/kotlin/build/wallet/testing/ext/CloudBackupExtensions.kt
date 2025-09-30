@@ -31,7 +31,7 @@ suspend fun AppTester.readCloudBackup(cloudStoreAccount: CloudStoreAccount? = nu
     cloudStoreAccount
       ?: cloudStoreAccountRepository.currentAccount(cloudServiceProvider()).getOrThrow()
       ?: return null
-  return cloudBackupRepository.readBackup(cloudAccount).getOrThrow()
+  return cloudBackupRepository.readActiveBackup(cloudAccount).getOrThrow()
 }
 
 /**

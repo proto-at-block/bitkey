@@ -33,8 +33,8 @@ data class EmergencyExitKitImportPasteAppKeyBodyModel(
       headline = "Enter your Emergency Exit Kit details",
       sublineModel =
         LabelModel.StringWithStyledSubstringModel.from(
-          string = "Copy the code from the box labeled App Key backup directly from your Emergency Exit Kit, and paste it into the field below",
-          boldedSubstrings = immutableListOf("App Key backup")
+          string = "Copy the text block in section 4 of the PDF directly from your Emergency Exit Kit, and paste it into the field below.",
+          boldedSubstrings = immutableListOf("section 4")
         )
     ),
     mainContentList = immutableListOf(

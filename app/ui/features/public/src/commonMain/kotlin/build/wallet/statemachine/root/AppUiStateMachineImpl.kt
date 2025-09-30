@@ -18,12 +18,15 @@ import build.wallet.cloud.backup.CloudBackup
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.AppUpdateModalFeatureFlag
 import build.wallet.inappsecurity.BiometricAuthService
 import build.wallet.logging.logInfo
 import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform
+import build.wallet.platform.links.AppStoreUrlProvider
+import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.statemachine.account.ChooseAccountAccessUiProps
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
 import build.wallet.statemachine.account.create.full.CreateAccountUiProps
@@ -33,6 +36,7 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMac
 import build.wallet.statemachine.biometric.BiometricPromptProps
 import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
 import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.AppUpdateModalBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.*
@@ -90,6 +94,9 @@ class AppUiStateMachineImpl(
   private val welcomeToBitkeyScreenDuration: WelcomeToBitkeyScreenDuration,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val interstitialUiStateMachine: InterstitialUiStateMachine,
+  private val appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
+  private val appStoreUrlProvider: AppStoreUrlProvider,
+  private val deepLinkHandler: DeepLinkHandler,
 ) : AppUiStateMachine {
   /**
    * The last screen model emitted, if any.
@@ -108,6 +115,9 @@ class AppUiStateMachineImpl(
     }
     var accountData by remember { mutableStateOf<AccountData?>(null) }
     val deviceInfo = remember { deviceInfoProvider.getDeviceInfo() }
+
+    // Track whether user dismissed the update modal in this session
+    var isUpdateModalDismissed by remember { mutableStateOf(false) }
 
     val appState by produceState<AppState?>(initialValue = null) {
       value = loadAppService.loadAppState()
@@ -377,10 +387,30 @@ class AppUiStateMachineImpl(
         screenModel
       }
     }
-    return when {
-      appVariant.showDebugMenu ->
-        targetModel.copy(onTwoFingerDoubleTap = { isShowingDebugMenu = true })
+
+    // Check if app update modal should be shown
+    val isAppUpdateModalEnabled by appUpdateModalFeatureFlag.flagValue().collectAsState()
+    val shouldShowAppUpdateModal = isAppUpdateModalEnabled.value && !isUpdateModalDismissed
+    val finalModel = when {
+      shouldShowAppUpdateModal -> {
+        ScreenModel(
+          body = AppUpdateModalBodyModel(
+            onUpdate = {
+              deepLinkHandler.openDeeplink(appStoreUrlProvider.getAppStoreUrl(), null)
+            },
+            onCancel = {
+              isUpdateModalDismissed = true
+            }
+          )
+        )
+      }
       else -> targetModel
+    }
+
+    return when {
+      appVariant.showDebugMenu && !shouldShowAppUpdateModal ->
+        finalModel.copy(onTwoFingerDoubleTap = { isShowingDebugMenu = true })
+      else -> finalModel
     }
   }
 

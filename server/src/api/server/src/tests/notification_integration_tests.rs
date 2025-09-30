@@ -1,6 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
+use bdk_utils::bdk::bitcoin::{
+    address::NetworkUnchecked,
+    secp256k1::{rand::rngs::StdRng, rand::SeedableRng, Secp256k1},
+    Address, PublicKey,
+};
 use http::StatusCode;
+use notification::address_repo::AddressAndKeysetId;
 use notification::clients::iterable::IterableClient;
 use notification::routes::{SendTestPushData, SetNotificationsTriggersRequest};
 use notification::service::FetchForAccountInput;
@@ -130,7 +136,7 @@ async fn test_notifications_preferences() {
     let account = create_full_account(
         &mut context,
         &bootstrap.services,
-        Network::BitcoinSignet,
+        types::account::bitcoin::Network::BitcoinSignet,
         None,
     )
     .await;
@@ -299,7 +305,7 @@ async fn test_notifications_triggers() {
     let account = create_full_account(
         &mut context,
         &bootstrap.services,
-        Network::BitcoinSignet,
+        types::account::bitcoin::Network::BitcoinSignet,
         None,
     )
     .await;
@@ -485,4 +491,111 @@ async fn test_notifications_triggers() {
     // There should be a new trigger
     assert_ne!(triggers[0].created_at, created_at);
     assert_ne!(triggers[0].updated_at, updated_at);
+}
+
+#[tokio::test]
+async fn test_address_cleanup_when_money_movement_disabled() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // 1. Create account with predefined wallet
+    let (account, _) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    // 2. Enable money movement notifications
+    let preferences_with_money_movement = NotificationsPreferences {
+        account_security: HashSet::new(),
+        money_movement: HashSet::from([NotificationChannel::Push, NotificationChannel::Email]),
+        product_marketing: HashSet::new(),
+    };
+
+    let set_response = client
+        .set_notifications_preferences(
+            &account.id.to_string(),
+            &preferences_with_money_movement,
+            true,
+            true,
+            &keys,
+        )
+        .await;
+    assert_eq!(set_response.status_code, StatusCode::OK);
+
+    // 3. Generate unique watch addresses for this test
+    let secp = Secp256k1::new();
+    let mut rng = StdRng::seed_from_u64(42);
+
+    let pubkey_1 = PublicKey::new(secp.generate_keypair(&mut rng).1);
+    let pubkey_2 = PublicKey::new(secp.generate_keypair(&mut rng).1);
+
+    let addr_string_1 = Address::p2wpkh(&pubkey_1, Network::BitcoinSignet.into())
+        .unwrap()
+        .to_string();
+    let unchecked_address_1: Address<NetworkUnchecked> = addr_string_1.parse().unwrap();
+    let address_1 = AddressAndKeysetId::new(
+        unchecked_address_1,
+        types::account::identifiers::KeysetId::gen().unwrap(),
+    );
+
+    let addr_string_2 = Address::p2wpkh(&pubkey_2, Network::BitcoinSignet.into())
+        .unwrap()
+        .to_string();
+    let unchecked_address_2: Address<NetworkUnchecked> = addr_string_2.parse().unwrap();
+    let address_2 = AddressAndKeysetId::new(
+        unchecked_address_2,
+        types::account::identifiers::KeysetId::gen().unwrap(),
+    );
+
+    // 4. Register addresses (now that money movement notifications are enabled)
+    let register_response = client
+        .register_watch_address(
+            &account.id,
+            &vec![address_1.clone(), address_2.clone()].into(),
+        )
+        .await;
+    assert_eq!(register_response.status_code, StatusCode::OK);
+
+    // 5. Verify addresses exist in database
+    let address_repo = &bootstrap.services.address_service;
+    let results_before = address_repo
+        .get(&[address_1.address.clone(), address_2.address.clone()])
+        .await
+        .expect("Failed to query addresses");
+    assert_eq!(
+        results_before.len(),
+        2,
+        "Both addresses should exist after registration with money movement notifications enabled"
+    );
+
+    // 6. Disable money movement notifications to trigger cleanup
+    let preferences_no_money_movement = NotificationsPreferences {
+        account_security: HashSet::from([NotificationChannel::Push, NotificationChannel::Email]),
+        money_movement: HashSet::new(),
+        product_marketing: HashSet::from([NotificationChannel::Sms]),
+    };
+
+    let cleanup_response = client
+        .set_notifications_preferences(
+            &account.id.to_string(),
+            &preferences_no_money_movement,
+            true,
+            true,
+            &keys,
+        )
+        .await;
+    assert_eq!(cleanup_response.status_code, StatusCode::OK);
+
+    // 7. Verify addresses are automatically deleted
+    let results_after = address_repo
+        .get(&[address_1.address.clone(), address_2.address.clone()])
+        .await
+        .expect("Failed to query addresses after cleanup");
+    assert!(
+        results_after.is_empty(),
+        "Addresses should be automatically deleted when money movement notifications are disabled"
+    );
 }

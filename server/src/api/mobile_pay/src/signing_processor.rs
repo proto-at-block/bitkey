@@ -17,6 +17,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{event, Level};
 use types::account::identifiers::KeysetId;
+use types::account::spending::PrivateMultiSigSpendingKeyset;
 use wsm_rust_client::SigningService;
 
 pub mod state {
@@ -51,7 +52,7 @@ pub trait Signer: Sized {
     async fn sign_transaction(
         &self,
         rpc_uris: &ElectrumRpcUris,
-        source_descriptor: &DescriptorKeyset,
+        signing_method: &SigningMethod,
         keyset_id: &KeysetId,
     ) -> Result<Self::SigningProcessor, SigningError>;
 }
@@ -132,6 +133,24 @@ impl<T> fmt::Debug for SigningProcessor<T> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum SigningMethod {
+    LegacyMobilePay {
+        source_descriptor: DescriptorKeyset,
+    },
+    LegacySweep {
+        source_descriptor: DescriptorKeyset,
+        active_descriptor: DescriptorKeyset,
+    },
+    PrivateMobilePay {
+        source_keyset: PrivateMultiSigSpendingKeyset,
+    },
+    PrivateSweep {
+        source_keyset: PrivateMultiSigSpendingKeyset,
+        active_keyset: PrivateMultiSigSpendingKeyset,
+    },
+}
+
 #[async_trait]
 impl Signer for SigningProcessor<Validated> {
     type SigningProcessor = SigningProcessor<Signed>;
@@ -139,37 +158,58 @@ impl Signer for SigningProcessor<Validated> {
     async fn sign_transaction(
         &self,
         rpc_uris: &ElectrumRpcUris,
-        source_descriptor: &DescriptorKeyset,
+        signing_method: &SigningMethod,
         keyset_id: &KeysetId,
     ) -> Result<Self::SigningProcessor, SigningError> {
         let mut signed_psbt =
             record_histogram_async(TIME_TO_COSIGN.to_owned(), &self.state.context, || async {
-                self.sign_psbt(keyset_id, &self.state.psbt, source_descriptor)
+                self.sign_psbt(keyset_id, &self.state.psbt, signing_method)
                     .await
             })
             .await?;
 
-        let source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
-        if !source_wallet
-            .finalize_psbt(&mut signed_psbt, SignOptions::default())
-            .map_err(|e| SigningError::InvalidPsbt(e.to_string()))?
-        {
-            event!(
-                Level::WARN,
-                "Cannot create broadcaster because PSBT is not fully signed"
-            );
-            return Err(SigningError::CannotBroadcastNonFullySignedPsbt);
-        }
+        match signing_method {
+            SigningMethod::LegacyMobilePay { source_descriptor }
+            | SigningMethod::LegacySweep {
+                source_descriptor, ..
+            } => {
+                let source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
+                if !source_wallet
+                    .finalize_psbt(&mut signed_psbt, SignOptions::default())
+                    .map_err(|e| SigningError::InvalidPsbt(e.to_string()))?
+                {
+                    event!(
+                        Level::WARN,
+                        "Cannot create broadcaster because PSBT is not fully signed"
+                    );
+                    return Err(SigningError::CannotBroadcastNonFullySignedPsbt);
+                }
 
-        Ok(SigningProcessor {
-            wsm_signing_service: self.wsm_signing_service.clone(),
-            feature_flags_service: self.feature_flags_service.clone(),
-            transaction_broadcaster: self.transaction_broadcaster.clone(),
-            state: Signed {
-                context: self.state.context.clone(),
-                finalized_psbt: signed_psbt,
-            },
-        })
+                Ok(SigningProcessor {
+                    wsm_signing_service: self.wsm_signing_service.clone(),
+                    feature_flags_service: self.feature_flags_service.clone(),
+                    transaction_broadcaster: self.transaction_broadcaster.clone(),
+                    state: Signed {
+                        context: self.state.context.clone(),
+                        finalized_psbt: signed_psbt,
+                    },
+                })
+            }
+            SigningMethod::PrivateMobilePay { .. } | SigningMethod::PrivateSweep { .. } =>
+            // Unlike the legacy signing, WSM would finalize for us. We won't need to finalize
+            // here.
+            {
+                Ok(SigningProcessor {
+                    wsm_signing_service: self.wsm_signing_service.clone(),
+                    feature_flags_service: self.feature_flags_service.clone(),
+                    transaction_broadcaster: self.transaction_broadcaster.clone(),
+                    state: Signed {
+                        context: self.state.context.clone(),
+                        finalized_psbt: signed_psbt,
+                    },
+                })
+            }
+        }
     }
 }
 
@@ -196,24 +236,44 @@ impl SigningProcessor<Validated> {
         &self,
         keyset_id: &KeysetId,
         psbt: &Psbt,
-        requested_descriptor: &DescriptorKeyset,
+        signing_method: &SigningMethod,
     ) -> Result<Psbt, SigningError> {
-        let receiving = requested_descriptor
-            .receiving()
-            .into_multisig_descriptor()?;
-        let change = requested_descriptor.change().into_multisig_descriptor()?;
-        let result = self
-            .wsm_signing_service
-            .sign_psbt(
-                &keyset_id.to_string(),
-                &receiving.to_string(),
-                &change.to_string(),
-                &psbt.to_string(),
-            )
-            .await?;
+        match signing_method {
+            SigningMethod::LegacyMobilePay { source_descriptor }
+            | SigningMethod::LegacySweep {
+                source_descriptor, ..
+            } => {
+                let receiving = source_descriptor.receiving().into_multisig_descriptor()?;
+                let change = source_descriptor.change().into_multisig_descriptor()?;
+                let result = self
+                    .wsm_signing_service
+                    .sign_psbt(
+                        &keyset_id.to_string(),
+                        &receiving.to_string(),
+                        &change.to_string(),
+                        &psbt.to_string(),
+                    )
+                    .await?;
 
-        let signed_psbt = Psbt::from_str(&result.psbt)?;
-        Ok(signed_psbt)
+                let signed_psbt = Psbt::from_str(&result.psbt)?;
+                Ok(signed_psbt)
+            }
+            SigningMethod::PrivateMobilePay { source_keyset }
+            | SigningMethod::PrivateSweep { source_keyset, .. } => {
+                let result = self
+                    .wsm_signing_service
+                    .sign_psbt_v2(
+                        &keyset_id.to_string(),
+                        source_keyset.app_pub,
+                        source_keyset.hardware_pub,
+                        &psbt.to_string(),
+                    )
+                    .await?;
+
+                let signed_psbt = Psbt::from_str(&result.psbt)?;
+                Ok(signed_psbt)
+            }
+        }
     }
 }
 
@@ -222,16 +282,18 @@ mod tests {
     use crate::error::SigningError;
 
     use crate::signing_processor::state::Initialized;
-    use crate::signing_processor::{Broadcaster, Signer, SigningProcessor, SigningValidator};
+    use crate::signing_processor::{
+        Broadcaster, Signer, SigningMethod, SigningProcessor, SigningValidator,
+    };
     use crate::spend_rules::errors::SpendRuleCheckError;
     use crate::spend_rules::test::TestRule;
     use crate::spend_rules::SpendRuleSet;
     use account::service::tests::default_electrum_rpc_uris;
     use async_trait::async_trait;
     use bdk_utils::bdk::bitcoin::psbt::{PartiallySignedTransaction, Psbt};
-    use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
+    use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, Secp256k1};
     use bdk_utils::bdk::bitcoin::Network;
-    use bdk_utils::bdk::keys::DescriptorPublicKey;
+    use bdk_utils::bdk::keys::{DescriptorPublicKey, DescriptorSecretKey};
     use bdk_utils::error::BdkUtilError;
     use bdk_utils::{DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait};
     use feature_flags::config::Config;
@@ -356,8 +418,9 @@ mod tests {
 
     #[fixture]
     fn descriptor_for_funded_wallet() -> DescriptorKeyset {
-        let app_dpub = DescriptorPublicKey::from_str("[7699ff15/84'/1'/0']tpubDFfAjKJFaQarBKesL9u6T64LuWjHyB6kdLv6gGdngVKfJGC7BTCcXKjahFxgMfPSgCPyoVFmK4ALuq4L3pk7p2i2FEgBJdGVmbpxty9MQzw/*").unwrap();
-        let hardware_dpub = DescriptorPublicKey::from_str("[08254319/84'/1'/0']tpubDEitjEyJG3W5vcinDWPD1sYtY4EmePDrPXCSs15Q7TkR78Fuyi21X1UpEpYXdoWc9sUJbsWpkd77VN8ZiJMHcnHvUhmsRqapsUdU7Mzrncf/*").unwrap();
+        let app_dprv = DescriptorSecretKey::from_str("[70cb0ceb/84'/1'/0']tprv8gLQAzx1QcLE9VdTu83J9vGn2idMmRWqePdKvPp57FPih1uNSQRyBopacV8LiZcY8S3sZFfw3RNGv7usFzawLgsqGSve39n87MQ46qV24gt/*").unwrap();
+        let app_dpub = app_dprv.to_public(&Secp256k1::new()).unwrap();
+        let hardware_dpub = DescriptorPublicKey::from_str("[a601ec2c/84'/1'/0']tpubDC7RbD1aXGn242JYyYjv7shKrQMxyTZ4h1ream2sq9ADwBWoDkhHvnsMS4sRiamESzcx1ZEZwWUf4ayQ1UMGutgZFz88q2FSvubWq6yTFWA/*").unwrap();
         let server_dpub = DescriptorPublicKey::from_str("[c345e1e9/84'/1'/0']tpubDDC5YGNGhebUAGw8nKsTCTbfutQwAXNzyATcnCsbhCjfdt2a8cpGbojfgAzPnsdsXxVypwjz2uGUV9dpWh211PeYhuHHumjRs7dgRLKcKk1/*").unwrap();
         let network = Network::Signet;
 
@@ -480,7 +543,9 @@ mod tests {
         let result = signing_processor
             .sign_transaction(
                 &default_electrum_rpc_uris(),
-                &descriptor_for_funded_wallet,
+                &SigningMethod::LegacyMobilePay {
+                    source_descriptor: descriptor_for_funded_wallet,
+                },
                 &keyset_id,
             )
             .await;
@@ -531,7 +596,9 @@ mod tests {
         let result = signing_processor
             .sign_transaction(
                 &default_electrum_rpc_uris(),
-                &descriptor_for_funded_wallet,
+                &SigningMethod::LegacyMobilePay {
+                    source_descriptor: descriptor_for_funded_wallet,
+                },
                 &keyset_id,
             )
             .await;
@@ -584,7 +651,9 @@ mod tests {
         let result = signing_processor
             .sign_transaction(
                 &default_electrum_rpc_uris(),
-                &descriptor_for_funded_wallet,
+                &SigningMethod::LegacyMobilePay {
+                    source_descriptor: descriptor_for_funded_wallet,
+                },
                 &KeysetId::gen().expect("Failed to generate keyset id"),
             )
             .await

@@ -41,7 +41,7 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
     onboardApp.cloudBackupRepository
-      .readBackup(
+      .readActiveBackup(
         CloudStoreAccountFake.CloudStoreAccount1Fake
       )
       .getOrThrow()
@@ -100,7 +100,7 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
     onboardApp.cloudBackupRepository
-      .readBackup(
+      .readActiveBackup(
         CloudStoreAccountFake.CloudStoreAccount1Fake
       )
       .getOrThrow()

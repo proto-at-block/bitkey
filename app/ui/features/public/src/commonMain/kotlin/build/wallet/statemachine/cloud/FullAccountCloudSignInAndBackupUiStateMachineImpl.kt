@@ -141,7 +141,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
 
       is CheckingCloudBackupUiState -> {
         LaunchedEffect("check cloud account for backup") {
-          cloudBackupRepository.readBackup(state.account)
+          cloudBackupRepository.readActiveBackup(state.account)
             .onSuccess { backup ->
               when (backup) {
                 null -> uiState = CreatingAndSavingBackupUiState(state.account, state.sealedCsek)

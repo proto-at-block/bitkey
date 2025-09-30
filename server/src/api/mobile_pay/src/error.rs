@@ -50,6 +50,8 @@ pub enum SigningError {
     InvalidKeysetType(KeysetId),
     #[error("Conflicting keyset type")]
     ConflictingKeysetType,
+    #[error("Invalid signing method for strategy")]
+    InvalidSigningMethodForStrategy,
 }
 
 impl From<SigningError> for ApiError {
@@ -69,7 +71,8 @@ impl From<SigningError> for ApiError {
             SigningError::InvalidPsbt(_)
             | SigningError::PsbtParsingFailed(_)
             | SigningError::CannotBroadcastNonFullySignedPsbt
-            | SigningError::InvalidKeysetType(_) => ApiError::GenericBadRequest(err_msg),
+            | SigningError::InvalidKeysetType(_)
+            | SigningError::InvalidSigningMethodForStrategy => ApiError::GenericBadRequest(err_msg),
             SigningError::SpendRuleCheckFailed(errors) => {
                 if errors.has_error(&SpendRuleCheckError::SpendLimitInactive) {
                     ApiError::GenericForbidden(err_msg)

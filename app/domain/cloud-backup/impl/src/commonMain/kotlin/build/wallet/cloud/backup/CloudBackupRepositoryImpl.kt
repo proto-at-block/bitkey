@@ -17,6 +17,7 @@ import build.wallet.logging.logInfo
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
+import kotlinx.datetime.Clock
 
 @BitkeyInject(AppScope::class)
 class CloudBackupRepositoryImpl(
@@ -24,34 +25,14 @@ class CloudBackupRepositoryImpl(
   private val cloudBackupDao: CloudBackupDao,
   private val authTokensService: AuthTokensService,
   private val jsonSerializer: JsonSerializer,
+  private val clock: Clock,
 ) : CloudBackupRepository {
   // Key used to store backups in cloud key-value store
   private val cloudBackupKey = "cloud-backup"
 
-  override suspend fun readBackup(
+  override suspend fun readActiveBackup(
     cloudStoreAccount: CloudStoreAccount,
-  ): Result<CloudBackup?, CloudBackupError> =
-    coroutineBinding {
-      // Read encoded backup in JSON format, if any
-      val backupEncoded: String? =
-        cloudKeyValueStore
-          .getString(cloudStoreAccount, cloudBackupKey)
-          .mapPossibleRectifiableErrors()
-          .bind()
-
-      when (backupEncoded) {
-        null -> null
-        else ->
-          // Found encoded app data
-          // Attempt to decode as V2 backup
-          // When V3 is added, try V3 first then fall back to V2. See the cloud backup README.md.
-          jsonSerializer.decodeFromStringResult<CloudBackupV2>(backupEncoded)
-            .mapError {
-              UnrectifiableCloudBackupError(UnknownAppDataFoundError(it))
-            }
-            .bind()
-      }
-    }.logFailure(Warn) { "Error reading cloud backup from cloud storage" }
+  ): Result<CloudBackup?, CloudBackupError> = readBackup(cloudStoreAccount, cloudBackupKey)
 
   override suspend fun writeBackup(
     accountId: AccountId,
@@ -61,12 +42,10 @@ class CloudBackupRepositoryImpl(
   ): Result<Unit, CloudBackupError> =
     coroutineBinding {
       // Encode backup to JSON
-      val backupEncoded: String =
-        when (backup) {
-          is CloudBackupV2 -> jsonSerializer.encodeToStringResult<CloudBackupV2>(backup)
-        }
-          .mapPossibleRectifiableErrors()
-          .bind()
+      val backupEncoded: String = when (backup) {
+        is CloudBackupV2 -> jsonSerializer.encodeToStringResult<CloudBackupV2>(backup)
+      }.mapPossibleRectifiableErrors()
+        .bind()
 
       if (requireAuthRefresh) {
         // Make sure the cloud backup represents an account state that can authenticate.
@@ -116,6 +95,72 @@ class CloudBackupRepositoryImpl(
           .bind()
       }
     }
+
+  override suspend fun archiveBackup(
+    cloudStoreAccount: CloudStoreAccount,
+    backup: CloudBackup,
+  ): Result<Unit, CloudBackupError> =
+    coroutineBinding {
+      val backupEncoded: String = when (backup) {
+        is CloudBackupV2 -> jsonSerializer.encodeToStringResult<CloudBackupV2>(backup)
+      }.mapPossibleRectifiableErrors()
+        .bind()
+
+      val newKey = "$cloudBackupKey-${clock.now()}"
+
+      cloudKeyValueStore
+        .setString(cloudStoreAccount, newKey, backupEncoded)
+        .mapPossibleRectifiableErrors()
+        .logFailure(Warn) { "Error archiving cloud backup to cloud key-value store" }
+        .bind()
+    }
+
+  override suspend fun readArchivedBackups(
+    cloudStoreAccount: CloudStoreAccount,
+  ): Result<List<CloudBackup>, CloudBackupError> =
+    coroutineBinding {
+      val cloudBackupKeys = cloudKeyValueStore
+        .keys(cloudStoreAccount)
+        .mapPossibleRectifiableErrors()
+        .bind()
+        .filter { it.startsWith(cloudBackupKey) && it != cloudBackupKey }
+
+      val backups = buildList {
+        cloudBackupKeys.forEach { key ->
+          val backup = readBackup(cloudStoreAccount, key)
+            .mapPossibleRectifiableErrors()
+            .bind()
+          add(backup)
+        }
+      }.mapNotNull { it }
+
+      backups
+    }
+
+  private suspend fun readBackup(
+    cloudStoreAccount: CloudStoreAccount,
+    key: String,
+  ): Result<CloudBackup?, CloudBackupError> =
+    coroutineBinding {
+      // Read encoded backup in JSON format, if any
+      val backupEncoded: String? = cloudKeyValueStore
+        .getString(cloudStoreAccount, key)
+        .mapPossibleRectifiableErrors()
+        .bind()
+
+      when (backupEncoded) {
+        null -> null
+        else ->
+          // Found encoded app data
+          // Attempt to decode as V2 backup
+          // When V3 is added, try V3 first then fall back to V2. See the cloud backup README.md.
+          jsonSerializer.decodeFromStringResult<CloudBackupV2>(backupEncoded)
+            .mapError {
+              UnrectifiableCloudBackupError(UnknownAppDataFoundError(it))
+            }
+            .bind()
+      }
+    }.logFailure(Warn) { "Error reading cloud backup from cloud storage" }
 
   private fun <T> Result<T, Throwable>.mapPossibleRectifiableErrors(): Result<T, CloudBackupError> {
     return mapError { error ->

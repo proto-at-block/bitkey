@@ -85,9 +85,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     // Getting started tasks are populated
     app.gettingStartedTaskDao.getTasks().shouldContainExactly(
       GettingStartedTask(TaskId.AddBitcoin, TaskState.Incomplete),
-      GettingStartedTask(TaskId.InviteTrustedContact, TaskState.Incomplete),
-      GettingStartedTask(TaskId.EnableSpendingLimit, TaskState.Incomplete),
-      GettingStartedTask(TaskId.AddAdditionalFingerprint, TaskState.Incomplete)
+      GettingStartedTask(TaskId.EnableSpendingLimit, TaskState.Incomplete)
     )
   }
 
@@ -140,9 +138,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     // Getting started tasks are populated
     app.gettingStartedTaskDao.getTasks().shouldContainExactly(
       GettingStartedTask(TaskId.AddBitcoin, TaskState.Incomplete),
-      GettingStartedTask(TaskId.InviteTrustedContact, TaskState.Incomplete),
-      GettingStartedTask(TaskId.EnableSpendingLimit, TaskState.Incomplete),
-      GettingStartedTask(TaskId.AddAdditionalFingerprint, TaskState.Incomplete)
+      GettingStartedTask(TaskId.EnableSpendingLimit, TaskState.Incomplete)
     )
   }
 

@@ -20,9 +20,14 @@ import build.wallet.bootstrap.AppState.HasActiveSoftwareAccount
 import build.wallet.bootstrap.LoadAppServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.feature.flags.AppUpdateModalFeatureFlag
 import build.wallet.inappsecurity.BiometricAuthServiceFake
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.platform.links.AppStoreUrlProviderMock
+import build.wallet.platform.links.DeepLinkHandlerMock
 import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
@@ -34,6 +39,7 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
 import build.wallet.statemachine.biometric.BiometricPromptProps
 import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
+import build.wallet.statemachine.core.AppUpdateModalBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SplashBodyModel
@@ -130,6 +136,12 @@ class AppUiStateMachineImplTests : FunSpec({
 
   val datadogRumMonitor = DatadogRumMonitorFake(turbines::create)
 
+  val deepLinkHandler = DeepLinkHandlerMock(turbines::create)
+
+  val appStoreUrlProvider = AppStoreUrlProviderMock()
+
+  val appUpdateModalFeatureFlag = AppUpdateModalFeatureFlag(FeatureFlagDaoFake())
+
   val interstitialUiStateMachine = InterstitialUiStateMachineFake()
 
   // Fakes are stateful, need to reinitialize before each test to reset the state.
@@ -138,6 +150,8 @@ class AppUiStateMachineImplTests : FunSpec({
     loadAppService.appState.value = AppState.Undetermined
     accountDataStateMachine.reset()
     biometricAuthService.reset()
+    deepLinkHandler.reset()
+    appStoreUrlProvider.reset()
     stateMachine =
       AppUiStateMachineImpl(
         appVariant = AppVariant.Development,
@@ -181,7 +195,10 @@ class AppUiStateMachineImplTests : FunSpec({
         splashScreenDelay = SplashScreenDelay(10.milliseconds),
         welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
         deviceInfoProvider = DeviceInfoProviderMock(),
-        interstitialUiStateMachine = interstitialUiStateMachine
+        interstitialUiStateMachine = interstitialUiStateMachine,
+        appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
+        appStoreUrlProvider = appStoreUrlProvider,
+        deepLinkHandler = deepLinkHandler
       )
     interstitialUiStateMachine.reset()
   }
@@ -189,6 +206,12 @@ class AppUiStateMachineImplTests : FunSpec({
   suspend fun EventTrackerMock.awaitSplashScreenEvent() {
     eventCalls.awaitItem().shouldBe(
       TrackedAction(ACTION_APP_SCREEN_IMPRESSION, GeneralEventTrackerScreenId.SPLASH_SCREEN)
+    )
+  }
+
+  suspend fun EventTrackerMock.awaitAppUpdateModalEvent() {
+    eventCalls.awaitItem().shouldBe(
+      TrackedAction(ACTION_APP_SCREEN_IMPRESSION, GeneralEventTrackerScreenId.APP_UPDATE_MODAL)
     )
   }
 
@@ -654,6 +677,69 @@ class AppUiStateMachineImplTests : FunSpec({
         account.shouldBe(FullAccountMock)
       }
       appWorkerExecutor.executeAllCalls.awaitItem()
+    }
+  }
+
+  test("Update modal shows when feature flag is enabled") {
+    appUpdateModalFeatureFlag.setFlagValue(BooleanFlag(true))
+
+    accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
+
+    stateMachine.test(Unit) {
+      // Should show the full screen update modal immediately
+      awaitBody<AppUpdateModalBodyModel> {
+        onUpdate()
+        deepLinkHandler.openDeeplinkCalls.awaitItem()
+          .shouldBe("https://fake.app.store/test")
+      }
+
+      eventTracker.eventCalls.awaitItem()
+
+      appWorkerExecutor.executeAllCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("Update modal cancel dismisses modal") {
+    appUpdateModalFeatureFlag.setFlagValue(BooleanFlag(true))
+
+    accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
+
+    stateMachine.test(Unit) {
+      // Should show the update modal
+      awaitBody<AppUpdateModalBodyModel> {
+        onCancel()
+      }
+
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      awaitBodyMock<HomeUiProps> {
+        account.shouldBe(ActiveKeyboxLoadedDataMock.account)
+      }
+
+      appWorkerExecutor.executeAllCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("Update modal does not show when feature flag is disabled") {
+    appUpdateModalFeatureFlag.setFlagValue(BooleanFlag(false))
+
+    accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      // Should show the normal home screen, not the update modal
+      awaitBodyMock<HomeUiProps> {
+        account.shouldBe(ActiveKeyboxLoadedDataMock.account)
+        lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
+      }
+
+      appWorkerExecutor.executeAllCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 })

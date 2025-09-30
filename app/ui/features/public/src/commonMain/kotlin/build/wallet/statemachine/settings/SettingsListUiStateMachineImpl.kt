@@ -11,6 +11,8 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.settings.SettingsBodyModel.RowModel
@@ -29,11 +31,13 @@ import kotlin.reflect.KClass
 class SettingsListUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val coachmarkService: CoachmarkService,
+  private val privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
     val scope = rememberStableCoroutineScope()
+    val privateWalletMigrationEnabled by privateWalletMigrationFeatureFlag.flagValue().collectAsState()
 
     var coachmarksToDisplay by remember { mutableStateOf(immutableListOf<CoachmarkIdentifier>()) }
     LaunchedEffect("coachmarks") {
@@ -77,11 +81,12 @@ class SettingsListUiStateMachineImpl(
           props = props,
           appFunctionalityStatus = appFunctionalityStatus,
           title = "Advanced",
-          rowTypes = immutableListOf(
+          rowTypes = immutableListOfNotNull(
             CustomElectrumServer::class,
             DebugMenu::class,
             UtxoConsolidation::class,
-            ExportTools::class
+            ExportTools::class,
+            PrivateWalletMigration::class.takeIf { privateWalletMigrationEnabled.isEnabled() }
           )
         ),
         SettingsSection(
@@ -147,6 +152,7 @@ class SettingsListUiStateMachineImpl(
         is UtxoConsolidation -> Pair(SmallIconConsolidation, "UTXO Consolidation")
         is InheritanceManagement -> Pair(SmallIconInheritance, "Inheritance")
         is ExportTools -> Pair(SmallIconDocument, "Exports")
+        is PrivateWalletMigration -> Pair(SmallIconWallet, "Enhanced wallet privacy")
       }
     val isRowEnabled = isRowEnabled(appFunctionalityStatus)
     return RowModel(
@@ -196,6 +202,7 @@ class SettingsListUiStateMachineImpl(
       is ExportTools -> appFunctionalityStatus.featureStates.exportTools == Available
       is UtxoConsolidation -> appFunctionalityStatus.featureStates.utxoConsolidation == Available
       is InheritanceManagement -> appFunctionalityStatus.featureStates.helpCenter == Available
+      is PrivateWalletMigration -> appFunctionalityStatus.featureStates.securityAndRecovery == Available
     }
   }
 }

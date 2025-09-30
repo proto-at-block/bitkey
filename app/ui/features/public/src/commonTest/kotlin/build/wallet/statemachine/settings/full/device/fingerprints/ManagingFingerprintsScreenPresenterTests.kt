@@ -17,11 +17,6 @@ import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockMethod
-import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
-import build.wallet.home.GettingStartedTask.TaskState.Complete
-import build.wallet.home.GettingStartedTask.TaskState.Incomplete
-import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.statemachine.BodyModelMock
@@ -55,7 +50,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ManagingFingerprintsScreenPresenterTests : FunSpec({
-  val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
   val eventTracker = EventTrackerMock(turbines::create)
   val metricTrackerService = MetricTrackerServiceFake()
@@ -73,7 +67,6 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
       object : EnrollingFingerprintUiStateMachine, ScreenStateMachineMock<EnrollingFingerprintProps>(
         "enrolling fingerprints"
       ) {},
-    gettingStartedTaskDao = gettingStartedTaskDao,
     eventTracker = eventTracker,
     metricTrackerService = metricTrackerService,
     hardwareUnlockInfoService = hardwareUnlockInfoService
@@ -245,10 +238,6 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
 
   test("tap on add fingerprint and save") {
     presenter.test(screen) {
-      gettingStartedTaskDao.addTasks(
-        listOf(GettingStartedTask(id = AddAdditionalFingerprint, state = Incomplete))
-      )
-
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -317,12 +306,6 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
         // Added fingerprint toast is shown
         toastModel.shouldNotBeNull().title.shouldBe("Fingerprint added")
       }
-
-      gettingStartedTaskDao.getTasks().shouldContainExactly(
-        GettingStartedTask(
-          id = AddAdditionalFingerprint, state = Complete
-        )
-      )
 
       hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 3 }
     }

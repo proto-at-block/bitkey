@@ -44,6 +44,8 @@ import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
+import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiProps
+import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiStateMachine
 import build.wallet.ui.model.alert.ButtonAlertModel
 
 @BitkeyInject(ActivityScope::class)
@@ -64,6 +66,7 @@ class SettingsHomeUiStateMachineImpl(
   private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
   private val exportToolsUiStateMachine: ExportToolsUiStateMachine,
   private val transactionVerificationPolicyStateMachine: TxVerificationPolicyStateMachine,
+  private val privateWalletMigrationUiStateMachine: PrivateWalletMigrationUiStateMachine,
 ) : SettingsHomeUiStateMachine {
   @Composable
   override fun model(props: SettingsHomeUiProps): ScreenModel {
@@ -123,6 +126,9 @@ class SettingsHomeUiStateMachineImpl(
                       },
                       SettingsListUiProps.SettingsListRow.ExportTools {
                         state = ShowingExportToolsUiState
+                      },
+                      SettingsListUiProps.SettingsListRow.PrivateWalletMigration {
+                        state = ShowingPrivateWalletMigrationUiState
                       }
                     ),
                   onShowAlert = { alertModel = it },
@@ -281,6 +287,16 @@ class SettingsHomeUiStateMachineImpl(
           )
         )
       }
+
+      is ShowingPrivateWalletMigrationUiState -> {
+        privateWalletMigrationUiStateMachine.model(
+          PrivateWalletMigrationUiProps(
+            account = props.account as FullAccount,
+            onMigrationComplete = { state = ShowingAllSettingsUiState },
+            onExit = { state = ShowingAllSettingsUiState }
+          )
+        )
+      }
     }
   }
 
@@ -344,5 +360,10 @@ class SettingsHomeUiStateMachineImpl(
      * Showing the UI for toggling/changing the Transaction Verification Policy.
      */
     data object ShowingTransactionVerificationPolicyState : SettingsListState()
+
+    /**
+     * Showing the UI for private wallet migration.
+     */
+    data object ShowingPrivateWalletMigrationUiState : SettingsListState()
   }
 }

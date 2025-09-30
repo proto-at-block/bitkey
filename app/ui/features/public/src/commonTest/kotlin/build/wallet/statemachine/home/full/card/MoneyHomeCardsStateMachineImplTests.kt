@@ -57,8 +57,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         GettingStartedCardUiProps(
           onAddBitcoin = {},
           onEnableSpendingLimit = {},
-          onInviteTrustedContact = {},
-          onAddAdditionalFingerprint = {},
           onShowAlert = {},
           onDismissAlert = {}
         ),

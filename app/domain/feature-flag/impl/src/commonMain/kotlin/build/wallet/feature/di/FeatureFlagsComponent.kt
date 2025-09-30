@@ -126,6 +126,21 @@ interface FeatureFlagsComponent {
     ChaincodeDelegationFeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun receiveV2ScreenFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    ReceiveV2ScreenFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun appUpdateModalFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    AppUpdateModalFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun privateWalletMigrationFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    PrivateWalletMigrationFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
     coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
@@ -148,6 +163,9 @@ interface FeatureFlagsComponent {
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
     chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
     onboardingCompletionFailsafeFeatureFlag: OnboardingCompletionFailsafeFeatureFlag,
+    receiveV2ScreenFeatureFlag: ReceiveV2ScreenFeatureFlag,
+    appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
+    privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       softwareWalletIsEnabledFeatureFlag,
@@ -164,6 +182,9 @@ interface FeatureFlagsComponent {
       inheritanceUseEncryptedDescriptorFeatureFlag,
       encryptedDescriptorBackupsFeatureFlag,
       encryptedDescriptorSupportUploadFeatureFlag,
+      receiveV2ScreenFeatureFlag,
+      appUpdateModalFeatureFlag,
+      privateWalletMigrationFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
       utxoMaxConsolidationCountFeatureFlag,

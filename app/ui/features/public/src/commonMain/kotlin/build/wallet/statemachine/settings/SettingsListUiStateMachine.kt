@@ -53,5 +53,7 @@ data class SettingsListUiProps(
     data class InheritanceManagement(override val onClick: () -> Unit) : SettingsListRow
 
     data class ExportTools(override val onClick: () -> Unit) : SettingsListRow
+
+    data class PrivateWalletMigration(override val onClick: () -> Unit) : SettingsListRow
   }
 }

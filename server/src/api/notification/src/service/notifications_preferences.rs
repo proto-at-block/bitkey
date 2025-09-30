@@ -59,10 +59,9 @@ impl Service {
             .await
             .map_err(ApiError::from)?;
 
-        let notifications_preferences_state =
-            &account.get_common_fields().notifications_preferences_state;
+        let old_preferences_state = &account.get_common_fields().notifications_preferences_state;
 
-        if !notifications_preferences_state
+        if !old_preferences_state
             .account_security
             .is_subset(&input.notifications_preferences.account_security)
             && !input
@@ -95,28 +94,62 @@ impl Service {
                 .await?;
         }
 
-        let updated_account = &account
-            .update(CommonAccountFields {
-                notifications_preferences_state: notifications_preferences_state
-                    .update(input.notifications_preferences),
-                ..account.get_common_fields().clone()
-            })
-            .map_err(ApiError::from)?;
+        let new_preferences_state = old_preferences_state.update(input.notifications_preferences);
 
-        self.account_repo
-            .persist(updated_account)
-            .await
-            .map_err(ApiError::from)?;
+        // If cleanup fails, fail the entire request to maintain consistency
+        self.cleanup_addresses_if_needed(
+            input.account_id,
+            old_preferences_state,
+            &new_preferences_state,
+        )
+        .await?;
+
+        // Only update account preferences if cleanup succeeded
+        let updated_account = account.update(CommonAccountFields {
+            notifications_preferences_state: new_preferences_state,
+            ..account.get_common_fields().clone()
+        })?;
+
+        // Persist account changes
+        self.account_repo.persist(&updated_account).await?;
 
         capture_consents(
             &self.consent_repo,
             &account,
-            notifications_preferences_state,
+            old_preferences_state,
             &updated_account
                 .get_common_fields()
                 .notifications_preferences_state,
         )
         .await?;
+
+        Ok(())
+    }
+
+    /// Cleanup watch addresses when money movement notifications are fully disabled
+    pub(crate) async fn cleanup_addresses_if_needed(
+        &self,
+        account_id: &types::account::identifiers::AccountId,
+        old_preferences: &NotificationsPreferencesState,
+        new_preferences: &NotificationsPreferencesState,
+    ) -> Result<(), ApiError> {
+        let was_enabled = !old_preferences.money_movement.is_empty();
+        let is_now_disabled = new_preferences.money_movement.is_empty();
+
+        if was_enabled && is_now_disabled {
+            tracing::info!("Money movement notifications disabled for account {account_id}, cleaning up watch addresses");
+
+            self.address_service
+                .delete_all_addresses(account_id)
+                .await
+                .map_err(|e| {
+                    ApiError::GenericInternalApplicationError(format!(
+                        "Failed to cleanup addresses: {e}"
+                    ))
+                })?;
+
+            tracing::info!("Successfully cleaned up watch addresses for account {account_id}");
+        }
 
         Ok(())
     }

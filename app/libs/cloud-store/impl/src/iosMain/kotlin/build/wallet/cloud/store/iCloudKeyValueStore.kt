@@ -25,6 +25,8 @@ interface iCloudKeyValueStore {
     account: CloudStoreAccount,
     key: String,
   ): Result<Unit, CloudError>
+
+  fun keys(account: CloudStoreAccount): Result<List<String>, CloudError>
 }
 
 @Suppress("unused", "ClassName")
@@ -81,6 +83,12 @@ class iCloudKeyValueStoreImpl(
     }
       .mapError { iCloudKeyValueStoreError(message = it.toString()) }
       .also { requestSync() }
+  }
+
+  override fun keys(account: CloudStoreAccount): Result<List<String>, CloudError> {
+    return catchingResult {
+      iCloudKeyValueStore.dictionaryRepresentation.keys.map { it as String }
+    }.mapError { iCloudKeyValueStoreError(message = it.toString()) }
   }
 
   /**

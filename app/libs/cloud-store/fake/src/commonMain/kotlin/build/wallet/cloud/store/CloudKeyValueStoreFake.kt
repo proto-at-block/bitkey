@@ -38,6 +38,10 @@ class CloudKeyValueStoreFake : CloudKeyValueStore {
     return Ok(Unit)
   }
 
+  override suspend fun keys(account: CloudStoreAccount): Result<List<String>, CloudError> {
+    return Ok(values[account]?.keys?.toList() ?: emptyList())
+  }
+
   fun reset() {
     values.clear()
     returnError = false

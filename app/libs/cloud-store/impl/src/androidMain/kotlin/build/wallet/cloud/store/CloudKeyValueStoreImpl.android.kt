@@ -44,4 +44,11 @@ class CloudKeyValueStoreImpl(
       else -> error("Cloud store account $account is not supported.")
     }
   }
+
+  override suspend fun keys(account: CloudStoreAccount): Result<List<String>, CloudError> {
+    return when (account) {
+      is GoogleAccount -> googleDriveKeyValueStore.keys(account)
+      else -> error("Cloud store account $account is not supported.")
+    }
+  }
 }

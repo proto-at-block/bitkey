@@ -4,8 +4,6 @@ import androidx.compose.runtime.Composable
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTaskDao
 import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiProps
@@ -15,7 +13,6 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 @BitkeyInject(ActivityScope::class)
 class InviteTrustedContactFlowUiStateMachineImpl(
   private val addingTrustedContactUiStateMachine: AddingTrustedContactUiStateMachine,
-  private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val relationshipsService: RelationshipsService,
 ) : InviteTrustedContactFlowUiStateMachine {
   @Composable
@@ -34,10 +31,6 @@ class InviteTrustedContactFlowUiStateMachineImpl(
                     hardwareProofOfPossession = hardwareProofOfPossession,
                     roles = setOf(TrustedContactRole.SocialRecoveryContact)
                   ).bind()
-              gettingStartedTaskDao.updateTask(
-                id = GettingStartedTask.TaskId.InviteTrustedContact,
-                state = GettingStartedTask.TaskState.Complete
-              ).bind()
               invitation
             }
           },

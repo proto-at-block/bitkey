@@ -69,6 +69,7 @@ kotlin {
         api(projects.ui.frameworkPublic)
         api(projects.domain.hardwarePublic)
         api(projects.domain.walletPublic)
+        api(projects.domain.walletmigrationPublic)
         api(projects.domain.workerPublic)
         api(projects.shared.priceChartPublic)
         api(projects.domain.securityCenterPublic)
@@ -153,6 +154,7 @@ kotlin {
           because("Depends on DoubleFormatterImpl")
         }
         implementation(projects.domain.walletFake)
+        implementation(projects.domain.walletmigrationFake)
         implementation(projects.domain.securityCenterFake)
         implementation(projects.libs.grantsFake)
       }

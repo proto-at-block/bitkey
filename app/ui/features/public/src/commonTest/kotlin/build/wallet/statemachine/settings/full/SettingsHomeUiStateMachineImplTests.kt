@@ -48,6 +48,8 @@ import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
+import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiProps
+import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiStateMachine
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -103,6 +105,10 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       transactionVerificationPolicyStateMachine = object : TxVerificationPolicyStateMachine,
         ScreenStateMachineMock<TxVerificationPolicyProps>(
           "tx-verification-policy"
+        ) {},
+      privateWalletMigrationUiStateMachine = object : PrivateWalletMigrationUiStateMachine,
+        ScreenStateMachineMock<PrivateWalletMigrationUiProps>(
+          "private-wallet-migration"
         ) {}
     )
 
@@ -136,7 +142,8 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
               SettingsListUiProps.SettingsListRow.RotateAuthKey::class,
               SettingsListUiProps.SettingsListRow.InheritanceManagement::class,
               SettingsListUiProps.SettingsListRow.UtxoConsolidation::class,
-              SettingsListUiProps.SettingsListRow.ExportTools::class
+              SettingsListUiProps.SettingsListRow.ExportTools::class,
+              SettingsListUiProps.SettingsListRow.PrivateWalletMigration::class
             )
           )
       }

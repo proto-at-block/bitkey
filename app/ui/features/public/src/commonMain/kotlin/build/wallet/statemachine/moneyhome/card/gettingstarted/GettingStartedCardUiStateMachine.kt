@@ -13,13 +13,10 @@ interface GettingStartedCardUiStateMachine : StateMachine<GettingStartedCardUiPr
 /**
  * @property onAddBitcoin Incomplete [AddBitcoin] task row clicked
  * @property onEnableSpendingLimit Incomplete [EnableSpendingLimits] task row clicked
- * @property onInviteTrustedContact Incomplete [InviteTrustedContact] task row clicked
  */
 data class GettingStartedCardUiProps(
   val onAddBitcoin: () -> Unit,
   val onEnableSpendingLimit: () -> Unit,
-  val onInviteTrustedContact: () -> Unit,
-  val onAddAdditionalFingerprint: () -> Unit,
   val onShowAlert: (ButtonAlertModel) -> Unit,
   val onDismissAlert: () -> Unit,
 )

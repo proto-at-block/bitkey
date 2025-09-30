@@ -263,7 +263,7 @@ val lightStyleDictionaryColors =
   object : StyleDictionaryColors {
     override val background: Color = Color(0xffffffff)
     override val accentDarkBackground: Color = Color(0xff333442)
-    override val subtleBackground: Color = Color(0xf2f2f2ff)
+    override val subtleBackground: Color = Color(0xfff5f5f5)
     override val groupedBackground: Color = Color(0xffffffff)
     override val containerBackground: Color = Color(0xffffffff)
     override val containerBackgroundHighlight: Color = Color(0xfff5f8fe)

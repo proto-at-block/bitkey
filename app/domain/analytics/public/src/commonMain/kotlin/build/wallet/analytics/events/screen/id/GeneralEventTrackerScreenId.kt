@@ -29,4 +29,9 @@ enum class GeneralEventTrackerScreenId : EventTrackerScreenId {
    * Showing introduction for Being a Trusted Contact.
    */
   BEING_TRUSTED_CONTACT_INTRODUCTION,
+
+  /**
+   * App update modal prompting the user to update their app.
+   */
+  APP_UPDATE_MODAL,
 }

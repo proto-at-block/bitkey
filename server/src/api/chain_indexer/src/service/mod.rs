@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::repository::ChainIndexerRepository;
 use bdk_utils::bdk::bitcoin::Network;
 use config::{Config, ConfigError, Environment};
@@ -37,8 +39,15 @@ impl Settings {
 
 impl Service {
     pub fn new(repo: ChainIndexerRepository) -> Self {
-        let retry_policy = ExponentialBackoff::builder().build_with_max_retries(5);
-        let http_client = ClientBuilder::new(Client::new())
+        let retry_policy = ExponentialBackoff::builder()
+            .retry_bounds(Duration::from_millis(200), Duration::from_secs(8))
+            .build_with_max_retries(5);
+        let base_client = Client::builder()
+            .connect_timeout(Duration::from_secs(2))
+            .timeout(Duration::from_secs(8))
+            .build()
+            .expect("failed to build reqwest client");
+        let http_client = ClientBuilder::new(base_client)
             .with(RetryTransientMiddleware::new_with_policy(retry_policy))
             .build();
         let settings = Settings::new().unwrap();

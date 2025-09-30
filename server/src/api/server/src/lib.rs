@@ -410,6 +410,7 @@ impl BootstrapBuilder {
             sqs.clone(),
             iterable_client.clone(),
             repositories.consent_repository.clone(),
+            address_service.clone(),
         )
         .await;
 

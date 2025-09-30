@@ -51,7 +51,6 @@ data class BitcoinRecipientAddressScreenModel(
   val onPasteButtonClick: () -> Unit,
   val showSelfSendWarningWithRedirect: Boolean,
   val onGoToUtxoConsolidation: () -> Unit,
-  val customPasteTriggered: Boolean,
 ) : FormBodyModel(
     onBack = onBack,
     toolbar = ToolbarModel(
@@ -75,8 +74,7 @@ data class BitcoinRecipientAddressScreenModel(
           value = enteredText,
           placeholderText = "Bitcoin Address",
           onValueChange = { newText, _ -> onEnteredTextChanged(newText) },
-          keyboardType = Default,
-          customPaste = customPasteTriggered
+          keyboardType = Default
         ),
         trailingButtonModel = if (showPasteButton) {
           ButtonModel(

@@ -9,8 +9,9 @@ use account::service::tests::default_electrum_rpc_uris;
 use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
-use bdk_utils::{DescriptorKeyset, ElectrumRpcUris};
+use bdk_utils::ElectrumRpcUris;
 use mobile_pay::error::SigningError;
+use mobile_pay::signing_processor::SigningMethod;
 use mobile_pay::signing_processor::{Broadcaster, Signer, SigningValidator};
 use mobile_pay::spend_rules::errors::SpendRuleCheckError;
 use mobile_pay::spend_rules::SpendRuleSet;
@@ -41,7 +42,7 @@ mock! {
         async fn sign_transaction(
             &self,
             rpc_uris: &ElectrumRpcUris,
-            source_descriptor: &DescriptorKeyset,
+            signing_method: &SigningMethod,
             keyset_id: &KeysetId,
         ) -> Result<<MockSigningProcessorSigner as Signer>::SigningProcessor , SigningError>;
     }

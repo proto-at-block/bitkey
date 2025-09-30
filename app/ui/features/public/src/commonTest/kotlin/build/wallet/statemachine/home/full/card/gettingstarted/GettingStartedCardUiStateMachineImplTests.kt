@@ -13,7 +13,8 @@ import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTask.TaskId.*
+import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
+import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.home.GettingStartedTaskDaoMock
@@ -63,8 +64,6 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
     GettingStartedCardUiProps(
       onAddBitcoin = { onAddBitcoinCalls += Unit },
       onEnableSpendingLimit = { onEnableSpendingLimitCalls += Unit },
-      onInviteTrustedContact = { onInviteTrustedContactCalls += Unit },
-      onAddAdditionalFingerprint = { onAddAdditionalFingerprintCalls += Unit },
       onShowAlert = {},
       onDismissAlert = {}
     )
@@ -75,8 +74,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       gettingStartedTaskDao = gettingStartedTaskDao,
       eventTracker = eventTracker,
       bitcoinWalletService = bitcoinWalletService,
-      mobilePayService = mobilePayService,
-      socRecService = socRecService
+      mobilePayService = mobilePayService
     )
 
   beforeTest {
@@ -283,9 +281,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       gettingStartedTaskDao.addTasks(
         listOf(
           GettingStartedTask(AddBitcoin, state = Incomplete),
-          GettingStartedTask(EnableSpendingLimit, state = Incomplete),
-          GettingStartedTask(InviteTrustedContact, state = Incomplete),
-          GettingStartedTask(AddAdditionalFingerprint, state = Incomplete)
+          GettingStartedTask(EnableSpendingLimit, state = Incomplete)
         )
       )
 
@@ -331,8 +327,6 @@ private fun CardModel.expectTaskModelWithEnabled(
             when (task.id) {
               EnableSpendingLimit -> SmallIconMobileLimit
               AddBitcoin -> SmallIconPlusStroked
-              InviteTrustedContact -> SmallIconShieldPerson
-              AddAdditionalFingerprint -> SmallIconFingerprint
             }
         }
       )

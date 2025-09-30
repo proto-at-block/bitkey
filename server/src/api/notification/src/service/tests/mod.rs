@@ -1,3 +1,4 @@
+use crate::address_repo::memory::Service as MemoryAddressService;
 use crate::clients::iterable;
 use crate::clients::iterable::IterableClient;
 use crate::repository::NotificationRepository;
@@ -24,6 +25,7 @@ pub async fn construct_test_notification_service() -> Service {
         config::extract::<iterable::Config>(profile).expect("extract iterable config"),
     );
 
+    let address_service = Box::new(MemoryAddressService::default());
     Service::new(
         notification_repository,
         account_repository,
@@ -31,6 +33,7 @@ pub async fn construct_test_notification_service() -> Service {
         sqs.clone(),
         iterable_client,
         consent_repository,
+        address_service,
     )
     .await
 }

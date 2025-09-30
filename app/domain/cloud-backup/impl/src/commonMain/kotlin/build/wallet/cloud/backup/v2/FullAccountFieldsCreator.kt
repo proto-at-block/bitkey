@@ -49,7 +49,16 @@ interface FullAccountFieldsCreator {
 
     /** Unexpected error with encrypted key storage. */
     data class PkekRetrievalError(
-      override val cause: Throwable? = null,
+      override val cause: Throwable,
     ) : FullAccountFieldsCreationError()
+
+    /**
+     * PKEK is not available to complete cloud backup.
+     *
+     * This occurs when the user does not have hardware available and paired
+     * to the app -- a state only accessible after social recovery, and handled
+     * with a wallet-at-risk warning in the app UI.
+     */
+    data object PkekUnavailableError : FullAccountFieldsCreationError()
   }
 }

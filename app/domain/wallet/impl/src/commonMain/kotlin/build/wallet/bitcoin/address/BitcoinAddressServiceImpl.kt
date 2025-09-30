@@ -1,6 +1,5 @@
 package build.wallet.bitcoin.address
 
-import bitkey.notifications.NotificationChannel
 import bitkey.notifications.NotificationsPreferencesCachedProvider
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
@@ -52,7 +51,7 @@ class BitcoinAddressServiceImpl(
     val notificationResult = notificationsPreferencesCachedProvider
       .getNotificationsPreferences()
       .first()
-    
+
     return notificationResult
       ?.fold(
         success = { preferences -> preferences.moneyMovement.isNotEmpty() },

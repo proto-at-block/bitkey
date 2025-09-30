@@ -42,4 +42,9 @@ interface CloudKeyValueStore {
     account: CloudStoreAccount,
     key: String,
   ): Result<Unit, CloudError>
+
+  /**
+   * Returns a list of all keys in the cloud of the given [account]
+   */
+  suspend fun keys(account: CloudStoreAccount): Result<List<String>, CloudError>
 }

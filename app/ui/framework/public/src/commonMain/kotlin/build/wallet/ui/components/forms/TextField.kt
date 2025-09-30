@@ -60,25 +60,31 @@ fun TextField(
     }
   }
 
-  // State for managing TextField's text value and cursor position
-  var textState by remember(model.selectionOverride, model.customPaste) {
+  // State for managing TextField's text value separate from cursor position
+  var textValue by remember(model.value, model.transformation) {
     val initialValue = when (model.transformation) {
       // Remove formatting from invite code to be applied via VisualTransformation
       INVITE_CODE -> model.value.replace("-", "")
       else -> model.value
     }
+    mutableStateOf(initialValue)
+  }
+
+  // State for managing TextField's cursor position
+  var textSelection by remember(model.selectionOverride) {
     mutableStateOf(
-      TextFieldValue(
-        text = initialValue,
-        selection =
-          model.selectionOverride
-            // Apply the overridden selection from the model if present
-            ?.let { TextRange(it.first, it.last) }
-            // Otherwise, use value's length as initial.
-            ?: TextRange(initialValue.length)
-      )
+      model.selectionOverride
+        // Apply the overridden selection from the model if present
+        ?.let { TextRange(it.first, it.last) }
+        // Otherwise, use value's length as initial.
+        ?: TextRange(textValue.length)
     )
   }
+
+  val textState = TextFieldValue(
+    text = textValue,
+    selection = textSelection
+  )
 
   TextField(
     modifier = modifier,
@@ -92,9 +98,9 @@ fun TextField(
           val newText = newTextFieldValue.text.replace("-", "")
           TextFieldValue(
             text = newText,
-            selection = textState.selection
+            selection = textSelection
               // maintain cursor position if we are ignoring a single new character
-              .takeIf { it.start == it.end && it.end != textState.text.length }
+              .takeIf { it.start == it.end && it.end != textValue.length }
               // likely pasted complete text, move cursor to end
               ?: TextRange(newText.length)
           )
@@ -103,17 +109,19 @@ fun TextField(
       }
       model.maxLength?.let { maxLength ->
         if (newValue.text.length <= maxLength) {
-          textState = newValue
+          textValue = newValue.text
+          textSelection = newValue.selection
           model.onValueChange(
-            textState.text,
-            textState.selection.start..textState.selection.end
+            newValue.text,
+            newValue.selection.start..newValue.selection.end
           )
         }
       } ?: run {
-        textState = newValue
+        textValue = newValue.text
+        textSelection = newValue.selection
         model.onValueChange(
-          textState.text,
-          textState.selection.start..textState.selection.end
+          newValue.text,
+          newValue.selection.start..newValue.selection.end
         )
       }
     },
@@ -151,7 +159,7 @@ fun TextField(
     // is blank to ensure the option is provided up front.
     // See https://youtrack.jetbrains.com/issue/CMP-4502
     visualTransformation =
-      if (textState.text.isEmpty()) {
+      if (textValue.isEmpty()) {
         VisualTransformation.None
       } else {
         when (model.transformation) {

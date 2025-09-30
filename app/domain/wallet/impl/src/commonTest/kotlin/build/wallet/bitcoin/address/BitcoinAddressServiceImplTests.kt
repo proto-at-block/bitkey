@@ -37,7 +37,7 @@ class BitcoinAddressServiceImplTests : FunSpec({
     notificationPreferences: NotificationPreferences = NotificationPreferences(
       moneyMovement = emptySet(),
       productMarketing = emptySet()
-    )
+    ),
   ) = BitcoinAddressServiceImpl(
     registerWatchAddressProcessor = registerWatchAddressProcessor,
     bitcoinWalletService = transactionService,

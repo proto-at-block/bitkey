@@ -37,6 +37,10 @@ class CloudKeyValueStoreImpl(
     return Ok(Unit)
   }
 
+  override suspend fun keys(account: CloudStoreAccount): Result<List<String>, CloudError> {
+    return Ok(store().keys().toList())
+  }
+
   private fun CloudStoreAccount.toCompositeKey(key: String) =
     "${(this as CloudStoreAccountFake).identifier}_$key"
 

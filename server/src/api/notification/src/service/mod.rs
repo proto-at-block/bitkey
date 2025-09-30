@@ -13,6 +13,7 @@ use types::{
 };
 
 use crate::{
+    address_repo::AddressWatchlistTrait,
     clients::iterable::{IterableClient, IterableMode},
     entities::{
         CustomerNotification, NotificationCompositeKey, NotificationSchedule,
@@ -51,6 +52,7 @@ pub struct Service {
     email_queue_url: String,
     iterable_client: IterableClient,
     consent_repo: ConsentRepository,
+    address_service: Box<dyn AddressWatchlistTrait>,
 }
 
 impl Service {
@@ -61,6 +63,7 @@ impl Service {
         sqs: SqsQueue,
         iterable_client: IterableClient,
         consent_repo: ConsentRepository,
+        address_service: Box<dyn AddressWatchlistTrait>,
     ) -> Self {
         Self {
             notification_repo,
@@ -72,6 +75,7 @@ impl Service {
             email_queue_url: env::var(EMAIL_QUEUE_ENV_VAR).unwrap_or_default(),
             iterable_client,
             consent_repo,
+            address_service,
         }
     }
 }

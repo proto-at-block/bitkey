@@ -1,7 +1,8 @@
 package build.wallet.statemachine.moneyhome.card.gettingstarted
 
 import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTask.TaskId.*
+import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
+import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.statemachine.core.Icon
@@ -24,8 +25,6 @@ data class GettingStartedTaskRowModel(
         when (task.id) {
           AddBitcoin -> Pair("Add bitcoin", SmallIconPlusStroked)
           EnableSpendingLimit -> Pair("Customize transfer settings", SmallIconMobileLimit)
-          InviteTrustedContact -> Pair("Invite a Recovery Contact", SmallIconShieldPerson)
-          AddAdditionalFingerprint -> Pair("Add additional fingerprint", SmallIconFingerprint)
         }
 
       return when (task.state) {

@@ -15,6 +15,8 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.ReceiveV2ScreenFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -42,7 +44,8 @@ import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritance
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.*
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.PromptingForFwUpUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.ACTIVITY
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
@@ -72,11 +75,14 @@ import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.launch
+import build.wallet.statemachine.receivev2.AddressQrCodeUiStateMachine as AddressQrCodeUiStateMachineV2
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint as FingerprintManagementEntryPoint
 
 @BitkeyInject(ActivityScope::class)
 class MoneyHomeUiStateMachineImpl(
   private val addressQrCodeUiStateMachine: AddressQrCodeUiStateMachine,
+  private val addressQrCodeUiStateMachineV2: AddressQrCodeUiStateMachineV2,
+  private val receiveV2ScreenFeatureFlag: ReceiveV2ScreenFeatureFlag,
   private val sendUiStateMachine: SendUiStateMachine,
   private val transactionDetailsUiStateMachine: TransactionDetailsUiStateMachine,
   private val transactionsActivityUiStateMachine: TransactionsActivityUiStateMachine,
@@ -425,13 +431,20 @@ class MoneyHomeUiStateMachineImpl(
   private fun ReceiveBitcoinModel(
     props: MoneyHomeUiProps,
     onExit: () -> Unit,
-  ) = addressQrCodeUiStateMachine.model(
-    props =
-      AddressQrCodeUiProps(
-        account = props.account as FullAccount,
-        onBack = onExit
-      )
-  ).asModalFullScreen()
+  ): ScreenModel {
+    val stateMachine = if (receiveV2ScreenFeatureFlag.isEnabled()) {
+      addressQrCodeUiStateMachineV2
+    } else {
+      addressQrCodeUiStateMachine
+    }
+    return stateMachine.model(
+      props =
+        AddressQrCodeUiProps(
+          account = props.account as FullAccount,
+          onBack = onExit
+        )
+    ).asModalFullScreen()
+  }
 
   @Composable
   private fun SendBitcoinModel(
@@ -544,8 +557,6 @@ sealed interface MoneyHomeUiState {
         val initialState: AddBitcoinBottomSheetDisplayState,
       ) : BottomSheetDisplayState
 
-      data class TrustedContact(val skipped: Boolean) : BottomSheetDisplayState
-
       /**
        * Enabling mobile pay or optionally skipping - shown when user enters from getting
        * started
@@ -553,12 +564,6 @@ sealed interface MoneyHomeUiState {
        * @property skipped - when true, the db operation to mark the getting started task is executed
        */
       data class MobilePay(val skipped: Boolean) : BottomSheetDisplayState
-
-      /**
-       * Adding a second fingerprint that can be used for unlocking the hardware, shown
-       * from getting started.
-       */
-      data class AddingAdditionalFingerprint(val skipped: Boolean) : BottomSheetDisplayState
 
       /**
        * Showing a bottom modal for the user to complete a fwup to access the feature

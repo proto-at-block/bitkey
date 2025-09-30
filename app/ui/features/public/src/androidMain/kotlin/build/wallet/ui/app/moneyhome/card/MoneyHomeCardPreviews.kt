@@ -9,8 +9,8 @@ import build.wallet.bitkey.relationships.*
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTask.TaskId.*
-import build.wallet.home.GettingStartedTask.TaskState.Complete
+import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
+import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.pricechart.DataPoint
 import build.wallet.pricechart.PriceDirection
@@ -102,16 +102,6 @@ fun PreviewMoneyHomeGettingStarted() {
             GettingStartedTaskRowModel(
               task = GettingStartedTask(EnableSpendingLimit, Incomplete),
               isEnabled = false,
-              onClick = {}
-            ),
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(InviteTrustedContact, Complete),
-              isEnabled = true,
-              onClick = {}
-            ),
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(AddAdditionalFingerprint, Incomplete),
-              isEnabled = true,
               onClick = {}
             )
           )

@@ -7,26 +7,26 @@ use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use bdk_utils::bdk::bitcoin::Address;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use types::account::identifiers::AccountId;
 
 use super::AccountIdAndKeysetId;
 
 #[derive(Debug, Default, Clone)]
 pub struct Service {
-    repository: Arc<Mutex<HashMap<Address<NetworkUnchecked>, AccountIdAndKeysetId>>>,
+    repository: Arc<RwLock<HashMap<Address<NetworkUnchecked>, AccountIdAndKeysetId>>>,
 }
 
 #[async_trait]
 impl AddressWatchlistTrait for Service {
     async fn insert(
-        &mut self,
+        &self,
         addresses: &[AddressAndKeysetId],
         account_id: &AccountId,
     ) -> Result<(), Error> {
         let mut repo = self
             .repository
-            .lock()
+            .write()
             .map_err(|err| InternalError(err.to_string()))?;
 
         for AddressAndKeysetId {
@@ -60,7 +60,7 @@ impl AddressWatchlistTrait for Service {
     ) -> Result<HashMap<Address<NetworkUnchecked>, AccountIdAndKeysetId>, Error> {
         let repo = self
             .repository
-            .lock()
+            .read()
             .map_err(|err| InternalError(err.to_string()))?;
 
         return Ok(addrs
@@ -69,10 +69,10 @@ impl AddressWatchlistTrait for Service {
             .collect());
     }
 
-    async fn delete_all_addresses(&mut self, account_id: &AccountId) -> Result<(), Error> {
+    async fn delete_all_addresses(&self, account_id: &AccountId) -> Result<(), Error> {
         let mut repo = self
             .repository
-            .lock()
+            .write()
             .map_err(|err| InternalError(err.to_string()))?;
 
         let addresses_to_remove: Vec<Address<NetworkUnchecked>> = repo

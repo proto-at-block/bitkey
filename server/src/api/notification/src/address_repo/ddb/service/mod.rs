@@ -37,7 +37,7 @@ impl Service {
 #[async_trait]
 impl AddressWatchlistTrait for Service {
     async fn insert(
-        &mut self,
+        &self,
         addresses: &[AddressAndKeysetId],
         account_id: &AccountId,
     ) -> Result<(), Error> {
@@ -96,7 +96,7 @@ impl AddressWatchlistTrait for Service {
             .collect());
     }
 
-    async fn delete_all_addresses(&mut self, account_id: &AccountId) -> Result<(), Error> {
+    async fn delete_all_addresses(&self, account_id: &AccountId) -> Result<(), Error> {
         self.repo
             .delete_all_addresses_for_account(account_id)
             .await?;

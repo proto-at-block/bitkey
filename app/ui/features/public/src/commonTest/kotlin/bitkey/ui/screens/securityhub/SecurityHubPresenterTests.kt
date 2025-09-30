@@ -1,12 +1,8 @@
 package bitkey.ui.screens.securityhub
 
 import bitkey.privilegedactions.FingerprintResetAvailabilityServiceImpl
-import bitkey.securitycenter.EekBackupHealthAction
-import bitkey.securitycenter.FingerprintsAction
+import bitkey.securitycenter.*
 import bitkey.securitycenter.SecurityActionRecommendation.*
-import bitkey.securitycenter.SecurityActionType
-import bitkey.securitycenter.SecurityActionsServiceFake
-import bitkey.securitycenter.SecurityRecommendationWithStatus
 import bitkey.ui.framework.test
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
 import build.wallet.availability.AppFunctionalityServiceFake
@@ -128,7 +124,6 @@ class SecurityHubPresenterTests : FunSpec({
     fingerprintCount: Int = 3,
     fingerprintResetReady: Boolean = true,
   ) = FingerprintsAction(
-    gettingStartedTasks = emptyList(),
     fingerprintCount = fingerprintCount,
     firmwareDeviceInfo = FirmwareDeviceInfoMock,
     fingerprintResetReady = fingerprintResetReady

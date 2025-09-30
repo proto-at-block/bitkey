@@ -14,12 +14,3 @@ expect fun QrCode(
   data: String?,
   cellShape: CellShape = Square,
 )
-
-/**
- * Enum describing how the QR code cell should be rendered
- */
-enum class CellShape {
-  Square,
-  Circle,
-  RoundedSquare,
-}

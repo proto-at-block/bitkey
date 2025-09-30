@@ -38,6 +38,7 @@ kotlin {
         api(projects.domain.supportImpl)
         api(projects.domain.txVerificationImpl)
         api(projects.domain.walletImpl)
+        api(projects.domain.walletmigrationImpl)
         api(projects.domain.workerImpl)
         api(projects.libs.amountImpl)
         api(projects.libs.bdkBindingsImpl)

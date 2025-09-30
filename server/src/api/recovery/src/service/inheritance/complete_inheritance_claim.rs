@@ -7,7 +7,7 @@ use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
 use bdk_utils::ElectrumRpcUris;
 use feature_flags::flag::ContextKey;
-use mobile_pay::signing_processor::{Broadcaster, Signer, SigningValidator};
+use mobile_pay::signing_processor::{Broadcaster, Signer, SigningMethod, SigningValidator};
 use mobile_pay::spend_rules::SpendRuleSet;
 use time::OffsetDateTime;
 use tracing::instrument;
@@ -81,6 +81,12 @@ impl Service {
             )
             .await?;
 
+        let beneficiary_descriptor = input
+            .beneficiary_account
+            .active_descriptor_keyset()
+            .ok_or(ServiceError::IncompatibleAccountType)?
+            .clone();
+
         let benefactor_wallet = descriptor.generate_wallet(false, &input.rpc_uris)?;
         let beneficiary_wallet =
             generate_beneficiary_wallet(input.beneficiary_account, &input.rpc_uris)?;
@@ -96,7 +102,14 @@ impl Service {
         let mut broadcaster = input
             .signing_processor
             .validate(&input.psbt, rules)?
-            .sign_transaction(&input.rpc_uris, &descriptor, &keyset_id)
+            .sign_transaction(
+                &input.rpc_uris,
+                &SigningMethod::LegacySweep {
+                    source_descriptor: descriptor,
+                    active_descriptor: beneficiary_descriptor,
+                },
+                &keyset_id,
+            )
             .await?;
 
         let signed_psbt = broadcaster.finalized_psbt();

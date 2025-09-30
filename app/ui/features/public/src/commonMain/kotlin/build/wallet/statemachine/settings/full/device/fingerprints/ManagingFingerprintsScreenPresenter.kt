@@ -16,8 +16,6 @@ import build.wallet.di.BitkeyInject
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareFeatureFlag
-import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTaskDao
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -53,7 +51,6 @@ class ManagingFingerprintsScreenPresenter(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val editingFingerprintUiStateMachine: EditingFingerprintUiStateMachine,
   private val enrollingFingerprintUiStateMachine: EnrollingFingerprintUiStateMachine,
-  private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
   private val eventTracker: EventTracker,
   private val metricTrackerService: MetricTrackerService,
@@ -244,11 +241,6 @@ class ManagingFingerprintsScreenPresenter(
             )
           },
           onSuccess = {
-            gettingStartedTaskDao.updateTask(
-              id = GettingStartedTask.TaskId.AddAdditionalFingerprint,
-              state = GettingStartedTask.TaskState.Complete
-            )
-
             metricTrackerService.completeMetric(
               metricDefinition = FingerprintAddMetricDefinition,
               outcome = MetricOutcome.Succeeded

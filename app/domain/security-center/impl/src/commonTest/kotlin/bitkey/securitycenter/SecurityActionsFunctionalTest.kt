@@ -18,14 +18,10 @@ import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.firmware.FirmwareDeviceInfoDaoMock
-import build.wallet.firmware.HardwareUnlockInfoServiceFake
-import build.wallet.firmware.UnlockInfo
-import build.wallet.firmware.UnlockMethod
+import build.wallet.firmware.*
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.fwup.FwupDataMock
-import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.inappsecurity.BiometricAuthServiceFake
 import build.wallet.recovery.socrec.SocRecServiceFake
 import io.kotest.assertions.fail
@@ -82,7 +78,6 @@ class SecurityActionsFunctionalTest : FunSpec({
   )
 
   val clock = Clock.System
-  val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
   val fingerprintResetF8eClient = FingerprintResetF8eClientFake(clock)
@@ -92,7 +87,6 @@ class SecurityActionsFunctionalTest : FunSpec({
     clock
   )
   val fingerprintsActionFactory = FingerprintsActionFactoryImpl(
-    gettingStartedTaskDao,
     hardwareUnlockInfoService,
     firmwareDeviceInfoDao,
     fingerprintResetService,
@@ -132,6 +126,7 @@ class SecurityActionsFunctionalTest : FunSpec({
     hardwareUnlockInfoService.replaceAllUnlockInfo(
       listOf(UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 1))
     )
+    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
     firmwareDataService.syncLatestFwupData()
     fingerprintResetService.setupReadyToCompleteFingerprintReset()
   }

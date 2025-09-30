@@ -58,15 +58,21 @@ impl<A: AddressWatchlistTrait + Clone + 'static> TestContext<A> {
         };
 
         if enable_notifications {
-            test_ctx.enable_money_movement_notifications(&account_1.id).await;
-            test_ctx.enable_money_movement_notifications(&account_2.id).await;
+            test_ctx
+                .enable_money_movement_notifications(&account_1.id)
+                .await;
+            test_ctx
+                .enable_money_movement_notifications(&account_2.id)
+                .await;
         }
 
         test_ctx
     }
 
     async fn enable_money_movement_notifications(&self, account_id: &AccountId) {
-        use notification::service::{FetchNotificationsPreferencesInput, UpdateNotificationsPreferencesInput};
+        use notification::service::{
+            FetchNotificationsPreferencesInput, UpdateNotificationsPreferencesInput,
+        };
         use types::notification::{NotificationCategory, NotificationChannel};
 
         // Fetch current notification preferences
@@ -76,7 +82,7 @@ impl<A: AddressWatchlistTrait + Clone + 'static> TestContext<A> {
             .fetch_notifications_preferences(FetchNotificationsPreferencesInput { account_id })
             .await
             .expect("Failed to fetch notification preferences in test");
-        
+
         // Enable money movement notifications for push channel
         self.services
             .notification_service
@@ -555,9 +561,11 @@ async fn test_register_watch_address_with_disabled_notifications_no_insert(
     // Try to register address with account that has notifications disabled
     let response = test_ctx
         .client
-        .register_watch_address(&test_ctx.known_account_id_1, &vec![random_address.clone()].into())
+        .register_watch_address(
+            &test_ctx.known_account_id_1,
+            &vec![random_address.clone()].into(),
+        )
         .await;
-
 
     assert_eq!(StatusCode::OK, response.status_code);
 
@@ -567,5 +575,8 @@ async fn test_register_watch_address_with_disabled_notifications_no_insert(
         .get(&[random_address.address.clone()])
         .await
         .unwrap();
-    assert!(results.is_empty(), "Address should not be stored when notifications are disabled");
+    assert!(
+        results.is_empty(),
+        "Address should not be stored when notifications are disabled"
+    );
 }

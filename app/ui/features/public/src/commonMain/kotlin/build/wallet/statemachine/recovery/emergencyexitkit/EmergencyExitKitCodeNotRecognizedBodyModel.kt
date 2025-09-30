@@ -30,14 +30,14 @@ data class EmergencyExitKitCodeNotRecognizedBodyModel(
     ),
     mainContentList = immutableListOf(),
     primaryButton = ButtonModel(
+      text = "Try again",
+      size = ButtonModel.Size.Footer,
+      onClick = StandardClick(onImport)
+    ),
+    secondaryButton = ButtonModel(
       text = "Scan QR code",
       treatment = ButtonModel.Treatment.Secondary,
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onScanQRCode)
-    ),
-    secondaryButton = ButtonModel(
-      text = if (arrivedFromManualEntry) "Try again" else "Import",
-      size = ButtonModel.Size.Footer,
-      onClick = StandardClick(onImport)
     )
   )

@@ -7,6 +7,9 @@ import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InternetUnreachable
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
@@ -21,10 +24,16 @@ import kotlin.reflect.KClass
 class SettingsListUiStateMachineImplTests : FunSpec({
 
   val appFunctionalityService = AppFunctionalityServiceFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+
+  val privateWalletMigrationFeatureFlag = PrivateWalletMigrationFeatureFlag(
+    featureFlagDao = featureFlagDao
+  )
 
   val stateMachine = SettingsListUiStateMachineImpl(
     appFunctionalityService = appFunctionalityService,
-    coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create)
+    coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
+    privateWalletMigrationFeatureFlag = privateWalletMigrationFeatureFlag
   )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
@@ -38,7 +47,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       ContactUs::class to turbines.create("SendFeedback onClick calls"),
       TrustedContacts::class to turbines.create("TrustedContacts onClick calls"),
       RotateAuthKey::class to turbines.create("RotateAuthKey onClick calls"),
-      InheritanceManagement::class to turbines.create("InheritanceManagement onClick calls")
+      InheritanceManagement::class to turbines.create("InheritanceManagement onClick calls"),
+      PrivateWalletMigration::class to turbines.create("PrivateWalletMigration onClick calls")
     )
 
   val props =
@@ -55,7 +65,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           TrustedContacts { propsOnClickCalls[TrustedContacts::class]?.add(Unit) },
           RotateAuthKey { propsOnClickCalls[RotateAuthKey::class]?.add(Unit) },
           UtxoConsolidation { propsOnClickCalls[UtxoConsolidation::class]?.add(Unit) },
-          InheritanceManagement { propsOnClickCalls[InheritanceManagement::class]?.add(Unit) }
+          InheritanceManagement { propsOnClickCalls[InheritanceManagement::class]?.add(Unit) },
+          PrivateWalletMigration { propsOnClickCalls[PrivateWalletMigration::class]?.add(Unit) }
         ),
       onShowAlert = {},
       onDismissAlert = {},
@@ -65,6 +76,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   afterEach {
     appFunctionalityService.reset()
+    featureFlagDao.reset()
   }
 
   test("onBack calls props onBack") {
@@ -210,6 +222,30 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Help Center"
         )
       )
+    }
+  }
+
+  test("private wallet migration row shown when feature flag enabled") {
+    privateWalletMigrationFeatureFlag.setFlagValue(BooleanFlag(true))
+
+    stateMachine.test(props) {
+      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
+        val advancedSection = sectionModels.first { it.sectionHeaderTitle == "Advanced" }
+        val migrationRow = advancedSection.rowModels.firstOrNull { it.title == "Enhanced wallet privacy" }
+        migrationRow.shouldNotBeNull()
+      }
+    }
+  }
+
+  test("private wallet migration row hidden when feature flag disabled") {
+    privateWalletMigrationFeatureFlag.setFlagValue(BooleanFlag(false))
+
+    stateMachine.test(props) {
+      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
+        val advancedSection = sectionModels.first { it.sectionHeaderTitle == "Advanced" }
+        val migrationRow = advancedSection.rowModels.firstOrNull { it.title == "Enhanced wallet privacy" }
+        migrationRow shouldBe null
+      }
     }
   }
 })

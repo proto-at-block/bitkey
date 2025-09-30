@@ -160,8 +160,9 @@ data class EnterRecoveryCodeFormBodyModel(
       FormMainContentModel.TextInput(
         fieldModel = TextFieldModel(
           value = value,
-          selectionOverride = null,
           placeholderText = "••••••",
+          // We chunk recovery codes the same way we do invite codes; treat them the same.
+          transformation = TextFieldModel.TextTransformation.INVITE_CODE,
           onValueChange = { newValue, _ ->
             onInputChange(newValue.replace("-", "").chunked(4).joinToString("-"))
           },

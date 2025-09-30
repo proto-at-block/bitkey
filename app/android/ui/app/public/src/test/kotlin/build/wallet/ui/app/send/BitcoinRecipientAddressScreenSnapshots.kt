@@ -47,8 +47,7 @@ internal fun BitcoinRecipientAddressWithoutEntryScreenPreview() {
       onScanQrCodeClick = {},
       onPasteButtonClick = {},
       showSelfSendWarningWithRedirect = false,
-      onGoToUtxoConsolidation = {},
-      customPasteTriggered = false
+      onGoToUtxoConsolidation = {}
     )
   )
 }
@@ -66,8 +65,7 @@ internal fun BitcoinRecipientAddressWithoutEntryScreenWithPasteButtonPreview() {
       onScanQrCodeClick = {},
       onPasteButtonClick = {},
       showSelfSendWarningWithRedirect = false,
-      onGoToUtxoConsolidation = {},
-      customPasteTriggered = false
+      onGoToUtxoConsolidation = {}
     )
   )
 }
@@ -85,8 +83,7 @@ internal fun BitcoinRecipientAddressWithEntryScreenPreview() {
       onScanQrCodeClick = {},
       onPasteButtonClick = {},
       showSelfSendWarningWithRedirect = false,
-      onGoToUtxoConsolidation = {},
-      customPasteTriggered = false
+      onGoToUtxoConsolidation = {}
     )
   )
 }
@@ -104,8 +101,7 @@ internal fun BitcoinRecipientAddressWithSelfSendWarningPreview() {
       onScanQrCodeClick = {},
       onPasteButtonClick = {},
       showSelfSendWarningWithRedirect = true,
-      onGoToUtxoConsolidation = {},
-      customPasteTriggered = false
+      onGoToUtxoConsolidation = {}
     )
   )
 }

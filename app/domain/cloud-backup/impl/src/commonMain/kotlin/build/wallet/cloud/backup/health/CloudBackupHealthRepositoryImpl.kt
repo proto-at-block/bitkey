@@ -146,7 +146,7 @@ class CloudBackupHealthRepositoryImpl(
       ?: return AppKeyBackupStatus.ProblemWithBackup.BackupMissing
 
     return cloudBackupRepository
-      .readBackup(cloudAccount)
+      .readActiveBackup(cloudAccount)
       .fold(
         success = { cloudBackup ->
           when (cloudBackup) {

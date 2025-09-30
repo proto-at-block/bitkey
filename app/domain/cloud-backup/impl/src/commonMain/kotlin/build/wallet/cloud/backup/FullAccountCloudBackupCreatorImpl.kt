@@ -8,14 +8,18 @@ import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudB
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.*
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator
+import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.PkekUnavailableError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logWarn
 import build.wallet.relationships.RelationshipsKeysRepository
 import build.wallet.relationships.RelationshipsService
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.onFailure
 
 @BitkeyInject(AppScope::class)
 class FullAccountCloudBackupCreatorImpl(
@@ -46,7 +50,15 @@ class FullAccountCloudBackupCreatorImpl(
           // Exclude trusted contacts that have not been verified.
           endorsedTrustedContacts = endorsedTrustedContacts.filter { it.authenticationState == VERIFIED }
         )
-        .logFailure { "Error creating full account backup" }
+        .onFailure { error ->
+          if (error is PkekUnavailableError) {
+            logWarn {
+              "No PKEK available for cloud backup. User has no hardware paired. Backup cannot be completed at this time."
+            }
+          } else {
+            logError(throwable = error) { "Unexpected error creating full account backup" }
+          }
+        }
         .mapError(::FullAccountFieldsCreationError)
         .bind()
 

@@ -51,6 +51,7 @@ types = { workspace = true, features = [
   "notification",
   "privileged_action",
   "recovery",
+  "serde",
 ] }
 userpool = { workspace = true }
 

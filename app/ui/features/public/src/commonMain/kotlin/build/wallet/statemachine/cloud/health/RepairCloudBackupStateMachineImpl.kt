@@ -127,7 +127,7 @@ class RepairCloudBackupStateMachineImpl(
       is CheckingAppKeyCloudBackupState -> {
         LaunchedEffect("check-cloud-backup") {
           cloudBackupRepository
-            .readBackup(currentState.cloudAccount)
+            .readActiveBackup(currentState.cloudAccount)
             .onSuccess { cloudBackup ->
               state = currentState.determineNextState(props, cloudBackup)
             }

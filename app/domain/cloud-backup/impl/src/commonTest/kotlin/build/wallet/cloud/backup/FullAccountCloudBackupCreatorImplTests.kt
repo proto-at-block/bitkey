@@ -87,7 +87,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
 
     test("failure - could not create account info") {
       fullAccountFieldsCreator.createResult =
-        Err(FullAccountFieldsCreator.FullAccountFieldsCreationError.PkekRetrievalError())
+        Err(FullAccountFieldsCreator.FullAccountFieldsCreationError.PkekRetrievalError(Error("test")))
       val relationships = RelationshipsFake.copy(endorsedTrustedContacts = trustedContacts)
       relationshipsService.syncAndVerifyRelationshipsResult = Ok(relationships)
 

@@ -1,0 +1,7 @@
+-- Remove deprecated getting started tasks no longer needed
+-- Tasks to drop: InviteTrustedContact, AddAdditionalFingerprint
+-- Safe if rows do not exist (no-op)
+DELETE FROM gettingStartedTaskEntity WHERE taskId IN ('InviteTrustedContact', 'AddAdditionalFingerprint');
+
+-- Verify foreign key constraints remain valid
+PRAGMA foreign_key_check;

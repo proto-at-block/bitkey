@@ -8,7 +8,7 @@ interface CloudBackupRepository {
   /**
    * Access and decode [CloudBackup] from cloud storage using logged in [CloudStoreAccount].
    */
-  suspend fun readBackup(
+  suspend fun readActiveBackup(
     cloudStoreAccount: CloudStoreAccount,
   ): Result<CloudBackup?, CloudBackupError>
 
@@ -23,6 +23,14 @@ interface CloudBackupRepository {
   ): Result<Unit, CloudBackupError>
 
   /**
+   * Archive the given [CloudBackup] with a new key which is unique based on the current datetime
+   */
+  suspend fun archiveBackup(
+    cloudStoreAccount: CloudStoreAccount,
+    backup: CloudBackup,
+  ): Result<Unit, CloudBackupError>
+
+  /**
    * Clear wallet from cloud storage using logged in [CloudStoreAccount].
    * @param clearRemoteOnly if true, only clear remote storage, if false,
    * clear both remote and local storage.
@@ -31,6 +39,13 @@ interface CloudBackupRepository {
     cloudStoreAccount: CloudStoreAccount,
     clearRemoteOnly: Boolean,
   ): Result<Unit, CloudBackupError>
+
+  /**
+   * Retrieve all the archived backups associated with the given cloud account
+   */
+  suspend fun readArchivedBackups(
+    cloudStoreAccount: CloudStoreAccount,
+  ): Result<List<CloudBackup>, CloudBackupError>
 }
 
 data class UnknownAppDataFoundError(

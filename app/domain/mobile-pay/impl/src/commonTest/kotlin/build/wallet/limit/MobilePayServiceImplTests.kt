@@ -54,6 +54,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class MobilePayServiceImplTests : FunSpec({
   val eventTracker = EventTrackerMock(turbines::create)
@@ -119,12 +120,29 @@ class MobilePayServiceImplTests : FunSpec({
   val hwPop = HwFactorProofOfPossession("")
 
   test("executeWork refreshes mobile pay status when transactions are loaded") {
-    accountService.reset()
+    // Use a larger sync frequency here to ensure we only capture the initial refresh call
+    // and not any periodic syncs, otherwise this test can become flaky.
+    val testSyncFrequency = 10.seconds
+    val testService = MobilePayServiceImpl(
+      eventTracker = eventTracker,
+      spendingLimitDao = spendingLimitDao,
+      spendingLimitF8eClient = spendingLimitF8eClient,
+      mobilePayStatusRepository = mobilePayStatusProvider,
+      appSessionManager = appSessionManager,
+      bitcoinWalletService = bitcoinWalletService,
+      accountService = accountService,
+      currencyConverter = currencyConverter,
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+      mobilePaySigningF8eClient = mobilePaySigningF8eClient,
+      mobilePaySyncFrequency = MobilePaySyncFrequency(testSyncFrequency),
+      exchangeRateService = exchangeRateService
+    )
+
     createBackgroundScope().launch {
-      mobilePayService.executeWork()
+      testService.executeWork()
     }
 
-    mobilePayStatusProvider.refreshStatusCalls.awaitNoEvents(syncFrequency)
+    mobilePayStatusProvider.refreshStatusCalls.awaitNoEvents(1.milliseconds)
 
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
     mobilePayStatusProvider.refreshStatusCalls.awaitItem()

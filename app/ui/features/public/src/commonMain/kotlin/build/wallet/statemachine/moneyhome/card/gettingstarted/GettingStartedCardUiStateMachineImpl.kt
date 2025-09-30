@@ -1,7 +1,6 @@
 package build.wallet.statemachine.moneyhome.card.gettingstarted
 
 import androidx.compose.runtime.*
-import bitkey.relationships.Relationships
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_GETTINGSTARTED_COMPLETED
 import build.wallet.analytics.v1.Action.ACTION_APP_WALLET_FUNDED
@@ -14,13 +13,13 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTask.TaskId.*
+import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
+import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayService
 import build.wallet.logging.logFailure
-import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Height
@@ -31,7 +30,6 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterNotNull
 import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(ActivityScope::class)
@@ -41,7 +39,6 @@ class GettingStartedCardUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val bitcoinWalletService: BitcoinWalletService,
   private val mobilePayService: MobilePayService,
-  private val socRecService: SocRecService,
 ) : GettingStartedCardUiStateMachine {
   @Composable
   override fun model(props: GettingStartedCardUiProps): CardModel? {
@@ -50,15 +47,7 @@ class GettingStartedCardUiStateMachineImpl(
 
     LaunchedEffect("set-state-based-on-tasks") {
       gettingStartedTaskDao.tasks().collectLatest { activeTasks ->
-        uiState = uiState.copy(activeTasks = activeTasks.nonSecurityHubTasks().toImmutableList())
-      }
-    }
-
-    val relationships by remember { socRecService.socRecRelationships.filterNotNull() }
-      .collectAsState(Relationships.EMPTY)
-    val trustedContacts by remember(relationships) {
-      derivedStateOf {
-        relationships.endorsedTrustedContacts + relationships.invitations
+        uiState = uiState.copy(activeTasks = activeTasks.toImmutableList())
       }
     }
 
@@ -90,16 +79,6 @@ class GettingStartedCardUiStateMachineImpl(
               }
             }
           }
-
-          InviteTrustedContact -> {
-            LaunchedEffect("invite-tc-task", trustedContacts) {
-              if (trustedContacts.isNotEmpty()) {
-                gettingStartedTaskDao.updateTask(InviteTrustedContact, Complete)
-              }
-            }
-          }
-
-          else -> Unit
         }
       }
     }
@@ -160,23 +139,12 @@ class GettingStartedCardUiStateMachineImpl(
     }
   }
 
-  private fun List<GettingStartedTask>.nonSecurityHubTasks() =
-    this.filter { task ->
-      when (task.id) {
-        InviteTrustedContact, AddAdditionalFingerprint -> false
-        else -> true
-      }
-    }
-
   private fun GettingStartedTask.isEnabled(appFunctionalityStatus: AppFunctionalityStatus) =
     when (id) {
       AddBitcoin ->
         appFunctionalityStatus.featureStates.deposit == Available
       EnableSpendingLimit ->
         appFunctionalityStatus.featureStates.mobilePay == Available
-      InviteTrustedContact ->
-        appFunctionalityStatus.featureStates.securityAndRecovery == Available
-      AddAdditionalFingerprint -> true
     }
 
   private fun GettingStartedTask.onClick(
@@ -187,8 +155,6 @@ class GettingStartedCardUiStateMachineImpl(
       when (id) {
         AddBitcoin -> props.onAddBitcoin()
         EnableSpendingLimit -> props.onEnableSpendingLimit()
-        InviteTrustedContact -> props.onInviteTrustedContact()
-        AddAdditionalFingerprint -> props.onAddAdditionalFingerprint()
       }
     } else {
       when (appFunctionalityStatus) {

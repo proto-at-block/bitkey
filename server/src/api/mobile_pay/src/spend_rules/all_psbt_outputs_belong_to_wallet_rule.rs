@@ -3,6 +3,7 @@ use bdk_utils::is_psbt_addressed_to_wallet;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
+use types::account::spending::PrivateMultiSigSpendingKeyset;
 
 use super::Rule;
 use crate::metrics;
@@ -33,6 +34,25 @@ impl Rule for AllPsbtOutputsBelongToWalletRule<'_> {
 impl<'a> AllPsbtOutputsBelongToWalletRule<'a> {
     pub fn new(wallet: &'a Wallet<AnyDatabase>) -> Self {
         AllPsbtOutputsBelongToWalletRule { wallet }
+    }
+}
+
+pub(crate) struct AllPsbtOutputsBelongToWalletRuleV2<'a> {
+    private_keyset: &'a PrivateMultiSigSpendingKeyset,
+}
+
+impl Rule for AllPsbtOutputsBelongToWalletRuleV2<'_> {
+    fn check_transaction(
+        &self,
+        psbt: &PartiallySignedTransaction,
+    ) -> Result<(), SpendRuleCheckError> {
+        Err(SpendRuleCheckError::PsbtOutputsBelongToOriginWallet)
+    }
+}
+
+impl<'a> AllPsbtOutputsBelongToWalletRuleV2<'a> {
+    pub fn new(private_keyset: &'a PrivateMultiSigSpendingKeyset) -> Self {
+        AllPsbtOutputsBelongToWalletRuleV2 { private_keyset }
     }
 }
 

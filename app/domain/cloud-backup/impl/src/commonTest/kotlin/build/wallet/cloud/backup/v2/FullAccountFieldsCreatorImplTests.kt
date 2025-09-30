@@ -167,7 +167,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
       .shouldBeEqual(throwable)
   }
 
-  test("create full account backup fails with PkekRetrievalError from missing Pkek") {
+  test("create full account backup fails with PkekUnavailableError from missing Pkek") {
     appPrivateKeyDao.storeAppKeyPair(
       AppKey(
         publicKey = AppGlobalAuthPublicKeyMock,
@@ -188,7 +188,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
         endorsedTrustedContacts = trustedContacts
       )
     createResult
-      .shouldBeErrOfType<PkekRetrievalError>().cause.shouldBeNull()
+      .shouldBeErrOfType<PkekUnavailableError>().cause.shouldBeNull()
   }
 
   test("create full account backup fails with PrivateKeyRetrievalError") {

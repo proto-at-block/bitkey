@@ -9,12 +9,11 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.UnlockMethod
-import build.wallet.home.GettingStartedTaskDao
+import com.github.michaelbull.result.get
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.datetime.Clock
 
@@ -24,22 +23,22 @@ interface FingerprintsActionFactory {
 
 @BitkeyInject(AppScope::class)
 class FingerprintsActionFactoryImpl(
-  private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val fingerprintResetService: FingerprintResetService,
   private val clock: Clock,
 ) : FingerprintsActionFactory {
   override suspend fun create(): Flow<SecurityAction> {
-    val gettingStartedTasks = gettingStartedTaskDao.getTasks()
-    val firmwareDeviceInfo = firmwareDeviceInfoDao.deviceInfo().first().value
     val fingerprintResetReadyFlow = createFingerprintResetReadyFlow()
 
-    return hardwareUnlockInfoService
-      .countUnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS)
-      .combine(fingerprintResetReadyFlow) { count, resetReady ->
-        FingerprintsAction(gettingStartedTasks, count, firmwareDeviceInfo, resetReady)
-      }
+    return combine(
+      hardwareUnlockInfoService
+        .countUnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS),
+      fingerprintResetReadyFlow,
+      firmwareDeviceInfoDao.deviceInfo()
+    ) { count, resetReady, firmwareDeviceInfo ->
+      FingerprintsAction(count, firmwareDeviceInfo.get(), resetReady)
+    }
   }
 
   private fun createFingerprintResetReadyFlow(): Flow<Boolean> {

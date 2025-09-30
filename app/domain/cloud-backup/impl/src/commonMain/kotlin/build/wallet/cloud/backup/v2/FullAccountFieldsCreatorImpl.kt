@@ -65,7 +65,7 @@ class FullAccountFieldsCreatorImpl(
       val csek = csekDao
         .get(sealedCsek)
         .mapError { PkekRetrievalError(it) }
-        .toErrorIfNull { PkekRetrievalError() }
+        .toErrorIfNull { PkekUnavailableError }
         .bind()
 
       val fullCustomerKeysInfoEncodedHardwareEncrypted =
