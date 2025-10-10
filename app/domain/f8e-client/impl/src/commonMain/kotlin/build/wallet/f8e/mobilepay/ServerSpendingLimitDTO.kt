@@ -21,7 +21,7 @@ fun SpendingLimit.toServerSpendingLimit(clock: Clock): ServerSpendingLimitDTO =
     active = active,
     amount =
       MoneyDTO(
-        amount = this.amount.fractionalUnitValue.intValue(),
+        amount = this.amount.fractionalUnitValue.ulongValue(exactRequired = true),
         currencyCode = this.amount.currency.textCode.code
       ),
     timeZoneOffset = this.timezone.timeFromUtcInHms(clock)

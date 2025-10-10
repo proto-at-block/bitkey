@@ -155,6 +155,8 @@ private class DarkStyleDictionaryIcons(
 ) : StyleDictionaryIcons {
   override fun getDrawableResource(icon: Icon): DrawableResource =
     when (icon) {
+      Bitcoin -> Res.drawable.bitcoin_dark
+      BitcoinConsolidation -> Res.drawable.bitcoin_consolidation_dark
       BitcoinBadged -> Res.drawable.bitcoin_badged_dark
       MoneyHomeHero -> Res.drawable.money_home_hero_dark
       LargeIconNetworkError -> Res.drawable.large_icon_network_error_dark

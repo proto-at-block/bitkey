@@ -7,17 +7,34 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.emergencyexitkit.EmergencyExitKitAssociation.EekBuild
 import build.wallet.emergencyexitkit.EmergencyExitKitDataProvider
+import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.keybox.KeyboxDao
+import build.wallet.logging.logWarn
+import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.*
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.recovery.OrphanedKeyDetectionService
+import build.wallet.recovery.OrphanedKeyRecoveryService
+import build.wallet.recovery.OrphanedKeyRecoveryService.RecoverableAccount
+import build.wallet.recovery.OrphanedKeysState
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachineImpl.State.*
 import build.wallet.statemachine.account.create.CreateAccountOptionsModel
 import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
+import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.data.keybox.OrphanedKeyRecoveryUiState
 import build.wallet.statemachine.dev.DebugMenuScreen
+import build.wallet.statemachine.recovery.orphaned.OrphanedAccountSelectionBodyModel
+import build.wallet.time.DateTimeFormatter
+import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.alert.ButtonAlertModel
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 
 @BitkeyInject(ActivityScope::class)
 class ChooseAccountAccessUiStateMachineImpl(
@@ -27,7 +44,18 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val emergencyExitKitDataProvider: EmergencyExitKitDataProvider,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
   private val createSoftwareWalletUiStateMachine: CreateSoftwareWalletUiStateMachine,
+  private val orphanedKeyDetectionService: OrphanedKeyDetectionService,
+  private val orphanedKeyRecoveryService: OrphanedKeyRecoveryService,
+  private val orphanedKeyRecoveryFeatureFlag: OrphanedKeyRecoveryFeatureFlag,
+  private val moneyDisplayFormatter: MoneyDisplayFormatter,
+  private val dateTimeFormatter: DateTimeFormatter,
+  private val timeZoneProvider: TimeZoneProvider,
+  private val keyboxDao: KeyboxDao,
 ) : ChooseAccountAccessUiStateMachine {
+  private companion object {
+    const val LOG_TAG = "[OrphanedKeyRecovery]"
+  }
+
   @Composable
   override fun model(props: ChooseAccountAccessUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(ShowingChooseAccountAccess) }
@@ -36,6 +64,23 @@ class ChooseAccountAccessUiStateMachineImpl(
     val softwareWalletFlag by remember {
       softwareWalletIsEnabledFeatureFlag.flagValue()
     }.collectAsState()
+
+    val orphanedKeysState by orphanedKeyDetectionService
+      .orphanedKeysState()
+      .collectAsState()
+
+    val orphanedKeyRecoveryFlag by remember {
+      orphanedKeyRecoveryFeatureFlag.flagValue()
+    }.collectAsState()
+
+    LaunchedEffect(orphanedKeyRecoveryFlag.value) {
+      if (orphanedKeyRecoveryFlag.value) {
+        orphanedKeyDetectionService.detect()
+      }
+    }
+
+    val showOrphanedKeyRecovery = orphanedKeyRecoveryFlag.value &&
+      orphanedKeysState is OrphanedKeysState.OrphanedKeysFound
 
     return when (state) {
       is ShowingCreateAccountOptions -> {
@@ -89,10 +134,37 @@ class ChooseAccountAccessUiStateMachineImpl(
             onRestoreYourWalletClick = props.chooseAccountAccessData.startRecovery,
             onBeTrustedContactClick = {
               props.chooseAccountAccessData.startLiteAccountCreation()
+            },
+            onRecoverFromOrphanedKeysClick = if (showOrphanedKeyRecovery) {
+              { state = DiscoveringOrphanedAccounts }
+            } else {
+              null
             }
           ).asRootScreen()
         }
       }
+
+      is DiscoveringOrphanedAccounts -> DiscoveringOrphanedAccountsScreen(
+        onAccountsDiscovered = { accounts ->
+          state = SelectingOrphanedAccount(
+            accounts = accounts,
+            selectedAccount = if (accounts.size == 1) accounts.first() else null
+          )
+        },
+        onError = { state = ShowingChooseAccountAccess }
+      )
+
+      is SelectingOrphanedAccount -> SelectingOrphanedAccountScreen(
+        accounts = (state as SelectingOrphanedAccount).accounts,
+        initialSelectedAccount = (state as SelectingOrphanedAccount).selectedAccount,
+        onRecover = { account -> state = RecoveringFromOrphanedKeys(account) },
+        onBack = { state = ShowingChooseAccountAccess }
+      )
+
+      is RecoveringFromOrphanedKeys -> RecoveringFromOrphanedKeysScreenModel(
+        recoverableAccount = (state as RecoveringFromOrphanedKeys).recoverableAccount,
+        onSuccess = { state = ShowingChooseAccountAccess }
+      )
 
       is ShowingBeTrustedContactIntroduction -> {
         BeTrustedContactIntroductionModel(
@@ -120,6 +192,112 @@ class ChooseAccountAccessUiStateMachineImpl(
         initialScreen = DemoModeDisabledScreen,
         onExit = { state = ShowingChooseAccountAccess }
       )
+    }
+  }
+
+  @Composable
+  private fun DiscoveringOrphanedAccountsScreen(
+    onAccountsDiscovered: (ImmutableList<RecoverableAccount>) -> Unit,
+    onError: () -> Unit,
+  ): ScreenModel {
+    LaunchedEffect("discover orphaned accounts") {
+      val recoverableAccountsResult = orphanedKeyRecoveryService
+        .discoverRecoverableAccounts()
+
+      recoverableAccountsResult.onSuccess { accounts ->
+        when {
+          accounts.isEmpty() -> {
+            logWarn { "$LOG_TAG No recoverable accounts found despite having valid keys" }
+            onError()
+          }
+          else -> onAccountsDiscovered(accounts.toImmutableList())
+        }
+      }.onFailure { error ->
+        logWarn { "$LOG_TAG Failed to discover recoverable accounts: $error" }
+        onError()
+      }
+    }
+
+    return LoadingBodyModel(
+      message = "Discovering recoverable accounts...",
+      id = null
+    ).asRootScreen()
+  }
+
+  @Composable
+  private fun SelectingOrphanedAccountScreen(
+    accounts: ImmutableList<RecoverableAccount>,
+    initialSelectedAccount: RecoverableAccount?,
+    onRecover: (RecoverableAccount) -> Unit,
+    onBack: () -> Unit,
+  ): ScreenModel {
+    var selectedAccount by remember { mutableStateOf(initialSelectedAccount) }
+
+    return OrphanedAccountSelectionBodyModel(
+      accounts = accounts,
+      selectedAccount = selectedAccount,
+      onAccountSelected = { account -> selectedAccount = account },
+      onRecover = {
+        selectedAccount?.let { account -> onRecover(account) }
+      },
+      onBack = onBack,
+      moneyDisplayFormatter = moneyDisplayFormatter,
+      dateTimeFormatter = dateTimeFormatter,
+      timeZoneProvider = timeZoneProvider
+    ).asRootScreen()
+  }
+
+  @Composable
+  private fun RecoveringFromOrphanedKeysScreenModel(
+    recoverableAccount: RecoverableAccount,
+    onSuccess: () -> Unit,
+  ): ScreenModel {
+    var uiState by remember {
+      mutableStateOf<OrphanedKeyRecoveryUiState>(OrphanedKeyRecoveryUiState.Recovering)
+    }
+
+    LaunchedEffect("execute-recovery", uiState) {
+      if (uiState == OrphanedKeyRecoveryUiState.Recovering) {
+        orphanedKeyRecoveryService
+          .recoverFromRecoverableAccount(recoverableAccount)
+          .onSuccess { keybox ->
+            keyboxDao.saveKeyboxAsActive(keybox)
+              .onSuccess {
+                uiState = OrphanedKeyRecoveryUiState.Success
+              }
+              .onFailure {
+                logWarn { "$LOG_TAG Failed to save recovered keybox: $it" }
+                uiState = OrphanedKeyRecoveryUiState.Error
+              }
+          }
+          .onFailure {
+            logWarn { "$LOG_TAG Failed to recover from orphaned keys: $it" }
+            uiState = OrphanedKeyRecoveryUiState.Error
+          }
+      }
+    }
+
+    LaunchedEffect("recovery-success", uiState) {
+      if (uiState == OrphanedKeyRecoveryUiState.Success) {
+        onSuccess()
+      }
+    }
+
+    return when (uiState) {
+      OrphanedKeyRecoveryUiState.Recovering -> LoadingBodyModel(
+        message = "Recovering your wallet...",
+        id = null
+      ).asRootScreen()
+
+      OrphanedKeyRecoveryUiState.Success -> LoadingBodyModel(
+        message = "Recovery successful!",
+        id = null
+      ).asRootScreen()
+
+      else -> LoadingBodyModel(
+        message = "Recovery failed",
+        id = null
+      ).asRootScreen()
     }
   }
 
@@ -174,5 +352,25 @@ class ChooseAccountAccessUiStateMachineImpl(
      * Showing flow to create a new software wallet.
      */
     data object CreatingSoftwareWallet : State
+
+    /**
+     * Discovering recoverable accounts from orphaned keychain entries.
+     */
+    data object DiscoveringOrphanedAccounts : State
+
+    /**
+     * Showing UI to select which orphaned account to recover when multiple accounts are found.
+     */
+    data class SelectingOrphanedAccount(
+      val accounts: ImmutableList<RecoverableAccount>,
+      val selectedAccount: RecoverableAccount?,
+    ) : State
+
+    /**
+     * Recovering from orphaned keys using the selected account.
+     */
+    data class RecoveringFromOrphanedKeys(
+      val recoverableAccount: RecoverableAccount,
+    ) : State
   }
 }

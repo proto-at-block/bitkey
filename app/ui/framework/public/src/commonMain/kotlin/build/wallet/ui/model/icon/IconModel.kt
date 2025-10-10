@@ -114,6 +114,8 @@ sealed class IconSize(open val value: Int) {
 
   data object Avatar : IconSize(64)
 
+  data object AvatarLarge : IconSize(72)
+
   data object Accessory : IconSize(20)
 
   data object Keypad : IconSize(30)
@@ -162,6 +164,8 @@ sealed interface IconBackgroundType {
       BitkeyPrimary,
 
       TransparentForeground,
+
+      Secondary,
     }
   }
 

@@ -2,8 +2,14 @@ package build.wallet.bitkey.keybox
 
 import bitkey.account.FullAccountConfig
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
+import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
+import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
+import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.f8e.F8eEnvironment.Development
@@ -21,18 +27,43 @@ class KeyboxTests : FunSpec({
     isUsingSocRecFakes = false
   )
 
+  fun createKeybox(
+    activeSpendingKeyset: SpendingKeyset,
+    keysets: List<SpendingKeyset> = listOf(activeSpendingKeyset),
+    localId: String = "test-keybox-id"
+  ) = Keybox(
+    localId = localId,
+    config = config,
+    fullAccountId = FullAccountIdMock,
+    activeSpendingKeyset = activeSpendingKeyset,
+    activeAppKeyBundle = AppKeyBundleMock,
+    activeHwKeyBundle = HwKeyBundleMock,
+    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+    keysets = keysets,
+    canUseKeyboxKeysets = true
+  )
+
+  fun createSpendingKeyset(
+    localId: String,
+    f8eKeysetId: String,
+    serverIntegritySignature: String? = null
+  ) = SpendingKeyset(
+    localId = localId,
+    networkType = SIGNET,
+    appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("$localId-app-dpub")),
+    hardwareKey = HwSpendingPublicKey(DescriptorPublicKeyMock("$localId-hw-dpub")),
+    f8eSpendingKeyset = F8eSpendingKeyset(
+      keysetId = f8eKeysetId,
+      spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("$localId-server-dpub")),
+      serverIntegritySignature = serverIntegritySignature
+    )
+  )
+
   test("should not allow empty keysets") {
     val exception = shouldThrow<IllegalArgumentException> {
-      Keybox(
-        localId = "test-keybox-id",
-        config = config,
-        fullAccountId = FullAccountIdMock,
+      createKeybox(
         activeSpendingKeyset = SpendingKeysetMock,
-        activeAppKeyBundle = AppKeyBundleMock,
-        activeHwKeyBundle = HwKeyBundleMock,
-        appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-        keysets = emptyList(),
-        canUseKeyboxKeysets = true
+        keysets = emptyList()
       )
     }
 
@@ -40,32 +71,15 @@ class KeyboxTests : FunSpec({
   }
 
   test("should allow keysets containing the active spending keyset") {
-    val keybox = Keybox(
-      localId = "test-keybox-id",
-      config = config,
-      fullAccountId = FullAccountIdMock,
-      activeSpendingKeyset = SpendingKeysetMock,
-      activeAppKeyBundle = AppKeyBundleMock,
-      activeHwKeyBundle = HwKeyBundleMock,
-      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-      keysets = listOf(SpendingKeysetMock),
-      canUseKeyboxKeysets = true
-    )
+    val keybox = createKeybox(activeSpendingKeyset = SpendingKeysetMock)
 
     keybox.keysets.shouldBe(listOf(SpendingKeysetMock))
   }
 
   test("should allow keysets containing the active spending keyset with other keysets") {
-    val keybox = Keybox(
-      localId = "test-keybox-id",
-      config = config,
-      fullAccountId = FullAccountIdMock,
+    val keybox = createKeybox(
       activeSpendingKeyset = SpendingKeysetMock,
-      activeAppKeyBundle = AppKeyBundleMock,
-      activeHwKeyBundle = HwKeyBundleMock,
-      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-      keysets = listOf(SpendingKeysetMock2, SpendingKeysetMock),
-      canUseKeyboxKeysets = true
+      keysets = listOf(SpendingKeysetMock2, SpendingKeysetMock)
     )
 
     keybox.keysets.shouldBe(listOf(SpendingKeysetMock2, SpendingKeysetMock))
@@ -73,19 +87,36 @@ class KeyboxTests : FunSpec({
 
   test("should throw when keysets is not empty but doesn't contain active spending keyset") {
     val exception = shouldThrow<IllegalArgumentException> {
-      Keybox(
-        localId = "test-keybox-id",
-        config = config,
-        fullAccountId = FullAccountIdMock,
+      createKeybox(
         activeSpendingKeyset = SpendingKeysetMock,
-        activeAppKeyBundle = AppKeyBundleMock,
-        activeHwKeyBundle = HwKeyBundleMock,
-        appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-        keysets = listOf(SpendingKeysetMock2),
-        canUseKeyboxKeysets = true
+        keysets = listOf(SpendingKeysetMock2)
       )
     }
 
     exception.shouldHaveMessage("activeSpendingKeyset must be present in keysets!")
+  }
+
+  test("isPrivate returns false for legacy keysets without server integrity signature") {
+    val legacyKeyset = createSpendingKeyset(
+      localId = "legacy-keyset",
+      f8eKeysetId = "legacy-f8e-keyset-id",
+      serverIntegritySignature = null
+    )
+
+    val keybox = createKeybox(activeSpendingKeyset = legacyKeyset)
+
+    keybox.isPrivate.shouldBe(false)
+  }
+
+  test("isPrivate returns true for private keysets with server integrity signature") {
+    val privateKeyset = createSpendingKeyset(
+      localId = "private-keyset",
+      f8eKeysetId = "private-f8e-keyset-id",
+      serverIntegritySignature = "integrity-signature-proof"
+    )
+
+    val keybox = createKeybox(activeSpendingKeyset = privateKeyset)
+
+    keybox.isPrivate.shouldBe(true)
   }
 })

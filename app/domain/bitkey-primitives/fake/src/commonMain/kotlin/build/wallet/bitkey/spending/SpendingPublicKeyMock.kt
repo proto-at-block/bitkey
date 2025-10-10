@@ -30,6 +30,11 @@ val SpendingKeysetMock =
     appKey = AppSpendingPublicKeyMock,
     hardwareKey = HwSpendingPublicKeyMock
   )
+val PrivateWalletSpendingKeysetMock = SpendingKeysetMock.copy(
+  f8eSpendingKeyset = SpendingKeysetMock.f8eSpendingKeyset.copy(
+    serverIntegritySignature = "test-signature"
+  )
+)
 
 val SpendingKeysetMock2 =
   SpendingKeyset(

@@ -2,11 +2,11 @@
     "module-identifier": "androidx.camera:camera-core",
     "components": [
         {
-            "version": "1.4.0-alpha04",
+            "version": "1.4.0-beta02",
             "variants": [
                 {
                     "artifacts": {
-                        "camera-core-1.4.0-alpha04.aar": "8232ec50423cdabfdd9d7d1d93385d0876d5e9f304363d40a302a1c9c6ba6dd3"
+                        "camera-core-1.4.0-beta02.aar": "bc9d0f974ef6c977398dd3f9a0f886b5da204bd57bec17b983d17ddbf962308d"
                     }
                 }
             ],

@@ -28,4 +28,14 @@ value class AppGlobalAuthKeyHwSignature(val value: String) {
       }
     }
   }
+
+  companion object {
+    /**
+     * Sentinel value used to indicate that this signature was not obtained from hardware.
+     * This is used during orphaned key recovery when reconstructing a keybox from app keys
+     * that were found in the iOS Keychain after app deletion/reinstallation, where the
+     * hardware signature is unavailable.
+     */
+    const val ORPHANED_KEY_RECOVERY_SENTINEL = "orphaned-key-recovery-sentinel"
+  }
 }

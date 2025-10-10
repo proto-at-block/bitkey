@@ -52,4 +52,8 @@ interface AppPrivateKeyDao {
    * Clears all stored private keys. This should only be used for testing purposes.
    */
   suspend fun clear(): Result<Unit, Throwable>
+
+  companion object {
+    const val STORE_NAME = "AppPrivateKeyStore"
+  }
 }

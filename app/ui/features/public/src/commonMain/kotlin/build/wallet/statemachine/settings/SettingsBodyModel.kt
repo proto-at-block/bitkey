@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.app.settings.SettingsScreen
+import build.wallet.ui.model.list.CoachmarkLabelModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 
@@ -29,7 +30,7 @@ data class SettingsBodyModel(
     val icon: Icon,
     val title: String,
     val isDisabled: Boolean,
-    val showNewCoachmark: Boolean = false,
+    val coachmarkLabelModel: CoachmarkLabelModel? = null,
     val onClick: () -> Unit,
   )
 

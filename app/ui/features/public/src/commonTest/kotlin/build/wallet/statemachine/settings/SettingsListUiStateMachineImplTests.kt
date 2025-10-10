@@ -8,12 +8,12 @@ import build.wallet.availability.InternetUnreachable
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
-import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
+import build.wallet.statemachine.ui.awaitUntilBodyModel
+import build.wallet.wallet.migration.PrivateWalletMigrationServiceFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -26,14 +26,12 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val featureFlagDao = FeatureFlagDaoFake()
 
-  val privateWalletMigrationFeatureFlag = PrivateWalletMigrationFeatureFlag(
-    featureFlagDao = featureFlagDao
-  )
+  val privateWalletMigrationService = PrivateWalletMigrationServiceFake()
 
   val stateMachine = SettingsListUiStateMachineImpl(
     appFunctionalityService = appFunctionalityService,
     coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
-    privateWalletMigrationFeatureFlag = privateWalletMigrationFeatureFlag
+    privateWalletMigrationService = privateWalletMigrationService
   )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
@@ -77,6 +75,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   afterEach {
     appFunctionalityService.reset()
     featureFlagDao.reset()
+    privateWalletMigrationService.reset()
   }
 
   test("onBack calls props onBack") {
@@ -89,7 +88,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   test("list for full account") {
     stateMachine.test(props) {
-      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
+      awaitUntilBodyModel<SettingsBodyModel>(matching = { it.privacyMigrationRow != null }).apply {
         sectionModels
           .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
           .shouldBe(
@@ -101,7 +100,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
                 "Mobile Devices",
                 "Inheritance"
               ),
-              "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation"),
+              "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation", "Enhanced Wallet Privacy"),
               "Support" to listOf("Contact Us", "Help Center")
             )
           )
@@ -190,8 +189,9 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Notifications",
           "Mobile Devices",
           "Inheritance",
-          "Help Center",
-          "Contact Us"
+          "Enhanced Wallet Privacy",
+          "Contact Us",
+          "Help Center"
         )
       )
     }
@@ -218,6 +218,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Inheritance",
           "Custom Electrum Server",
           "UTXO Consolidation",
+          "Enhanced Wallet Privacy",
           "Contact Us",
           "Help Center"
         )
@@ -226,29 +227,32 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("private wallet migration row shown when feature flag enabled") {
-    privateWalletMigrationFeatureFlag.setFlagValue(BooleanFlag(true))
-
     stateMachine.test(props) {
-      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
-        val advancedSection = sectionModels.first { it.sectionHeaderTitle == "Advanced" }
-        val migrationRow = advancedSection.rowModels.firstOrNull { it.title == "Enhanced wallet privacy" }
-        migrationRow.shouldNotBeNull()
+      awaitUntilBodyModel<SettingsBodyModel>(matching = {
+        it.privacyMigrationRow != null
+      }) {
+        privacyMigrationRow.shouldNotBeNull().apply {
+          coachmarkLabelModel?.text shouldBe "Upgrade"
+        }
       }
     }
   }
 
   test("private wallet migration row hidden when feature flag disabled") {
-    privateWalletMigrationFeatureFlag.setFlagValue(BooleanFlag(false))
+    privateWalletMigrationService.isPrivateWalletMigrationAvailable.value = false
 
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
-        val advancedSection = sectionModels.first { it.sectionHeaderTitle == "Advanced" }
-        val migrationRow = advancedSection.rowModels.firstOrNull { it.title == "Enhanced wallet privacy" }
-        migrationRow shouldBe null
+        privacyMigrationRow shouldBe null
       }
     }
   }
 })
+
+private val SettingsBodyModel.privacyMigrationRow get() = sectionModels
+  .first { it.sectionHeaderTitle == "Advanced" }
+  .rowModels
+  .firstOrNull { it.title == "Enhanced Wallet Privacy" }
 
 suspend inline fun <reified T : SettingsListUiProps.SettingsListRow> SettingsListUiStateMachine.testRowOnClickCallsProps(
   rowTitle: String,

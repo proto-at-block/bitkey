@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.router.Route
@@ -42,7 +43,8 @@ class NoActiveAccountDataStateMachineImpl(
           },
           onRetryCloudRecovery = {
             retryingCloudRecovery = true
-          }
+          },
+          goToLiteAccountCreation = props.goToLiteAccountCreation
         )
     }
   }
@@ -112,8 +114,13 @@ class NoActiveAccountDataStateMachineImpl(
         CheckingCloudBackupData(
           intent = dataState.startIntent,
           inviteCode = dataState.inviteCode,
-          onStartCloudRecovery = { state = FullAccountRecoveryState(it) },
-          onStartLostAppRecovery = { state = FullAccountRecoveryState(null) },
+          onStartCloudRecovery = {
+              cloudStoreAccount,
+              backup,
+            ->
+            state = FullAccountRecoveryState(cloudStoreAccount, backup)
+          },
+          onStartLostAppRecovery = { state = FullAccountRecoveryState(null, null) },
           onImportEmergencyExitKit = { state = EmergencyExitAccountRecoveryState },
           onExit = { state = GettingStartedState }
         )
@@ -130,7 +137,8 @@ class NoActiveAccountDataStateMachineImpl(
               CheckCloudBackupAndRouteState(
                 startIntent = StartIntent.RestoreBitkey
               )
-          }
+          },
+          goToLiteAccountCreation = props.goToLiteAccountCreation
         )
 
       is EmergencyExitAccountRecoveryState ->
@@ -146,13 +154,15 @@ class NoActiveAccountDataStateMachineImpl(
     props: NoActiveAccountDataProps,
     onRollback: () -> Unit,
     onRetryCloudRecovery: () -> Unit,
+    goToLiteAccountCreation: () -> Unit,
   ) = RecoveringAccountData(
     lostAppRecoveryData = lostAppRecoveryDataStateMachine.model(
       LostAppRecoveryProps(
         cloudBackup = cloudBackup,
         activeRecovery = props.existingRecovery,
         onRollback = onRollback,
-        onRetryCloudRecovery = onRetryCloudRecovery
+        onRetryCloudRecovery = onRetryCloudRecovery,
+        goToLiteAccountCreation = goToLiteAccountCreation
       )
     )
   )
@@ -168,6 +178,7 @@ private sealed interface State {
    * Application is in the process of full account recovery using cloud backup.
    */
   data class FullAccountRecoveryState(
+    val cloudStoreAccount: CloudStoreAccount?,
     val backup: CloudBackup?,
   ) : State
 

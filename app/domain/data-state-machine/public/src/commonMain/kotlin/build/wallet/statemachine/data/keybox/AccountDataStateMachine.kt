@@ -15,4 +15,5 @@ interface AccountDataStateMachine : StateMachine<AccountDataProps, AccountData>
  */
 data class AccountDataProps(
   val onLiteAccountCreated: (LiteAccount) -> Unit,
+  val goToLiteAccountCreation: () -> Unit,
 )

@@ -89,3 +89,8 @@ variable "encrypted_attachment_table_name" {
   type        = string
   description = "The name of the encrypted attachment table"
 }
+
+variable "sanctions_screener_table_name" {
+  type        = string
+  description = "The name of the sanctions screener table"
+}

@@ -1,7 +1,6 @@
 package build.wallet.statemachine.recovery.losthardware
 
 import app.cash.turbine.plusAssign
-import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -12,7 +11,6 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.RotatingAuthKeysWithF8eData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
@@ -35,10 +33,7 @@ import kotlin.time.Duration.Companion.seconds
 class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
   val dsm = object : LostHardwareRecoveryDataStateMachine,
     StateMachineMock<LostHardwareRecoveryProps, LostHardwareRecoveryData>(
-      AwaitingNewHardwareData(
-        newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-        addHardwareKeys = { _, _ -> }
-      )
+      LostHardwareRecoveryData.LostHardwareRecoveryNotStarted
     ) {}
 
   val clock = ClockFake()

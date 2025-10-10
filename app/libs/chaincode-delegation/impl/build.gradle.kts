@@ -14,9 +14,20 @@ kotlin {
         implementation(projects.libs.stdlibPublic)
       }
     }
-    val commonJvmMain by getting {
+
+    jvmMain {
       dependencies {
+        implementation(projects.libs.chaincodeDelegationPublic)
         implementation(projects.rust.coreFfi)
+        implementation(projects.domain.walletImpl)
+      }
+    }
+
+    androidMain {
+      dependencies {
+        implementation(projects.libs.chaincodeDelegationPublic)
+        implementation(projects.rust.coreFfi)
+        implementation(projects.domain.walletImpl)
       }
     }
   }

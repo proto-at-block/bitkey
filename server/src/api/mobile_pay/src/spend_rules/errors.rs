@@ -33,6 +33,8 @@ pub enum SpendRuleCheckError {
     CalculateChainedSighashes,
     #[error("Could not verify transaction verification message")]
     VerifyTransactionVerificationMessage(#[from] bdk_utils::bdk::bitcoin::secp256k1::Error),
+    #[error("Could not parse chaincode delegation psbt: {0}")]
+    InvalidChaincodeDelegationPsbt(String),
 }
 
 #[derive(Error, Debug)]

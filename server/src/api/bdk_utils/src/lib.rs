@@ -4,11 +4,13 @@ use std::{env, fmt};
 
 pub use bdk;
 use bdk::bitcoin::bip32::{ChildNumber, KeySource};
+use bdk::bitcoin::key::Secp256k1;
+use bdk::bitcoin::psbt::raw::ProprietaryKey;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::psbt::Psbt;
-use bdk::bitcoin::secp256k1::PublicKey;
+use bdk::bitcoin::secp256k1::{PublicKey as SecpPublicKey, Scalar};
 
-use bdk::bitcoin::{Address, Amount, BlockHash, ScriptBuf};
+use bdk::bitcoin::{Address, Amount, BlockHash, ScriptBuf, TxOut};
 use bdk::bitcoincore_rpc::RpcApi;
 use bdk::blockchain::rpc::Auth;
 use bdk::blockchain::{
@@ -25,6 +27,7 @@ use bdk::wallet::{AddressIndex, AddressInfo};
 use bdk::Error::Electrum;
 use bdk::SyncOptions;
 use bdk::{bitcoin::Network, database::MemoryDatabase, Wallet};
+use crypto::chaincode_delegation::common::{PROPRIETARY_KEY_PREFIX, PROPRIETARY_KEY_SUBTYPE};
 use feature_flags::flag::{evaluate_flag_value, ContextKey};
 use tracing::{event, instrument, Level};
 use url::Url;
@@ -361,6 +364,25 @@ pub fn is_psbt_addressed_to_wallet(
 
     Ok(true)
 }
+
+pub fn is_psbt_addressed_to_attributable_wallet(
+    wallet: &dyn AttributableWallet,
+    psbt: &Psbt,
+) -> Result<bool, BdkUtilError> {
+    let Some(outputs) = psbt.get_all_outputs_as_spk_and_derivation() else {
+        return Ok(false);
+    };
+    if outputs.is_empty() {
+        return Ok(false);
+    }
+    for spk in outputs {
+        if !wallet.is_my_psbt_address(&spk)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 fn get_unowned_output_iter<'a>(
     wallet: &'a dyn AttributableWallet,
     psbt: &'a Psbt,
@@ -488,12 +510,18 @@ where
         }
     }
 }
+
 /// Helper type that contains a scriptpubkey (address) along with any derivation paths associated with it
 /// It is intended to be used when pulling inputs or outputs from a PSBT and checking if they are owned
 /// by a particular wallet.
+///
+/// Additionally, it contains a witness_script and proprietary map. These are used to verify ownership
+/// of the output when using Chaincode Delegation.
 pub struct SpkWithDerivationPaths {
     pub script_pubkey: ScriptBuf,
-    pub derivation_paths: BTreeMap<PublicKey, KeySource>,
+    pub derivation_paths: BTreeMap<SecpPublicKey, KeySource>,
+    pub witness_script: Option<ScriptBuf>,
+    pub proprietary: BTreeMap<ProprietaryKey, Vec<u8>>,
 }
 
 /// PSBTs contain origin information and scriptpubkeys for inputs and outputs that are owned by our wallet.
@@ -505,7 +533,6 @@ pub trait PsbtWithDerivation {
     fn get_input_spk_and_derivation(&self, idx: usize) -> Option<SpkWithDerivationPaths>;
     fn get_all_inputs_as_spk_and_derivation(&self) -> Option<Vec<SpkWithDerivationPaths>>;
     fn get_output_spk_and_derivation(&self, idx: usize) -> Option<SpkWithDerivationPaths>;
-
     fn get_all_outputs_as_spk_and_derivation(&self) -> Option<Vec<SpkWithDerivationPaths>>;
 }
 
@@ -515,6 +542,8 @@ impl PsbtWithDerivation for Psbt {
         Some(SpkWithDerivationPaths {
             script_pubkey: input.witness_utxo.clone()?.script_pubkey,
             derivation_paths: input.bip32_derivation.clone(),
+            witness_script: input.witness_script.clone(),
+            proprietary: input.proprietary.clone(),
         })
     }
 
@@ -532,6 +561,8 @@ impl PsbtWithDerivation for Psbt {
         Some(SpkWithDerivationPaths {
             script_pubkey: txout.script_pubkey.clone(),
             derivation_paths: output.bip32_derivation.clone(),
+            witness_script: output.witness_script.clone(),
+            proprietary: output.proprietary.clone(),
         })
     }
 
@@ -576,6 +607,202 @@ fn treasury_rpc_config() -> RpcConfig {
         network: Network::Regtest,
         wallet_name: env::var("BITCOIND_RPC_WALLET_NAME").unwrap_or("testwallet".to_string()),
         sync_params: None,
+    }
+}
+
+pub struct ChaincodeDelegationPsbt {
+    psbt: Psbt,
+}
+
+impl ChaincodeDelegationPsbt {
+    pub fn new(psbt: &Psbt, participant_public_keys: Vec<SecpPublicKey>) -> anyhow::Result<Self> {
+        let proprietary_keys: Vec<ProprietaryKey> = participant_public_keys
+            .iter()
+            .map(|pk| ProprietaryKey {
+                prefix: PROPRIETARY_KEY_PREFIX.to_vec(),
+                subtype: PROPRIETARY_KEY_SUBTYPE,
+                key: pk.serialize().to_vec(),
+            })
+            .collect();
+
+        for input in psbt.inputs.iter() {
+            for proprietary_key in proprietary_keys.iter() {
+                if !input.proprietary.contains_key(proprietary_key) {
+                    return Err(anyhow::anyhow!(
+                        "Input does not have tweak for participant public key: {proprietary_key:?}"
+                    ));
+                }
+            }
+        }
+
+        Ok(Self { psbt: psbt.clone() })
+    }
+}
+
+pub struct ChaincodeDelegationCollaboratorWallet {
+    server_public_key: SecpPublicKey,
+    app_public_key: SecpPublicKey,
+    hardware_public_key: SecpPublicKey,
+}
+
+impl ChaincodeDelegationCollaboratorWallet {
+    pub fn new(
+        server_public_key: SecpPublicKey,
+        app_public_key: SecpPublicKey,
+        hardware_public_key: SecpPublicKey,
+    ) -> Self {
+        Self {
+            server_public_key,
+            app_public_key,
+            hardware_public_key,
+        }
+    }
+}
+
+impl ChaincodeDelegationCollaboratorWallet {
+    pub fn get_outflow_for_psbt(&self, ccd_psbt: &ChaincodeDelegationPsbt) -> anyhow::Result<u64> {
+        let mut outflow = 0u64;
+
+        for output in self.filter_outputs_by_witness_script(&ccd_psbt.psbt, false)? {
+            outflow = outflow
+                .checked_add(output.value)
+                .ok_or_else(|| anyhow::anyhow!("Outflow overflow"))?;
+        }
+
+        Ok(outflow)
+    }
+
+    fn filter_outputs_by_witness_script(
+        &self,
+        psbt: &Psbt,
+        is_change: bool,
+    ) -> anyhow::Result<Vec<TxOut>> {
+        let mut outputs = vec![];
+
+        for (output_idx, tx_output) in psbt.unsigned_tx.output.iter().enumerate() {
+            let is_change_output = if let Some(psbt_output) = psbt.outputs.get(output_idx) {
+                let has_witness_script = psbt_output.witness_script.is_some();
+
+                // Without a witness script, we are sure it is not a change output. For it to be a
+                // change output, it needs to both have a witness script and match what we expect to see.
+                if !has_witness_script {
+                    false
+                } else {
+                    let expected_output_descriptor = self
+                        .expected_descriptor_from_proprietary(&psbt_output.proprietary)
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("Failed to generate expected output descriptor")
+                        })?;
+
+                    let expected_witness_script = expected_output_descriptor
+                        .script_code()
+                        .expect("Failed to generate expected output descriptor script code");
+
+                    expected_output_descriptor.script_pubkey() == tx_output.script_pubkey
+                        && &expected_witness_script == psbt_output.witness_script.as_ref().unwrap()
+                }
+            } else {
+                false
+            };
+
+            if is_change_output == is_change {
+                outputs.push(tx_output.clone());
+            }
+        }
+
+        Ok(outputs)
+    }
+
+    /// Build the tweaked sortedmulti descriptor from proprietary tweak scalars.
+    /// Returns None if required proprietary entries are missing / malformed.
+    fn expected_descriptor_from_proprietary(
+        &self,
+        prop: &BTreeMap<ProprietaryKey, Vec<u8>>,
+    ) -> Option<Descriptor<SecpPublicKey>> {
+        let secp = Secp256k1::new();
+        let proprietary_keys = self.generate_proprietary_keys();
+
+        let mut tweaked: Vec<SecpPublicKey> = Vec::with_capacity(proprietary_keys.len());
+        for key in &proprietary_keys {
+            let tweak_bytes = prop.get(key)?;
+            let tweak = Scalar::from_be_bytes(tweak_bytes.as_slice().try_into().ok()?).ok()?;
+            let base_pk = SecpPublicKey::from_slice(&key.key).ok()?;
+            let tweaked_pk = base_pk.add_exp_tweak(&secp, &tweak).ok()?;
+            tweaked.push(tweaked_pk);
+        }
+
+        Descriptor::new_wsh_sortedmulti(2, tweaked).ok()
+    }
+
+    fn generate_proprietary_keys(&self) -> [ProprietaryKey; 3] {
+        [
+            ProprietaryKey {
+                prefix: PROPRIETARY_KEY_PREFIX.to_vec(),
+                subtype: PROPRIETARY_KEY_SUBTYPE,
+                key: self.app_public_key.serialize().to_vec(),
+            },
+            ProprietaryKey {
+                prefix: PROPRIETARY_KEY_PREFIX.to_vec(),
+                subtype: PROPRIETARY_KEY_SUBTYPE,
+                key: self.server_public_key.serialize().to_vec(),
+            },
+            ProprietaryKey {
+                prefix: PROPRIETARY_KEY_PREFIX.to_vec(),
+                subtype: PROPRIETARY_KEY_SUBTYPE,
+                key: self.hardware_public_key.serialize().to_vec(),
+            },
+        ]
+    }
+}
+
+impl AttributableWallet for ChaincodeDelegationCollaboratorWallet {
+    fn is_my_psbt_address(&self, spk: &SpkWithDerivationPaths) -> Result<bool, BdkUtilError> {
+        // Chain code delegation requires a witness script and proprietary tweaks to verify ownership.
+        let Some(witness_script) = &spk.witness_script else {
+            return Ok(false);
+        };
+
+        let Some(desc) = self.expected_descriptor_from_proprietary(&spk.proprietary) else {
+            return Ok(false);
+        };
+
+        // Compare derived scriptPubKey and witness script.
+        let expected_ws = match desc.explicit_script() {
+            Ok(script) => script,
+            Err(_) => return Ok(false),
+        };
+
+        let expected_spk = desc.script_pubkey();
+        Ok(expected_spk == spk.script_pubkey && &expected_ws == witness_script)
+    }
+
+    fn is_addressed_to_self(&self, psbt: &Psbt) -> Result<bool, BdkUtilError> {
+        // Parity with Wallet<D> impl: empty outputs => false
+        let Some(outputs) = psbt.get_all_outputs_as_spk_and_derivation() else {
+            return Ok(false);
+        };
+        if outputs.is_empty() {
+            return Ok(false);
+        }
+        for spk in outputs {
+            if !self.is_my_psbt_address(&spk)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    fn all_inputs_are_from_self(&self, psbt: &Psbt) -> Result<bool, BdkUtilError> {
+        // Parity: error if we can't access witness UTXOs for inputs
+        let inputs = psbt
+            .get_all_inputs_as_spk_and_derivation()
+            .ok_or(BdkUtilError::MissingWitnessUtxo)?;
+        for spk in inputs {
+            if !self.is_my_psbt_address(&spk)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 }
 

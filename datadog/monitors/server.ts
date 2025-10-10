@@ -62,6 +62,23 @@ export class FromagerieMonitors extends Construct {
       recipients: criticalDaytimeRecipients,
     });
 
+    new Monitor(this, 'fromagerie_private_keyset_missing_descriptor_backup', {
+      query:
+        `logs("env:${environment} service:fromagerie-api @usr.app_id:world.bitkey.app status:error \\"Private keyset missing descriptor backup\\"")
+           .index("*")
+           .rollup("count")
+           .last("1h")
+         > 0`,
+      name: `Private keyset missing descriptor backup on env:${environment}`,
+      message: `Private keyset missing descriptor backup on env:${environment}`,
+      monitorThresholds: {
+        critical: "0",
+      },
+      type: "log alert",
+      tags: [],
+      recipients: criticalDaytimeRecipients,
+    });
+
     for (const service of ["fromagerie-api", "fromagerie-job-blockchain-polling", "fromagerie-job-email", "fromagerie-job-metrics", "fromagerie-job-push", "fromagerie-job-scheduled-notification", "fromagerie-job-sms"]) {
       new ContainerCpuUtilizationHighMonitor(this, `${service}_cpu_utilization_high`, {
         name: `Service ${service} has a high container cpu utilization on env:${environment}`,

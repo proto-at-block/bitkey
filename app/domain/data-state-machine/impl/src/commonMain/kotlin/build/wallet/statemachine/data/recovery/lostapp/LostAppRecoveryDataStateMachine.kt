@@ -27,6 +27,7 @@ data class LostAppRecoveryProps(
   val activeRecovery: StillRecovering?,
   val onRollback: () -> Unit,
   val onRetryCloudRecovery: () -> Unit,
+  val goToLiteAccountCreation: () -> Unit,
 )
 
 @BitkeyInject(AppScope::class)
@@ -42,7 +43,8 @@ class LostAppRecoveryDataStateMachineImpl(
         lostAppRecoveryHaveNotStartedDataStateMachine.model(
           LostAppRecoveryHaveNotStartedProps(
             cloudBackup = props.cloudBackup,
-            onRollback = props.onRollback
+            onRollback = props.onRollback,
+            goToLiteAccountCreation = props.goToLiteAccountCreation
           )
         )
 

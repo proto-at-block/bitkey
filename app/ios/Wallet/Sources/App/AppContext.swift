@@ -84,7 +84,9 @@ class AppContext {
             xChaCha20Poly1305: XChaCha20Poly1305Impl(),
             xNonceGenerator: XNonceGeneratorImpl(),
             noiseInitiator: noiseInitiator,
-            p256Box: P256BoxImpl()
+            p256Box: P256BoxImpl(),
+            chaincodeDelegationServerDpubGenerator: ServerChaincodeGeneratorImpl(),
+            publicKeyUtils: PublicKeyUtilsImpl()
         )
 
         // Create IosActivityComponent

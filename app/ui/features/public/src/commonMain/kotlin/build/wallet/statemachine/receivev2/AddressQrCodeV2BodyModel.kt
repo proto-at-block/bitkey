@@ -6,7 +6,6 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.qr.QRMatrix
 import build.wallet.statemachine.qr.QrCodeState
 import build.wallet.ui.app.moneyhome.receivev2.AddressQrCodeV2Screen
 import build.wallet.ui.model.StandardClick

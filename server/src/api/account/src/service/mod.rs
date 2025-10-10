@@ -217,3 +217,22 @@ pub struct UpdateDescriptorBackupsInput<'a> {
     pub account: &'a FullAccount,
     pub descriptor_backups_set: DescriptorBackupsSet,
 }
+
+fn descriptor_backup_exists_for_private_keyset(
+    full_account: &FullAccount,
+    keyset_id: &KeysetId,
+) -> bool {
+    let is_private = full_account
+        .spending_keysets
+        .get(keyset_id)
+        .and_then(|ks| ks.optional_private_multi_sig())
+        .is_some();
+
+    let missing_backup = full_account
+        .descriptor_backups_set
+        .as_ref()
+        .and_then(|b| b.get_sealed_descriptor(keyset_id))
+        .is_none();
+
+    !is_private || !missing_backup
+}

@@ -1,7 +1,6 @@
 package build.wallet.di
 
 import bitkey.account.AccountConfigService
-import bitkey.f8e.account.GetActiveKeysetF8eClient
 import bitkey.f8e.account.UpdateDescriptorBackupsF8eClient
 import bitkey.f8e.privilegedactions.ConfigureDelayDurationF8eClient
 import bitkey.metrics.MetricTrackerService
@@ -108,7 +107,6 @@ interface JvmAppComponent {
   val cloudStoreAccountRepository: CloudStoreAccountRepository
   val configureDelayDurationF8eClient: ConfigureDelayDurationF8eClient
   val createAccountKeysetF8eClient: CreateAccountKeysetF8eClient
-  val getActiveKeysetF8eClient: GetActiveKeysetF8eClient
   val listKeysetsF8eClient: ListKeysetsF8eClient
   val updateDescriptorBackupsF8eClient: UpdateDescriptorBackupsF8eClient
   val onboardFullAccountService: OnboardFullAccountService

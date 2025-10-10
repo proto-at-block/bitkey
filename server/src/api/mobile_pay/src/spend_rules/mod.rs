@@ -20,11 +20,12 @@ use self::no_psbt_outputs_belong_to_wallet_rule::NoPsbtOutputsBelongToWalletRule
 use crate::daily_spend_record::entities::SpendingEntry;
 use crate::entities::{Features, TransactionVerificationFeatures};
 use crate::spend_rules::all_psbt_inputs_belong_to_wallet_rule::AllPsbtInputsBelongToWalletRuleV2;
-use crate::spend_rules::all_psbt_outputs_belong_to_wallet_rule::AllPsbtOutputsBelongToWalletRuleV2;
 use crate::spend_rules::daily_spend_limit_rule::DailySpendingLimitRuleV2;
 use crate::spend_rules::errors::SpendRuleCheckError;
 use crate::spend_rules::no_psbt_outputs_belong_to_wallet_rule::NoPsbtOutputsBelongToWalletRuleV2;
-use crate::spend_rules::transaction_verification_rule::TransactionVerificationRule;
+use crate::spend_rules::transaction_verification_rule::{
+    TransactionVerificationRule, TransactionVerificationRuleV2,
+};
 
 mod address_screening_rule;
 mod all_psbt_inputs_belong_to_wallet_rule;
@@ -116,6 +117,10 @@ impl<'a> SpendRuleSet<'a> {
                 )),
                 Box::new(AllPsbtInputsBelongToWalletRuleV2::new(private_keyset)),
                 Box::new(NoPsbtOutputsBelongToWalletRuleV2::new(private_keyset)),
+                Box::new(TransactionVerificationRuleV2::new(
+                    private_keyset,
+                    transaction_verification_features,
+                )),
             ],
         }
     }
@@ -157,7 +162,8 @@ impl<'a> SpendRuleSet<'a> {
                     context_key,
                 )),
                 Box::new(AllPsbtInputsBelongToWalletRuleV2::new(source_keyset)),
-                Box::new(AllPsbtOutputsBelongToWalletRuleV2::new(destination_keyset)),
+                // TODO: [W-13985] - Make sure we allow sweeping to a customer's destination wallet.
+                // Box::new(AllPsbtOutputsBelongToWalletRuleV2::new(destination_keyset)),
             ],
         }
     }

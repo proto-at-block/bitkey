@@ -28,10 +28,12 @@ import build.wallet.inheritance.InheritanceMaterialSyncWorker
 import build.wallet.limit.MobilePayBalanceSyncWorker
 import build.wallet.money.currency.FiatCurrenciesSyncWorker
 import build.wallet.money.exchange.ExchangeRateSyncWorker
+import build.wallet.notifications.DeviceTokenAppWorker
 import build.wallet.notifications.NotificationTouchpointSyncWorker
 import build.wallet.notifications.RegisterWatchAddressPeriodicProcessor
 import build.wallet.onboarding.OnboardingCompletionFailsafeWorker
 import build.wallet.partnerships.PartnershipTransactionsSyncWorker
+import build.wallet.platform.permissions.PushPermissionCheckerWorker
 import build.wallet.recovery.sweep.SweepSyncWorker
 import build.wallet.relationships.EndorseTrustedContactsWorker
 import build.wallet.relationships.SyncRelationshipsWorker
@@ -81,6 +83,8 @@ class AppWorkerProviderImpl(
   private val notificationsAppWorker: NotificationsAppWorker,
   private val fingerprintResetSyncWorker: FingerprintResetSyncWorker,
   private val onboardingCompletionFailsafeWorker: OnboardingCompletionFailsafeWorker,
+  private val pushPermissionCheckerWorker: PushPermissionCheckerWorker,
+  private val deviceTokenAppWorker: DeviceTokenAppWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -115,7 +119,9 @@ class AppWorkerProviderImpl(
       securityActionsWorker,
       notificationsAppWorker,
       fingerprintResetSyncWorker,
-      onboardingCompletionFailsafeWorker
+      onboardingCompletionFailsafeWorker,
+      pushPermissionCheckerWorker,
+      deviceTokenAppWorker
     )
   }
 }

@@ -56,10 +56,7 @@ impl TryFrom<(NotificationCompositeKey, SecurityHubPayload)> for NotificationMes
                 },
                 ..Default::default()
             }),
-            sms_payload: Some(SmsPayload {
-                message: sms_message(&payload.trigger_type),
-                unsupported_country_codes: None,
-            }),
+            sms_payload: Some(SmsPayload::new(sms_message(&payload.trigger_type), None)),
         })
     }
 }

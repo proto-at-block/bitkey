@@ -43,23 +43,25 @@ internal fun themeSelectionSheetModel(
     body = ThemeSelectionBodyModel(
       items = items,
       selectedTheme = selectedTheme,
-      onSelectTheme = onSelectTheme
+      onSelectTheme = onSelectTheme,
+      onBack = onExit
     ),
     onClosed = onExit,
     size = SheetSize.DEFAULT
   )
 }
 
-private data class ThemeSelectionBodyModel(
+internal data class ThemeSelectionBodyModel(
   val items: ImmutableList<ListItemModel>,
   val selectedTheme: ThemePreference,
   val onSelectTheme: (ThemePreference) -> Unit,
+  override val onBack: () -> Unit,
 ) : FormBodyModel(
     id = ThemeSelectionEventTrackerScreenId.THEME_SELECTION,
     header = FormHeaderModel(
       headline = "Theme"
     ),
-    onBack = {},
+    onBack = onBack,
     toolbar = null,
     mainContentList =
       immutableListOf(

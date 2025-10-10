@@ -6,7 +6,8 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.ktor.result.HttpError
-import build.wallet.platform.permissions.PermissionCheckerMock
+import build.wallet.platform.permissions.PermissionStatus
+import build.wallet.platform.permissions.PushNotificationPermissionStatusProviderMock
 import build.wallet.platform.settings.TelephonyCountryCodeProviderMock
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -15,7 +16,7 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.first
 
 class NotificationsServiceImplTests : FunSpec({
-  val permissionsChecker = PermissionCheckerMock()
+  val pushNotificationPermissionStatusProvider = PushNotificationPermissionStatusProviderMock()
   val notificationsPreferencesProvider = NotificationsPreferencesCachedProviderMock()
   val telephonyCountryCodeProvider = TelephonyCountryCodeProviderMock()
 
@@ -24,11 +25,11 @@ class NotificationsServiceImplTests : FunSpec({
   val accountService = AccountServiceFake()
 
   val notificationService = NotificationsServiceImpl(
-    permissionChecker = permissionsChecker,
     notificationsPreferencesProvider = notificationsPreferencesProvider,
     telephonyCountryCodeProvider = telephonyCountryCodeProvider,
     usSmsFeatureFlag = featureFlag,
-    accountService = accountService
+    accountService = accountService,
+    pushNotificationPermissionStatusProvider = pushNotificationPermissionStatusProvider
   )
 
   beforeTest {
@@ -47,7 +48,9 @@ class NotificationsServiceImplTests : FunSpec({
         productMarketing = emptySet()
       )
     )
-    permissionsChecker.permissionsOn = true
+    pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+      status = PermissionStatus.Authorized
+    )
     val result = notificationService.getCriticalNotificationStatus().first()
 
     result.shouldBe(NotificationsService.NotificationStatus.Enabled)
@@ -61,7 +64,9 @@ class NotificationsServiceImplTests : FunSpec({
         productMarketing = emptySet()
       )
     )
-    permissionsChecker.permissionsOn = true
+    pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+      status = PermissionStatus.Authorized
+    )
     val result = notificationService.getCriticalNotificationStatus().first()
 
     result.shouldBe(
@@ -82,7 +87,9 @@ class NotificationsServiceImplTests : FunSpec({
         productMarketing = emptySet()
       )
     )
-    permissionsChecker.permissionsOn = false
+    pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+      status = PermissionStatus.Denied
+    )
     val result = notificationService.getCriticalNotificationStatus().first()
 
     result.shouldBe(NotificationsService.NotificationStatus.Missing(setOf(NotificationChannel.Push)))
@@ -99,7 +106,9 @@ class NotificationsServiceImplTests : FunSpec({
         productMarketing = emptySet()
       )
     )
-    permissionsChecker.permissionsOn = true
+    pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+      status = PermissionStatus.Authorized
+    )
     telephonyCountryCodeProvider.mockCountryCode = "us"
     // Feature flag is false by default
     val result = notificationService.getCriticalNotificationStatus().first()
@@ -119,7 +128,9 @@ class NotificationsServiceImplTests : FunSpec({
         productMarketing = emptySet()
       )
     )
-    permissionsChecker.permissionsOn = true
+    pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+      status = PermissionStatus.Authorized
+    )
     telephonyCountryCodeProvider.mockCountryCode = "us"
 
     // Enable US SMS feature flag
@@ -142,7 +153,9 @@ class NotificationsServiceImplTests : FunSpec({
         productMarketing = emptySet()
       )
     )
-    permissionsChecker.permissionsOn = true
+    pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+      status = PermissionStatus.Authorized
+    )
     telephonyCountryCodeProvider.mockCountryCode = "ca"
     // Feature flag doesn't matter for non-US users, but set to false to be sure
     featureFlag.setFlagValue(false)
@@ -156,7 +169,9 @@ class NotificationsServiceImplTests : FunSpec({
   test("Preference Error") {
     val cause = HttpError.UnhandledException(RuntimeException())
     notificationsPreferencesProvider.notificationPreferences.value = Err(cause)
-    permissionsChecker.permissionsOn = true
+    pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+      status = PermissionStatus.Authorized
+    )
     telephonyCountryCodeProvider.mockCountryCode = "us"
     val result = notificationService.getCriticalNotificationStatus().first()
 

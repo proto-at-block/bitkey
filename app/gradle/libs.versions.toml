@@ -58,7 +58,7 @@ android-sdk-target = "35"
 # Warning: when updating Paparazzi, make sure it doesn't break [PaparazziExtension] implementation.
 # TODO: remove this comment once Paparazzi is decoupled from Junit 4: https://github.com/cashapp/paparazzi/issues/282
 android-paparazzi = "1.3.5"
-android-camera = "1.4.0-alpha04"
+android-camera = "1.4.0-beta02"
 android-voyager = "1.1.0-beta03"
 android-core = "1.13.1"
 android-sqlite = "2.4.0"

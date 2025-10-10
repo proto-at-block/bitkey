@@ -1,11 +1,13 @@
 package bitkey.recovery
 
 import bitkey.account.AccountConfigServiceFake
+import bitkey.account.LiteAccountConfig
 import bitkey.backup.DescriptorBackup
 import bitkey.f8e.account.UpdateDescriptorBackupsF8eClientFake
 import bitkey.recovery.DescriptorBackupError.SsekNotFound
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderImpl
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
@@ -16,12 +18,14 @@ import build.wallet.cloud.backup.csek.SsekFake
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.SymmetricKeyEncryptorFake
 import build.wallet.encrypt.XCiphertext
+import build.wallet.f8e.F8eEnvironment.Production
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.ListKeysetsF8eClient.ListKeysetsResponse
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.createFakeSpendingKeyset
 import build.wallet.testing.shouldBeErr
+import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
@@ -373,5 +377,30 @@ class DescriptorBackupServiceImplTests : FunSpec({
         "new-keyset"
       )
     }
+  }
+
+  test("uploadOnboardingDescriptorBackup works for lite account upgrade") {
+    accountConfigService.setActiveConfig(
+      LiteAccountConfig(
+        bitcoinNetworkType = BitcoinNetworkType.SIGNET,
+        f8eEnvironment = Production,
+        isTestAccount = false,
+        isUsingSocRecFakes = false
+      )
+    )
+
+    val accountId = FullAccountId("lite-account-upgrade")
+    val keyset = createFakeSpendingKeyset("upgrade-keyset")
+
+    ssekDao.set(SealedSsekFake, SsekFake)
+
+    val result = service.uploadOnboardingDescriptorBackup(
+      accountId = accountId,
+      sealedSsekForEncryption = SealedSsekFake,
+      appAuthKey = PublicKey("app-auth-key"),
+      keysetsToEncrypt = listOf(keyset)
+    )
+
+    result.shouldBeOk()
   }
 })

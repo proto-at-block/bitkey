@@ -1,7 +1,6 @@
 package build.wallet.statemachine.recovery.losthardware
 
 import app.cash.turbine.plusAssign
-import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -11,7 +10,7 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
 import build.wallet.statemachine.recovery.RecoveryInProgressUiProps
 import build.wallet.statemachine.recovery.RecoveryInProgressUiStateMachine
@@ -48,11 +47,7 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   val initiatingProps =
     LostHardwareRecoveryProps(
       account = FullAccountMock,
-      lostHardwareRecoveryData =
-        AwaitingNewHardwareData(
-          newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-          addHardwareKeys = { _, _ -> }
-        ),
+      lostHardwareRecoveryData = LostHardwareRecoveryData.LostHardwareRecoveryNotStarted,
       screenPresentationStyle = Modal,
       instructionsStyle = InstructionsStyle.Independent,
       onFoundHardware = {},

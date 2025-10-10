@@ -30,6 +30,7 @@ impl Completer for DebugCompleter {
             "list-relationships",
             "list-challenges",
             "list-claims",
+            "prepare-funding",
             "set-gap-limit",
             "set-electrum-server",
         ];

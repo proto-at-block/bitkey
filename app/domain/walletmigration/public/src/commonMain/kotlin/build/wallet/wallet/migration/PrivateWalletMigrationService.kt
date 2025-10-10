@@ -7,12 +7,21 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.recovery.sweep.Sweep
 import com.github.michaelbull.result.Result
+import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.Instant
 
 /**
  * Service for managing private wallet migration from legacy multisig to private collaborative custody.
  */
 interface PrivateWalletMigrationService {
+  /**
+   * Determines if the private wallet migration feature is available to the user.
+   * Checks if the feature flag is enabled and if the user needs migration.
+   *
+   * @return True if the migration feature is available, false otherwise
+   */
+  val isPrivateWalletMigrationAvailable: Flow<Boolean>
+
   /**
    * Initiates the private wallet migration process.
    *

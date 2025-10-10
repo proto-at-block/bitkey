@@ -4,7 +4,6 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData
 
 /**
  * UI State Machine for navigating the initiation of lost hardware recovery.
@@ -17,7 +16,6 @@ data class InitiatingLostHardwareRecoveryProps(
   val account: FullAccount,
   val screenPresentationStyle: ScreenPresentationStyle,
   val instructionsStyle: InstructionsStyle,
-  val initiatingLostHardwareRecoveryData: InitiatingLostHardwareRecoveryData,
   val onFoundHardware: () -> Unit,
   val onExit: () -> Unit,
 )

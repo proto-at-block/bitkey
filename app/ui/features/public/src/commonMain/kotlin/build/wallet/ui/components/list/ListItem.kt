@@ -15,16 +15,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.LabelModel
+import build.wallet.ui.components.coachmark.CoachmarkLabel
 import build.wallet.ui.components.coachmark.CoachmarkPresenter
-import build.wallet.ui.components.coachmark.NewCoachmark
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.LabelTreatment.*
 import build.wallet.ui.components.layout.CollapsedMoneyView
 import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.compose.resId
+import build.wallet.ui.model.coachmark.CoachmarkLabelTreatment
 import build.wallet.ui.model.coachmark.CoachmarkModel
-import build.wallet.ui.model.coachmark.NewCoachmarkTreatment
 import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.CENTER
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.TOP
@@ -115,7 +115,7 @@ fun ListItem(
       collapseContent = collapseContent,
       testTag = testTag,
       coachmark = model.coachmark,
-      showNewCoachmark = model.showNewCoachmark
+      coachmarkLabel = model.coachmarkLabel
     )
   }
 }
@@ -142,7 +142,7 @@ fun ListItem(
   titleLabel: LabelModel? = null,
   specialTrailingAccessory: ListItemAccessory? = null,
   coachmark: CoachmarkModel? = null,
-  showNewCoachmark: Boolean = false,
+  coachmarkLabel: CoachmarkLabelModel? = null,
 ) {
   ListItem(
     modifier = modifier,
@@ -165,7 +165,7 @@ fun ListItem(
     testTag = testTag,
     titleLabel = titleLabel,
     coachmark = coachmark,
-    showNewCoachmark = showNewCoachmark
+    coachmarkLabel = coachmarkLabel
   )
 }
 
@@ -208,7 +208,7 @@ fun ListItem(
   titleLabel: LabelModel? = null,
   collapseContent: Boolean = false,
   coachmark: CoachmarkModel?,
-  showNewCoachmark: Boolean = false,
+  coachmarkLabel: CoachmarkLabelModel? = null,
 ) {
   ListItem(
     modifier = modifier,
@@ -255,13 +255,13 @@ fun ListItem(
             )
           }
 
-          if (showNewCoachmark) {
+          coachmarkLabel?.let { model ->
             Spacer(Modifier.width(8.dp))
-            NewCoachmark(
-              if (titleTreatment == Disabled) {
-                NewCoachmarkTreatment.Disabled
+            CoachmarkLabel(
+              model = if (titleTreatment == Disabled) {
+                model.copy(treatment = CoachmarkLabelTreatment.Disabled)
               } else {
-                NewCoachmarkTreatment.Light
+                model
               }
             )
           }

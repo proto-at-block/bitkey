@@ -4,14 +4,18 @@ import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Result
 
 /**
  * Domain service for managing Lost Hardware Delay & Notify recovery.
- *
- * TODO: move remaining domain operations here.
  */
 interface LostHardwareRecoveryService {
+  /**
+   * Generates a new set of app keys to initialize the lost HW recovery process
+   */
+  suspend fun generateNewAppKeys(): Result<AppKeyBundle, Throwable>
+
   /**
    * Initiates delay + notify recovery for lost or stolen hardware, process is initiated
    * through f8e, DN recovery is written into local state.
@@ -29,4 +33,11 @@ interface LostHardwareRecoveryService {
    * Cancels in progress D&N recovery using app proof of possession.
    */
   suspend fun cancelRecovery(): Result<Unit, CancelDelayNotifyRecoveryError>
+
+  /**
+   * Cancels in progress D&N using HW proof of possession
+   */
+  suspend fun cancelRecoveryWithHwProofOfPossession(
+    proofOfPossession: HwFactorProofOfPossession,
+  ): Result<Unit, CancelDelayNotifyRecoveryError>
 }

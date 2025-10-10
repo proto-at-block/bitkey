@@ -73,6 +73,8 @@ import build.wallet.statemachine.transactions.*
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.All
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
+import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiProps
+import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiStateMachine
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.launch
 import build.wallet.statemachine.receivev2.AddressQrCodeUiStateMachine as AddressQrCodeUiStateMachineV2
@@ -108,6 +110,7 @@ class MoneyHomeUiStateMachineImpl(
   private val declineInheritanceClaimUiStateMachine: DeclineInheritanceClaimUiStateMachine,
   private val onboardingCompletionService: OnboardingCompletionService,
   private val navigatorPresenter: NavigatorPresenter,
+  private val privateWalletMigrationUiStateMachine: PrivateWalletMigrationUiStateMachine,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
@@ -199,7 +202,10 @@ class MoneyHomeUiStateMachineImpl(
           onStartSweepFlow = {
             uiState = PerformingSweep
           },
-          onGoToSecurityHub = props.onGoToSecurityHub
+          onGoToSecurityHub = props.onGoToSecurityHub,
+          onGoToPrivateWalletMigration = {
+            uiState = PrivateWalletMigrationUiState
+          }
         )
       )
 
@@ -410,6 +416,14 @@ class MoneyHomeUiStateMachineImpl(
         CompleteInheritanceClaimUiStateMachineProps(
           relationshipId = state.relationshipId,
           account = props.account as FullAccount,
+          onExit = { uiState = ViewingBalanceUiState() }
+        )
+      )
+
+      PrivateWalletMigrationUiState -> privateWalletMigrationUiStateMachine.model(
+        PrivateWalletMigrationUiProps(
+          account = props.account as FullAccount,
+          onMigrationComplete = { uiState = ViewingBalanceUiState() },
           onExit = { uiState = ViewingBalanceUiState() }
         )
       )
@@ -708,4 +722,9 @@ sealed interface MoneyHomeUiState {
   data class CompleteInheritanceClaimUiState(
     val relationshipId: RelationshipId,
   ) : MoneyHomeUiState
+
+  /**
+   * Private wallet migration flow, presented modally from the coachmark
+   */
+  data object PrivateWalletMigrationUiState : MoneyHomeUiState
 }

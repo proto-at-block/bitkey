@@ -7,7 +7,9 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactory
 import build.wallet.bitcoin.lightning.LightningInvoiceParser
+import build.wallet.chaincode.delegation.ChaincodeDelegationServerDpubGenerator
 import build.wallet.chaincode.delegation.PsbtUtils
+import build.wallet.chaincode.delegation.PublicKeyUtils
 import build.wallet.cloud.store.CloudFileStore
 import build.wallet.crypto.NoiseInitiator
 import build.wallet.crypto.Spake2
@@ -105,6 +107,8 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val xNonceGenerator: XNonceGenerator,
   @get:Provides val noiseInitiator: NoiseInitiator,
   @get:Provides val p256Box: P256Box,
+  @get:Provides val chaincodeDelegationServerDpubGenerator: ChaincodeDelegationServerDpubGenerator,
+  @get:Provides val publicKeyUtils: PublicKeyUtils,
 ) : IosActivityComponent.Factory {
   /**
    * Expose dependencies that we want to access at runtime from Swift code.
@@ -170,4 +174,6 @@ expect fun create(
   xNonceGenerator: XNonceGenerator,
   noiseInitiator: NoiseInitiator,
   p256Box: P256Box,
+  chaincodeDelegationServerDpubGenerator: ChaincodeDelegationServerDpubGenerator,
+  publicKeyUtils: PublicKeyUtils,
 ): IosAppComponent

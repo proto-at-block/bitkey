@@ -282,7 +282,13 @@ enum Action {
     /** [App] Customer has seen the balance graph coachmark */
     ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_HOME = 78;
 
-    // Next tag is 79
+    /** [App] Customer has seen the private wallet home coachmark */
+    ACTION_APP_COACHMARK_VIEWED_PRIVATE_WALLET_HOME = 79;
+
+    /** [App] Customer has seen the private wallet settings coachmark */
+    ACTION_APP_COACHMARK_VIEWED_PRIVATE_WALLET_SETTINGS = 80;
+
+    // Next tag is 81
 }
 
 message PlatformInfo {

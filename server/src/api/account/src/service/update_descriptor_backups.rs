@@ -18,9 +18,13 @@ impl Service {
             }
         }
 
-        if input.descriptor_backups_set.descriptor_backups.len()
-            < input.account.spending_keysets.len()
-        {
+        if !input.descriptor_backups_set.is_superset(
+            &input
+                .account
+                .descriptor_backups_set
+                .clone()
+                .unwrap_or_default(),
+        ) {
             return Err(AccountError::MissingKeysetIds);
         }
 

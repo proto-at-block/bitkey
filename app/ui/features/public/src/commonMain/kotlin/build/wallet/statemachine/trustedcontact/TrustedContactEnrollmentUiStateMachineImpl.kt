@@ -92,7 +92,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
         LaunchedEffect("retrieve-invitation") {
           relationshipsService.retrieveInvitation(props.account, inviteCode)
             .onFailure {
-              logWarn(throwable = it.cause) { "Failed to retrieve invite using code [$inviteCode]" }
+              logWarn(throwable = it.cause) { "Failed to retrieve invite" }
               uiState = State.RetrievingInviteWithF8eFailure(error = it)
             }
             .onSuccess { invite ->

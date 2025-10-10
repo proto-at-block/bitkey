@@ -1,8 +1,10 @@
-use types::account::entities::Touchpoint;
+use tracing::error;
+use types::account::entities::{Account, Touchpoint};
 use types::consent::Consent;
 
 use super::{CompleteOnboardingInput, Service};
 use crate::error::AccountError;
+use crate::service::descriptor_backup_exists_for_private_keyset;
 
 impl Service {
     pub async fn complete_onboarding(
@@ -11,6 +13,14 @@ impl Service {
     ) -> Result<(), AccountError> {
         let account = self.account_repo.fetch(input.account_id).await?;
         let mut common_fields = account.get_common_fields().to_owned();
+
+        if let Account::Full(full_account) = &account {
+            let keyset_id = &full_account.active_keyset_id;
+            if !descriptor_backup_exists_for_private_keyset(full_account, keyset_id) {
+                error!("Private keyset missing descriptor backup for onboarding completion");
+                return Err(AccountError::MissingDescriptorBackup);
+            }
+        }
 
         if !common_fields.onboarding_complete {
             common_fields.onboarding_complete = true;

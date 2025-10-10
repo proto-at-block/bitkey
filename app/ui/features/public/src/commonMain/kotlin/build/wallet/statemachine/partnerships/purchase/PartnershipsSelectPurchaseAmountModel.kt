@@ -79,7 +79,7 @@ fun selectPurchaseAmountModel(
   )
 }
 
-private data class SelectPurchaseAmountBodyModel(
+internal data class SelectPurchaseAmountBodyModel(
   val items: ImmutableList<ListItemModel>,
   val purchaseAmounts: ImmutableList<FiatMoney>,
   val selectedAmount: FiatMoney?,
@@ -91,7 +91,7 @@ private data class SelectPurchaseAmountBodyModel(
 ) : FormBodyModel(
     id = DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS,
     header = null,
-    onBack = {},
+    onBack = onExit,
     toolbar = ToolbarModel(
       middleAccessory = ToolbarMiddleAccessoryModel(title = "Choose an amount")
     ),

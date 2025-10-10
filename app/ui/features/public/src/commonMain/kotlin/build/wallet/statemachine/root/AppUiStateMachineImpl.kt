@@ -36,7 +36,6 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMac
 import build.wallet.statemachine.biometric.BiometricPromptProps
 import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.AppUpdateModalBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.*
@@ -44,7 +43,8 @@ import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountDat
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
 import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
+import build.wallet.statemachine.data.keybox.OrphanedKeyRecoveryUiState.*
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.home.full.HomeUiProps
 import build.wallet.statemachine.home.full.HomeUiStateMachine
@@ -185,9 +185,17 @@ class AppUiStateMachineImpl(
         )
       )
       is State.RenderingViaAccountData -> accountDataStateMachine.model(
-        props = AccountDataProps {
-          uiState = State.ViewingLiteAccount(it)
-        }
+        props = AccountDataProps(
+          onLiteAccountCreated = {
+            uiState = State.ViewingLiteAccount(it)
+          },
+          goToLiteAccountCreation = {
+            uiState = State.CreatingLiteAccount(
+              inviteCode = null,
+              startIntent = StartIntent.BeTrustedContact
+            )
+          }
+        )
       ).let {
         accountData = it
         AppLoadedDataScreenModel(
@@ -212,35 +220,26 @@ class AppUiStateMachineImpl(
         )
       }
       is State.ViewingFullAccount -> {
-        var shouldShowWelcomeScreenWhenTransitionToActive by remember {
-          mutableStateOf(state.isNewlyCreatedAccount)
-        }
-
-        // If we just created the full account, we want to briefly show a welcome screen.
-        if (shouldShowWelcomeScreenWhenTransitionToActive) {
-          LaunchedEffect("show-welcome-screen") {
-            delay(welcomeToBitkeyScreenDuration.value)
-            shouldShowWelcomeScreenWhenTransitionToActive = false
-          }
-          LoadingSuccessBodyModel(
-            id = null,
-            message = "Welcome to Bitkey",
-            state = LoadingSuccessBodyModel.State.Success
-          ).asRootScreen()
+        var shouldShowWelcomeScreen by remember { mutableStateOf(state.isNewlyCreatedAccount) }
+        if (shouldShowWelcomeScreen) {
+          WelcomeScreenModel { shouldShowWelcomeScreen = false }
         } else {
           accountDataStateMachine.model(
-            props = AccountDataProps {
-              uiState = State.ViewingLiteAccount(it)
-            }
+            props = AccountDataProps(
+              onLiteAccountCreated = { uiState = State.ViewingLiteAccount(it) },
+              goToLiteAccountCreation = {
+                uiState = State.CreatingLiteAccount(
+                  inviteCode = null,
+                  startIntent = StartIntent.BeTrustedContact
+                )
+              }
+            )
           ).let {
             accountData = it
             AppLoadedDataScreenModel(
               accountData = it,
               onSoftwareWalletCreated = { swAccount ->
-                uiState = State.ViewingSoftwareAccount(
-                  account = swAccount,
-                  isNewlyCreatedAccount = true
-                )
+                uiState = State.ViewingSoftwareAccount(swAccount, isNewlyCreatedAccount = true)
               },
               onStartLiteAccountRecovery = { cloudBackup ->
                 uiState = State.RecoveringLiteAccount(cloudBackup)
@@ -248,9 +247,7 @@ class AppUiStateMachineImpl(
               onStartLiteAccountCreation = { inviteCode, startIntent ->
                 uiState = State.CreatingLiteAccount(inviteCode, startIntent)
               },
-              onCreateFullAccount = {
-                uiState = State.CreatingFullAccount
-              },
+              onCreateFullAccount = { uiState = State.CreatingFullAccount },
               isNewlyCreatedAccount = state.isNewlyCreatedAccount,
               isRenderingViaAccountData = false
             )
@@ -419,29 +416,30 @@ class AppUiStateMachineImpl(
     account: SoftwareAccount,
     isNewlyCreatedAccount: Boolean,
   ): ScreenModel {
-    var shouldShowWelcomeScreenWhenTransitionToActive by remember {
-      mutableStateOf(isNewlyCreatedAccount)
-    }
-
-    // If we just created the software account, we want to briefly show a welcome screen.
-    return if (shouldShowWelcomeScreenWhenTransitionToActive) {
-      LaunchedEffect("show-welcome-screen") {
-        delay(welcomeToBitkeyScreenDuration.value)
-        shouldShowWelcomeScreenWhenTransitionToActive = false
-      }
-      LoadingSuccessBodyModel(
-        id = null,
-        message = "Welcome to Bitkey",
-        state = LoadingSuccessBodyModel.State.Success
-      ).asRootScreen()
+    var shouldShowWelcomeScreen by remember { mutableStateOf(isNewlyCreatedAccount) }
+    return if (shouldShowWelcomeScreen) {
+      WelcomeScreenModel { shouldShowWelcomeScreen = false }
     } else {
       homeUiStateMachine.model(
         props = HomeUiProps(
           account = account,
-          lostHardwareRecoveryData = GeneratingNewAppKeysData
+          lostHardwareRecoveryData = LostHardwareRecoveryData.LostHardwareRecoveryNotStarted
         )
       )
     }
+  }
+
+  @Composable
+  private fun WelcomeScreenModel(onComplete: () -> Unit): ScreenModel {
+    LaunchedEffect("show-welcome-screen") {
+      delay(welcomeToBitkeyScreenDuration.value)
+      onComplete()
+    }
+    return LoadingSuccessBodyModel(
+      id = null,
+      message = "Welcome to Bitkey",
+      state = LoadingSuccessBodyModel.State.Success
+    ).asRootScreen()
   }
 
   @Composable
@@ -482,20 +480,18 @@ class AppUiStateMachineImpl(
           isRenderingViaAccountData = isRenderingViaAccountData
         )
 
-      is NoLongerRecoveringFullAccountData ->
-        noLongerRecoveringUiStateMachine.model(
-          props = NoLongerRecoveringUiProps(
-            canceledRecoveryLostFactor = accountData.canceledRecoveryLostFactor
-          )
+      is NoLongerRecoveringFullAccountData -> noLongerRecoveringUiStateMachine.model(
+        props = NoLongerRecoveringUiProps(
+          canceledRecoveryLostFactor = accountData.canceledRecoveryLostFactor
         )
+      )
 
-      is SomeoneElseIsRecoveringFullAccountData ->
-        someoneElseIsRecoveringUiStateMachine.model(
-          props = SomeoneElseIsRecoveringUiProps(
-            data = accountData.data,
-            fullAccountId = accountData.fullAccountId
-          )
+      is SomeoneElseIsRecoveringFullAccountData -> someoneElseIsRecoveringUiStateMachine.model(
+        props = SomeoneElseIsRecoveringUiProps(
+          data = accountData.data,
+          fullAccountId = accountData.fullAccountId
         )
+      )
     }
   }
 
@@ -517,19 +513,20 @@ class AppUiStateMachineImpl(
           onCreateFullAccount = onCreateFullAccount
         )
 
-      is RecoveringAccountData ->
-        lostAppRecoveryUiStateMachine.model(
-          LostAppRecoveryUiProps(
-            recoveryData = accountData.lostAppRecoveryData
-          )
+      is RecoveringAccountData -> lostAppRecoveryUiStateMachine.model(
+        LostAppRecoveryUiProps(
+          recoveryData = accountData.lostAppRecoveryData
         )
+      )
 
-      is RecoveringAccountWithEmergencyExitKit ->
-        emergencyExitKitRecoveryUiStateMachine.model(
-          EmergencyExitKitRecoveryUiStateMachineProps(
-            onExit = accountData.onExit
-          )
+      is RecoveringAccountWithEmergencyExitKit -> emergencyExitKitRecoveryUiStateMachine.model(
+        EmergencyExitKitRecoveryUiStateMachineProps(
+          onExit = accountData.onExit
         )
+      )
+
+      is RecoveringFromOrphanedKeysData ->
+        RecoveringFromOrphanedKeysScreenModel(accountData)
 
       is CheckingCloudBackupData -> accessCloudBackupUiStateMachine.model(
         AccessCloudBackupUiProps(
@@ -644,6 +641,49 @@ class AppUiStateMachineImpl(
         lostHardwareRecoveryData = accountData.lostHardwareRecoveryData
       )
     )
+
+  @Composable
+  private fun RecoveringFromOrphanedKeysScreenModel(
+    data: RecoveringFromOrphanedKeysData,
+  ): ScreenModel {
+    return when (data.uiState) {
+      ShowingPrompt -> ErrorFormBodyModel(
+        title = "Recover Your Wallet",
+        subline = "We found keys from a previous installation",
+        primaryButton = ButtonDataModel(text = "Recover My Wallet", onClick = data.onRecover),
+        secondaryButton = ButtonDataModel(text = "Start Fresh", onClick = data.onExit),
+        onBack = data.onExit,
+        eventTrackerScreenId = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_PROMPT
+      ).asRootScreen()
+
+      Recovering -> LoadingSuccessBodyModel(
+        id = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_LOADING,
+        state = LoadingSuccessBodyModel.State.Loading,
+        message = "Recovering your wallet..."
+      ).asRootScreen()
+
+      RestoringAccount -> LoadingSuccessBodyModel(
+        id = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_LOADING,
+        state = LoadingSuccessBodyModel.State.Loading,
+        message = "Restoring Account..."
+      ).asRootScreen()
+
+      Success -> LoadingSuccessBodyModel(
+        id = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_SUCCESS,
+        state = LoadingSuccessBodyModel.State.Success,
+        message = "Wallet recovered!"
+      ).asRootScreen()
+
+      Error -> ErrorFormBodyModel(
+        title = "Recovery Failed",
+        subline = "Unable to recover your wallet. Please try again or contact support.",
+        primaryButton = ButtonDataModel(text = "Try Again", onClick = data.onRetry),
+        secondaryButton = ButtonDataModel(text = "Cancel", onClick = data.onExit),
+        onBack = data.onExit,
+        eventTrackerScreenId = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_ERROR
+      ).asRootScreen()
+    }
+  }
 
   /**
    * Logs screen transitions as breadcrumbstate.

@@ -93,7 +93,7 @@ data class SelectPartnerQuoteBodyModel(
   val onClosed: () -> Unit,
   val listGroupModel: ListGroupModel,
 ) : FormBodyModel(
-    onBack = {},
+    onBack = onClosed,
     header = FormHeaderModel(headline = title, subline = subTitle),
     toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClosed)

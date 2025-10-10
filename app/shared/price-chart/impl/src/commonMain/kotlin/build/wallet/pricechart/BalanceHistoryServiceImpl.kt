@@ -17,6 +17,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -80,6 +81,8 @@ class BalanceHistoryServiceImpl(
         )
 
         emit(Ok(balanceHistory))
+      } catch (e: CancellationException) {
+        throw e // cooperate with coroutine cancellation!
       } catch (e: ArithmeticException) {
         logError(throwable = e) { "Arithmetic error generating balance history" }
         emit(Ok(emptyList()))

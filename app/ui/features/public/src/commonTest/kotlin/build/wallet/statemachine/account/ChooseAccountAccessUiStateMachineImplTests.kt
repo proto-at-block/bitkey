@@ -8,10 +8,15 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyexitkit.EmergencyExitKitAssociation
 import build.wallet.emergencyexitkit.EmergencyExitKitDataProviderFake
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.setFlagValue
+import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.recovery.OrphanedKeyDetectionServiceMock
+import build.wallet.recovery.OrphanedKeyRecoveryServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.CreateAccountOptionsModel
 import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
@@ -20,6 +25,8 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.time.DateTimeFormatterMock
+import build.wallet.time.TimeZoneProviderMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
@@ -31,6 +38,10 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val emergencyExitKitDataProvider = EmergencyExitKitDataProviderFake()
   val featureFlagDao = FeatureFlagDaoFake()
   val softwareWalletIsEnabledFeatureFlag = SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
+  val orphanedKeyRecoveryFeatureFlag = OrphanedKeyRecoveryFeatureFlag(featureFlagDao)
+  val orphanedKeyDetectionService = OrphanedKeyDetectionServiceMock(turbines::create)
+  val orphanedKeyRecoveryService = OrphanedKeyRecoveryServiceMock(turbines::create)
+  val keyboxDao = KeyboxDaoMock(turbines::create)
   val createSoftwareWalletUiStateMachine = object : CreateSoftwareWalletUiStateMachine,
     ScreenStateMachineMock<CreateSoftwareWalletProps>(
       id = "create-software-wallet"
@@ -44,7 +55,14 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       deviceInfoProvider = DeviceInfoProviderMock(),
       emergencyExitKitDataProvider = emergencyExitKitDataProvider,
       softwareWalletIsEnabledFeatureFlag = softwareWalletIsEnabledFeatureFlag,
-      createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine
+      createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine,
+      orphanedKeyDetectionService = orphanedKeyDetectionService,
+      orphanedKeyRecoveryService = orphanedKeyRecoveryService,
+      orphanedKeyRecoveryFeatureFlag = orphanedKeyRecoveryFeatureFlag,
+      moneyDisplayFormatter = MoneyDisplayFormatterFake,
+      dateTimeFormatter = DateTimeFormatterMock(),
+      timeZoneProvider = TimeZoneProviderMock(),
+      keyboxDao = keyboxDao
     )
 
   val stateMachine = buildStateMachine(appVariant = AppVariant.Development)
@@ -68,6 +86,9 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   beforeTest {
     emergencyExitKitDataProvider.reset()
     featureFlagDao.reset()
+    orphanedKeyDetectionService.reset()
+    orphanedKeyRecoveryService.reset()
+    keyboxDao.reset()
   }
 
   test("initial state") {

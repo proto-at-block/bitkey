@@ -23,6 +23,7 @@ sealed interface LostAppRecoveryData {
       val cloudBackup: CloudBackup,
       val rollback: () -> Unit,
       val onRecoverAppKey: () -> Unit,
+      val goToLiteAccountCreation: () -> Unit,
     ) : LostAppRecoveryHaveNotStartedData
 
     /**

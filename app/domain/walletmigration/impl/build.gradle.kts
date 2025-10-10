@@ -26,6 +26,7 @@ kotlin {
       dependencies {
         implementation(projects.domain.accountFake)
         implementation(projects.domain.walletmigrationFake)
+        implementation(projects.domain.featureFlagFake)
         implementation(projects.libs.testingPublic)
         implementation(projects.libs.timeFake)
         implementation(projects.libs.platformFake)

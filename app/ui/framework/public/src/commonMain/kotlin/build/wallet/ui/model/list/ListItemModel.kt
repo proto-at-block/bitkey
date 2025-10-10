@@ -27,7 +27,7 @@ data class ListItemModel(
   val sideTextTint: ListItemSideTextTint = ListItemSideTextTint.PRIMARY,
   val enabled: Boolean = true,
   val selected: Boolean = false,
-  val showNewCoachmark: Boolean = false,
+  val coachmarkLabel: CoachmarkLabelModel? = null,
   val onClick: (() -> Unit)? = null,
   val pickerMenu: ListItemPickerMenu<*>? = null,
   val testTag: String? = null,

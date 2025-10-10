@@ -8,7 +8,7 @@ import build.wallet.rust.core.FfiNetwork.TESTNET
 
 typealias CoreFfiNetwork = build.wallet.rust.core.FfiNetwork
 
-internal val BitcoinNetworkType.coreFfiNetwork: CoreFfiNetwork
+val BitcoinNetworkType.coreFfiNetwork: CoreFfiNetwork
   get() =
     when (this) {
       BitcoinNetworkType.BITCOIN -> BITCOIN

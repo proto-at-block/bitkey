@@ -93,4 +93,10 @@ enum class CloudEventTrackerScreenId : EventTrackerScreenId {
 
   /** Show warning about existing full account cloud backup before overwriting. */
   OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_BACKUP_REPAIR,
+
+  /** Confirming to overwrite full account cloud backup.*/
+  CONFIRM_OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_DURING_LITE_ACCOUNT_ONBOARDING,
+
+  /** Screen for selecting which orphaned account to recover when multiple accounts are found */
+  ORPHANED_ACCOUNT_SELECTION,
 }

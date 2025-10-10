@@ -14,4 +14,5 @@ interface NoActiveAccountDataStateMachine :
 
 data class NoActiveAccountDataProps(
   val existingRecovery: StillRecovering?,
+  val goToLiteAccountCreation: () -> Unit,
 )

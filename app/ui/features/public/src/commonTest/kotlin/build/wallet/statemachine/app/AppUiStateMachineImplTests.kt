@@ -39,11 +39,7 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
 import build.wallet.statemachine.biometric.BiometricPromptProps
 import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
-import build.wallet.statemachine.core.AppUpdateModalBodyModel
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SplashBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
@@ -420,7 +416,7 @@ class AppUiStateMachineImplTests : FunSpec({
       NoActiveAccountData.CheckingCloudBackupData(
         intent = AccountData.StartIntent.BeTrustedContact,
         inviteCode = "invite-code",
-        onStartCloudRecovery = {},
+        onStartCloudRecovery = { _, _ -> },
         onStartLostAppRecovery = {},
         onImportEmergencyExitKit = {},
         onExit = {}
@@ -454,7 +450,7 @@ class AppUiStateMachineImplTests : FunSpec({
       NoActiveAccountData.CheckingCloudBackupData(
         intent = AccountData.StartIntent.BeTrustedContact,
         inviteCode = "invite-code",
-        onStartCloudRecovery = {},
+        onStartCloudRecovery = { _, _ -> },
         onStartLostAppRecovery = {},
         onImportEmergencyExitKit = {},
         onExit = {}

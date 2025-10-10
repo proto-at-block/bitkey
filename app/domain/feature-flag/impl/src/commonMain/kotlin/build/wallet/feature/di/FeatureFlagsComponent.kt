@@ -141,6 +141,16 @@ interface FeatureFlagsComponent {
     PrivateWalletMigrationFeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun replaceFullWithLiteAccountFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    ReplaceFullWithLiteAccountFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun orphanedKeyRecoveryFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    OrphanedKeyRecoveryFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
     coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
@@ -166,6 +176,8 @@ interface FeatureFlagsComponent {
     receiveV2ScreenFeatureFlag: ReceiveV2ScreenFeatureFlag,
     appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
     privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
+    replaceFullWithLiteAccountFeatureFlag: ReplaceFullWithLiteAccountFeatureFlag,
+    orphanedKeyRecoveryFeatureFlag: OrphanedKeyRecoveryFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       softwareWalletIsEnabledFeatureFlag,
@@ -185,6 +197,8 @@ interface FeatureFlagsComponent {
       receiveV2ScreenFeatureFlag,
       appUpdateModalFeatureFlag,
       privateWalletMigrationFeatureFlag,
+      replaceFullWithLiteAccountFeatureFlag,
+      orphanedKeyRecoveryFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
       utxoMaxConsolidationCountFeatureFlag,

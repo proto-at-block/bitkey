@@ -665,7 +665,7 @@ impl From<Account> for PubkeysToAccount {
 }
 
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, ToSchema)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, ToSchema)]
 pub struct DescriptorBackupsSet {
     /// Wallet Key Encryption Key-wrapped Server Storage Encryption Key (SSEK)
     #[serde_as(as = "Base64")]
@@ -679,6 +679,13 @@ impl DescriptorBackupsSet {
             .iter()
             .find(|backup| backup.keyset_id == *keyset_id)
             .map(|backup| backup.sealed_descriptor.clone())
+    }
+
+    pub fn is_superset(&self, other: &DescriptorBackupsSet) -> bool {
+        other
+            .descriptor_backups
+            .iter()
+            .all(|backup| self.get_sealed_descriptor(&backup.keyset_id).is_some())
     }
 }
 

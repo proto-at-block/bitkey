@@ -52,8 +52,8 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
     },
     startIntent = AccountData.StartIntent.BeTrustedContact,
     inviteCode = "inviteCode",
-    onStartCloudRecovery = {
-      onStartCloudRecoveryCalls += it
+    onStartCloudRecovery = { _, backup ->
+      onStartCloudRecoveryCalls += backup
     },
     onStartLiteAccountRecovery = {
       onStartLiteAccountRecoveryCalls += it

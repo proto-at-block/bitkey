@@ -134,6 +134,7 @@ projects:
         - ../../../../../../modules/apps/fromagerie/service/db/*.tf*
         - ../../../../../../modules/apps/fromagerie/service/encrypted-attachment/*.tf*
         - ../../../../../../modules/models/ecs-service/*.tf*
+        - ../../../../../../modules/models/sanctions-screener/*.tf*
         - ../../../../../../modules/pieces/cloudflare-cidrs/*.tf*
         - ../../../../../../modules/pieces/dynamodb-iam-policy/*.tf*
         - ../../../../../../modules/pieces/ecs-containers/*.tf*
@@ -511,6 +512,7 @@ projects:
         - ../../../../../../modules/apps/fromagerie/service/db/*.tf*
         - ../../../../../../modules/apps/fromagerie/service/encrypted-attachment/*.tf*
         - ../../../../../../modules/models/ecs-service/*.tf*
+        - ../../../../../../modules/models/sanctions-screener/*.tf*
         - ../../../../../../modules/pieces/cloudflare-cidrs/*.tf*
         - ../../../../../../modules/pieces/dynamodb-iam-policy/*.tf*
         - ../../../../../../modules/pieces/ecs-containers/*.tf*

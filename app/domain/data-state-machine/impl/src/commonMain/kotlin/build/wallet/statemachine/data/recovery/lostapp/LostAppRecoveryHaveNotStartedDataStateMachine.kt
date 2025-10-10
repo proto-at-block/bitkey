@@ -1,10 +1,6 @@
 package build.wallet.statemachine.data.recovery.lostapp
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -28,6 +24,7 @@ data class LostAppRecoveryHaveNotStartedProps(
    * Action to perform if recovery is rolled back.
    */
   val onRollback: () -> Unit,
+  val goToLiteAccountCreation: () -> Unit,
 )
 
 @BitkeyInject(AppScope::class)
@@ -56,7 +53,8 @@ class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
             rollback = props.onRollback,
             onRecoverAppKey = {
               dataState = InitiatingLostAppRecoveryState
-            }
+            },
+            goToLiteAccountCreation = props.goToLiteAccountCreation
           )
 
         is InitiatingLostAppRecoveryState ->

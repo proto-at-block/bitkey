@@ -10,6 +10,6 @@ class PushNotificationPermissionStatusProviderMock : PushNotificationPermissionS
   override fun pushNotificationStatus(): StateFlow<PermissionStatus> = pushNotificationStatusFlow
 
   override fun updatePushNotificationStatus(status: PermissionStatus) {
-    TODO("Not yet implemented")
+    pushNotificationStatusFlow.value = status
   }
 }

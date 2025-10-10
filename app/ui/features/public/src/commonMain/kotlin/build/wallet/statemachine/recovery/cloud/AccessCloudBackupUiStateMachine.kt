@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.cloud
 
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData.StartIntent
@@ -26,7 +27,7 @@ data class AccessCloudBackupUiProps(
   val startIntent: StartIntent,
   val inviteCode: String?,
   val onExit: () -> Unit,
-  val onStartCloudRecovery: (backup: CloudBackup) -> Unit,
+  val onStartCloudRecovery: (cloudStoreAccount: CloudStoreAccount, backup: CloudBackup) -> Unit,
   val onStartLiteAccountRecovery: (backup: CloudBackup) -> Unit,
   val onStartLostAppRecovery: () -> Unit,
   val onStartLiteAccountCreation: (String?, StartIntent) -> Unit,

@@ -38,7 +38,8 @@ class LostAppRecoveryHaveNotStartedUiStateMachineImpl(
           props = FullAccountCloudBackupRestorationUiProps(
             backup = props.notUndergoingRecoveryData.cloudBackup,
             onExit = props.notUndergoingRecoveryData.rollback,
-            onRecoverAppKey = props.notUndergoingRecoveryData.onRecoverAppKey
+            onRecoverAppKey = props.notUndergoingRecoveryData.onRecoverAppKey,
+            goToLiteAccountCreation = props.notUndergoingRecoveryData.goToLiteAccountCreation
           )
         )
       }

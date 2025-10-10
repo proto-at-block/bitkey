@@ -33,7 +33,7 @@ kotlin {
 
     val androidMain by getting {
       dependencies {
-        implementation(libs.android.bdk)
+        implementation(projects.rust.bdkAndroidFfi)
       }
     }
   }

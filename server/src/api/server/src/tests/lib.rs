@@ -17,16 +17,12 @@ use bdk_utils::bdk::bitcoin::bip32::{
     ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey,
 };
 use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
-use bdk_utils::bdk::bitcoin::OutPoint;
 use bdk_utils::bdk::keys::DescriptorSecretKey;
 use bdk_utils::bdk::miniscript::descriptor::{DescriptorXKey, Wildcard};
 use bdk_utils::bdk::miniscript::ToPublicKey;
 use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex, AddressInfo};
-use bdk_utils::bdk::{
-    bitcoin::psbt::PartiallySignedTransaction, database::AnyDatabase,
-    miniscript::DescriptorPublicKey, FeeRate,
-};
-use bdk_utils::bdk::{SignOptions, Wallet as BdkWallet};
+use bdk_utils::bdk::Wallet as BdkWallet;
+use bdk_utils::bdk::{database::AnyDatabase, miniscript::DescriptorPublicKey};
 use bdk_utils::get_blockchain;
 use external_identifier::ExternalIdentifier;
 use http::StatusCode;
@@ -58,8 +54,10 @@ use types::time::Clock;
 use ulid::Ulid;
 
 use super::requests::axum::TestClient;
+use crate::tests::lib::wallet_protocol::{WalletFixture, WalletTestProtocol};
 use crate::tests::TestContext;
 use crate::Services;
+pub mod wallet_protocol;
 
 pub(crate) fn gen_external_wallet_address() -> AddressInfo {
     let external_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
@@ -288,34 +286,59 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
     client: &TestClient,
     account_id: &AccountId,
     network: Network,
-) -> KeysetId {
+    destination_keyset_type: WalletTestProtocol,
+) -> (KeysetId, (DescriptorPublicKey, DescriptorPublicKey)) {
     let keys = context
         .get_authentication_keys_for_account_id(account_id)
         .expect("Invalid keys for account");
     let (_, spend_app) = create_descriptor_keys(network);
     let (_, spend_hw) = create_descriptor_keys(network);
 
-    let response = client
-        .create_keyset(
-            &account_id.to_string(),
-            &CreateKeysetRequest {
-                spending: SpendingKeysetInput {
-                    network: network.into(),
-                    app: spend_app,
-                    hardware: spend_hw,
-                },
-            },
-            &keys,
-        )
-        .await;
-    assert_eq!(
-        response.status_code,
-        StatusCode::OK,
-        "{}",
-        response.body_string
-    );
-    let create_keyset_response = response.body.unwrap();
-    create_keyset_response.keyset_id
+    // Currently, this function only supports creating an inactive keyset that is the same one as
+    // the active keyset.
+    let keyset_id = match destination_keyset_type {
+        WalletTestProtocol::Legacy => {
+            let response = client
+                .create_keyset(
+                    &account_id.to_string(),
+                    &CreateKeysetRequest {
+                        spending: SpendingKeysetInput {
+                            network: network.into(),
+                            app: spend_app.clone(),
+                            hardware: spend_hw.clone(),
+                        },
+                    },
+                    &keys,
+                )
+                .await;
+
+            assert_eq!(response.status_code, StatusCode::OK);
+            let response = response.body.unwrap();
+            response.keyset_id
+        }
+        WalletTestProtocol::PrivateCcd => match (&spend_app, &spend_hw) {
+            (DescriptorPublicKey::XPub(app_xpub), DescriptorPublicKey::XPub(hw_xpub)) => {
+                let response = client
+                    .create_keyset_v2(
+                        &account_id.to_string(),
+                        &SpendingKeysetInputV2 {
+                            network: network.into(),
+                            app_pub: app_xpub.xkey.public_key,
+                            hardware_pub: hw_xpub.xkey.public_key,
+                        },
+                        &keys,
+                    )
+                    .await;
+
+                assert_eq!(response.status_code, StatusCode::OK);
+                let response = response.body.unwrap();
+                response.keyset_id
+            }
+            _ => panic!("Expected XPub descriptor"),
+        },
+    };
+
+    (keyset_id, (spend_app, spend_hw))
 }
 
 pub(crate) async fn create_test_account(
@@ -600,50 +623,6 @@ pub(crate) async fn create_email_touchpoint(
         None
     }
     .unwrap()
-}
-
-pub(crate) fn build_transaction_with_amount(
-    wallet: &BdkWallet<AnyDatabase>,
-    recipient: AddressInfo,
-    amt: u64,
-    uxtos: &[OutPoint],
-) -> PartiallySignedTransaction {
-    let mut builder = wallet.build_tx();
-    builder
-        .add_recipient(recipient.script_pubkey(), amt)
-        .fee_rate(FeeRate::from_sat_per_vb(5.0));
-    if !uxtos.is_empty() {
-        builder.manually_selected_only().add_utxos(uxtos).unwrap();
-    }
-    let (mut tx, _) = builder.finish().unwrap();
-    let _ = wallet.sign(
-        &mut tx,
-        SignOptions {
-            remove_partial_sigs: false,
-            ..SignOptions::default()
-        },
-    );
-    tx
-}
-
-pub(crate) fn build_sweep_transaction(
-    wallet: &BdkWallet<AnyDatabase>,
-    recipient: AddressInfo,
-) -> PartiallySignedTransaction {
-    let mut builder = wallet.build_tx();
-    builder
-        .drain_wallet()
-        .drain_to(recipient.script_pubkey())
-        .fee_rate(FeeRate::from_sat_per_vb(5.0));
-    let (mut tx, _) = builder.finish().unwrap();
-    let _ = wallet.sign(
-        &mut tx,
-        SignOptions {
-            remove_partial_sigs: false,
-            ..SignOptions::default()
-        },
-    );
-    tx
 }
 
 pub(crate) fn generate_delay_and_notify_recovery(

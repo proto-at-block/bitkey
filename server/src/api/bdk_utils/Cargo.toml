@@ -5,7 +5,9 @@ publish = { workspace = true }
 version = "0.1.0"
 
 [dependencies]
+anyhow = { workspace = true }
 bdk = { workspace = true, features = ["electrum", "keys-bip39", "rpc", "std"] }
+crypto = { workspace = true, features = ["chaincode_delegation"] }
 feature_flags = { workspace = true }
 hex = { workspace = true }
 once_cell = { workspace = true }

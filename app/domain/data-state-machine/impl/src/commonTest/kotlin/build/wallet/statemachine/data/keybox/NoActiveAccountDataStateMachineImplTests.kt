@@ -29,7 +29,8 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
         AttemptingCloudRecoveryLostAppRecoveryDataData(
           cloudBackup = CloudBackupV2WithFullAccountMock,
           rollback = {},
-          onRecoverAppKey = {}
+          onRecoverAppKey = {},
+          goToLiteAccountCreation = {}
         )
       ) {}
   val eventTracker = EventTrackerMock(turbines::create)
@@ -54,7 +55,8 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
 
   fun props(existingRecovery: Recovery.StillRecovering? = null) =
     NoActiveAccountDataProps(
-      existingRecovery = existingRecovery
+      existingRecovery = existingRecovery,
+      goToLiteAccountCreation = {}
     )
 
   test("no recovery in progress") {

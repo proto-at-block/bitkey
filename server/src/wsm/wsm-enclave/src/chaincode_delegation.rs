@@ -9,9 +9,11 @@ use bdk::{
         sighash::{EcdsaSighashType, SighashCache},
         Transaction,
     },
-    miniscript::Descriptor,
+    miniscript::{psbt::PsbtExt, Descriptor},
 };
 use crypto::chaincode_delegation::common::{PROPRIETARY_KEY_PREFIX, PROPRIETARY_KEY_SUBTYPE};
+
+use crate::psbt_verification::verify_inputs_only_have_one_signature;
 
 #[derive(Debug)]
 pub enum ChaincodeDelegateSignerError {
@@ -58,6 +60,9 @@ impl ChaincodeDelegateSigner {
         let tx = &psbt.unsigned_tx;
         let mut sighash_cache = SighashCache::new(tx);
         let proprietary_keys = self.proprietary_keys(secp);
+
+        verify_inputs_only_have_one_signature(&psbt.inputs)
+            .map_err(|e| ChaincodeDelegateSignerError::InvalidPsbt(e.to_string()))?;
 
         for (input_index, psbt_input) in psbt.inputs.iter_mut().enumerate() {
             // Extract and parse tweaks from proprietary map
@@ -131,6 +136,17 @@ impl ChaincodeDelegateSigner {
                 },
             );
         }
+
+        psbt.finalize_mut(&secp).map_err(|errors| {
+            ChaincodeDelegateSignerError::InvalidPsbt(format!(
+                "Failed to finalize PSBT. Errors: {}",
+                errors
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ))
+        })?;
 
         Ok(())
     }
@@ -756,6 +772,9 @@ mod tests {
     }
 
     mod signature_validation_tests {
+        use bdk::bitcoin::PublicKey;
+        use rand::SeedableRng;
+
         use super::*;
 
         #[test]
@@ -763,7 +782,21 @@ mod tests {
             let setup = TestSetup::new();
             let (mut psbt, _, _, _, _) = setup.create_valid_psbt();
 
+            // Insert random signature
             psbt.inputs[0].partial_sigs.clear();
+            // Generate random keypair with fixed seed
+            let (seckey, pubkey) = setup
+                .secp
+                .generate_keypair(&mut rand::rngs::StdRng::from_seed([0; 32]));
+            psbt.inputs[0].partial_sigs.insert(
+                PublicKey::new(pubkey),
+                ecdsa::Signature {
+                    sig: setup
+                        .secp
+                        .sign_ecdsa(&Message::from_slice(&[0; 32]).unwrap(), &seckey),
+                    hash_ty: EcdsaSighashType::All,
+                },
+            );
 
             let result = setup.signer.sign_psbt(&mut psbt, &setup.secp);
             assert!(
@@ -830,17 +863,6 @@ mod tests {
                 "PSBT signing should succeed but got: {:?}",
                 result
             );
-
-            let tweaked_custodian_key = setup
-                .custodian_key
-                .add_tweak(&custodian_tweak)
-                .unwrap()
-                .public_key(&setup.secp);
-            let has_custodian_sig = psbt.inputs[0]
-                .partial_sigs
-                .keys()
-                .any(|pk| pk.inner == tweaked_custodian_key);
-            assert!(has_custodian_sig, "Custodian signature should be present");
         }
     }
 }

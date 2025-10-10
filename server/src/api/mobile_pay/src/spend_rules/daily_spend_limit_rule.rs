@@ -7,7 +7,9 @@ use crate::util::total_sats_spent_today;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
-use bdk_utils::get_total_outflow_for_psbt;
+use bdk_utils::{
+    get_total_outflow_for_psbt, ChaincodeDelegationCollaboratorWallet, ChaincodeDelegationPsbt,
+};
 use time::OffsetDateTime;
 use types::account::spending::PrivateMultiSigSpendingKeyset;
 
@@ -80,7 +82,48 @@ impl Rule for DailySpendingLimitRuleV2<'_> {
         &self,
         psbt: &PartiallySignedTransaction,
     ) -> Result<(), SpendRuleCheckError> {
-        Err(SpendRuleCheckError::SpendLimitInactive)
+        if !self.features.settings.limit.active {
+            return Err(SpendRuleCheckError::SpendLimitInactive);
+        }
+
+        let total_spent = total_sats_spent_today(
+            self.spending_history,
+            &self.features.settings.limit,
+            self.now_utc,
+        )
+        .map_err(|err| SpendRuleCheckError::CouldNotFetchSpendAmount(err.to_string()))?;
+
+        let chaincode_delegation_psbt = ChaincodeDelegationPsbt::new(
+            psbt,
+            vec![
+                self.private_keyset.server_pub,
+                self.private_keyset.app_pub,
+                self.private_keyset.hardware_pub,
+            ],
+        )
+        .map_err(|err| SpendRuleCheckError::InvalidChaincodeDelegationPsbt(err.to_string()))?;
+
+        let delegator_wallet = ChaincodeDelegationCollaboratorWallet::new(
+            self.private_keyset.server_pub,
+            self.private_keyset.app_pub,
+            self.private_keyset.hardware_pub,
+        );
+
+        let total_spend_for_unsigned_transaction_sats = delegator_wallet
+            .get_outflow_for_psbt(&chaincode_delegation_psbt)
+            .map_err(|err| SpendRuleCheckError::CouldNotFetchSpendAmount(err.to_string()))?;
+
+        if self.features.daily_limit_sats >= total_spend_for_unsigned_transaction_sats + total_spent
+        {
+            Ok(())
+        } else {
+            metrics::MOBILE_PAY_COSIGN_OVERFLOW.add(1, &[]);
+            Err(SpendRuleCheckError::SpendLimitExceeded(
+                total_spend_for_unsigned_transaction_sats,
+                total_spent,
+                self.features.daily_limit_sats,
+            ))
+        }
     }
 }
 

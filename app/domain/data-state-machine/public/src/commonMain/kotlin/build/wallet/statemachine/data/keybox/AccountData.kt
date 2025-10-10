@@ -5,6 +5,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
@@ -52,6 +53,16 @@ sealed interface AccountData {
     ) : NoActiveAccountData
 
     /**
+     * Indicates that the account is recovering from orphaned keychain keys after app deletion.
+     */
+    data class RecoveringFromOrphanedKeysData(
+      val uiState: OrphanedKeyRecoveryUiState,
+      val onRecover: () -> Unit,
+      val onRetry: () -> Unit,
+      val onExit: () -> Unit,
+    ) : NoActiveAccountData
+
+    /**
      * Indicates that the application is loading cloud backup data to determine how to proceed.
      *
      * @property intent Indicator for the user's intended action when starting onboarding or recovery. Note that this
@@ -65,7 +76,7 @@ sealed interface AccountData {
     data class CheckingCloudBackupData(
       val intent: StartIntent,
       val inviteCode: String? = null,
-      val onStartCloudRecovery: (CloudBackup) -> Unit,
+      val onStartCloudRecovery: (CloudStoreAccount, CloudBackup) -> Unit,
       val onStartLostAppRecovery: () -> Unit,
       val onImportEmergencyExitKit: () -> Unit,
       val onExit: () -> Unit,
@@ -135,4 +146,12 @@ sealed interface AccountData {
     val data: SomeoneElseIsRecoveringData,
     val fullAccountId: FullAccountId,
   ) : AccountData
+}
+
+enum class OrphanedKeyRecoveryUiState {
+  ShowingPrompt,
+  Recovering,
+  RestoringAccount,
+  Success,
+  Error,
 }

@@ -12,6 +12,7 @@ import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.list.CoachmarkLabelModel
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTitleBackgroundTreatment
 import build.wallet.ui.model.list.ListItemTreatment.PRIMARY_TITLE
@@ -105,7 +106,7 @@ internal fun ListItemWithNewCoachmark() {
               iconSize = Small
             )
         ),
-      showNewCoachmark = true,
+      coachmarkLabel = CoachmarkLabelModel.New,
       trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.drillIcon(),
       specialTrailingAccessory = build.wallet.ui.model.list.ListItemAccessory.IconAccessory(
         model = IconModel(

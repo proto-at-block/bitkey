@@ -120,7 +120,7 @@ private fun SettingsSection(model: SettingsBodyModel.SectionModel) {
           ),
         trailingAccessory = ListItemAccessory.drillIcon().takeIf { !rowModel.isDisabled },
         onClick = rowModel.onClick,
-        showNewCoachmark = rowModel.showNewCoachmark
+        coachmarkLabel = rowModel.coachmarkLabelModel
       )
       Divider()
     }

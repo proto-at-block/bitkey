@@ -1,0 +1,8 @@
+[bindings.kotlin]
+package_name = "org.bitcoindevkit"
+cdylib_name = "bdkffi"
+
+[bindings.python]
+cdylib_name = "bdkffi"
+
+[bindings.swift]

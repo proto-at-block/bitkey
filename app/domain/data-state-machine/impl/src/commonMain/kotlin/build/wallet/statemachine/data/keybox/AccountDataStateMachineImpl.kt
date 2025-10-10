@@ -61,12 +61,14 @@ class AccountDataStateMachineImpl(
                     // First, try to create [KeyboxData] based on recovery state.
                     fullAccountDataBasedOnRecovery(
                       activeAccount = account,
-                      activeRecovery = activeRecoveryResult.value
+                      activeRecovery = activeRecoveryResult.value,
+                      goToLiteAccountCreation = props.goToLiteAccountCreation
                     )
                   },
                   failure = {
                     NoActiveAccountData(
-                      activeRecovery = null
+                      activeRecovery = null,
+                      goToLiteAccountCreation = props.goToLiteAccountCreation
                     )
                   }
                 )
@@ -74,14 +76,16 @@ class AccountDataStateMachineImpl(
 
               else -> {
                 NoActiveAccountData(
-                  activeRecovery = null
+                  activeRecovery = null,
+                  goToLiteAccountCreation = props.goToLiteAccountCreation
                 )
               }
             }
           },
           failure = {
             NoActiveAccountData(
-              activeRecovery = null
+              activeRecovery = null,
+              goToLiteAccountCreation = props.goToLiteAccountCreation
             )
           }
         )
@@ -92,6 +96,7 @@ class AccountDataStateMachineImpl(
   private fun fullAccountDataBasedOnRecovery(
     activeAccount: FullAccount?,
     activeRecovery: Recovery,
+    goToLiteAccountCreation: () -> Unit,
   ): AccountData {
     /*
     [shouldShowSomeoneElseIsRecoveringIfPresent] tracks whether we are showing an app-level notice
@@ -131,7 +136,8 @@ class AccountDataStateMachineImpl(
           // Otherwise, create [KeyboxData] solely based on keybox state.
           accountDataBasedOnAccount(
             activeAccount = activeAccount,
-            activeRecovery = activeRecovery
+            activeRecovery = activeRecovery,
+            goToLiteAccountCreation = goToLiteAccountCreation
           )
         }
       }
@@ -140,7 +146,8 @@ class AccountDataStateMachineImpl(
         // Otherwise, create [KeyboxData] solely based on Full account state.
         accountDataBasedOnAccount(
           activeAccount = activeAccount,
-          activeRecovery = activeRecovery
+          activeRecovery = activeRecovery,
+          goToLiteAccountCreation = goToLiteAccountCreation
         )
       }
     }
@@ -150,11 +157,13 @@ class AccountDataStateMachineImpl(
   private fun accountDataBasedOnAccount(
     activeAccount: FullAccount?,
     activeRecovery: Recovery,
+    goToLiteAccountCreation: () -> Unit,
   ): AccountData {
     return when (activeAccount) {
       null -> {
         NoActiveAccountData(
-          activeRecovery = activeRecovery as? StillRecovering
+          activeRecovery = activeRecovery as? StillRecovering,
+          goToLiteAccountCreation = goToLiteAccountCreation
         )
       }
 
@@ -221,10 +230,14 @@ class AccountDataStateMachineImpl(
   }
 
   @Composable
-  private fun NoActiveAccountData(activeRecovery: StillRecovering?): AccountData {
+  private fun NoActiveAccountData(
+    activeRecovery: StillRecovering?,
+    goToLiteAccountCreation: () -> Unit,
+  ): AccountData {
     return noActiveAccountDataStateMachine.model(
       NoActiveAccountDataProps(
-        existingRecovery = activeRecovery
+        existingRecovery = activeRecovery,
+        goToLiteAccountCreation = goToLiteAccountCreation
       )
     )
   }

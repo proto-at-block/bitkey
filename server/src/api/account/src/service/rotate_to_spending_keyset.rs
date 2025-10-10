@@ -1,7 +1,8 @@
+use tracing::error;
 use types::account::entities::{Account, FullAccount};
 
 use super::{FetchAccountInput, RotateToSpendingKeysetInput, Service};
-use crate::error::AccountError;
+use crate::{error::AccountError, service::descriptor_backup_exists_for_private_keyset};
 
 impl Service {
     pub async fn rotate_to_spending_keyset(
@@ -17,6 +18,12 @@ impl Service {
         if !full_account.spending_keysets.contains_key(input.keyset_id) {
             return Err(AccountError::InvalidSpendingKeysetIdentifierForRotation);
         }
+
+        if !descriptor_backup_exists_for_private_keyset(&full_account, input.keyset_id) {
+            error!("Private keyset missing descriptor backup for keyset rotation");
+            return Err(AccountError::MissingDescriptorBackup);
+        }
+
         let updated_account = FullAccount {
             active_keyset_id: input.keyset_id.to_owned(),
             ..full_account

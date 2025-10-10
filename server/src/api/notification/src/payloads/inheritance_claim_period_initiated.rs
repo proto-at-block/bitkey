@@ -99,10 +99,7 @@ impl
                 extras,
                 ..Default::default()
             }),
-            sms_payload: Some(SmsPayload {
-                message,
-                unsupported_country_codes: None,
-            }),
+            sms_payload: Some(SmsPayload::new(message, None)),
         })
     }
 }

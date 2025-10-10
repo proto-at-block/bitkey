@@ -35,7 +35,8 @@ import okio.ByteString.Companion.decodeHex
 class AppPrivateKeyDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : AppPrivateKeyDao {
-  private suspend fun secureStore() = encryptedKeyValueStoreFactory.getOrCreate(STORE_NAME)
+  private suspend fun secureStore() =
+    encryptedKeyValueStoreFactory.getOrCreate(AppPrivateKeyDao.STORE_NAME)
 
   private enum class PrivateKeyFields {
     SECRET_KEY {
@@ -71,12 +72,12 @@ class AppPrivateKeyDaoImpl(
           .toErrorIf(
             predicate = { privateKey -> privateKey != keyPair.privateKey },
             transform = {
-              IllegalStateException("App spending private key unable to be stored in $STORE_NAME")
+              IllegalStateException("App spending private key unable to be stored in ${AppPrivateKeyDao.STORE_NAME}")
             }
           )
       }
       .mapUnit()
-      .logFailure { "Failed to store spending key in $STORE_NAME" }
+      .logFailure { "Failed to store spending key in ${AppPrivateKeyDao.STORE_NAME}" }
   }
 
   override suspend fun <T : AppAuthKey> storeAppKeyPair(
@@ -95,12 +96,12 @@ class AppPrivateKeyDaoImpl(
           .toErrorIf(
             predicate = { privateKey -> privateKey != keyPair.privateKey },
             transform = {
-              IllegalStateException("App auth private key unable to be stored in $STORE_NAME")
+              IllegalStateException("App auth private key unable to be stored in ${AppPrivateKeyDao.STORE_NAME}")
             }
           )
       }
       .mapUnit()
-      .logFailure { "Failed to store auth key in $STORE_NAME" }
+      .logFailure { "Failed to store auth key in ${AppPrivateKeyDao.STORE_NAME}" }
   }
 
   override suspend fun <T : KeyPurpose> storeAsymmetricPrivateKey(
@@ -117,12 +118,12 @@ class AppPrivateKeyDaoImpl(
           .toErrorIf(
             predicate = { savedPrivateKey -> savedPrivateKey != privateKey },
             transform = {
-              IllegalStateException("Asymmetric key unable to be stored in $STORE_NAME")
+              IllegalStateException("Asymmetric key unable to be stored in ${AppPrivateKeyDao.STORE_NAME}")
             }
           )
       }
       .mapUnit()
-      .logFailure { "Failed to store asymmetric key in $STORE_NAME" }
+      .logFailure { "Failed to store asymmetric key in ${AppPrivateKeyDao.STORE_NAME}" }
   }
 
   override suspend fun getAppSpendingPrivateKey(
@@ -152,7 +153,7 @@ class AppPrivateKeyDaoImpl(
       } else {
         null
       }
-    }.logFailure { "Failed to get private key from $STORE_NAME" }
+    }.logFailure { "Failed to get private key from ${AppPrivateKeyDao.STORE_NAME}" }
   }
 
   override suspend fun <T : KeyPurpose> getAsymmetricPrivateKey(
@@ -161,7 +162,7 @@ class AppPrivateKeyDaoImpl(
     return secureStore()
       .getStringOrNullWithResult(key.value)
       .map { it?.let { PrivateKey<T>(it.decodeHex()) } }
-      .logFailure { "Error getting asymmetric private key from $STORE_NAME" }
+      .logFailure { "Error getting asymmetric private key from ${AppPrivateKeyDao.STORE_NAME}" }
   }
 
   override suspend fun remove(key: AppSpendingPublicKey): Result<Unit, Throwable> =
@@ -172,12 +173,12 @@ class AppPrivateKeyDaoImpl(
       secureStore.removeWithResult(key = secretKeyHashKey).bind()
       secureStore.removeWithResult(key = mnemonicHashKey).bind()
     }
-      .logFailure { "Failed to remove spending key in $STORE_NAME" }
+      .logFailure { "Failed to remove spending key in ${AppPrivateKeyDao.STORE_NAME}" }
 
   override suspend fun <T : KeyPurpose> remove(key: PublicKey<T>): Result<Unit, Throwable> {
     return secureStore()
       .removeWithResult(key = key.value)
-      .logFailure { "Error removing asymmetric key in $STORE_NAME" }
+      .logFailure { "Error removing asymmetric key in ${AppPrivateKeyDao.STORE_NAME}" }
   }
 
   override suspend fun clear(): Result<Unit, Throwable> {
@@ -186,10 +187,6 @@ class AppPrivateKeyDaoImpl(
     return secureStore()
       .clearWithResult()
       .logFailure { "Error clearing app private spending and auth keys" }
-  }
-
-  private companion object {
-    const val STORE_NAME = "AppPrivateKeyStore"
   }
 }
 

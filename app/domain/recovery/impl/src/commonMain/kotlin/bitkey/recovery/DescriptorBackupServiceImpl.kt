@@ -3,8 +3,7 @@ package bitkey.recovery
 import bitkey.account.*
 import bitkey.backup.DescriptorBackup
 import bitkey.f8e.account.UpdateDescriptorBackupsF8eClient
-import bitkey.recovery.DescriptorBackupError.DecryptionError
-import bitkey.recovery.DescriptorBackupError.SsekNotFound
+import bitkey.recovery.DescriptorBackupError.*
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
 import build.wallet.bitcoin.BitcoinNetworkType
@@ -66,7 +65,7 @@ class DescriptorBackupServiceImpl(
     hwSpendingKey: HwSpendingPublicKey,
   ): Result<DescriptorBackupPreparedData, Error> {
     return coroutineBinding {
-      val accountConfig = getFullAccountConfig()
+      val accountConfig = getAccountConfig()
       val newActiveKeyset = createNewActiveKeyset(
         f8eSpendingKeyset = f8eSpendingKeyset,
         networkType = accountConfig.bitcoinNetworkType,
@@ -189,7 +188,7 @@ class DescriptorBackupServiceImpl(
   ): Result<List<SpendingKeyset>, DescriptorBackupError> {
     return coroutineBinding {
       val ssek = ssekDao.get(sealedSsek).get() ?: Err(SsekNotFound).bind()
-      val accountConfig = getFullAccountConfig()
+      val accountConfig = getAccountConfig()
 
       encryptedDescriptorBackups.map { encryptedBackup ->
         // Decrypt the descriptor
@@ -209,11 +208,11 @@ class DescriptorBackupServiceImpl(
     }
   }
 
-  private fun getFullAccountConfig(): FullAccountConfig =
+  private fun getAccountConfig(): AccountConfig =
     when (val config = accountConfigService.activeOrDefaultConfig().value) {
       is DefaultAccountConfig -> config.toFullAccountConfig()
       is FullAccountConfig -> config
-      is LiteAccountConfig -> error("Lite account config is not supported")
+      is LiteAccountConfig -> config
       is SoftwareAccountConfig -> error("Software account config is not supported")
     }
 
@@ -232,14 +231,14 @@ class DescriptorBackupServiceImpl(
 
   private suspend fun prepareForHardwareRecovery(
     accountId: FullAccountId,
-    accountConfig: FullAccountConfig,
+    accountConfig: AccountConfig,
     newActiveKeyset: SpendingKeyset,
   ): Result<DescriptorBackupPreparedData, DescriptorBackupError> =
     coroutineBinding {
       logInfo { "Preparing descriptor backups for Lost Hardware recovery" }
 
       val keybox = accountService.getAccount<FullAccount>()
-        .mapError { DescriptorBackupError.AccountNotFound }
+        .mapError { AccountNotFound }
         .map { it.keybox }
         .bind()
 
@@ -258,7 +257,7 @@ class DescriptorBackupServiceImpl(
           f8eEnvironment = accountConfig.f8eEnvironment,
           fullAccountId = accountId
         ).logFailure { "Failed to list keysets from F8e" }
-          .mapError { DescriptorBackupError.NetworkError(it) }
+          .mapError { NetworkError(it) }
           .bind().keysets
 
         DescriptorBackupPreparedData.EncryptOnly(
@@ -269,7 +268,7 @@ class DescriptorBackupServiceImpl(
 
   private suspend fun prepareForAppRecovery(
     accountId: FullAccountId,
-    accountConfig: FullAccountConfig,
+    accountConfig: AccountConfig,
     newActiveKeyset: SpendingKeyset,
   ): Result<DescriptorBackupPreparedData, DescriptorBackupError> =
     coroutineBinding {
@@ -279,7 +278,7 @@ class DescriptorBackupServiceImpl(
         f8eEnvironment = accountConfig.f8eEnvironment,
         fullAccountId = accountId
       ).logFailure { "Failed to list keysets from F8e" }
-        .mapError { DescriptorBackupError.NetworkError(it) }
+        .mapError { NetworkError(it) }
         .bind()
 
       val existingEncryptedDescriptors = listKeysetsResponse.descriptorBackups.orEmpty()
@@ -367,7 +366,7 @@ class DescriptorBackupServiceImpl(
     hwKeyProof: HwFactorProofOfPossession?,
   ): Result<Unit, DescriptorBackupError> =
     coroutineBinding {
-      val accountConfig = getFullAccountConfig()
+      val accountConfig = getAccountConfig()
 
       logInfo { "Uploading ${descriptorBackups.size} descriptor backups to F8e" }
 
@@ -380,7 +379,7 @@ class DescriptorBackupServiceImpl(
         hwKeyProof = hwKeyProof
       )
         .logFailure { "Failed to update descriptor backups" }
-        .mapError { DescriptorBackupError.NetworkError(it) }
+        .mapError { NetworkError(it) }
         .bind()
     }
 

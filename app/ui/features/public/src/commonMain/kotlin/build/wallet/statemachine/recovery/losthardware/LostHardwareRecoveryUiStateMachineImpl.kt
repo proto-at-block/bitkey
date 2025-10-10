@@ -6,7 +6,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
 import build.wallet.statemachine.recovery.RecoveryInProgressUiProps
 import build.wallet.statemachine.recovery.RecoveryInProgressUiStateMachine
@@ -38,7 +38,7 @@ class LostHardwareRecoveryUiStateMachineImpl(
     var recoveryWasInProgress by remember { mutableStateOf(false) }
 
     return when (val lostHardwareRecoveryData = props.lostHardwareRecoveryData) {
-      is InitiatingLostHardwareRecoveryData -> {
+      LostHardwareRecoveryData.LostHardwareRecoveryNotStarted -> {
         if (recoveryWasInProgress) {
           // Exit since the recovery has been resolved. See documentation on this variable.
           LaunchedEffect("leaving-lost-hw-recovery-in-progress") {
@@ -52,7 +52,6 @@ class LostHardwareRecoveryUiStateMachineImpl(
             props = InitiatingLostHardwareRecoveryProps(
               account = props.account,
               screenPresentationStyle = props.screenPresentationStyle,
-              initiatingLostHardwareRecoveryData = lostHardwareRecoveryData,
               instructionsStyle = props.instructionsStyle,
               onFoundHardware = props.onFoundHardware,
               onExit = props.onExit

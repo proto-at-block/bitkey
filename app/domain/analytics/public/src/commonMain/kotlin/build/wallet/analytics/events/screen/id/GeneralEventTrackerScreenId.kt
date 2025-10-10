@@ -34,4 +34,24 @@ enum class GeneralEventTrackerScreenId : EventTrackerScreenId {
    * App update modal prompting the user to update their app.
    */
   APP_UPDATE_MODAL,
+
+  /**
+   * Prompt screen asking user if they want to recover from orphaned keychain keys.
+   */
+  EMERGENCY_RECOVERY_ORPHANED_KEYS_PROMPT,
+
+  /**
+   * Loading screen while recovering from orphaned keychain keys.
+   */
+  EMERGENCY_RECOVERY_ORPHANED_KEYS_LOADING,
+
+  /**
+   * Success screen after orphaned keys recovery completed.
+   */
+  EMERGENCY_RECOVERY_ORPHANED_KEYS_SUCCESS,
+
+  /**
+   * Error screen when orphaned keys recovery failed.
+   */
+  EMERGENCY_RECOVERY_ORPHANED_KEYS_ERROR,
 }

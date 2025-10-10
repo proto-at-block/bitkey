@@ -36,6 +36,7 @@ locals {
     promotion_code_table_name           = "${module.this.id_dot}.promotion_code"
     transaction_verification_table_name = "${module.this.id_dot}.transaction_verification"
     encrypted_attachment_table_name     = "${module.this.id_dot}.encrypted_attachment"
+    sanctions_screener_table_name       = "${module.this.id_dot}.sanctions_screener"
   }
   table_name_list = [for k, name in local.tables : name]
 
@@ -44,6 +45,7 @@ locals {
   ################################################
   buckets = {
     sanctions_screener_bucket_name          = "bitkey-${module.this.id_dot}-sanctions-screener-${var.environment}"
+    sanctions_updates_bucket_name           = "bitkey-${module.this.id_dot}-sanctions-updates-${var.environment}"
     user_balance_histogram_data_bucket_name = "bitkey-${module.this.id_dot}-user-balance-histogram-data-${var.environment}"
   }
 
@@ -94,6 +96,7 @@ locals {
     PROMOTION_CODE_TABLE           = local.tables.promotion_code_table_name
     TRANSACTION_VERIFICATION_TABLE = local.tables.transaction_verification_table_name
     ENCRYPTED_ATTACHMENT_TABLE     = local.tables.encrypted_attachment_table_name
+    SANCTIONS_SCREENER_TABLE       = local.tables.sanctions_screener_table_name
   }
 
   ###############################################
@@ -235,6 +238,7 @@ module "dynamodb_tables" {
   promotion_code_table_name           = local.tables.promotion_code_table_name
   transaction_verification_table_name = local.tables.transaction_verification_table_name
   encrypted_attachment_table_name     = local.tables.encrypted_attachment_table_name
+  sanctions_screener_table_name       = local.tables.sanctions_screener_table_name
 }
 
 module "encrypted_attachment" {
@@ -716,17 +720,6 @@ module "ecs_job_metrics" {
 # S3 Buckets
 ################################################
 
-module "screener_s3_bucket" {
-  source = "git::https://github.com/terraform-aws-modules/terraform-aws-s3-bucket//?ref=3a1c80b29fdf8fc682d2749456ec36ecbaf4ce14"
-  // Tag v4.1.0
-
-  bucket = local.buckets.sanctions_screener_bucket_name
-
-  versioning = {
-    enabled = true
-  }
-}
-
 module "user_balance_histogram_data_s3_bucket" {
   count  = var.enable_job_user_balance_histogram ? 1 : 0
   source = "git::https://github.com/terraform-aws-modules/terraform-aws-s3-bucket//?ref=3a1c80b29fdf8fc682d2749456ec36ecbaf4ce14"
@@ -1163,3 +1156,20 @@ resource "aws_sns_platform_application" "gcm_application_public_beta" {
   success_feedback_sample_rate = "100"
 }
 
+################################################
+# Sanctions Screener
+################################################
+
+module "sanctions_screener" {
+  source = "../../../models/sanctions-screener"
+
+  screener_bucket_name = local.buckets.sanctions_screener_bucket_name
+  updates_bucket_name  = local.buckets.sanctions_updates_bucket_name
+  repo                 = "squareup/wallet"
+}
+
+# TODO REMOVE
+moved {
+  from = module.screener_s3_bucket
+  to   = module.sanctions_screener.module.screener_s3_bucket
+}

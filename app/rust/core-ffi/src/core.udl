@@ -5,7 +5,15 @@ namespace core {
   [Throws=SignatureUtilsError]
   CompactSignature compact_signature_from_der([ByRef] DERSignature der_signature);
   [Throws=ChaincodeDelegationError]
-  Psbt psbt_with_tweaks(Psbt psbt, ExtendedPrivKey app_root_xprv, ExtendedPubKey server_root_xpub, DescriptorPublicKey hw_dpub);
+  Psbt psbt_with_tweaks(Psbt psbt, DescriptorSecretKey app_account_dprv, ExtendedPubKey server_root_xpub, DescriptorPublicKey hw_dpub);
+  DescriptorPublicKey server_account_dpub(Network network, PublicKey server_root_pubkey);
+  [Throws=PublicKeyError]
+  PublicKey extract_public_key(DescriptorPublicKey descriptor_public_key);
+};
+
+[Error]
+enum PublicKeyError {
+  "UnsupportedDescriptorPublicKeyType",
 };
 
 [Error]
@@ -72,6 +80,9 @@ typedef string PublicKey;
 
 [Custom]
 typedef string Signature;
+
+[Custom]
+typedef string DescriptorSecretKey;
 
 interface Secp256k1SharedSecret {
   constructor([ByRef] PublicKey point, [ByRef] SecretKey scalar);

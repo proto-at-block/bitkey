@@ -11,6 +11,8 @@ import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.f8e.*
 import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.catchingResult
+import build.wallet.chaincode.delegation.ChaincodeDelegationServerDpubGenerator
+import build.wallet.chaincode.delegation.PublicKeyUtils
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -33,6 +35,8 @@ import io.ktor.client.request.*
 @BitkeyInject(AppScope::class)
 class CreateAccountF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
+  private val serverDpubGenerator: ChaincodeDelegationServerDpubGenerator,
+  private val publicKeyUtils: PublicKeyUtils,
 ) : CreateFullAccountF8eClient, CreateLiteAccountF8eClient, CreateSoftwareAccountF8eClient, CreatePrivateFullAccountF8eClient {
   // Full Account
   override suspend fun createAccount(
@@ -80,6 +84,18 @@ class CreateAccountF8eClientImpl(
   override suspend fun createPrivateAccount(
     keyCrossDraft: KeyCrossDraft.WithAppKeysAndHardwareKeys,
   ): Result<CreateFullAccountF8eClient.Success, F8eError<CreateAccountClientErrorCode>> {
+    val appSpendingPubKey =
+      publicKeyUtils
+        .extractPublicKey(keyCrossDraft.appKeyBundle.spendingKey.key)
+        .result
+        .getOrElse { error("Failed to extract app spending public key") }
+
+    val hardwareSpendingPubKey =
+      publicKeyUtils
+        .extractPublicKey(keyCrossDraft.hardwareKeyBundle.spendingKey.key)
+        .result
+        .getOrElse { error("Failed to extract hardware spending public key") }
+
     return createPrivateAccount(
       f8eEnvironment = keyCrossDraft.config.f8eEnvironment,
       requestBody = CreateAccountV2RequestBody(
@@ -89,8 +105,8 @@ class CreateAccountF8eClientImpl(
           recoveryAuthPublicKey = keyCrossDraft.appKeyBundle.recoveryAuthKey.value
         ),
         spend = FullCreateAccountV2SpendingKeys(
-          app = keyCrossDraft.appKeyBundle.spendingKey.key.dpub,
-          hardware = keyCrossDraft.hardwareKeyBundle.spendingKey.key.dpub,
+          app = appSpendingPubKey,
+          hardware = hardwareSpendingPubKey,
           network = keyCrossDraft.config.bitcoinNetworkType.toJsonString()
         ),
         isTestAccount = if (keyCrossDraft.config.isTestAccount) true else null
@@ -116,12 +132,15 @@ class CreateAccountF8eClientImpl(
         // Just log, don't fail the call.
       }
 
-      // TODO(W-1192) chaincode delegation code goes here
+      // Combine the returned server public key with the app generated chaincode to create
+      // the server descriptor public key for use in the application
+      val serverDpub = serverDpubGenerator.generate(keyCrossDraft.config.bitcoinNetworkType, response.serverPub)
 
       CreateFullAccountF8eClient.Success(
         f8eSpendingKeyset = F8eSpendingKeyset(
           keysetId = response.keysetId,
-          spendingPublicKey = F8eSpendingPublicKey(dpub = "foo")
+          spendingPublicKey = F8eSpendingPublicKey(dpub = serverDpub),
+          serverIntegritySignature = response.serverPubIntegritySig
         ),
         fullAccountId = FullAccountId(response.accountId)
       )

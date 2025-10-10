@@ -13,6 +13,8 @@ sealed class ChaincodeDelegationError(
 
   class TweakComputation(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
 
+  class PublicKeyExtraction(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
+
   class UnknownKey(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
 
   class Unknown(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)

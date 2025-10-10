@@ -1,8 +1,12 @@
 use bdk_utils::bdk::bitcoin::Network;
 use http::StatusCode;
-use onboarding::routes_v2::{CreateAccountRequestV2, UpgradeAccountRequestV2};
-use types::account::entities::v2::{
-    FullAccountAuthKeysInputV2, SpendingKeysetInputV2, UpgradeLiteAccountAuthKeysInputV2,
+use onboarding::{
+    routes::{CompleteOnboardingRequest, RotateSpendingKeysetRequest},
+    routes_v2::{CreateAccountRequestV2, UpgradeAccountRequestV2},
+};
+use types::account::entities::{
+    v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2, UpgradeLiteAccountAuthKeysInputV2},
+    DescriptorBackup, DescriptorBackupsSet,
 };
 
 use crate::tests::{
@@ -43,6 +47,38 @@ async fn create_account_v2_test_with_idempotency() {
     let actual_response = client.create_account_v2(&mut context, &request).await;
     assert_eq!(actual_response.status_code, StatusCode::OK);
     assert_eq!(first_create_response, actual_response.body.unwrap());
+
+    // Complete onboarding
+    let actual_response = client
+        .complete_onboarding(
+            &first_create_response.account_id.to_string(),
+            &CompleteOnboardingRequest {},
+        )
+        .await;
+    assert_eq!(actual_response.status_code, StatusCode::CONFLICT);
+
+    let actual_response = client
+        .update_descriptor_backups(
+            &first_create_response.account_id.to_string(),
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup {
+                    keyset_id: first_create_response.keyset_id,
+                    sealed_descriptor: "".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(actual_response.status_code, StatusCode::OK);
+
+    let actual_response = client
+        .complete_onboarding(
+            &first_create_response.account_id.to_string(),
+            &CompleteOnboardingRequest {},
+        )
+        .await;
+    assert_eq!(actual_response.status_code, StatusCode::OK);
 }
 
 // upgrade_account edge cases primarily tested in onboarding_integration_tests.rs
@@ -138,4 +174,40 @@ async fn create_keyset_v2_test_with_idempotency() {
         .await;
     assert_eq!(actual_response.status_code, StatusCode::OK);
     assert_eq!(first_create_response, actual_response.body.unwrap());
+
+    // Rotate
+    let actual_response = client
+        .rotate_to_spending_keyset(
+            &create_response.account_id.to_string(),
+            &create_response.keyset_id.to_string(),
+            &RotateSpendingKeysetRequest {},
+            &keys,
+        )
+        .await;
+    assert_eq!(actual_response.status_code, StatusCode::CONFLICT);
+
+    let actual_response = client
+        .update_descriptor_backups(
+            &create_response.account_id.to_string(),
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup {
+                    keyset_id: create_response.keyset_id.clone(),
+                    sealed_descriptor: "".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(actual_response.status_code, StatusCode::OK);
+
+    let actual_response = client
+        .rotate_to_spending_keyset(
+            &create_response.account_id.to_string(),
+            &create_response.keyset_id.to_string(),
+            &RotateSpendingKeysetRequest {},
+            &keys,
+        )
+        .await;
+    assert_eq!(actual_response.status_code, StatusCode::OK);
 }

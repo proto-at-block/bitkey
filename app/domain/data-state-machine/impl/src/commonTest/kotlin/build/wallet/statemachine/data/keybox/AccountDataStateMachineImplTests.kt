@@ -4,7 +4,6 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.auth.FullAccountAuthKeyRotationServiceMock
 import build.wallet.auth.PendingAuthKeyRotationAttempt.ProposedAttempt
-import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
@@ -25,7 +24,6 @@ import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringD
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
 import com.github.michaelbull.result.Ok
@@ -51,14 +49,10 @@ class AccountDataStateMachineImplTests : FunSpec({
     StateMachineMock<SomeoneElseIsRecoveringDataProps, SomeoneElseIsRecoveringData>(
       ShowingSomeoneElseIsRecoveringData(App, {})
     ) {}
-  val awaitingNewHardwareData = AwaitingNewHardwareData(
-    newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-    addHardwareKeys = { _, _ -> }
-  )
 
   val lostHardwareRecoveryDataStateMachine = object : LostHardwareRecoveryDataStateMachine,
     StateMachineMock<LostHardwareRecoveryProps, LostHardwareRecoveryData>(
-      awaitingNewHardwareData
+      LostHardwareRecoveryData.LostHardwareRecoveryNotStarted
     ) {}
 
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceMock(turbines::create)
@@ -82,7 +76,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   test("no active keybox") {
     accountService.accountState.value = Ok(NoAccount)
 
-    stateMachine.test(AccountDataProps {}) {
+    stateMachine.test(AccountDataProps({}, {})) {
       awaitItem().shouldBe(CheckingActiveAccountData)
       recoveryStatusServiceMock.recoveryStatus.value = Ok(NoActiveRecovery)
       awaitItem().shouldBe(CheckingRecovery)
@@ -92,7 +86,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   test("ignores software account") {
     accountService.setActiveAccount(SoftwareAccountMock)
 
-    stateMachine.test(AccountDataProps {}) {
+    stateMachine.test(AccountDataProps({}, {})) {
       awaitItem().shouldBe(CheckingActiveAccountData)
     }
   }
@@ -100,7 +94,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   test("ignores lite account") {
     accountService.setActiveAccount(LiteAccountMock)
 
-    stateMachine.test(AccountDataProps {}) {
+    stateMachine.test(AccountDataProps({}, {})) {
       awaitItem().shouldBe(CheckingActiveAccountData)
     }
   }
@@ -108,7 +102,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   test("has active full account") {
     accountService.setActiveAccount(FullAccountMock)
 
-    stateMachine.test(AccountDataProps {}) {
+    stateMachine.test(AccountDataProps({}, {})) {
       awaitItem().shouldBe(CheckingActiveAccountData)
 
       awaitItem().shouldBeTypeOf<ActiveFullAccountLoadedData>()
@@ -119,7 +113,7 @@ class AccountDataStateMachineImplTests : FunSpec({
     recoveryStatusServiceMock.recoveryStatus.value = Ok(Recovery.NoLongerRecovering(App))
     accountService.setActiveAccount(FullAccountMock)
 
-    stateMachine.test(AccountDataProps {}) {
+    stateMachine.test(AccountDataProps({}, {})) {
       awaitUntil { it is NoLongerRecoveringFullAccountData }
     }
   }
@@ -129,8 +123,7 @@ class AccountDataStateMachineImplTests : FunSpec({
     accountService.setActiveAccount(FullAccountMock)
 
     stateMachine.test(
-      AccountDataProps {
-      }
+      AccountDataProps({}, {})
     ) {
       awaitItem().shouldBe(CheckingActiveAccountData)
       val item = awaitItem()
@@ -145,7 +138,7 @@ class AccountDataStateMachineImplTests : FunSpec({
     accountService.setActiveAccount(FullAccountMock)
     fullAccountAuthKeyRotationService.pendingKeyRotationAttempt.value = ProposedAttempt
 
-    stateMachine.test(AccountDataProps(onLiteAccountCreated = {})) {
+    stateMachine.test(AccountDataProps(onLiteAccountCreated = {}, goToLiteAccountCreation = {})) {
       awaitItem().shouldBe(CheckingActiveAccountData)
 
       awaitUntil<RotatingAuthKeys>().also {

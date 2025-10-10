@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class MoneyDTO(
-  val amount: Int,
+  val amount: ULong,
   @SerialName("currency_code")
   val currencyCode: String,
 )

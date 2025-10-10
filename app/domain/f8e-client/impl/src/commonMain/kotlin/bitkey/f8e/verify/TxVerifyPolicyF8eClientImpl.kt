@@ -72,7 +72,7 @@ class TxVerifyPolicyF8eClientImpl(
                 ?.takeIf { policy.threshold != Always }
                 ?.let {
                   MoneyDTO(
-                    amount = it.fractionalUnitValue.intValue(),
+                    amount = it.fractionalUnitValue.ulongValue(exactRequired = true),
                     currencyCode = it.currency.textCode.code
                   )
                 }

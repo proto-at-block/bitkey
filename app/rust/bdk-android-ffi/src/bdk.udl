@@ -1,0 +1,513 @@
+namespace bdk {
+
+};
+
+[Error]
+enum BdkError {
+  "InvalidU32Bytes",
+  "Generic",
+  "MissingCachedScripts",
+  "ScriptDoesntHaveAddressForm",
+  "NoRecipients",
+  "NoUtxosSelected",
+  "OutputBelowDustLimit",
+  "InsufficientFunds",
+  "BnBTotalTriesExceeded",
+  "BnBNoExactMatch",
+  "UnknownUtxo",
+  "TransactionNotFound",
+  "TransactionConfirmed",
+  "IrreplaceableTransaction",
+  "FeeRateTooLow",
+  "FeeTooLow",
+  "FeeRateUnavailable",
+  "MissingKeyOrigin",
+  "Key",
+  "ChecksumMismatch",
+  "SpendingPolicyRequired",
+  "InvalidPolicyPathError",
+  "Signer",
+  "InvalidNetwork",
+  "InvalidProgressValue",
+  "ProgressUpdateError",
+  "InvalidOutpoint",
+  "Descriptor",
+  "Encode",
+  "Miniscript",
+  "MiniscriptPsbt",
+  "Bip32",
+  "Secp256k1",
+  "Json",
+  "Hex",
+  "Psbt",
+  "PsbtParse",
+  "Electrum",
+  "Esplora",
+  "Sled",
+  "Rusqlite",
+  "Rpc",
+  "HardenedIndex"
+};
+
+dictionary AddressInfo {
+  u32 index;
+  Address address;
+  KeychainKind keychain;
+};
+
+[Enum]
+interface AddressIndex {
+  New();
+  LastUnused();
+  Peek(u32 index);
+  Reset(u32 index);
+};
+
+enum Network {
+  "Bitcoin",
+  "Testnet",
+  "Signet",
+  "Regtest",
+};
+
+dictionary SledDbConfiguration {
+  string path;
+  string tree_name;
+};
+
+dictionary SqliteDbConfiguration {
+  string path;
+};
+
+dictionary Balance {
+  u64 immature;
+  u64 trusted_pending;
+  u64 untrusted_pending;
+  u64 confirmed;
+  u64 spendable;
+  u64 total;
+};
+
+[Enum]
+interface DatabaseConfig {
+  Memory();
+  Sled(SledDbConfiguration config);
+  Sqlite(SqliteDbConfiguration config);
+};
+
+dictionary TransactionDetails {
+  Transaction? transaction;
+  u64? fee;
+  u64 received;
+  u64 sent;
+  string txid;
+  BlockTime? confirmation_time;
+};
+
+dictionary BlockTime {
+  u32 height;
+  u64 timestamp;
+};
+
+enum WordCount {
+  "Words12",
+  "Words15",
+  "Words18",
+  "Words21",
+  "Words24",
+};
+
+dictionary ElectrumConfig {
+  string url;
+  string? socks5;
+  u8 retry;
+  u8? timeout;
+  u64 stop_gap;
+  boolean validate_domain;
+};
+
+dictionary EsploraConfig {
+  string base_url;
+  string? proxy;
+  u8? concurrency;
+  u64 stop_gap;
+  u64? timeout;
+};
+
+[Enum]
+interface Auth {
+  None();
+  UserPass(string username, string password);
+  Cookie(string file);
+};
+
+dictionary RpcSyncParams {
+    u64 start_script_count;
+    u64 start_time;
+    boolean force_start_time;
+    u64 poll_rate_sec;
+};
+
+dictionary RpcConfig {
+    string url;
+    Auth auth;
+    Network network;
+    string wallet_name;
+    RpcSyncParams? sync_params;
+};
+
+[Enum]
+interface BlockchainConfig {
+  Electrum(ElectrumConfig config);
+  Esplora(EsploraConfig config);
+  Rpc(RpcConfig config);
+};
+
+interface Blockchain {
+  [Throws=BdkError]
+  constructor(BlockchainConfig config);
+
+  [Throws=BdkError]
+  void broadcast([ByRef] Transaction transaction);
+
+  [Throws=BdkError]
+  FeeRate estimate_fee(u64 target);
+
+  [Throws=BdkError]
+  u32 get_height();
+
+  [Throws=BdkError]
+  string get_block_hash(u32 height);
+
+  [Throws=BdkError]
+  Transaction? get_tx(string txid);
+};
+
+callback interface Progress {
+  void update(f32 progress, string? message);
+};
+
+dictionary OutPoint {
+  string txid;
+  u32 vout;
+};
+
+dictionary TxIn {
+  OutPoint previous_output;
+  Script script_sig;
+  u32 sequence;
+  sequence<sequence<u8>> witness;
+};
+
+dictionary TxOut {
+  u64 value;
+  Script script_pubkey;
+};
+
+enum KeychainKind {
+  "External",
+  "Internal",
+};
+
+dictionary LocalUtxo {
+  OutPoint outpoint;
+  TxOut txout;
+  KeychainKind keychain;
+  boolean is_spent;
+};
+
+dictionary ScriptAmount {
+  Script script;
+  u64 amount;
+};
+
+interface Wallet {
+  [Throws=BdkError]
+  constructor(Descriptor descriptor, Descriptor? change_descriptor, Network network, DatabaseConfig database_config);
+
+  Network network();
+
+  [Throws=BdkError]
+  AddressInfo get_address(AddressIndex address_index);
+
+  [Throws=BdkError]
+  AddressInfo get_internal_address(AddressIndex address_index);
+
+  [Throws=BdkError]
+  boolean is_mine(Script script);
+
+  [Throws=BdkError]
+  sequence<LocalUtxo> list_unspent();
+
+  [Throws=BdkError]
+  sequence<TransactionDetails> list_transactions(boolean include_raw);
+
+  [Throws=BdkError]
+  Balance get_balance();
+
+  [Throws=BdkError]
+  boolean sign([ByRef] PartiallySignedTransaction psbt, SignOptions? sign_options);
+
+  [Throws=BdkError]
+  void sync([ByRef] Blockchain blockchain, Progress? progress);
+};
+
+interface FeeRate {
+  [Name=from_sat_per_vb]
+  constructor(float sat_per_vb);
+
+  float as_sat_per_vb();
+};
+
+dictionary SignOptions {
+  boolean trust_witness_utxo;
+  u32? assume_height;
+  boolean allow_all_sighashes;
+  boolean remove_partial_sigs;
+  boolean try_finalize;
+  boolean sign_with_tap_internal_key;
+  boolean allow_grinding;
+};
+
+interface Transaction {
+  [Throws=BdkError]
+  constructor(sequence<u8> transaction_bytes);
+
+  string txid();
+
+  u64 weight();
+
+  u64 size();
+
+  u64 vsize();
+
+  sequence<u8> serialize();
+
+  boolean is_coin_base();
+
+  boolean is_explicitly_rbf();
+
+  boolean is_lock_time_enabled();
+
+  i32 version();
+
+  u32 lock_time();
+
+  sequence<TxIn> input();
+
+  sequence<TxOut> output();
+};
+
+interface PartiallySignedTransaction {
+  [Throws=BdkError]
+  constructor(string psbt_base64);
+
+  string serialize();
+
+  string txid();
+
+  Transaction extract_tx();
+
+  [Throws=BdkError]
+  PartiallySignedTransaction combine(PartiallySignedTransaction other);
+
+  u64? fee_amount();
+
+  FeeRate? fee_rate();
+
+  string json_serialize();
+};
+
+dictionary TxBuilderResult {
+  PartiallySignedTransaction psbt;
+  TransactionDetails transaction_details;
+};
+
+interface TxBuilder {
+  constructor();
+
+  TxBuilder add_recipient(Script script, u64 amount);
+
+  TxBuilder add_unspendable(OutPoint unspendable);
+
+  TxBuilder add_utxo(OutPoint outpoint);
+
+  TxBuilder add_utxos(sequence<OutPoint> outpoints);
+
+  TxBuilder do_not_spend_change();
+
+  TxBuilder manually_selected_only();
+
+  TxBuilder only_spend_change();
+
+  TxBuilder unspendable(sequence<OutPoint> unspendable);
+
+  TxBuilder fee_rate(float sat_per_vbyte);
+
+  TxBuilder fee_absolute(u64 fee_amount);
+
+  TxBuilder drain_wallet();
+
+  TxBuilder drain_to(Script script);
+
+  TxBuilder enable_rbf();
+
+  TxBuilder enable_rbf_with_sequence(u32 nsequence);
+
+  TxBuilder add_data(sequence<u8> data);
+
+  TxBuilder set_recipients(sequence<ScriptAmount> recipients);
+
+  [Throws=BdkError]
+  TxBuilderResult finish([ByRef] Wallet wallet);
+};
+
+interface BumpFeeTxBuilder {
+  constructor(string txid, float new_fee_rate);
+
+  BumpFeeTxBuilder allow_shrinking(Script script_pubkey);
+
+  BumpFeeTxBuilder enable_rbf();
+
+  BumpFeeTxBuilder enable_rbf_with_sequence(u32 nsequence);
+
+  [Throws=BdkError]
+  PartiallySignedTransaction finish([ByRef] Wallet wallet);
+};
+
+interface Mnemonic {
+  constructor(WordCount word_count);
+
+  [Name=from_string, Throws=BdkError]
+  constructor(string mnemonic);
+
+  [Name=from_entropy, Throws=BdkError]
+  constructor(sequence<u8> entropy);
+
+  string as_string();
+};
+
+interface DerivationPath {
+  [Throws=BdkError]
+  constructor(string path);
+};
+
+interface DescriptorSecretKey {
+  constructor(Network network, Mnemonic mnemonic, string? password);
+
+  [Name=from_string, Throws=BdkError]
+  constructor(string secret_key);
+
+  [Throws=BdkError]
+  DescriptorSecretKey derive(DerivationPath path);
+
+  [Throws=BdkError]
+  DescriptorSecretKey extend(DerivationPath path);
+
+  DescriptorPublicKey as_public();
+
+  sequence<u8> secret_bytes();
+
+  string as_string();
+};
+
+interface DescriptorPublicKey {
+  [Name=from_string, Throws=BdkError]
+  constructor(string public_key);
+
+  [Throws=BdkError]
+  DescriptorPublicKey derive(DerivationPath path);
+
+  [Throws=BdkError]
+  DescriptorPublicKey extend(DerivationPath path);
+
+  string as_string();
+};
+
+interface Descriptor {
+  [Throws=BdkError]
+  constructor(string descriptor, Network network);
+
+  [Name=new_bip44]
+  constructor(DescriptorSecretKey secret_key, KeychainKind keychain, Network network);
+
+  [Name=new_bip44_public]
+  constructor(DescriptorPublicKey public_key, string fingerprint, KeychainKind keychain, Network network);
+
+  [Name=new_bip49]
+  constructor(DescriptorSecretKey secret_key, KeychainKind keychain, Network network);
+
+  [Name=new_bip49_public]
+  constructor(DescriptorPublicKey public_key, string fingerprint, KeychainKind keychain, Network network);
+
+  [Name=new_bip84]
+  constructor(DescriptorSecretKey secret_key, KeychainKind keychain, Network network);
+
+  [Name=new_bip84_public]
+  constructor(DescriptorPublicKey public_key, string fingerprint, KeychainKind keychain, Network network);
+
+  [Name=new_bip86]
+  constructor(DescriptorSecretKey secret_key, KeychainKind keychain, Network network);
+
+  [Name=new_bip86_public]
+  constructor(DescriptorPublicKey public_key, string fingerprint, KeychainKind keychain, Network network);
+
+  string as_string();
+
+  string as_string_private();
+};
+
+interface Address {
+  [Throws=BdkError]
+  constructor(string address, Network network);
+
+  [Name=from_script, Throws=BdkError]
+  constructor(Script script, Network network);
+
+  Payload payload();
+
+  Network network();
+
+  Script script_pubkey();
+
+  string to_qr_uri();
+
+  boolean is_valid_for_network(Network network);
+
+  string as_string();
+};
+
+[Enum]
+interface Payload {
+  PubkeyHash(string pubkey_hash);
+
+  ScriptHash(string script_hash);
+
+  WitnessProgram(WitnessVersion version, sequence<u8> program);
+};
+
+enum WitnessVersion {
+  "V0",
+  "V1",
+  "V2",
+  "V3",
+  "V4",
+  "V5",
+  "V6",
+  "V7",
+  "V8",
+  "V9",
+  "V10",
+  "V11",
+  "V12",
+  "V13",
+  "V14",
+  "V15",
+  "V16"
+};
+
+interface Script {
+  constructor(sequence<u8> raw_output_script);
+
+  sequence<u8> to_bytes();
+};

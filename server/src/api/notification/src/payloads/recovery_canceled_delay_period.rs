@@ -53,10 +53,7 @@ impl TryFrom<(NotificationCompositeKey, RecoveryCanceledDelayPeriodPayload)>
                 android_channel_id: AndroidChannelId::UrgentSecurity,
                 ..Default::default()
             }),
-            sms_payload: Some(SmsPayload {
-                message,
-                unsupported_country_codes: None,
-            }),
+            sms_payload: Some(SmsPayload::new(message, None)),
         })
     }
 }

@@ -7,7 +7,7 @@ import build.wallet.feature.FeatureFlagValue
 class ChaincodeDelegationFeatureFlag(
   featureFlagDao: FeatureFlagDao,
 ) : FeatureFlag<FeatureFlagValue.BooleanFlag>(
-    identifier = "mobile-chaincode-delegation",
+    identifier = "mobile-chaincode-delegation-enabled",
     title = "Chaincode Delegation",
     description = "Turn on chaincode delegation. Must onboard a new account.",
     defaultFlagValue = FeatureFlagValue.BooleanFlag(false),

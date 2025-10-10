@@ -36,7 +36,7 @@ impl SendSMS {
             .create_message(
                 country_code.to_owned(),
                 phone_number.to_owned(),
-                payload.message.clone(),
+                payload.message(),
             )
             .await?;
 

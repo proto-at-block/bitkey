@@ -16,6 +16,7 @@ use types::{
 
 use super::gen_services_with_overrides;
 use super::lib::create_inactive_spending_keyset_for_account;
+use crate::tests::lib::wallet_protocol::WalletTestProtocol;
 use crate::GenServiceOverrides;
 use crate::{
     tests::{
@@ -265,11 +266,12 @@ async fn setup_full_accounts_and_server(
     let keys = context
         .get_authentication_keys_for_account_id(&account_with_payment.id)
         .expect("Keys not found for account");
-    let keyset_id = create_inactive_spending_keyset_for_account(
+    let (keyset_id, _) = create_inactive_spending_keyset_for_account(
         &context,
         &client,
         &account_with_payment.id,
         types::account::bitcoin::Network::BitcoinSignet,
+        WalletTestProtocol::Legacy,
     )
     .await;
     client

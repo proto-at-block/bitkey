@@ -16,7 +16,8 @@ class AccountAccessMoreOptionsFormScreenSnapshots :
           AccountAccessMoreOptionsFormBodyModel(
             onBack = {},
             onBeTrustedContactClick = {},
-            onRestoreYourWalletClick = {}
+            onRestoreYourWalletClick = {},
+            onRecoverFromOrphanedKeysClick = null
           )
         )
       }

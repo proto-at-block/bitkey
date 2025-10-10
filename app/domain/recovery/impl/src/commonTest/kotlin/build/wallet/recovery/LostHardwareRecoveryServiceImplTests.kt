@@ -10,6 +10,7 @@ import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.db.DbQueryError
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClientFake
+import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError.ServerError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
@@ -40,7 +41,8 @@ class LostHardwareRecoveryServiceImplTests : FunSpec({
     recoveryLock = RecoveryLockImpl(),
     initiateAccountDelayNotifyF8eClient = initiateAccountDelayNotifyF8eClient,
     recoveryDao = recoveryDao,
-    accountService = accountService
+    accountService = accountService,
+    appKeysGenerator = AppKeysGeneratorMock()
   )
 
   beforeTest {

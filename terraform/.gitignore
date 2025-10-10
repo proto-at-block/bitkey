@@ -32,3 +32,6 @@ terraform.rc
 # Ignore hermit data
 .hermit
 
+# Claude
+/CLAUDE.local.md
+**/.claude/settings.local.json

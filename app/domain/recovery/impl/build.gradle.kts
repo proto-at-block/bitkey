@@ -20,6 +20,7 @@ kotlin {
         implementation(projects.libs.queueProcessorPublic)
         implementation(projects.domain.relationshipsPublic)
         implementation(projects.libs.timePublic)
+        implementation(projects.libs.keyValueStorePublic)
       }
     }
 

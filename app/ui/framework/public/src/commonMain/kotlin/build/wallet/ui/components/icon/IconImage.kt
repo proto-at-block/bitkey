@@ -214,6 +214,7 @@ private fun Modifier.background(
                 Circle.CircleColor.Primary -> WalletTheme.colors.primaryIconBackground
                 Circle.CircleColor.BitkeyPrimary -> WalletTheme.colors.bitkeyPrimary
                 Circle.CircleColor.TransparentForeground -> WalletTheme.colors.foreground.copy(alpha = .2f)
+                Circle.CircleColor.Secondary -> WalletTheme.colors.secondary
               },
             shape = CircleShape
           )

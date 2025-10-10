@@ -1,4 +1,4 @@
-use bdk_utils::AttributableWallet;
+use bdk_utils::{AttributableWallet, ChaincodeDelegationCollaboratorWallet};
 
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::database::AnyDatabase;
@@ -47,7 +47,22 @@ impl Rule for AllPsbtInputsBelongToWalletRuleV2<'_> {
         &self,
         psbt: &PartiallySignedTransaction,
     ) -> Result<(), SpendRuleCheckError> {
-        Err(SpendRuleCheckError::PsbtInputsDontBelongToOriginWallet)
+        // Build on demand to avoid changing constructor signature to return Result
+        let wallet = ChaincodeDelegationCollaboratorWallet::new(
+            self.private_keyset.server_pub,
+            self.private_keyset.app_pub,
+            self.private_keyset.hardware_pub,
+        );
+
+        if wallet
+            .all_inputs_are_from_self(psbt)
+            .map_err(|e| SpendRuleCheckError::BdkUtils(e.to_string()))?
+        {
+            Ok(())
+        } else {
+            metrics::MOBILE_PAY_INPUTS_DO_NOT_BELONG_TO_SELF.add(1, &[]);
+            Err(SpendRuleCheckError::PsbtInputsDontBelongToOriginWallet)
+        }
     }
 }
 

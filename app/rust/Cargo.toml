@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "apdu",
+  "bdk-android-ffi",
   "core-ffi",
   "firmware-ffi",
   "frost",

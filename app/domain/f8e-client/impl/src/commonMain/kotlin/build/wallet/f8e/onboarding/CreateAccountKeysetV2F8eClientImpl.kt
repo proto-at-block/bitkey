@@ -87,7 +87,8 @@ class CreateAccountKeysetV2F8eClientImpl(
 
         F8eSpendingKeyset(
           keysetId = response.keysetId,
-          spendingPublicKey = F8eSpendingPublicKey(dpub = response.serverPublicKey)
+          spendingPublicKey = F8eSpendingPublicKey(dpub = response.serverPublicKey),
+          serverIntegritySignature = response.serverIntegritySignature
         )
       }
   }

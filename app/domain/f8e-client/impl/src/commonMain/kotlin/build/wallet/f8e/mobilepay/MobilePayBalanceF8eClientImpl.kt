@@ -22,7 +22,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapBoth
 import com.ionspin.kotlin.bignum.integer.toBigInteger
-import io.ktor.client.request.*
+import io.ktor.client.request.get
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.SerialName
@@ -105,13 +105,6 @@ class MobilePayBalanceF8eClientImpl(
         )
       }
 }
-
-@Serializable
-private data class MoneyDTO(
-  val amount: ULong,
-  @SerialName("currency_code")
-  val currencyCode: String,
-)
 
 @Serializable
 private data class SpendingLimitDTO(

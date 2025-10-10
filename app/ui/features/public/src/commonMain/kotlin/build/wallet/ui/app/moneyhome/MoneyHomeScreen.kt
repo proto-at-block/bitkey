@@ -56,9 +56,21 @@ fun MoneyHomeScreen(
     mutableStateOf(0.dp)
   }
 
-  var coachmarkHeight: Int? by remember {
-    mutableStateOf(null)
+  // Different coachmarks have different heights (e.g., Security Hub has no button,
+  // Private Wallet has a button), so each needs its own height for correct positioning.
+  var coachmarkHeights by remember {
+    mutableStateOf(mapOf<CoachmarkIdentifier, Int>())
   }
+
+  val coachmarkHeight = model.coachmark?.identifier?.let { identifier ->
+    coachmarkHeights[identifier]
+  }
+
+  // Coachmarks that appear above the tab bar and need positioning
+  val tabBarCoachmarkIds = setOf(
+    CoachmarkIdentifier.SecurityHubHomeCoachmark,
+    CoachmarkIdentifier.PrivateWalletHomeCoachmark
+  )
 
   Box(
     modifier = modifier.pullRefresh(
@@ -72,7 +84,9 @@ fun MoneyHomeScreen(
         yOffset = coachmarkOffset.y,
         model = coachmarkModel,
         renderedSize = { size ->
-          coachmarkHeight = size.height
+          coachmarkModel.identifier.let { identifier ->
+            coachmarkHeights = coachmarkHeights + (identifier to size.height)
+          }
         }
       )
     }
@@ -96,7 +110,7 @@ fun MoneyHomeScreen(
           Spacer(Modifier.weight(1F))
           ToolbarAccessory(model.trailingToolbarAccessoryModel)
         }
-        Spacer(Modifier.height(48.dp))
+        Spacer(Modifier.height(40.dp))
       }
 
       // Balance + buttons
@@ -115,7 +129,7 @@ fun MoneyHomeScreen(
             hideBalance = model.hideBalance
           )
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(32.dp))
         MoneyHomeButtons(model = model.buttonsModel)
         Spacer(Modifier.height(40.dp))
       }
@@ -185,7 +199,7 @@ fun MoneyHomeScreen(
     )
 
     val hasCoachmark = remember(model.coachmark, coachmarkHeight) {
-      model.coachmark?.identifier == CoachmarkIdentifier.SecurityHubHomeCoachmark && coachmarkHeight != null
+      model.coachmark?.identifier in tabBarCoachmarkIds && coachmarkHeight != null
     }
     TabBar(
       modifier = Modifier.align(Alignment.BottomCenter)

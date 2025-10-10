@@ -3,9 +3,26 @@ use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::{
     Error as BitcoinError, Message, Secp256k1, SecretKey as BitcoinSecretKey,
 };
+use miniscript::descriptor::DescriptorXKey;
+use miniscript::DescriptorPublicKey;
 use std::sync::{Mutex, MutexGuard};
 
 pub use bitcoin::secp256k1::PublicKey;
+
+#[derive(Debug, thiserror::Error)]
+pub enum PublicKeyError {
+    #[error("Unsupported descriptor public key type")]
+    UnsupportedDescriptorPublicKeyType,
+}
+
+pub fn extract_public_key(
+    descriptor_public_key: DescriptorPublicKey,
+) -> Result<PublicKey, PublicKeyError> {
+    match descriptor_public_key {
+        DescriptorPublicKey::XPub(DescriptorXKey { xkey, .. }) => Ok(xkey.public_key),
+        _ => Err(PublicKeyError::UnsupportedDescriptorPublicKeyType),
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum SecretKeyError {
@@ -44,6 +61,11 @@ impl SecretKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bitcoin::{
+        bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint},
+        Network,
+    };
+    use miniscript::descriptor::{DescriptorXKey, Wildcard};
     use quickcheck_macros::quickcheck;
     use rand::RngCore;
 
@@ -89,5 +111,41 @@ mod tests {
         assert!(secp
             .verify_ecdsa(&hashed_message, &signature, &secret_key.as_public())
             .is_ok());
+    }
+
+    #[test]
+    fn test_extract_public_key_from_xpub() {
+        // Create a test extended public key
+        let mut chaincode_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut chaincode_bytes);
+        let chain_code = ChainCode::from(chaincode_bytes);
+
+        // Generate a valid public key
+        let mut secret_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut secret_bytes);
+        let secret_key = SecretKey::new(secret_bytes.to_vec()).unwrap();
+        let public_key = secret_key.as_public();
+
+        let xpub = ExtendedPubKey {
+            network: Network::Bitcoin,
+            depth: 0,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key,
+            chain_code,
+        };
+
+        let descriptor_xkey = DescriptorXKey {
+            origin: Some((Fingerprint::default(), DerivationPath::master())),
+            xkey: xpub,
+            derivation_path: DerivationPath::default(),
+            wildcard: Wildcard::Unhardened,
+        };
+
+        let descriptor_pubkey = DescriptorPublicKey::XPub(descriptor_xkey);
+
+        // Test extraction
+        let extracted = extract_public_key(descriptor_pubkey).unwrap();
+        assert_eq!(extracted, public_key);
     }
 }

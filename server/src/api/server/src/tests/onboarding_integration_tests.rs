@@ -2172,18 +2172,18 @@ fn test_create_bdk_wallet() {
 }
 
 #[rstest]
-#[case::pre_onboarding_happy_path(false, false, false, false, StatusCode::OK, false)]
-#[case::unknown_keyset_id(false, false, false, true, StatusCode::NOT_FOUND, false)]
-#[case::missing_keyset_id(false, false, true, false, StatusCode::BAD_REQUEST, false)]
-#[case::missing_hw_pop(true, false, false, false, StatusCode::FORBIDDEN, false)]
-#[case::post_onboarding_happy_path(true, true, false, false, StatusCode::OK, true)]
+#[case::pre_onboarding_happy_path(false, false, false, false, [StatusCode::OK, StatusCode::OK], false)]
+#[case::unknown_keyset_id(false, false, false, true, [StatusCode::NOT_FOUND, StatusCode::OK], false)]
+#[case::missing_keyset_id(false, true, true, false, [StatusCode::OK, StatusCode::BAD_REQUEST], true)]
+#[case::missing_hw_pop(true, false, false, false, [StatusCode::FORBIDDEN, StatusCode::OK], false)]
+#[case::post_onboarding_happy_path(true, true, false, false, [StatusCode::OK, StatusCode::OK], true)]
 #[tokio::test]
 async fn test_descriptor_backup(
     #[case] complete_onboarding: bool,
     #[case] include_hw_pop: bool,
     #[case] omit_keyset_id: bool,
     #[case] unknown_keyset_id: bool,
-    #[case] expected_status: StatusCode,
+    #[case] expected_statuses: [StatusCode; 2],
     #[case] multiple_descriptors: bool,
 ) {
     use onboarding::routes::CreateKeysetRequest;
@@ -2224,10 +2224,6 @@ async fn test_descriptor_backup(
         .map(|k| k.0)
         .collect::<Vec<_>>();
 
-    if omit_keyset_id {
-        keyset_ids.pop();
-    }
-
     if unknown_keyset_id {
         keyset_ids.push(KeysetId::gen().unwrap());
     }
@@ -2253,7 +2249,7 @@ async fn test_descriptor_backup(
             .update_descriptor_backups(&account.id.to_string(), &request, keys.as_ref())
             .await
             .status_code,
-        expected_status
+        expected_statuses[0]
     );
 
     let account_status_sealed_descriptor = client
@@ -2270,7 +2266,7 @@ async fn test_descriptor_backup(
         .descriptor_backups
         .first()
         .map(|b| b.sealed_descriptor.clone());
-    let expected_sealed_descriptor = if expected_status == StatusCode::OK {
+    let expected_sealed_descriptor = if expected_statuses[0] == StatusCode::OK {
         Some(sealed_descriptor.clone())
     } else {
         None
@@ -2307,18 +2303,21 @@ async fn test_descriptor_backup(
         let sealed_descriptor2 = "sealed_descriptor2".to_string();
         keyset_ids.push(create_keyset_response.keyset_id);
 
+        let mut descriptor_backups = vec![DescriptorBackup {
+            keyset_id: keyset_ids[1].clone(),
+            sealed_descriptor: sealed_descriptor2.clone(),
+        }];
+
+        if !omit_keyset_id {
+            descriptor_backups.push(DescriptorBackup {
+                keyset_id: keyset_ids[0].clone(),
+                sealed_descriptor: sealed_descriptor.clone(),
+            });
+        }
+
         let request = DescriptorBackupsSet {
             wrapped_ssek: wrapped_ssek.clone(),
-            descriptor_backups: vec![
-                DescriptorBackup {
-                    keyset_id: keyset_ids[0].clone(),
-                    sealed_descriptor: sealed_descriptor.clone(),
-                },
-                DescriptorBackup {
-                    keyset_id: keyset_ids[1].clone(),
-                    sealed_descriptor: sealed_descriptor2.clone(),
-                },
-            ],
+            descriptor_backups,
         };
 
         assert_eq!(
@@ -2326,8 +2325,12 @@ async fn test_descriptor_backup(
                 .update_descriptor_backups(&account.id.to_string(), &request, keys.as_ref())
                 .await
                 .status_code,
-            StatusCode::OK
+            expected_statuses[1]
         );
+
+        if omit_keyset_id {
+            return;
+        }
 
         let account_keysets_sealed_descriptor = client
             .get_account_keysets(&account.id.to_string())

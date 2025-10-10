@@ -24,6 +24,8 @@ import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.ReplaceFullWithLiteAccountFeatureFlag
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.nfc.NfcException
@@ -44,9 +46,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiProps
-import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiStateMachineImpl
-import build.wallet.statemachine.recovery.cloud.ProblemWithCloudBackupModel
+import build.wallet.statemachine.recovery.cloud.*
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -107,6 +107,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
   val spendingWallet = SpendingWalletMock(turbines::create)
 
+  val existingFullAccountUiStateMachine = object : ExistingFullAccountUiStateMachine,
+    ScreenStateMachineMock<ExistingFullAccountUiProps>("existing-full-account-fake") {}
+
   val stateMachineActiveDeviceFlagOn =
     FullAccountCloudBackupRestorationUiStateMachineImpl(
       appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
@@ -128,13 +131,18 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       socRecChallengeRepository = socRecChallengeRepository,
       postSocRecTaskRepository = postSocRecTaskRepository,
       socRecStartedChallengeDao = socRecPendingChallengeDao,
-      fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService
+      fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService,
+      existingFullAccountUiStateMachine = existingFullAccountUiStateMachine,
+      replaceFullWithLiteAccountFeatureFlag = ReplaceFullWithLiteAccountFeatureFlag(
+        FeatureFlagDaoFake()
+      )
     )
 
   val props = FullAccountCloudBackupRestorationUiProps(
     backup = CloudBackupV2WithFullAccountMock,
     onRecoverAppKey = { onRecoverAppKeyCalls.add(Unit) },
-    onExit = { onExitCalls.add(Unit) }
+    onExit = { onExitCalls.add(Unit) },
+    goToLiteAccountCreation = {}
   )
 
   beforeTest {

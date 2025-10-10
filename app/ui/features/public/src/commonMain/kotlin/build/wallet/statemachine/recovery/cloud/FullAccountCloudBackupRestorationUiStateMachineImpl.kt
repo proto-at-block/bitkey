@@ -7,7 +7,10 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UNSEAL_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED
-import build.wallet.auth.*
+import build.wallet.auth.AccountAuthenticator
+import build.wallet.auth.AuthTokensService
+import build.wallet.auth.FullAccountAuthKeyRotationService
+import build.wallet.auth.logAuthFailure
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
@@ -28,6 +31,8 @@ import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.ReplaceFullWithLiteAccountFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logFailure
@@ -80,11 +85,19 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val uuidGenerator: UuidGenerator,
   private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
+  private val replaceFullWithLiteAccountFeatureFlag: ReplaceFullWithLiteAccountFeatureFlag,
+  private val existingFullAccountUiStateMachine: ExistingFullAccountUiStateMachine,
 ) : FullAccountCloudBackupRestorationUiStateMachine {
   @Composable
   override fun model(props: FullAccountCloudBackupRestorationUiProps): ScreenModel {
     var uiState: CloudBackupRestorationUiState by remember {
-      mutableStateOf(CloudBackupFoundUiState)
+      mutableStateOf(
+        if (replaceFullWithLiteAccountFeatureFlag.isEnabled()) {
+          ReplaceWithLiteAccountState
+        } else {
+          CloudBackupFoundUiState
+        }
+      )
     }
 
     // Reusable model for a loading screen while completing multiple restoration steps.
@@ -271,6 +284,17 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             cause = state.cause
           )
         ).asRootScreen()
+
+      is ReplaceWithLiteAccountState ->
+        existingFullAccountUiStateMachine.model(
+          ExistingFullAccountUiProps(
+            cloudBackup = props.backup,
+            devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
+            onBack = props.onExit,
+            onRestore = { uiState = UnsealingCsek },
+            onBackupArchive = props.goToLiteAccountCreation
+          )
+        )
     }
   }
 
@@ -602,4 +626,6 @@ private sealed interface CloudBackupRestorationUiState {
     val fullAccountKeys: FullAccountKeys,
     val cause: Error,
   ) : CloudBackupRestorationUiState
+
+  data object ReplaceWithLiteAccountState : CloudBackupRestorationUiState
 }

@@ -25,6 +25,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
   override val onBack: () -> Unit,
   val onRestoreYourWalletClick: (() -> Unit),
   val onBeTrustedContactClick: (() -> Unit),
+  val onRecoverFromOrphanedKeysClick: (() -> Unit)?,
 ) : FormBodyModel(
     id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
     onBack = onBack,
@@ -61,7 +62,22 @@ data class AccountAccessMoreOptionsFormBodyModel(
               onClick = onRestoreYourWalletClick,
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
               testTag = "restore-your-wallet"
-            )
+            ),
+            onRecoverFromOrphanedKeysClick?.let {
+              ListItemModel(
+                leadingAccessory = IconAccessory(
+                  iconPadding = 12,
+                  model = IconModel(
+                    icon = Icon.SmallIconRecovery,
+                    iconSize = IconSize.Small
+                  )
+                ),
+                title = "Recover from orphaned keys",
+                secondaryText = "Emergency recovery using stored keys",
+                onClick = it,
+                trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
+              )
+            }
           ),
           style = ListGroupStyle.CARD_ITEM
         )

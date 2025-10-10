@@ -2,11 +2,11 @@
     "module-identifier": "androidx.camera:camera-lifecycle",
     "components": [
         {
-            "version": "1.4.0-alpha04",
+            "version": "1.4.0-beta02",
             "variants": [
                 {
                     "artifacts": {
-                        "camera-lifecycle-1.4.0-alpha04.aar": "cac8446514192a612ee5cb0ae2b9186607f4f0f9b6f347f457643878fe130b59"
+                        "camera-lifecycle-1.4.0-beta02.aar": "85a1f697eb9e2d08e783a4db891d52f48a112b23d812c1c03add489684d52cad"
                     }
                 }
             ],

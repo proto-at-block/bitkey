@@ -1391,7 +1391,9 @@ dependencies = [
 name = "bdk_utils"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bdk",
+ "crypto",
  "errors",
  "feature_flags",
  "hex",

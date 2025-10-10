@@ -52,6 +52,9 @@ import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
+import build.wallet.statemachine.moneyhome.full.coachmarks.BalanceGraphCoachmarkModel
+import build.wallet.statemachine.moneyhome.full.coachmarks.PrivateWalletHomeCoachmarkModel
+import build.wallet.statemachine.moneyhome.full.coachmarks.SecurityHubHomeCoachmarkModel
 import build.wallet.statemachine.partnerships.AddBitcoinBottomSheetDisplayState
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
@@ -69,11 +72,11 @@ import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiSta
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.wallet.migration.PrivateWalletMigrationService
 import build.wallet.worker.RefreshExecutor
 import build.wallet.worker.runRefreshOperations
 import com.github.michaelbull.result.onSuccess
@@ -102,6 +105,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val securityActionsService: SecurityActionsService,
   private val refreshExecutor: RefreshExecutor,
   private val partnerTransferLinkUiStateMachine: PartnerTransferLinkUiStateMachine,
+  private val privateWalletMigrationService: PrivateWalletMigrationService,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -126,6 +130,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         status == MoneyHomeHiddenStatus.HIDDEN
       }
     }.collectAsState()
+    val isPrivateWalletMigrationAvailable by privateWalletMigrationService.isPrivateWalletMigrationAvailable.collectAsState(false)
 
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
     var coachmarkDisplayed by remember { mutableStateOf(false) }
@@ -134,7 +139,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         .coachmarksToDisplay(
           setOf(
             CoachmarkIdentifier.BalanceGraphCoachmark,
-            CoachmarkIdentifier.SecurityHubHomeCoachmark
+            CoachmarkIdentifier.SecurityHubHomeCoachmark,
+            CoachmarkIdentifier.PrivateWalletHomeCoachmark
           )
         ).onSuccess {
           coachmarksToDisplay = it
@@ -225,17 +231,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           coachmark = when {
             coachmarksToDisplay.contains(CoachmarkIdentifier.BalanceGraphCoachmark) -> {
               coachmarkDisplayed = false
-              CoachmarkModel(
-                identifier = CoachmarkIdentifier.BalanceGraphCoachmark,
-                title = "View your performance",
-                description = "Tap the price graph to see the performance of your bitcoin balance over time.",
-                arrowPosition = CoachmarkModel.ArrowPosition(
-                  vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
-                  horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered
-                ),
-                button = null,
-                image = null,
-                dismiss = {
+              BalanceGraphCoachmarkModel(
+                onDismiss = {
                   scope.launch {
                     coachmarkService.markCoachmarkAsDisplayed(
                       coachmarkId = CoachmarkIdentifier.BalanceGraphCoachmark
@@ -248,23 +245,34 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
 
             coachmarksToDisplay.contains(CoachmarkIdentifier.SecurityHubHomeCoachmark) -> {
               coachmarkDisplayed = false
-              CoachmarkModel(
-                identifier = CoachmarkIdentifier.SecurityHubHomeCoachmark,
-                title = "Bitkey Security, Simplified",
-                description = "The new Security Hub gives you a clear view of your setup and lets you know if anything needs your attention.",
-                arrowPosition = CoachmarkModel.ArrowPosition(
-                  vertical = CoachmarkModel.ArrowPosition.Vertical.Bottom,
-                  horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered
-                ),
-                button = null,
-                image = null,
-                dismiss = {
+              SecurityHubHomeCoachmarkModel(
+                onDismiss = {
                   scope.launch {
                     coachmarkService.markCoachmarkAsDisplayed(
                       coachmarkId = CoachmarkIdentifier.SecurityHubHomeCoachmark
                     )
                     coachmarkDisplayed = true
                   }
+                }
+              )
+            }
+
+            isPrivateWalletMigrationAvailable &&
+              coachmarksToDisplay.contains(CoachmarkIdentifier.PrivateWalletHomeCoachmark) -> {
+              coachmarkDisplayed = false
+              val markCoachmarkAsDisplayed: () -> Unit = {
+                scope.launch {
+                  coachmarkService.markCoachmarkAsDisplayed(
+                    coachmarkId = CoachmarkIdentifier.PrivateWalletHomeCoachmark
+                  )
+                  coachmarkDisplayed = true
+                }
+              }
+              PrivateWalletHomeCoachmarkModel(
+                onDismiss = markCoachmarkAsDisplayed,
+                onGoToPrivateWalletMigration = {
+                  markCoachmarkAsDisplayed()
+                  props.onGoToPrivateWalletMigration()
                 }
               )
             }

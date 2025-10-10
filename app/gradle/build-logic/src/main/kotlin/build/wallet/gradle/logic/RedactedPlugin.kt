@@ -22,12 +22,15 @@ internal class RedactedPlugin : Plugin<Project> {
   override fun apply(target: Project) =
     target.run {
       pluginManager.apply<RedactedGradleSubplugin>()
-      if (isIntelliJ()) {
-        extensions.configure(RedactedPluginExtension::class) {
+      extensions.configure(RedactedPluginExtension::class) {
+        if (project.isIntelliJ()) {
           // Set this to false if you're having issues with redaction interfering with test debugging
           enabled.set(true)
         }
+        redactedAnnotations.add("bitkey/data/Pii")
+        redactedAnnotations.add("bitkey/data/PrivateData")
       }
+
       kotlin {
         sourceSets {
           commonMain {

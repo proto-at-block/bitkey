@@ -11,7 +11,7 @@ import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize.Avatar
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 
 /**
@@ -75,8 +75,11 @@ fun MoneyMovementIconModel(
   iconModel =
     IconModel(
       IconImage.LocalImage(icon),
-      iconSize = Avatar,
-      iconBackgroundType = IconBackgroundType.Circle(circleSize = Avatar),
+      iconSize = IconSize.AvatarLarge,
+      iconBackgroundType = IconBackgroundType.Circle(
+        circleSize = IconSize.AvatarLarge,
+        color = IconBackgroundType.Circle.CircleColor.Secondary
+      ),
       text = text,
       iconTint = if (button.enabled) null else IconTint.On30
     ),

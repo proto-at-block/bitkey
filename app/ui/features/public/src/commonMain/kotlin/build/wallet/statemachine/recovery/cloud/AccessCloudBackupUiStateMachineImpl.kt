@@ -121,6 +121,7 @@ class AccessCloudBackupUiStateMachineImpl(
                   )
                 }
                 else -> handleExistingBackupFound(
+                  cloudStoreAccount = currentState.account,
                   backup = backup,
                   inviteCode = props.inviteCode,
                   onStartCloudRecovery = props.onStartCloudRecovery,
@@ -206,13 +207,14 @@ class AccessCloudBackupUiStateMachineImpl(
   }
 
   private fun handleExistingBackupFound(
+    cloudStoreAccount: CloudStoreAccount,
     backup: CloudBackup,
     inviteCode: String?,
-    onStartCloudRecovery: (CloudBackup) -> Unit,
+    onStartCloudRecovery: (CloudStoreAccount, CloudBackup) -> Unit,
     onStartLiteAccountRecovery: (CloudBackup) -> Unit,
   ) {
     if (backup.isFullAccount()) {
-      onStartCloudRecovery(backup)
+      onStartCloudRecovery(cloudStoreAccount, backup)
     } else if (inviteCode != null) {
       Router.route = Route.TrustedContactInvite(inviteCode)
     } else {

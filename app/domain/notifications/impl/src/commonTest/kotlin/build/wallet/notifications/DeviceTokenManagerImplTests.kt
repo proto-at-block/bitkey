@@ -2,7 +2,9 @@ package build.wallet.notifications
 
 import bitkey.account.AccountConfigServiceFake
 import bitkey.auth.AuthTokenScope
+import build.wallet.account.AccountServiceFake
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.KeyboxMock2
 import build.wallet.coroutines.turbine.turbines
@@ -13,6 +15,8 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.platform.config.DeviceTokenConfig
 import build.wallet.platform.config.DeviceTokenConfigProviderMock
 import build.wallet.platform.config.TouchpointPlatform
+import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.platform.device.DevicePlatform
 import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -26,18 +30,24 @@ class DeviceTokenManagerImplTests : FunSpec({
   val deviceTokenConfigProvider = DeviceTokenConfigProviderMock()
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val accountConfigService = AccountConfigServiceFake()
+  val accountService = AccountServiceFake()
+  val deviceInfoProvider = DeviceInfoProviderMock()
 
   val manager = DeviceTokenManagerImpl(
     addDeviceTokenF8eClient = addDeviceTokenF8eClient,
     deviceTokenConfigProvider = deviceTokenConfigProvider,
     keyboxDao = keyboxDao,
-    accountConfigService = accountConfigService
+    accountConfigService = accountConfigService,
+    accountService = accountService,
+    deviceInfoProvider = deviceInfoProvider
   )
 
   beforeTest {
     deviceTokenConfigProvider.reset()
     keyboxDao.reset()
     addDeviceTokenF8eClient.reset()
+    deviceInfoProvider.reset()
+    accountService.reset()
   }
 
   test("addDeviceTokenIfActiveOrOnboardingAccount with active account") {
@@ -196,5 +206,61 @@ class DeviceTokenManagerImplTests : FunSpec({
     result
       .result
       .shouldBeErrOfType<DeviceTokenManagerError.NetworkingError>()
+  }
+
+  test("worker executes on Android platform with active account") {
+    deviceInfoProvider.devicePlatformValue = DevicePlatform.Android
+    accountService.setActiveAccount(FullAccountMock)
+    deviceTokenConfigProvider.configResult = DeviceTokenConfig(
+      deviceToken = "android-token",
+      touchpointPlatform = TouchpointPlatform.FcmTeam
+    )
+
+    manager.executeWork()
+
+    with(
+      addDeviceTokenF8eClient.addCalls.awaitItem()
+        .shouldBeTypeOf<AddDeviceTokenF8eClientMock.AddParams>()
+    ) {
+      fullAccountId.shouldBe(FullAccountMock.accountId)
+      token.shouldBe("android-token")
+      touchpointPlatform.shouldBe(TouchpointPlatform.FcmTeam)
+    }
+  }
+
+  test("worker does not execute on iOS platform") {
+    deviceInfoProvider.devicePlatformValue = DevicePlatform.IOS
+    accountService.setActiveAccount(FullAccountMock)
+    deviceTokenConfigProvider.configResult = DeviceTokenConfig(
+      deviceToken = "ios-token",
+      touchpointPlatform = TouchpointPlatform.ApnsCustomer
+    )
+
+    manager.executeWork()
+
+    addDeviceTokenF8eClient.addCalls.expectNoEvents()
+  }
+
+  test("worker does not execute on Android when no active account") {
+    deviceInfoProvider.devicePlatformValue = DevicePlatform.Android
+    accountService.reset()
+    deviceTokenConfigProvider.configResult = DeviceTokenConfig(
+      deviceToken = "android-token",
+      touchpointPlatform = TouchpointPlatform.FcmTeam
+    )
+
+    manager.executeWork()
+
+    addDeviceTokenF8eClient.addCalls.expectNoEvents()
+  }
+
+  test("worker does not execute on Android when no device token config") {
+    deviceInfoProvider.devicePlatformValue = DevicePlatform.Android
+    accountService.setActiveAccount(FullAccountMock)
+    deviceTokenConfigProvider.configResult = null
+
+    manager.executeWork()
+
+    addDeviceTokenF8eClient.addCalls.expectNoEvents()
   }
 })

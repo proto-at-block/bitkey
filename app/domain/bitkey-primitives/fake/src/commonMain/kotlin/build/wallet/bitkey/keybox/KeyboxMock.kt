@@ -21,6 +21,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
+import build.wallet.bitkey.spending.PrivateWalletSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.crypto.PublicKey
@@ -44,6 +45,11 @@ val KeyboxMock = Keybox(
     isUsingSocRecFakes = false,
     isTestAccount = true
   )
+)
+
+val PrivateWalletKeyboxMock = KeyboxMock.copy(
+  keysets = KeyboxMock.keysets + PrivateWalletSpendingKeysetMock,
+  activeSpendingKeyset = PrivateWalletSpendingKeysetMock
 )
 
 val EekKeyboxMock = Keybox(

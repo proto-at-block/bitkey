@@ -19,6 +19,8 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
+import build.wallet.statemachine.partnerships.purchase.SelectPartnerQuoteBodyModel
+import build.wallet.statemachine.partnerships.purchase.SelectPurchaseAmountBodyModel
 import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.ui.model.list.ListItemModel
 import com.github.michaelbull.result.Err
@@ -41,6 +43,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     turbines.create<Pair<FiatMoney, FiatMoney>>(
       "on select custom amount"
     )
+  val onExitCalls = turbines.create<Unit>("on exit calls")
   val partnershipTransactionsService = PartnershipTransactionsServiceMock(
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
@@ -68,7 +71,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       onPartnerRedirected = { method, _ -> onPartnerRedirectedCalls.add(method) },
       onSelectCustomAmount = { min, max -> onSelectCustomAmount.add(min to max) },
       onBack = {},
-      onExit = {}
+      onExit = { onExitCalls.add(Unit) }
     )
 
   beforeTest {
@@ -434,6 +437,46 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       }
 
       eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE)
+    }
+  }
+
+  test("back navigation from SelectPartnerQuoteBodyModel") {
+    stateMachine.test(props()) {
+      // load purchase amounts
+      awaitLoader()
+
+      awaitSheet<SelectPurchaseAmountBodyModel> {
+        toolbar?.middleAccessory?.title.shouldBe("Choose an amount")
+        // tap next with default selection ($100)
+        primaryButton?.onClick.shouldNotBeNull().invoke()
+      }
+
+      awaitLoader()
+
+      awaitSheet<SelectPartnerQuoteBodyModel> {
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      eventTracker.eventCalls.awaitItem()
+
+      // Verify onExit was called
+      onExitCalls.awaitItem()
+    }
+  }
+
+  test("back navigation from SelectPurchaseAmountBodyModel") {
+    stateMachine.test(props()) {
+      // load purchase amounts
+      awaitLoader()
+
+      awaitSheet<SelectPurchaseAmountBodyModel> {
+        toolbar?.middleAccessory?.title.shouldBe("Choose an amount")
+        // tap back button
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      // Verify onExit was called
+      onExitCalls.awaitItem()
     }
   }
 })

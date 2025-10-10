@@ -9,7 +9,6 @@ import build.wallet.testing.ext.getHardwareFactorProofOfPossession
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import okio.ByteString.Companion.toByteString
 
@@ -25,11 +24,6 @@ class DescriptorBackupsF8eFunctionalTests : FunSpec({
         fullAccountId = account.accountId
       ).getOrThrow()
       .descriptorBackups.shouldBe(emptyList())
-    app.getActiveKeysetF8eClient.get(
-      f8eEnvironment = account.config.f8eEnvironment,
-      accountId = account.accountId
-    ).getOrThrow()
-      .descriptorBackup.shouldBeNull()
 
     // Upload fake descriptor backup associated with the active keyset.
     val descriptorBackup = DescriptorBackup(
@@ -48,12 +42,6 @@ class DescriptorBackupsF8eFunctionalTests : FunSpec({
     ).getOrThrow()
 
     // Verify that the descriptor backup is returned.
-    app.getActiveKeysetF8eClient.get(
-      f8eEnvironment = account.config.f8eEnvironment,
-      accountId = account.accountId
-    ).getOrThrow()
-      .descriptorBackup
-      .shouldBe(descriptorBackup)
     app.listKeysetsF8eClient
       .listKeysets(
         f8eEnvironment = account.config.f8eEnvironment,

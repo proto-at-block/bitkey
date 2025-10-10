@@ -5,6 +5,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.settings.SettingsBodyModel
+import build.wallet.ui.model.list.CoachmarkLabelModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -61,7 +62,13 @@ fun SettingsScreen(securityHubClickHandler: (() -> Unit)? = null) {
                   icon = Icon.SmallIconLock,
                   title = "App Security",
                   isDisabled = false,
-                  showNewCoachmark = true
+                  coachmarkLabelModel = CoachmarkLabelModel.New
+                ) {},
+                SettingsBodyModel.RowModel(
+                  icon = Icon.SmallIconWallet,
+                  title = "Enhanced Wallet Privacy",
+                  isDisabled = false,
+                  coachmarkLabelModel = CoachmarkLabelModel.Upgrade
                 ) {}
               )
           )

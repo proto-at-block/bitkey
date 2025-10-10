@@ -2,11 +2,11 @@
     "module-identifier": "androidx.camera:camera-video",
     "components": [
         {
-            "version": "1.4.0-alpha04",
+            "version": "1.4.0-beta02",
             "variants": [
                 {
                     "artifacts": {
-                        "camera-video-1.4.0-alpha04.aar": "12e841a96dea75ad1d71f5f74344f21e28d7ad3f0925dd7ec72e31a77607adb2"
+                        "camera-video-1.4.0-beta02.aar": "b43ca933e826a944e072af5c418c257e877041aa617e3b913427ed01bca88dbe"
                     }
                 }
             ],

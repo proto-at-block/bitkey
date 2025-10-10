@@ -41,7 +41,7 @@ fun HeroAmount(
   CollapsibleLabelContainer(
     modifier = modifier,
     collapsed = hideBalance,
-    verticalArrangement = Arrangement.Center,
+    verticalArrangement = Arrangement.spacedBy((-4).dp),
     horizontalAlignment = Alignment.CenterHorizontally,
     topContent = {
       AutoResizedLabel(
@@ -81,7 +81,7 @@ private fun HeroAmountBottom(
   onSwapClick: (() -> Unit)? = null,
 ) {
   Column(horizontalAlignment = Alignment.CenterHorizontally) {
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(2.dp))
     Row(
       modifier =
         Modifier

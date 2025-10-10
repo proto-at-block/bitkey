@@ -1,5 +1,6 @@
 package build.wallet.wallet.migration
 
+import build.wallet.account.AccountService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
@@ -8,19 +9,34 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
+import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 
 @BitkeyInject(AppScope::class)
 class PrivateWalletMigrationServiceImpl(
   private val keyGenerator: AppKeysGenerator,
   private val createKeysetClient: CreateAccountKeysetV2F8eClient,
   private val uuidGenerator: UuidGenerator,
+  privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
+  accountService: AccountService,
 ) : PrivateWalletMigrationService {
+  override val isPrivateWalletMigrationAvailable: Flow<Boolean> = combine(
+    privateWalletMigrationFeatureFlag.flagValue().map { it.value },
+    accountService.activeAccount()
+      .map { it as? FullAccount }
+      .map { it?.keybox?.isPrivate }
+  ) { flagEnabled, isPrivateAccount ->
+    flagEnabled && (isPrivateAccount != true)
+  }
+
   override suspend fun initiateMigration(
     account: FullAccount,
     proofOfPossession: HwFactorProofOfPossession,
@@ -58,7 +74,7 @@ class PrivateWalletMigrationServiceImpl(
   }
 
   override suspend fun finalizeMigration(
-    sweepTxid: String,
+    sweepTxId: String,
     account: FullAccount,
   ): Result<Keybox, PrivateWalletMigrationError> {
     return Err(PrivateWalletMigrationError.FeatureNotAvailable)

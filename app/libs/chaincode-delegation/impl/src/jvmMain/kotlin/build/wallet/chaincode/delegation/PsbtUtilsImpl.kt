@@ -11,14 +11,14 @@ import build.wallet.rust.core.psbtWithTweaks as corePsbtWithTweaks
 class PsbtUtilsImpl : PsbtUtils {
   override fun psbtWithTweaks(
     psbt: build.wallet.bitcoin.transactions.Psbt,
-    appRootXprv: ExtendedPrivateKey,
+    appAccountDprv: ExtendedPrivateKey,
     serverRootXpub: String,
     hwAccountDpub: DescriptorPublicKey,
   ): ChaincodeDelegationResult<CorePsbt> =
     runCatchingChaincodeDelegationError {
       corePsbtWithTweaks(
         psbt = psbt.base64,
-        appRootXprv = appRootXprv.xprv,
+        appAccountDprv = appAccountDprv.xprv,
         serverRootXpub = serverRootXpub,
         hwDpub = hwAccountDpub.dpub
       )

@@ -29,4 +29,5 @@ data class MoneyHomeViewingBalanceUiProps(
   val setState: (MoneyHomeUiState) -> Unit,
   val onStartSweepFlow: () -> Unit,
   val onGoToSecurityHub: () -> Unit,
+  val onGoToPrivateWalletMigration: () -> Unit,
 )

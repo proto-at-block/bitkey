@@ -4,7 +4,9 @@ use std::{
     sync::Arc,
 };
 
-use crypto::chaincode_delegation::{psbt_with_tweaks, HwAccountLevelDescriptorPublicKeys, Keyset};
+use crypto::chaincode_delegation::{
+    psbt_with_tweaks, HwAccountLevelDescriptorPublicKeys, Keyset, XpubWithOrigin,
+};
 use http::StatusCode;
 
 use mockall::mock;
@@ -16,7 +18,7 @@ use bdk_utils::{
     bdk::{
         self,
         bitcoin::{
-            bip32::{ExtendedPrivKey, ExtendedPubKey},
+            bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey},
             ecdsa,
             hashes::Hash,
             key::Secp256k1,
@@ -27,7 +29,10 @@ use bdk_utils::{
         database::AnyDatabase,
         electrum_client::Error as ElectrumClientError,
         keys::DescriptorPublicKey,
-        miniscript::descriptor::DescriptorXKey,
+        miniscript::{
+            descriptor::{DescriptorXKey, Wildcard},
+            Descriptor,
+        },
         wallet::{AddressIndex, AddressInfo},
         Error::Electrum,
         KeychainKind, SignOptions, Wallet,
@@ -41,8 +46,11 @@ use onboarding::routes::RotateSpendingKeysetRequest;
 use rstest::rstest;
 use types::{
     account::{
-        bitcoin::Network, identifiers::AccountId, money::Money, spend_limit::SpendingLimit,
-        spending::SpendingKeyset,
+        bitcoin::Network,
+        identifiers::AccountId,
+        money::Money,
+        spend_limit::SpendingLimit,
+        spending::{PrivateMultiSigSpendingKeyset, SpendingKeyset},
     },
     currencies::CurrencyCode::{self, USD},
     transaction_verification::{
@@ -55,32 +63,17 @@ use types::{
     },
 };
 
+use crate::tests::lib::wallet_protocol::{
+    build_app_signed_psbt_for_protocol, build_sweep_psbt_for_protocol, check_finalized_psbt,
+};
+use crate::tests::lib::wallet_protocol::{setup_fixture, WalletTestProtocol};
 use crate::tests::lib::{
-    build_sweep_transaction, build_transaction_with_amount,
-    create_default_account_with_predefined_wallet, create_default_account_with_private_wallet,
-    create_inactive_spending_keyset_for_account, gen_external_wallet_address,
-    predefined_descriptor_public_keys, predefined_server_root_xpub,
+    create_default_account_with_private_wallet, create_inactive_spending_keyset_for_account,
+    gen_external_wallet_address, predefined_descriptor_public_keys, predefined_server_root_xpub,
 };
 use crate::tests::mobile_pay_tests::build_mobile_pay_request;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::{gen_services, gen_services_with_overrides, GenServiceOverrides};
-
-fn check_psbt(response_body: Option<SignTransactionResponse>, bdk_wallet: &Wallet<AnyDatabase>) {
-    let mut server_and_app_signed_psbt = match response_body {
-        Some(r) => Psbt::from_str(&r.tx).unwrap(),
-        None => return,
-    };
-
-    let sign_options = SignOptions {
-        remove_partial_sigs: false,
-        ..SignOptions::default()
-    };
-
-    let is_finalized = bdk_wallet
-        .finalize_psbt(&mut server_and_app_signed_psbt, sign_options)
-        .unwrap();
-    assert!(is_finalized);
-}
 
 mock! {
     TransactionBroadcaster { }
@@ -101,6 +94,7 @@ async fn sign_transaction_test(
     expected_status: StatusCode,
     expect_broadcast: bool, // Should the test expect a transaction to be broadcast?
     broadcast_failure_mode: Option<BroadcastFailureMode>, // Should the test double return an ApiError?
+    wallet_protocol: WalletTestProtocol,
 ) {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
@@ -127,18 +121,16 @@ async fn sign_transaction_test(
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (account, bdk_wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
     let app_signed_psbt = if let Some(override_psbt) = override_psbt {
         override_psbt.to_string()
     } else {
-        build_transaction_with_amount(
-            &bdk_wallet,
+        build_app_signed_psbt_for_protocol(
+            &fixture,
             gen_external_wallet_address(),
             1_000,
             &with_inputs,
@@ -160,20 +152,22 @@ async fn sign_transaction_test(
     } else {
         // In this case, we can setup mobile pay so our code can check some spend conditions
         let request = build_mobile_pay_request(limit);
-        let mobile_pay_response = client.put_mobile_pay(&account.id, &request, &keys).await;
+        let mobile_pay_response = client
+            .put_mobile_pay(&fixture.account.id, &request, &keys)
+            .await;
         assert_eq!(
             mobile_pay_response.status_code,
             StatusCode::OK,
             "{}",
             mobile_pay_response.body_string
         );
-        account.id
+        fixture.account.id
     };
 
     let actual_response = client
         .sign_transaction_with_keyset(
             &account_id,
-            &account.active_keyset_id,
+            &fixture.account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt,
                 ..Default::default()
@@ -270,34 +264,104 @@ async fn test_sign_transaction(
         expected_status,
         expect_broadcast,
         broadcast_failure_mode,
+        WalletTestProtocol::Legacy,
     )
     .await
 }
 
-#[rstest::rstest]
-#[case::never(PolicyUpdate::Never, false, true)]
-#[case::always_without_verification(PolicyUpdate::Always, false, false)]
-#[case::always_with_verification(PolicyUpdate::Always, true, true)]
-#[case::threshold_over_balance(PolicyUpdate::Threshold(PolicyUpdateMoney{
-    amount_sats: 10_000,
-    amount_fiat: 1_179,
-    currency_code: USD,
-}), false, true)]
-#[case::threshold_under_balance_without_verification(PolicyUpdate::Threshold(PolicyUpdateMoney{
-    amount_sats: 5,
-    amount_fiat: 0,
-    currency_code: USD,
-}), false, false)]
-#[case::threshold_under_balance_with_verification(PolicyUpdate::Threshold(PolicyUpdateMoney{
-    amount_sats: 5,
-    amount_fiat: 0,
-    currency_code: USD,
-}), true, true)]
+#[rstest]
+#[case::test_sign_transaction_success(
+    false,
+    vec![OutPoint {
+        txid: Txid::from_str("61bad0730512d6e729284b63bc55879ed5e7bcf3a9224c4f3038fdb03bd91036").unwrap(),
+        vout: 1,
+    },
+    OutPoint {
+        txid: Txid::from_str("61bad0730512d6e729284b63bc55879ed5e7bcf3a9224c4f3038fdb03bd91036").unwrap(),
+        vout: 2,
+    }],
+    None,
+    StatusCode::OK,
+    true,
+    None
+)]
+#[case::test_sign_transaction_with_no_existing_account(
+    true,
+    vec![],
+    Some("cHNidP8BAIkBAAAAARba0uJxgoOu4Qb4Hl2O4iC/zZhhEJZ7+5HuZDe8gkB5AQAAAAD/////AugDAAAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcbugQEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAAAAAAABAOoCAAAAAAEB97UeXCkIkrURS0D1VEse6bslADCfk6muDzWMawqsSkoAAAAAAP7///8CTW7uAwAAAAAWABT3EVvw7PVw4dEmLqWe/v9ETcBTtKCGAQAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcYCRzBEAiBswJbFVv3ixdepzHonCMI1BujKEjxMHQ2qKmhVjVkiMAIgdcn1gzW+S4utbYQlfMHdVlpmK4T6onLbN+QCda1UVsYBIQJQtXaqHMYW0tBOmIEwjeBpTORXNrsO4FMWhqCf8feXXClTIgABASughgEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAQVpUiECF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYhA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYIQPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbI1OuIgYCF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYEIgnl9CIGA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYBJhPJu0iBgPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbIwR2AHgNACICAhdD9G8Hal+Db8HWJK/VcZGqNv9Mgda3KoB1tbV5Fb5WBCIJ5fQiAgOI/w8ilA1K2/JIPSuFAHJSVf9VYLPw3v8jnM/S+ntQGASYTybtIgID0gWCBvZzdyUGy+uQZ2r1p5o4I6GJ/2eq5rx6IJ4KWyMEdgB4DQAiAgIXQ/RvB2pfg2/B1iSv1XGRqjb/TIHWtyqAdbW1eRW+VgQiCeX0IgIDiP8PIpQNStvySD0rhQByUlX/VWCz8N7/I5zP0vp7UBgEmE8m7SICA9IFggb2c3clBsvrkGdq9aeaOCOhif9nqua8eiCeClsjBHYAeA0A"),
+    StatusCode::NOT_FOUND,
+    false,
+    None
+)]
+#[case::test_sign_transaction_with_invalid_psbt(
+    false,
+    vec![],
+    Some("cHNidP8BAIkBAAAAARba0uJxgoOu4Qb4Hl2O4iC/zZhhEJZ7+5HuZDe8gkB5AQAAAAD/////AugDAAAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcbugQEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAAAAAAABAOoCAAAAAAEB97UeXCkIkrURS0D1VEse6bslADCfk6muDzWMawqsSkoAAAAAAP7///8CTW7uAwAAAAAWABT3EVvw7PVw4dEmLqWe/v9ETcBTtKCGAQAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcYCRzBEAiBswJbFVv3ixdepzHonCMI1BujKEjxMHQ2qKmhVjVkiMAIgdcn1gzW+S4utbYQlfMHdVlpmK4T6onLbN+QCda1UVsYBIQJQtXaqHMYW0tBOmIEwjeBpTORXNrsO4FMWhqCf8feXXClTIgABASughgEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAQVpUiECF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYhA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYIQPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbI1OuIgYCF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYEIgnl9CIGA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYBJhPJu0iBgPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbIwR2AHgNACICAhdD9G8Hal+Db8HWJK/VcZGqNv9Mgda3KoB1tbV5Fb5WBCIJ5fQiAgOI/w8ilA1K2/JIPSuFAHJSVf9VYLPw3v8jnM/S+ntQGASYTybtIgID0gWCBvZzdyUGy+uQZ2r1p5o4I6GJ/2eq5rx6IJ4KWyMEdgB4DQAiAgIXQ/RvB2pfg2/B1iSv1XGRqjb/TIHWtyqAdbW1eRW+VgQiCeX0IgIDiP8PIpQNStvySD0rhQByUlX/VWCz8N7/I5zP0vp7UBgEmE8m7SICA9IFggb2c3clBsvrkGdq9aeaOCOhif9nqua8eiCeClsjBHYAeA0A"),
+    StatusCode::BAD_REQUEST,
+    false,
+    None
+)]
+#[case::test_sign_transaction_fail_broadcast(
+    false,
+    vec![
+        OutPoint {
+            txid: Txid::from_str("61bad0730512d6e729284b63bc55879ed5e7bcf3a9224c4f3038fdb03bd91036").unwrap(),
+            vout: 3,
+        }
+    ],
+    None,
+    StatusCode::INTERNAL_SERVER_ERROR,
+    true,
+    Some(BroadcastFailureMode::Generic)
+)]
+#[case::test_sign_transaction_fail_broadcast_electrum(
+    false,
+    vec![OutPoint {
+        txid: Txid::from_str("61bad0730512d6e729284b63bc55879ed5e7bcf3a9224c4f3038fdb03bd91036").unwrap(),
+        vout: 4,
+    }],
+    None,
+    StatusCode::INTERNAL_SERVER_ERROR,
+    true,
+    Some(BroadcastFailureMode::ElectrumGeneric)
+)]
+#[case::test_sign_transaction_fail_broadcast_duplicate_tx(
+    false,
+    vec![OutPoint {
+        txid: Txid::from_str("61bad0730512d6e729284b63bc55879ed5e7bcf3a9224c4f3038fdb03bd91036").unwrap(),
+        vout: 5,
+    }],
+    None,
+    StatusCode::CONFLICT,
+    true,
+    Some(BroadcastFailureMode::ElectrumDuplicateTx)
+)]
 #[tokio::test]
-async fn test_sign_transaction_with_transaction_verification(
-    #[case] policy: PolicyUpdate,
-    #[case] include_verification_id: bool,
-    #[case] expect_success: bool,
+async fn test_sign_transaction_private_ccd(
+    #[case] override_account_id: bool,
+    #[case] with_inputs: Vec<OutPoint>,
+    #[case] override_psbt: Option<&'static str>,
+    #[case] expected_status: StatusCode,
+    #[case] expect_broadcast: bool,
+    #[case] broadcast_failure_mode: Option<BroadcastFailureMode>,
+) {
+    sign_transaction_test(
+        override_account_id,
+        with_inputs,
+        override_psbt,
+        expected_status,
+        expect_broadcast,
+        broadcast_failure_mode,
+        WalletTestProtocol::PrivateCcd,
+    )
+    .await
+}
+
+async fn sign_transaction_with_transaction_verification_test(
+    policy: PolicyUpdate,
+    include_verification_id: bool,
+    expect_success: bool,
+    wallet_protocol: WalletTestProtocol,
 ) {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
@@ -309,15 +373,14 @@ async fn test_sign_transaction_with_transaction_verification(
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (account, bdk_wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
     let app_signed_psbt =
-        build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 2_000, &[]);
+        build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 2_000, &[]);
 
     let limit = SpendingLimit {
         active: true,
@@ -330,7 +393,9 @@ async fn test_sign_transaction_with_transaction_verification(
 
     // In this case, we can setup mobile pay so our code can check some spend conditions
     let request = build_mobile_pay_request(limit);
-    let mobile_pay_response = client.put_mobile_pay(&account.id, &request, &keys).await;
+    let mobile_pay_response = client
+        .put_mobile_pay(&fixture.account.id, &request, &keys)
+        .await;
     assert_eq!(
         mobile_pay_response.status_code,
         StatusCode::OK,
@@ -340,7 +405,7 @@ async fn test_sign_transaction_with_transaction_verification(
 
     let update_policy_request = client
         .update_transaction_verification_policy(
-            &account.id,
+            &fixture.account.id,
             true,
             false,
             &keys,
@@ -359,7 +424,7 @@ async fn test_sign_transaction_with_transaction_verification(
             TransactionVerificationId::gen().expect("Failed to generate verification id");
         let pending_verification = TransactionVerificationPending::new(
             verification_id.clone(),
-            account.id.clone(),
+            fixture.account.id.clone(),
             app_signed_psbt.clone(),
             CurrencyCode::USD,
             BitcoinDisplayUnit::Bitcoin,
@@ -387,8 +452,8 @@ async fn test_sign_transaction_with_transaction_verification(
 
     let response = client
         .sign_transaction_with_keyset(
-            &account.id,
-            &account.active_keyset_id,
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt.to_string(),
                 grant,
@@ -407,8 +472,76 @@ async fn test_sign_transaction_with_transaction_verification(
     );
 
     if expect_success {
-        check_psbt(response.body, &bdk_wallet);
+        check_finalized_psbt(response.body, &fixture.wallet);
     }
+}
+
+#[rstest::rstest]
+#[case::never(PolicyUpdate::Never, false, true)]
+#[case::always_without_verification(PolicyUpdate::Always, false, false)]
+#[case::always_with_verification(PolicyUpdate::Always, true, true)]
+#[case::threshold_over_balance(PolicyUpdate::Threshold(PolicyUpdateMoney{
+    amount_sats: 10_000,
+    amount_fiat: 1_179,
+    currency_code: USD,
+}), false, true)]
+#[case::threshold_under_balance_without_verification(PolicyUpdate::Threshold(PolicyUpdateMoney{
+    amount_sats: 5,
+    amount_fiat: 0,
+    currency_code: USD,
+}), false, false)]
+#[case::threshold_under_balance_with_verification(PolicyUpdate::Threshold(PolicyUpdateMoney{
+    amount_sats: 5,
+    amount_fiat: 0,
+    currency_code: USD,
+}), true, true)]
+#[tokio::test]
+async fn test_sign_transaction_with_transaction_verification(
+    #[case] policy: PolicyUpdate,
+    #[case] include_verification_id: bool,
+    #[case] expect_success: bool,
+) {
+    sign_transaction_with_transaction_verification_test(
+        policy,
+        include_verification_id,
+        expect_success,
+        WalletTestProtocol::Legacy,
+    )
+    .await
+}
+
+#[rstest::rstest]
+#[case::never(PolicyUpdate::Never, false, true)]
+#[case::always_without_verification(PolicyUpdate::Always, false, false)]
+#[case::always_with_verification(PolicyUpdate::Always, true, true)]
+#[case::threshold_over_balance(PolicyUpdate::Threshold(PolicyUpdateMoney{
+    amount_sats: 10_000,
+    amount_fiat: 1_179,
+    currency_code: USD,
+}), false, true)]
+#[case::threshold_under_balance_without_verification(PolicyUpdate::Threshold(PolicyUpdateMoney{
+    amount_sats: 5,
+    amount_fiat: 0,
+    currency_code: USD,
+}), false, false)]
+#[case::threshold_under_balance_with_verification(PolicyUpdate::Threshold(PolicyUpdateMoney{
+    amount_sats: 5,
+    amount_fiat: 0,
+    currency_code: USD,
+}), true, true)]
+#[tokio::test]
+async fn test_sign_transaction_with_transaction_verification_private_ccd(
+    #[case] policy: PolicyUpdate,
+    #[case] include_verification_id: bool,
+    #[case] expect_success: bool,
+) {
+    sign_transaction_with_transaction_verification_test(
+        policy,
+        include_verification_id,
+        expect_success,
+        WalletTestProtocol::PrivateCcd,
+    )
+    .await
 }
 
 #[derive(Debug)]
@@ -423,6 +556,7 @@ async fn spend_limit_transaction_test(
     should_self_addressed_tx: bool,
     invalidate_server_signature: bool,
     expected_status: StatusCode,
+    wallet_protocol: WalletTestProtocol,
 ) {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
@@ -438,17 +572,16 @@ async fn spend_limit_transaction_test(
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (account, bdk_wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .expect("Keys not found");
     let recipient = match should_self_addressed_tx {
-        true => bdk_wallet.get_address(AddressIndex::New).unwrap(),
+        true => fixture.wallet.get_address(AddressIndex::New).unwrap(),
         false => gen_external_wallet_address(),
     };
-    let app_signed_psbt = build_transaction_with_amount(&bdk_wallet, recipient, 2_000, &[]);
+    let app_signed_psbt = build_app_signed_psbt_for_protocol(&fixture, recipient, 2_000, &[]);
 
     let limit = SpendingLimit {
         active: true,
@@ -462,7 +595,7 @@ async fn spend_limit_transaction_test(
     // Set up Mobile Pay to populate PrivilegedAction
     let mobile_pay_request = build_mobile_pay_request(limit.clone());
     let mobile_pay_response = client
-        .put_mobile_pay(&account.id, &mobile_pay_request, &keys)
+        .put_mobile_pay(&fixture.account.id, &mobile_pay_request, &keys)
         .await;
     assert_eq!(
         mobile_pay_response.status_code,
@@ -483,24 +616,32 @@ async fn spend_limit_transaction_test(
     };
 
     let response = client
-        .sign_transaction_with_keyset(&account.id, &account.active_keyset_id, &request_data)
+        .sign_transaction_with_keyset(
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
+            &request_data,
+        )
         .await;
     assert_eq!(
         expected_status, response.status_code,
         "{}",
         response.body_string
     );
-    check_psbt(response.body, &bdk_wallet);
+    check_finalized_psbt(response.body, &fixture.wallet);
 
     let response = client
-        .sign_transaction_with_keyset(&account.id, &account.active_keyset_id, &request_data)
+        .sign_transaction_with_keyset(
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
+            &request_data,
+        )
         .await;
     assert_eq!(
         expected_status, response.status_code,
         "{}",
         response.body_string
     );
-    check_psbt(response.body, &bdk_wallet);
+    check_finalized_psbt(response.body, &fixture.wallet);
 }
 
 #[rstest]
@@ -520,6 +661,29 @@ async fn test_spend_limit_transaction(
         should_self_addressed_tx,
         invalidate_server_signature,
         expected_status,
+        WalletTestProtocol::Legacy,
+    )
+    .await
+}
+
+#[rstest]
+#[case::self_addressed_no_movable_funds(0, true, false, StatusCode::BAD_REQUEST)]
+#[case::below_spend_limit(2033, false, false, StatusCode::OK)]
+#[case::above_limit_to_self(0, true, false, StatusCode::BAD_REQUEST)]
+#[case::above_limit_to_external(0, false, false, StatusCode::BAD_REQUEST)]
+#[tokio::test]
+async fn test_spend_limit_transaction_private_ccd(
+    #[case] max_spend_per_day: u64,
+    #[case] should_self_addressed_tx: bool,
+    #[case] invalidate_server_signature: bool,
+    #[case] expected_status: StatusCode,
+) {
+    spend_limit_transaction_test(
+        max_spend_per_day,
+        should_self_addressed_tx,
+        invalidate_server_signature,
+        expected_status,
+        WalletTestProtocol::PrivateCcd,
     )
     .await
 }
@@ -547,6 +711,37 @@ async fn test_bypass_mobile_spend_limit_for_sweep(
         spending_limit,
         target_external_address,
         expected_status,
+        WalletTestProtocol::Legacy,
+    )
+    .await
+}
+
+// TODO [W-13985] - Make sure we allow sweeping to a customer's destination wallet.
+#[rstest]
+#[case::none_spending_limit(None, false, StatusCode::OK)]
+#[case::inactive_spending_limit(
+    Some(SpendingLimit { active: false, amount: Money { amount: 42, currency_code: USD }, ..Default::default() }),
+    false,
+    StatusCode::OK
+)]
+#[case::limit_below_balance(
+    Some(SpendingLimit { active: true, amount: Money { amount: 0, currency_code: USD }, ..Default::default() }),
+    false,
+    StatusCode::OK
+)]
+#[case::to_external_address(None, true, StatusCode::BAD_REQUEST)]
+#[tokio::test]
+#[ignore]
+async fn test_bypass_mobile_spend_limit_for_sweep_private_ccd(
+    #[case] spending_limit: Option<SpendingLimit>,
+    #[case] target_external_address: bool,
+    #[case] expected_status: StatusCode,
+) {
+    bypass_mobile_spend_limit_for_sweep_test(
+        spending_limit,
+        target_external_address,
+        expected_status,
+        WalletTestProtocol::PrivateCcd,
     )
     .await
 }
@@ -555,6 +750,7 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
     spending_limit: Option<SpendingLimit>,
     target_external_address: bool,
     expected_status: StatusCode,
+    wallet_protocol: WalletTestProtocol,
 ) {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
@@ -570,23 +766,24 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (account, bdk_wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .expect("Keys not found");
-    let inactive_keyset_id = account.active_keyset_id;
-    let active_keyset_id = create_inactive_spending_keyset_for_account(
+    let inactive_keyset_id = fixture.account.active_keyset_id.clone();
+    let (active_keyset_id, (app_xpub, hw_xpub)) = create_inactive_spending_keyset_for_account(
         &context,
         &client,
-        &account.id,
+        &fixture.account.id,
         Network::BitcoinSignet,
+        fixture.protocol,
     )
     .await;
+
     let response = client
         .rotate_to_spending_keyset(
-            &account.id.to_string(),
+            &fixture.account.id.to_string(),
             &active_keyset_id.to_string(),
             &RotateSpendingKeysetRequest {},
             &keys,
@@ -603,29 +800,75 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
         .services
         .account_service
         .fetch_full_account(FetchAccountInput {
-            account_id: &account.id,
+            account_id: &fixture.account.id,
         })
         .await
         .unwrap();
-    let active_descriptor_keyset: DescriptorKeyset = account
-        .spending_keysets
-        .get(&active_keyset_id)
-        .unwrap()
-        .optional_legacy_multi_sig()
-        .unwrap()
-        .to_owned()
-        .into();
-    let electrum_rpc_uris = default_electrum_rpc_uris();
-    let active_wallet = active_descriptor_keyset
-        .generate_wallet(true, &electrum_rpc_uris)
-        .unwrap();
+
     let recipient = if target_external_address {
-        gen_external_wallet_address()
+        gen_external_wallet_address().address
     } else {
-        active_wallet.get_address(AddressIndex::Peek(0)).unwrap()
+        match wallet_protocol {
+            WalletTestProtocol::Legacy => {
+                let active_descriptor_keyset: DescriptorKeyset = account
+                    .spending_keysets
+                    .get(&active_keyset_id)
+                    .unwrap()
+                    .optional_legacy_multi_sig()
+                    .unwrap()
+                    .to_owned()
+                    .into();
+
+                let electrum_rpc_uris = default_electrum_rpc_uris();
+                let active_wallet = active_descriptor_keyset
+                    .generate_wallet(true, &electrum_rpc_uris)
+                    .unwrap();
+
+                active_wallet
+                    .get_address(AddressIndex::Peek(0))
+                    .unwrap()
+                    .address
+            }
+            WalletTestProtocol::PrivateCcd => {
+                // Here, we use the new XPUBs that were generated when
+                // `create_inactive_spending_keyset_for_account` was called, and the server xpub
+                // that we know would always be the same
+                let active_keyset = account.spending_keysets.get(&active_keyset_id).unwrap();
+                let server_pub = match active_keyset {
+                    SpendingKeyset::PrivateMultiSig(k) => k.server_pub,
+                    _ => panic!("Expected PrivateMultiSig keyset for PrivateCcd protocol"),
+                };
+                let server_dpub = {
+                    // The server never has a chain code, so we simulate an app generating one for us
+                    let server_root_xpub =
+                        predefined_server_root_xpub(active_keyset.network(), server_pub);
+
+                    let unhardened_path = DerivationPath::from_str("m/84/1/0").unwrap();
+                    let derived_xpub = server_root_xpub
+                        .derive_pub(&Secp256k1::new(), &unhardened_path)
+                        .expect("derived server xpub");
+                    let origin = (server_root_xpub.fingerprint(), unhardened_path);
+                    DescriptorPublicKey::XPub(DescriptorXKey {
+                        origin: Some(origin),
+                        xkey: derived_xpub,
+                        derivation_path: DerivationPath::default(),
+                        wildcard: Wildcard::Unhardened,
+                    })
+                };
+
+                let descriptor =
+                    Descriptor::new_wsh_sortedmulti(2, vec![app_xpub, hw_xpub, server_dpub]);
+                descriptor
+                    .unwrap()
+                    .at_derivation_index(1)
+                    .unwrap()
+                    .address(active_keyset.network().into())
+                    .unwrap()
+            }
+        }
     };
 
-    let app_signed_psbt = build_sweep_transaction(&bdk_wallet, recipient);
+    let app_signed_psbt = build_sweep_psbt_for_protocol(&fixture, recipient);
 
     if let Some(limit) = spending_limit.clone() {
         // Set up Mobile Pay
@@ -646,6 +889,8 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
         ..Default::default()
     };
 
+    println!("app_signed_psbt: {}", app_signed_psbt.to_string());
+
     // Send the sweep transaction
     let response = client
         .sign_transaction_with_keyset(&account.id, &inactive_keyset_id, &request_data)
@@ -655,22 +900,19 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
         "{}",
         response.body_string
     );
-    check_psbt(response.body, &bdk_wallet);
+    check_finalized_psbt(response.body, &fixture.wallet);
 }
 
-#[tokio::test]
-async fn test_disabled_mobile_pay_spend_limit() {
+async fn disabled_mobile_pay_spend_limit_test(wallet_protocol: WalletTestProtocol) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (account, bdk_wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .expect("Keys not found");
     let recipient = gen_external_wallet_address();
-    let app_signed_psbt = build_transaction_with_amount(&bdk_wallet, recipient, 2_000, &[]);
+    let app_signed_psbt = build_app_signed_psbt_for_protocol(&fixture, recipient, 2_000, &[]);
 
     let limit = SpendingLimit {
         active: false,
@@ -684,7 +926,7 @@ async fn test_disabled_mobile_pay_spend_limit() {
     // Set Mobile Pay to disabled
     let mobile_pay_request = build_mobile_pay_request(limit.clone());
     let mobile_pay_response = client
-        .put_mobile_pay(&account.id, &mobile_pay_request, &keys)
+        .put_mobile_pay(&fixture.account.id, &mobile_pay_request, &keys)
         .await;
     assert_eq!(
         mobile_pay_response.status_code,
@@ -696,8 +938,8 @@ async fn test_disabled_mobile_pay_spend_limit() {
     // Attempt Mobile Pay
     let actual_response = client
         .sign_transaction_with_keyset(
-            &account.id,
-            &account.active_keyset_id,
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt.to_string(),
                 ..Default::default()
@@ -708,18 +950,25 @@ async fn test_disabled_mobile_pay_spend_limit() {
 }
 
 #[tokio::test]
-async fn test_mismatched_account_id_keyproof() {
+async fn test_disabled_mobile_pay_spend_limit() {
+    disabled_mobile_pay_spend_limit_test(WalletTestProtocol::Legacy).await
+}
+
+#[tokio::test]
+async fn test_disabled_mobile_pay_spend_limit_private_ccd() {
+    disabled_mobile_pay_spend_limit_test(WalletTestProtocol::PrivateCcd).await
+}
+
+async fn mismatched_account_id_keyproof_test(wallet_protocol: WalletTestProtocol) {
     let broadcaster_mock = MockTransactionBroadcaster::new();
 
     let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (account, bdk_wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
     // Attempt to set up Mobile Pay with a different account id
@@ -736,7 +985,7 @@ async fn test_mismatched_account_id_keyproof() {
     let request = build_mobile_pay_request(limit);
     let mobile_pay_response = client
         .put_mobile_pay_with_keyproof_account_id(
-            &account.id,
+            &fixture.account.id,
             &AccountId::new(Ulid(400)).unwrap(),
             &request,
             &keys,
@@ -750,7 +999,9 @@ async fn test_mismatched_account_id_keyproof() {
     );
 
     // Set up Mobile Pay with correct account id
-    let mobile_pay_response = client.put_mobile_pay(&account.id, &request, &keys).await;
+    let mobile_pay_response = client
+        .put_mobile_pay(&fixture.account.id, &request, &keys)
+        .await;
     // Ensure Mobile Pay was set up correctly
     assert_eq!(
         mobile_pay_response.status_code,
@@ -761,13 +1012,13 @@ async fn test_mismatched_account_id_keyproof() {
 
     // Attempt to sign a transaction with a different account id
     let app_signed_psbt =
-        build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 2_000, &[])
+        build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 2_000, &[])
             .to_string();
     let response = client
         .sign_transaction_with_keyset_and_keyproof_account_id(
-            &account.id,
+            &fixture.account.id,
             &AccountId::new(Ulid(400)).unwrap(),
-            &account.active_keyset_id,
+            &fixture.account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt,
                 ..Default::default()
@@ -785,7 +1036,16 @@ async fn test_mismatched_account_id_keyproof() {
 }
 
 #[tokio::test]
-async fn test_fail_sends_to_sanctioned_address() {
+async fn test_mismatched_account_id_keyproof() {
+    mismatched_account_id_keyproof_test(WalletTestProtocol::Legacy).await
+}
+
+#[tokio::test]
+async fn test_mismatched_account_id_keyproof_private_ccd() {
+    mismatched_account_id_keyproof_test(WalletTestProtocol::PrivateCcd).await
+}
+
+async fn fail_sends_to_sanctioned_address_test(wallet_protocol: WalletTestProtocol) {
     let blocked_address_info = AddressInfo {
         index: 0,
         address: Address::from_str("tb1q763lyaz775cnd86mf7v59t4589fpejfrxwg0c2")
@@ -798,11 +1058,10 @@ async fn test_fail_sends_to_sanctioned_address() {
 
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
-    let (account, bdk_wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
     let limit = SpendingLimit {
@@ -816,7 +1075,9 @@ async fn test_fail_sends_to_sanctioned_address() {
 
     // Setup Mobile Pay
     let request = build_mobile_pay_request(limit);
-    let mobile_pay_response = client.put_mobile_pay(&account.id, &request, &keys).await;
+    let mobile_pay_response = client
+        .put_mobile_pay(&fixture.account.id, &request, &keys)
+        .await;
     assert_eq!(
         mobile_pay_response.status_code,
         StatusCode::OK,
@@ -825,7 +1086,7 @@ async fn test_fail_sends_to_sanctioned_address() {
     );
 
     let app_signed_psbt =
-        build_transaction_with_amount(&bdk_wallet, blocked_address_info, 2_000, &[]).to_string();
+        build_app_signed_psbt_for_protocol(&fixture, blocked_address_info, 2_000, &[]).to_string();
 
     let request_data = SignTransactionData {
         psbt: app_signed_psbt.to_string(),
@@ -833,7 +1094,11 @@ async fn test_fail_sends_to_sanctioned_address() {
     };
 
     let response = client
-        .sign_transaction_with_keyset(&account.id, &account.active_keyset_id, &request_data)
+        .sign_transaction_with_keyset(
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
+            &request_data,
+        )
         .await;
 
     assert_eq!(
@@ -845,20 +1110,27 @@ async fn test_fail_sends_to_sanctioned_address() {
 }
 
 #[tokio::test]
-async fn test_fail_to_send_if_kill_switch_is_on() {
+async fn test_fail_sends_to_sanctioned_address() {
+    fail_sends_to_sanctioned_address_test(WalletTestProtocol::Legacy).await
+}
+
+#[tokio::test]
+async fn test_fail_sends_to_sanctioned_address_private_ccd() {
+    fail_sends_to_sanctioned_address_test(WalletTestProtocol::PrivateCcd).await
+}
+
+async fn fail_to_send_if_kill_switch_is_on_test(wallet_protocol: WalletTestProtocol) {
     let feature_flag_override =
         HashMap::from([("f8e-mobile-pay-enabled".to_string(), "false".to_string())]);
     let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
 
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
-    let (account, bdk_wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
-    assert_eq!(account.spending_limit, None);
+    assert_eq!(fixture.account.spending_limit, None);
 
     let spend_limit = SpendingLimit {
         active: true,
@@ -869,7 +1141,9 @@ async fn test_fail_to_send_if_kill_switch_is_on() {
         ..Default::default()
     };
     let request = build_mobile_pay_request(spend_limit.clone());
-    let response = client.put_mobile_pay(&account.id, &request, &keys).await;
+    let response = client
+        .put_mobile_pay(&fixture.account.id, &request, &keys)
+        .await;
     assert_eq!(
         response.status_code,
         StatusCode::OK,
@@ -878,12 +1152,12 @@ async fn test_fail_to_send_if_kill_switch_is_on() {
     );
 
     let app_signed_psbt =
-        build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 2_000, &[])
+        build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 2_000, &[])
             .to_string();
     let actual_response = client
         .sign_transaction_with_keyset(
-            &account.id,
-            &account.active_keyset_id,
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
             &SignTransactionData {
                 psbt: app_signed_psbt,
                 ..Default::default()
@@ -894,18 +1168,25 @@ async fn test_fail_to_send_if_kill_switch_is_on() {
 }
 
 #[tokio::test]
-async fn test_fail_if_signed_with_different_wallet() {
+async fn test_fail_to_send_if_kill_switch_is_on() {
+    fail_to_send_if_kill_switch_is_on_test(WalletTestProtocol::Legacy).await
+}
+
+#[tokio::test]
+async fn test_fail_to_send_if_kill_switch_is_on_private_ccd() {
+    fail_to_send_if_kill_switch_is_on_test(WalletTestProtocol::PrivateCcd).await
+}
+
+async fn fail_if_signed_with_different_wallet_test(wallet_protocol: WalletTestProtocol) {
     let (mut context, bootstrap) = gen_services().await;
 
     let client = TestClient::new(bootstrap.router).await;
-    let (account, bdk_wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
-    // Set some spendig limit for this account
+    // Set some spending limit for this account
     let spend_limit = SpendingLimit {
         active: true,
         amount: Money {
@@ -915,7 +1196,9 @@ async fn test_fail_if_signed_with_different_wallet() {
         ..Default::default()
     };
     let request = build_mobile_pay_request(spend_limit.clone());
-    let response = client.put_mobile_pay(&account.id, &request, &keys).await;
+    let response = client
+        .put_mobile_pay(&fixture.account.id, &request, &keys)
+        .await;
     assert_eq!(
         response.status_code,
         StatusCode::OK,
@@ -930,15 +1213,15 @@ async fn test_fail_if_signed_with_different_wallet() {
     // Test PSBT without signatures
     {
         let mut psbt_without_signatures =
-            build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 2_000, &[]);
+            build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 2_000, &[]);
         for input in &mut psbt_without_signatures.inputs {
             input.partial_sigs.clear();
         }
 
         let response = client
             .sign_transaction_with_keyset(
-                &account.id,
-                &account.active_keyset_id,
+                &fixture.account.id,
+                &fixture.account.active_keyset_id,
                 &SignTransactionData {
                     psbt: psbt_without_signatures.to_string(),
                     ..Default::default()
@@ -954,7 +1237,7 @@ async fn test_fail_if_signed_with_different_wallet() {
     // Test PSBT with >1 signatures
     {
         let mut psbt_with_two_signatures =
-            build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 1_000, &[]);
+            build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 1_000, &[]);
         for input in &mut psbt_with_two_signatures.inputs {
             let sig = ecdsa::Signature::sighash_all(secp.sign_ecdsa(
                 &Message::from_slice(&[0; 32]).unwrap(),
@@ -966,8 +1249,8 @@ async fn test_fail_if_signed_with_different_wallet() {
 
         let response = client
             .sign_transaction_with_keyset(
-                &account.id,
-                &account.active_keyset_id,
+                &fixture.account.id,
+                &fixture.account.active_keyset_id,
                 &SignTransactionData {
                     psbt: psbt_with_two_signatures.to_string(),
                     ..Default::default()
@@ -983,7 +1266,7 @@ async fn test_fail_if_signed_with_different_wallet() {
     // Test PSBT with signature that does not belong to wallet
     {
         let mut psbt_with_attacker_signature =
-            build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 1_000, &[]);
+            build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 1_000, &[]);
         for input in &mut psbt_with_attacker_signature.inputs {
             // Clear out all partial signatures, and insert a signature that does not belong to the wallet
             input.partial_sigs.clear();
@@ -998,8 +1281,8 @@ async fn test_fail_if_signed_with_different_wallet() {
 
         let response = client
             .sign_transaction_with_keyset(
-                &account.id,
-                &account.active_keyset_id,
+                &fixture.account.id,
+                &fixture.account.active_keyset_id,
                 &SignTransactionData {
                     psbt: psbt_with_attacker_signature.to_string(),
                     ..Default::default()
@@ -1007,8 +1290,25 @@ async fn test_fail_if_signed_with_different_wallet() {
             )
             .await;
         assert_eq!(response.status_code, StatusCode::INTERNAL_SERVER_ERROR,);
-        assert!(response.body_string.contains("Invalid PSBT"));
+        match wallet_protocol {
+            WalletTestProtocol::Legacy => {
+                assert!(response.body_string.contains("Invalid PSBT"));
+            }
+            WalletTestProtocol::PrivateCcd => {
+                assert!(response.body_string.contains("App signature not found."));
+            }
+        }
     }
+}
+
+#[tokio::test]
+async fn test_fail_if_signed_with_different_wallet() {
+    fail_if_signed_with_different_wallet_test(WalletTestProtocol::Legacy).await
+}
+
+#[tokio::test]
+async fn test_fail_if_signed_with_different_wallet_private_ccd() {
+    fail_if_signed_with_different_wallet_test(WalletTestProtocol::PrivateCcd).await
 }
 
 #[tokio::test]
@@ -1016,8 +1316,9 @@ async fn test_sign_psbt_v2_happy_path() {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
         .expect_broadcast()
-        .times(0)
+        .times(1)
         .returning(|_, _, _| Ok(()));
+
     let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
@@ -1058,13 +1359,7 @@ async fn test_sign_psbt_v2_happy_path() {
         let (psbt, _details) = {
             let mut builder = wallet.build_tx();
             builder
-                .add_recipient(
-                    wallet
-                        .get_address(AddressIndex::Peek(0))
-                        .unwrap()
-                        .script_pubkey(),
-                    30_000,
-                )
+                .add_recipient(gen_external_wallet_address().script_pubkey(), 30_000)
                 .enable_rbf()
                 .fee_rate(bdk::FeeRate::from_sat_per_vb(1.0));
             builder.finish().expect("Failed to build transaction")
@@ -1073,7 +1368,7 @@ async fn test_sign_psbt_v2_happy_path() {
         let predefined_keys = predefined_descriptor_public_keys();
         let hw_descriptor_public_keys = match predefined_keys.hardware_account_dpub {
             DescriptorPublicKey::XPub(DescriptorXKey {
-                origin: Some(origin),
+                origin: Some(ref origin),
                 xkey,
                 ..
             }) => HwAccountLevelDescriptorPublicKeys::new(origin.0, xkey),
@@ -1089,6 +1384,11 @@ async fn test_sign_psbt_v2_happy_path() {
             SpendingKeyset::LegacyMultiSig(_) => panic!("Legacy multi sig not supported"),
         };
 
+        let app_account_xpub = match predefined_keys.app_account_descriptor_keypair().1 {
+            DescriptorPublicKey::XPub(DescriptorXKey { xkey, .. }) => xkey,
+            _ => panic!("Expected XPub descriptor"),
+        };
+
         let mut psbt = psbt_with_tweaks(
             psbt,
             &Keyset {
@@ -1097,7 +1397,10 @@ async fn test_sign_psbt_v2_happy_path() {
                     hw_descriptor_public_keys.account_xpub(),
                 ),
                 server_root_xpub: predefined_server_root_xpub(keyset.network, keyset.server_pub),
-                app_root_xprv: predefined_keys.app_root_xprv,
+                app_account_xpub_with_origin: XpubWithOrigin {
+                    fingerprint: predefined_keys.app_root_xprv.fingerprint(&Secp256k1::new()),
+                    xpub: app_account_xpub,
+                },
             },
         )
         .unwrap();
@@ -1118,6 +1421,6 @@ async fn test_sign_psbt_v2_happy_path() {
         )
         .await;
 
-    assert_eq!(response.status_code, StatusCode::FORBIDDEN);
-    check_psbt(response.body, &wallet);
+    assert_eq!(response.status_code, StatusCode::OK);
+    check_finalized_psbt(response.body, &wallet);
 }

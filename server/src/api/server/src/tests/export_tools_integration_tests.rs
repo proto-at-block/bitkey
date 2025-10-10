@@ -7,6 +7,7 @@ use super::lib::create_default_account_with_predefined_wallet;
 use super::TestContext;
 use crate::tests::gen_services;
 use crate::tests::lib::create_inactive_spending_keyset_for_account;
+use crate::tests::lib::wallet_protocol::WalletTestProtocol;
 use crate::tests::requests::axum::TestClient;
 use crate::Bootstrap;
 
@@ -64,11 +65,12 @@ async fn rotate_spending_keyset(
     let keys = context
         .get_authentication_keys_for_account_id(&account.id)
         .expect("Auth keys not found for account");
-    let new_keyset_id = create_inactive_spending_keyset_for_account(
+    let (new_keyset_id, _) = create_inactive_spending_keyset_for_account(
         context,
         client,
         &account.id,
         types::account::bitcoin::Network::BitcoinSignet,
+        WalletTestProtocol::Legacy,
     )
     .await;
 

@@ -45,4 +45,10 @@ data class Keybox(
       "activeSpendingKeyset must be present in keysets!"
     }
   }
+
+  /**
+   * Whether this keybox uses a private keyset (server-blind via chaincode delegation).
+   */
+  val isPrivate: Boolean
+    get() = activeSpendingKeyset.isPrivate
 }

@@ -61,6 +61,12 @@ kotlin {
       }
     }
 
+    androidMain {
+      dependencies {
+        implementation(projects.rust.coreFfi)
+      }
+    }
+
     val commonJvmMain by getting {
       dependencies {
         implementation(projects.rust.coreFfi)

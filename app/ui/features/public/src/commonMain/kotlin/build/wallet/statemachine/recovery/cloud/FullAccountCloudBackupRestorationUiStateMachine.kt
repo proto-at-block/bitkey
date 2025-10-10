@@ -20,4 +20,5 @@ data class FullAccountCloudBackupRestorationUiProps(
   val backup: CloudBackup,
   val onRecoverAppKey: () -> Unit,
   val onExit: () -> Unit,
+  val goToLiteAccountCreation: () -> Unit,
 )

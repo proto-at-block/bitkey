@@ -49,10 +49,10 @@ impl TryFrom<(NotificationCompositeKey, CommsVerificationPayload)> for Notificat
                 ]),
             }),
             push_payload: None,
-            sms_payload: Some(SmsPayload {
-                message: format!("Your Bitkey verification code is: {}", payload.code),
-                unsupported_country_codes: None,
-            }),
+            sms_payload: Some(SmsPayload::new(
+                format!("Your Bitkey verification code is: {}", payload.code),
+                None,
+            )),
         })
     }
 }

@@ -18,8 +18,10 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
 import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClient
+import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
@@ -27,7 +29,9 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recoverIf
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 @BitkeyInject(AppScope::class)
 class LostHardwareRecoveryServiceImpl(
@@ -37,7 +41,14 @@ class LostHardwareRecoveryServiceImpl(
   private val initiateAccountDelayNotifyF8eClient: InitiateAccountDelayNotifyF8eClient,
   private val recoveryDao: RecoveryDao,
   private val accountService: AccountService,
+  private val appKeysGenerator: AppKeysGenerator,
 ) : LostHardwareRecoveryService {
+  override suspend fun generateNewAppKeys(): Result<AppKeyBundle, Throwable> {
+    return withContext(Dispatchers.Default) {
+      appKeysGenerator.generateKeyBundle()
+    }
+  }
+
   override suspend fun initiate(
     destinationAppKeyBundle: AppKeyBundle,
     destinationHardwareKeyBundle: HwKeyBundle,
@@ -99,6 +110,40 @@ class LostHardwareRecoveryServiceImpl(
             f8eEnvironment = account.config.f8eEnvironment,
             fullAccountId = account.accountId,
             hwFactorProofOfPossession = null
+          )
+          .recoverIf(
+            predicate = { f8eError ->
+              // We expect to get a 4xx NO_RECOVERY_EXISTS error if we try to cancel
+              // a recovery that has already been canceled. In that case, treat it as
+              // a success, so we will still proceed below and delete the stored recovery
+              val clientError =
+                f8eError as? SpecificClientError<CancelDelayNotifyRecoveryErrorCode>
+              clientError?.errorCode == NO_RECOVERY_EXISTS
+            },
+            transform = {}
+          )
+          .mapError(::F8eCancelDelayNotifyError)
+          .bind()
+
+        recoveryStatusService.clear()
+          .mapError(::LocalCancelDelayNotifyError)
+          .bind()
+      }
+    }
+
+  override suspend fun cancelRecoveryWithHwProofOfPossession(
+    proofOfPossession: HwFactorProofOfPossession,
+  ): Result<Unit, CancelDelayNotifyRecoveryError> =
+    coroutineBinding {
+      recoveryLock.withLock {
+        val account = accountService.getAccount<FullAccount>()
+          .mapError(::LocalCancelDelayNotifyError)
+          .bind()
+        cancelDelayNotifyRecoveryF8eClient
+          .cancel(
+            f8eEnvironment = account.config.f8eEnvironment,
+            fullAccountId = account.accountId,
+            hwFactorProofOfPossession = proofOfPossession
           )
           .recoverIf(
             predicate = { f8eError ->

@@ -1,12 +1,12 @@
 {
-    "module-identifier": "org.bitcoindevkit:bdk-android",
+    "module-identifier": "androidx.concurrent:concurrent-futures-ktx",
     "components": [
         {
-            "version": "0.32.1",
+            "version": "1.1.0",
             "variants": [
                 {
                     "artifacts": {
-                        "bdk-android-0.32.1.aar": "e6f24fb5861fb56c132bde4f0cee11b674a988ae92d000d89e88943c341a42ab"
+                        "concurrent-futures-ktx-1.1.0.jar": "1968bf52039e38636aa6f114cd17d7256919d1e8997417716fef9d1da1f24d85"
                     }
                 }
             ],

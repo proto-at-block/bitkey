@@ -2,11 +2,11 @@
     "module-identifier": "androidx.camera:camera-camera2",
     "components": [
         {
-            "version": "1.4.0-alpha04",
+            "version": "1.4.0-beta02",
             "variants": [
                 {
                     "artifacts": {
-                        "camera-camera2-1.4.0-alpha04.aar": "d9cc903f849535a3784c477c54afedfd775a7ea6ac8c5bbd0b4b457d09aa27a4"
+                        "camera-camera2-1.4.0-beta02.aar": "125c7fa7750413be2d89febee3504ab5501edaa400d29da41b0302ed5e4b4a19"
                     }
                 }
             ],

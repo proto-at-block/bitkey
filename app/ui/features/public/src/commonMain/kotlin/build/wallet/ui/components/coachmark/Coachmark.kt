@@ -19,10 +19,11 @@ import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.model.coachmark.CoachmarkLabelTreatment
 import build.wallet.ui.model.coachmark.CoachmarkModel
-import build.wallet.ui.model.coachmark.NewCoachmarkTreatment
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.list.CoachmarkLabelModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.painter
@@ -99,7 +100,9 @@ fun Coachmark(
 
           Row {
             // New label
-            NewCoachmark(NewCoachmarkTreatment.Dark)
+            CoachmarkLabel(
+              model = CoachmarkLabelModel.New.copy(treatment = CoachmarkLabelTreatment.Dark)
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 

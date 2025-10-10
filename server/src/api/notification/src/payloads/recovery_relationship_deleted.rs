@@ -102,10 +102,7 @@ fn payloads_for_social_recovery(
         ..Default::default()
     });
 
-    let sms_payload = Some(SmsPayload {
-        message,
-        unsupported_country_codes: None,
-    });
+    let sms_payload = Some(SmsPayload::new(message, None));
 
     (email_payload, push_payload, sms_payload)
 }
@@ -179,10 +176,7 @@ fn payloads_for_inheritance(
         ..Default::default()
     });
 
-    let sms_payload = Some(SmsPayload {
-        message,
-        unsupported_country_codes: None,
-    });
+    let sms_payload = Some(SmsPayload::new(message, None));
 
     (email_payload, push_payload, sms_payload)
 }

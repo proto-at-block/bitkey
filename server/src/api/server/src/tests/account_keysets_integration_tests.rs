@@ -510,6 +510,8 @@ async fn test_rotate_spending_keyset(
     #[case] override_keyset_id: Option<String>,
     #[case] expected_status: StatusCode,
 ) {
+    use crate::tests::lib::wallet_protocol::WalletTestProtocol;
+
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -554,8 +556,14 @@ async fn test_rotate_spending_keyset(
         .unwrap();
     let active_keyset_id = account.active_keyset_id;
 
-    let keyset_id =
-        create_inactive_spending_keyset_for_account(&context, &client, &account_id, network).await;
+    let (keyset_id, _) = create_inactive_spending_keyset_for_account(
+        &context,
+        &client,
+        &account_id,
+        network,
+        WalletTestProtocol::Legacy,
+    )
+    .await;
     let response = client
         .rotate_to_spending_keyset(
             &account_id.to_string(),

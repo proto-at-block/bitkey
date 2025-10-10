@@ -9,6 +9,8 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
  * Represents a keyset for multi-sig segwit (BIP-84) 2-of-3 wallet.
  * Called a "Spending" keyset because it is used, along with its app private key
  * counterpart, to sign transactions in order to spend bitcoin.
+ *
+ * Can be either legacy (server sees transactions) or private (server blind via chaincode delegation).
  */
 data class SpendingKeyset(
   val localId: String,
@@ -16,4 +18,10 @@ data class SpendingKeyset(
   val appKey: AppSpendingPublicKey,
   val hardwareKey: HwSpendingPublicKey,
   val f8eSpendingKeyset: F8eSpendingKeyset,
-)
+) {
+  /**
+   * Whether this is a private keyset (server-blind via chaincode delegation).
+   */
+  val isPrivate: Boolean
+    get() = f8eSpendingKeyset.isPrivate
+}

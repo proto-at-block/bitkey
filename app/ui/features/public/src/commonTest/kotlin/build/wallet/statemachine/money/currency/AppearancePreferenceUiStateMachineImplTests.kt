@@ -22,10 +22,12 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.pricechart.TimeScaleListFormModel
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilSheet
 import build.wallet.ui.theme.ThemePreferenceServiceFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import org.jetbrains.compose.resources.StringResource
 
@@ -131,6 +133,25 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
       }
 
       chartTimeScalePreference.get().value.shouldBe(ChartRange.WEEK)
+    }
+  }
+
+  test("theme selection sheet closes when onBack is called") {
+    stateMachine.test(props) {
+      // loading theme
+      awaitBody<AppearancePreferenceFormModel>()
+
+      // Open theme selection
+      awaitBody<AppearancePreferenceFormModel> {
+        onThemePreferenceClick()
+      }
+
+      awaitUntilSheet<ThemeSelectionBodyModel> {
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      // Verify we're back to main appearance preference screen without bottom sheet
+      awaitItem().bottomSheetModel.shouldBe(null)
     }
   }
 })

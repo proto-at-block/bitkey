@@ -8,6 +8,7 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class PrivateWalletMigrationServiceFake : PrivateWalletMigrationService {
   var initiateMigrationResult: Result<SpendingKeyset, PrivateWalletMigrationError> =
@@ -17,6 +18,7 @@ class PrivateWalletMigrationServiceFake : PrivateWalletMigrationService {
   var finalizeMigrationResult: Result<Keybox, PrivateWalletMigrationError> =
     Err(PrivateWalletMigrationError.FeatureNotAvailable)
   var cancelMigrationResult: Result<Unit, PrivateWalletMigrationError> = Ok(Unit)
+  override val isPrivateWalletMigrationAvailable = MutableStateFlow(true)
 
   override suspend fun initiateMigration(
     account: FullAccount,
@@ -50,5 +52,6 @@ class PrivateWalletMigrationServiceFake : PrivateWalletMigrationService {
     prepareSweepResult = Err(PrivateWalletMigrationError.FeatureNotAvailable)
     finalizeMigrationResult = Err(PrivateWalletMigrationError.FeatureNotAvailable)
     cancelMigrationResult = Ok(Unit)
+    isPrivateWalletMigrationAvailable.value = true
   }
 }

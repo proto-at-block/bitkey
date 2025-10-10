@@ -1,28 +1,46 @@
 package build.wallet.statemachine.walletmigration
 
 import androidx.compose.runtime.*
+import bitkey.auth.AccountAuthTokens
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.nfc.platform.signAccessToken
+import build.wallet.platform.random.UuidGenerator
+import build.wallet.statemachine.auth.RefreshAuthTokensProps
+import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachine
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiState.CreatingKeyset
+import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiState.HardwareInitiation
+import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiState.Introduction
 
 @BitkeyInject(ActivityScope::class)
-class PrivateWalletMigrationUiStateMachineImpl : PrivateWalletMigrationUiStateMachine {
+class PrivateWalletMigrationUiStateMachineImpl(
+  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val refreshAuthTokensUiStateMachine: RefreshAuthTokensUiStateMachine,
+  private val uuidGenerator: UuidGenerator,
+) : PrivateWalletMigrationUiStateMachine {
   @Composable
   override fun model(props: PrivateWalletMigrationUiProps): ScreenModel {
     var uiState by remember {
-      mutableStateOf<PrivateWalletMigrationUiState>(PrivateWalletMigrationUiState.Introduction)
+      mutableStateOf<PrivateWalletMigrationUiState>(Introduction)
     }
 
-    return when (uiState) {
-      is PrivateWalletMigrationUiState.Introduction -> {
+    return when (val current = uiState) {
+      is Introduction -> {
         ScreenModel(
           body = PrivateWalletMigrationIntroBodyModel(
             onBack = props.onExit,
             onContinue = {
-              uiState = PrivateWalletMigrationUiState.Success
+              uiState = PrivateWalletMigrationUiState.RefreshingAuthTokens
             },
             onLearnMore = {
               // TODO: Implement learn more navigation when ready
@@ -31,7 +49,60 @@ class PrivateWalletMigrationUiStateMachineImpl : PrivateWalletMigrationUiStateMa
         )
       }
 
-      is PrivateWalletMigrationUiState.CreatingKeyset -> {
+      is PrivateWalletMigrationUiState.RefreshingAuthTokens -> {
+        refreshAuthTokensUiStateMachine.model(
+          RefreshAuthTokensProps(
+            fullAccountId = props.account.accountId,
+            appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
+            onSuccess = { tokens ->
+              uiState = HardwareInitiation(
+                tokens = tokens
+              )
+            },
+            onBack = {
+              uiState = Introduction
+            },
+            screenPresentationStyle = ScreenPresentationStyle.Root
+          )
+        )
+      }
+
+      is HardwareInitiation -> {
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            session = { session, commands ->
+              val proofOfPossession = HwFactorProofOfPossession(
+                commands.signAccessToken(session, current.tokens.accessToken)
+              )
+              // Use getNextSpendingKey to generate a new hardware key for privacy.
+              // Although the server knows the old hardware xpub, hardened derivation at the account level
+              // prevents the server from predicting the next key without the parent private key.
+              val existingKeys = listOf(props.account.keybox.activeSpendingKeyset.hardwareKey)
+              val newKey = commands.getNextSpendingKey(session, existingKeys, props.account.keybox.config.bitcoinNetworkType)
+
+              KeysetInitiationNfcResult(
+                proofOfPossession = proofOfPossession,
+                newHwKeys = HwKeyBundle(
+                  localId = uuidGenerator.random(),
+                  spendingKey = newKey,
+                  authKey = commands.getAuthenticationKey(session),
+                  networkType = props.account.keybox.config.bitcoinNetworkType
+                )
+              )
+            },
+            onSuccess = {
+              uiState = CreatingKeyset(it)
+            },
+            onCancel = {
+              uiState = Introduction
+            },
+            screenPresentationStyle = ScreenPresentationStyle.Root,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
+          )
+        )
+      }
+
+      is CreatingKeyset -> {
         ScreenModel(
           body = LoadingSuccessBodyModel(
             state = LoadingSuccessBodyModel.State.Loading,
@@ -109,7 +180,7 @@ class PrivateWalletMigrationUiStateMachineImpl : PrivateWalletMigrationUiStateMa
             primaryButton = ButtonDataModel(
               text = "Retry",
               onClick = {
-                uiState = PrivateWalletMigrationUiState.Introduction
+                uiState = Introduction
               }
             ),
             secondaryButton = ButtonDataModel(
@@ -131,9 +202,29 @@ private sealed interface PrivateWalletMigrationUiState {
   data object Introduction : PrivateWalletMigrationUiState
 
   /**
+   * Refreshing auth tokens before initiating Hardware proof-of-possession.
+   */
+  data object RefreshingAuthTokens : PrivateWalletMigrationUiState
+
+  /**
+   * Initial Hardware tap to initiate new keys and get a proof-of-possession.
+   */
+  data class HardwareInitiation(
+    val tokens: AccountAuthTokens,
+  ) : PrivateWalletMigrationUiState
+
+  /**
    * Creating new private keyset.
    */
-  data object CreatingKeyset : PrivateWalletMigrationUiState
+  data class CreatingKeyset(
+    val proofOfPossession: HwFactorProofOfPossession,
+    val newHwKeys: HwKeyBundle,
+  ) : PrivateWalletMigrationUiState {
+    constructor(args: KeysetInitiationNfcResult) : this(
+      proofOfPossession = args.proofOfPossession,
+      newHwKeys = args.newHwKeys
+    )
+  }
 
   /**
    * Preparing sweep transaction.

@@ -146,6 +146,9 @@ async fn handle_command(input: &str, state: &mut DebugState) -> Result<bool> {
         "set-electrum-server" => {
             handle_set_electrum_server(&args[1..], state).await?;
         }
+        "prepare-funding" => {
+            handle_prepare_funding(&args[1..], state).await?;
+        }
         _ => {
             println!(
                 "❓ Unknown command: '{}'. Type 'help' for available commands.",
@@ -182,6 +185,9 @@ fn show_help() {
     println!("  list-relationships                   - List recovery relationships");
     println!("  list-challenges                      - List social recovery challenges");
     println!("  list-claims                          - List inheritance claims");
+    println!();
+    println!("💰 Funding commands:");
+    println!("  prepare-funding <amount_sats> <utxo_count> - Generate CSV for Sparrow batch send");
 }
 
 async fn handle_load_account(args: &[&str], state: &mut DebugState) -> Result<()> {
@@ -845,6 +851,137 @@ async fn handle_set_electrum_server(args: &[&str], state: &mut DebugState) -> Re
             println!("📝 Usage: set-electrum-server <url>");
             println!("🌐 Current Electrum server: {}", state.electrum_server_url);
             println!("💡 Example: set-electrum-server ssl://electrum.blockstream.info:50002");
+        }
+    }
+    Ok(())
+}
+
+async fn handle_prepare_funding(args: &[&str], state: &mut DebugState) -> Result<()> {
+    const MAX_UTXO_COUNT: u32 = 1000;
+
+    match args {
+        [amount_str, count_str] => {
+            // Parse arguments
+            let amount = match amount_str.parse::<u64>() {
+                Ok(amount) if amount > 0 => amount,
+                _ => {
+                    println!(
+                        "❌ Invalid amount: '{}'. Must be a positive integer.",
+                        amount_str
+                    );
+                    return Ok(());
+                }
+            };
+
+            let utxo_count = match count_str.parse::<u32>() {
+                Ok(count) if count > 0 && count <= MAX_UTXO_COUNT => count,
+                _ => {
+                    println!(
+                        "❌ Invalid UTXO count: '{}'. Must be 1-{}.",
+                        count_str, MAX_UTXO_COUNT
+                    );
+                    return Ok(());
+                }
+            };
+
+            // Check that account is loaded and extract needed values
+            let (active_keyset_id, keyset) = match state.account.as_ref() {
+                Some(account) => {
+                    let active_keyset_id = account.m_get("active_keyset_id")?.to_s()?.clone();
+                    let keysets = account.m_get("spending_keysets")?.to_m()?;
+                    let keyset = keysets
+                        .get(&active_keyset_id)
+                        .ok_or_else(|| anyhow!("Active keyset {} not found", active_keyset_id))?
+                        .clone();
+                    (active_keyset_id, keyset)
+                }
+                None => {
+                    println!("⚠️ No account loaded. Use 'load-account <account_id>' first.");
+                    return Ok(());
+                }
+            };
+
+            // Check that descriptors are loaded
+            if state.descriptors.is_none() {
+                println!("⚠️ Descriptors not loaded. Use 'load-descriptors' first.");
+                return Ok(());
+            }
+
+            println!("💰 Generating funding file for Sparrow wallet...");
+            println!("   Amount per UTXO: {} sats", amount);
+            println!("   Number of UTXOs: {}", utxo_count);
+            println!();
+
+            let spinner = create_spinner("Generating addresses and creating CSV file...");
+
+            // Create wallet
+            let wallet = state.get_wallet(&active_keyset_id, &keyset)?;
+
+            // Generate addresses
+            let mut addresses = Vec::new();
+            for _ in 0..utxo_count {
+                let address = wallet.get_address(AddressIndex::New)?.address.to_string();
+                addresses.push(address);
+            }
+
+            // Generate timestamp for label
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            let datetime = time::OffsetDateTime::from_unix_timestamp(now as i64)?;
+            const DATETIME_FORMAT: &str =
+                "[month]/[day]/[year repr:last_two] [hour repr:12]:[minute][period case:lower]";
+            let format_description = time::format_description::parse(DATETIME_FORMAT)
+                .map_err(|e| anyhow!("Failed to parse datetime format: {}", e))?;
+            let formatted_datetime = datetime
+                .format(&format_description)
+                .map_err(|e| anyhow!("Failed to format datetime: {}", e))?;
+            let label = format!(
+                "bk funding {} sats x {} utxos {}",
+                amount, utxo_count, formatted_datetime
+            );
+
+            // Create CSV content
+            let mut csv_content = String::new();
+            csv_content.push_str("address,amount,label\n");
+            for address in &addresses {
+                csv_content.push_str(&format!("{},{},{}\n", address, amount, label));
+            }
+
+            // Write to file
+            let filename = format!("sparrow_funding_{}x{}_sats.csv", utxo_count, amount);
+            let file_path = std::env::current_dir()?.join(&filename);
+            std::fs::write(&file_path, csv_content)?;
+
+            spinner.finish();
+
+            println!("✅ Funding file created successfully!");
+            println!("📁 Directory: {}", file_path.parent().unwrap().display());
+            println!("📄 File: {}", filename);
+            println!(
+                "📊 Generated {} addresses for {} sats each",
+                utxo_count, amount
+            );
+            println!(
+                "💰 Total amount needed: {} sats ({:.8} BTC)",
+                amount * utxo_count as u64,
+                (amount * utxo_count as u64) as f64 / 100_000_000.0
+            );
+            println!();
+            println!("📋 Next steps:");
+            println!("  1. Open Sparrow wallet with your funding wallet");
+            println!("  2. Go to Tools -> Send to Many");
+            println!("  3. Click 'Import' and select the CSV file");
+            println!("  4. Review and broadcast the transaction");
+        }
+        _ => {
+            println!("❌ Invalid arguments");
+            println!("📝 Usage: prepare-funding <amount_sats> <utxo_count>");
+            println!("💡 Example: prepare-funding 20000 40");
+            println!(
+                "   This creates a CSV file for sending 20,000 sats to 40 different addresses"
+            );
         }
     }
     Ok(())
