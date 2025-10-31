@@ -6,10 +6,8 @@ import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
-import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
-import build.wallet.testing.tags.TestTag.IsolatedTest
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
@@ -21,11 +19,15 @@ import kotlin.time.Duration.Companion.seconds
 
 class SweepDataStateMachineFunctionalTests : FunSpec({
 
-  test("sweep funds for account with no inactive keysets and recovered app key") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("sweep funds for account with no inactive keysets and recovered app key") { app ->
     val account = app.onboardFullAccountWithFakeHardware()
     app.sweepDataStateMachine.test(
-      SweepDataProps(account.keybox, onSuccess = {}),
+      SweepDataProps(
+        hasAttemptedSweep = false,
+        onAttemptSweep = {},
+        keybox = account.keybox,
+        onSuccess = {}
+      ),
       turbineTimeout = 20.seconds
     ) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
@@ -33,11 +35,15 @@ class SweepDataStateMachineFunctionalTests : FunSpec({
     }
   }
 
-  test("sweep funds for account with no inactive keysets and recovered hardware key") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("sweep funds for account with no inactive keysets and recovered hardware key") { app ->
     val account = app.onboardFullAccountWithFakeHardware()
     app.sweepDataStateMachine.test(
-      SweepDataProps(account.keybox, onSuccess = {}),
+      SweepDataProps(
+        hasAttemptedSweep = false,
+        onAttemptSweep = {},
+        keybox = account.keybox,
+        onSuccess = {}
+      ),
       turbineTimeout = 20.seconds
     ) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
@@ -55,8 +61,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec({
    * - Checks that there's a balance in the active keybox
    * - Send the remaining money back to the treasury
    */
-  test("sweep funds for lost hw recovery").config(tags = setOf(IsolatedTest)) {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("sweep funds for lost hw recovery", isIsolatedTest = true) { app ->
     val account = app.onboardFullAccountWithFakeHardware()
     val keyboxWithNewKeyset = app.createLostHardwareKeyset(account)
     val lostKeyset = keyboxWithNewKeyset.newKeyset
@@ -68,7 +73,12 @@ class SweepDataStateMachineFunctionalTests : FunSpec({
     app.setupMobilePay(FiatMoney.usd(100.0))
 
     app.sweepDataStateMachine.test(
-      SweepDataProps(keyboxWithNewKeyset.keybox) {},
+      SweepDataProps(
+        hasAttemptedSweep = false,
+        onAttemptSweep = {},
+        keybox = keyboxWithNewKeyset.keybox,
+        onSuccess = {}
+      ),
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {

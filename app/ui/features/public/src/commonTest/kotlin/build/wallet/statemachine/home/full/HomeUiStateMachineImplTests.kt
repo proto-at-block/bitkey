@@ -1,11 +1,7 @@
 package build.wallet.statemachine.home.full
 
 import bitkey.ui.framework.NavigatorPresenterFake
-import build.wallet.availability.AppFunctionalityServiceFake
-import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
-import build.wallet.availability.InactiveApp
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.currency.USD
 import build.wallet.partnerships.*
@@ -44,12 +40,9 @@ import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.datetime.Instant
 
 class HomeUiStateMachineImplTests : FunSpec({
-  val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
-  val appFunctionalityService = AppFunctionalityServiceFake()
   val expectedTransactionNoticeUiStateMachine = object : ExpectedTransactionNoticeUiStateMachine,
     ScreenStateMachineMock<ExpectedTransactionNoticeProps>(
       "expected-transaction-notice"
@@ -102,8 +95,6 @@ class HomeUiStateMachineImplTests : FunSpec({
           ScreenStateMachineMock<TrustedContactEnrollmentUiProps>(
             "trusted-contact-enrollment"
           ) {},
-      cloudBackupHealthRepository = cloudBackupHealthRepository,
-      appFunctionalityService = appFunctionalityService,
       expectedTransactionNoticeUiStateMachine = expectedTransactionNoticeUiStateMachine,
       deepLinkHandler = deepLinkHandler,
       inAppBrowserNavigator = inAppBrowserNavigator,
@@ -135,28 +126,18 @@ class HomeUiStateMachineImplTests : FunSpec({
     )
 
   beforeEach {
-    appFunctionalityService.reset()
-    cloudBackupHealthRepository.reset()
     Router.reset()
     partnershipsTransactionsService.reset()
   }
 
-  suspend fun awaitSyncLoopCall() {
-    cloudBackupHealthRepository.syncLoopCalls.awaitItem()
-  }
-
   test("initial screen is money home") {
     stateMachine.test(props) {
-      awaitSyncLoopCall()
-
       awaitBodyMock<MoneyHomeUiProps>()
     }
   }
 
   test("switch to settings tab") {
     stateMachine.test(props) {
-      awaitSyncLoopCall()
-
       awaitBodyMock<MoneyHomeUiProps> {
         onSettings()
       }
@@ -166,8 +147,6 @@ class HomeUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud backup health does not sync when app is inactive") {
-    appFunctionalityService.status.emit(LimitedFunctionality(InactiveApp))
-
     stateMachine.test(props) {
       awaitBodyMock<MoneyHomeUiProps>()
     }
@@ -193,17 +172,22 @@ class HomeUiStateMachineImplTests : FunSpec({
       )
     )
 
-    Router.route =
-      Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
-
     stateMachine.test(props) {
-      awaitSyncLoopCall()
-
       awaitBodyMock<MoneyHomeUiProps> {
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
       }
 
-      appScope.runCurrent()
+      // Set route AFTER LaunchedEffect is active
+      Router.route =
+        Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
+
+      // Advance time to allow the launched coroutine to execute
+      appScope.testScheduler.runCurrent()
+      appScope.testScheduler.advanceUntilIdle()
+
+      // Now the service call should have happened
+      partnershipsTransactionsService.getCalls.awaitItem()
+        .shouldBe(PartnershipTransactionId("01J91MGSEQ5JA0Q456ZQBN61D4"))
 
       awaitBodyMock<MoneyHomeUiProps> {
         inAppBrowserNavigator.onCloseCalls.awaitItem()
@@ -216,9 +200,6 @@ class HomeUiStateMachineImplTests : FunSpec({
           )
         )
       }
-
-      partnershipsTransactionsService.getCalls.awaitItem()
-        .shouldBe(PartnershipTransactionId("01J91MGSEQ5JA0Q456ZQBN61D4"))
     }
   }
 
@@ -242,17 +223,18 @@ class HomeUiStateMachineImplTests : FunSpec({
       )
     )
 
-    Router.route =
-      Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=not-found-id")
-
     stateMachine.test(props) {
-      awaitSyncLoopCall()
-
-      appScope.runCurrent()
-
       awaitBodyMock<MoneyHomeUiProps> {
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
       }
+
+      // Set route AFTER LaunchedEffect is active
+      Router.route =
+        Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=not-found-id")
+
+      // Advance time to allow the launched coroutine to execute
+      appScope.testScheduler.runCurrent()
+      appScope.testScheduler.advanceUntilIdle()
 
       inAppBrowserNavigator.onCloseCalls.awaitItem()
       partnershipsTransactionsService.getCalls.awaitItem()
@@ -264,7 +246,6 @@ class HomeUiStateMachineImplTests : FunSpec({
     Router.route = Route.BeneficiaryInvite("inviteCode")
 
     stateMachine.test(props) {
-      awaitSyncLoopCall()
       awaitBodyMock<MoneyHomeUiProps> {
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
       }

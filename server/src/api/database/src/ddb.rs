@@ -131,6 +131,7 @@ impl Connection {
             DatabaseObject::EncryptedAttachment => {
                 ("ENCRYPTED_ATTACHMENT_TABLE", "EncryptedAttachment")
             }
+            DatabaseObject::SanctionsScreener => ("SANCTIONS_SCREENER_TABLE", "SanctionsScreener"),
         };
 
         match self {
@@ -405,6 +406,7 @@ pub enum DatabaseObject {
     PromotionCode,
     TransactionVerification,
     EncryptedAttachment,
+    SanctionsScreener,
 }
 
 impl fmt::Display for DatabaseObject {
@@ -427,6 +429,7 @@ impl fmt::Display for DatabaseObject {
             DatabaseObject::PromotionCode => write!(f, "PromotionCode"),
             DatabaseObject::TransactionVerification => write!(f, "TransactionVerification"),
             DatabaseObject::EncryptedAttachment => write!(f, "EncryptedAttachment"),
+            DatabaseObject::SanctionsScreener => write!(f, "SanctionsScreener"),
         }
     }
 }

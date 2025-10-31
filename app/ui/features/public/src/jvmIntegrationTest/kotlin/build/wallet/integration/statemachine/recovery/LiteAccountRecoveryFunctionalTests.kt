@@ -15,6 +15,7 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
+import build.wallet.testing.ext.testWithTwoApps
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import kotlin.time.Duration.Companion.seconds
@@ -24,10 +25,9 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
   val protectedCustomerName = "kiki"
   val trustedContactName = "lala"
 
-  test("lite account recovery via Be a Trusted Contact button") {
+  testWithTwoApps("lite account recovery via Be a Trusted Contact button") { protectedCustomerApp, trustedContactApp ->
 
     // Protected Customer onboards and sends out an invite
-    val protectedCustomerApp = launchNewApp()
     protectedCustomerApp.onboardFullAccountWithFakeHardware()
     val (inviteCode, _) =
       protectedCustomerApp.createTcInvite(
@@ -35,7 +35,6 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
       )
 
     // Trusted Contact onboards by accepting Invitation
-    val trustedContactApp = launchNewApp()
     trustedContactApp.onboardLiteAccountFromInvitation(
       inviteCode = inviteCode,
       protectedCustomerName = protectedCustomerName,
@@ -64,10 +63,9 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("lite account recovery via Restore Existing Bitkey Wallet button") {
+  testWithTwoApps("lite account recovery via Restore Existing Bitkey Wallet button") { protectedCustomerApp, trustedContactApp ->
 
     // Protected Customer onboards and sends out an invite
-    val protectedCustomerApp = launchNewApp()
     protectedCustomerApp.onboardFullAccountWithFakeHardware()
     val (inviteCode, _) =
       protectedCustomerApp.createTcInvite(
@@ -75,7 +73,6 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
       )
 
     // Trusted Contact onboards by accepting Invitation
-    val trustedContactApp = launchNewApp()
     trustedContactApp.onboardLiteAccountFromInvitation(
       inviteCode = inviteCode,
       protectedCustomerName = protectedCustomerName,

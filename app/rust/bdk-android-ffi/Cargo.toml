@@ -1,17 +1,25 @@
 [package]
-name = "bdk-android-ffi"
-version = "0.32.1"
-authors = ["Steve Myers <steve@notmandatory.org>", "Sudarsan Balaji <sudarsan.balaji@artfuldev.com>"]
+authors = [
+  "Steve Myers <steve@notmandatory.org>",
+  "Sudarsan Balaji <sudarsan.balaji@artfuldev.com>",
+]
 edition = "2018"
 license = "MIT OR Apache-2.0"
+name = "bdk-android-ffi"
 rust-version = "1.77.1"
+version = "0.32.1"
 
 [lib]
-crate-type = ["lib", "staticlib", "cdylib"]
+crate-type = ["cdylib", "lib", "staticlib"]
 name = "bdkffi"
 
 [dependencies]
-bdk = { version = "0.30.2", features = ["all-keys", "use-esplora-ureq", "sqlite-bundled", "rpc"] }
+bdk = { version = "0.30.2", features = [
+  "all-keys",
+  "rpc",
+  "sqlite-bundled",
+  "use-esplora-ureq",
+] }
 uniffi = { workspace = true }
 
 [build-dependencies]

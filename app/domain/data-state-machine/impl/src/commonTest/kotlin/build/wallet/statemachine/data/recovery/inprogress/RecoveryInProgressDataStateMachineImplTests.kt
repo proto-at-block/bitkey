@@ -8,21 +8,16 @@ import bitkey.backup.DescriptorBackup
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.SpecificClientErrorMock
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
+import bitkey.recovery.DelayNotifyServiceFake
 import bitkey.recovery.DescriptorBackupError
 import bitkey.recovery.DescriptorBackupPreparedData
-import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.bitkey.challange.DelayNotifyRecoveryChallengeFake
 import build.wallet.bitkey.challange.SignedChallenge
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.cloud.backup.csek.CsekDaoFake
-import build.wallet.cloud.backup.csek.SealedCsekFake
-import build.wallet.cloud.backup.csek.SealedSsekFake
-import build.wallet.cloud.backup.csek.SekGeneratorMock
-import build.wallet.cloud.backup.csek.SsekDaoFake
-import build.wallet.cloud.backup.csek.SsekFake
+import build.wallet.cloud.backup.csek.*
 import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.XCiphertext
@@ -35,16 +30,14 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.nfc.transaction.SealDelegatedDecryptionKey
 import build.wallet.nfc.transaction.SignChallengeAndSealSeks.SignedChallengeAndSeks
 import build.wallet.nfc.transaction.UnsealData
-import build.wallet.notifications.DeviceTokenManagerError.NoDeviceToken
-import build.wallet.notifications.DeviceTokenManagerMock
-import build.wallet.notifications.DeviceTokenManagerResult
 import build.wallet.platform.random.UuidGeneratorFake
-import build.wallet.recovery.*
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.DescriptorBackupServiceFake
+import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.*
-import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.UploadedDescriptorBackups
+import build.wallet.recovery.RecoveryStatusServiceMock
+import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.relationships.*
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
@@ -60,7 +53,7 @@ import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.util.*
+import io.ktor.util.encodeBase64
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
@@ -71,28 +64,20 @@ import kotlin.time.Duration.Companion.seconds
 
 class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val clock = ClockFake()
-  val lostHardwareRecoveryService = LostHardwareRecoveryServiceFake()
-  val lostAppAndCloudRecoveryService = LostAppAndCloudRecoveryServiceFake()
+  val delayNotifyService = DelayNotifyServiceFake()
   val sekGenerator = SekGeneratorMock()
   val csekDao = CsekDaoFake()
   val ssekDao = SsekDaoFake()
-  val recoveryAuthCompleter = RecoveryAuthCompleterMock(turbines::create)
   val uuid = UuidGeneratorFake()
   val recoveryStatusService =
     RecoveryStatusServiceMock(StillRecoveringInitiatedRecoveryMock, turbines::create)
-  val f8eSpendingKeyRotator = F8eSpendingKeyRotatorMock(recoveryStatusService)
-  val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
-  val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
   val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
-  val relationshipsKeysRepository = RelationshipsKeysRepository(
-    relationshipsCrypto = RelationshipsCryptoFake(),
-    relationshipKeysDao = RelationshipsKeysDaoFake()
-  )
   val accountConfigService = AccountConfigServiceFake()
-  val trustedContactKeyAuthenticator = EndorseTrustedContactsServiceMock(turbines::create)
   val descriptorBackupService = DescriptorBackupServiceFake()
   val featureFlagDao = FeatureFlagDaoFake()
-  val encryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(featureFlagDao)
+  val encryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(
+    featureFlagDao = FeatureFlagDaoFake()
+  )
   val fakeChallenge = SignedChallenge.HardwareSignedChallenge(
     challenge = DelayNotifyRecoveryChallengeFake,
     signature = ""
@@ -101,21 +86,21 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     uploadCalls = turbines.create("upload calls")
   )
 
+  // Restore relationshipsKeysRepository so it is still passed and used
+  val relationshipsKeysRepository = RelationshipsKeysRepository(
+    relationshipsCrypto = RelationshipsCryptoFake(),
+    relationshipKeysDao = RelationshipsKeysDaoFake()
+  )
+
   val stateMachine = RecoveryInProgressDataStateMachineImpl(
-    lostHardwareRecoveryService = lostHardwareRecoveryService,
-    lostAppAndCloudRecoveryService = lostAppAndCloudRecoveryService,
+    delayNotifyService = delayNotifyService,
     clock = Clock.System,
     sekGenerator = sekGenerator,
     csekDao = csekDao,
     ssekDao = ssekDao,
-    recoveryAuthCompleter = recoveryAuthCompleter,
-    f8eSpendingKeyRotator = f8eSpendingKeyRotator,
     uuidGenerator = uuid,
     recoveryStatusService = recoveryStatusService,
-    accountAuthenticator = accountAuthorizer,
-    deviceTokenManager = deviceTokenManager,
     relationshipsService = relationshipsService,
-    endorseTrustedContactsService = trustedContactKeyAuthenticator,
     delegatedDecryptionKeyService = delegatedDecryptionKeyService,
     relationshipsKeysRepository = relationshipsKeysRepository,
     minimumLoadingDuration = MinimumLoadingDuration(0.seconds),
@@ -127,10 +112,9 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   beforeTest {
     csekDao.reset()
     ssekDao.reset()
-    deviceTokenManager.reset()
     relationshipsService.relationshipsFlow.emit(RelationshipsFake)
     accountConfigService.reset()
-    lostAppAndCloudRecoveryService.reset()
+    delayNotifyService.reset()
     descriptorBackupService.reset()
     featureFlagDao.reset()
     encryptedDescriptorBackupsFeatureFlag.reset()
@@ -240,9 +224,9 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   }
 
   test("cancel lost hw recovery while delay period is pending") {
-    val recovery = recovery()
+    val recovery = recovery().copy(factorToRecover = Hardware)
     stateMachine.test(
-      props(recovery.copy(factorToRecover = Hardware))
+      props(recovery)
     ) {
       awaitItem().let {
         it.shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>()
@@ -275,7 +259,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     val recovery = recovery()
     // Move clock ahead of delay period end time
     delay(delayDuration)
-    lostAppAndCloudRecoveryService.cancelResult =
+    delayNotifyService.cancelResult =
       Err(
         F8eCancelDelayNotifyError(F8eError.UnhandledException(HttpError.UnhandledException(Throwable())))
       )
@@ -306,7 +290,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     val recovery = recovery()
     // Move clock ahead of delay period end time
     delay(delayDuration)
-    lostAppAndCloudRecoveryService.cancelResult =
+    delayNotifyService.cancelResult =
       Err(
         F8eCancelDelayNotifyError(
           SpecificClientErrorMock(CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED)
@@ -327,7 +311,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       with(awaitItem()) {
         shouldBeTypeOf<VerifyingNotificationCommsForCancellationData>()
-        lostAppAndCloudRecoveryService.reset()
+        delayNotifyService.reset()
         onComplete()
       }
 
@@ -344,7 +328,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     val recovery = recovery().copy(factorToRecover = Hardware)
     // Move clock ahead of delay period end time
     delay(delayDuration)
-    lostHardwareRecoveryService.cancelResult =
+    delayNotifyService.cancelResult =
       Err(
         F8eCancelDelayNotifyError(
           SpecificClientErrorMock(CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED)
@@ -360,7 +344,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       with(awaitItem()) {
         shouldBeTypeOf<VerifyingNotificationCommsForCancellationData>()
-        lostHardwareRecoveryService.reset()
+        delayNotifyService.reset()
         onComplete()
       }
 
@@ -379,7 +363,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
 
@@ -402,13 +385,14 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         csekDao.setResult = Err(IllegalStateException())
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
             sealedCsek = SealedCsekFake,
             sealedSsek = SealedSsekFake
           )
@@ -422,7 +406,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   test("complete recovery with socrec - descriptor backups disabled") {
     val recovery = recovery()
 
-    accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
     // Explicitly disable descriptor backups feature flag to test fallback behavior
     encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(false))
 
@@ -436,12 +419,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
             sealedCsek = SealedCsekFake,
             sealedSsek = SealedSsekFake
           )
@@ -450,8 +434,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        accountAuthorizer.authCalls.awaitItem()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
 
@@ -468,23 +450,15 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-          .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
-          .f8eSpendingKeyset.shouldBe(F8eSpendingKeysetMock)
-      }
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -495,7 +469,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.BackedUpToCloud>()
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
       awaitItem().shouldBeTypeOf<PerformingSweepData>()
     }
@@ -503,8 +476,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
   test("complete recovery with socrec - descriptor backups enabled") {
     val recovery = recovery()
-
-    accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
 
     // Move clock ahead of delay period
     delay(delayDuration)
@@ -516,12 +487,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
             sealedCsek = SealedCsekFake,
             sealedSsek = SealedSsekFake
           )
@@ -530,8 +502,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        accountAuthorizer.authCalls.awaitItem()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
@@ -549,30 +519,22 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-          .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
-          .f8eSpendingKeyset.shouldBe(F8eSpendingKeysetMock)
-      }
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
-      awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
 
+      awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -583,7 +545,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.BackedUpToCloud>()
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
       // Sweeping funds
       awaitItem().shouldBeTypeOf<PerformingSweepData>()
@@ -601,13 +562,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
             sealedCsek = SealedCsekFake,
             sealedSsek = SealedSsekFake
           )
@@ -616,8 +577,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        accountAuthorizer.authCalls.awaitItem()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
@@ -635,29 +594,22 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-          .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
-          .f8eSpendingKeyset.shouldBe(F8eSpendingKeysetMock)
-      }
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
       awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
+        .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -668,8 +620,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.BackedUpToCloud>()
-
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
       awaitItem().shouldBeTypeOf<PerformingSweepData>()
     }
@@ -688,13 +638,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
             sealedCsek = SealedCsekFake,
             sealedSsek = SealedSsekFake
           )
@@ -703,8 +653,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        accountAuthorizer.authCalls.awaitItem()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
@@ -714,12 +662,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-          .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
-          .f8eSpendingKeyset.shouldBe(F8eSpendingKeysetMock)
-      }
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
@@ -730,8 +673,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       awaitItem().let {
@@ -747,7 +688,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -757,7 +697,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
       awaitItem().shouldBeTypeOf<PerformingSweepData>()
     }
@@ -774,13 +713,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
             sealedCsek = SealedCsekFake,
             sealedSsek = SealedSsekFake
           )
@@ -789,8 +728,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        accountAuthorizer.authCalls.awaitItem()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
@@ -808,10 +745,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-      }
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
@@ -820,13 +754,12 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -836,8 +769,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeTypeOf<PerformingSweepData>()
@@ -864,13 +795,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
             sealedCsek = SealedCsekFake,
             sealedSsek = SealedSsekFake
           )
@@ -879,8 +810,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        accountAuthorizer.authCalls.awaitItem()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
@@ -900,10 +829,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
       awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
@@ -911,15 +836,12 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -935,89 +857,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeTypeOf<PerformingCloudBackupData>()
-    }
-  }
-
-  test("ignore failure adding device token") {
-    val recovery = recovery()
-    deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
-      DeviceTokenManagerResult.Err(NoDeviceToken)
-    // Move clock ahead of delay period
-    delay(delayDuration)
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      // Rotate auth keys
-      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndSeks(
-            signedChallenge = fakeChallenge,
-            sealedCsek = SealedCsekFake,
-            sealedSsek = SealedSsekFake
-          )
-        )
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        accountAuthorizer.authCalls.awaitItem()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
-      }
-
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
-
-      awaitItem().let {
-        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
-        it.nfcTransaction.onSuccess(
-          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
-        )
-      }
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.CreatedSpendingKeys>()
-
-      awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
-
-      awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
-
-      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
-
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
-
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
-
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
-
-      // Backing up new keybox
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-        it.sealedCsek.shouldBe(SealedCsekFake)
-        it.onBackupFinished()
-      }
-
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-
-      awaitItem().shouldBeTypeOf<PerformingSweepData>()
     }
   }
 
@@ -1042,7 +881,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         descriptorsToDecrypt = listOf(
           DescriptorBackup(
             keysetId = "test-keyset",
-            sealedDescriptor = XCiphertext("test-descriptor")
+            sealedDescriptor = XCiphertext("test-descriptor"),
+            privateWalletRootXpub = XCiphertext("test-private-wallet-root-xpub")
           )
         ),
         keysetsToEncrypt = listOf(SpendingKeysetMock)
@@ -1067,8 +907,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
 
@@ -1076,7 +914,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -1103,7 +940,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         descriptorsToDecrypt = listOf(
           DescriptorBackup(
             keysetId = "test-keyset",
-            sealedDescriptor = XCiphertext("test-descriptor")
+            sealedDescriptor = XCiphertext("test-descriptor"),
+            privateWalletRootXpub = XCiphertext("test-private-wallet-root-xpub")
           )
         ),
         keysetsToEncrypt = listOf(SpendingKeysetMock)
@@ -1130,15 +968,12 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -1165,7 +1000,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         descriptorsToDecrypt = listOf(
           DescriptorBackup(
             keysetId = "test-keyset",
-            sealedDescriptor = XCiphertext("test-descriptor")
+            sealedDescriptor = XCiphertext("test-descriptor"),
+            privateWalletRootXpub = XCiphertext("test-private-wallet-root-xpub")
           )
         ),
         keysetsToEncrypt = listOf(SpendingKeysetMock)
@@ -1218,17 +1054,21 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
-      cancelAndIgnoreRemainingEvents()
+      awaitItem().let {
+        it.shouldBeTypeOf<PerformingCloudBackupData>()
+        it.onBackupFinished()
+      }
+
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+
+      awaitItem().shouldBeTypeOf<PerformingSweepData>()
     }
   }
 
@@ -1259,8 +1099,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().let {
         it.shouldBeTypeOf<PerformingDdkBackupData>()
@@ -1270,7 +1108,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -1335,7 +1172,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         descriptorsToDecrypt = listOf(
           DescriptorBackup(
             keysetId = "test-keyset",
-            sealedDescriptor = XCiphertext("test-descriptor")
+            sealedDescriptor = XCiphertext("test-descriptor"),
+            privateWalletRootXpub = XCiphertext("test-private-wallet-root-xpub")
           )
         ),
         keysetsToEncrypt = listOf(SpendingKeysetMock)
@@ -1389,15 +1227,12 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeTypeOf<PerformingCloudBackupData>()
@@ -1433,15 +1268,12 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      relationshipsService.syncCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeTypeOf<PerformingCloudBackupData>()
@@ -1471,14 +1303,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     )
 
     stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingDdkBackupData>()
-        it.keybox.keysets.shouldBe(recovery.keysets)
-      }
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
-
-      relationshipsService.syncCalls.awaitItem()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -1508,17 +1336,35 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.ActivatedSpendingKeys>()
 
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>().let {
-        it.keybox.keysets.shouldBe(recovery.keysets)
-      }
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
-      relationshipsService.syncCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
 
+  test("initial state calculation - SweepAttempted enters performing sweep") {
+    val recovery = SweepAttempted(
+      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
+      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
+      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
+      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
+      factorToRecover = App,
+      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
+      f8eSpendingKeyset = F8eSpendingKeysetMock,
+      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock)
+    )
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<PerformingSweepData>()
+        it.keybox.keysets.shouldBe(recovery.keysets)
+      }
       cancelAndIgnoreRemainingEvents()
     }
   }

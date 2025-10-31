@@ -46,11 +46,29 @@ import kotlin.time.Duration.Companion.seconds
 private const val PROTECTED_CUSTOMER_ALIAS = "alice"
 
 class SocRecE2eFunctionalTests : FunSpec({
-  test("full e2e test") {
+  testWithTwoApps(
+    "full e2e test",
+    app1Factory = { mode ->
+      when (mode) {
+        AppMode.Legacy -> launchNewApp(executeWorkers = false)
+        AppMode.Private -> launchPrivateWalletApp(executeWorkers = false)
+      }
+    },
+    app2Factory = { customerApp, mode ->
+      when (mode) {
+        AppMode.Legacy -> launchNewApp(
+          cloudKeyValueStore = customerApp.cloudKeyValueStore,
+          executeWorkers = false
+        )
+        AppMode.Private -> launchPrivateWalletApp(
+          cloudKeyValueStore = customerApp.cloudKeyValueStore,
+          executeWorkers = false
+        )
+      }
+    }
+  ) { customerApp, tcApp ->
     // Onboard the protected customer
     // TODO(W-9704): execute workers by default
-    val customerApp = launchNewApp(executeWorkers = false)
-    val cloudStore = customerApp.cloudKeyValueStore
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
@@ -65,7 +83,6 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     // TC: Onboard as Lite Account and accept invite
     // TODO(W-9704): execute workers by default
-    val tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     lateinit var relationshipId: String
     tcApp.appUiStateMachine.test(
       turbineTimeout = 60.seconds,

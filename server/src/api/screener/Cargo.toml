@@ -16,7 +16,13 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 
+errors = { workspace = true }
+repository = { workspace = true, features = ["screener"] }
+types = { workspace = true, features = ["account"] }
+
 [dev-dependencies]
+database = { workspace = true }
+http_server = { workspace = true }
 rstest = { workspace = true }
 
 [lints]

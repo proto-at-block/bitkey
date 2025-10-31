@@ -10,43 +10,47 @@ import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitcoin.wallet.WatchingWallet
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey
-import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.bitkey.keybox.SoftwareKeybox
+import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.chaincode.delegation.ChaincodeDelegationError
+import build.wallet.chaincode.delegation.ChaincodeDelegationTweakServiceFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
+import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.keybox.KeyboxDaoMock
-import build.wallet.keybox.wallet.KeysetWalletProvider
+import build.wallet.keybox.wallet.KeysetWalletProviderMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.notifications.RegisterWatchAddressProcessor
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.queueprocessor.Processor
 import build.wallet.queueprocessor.ProcessorMock
+import build.wallet.recovery.DescriptorBackupServiceFake
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.BdkFailedToCreatePsbt
+import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOkOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 
 class SweepGeneratorImplTests : FunSpec({
+  val destinationAddress = "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs"
   val psbtMock = PsbtMock.copy(fee = BitcoinMoney.btc(BigDecimal.TEN))
   val activeKeyset =
     SpendingKeyset(
@@ -54,7 +58,8 @@ class SweepGeneratorImplTests : FunSpec({
       f8eSpendingKeyset =
         F8eSpendingKeyset(
           keysetId = "active-serverId",
-          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active"))
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active")),
+          privateWalletRootXpub = null
         ),
       networkType = SIGNET,
       appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-dpub-active")),
@@ -72,7 +77,8 @@ class SweepGeneratorImplTests : FunSpec({
       f8eSpendingKeyset =
         F8eSpendingKeyset(
           keysetId = "keyset-lost-app-server-1",
-          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-1"))
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-1")),
+          privateWalletRootXpub = null
         ),
       networkType = SIGNET,
       appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-dpub-1")),
@@ -88,7 +94,8 @@ class SweepGeneratorImplTests : FunSpec({
       f8eSpendingKeyset =
         F8eSpendingKeyset(
           keysetId = "keyset-lost-app-server-2",
-          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-1"))
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-1")),
+          privateWalletRootXpub = null
         ),
       networkType = SIGNET,
       appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-dpub-2")),
@@ -104,7 +111,8 @@ class SweepGeneratorImplTests : FunSpec({
       f8eSpendingKeyset =
         F8eSpendingKeyset(
           keysetId = "keyset-lost-hw-server-1",
-          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-3"))
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-3")),
+          privateWalletRootXpub = null
         ),
       networkType = SIGNET,
       appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-dpub-3")),
@@ -119,7 +127,8 @@ class SweepGeneratorImplTests : FunSpec({
       f8eSpendingKeyset =
         F8eSpendingKeyset(
           keysetId = "keyset-lost-hw-server-2",
-          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-4"))
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-4")),
+          privateWalletRootXpub = null
         ),
       networkType = SIGNET,
       appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-dpub-4")),
@@ -135,7 +144,8 @@ class SweepGeneratorImplTests : FunSpec({
       f8eSpendingKeyset =
         F8eSpendingKeyset(
           keysetId = "keyset-lost-both-server-2",
-          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-5"))
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-5")),
+          privateWalletRootXpub = null
         ),
       networkType = SIGNET,
       appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-dpub-5")),
@@ -155,7 +165,8 @@ class SweepGeneratorImplTests : FunSpec({
       lostAppKeyset2,
       lostHwKeyset1,
       lostHwKeyset2,
-      lostBothKeyset
+      lostBothKeyset,
+      PrivateSpendingKeysetMock
     )
 
   // Create a SpendingWalletMock for each keyset
@@ -165,71 +176,50 @@ class SweepGeneratorImplTests : FunSpec({
       it.localId to SpendingWalletMock(turbines::create, it.localId)
     }
 
-  val keysetWalletProvider =
-    object : KeysetWalletProvider {
-      override suspend fun getWatchingWallet(
-        keyset: SpendingKeyset,
-      ): Result<WatchingWallet, Throwable> {
-        val wallet =
-          requireNotNull(wallets[keyset.localId]) {
-            "No spending wallet mock found for keyset \"${keyset.localId}\""
-          }
-        return Ok(wallet)
-      }
-
-      override suspend fun getWatchingWallet(
-        softwareKeybox: SoftwareKeybox,
-      ): Result<WatchingWallet, Throwable> {
-        val wallet =
-          requireNotNull(wallets[softwareKeybox.id]) {
-            "No spending wallet mock found for keyset \"${softwareKeybox.id}\""
-          }
-        return Ok(wallet)
-      }
+  val walletsByF8eKeysetId =
+    keysets.associate { keyset ->
+      keyset.f8eSpendingKeyset.keysetId to wallets.getValue(keyset.localId)
     }
+
+  val keysetWalletProvider = KeysetWalletProviderMock(wallets, walletsByF8eKeysetId)
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val processorMock = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
   val registerWatchAddressProcessor = object :
     RegisterWatchAddressProcessor,
     Processor<RegisterWatchAddressContext> by processorMock {}
-  val sweepGenerator =
-    SweepGeneratorImpl(
-      listKeysetsF8eClient,
-      BitcoinFeeRateEstimatorMock(),
-      keysetWalletProvider,
-      appPrivateKeyDao,
-      registerWatchAddressProcessor
-    )
+  val uuidGenerator = UuidGeneratorFake()
+  val chaincodeDelegationTweakService = ChaincodeDelegationTweakServiceFake()
+  val descriptorBackupService = DescriptorBackupServiceFake()
+  val sweepGenerator = SweepGeneratorImpl(
+    listKeysetsF8eClient = listKeysetsF8eClient,
+    bitcoinFeeRateEstimator = BitcoinFeeRateEstimatorMock(),
+    keysetWalletProvider = keysetWalletProvider,
+    appPrivateKeyDao = appPrivateKeyDao,
+    registerWatchAddressProcessor = registerWatchAddressProcessor,
+    uuidGenerator = uuidGenerator,
+    chaincodeDelegationTweakService = chaincodeDelegationTweakService,
+    descriptorBackupService = descriptorBackupService
+  )
 
   beforeEach {
     keyboxDao.reset()
     listKeysetsF8eClient.reset()
+    chaincodeDelegationTweakService.reset()
+    descriptorBackupService.reset()
+
+    appPrivateKeyDao.reset()
+    appPrivateKeyDao.appSpendingKeys[lostHwKeyset1.appKey] = AppSpendingPrivateKey(
+      ExtendedPrivateKey(lostHwKeyset1.appKey.key.xpub, "mnemonic")
+    )
+    appPrivateKeyDao.appSpendingKeys[lostHwKeyset2.appKey] = AppSpendingPrivateKey(
+      ExtendedPrivateKey(lostHwKeyset2.appKey.key.xpub, "mnemonic")
+    )
+
+    processorMock.reset()
+    processorMock.processBatchReturnValues = listOf(Ok(Unit), Ok(Unit))
 
     wallets.values.forEach { it.reset() }
-  }
-
-  beforeEach {
-    appPrivateKeyDao.appSpendingKeys.put(
-      lostHwKeyset1.appKey,
-      AppSpendingPrivateKey(
-        ExtendedPrivateKey(lostHwKeyset1.appKey.key.xpub, "mnemonic")
-      )
-    )
-    appPrivateKeyDao.appSpendingKeys.put(
-      lostHwKeyset2.appKey,
-      AppSpendingPrivateKey(
-        ExtendedPrivateKey(lostHwKeyset2.appKey.key.xpub, "mnemonic")
-      )
-    )
-  }
-
-  beforeTest {
-    processorMock.processBatchReturnValues = listOf(Ok(Unit), Ok(Unit))
-  }
-
-  afterTest {
-    processorMock.reset()
   }
 
   test("lost app recovery - single keyset - success") {
@@ -245,17 +235,23 @@ class SweepGeneratorImplTests : FunSpec({
     result.shouldHaveSize(1)
     result.first()
       .shouldBe(
-        SweepPsbt(psbtMock, Hardware, lostAppKeyset1)
+        SweepPsbt(
+          psbtMock,
+          SweepSignaturePlan.HardwareAndServer,
+          lostAppKeyset1,
+          destinationAddress
+        )
       )
     // single address to watch
     processorMock.processBatchCalls.awaitItem()
       .shouldBe(
         listOf(
           RegisterWatchAddressContext(
-            address = BitcoinAddress(address = "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs"),
+            address = BitcoinAddress(address = destinationAddress),
             f8eSpendingKeyset = F8eSpendingKeyset(
               keysetId = "active-serverId",
-              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active"))
+              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active")),
+              privateWalletRootXpub = null
             ),
             accountId = "server-id",
             f8eEnvironment = F8eEnvironment.Development
@@ -281,8 +277,18 @@ class SweepGeneratorImplTests : FunSpec({
     result.shouldHaveSize(2)
     result.shouldBe(
       listOf(
-        SweepPsbt(psbtMock, Hardware, lostAppKeyset1),
-        SweepPsbt(psbtMock, Hardware, lostAppKeyset2)
+        SweepPsbt(
+          psbtMock,
+          SweepSignaturePlan.HardwareAndServer,
+          lostAppKeyset1,
+          destinationAddress
+        ),
+        SweepPsbt(
+          psbtMock,
+          SweepSignaturePlan.HardwareAndServer,
+          lostAppKeyset2,
+          destinationAddress
+        )
       )
     )
 
@@ -291,10 +297,11 @@ class SweepGeneratorImplTests : FunSpec({
       .shouldBe(
         listOf(
           RegisterWatchAddressContext(
-            address = BitcoinAddress(address = "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs"),
+            address = BitcoinAddress(address = destinationAddress),
             f8eSpendingKeyset = F8eSpendingKeyset(
               keysetId = "active-serverId",
-              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active"))
+              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active")),
+              privateWalletRootXpub = null
             ),
             accountId = "server-id",
             f8eEnvironment = F8eEnvironment.Development
@@ -305,10 +312,11 @@ class SweepGeneratorImplTests : FunSpec({
       .shouldBe(
         listOf(
           RegisterWatchAddressContext(
-            address = BitcoinAddress(address = "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs"),
+            address = BitcoinAddress(address = destinationAddress),
             f8eSpendingKeyset = F8eSpendingKeyset(
               keysetId = "active-serverId",
-              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active"))
+              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active")),
+              privateWalletRootXpub = null
             ),
             accountId = "server-id",
             f8eEnvironment = F8eEnvironment.Development
@@ -346,8 +354,18 @@ class SweepGeneratorImplTests : FunSpec({
     result.shouldHaveSize(2)
     result.shouldBe(
       listOf(
-        SweepPsbt(psbtMock, App, lostHwKeyset1),
-        SweepPsbt(psbtMock, App, lostHwKeyset2)
+        SweepPsbt(
+          psbtMock,
+          SweepSignaturePlan.AppAndServer,
+          lostHwKeyset1,
+          destinationAddress
+        ),
+        SweepPsbt(
+          psbtMock,
+          SweepSignaturePlan.AppAndServer,
+          lostHwKeyset2,
+          destinationAddress
+        )
       )
     )
     // two addresses to watch
@@ -383,8 +401,18 @@ class SweepGeneratorImplTests : FunSpec({
       sweepGenerator.generateSweep(keyboxWithMixedKeysets).shouldBeOkOfType<List<SweepPsbt>>()
     result.shouldBe(
       listOf(
-        SweepPsbt(psbtMock, Hardware, lostAppKeyset1),
-        SweepPsbt(psbtMock, App, lostHwKeyset1)
+        SweepPsbt(
+          psbtMock,
+          SweepSignaturePlan.HardwareAndServer,
+          lostAppKeyset1,
+          destinationAddress
+        ),
+        SweepPsbt(
+          psbtMock,
+          SweepSignaturePlan.AppAndServer,
+          lostHwKeyset1,
+          destinationAddress
+        )
       )
     )
     // two addresses to watch
@@ -408,7 +436,18 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostHwKeyset2.localId).createPsbtResult = Ok(psbtMock)
 
     sweepGenerator.generateSweep(keyboxWithLostHwKeysets)
-      .shouldBe(Ok(listOf(SweepPsbt(psbtMock, App, lostHwKeyset2))))
+      .shouldBe(
+        Ok(
+          listOf(
+            SweepPsbt(
+              psbtMock,
+              SweepSignaturePlan.AppAndServer,
+              lostHwKeyset2,
+              destinationAddress
+            )
+          )
+        )
+      )
     // two addresses to watch
     processorMock.processBatchCalls.awaitItem()
     processorMock.processBatchCalls.awaitItem()
@@ -443,11 +482,21 @@ class SweepGeneratorImplTests : FunSpec({
       keysets = listOf(activeKeyset, lostAppKeyset1) // These local keysets should be ignored
     )
 
+    val remoteKeysets = listOf(lostAppKeyset2, lostHwKeyset1).map { keyset ->
+      LegacyRemoteKeyset(
+        keysetId = keyset.f8eSpendingKeyset.keysetId,
+        networkType = keyset.networkType.name,
+        appDescriptor = keyset.appKey.key.dpub,
+        hardwareDescriptor = keyset.hardwareKey.key.dpub,
+        serverDescriptor = keyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+      )
+    }
+
     listKeysetsF8eClient.result = Ok(
-      ListKeysetsF8eClient.ListKeysetsResponse(
-        keysets = listOf(lostAppKeyset2, lostHwKeyset1),
+      ListKeysetsResponse(
+        keysets = remoteKeysets,
         wrappedSsek = null,
-        descriptorBackups = null
+        descriptorBackups = emptyList()
       )
     )
 
@@ -459,15 +508,15 @@ class SweepGeneratorImplTests : FunSpec({
 
     // Should have 2 sweep PSBTs from F8e keysets
     result.shouldHaveSize(2)
-    result.shouldBe(
-      listOf(
-        SweepPsbt(psbtMock, Hardware, lostAppKeyset2),
-        SweepPsbt(psbtMock, App, lostHwKeyset1)
+    result.forEach { sweep ->
+      sweep.psbt shouldBe psbtMock
+      sweep.destinationAddress shouldBe destinationAddress
+    }
+    result.map { it.sourceKeyset.f8eSpendingKeyset.keysetId to it.signaturePlan }
+      .shouldContainExactly(
+        "keyset-lost-app-server-2" to SweepSignaturePlan.HardwareAndServer,
+        "keyset-lost-hw-server-1" to SweepSignaturePlan.AppAndServer
       )
-    )
-
-    val keysetIds = result.map { it.sourceKeyset.f8eSpendingKeyset.keysetId }
-    keysetIds.shouldContainExactly("keyset-lost-app-server-2", "keyset-lost-hw-server-1")
 
     // two addresses to watch
     processorMock.processBatchCalls.awaitItem()
@@ -477,5 +526,357 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
     wallets.getValue(lostAppKeyset2.localId).syncCalls.awaitItem()
     wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+  }
+
+  test("uses peekAddress(0u) for private wallet destination keyset") {
+    val peekedAddress = BitcoinAddress("bc1qpeek0000000000000000000000000000000000")
+    val privateActiveKeyset = activeKeyset.copy(
+      f8eSpendingKeyset = activeKeyset.f8eSpendingKeyset.copy(
+        privateWalletRootXpub = "xpub-private-root"
+      )
+    )
+    val keyboxWithPrivateDestination = activeKeybox.copy(
+      activeSpendingKeyset = privateActiveKeyset,
+      keysets = listOf(privateActiveKeyset, lostAppKeyset1)
+    )
+
+    // Configure the private active keyset wallet to return a specific peeked address
+    wallets.getValue(privateActiveKeyset.localId).peekAddressResult = Ok(peekedAddress)
+    wallets.getValue(privateActiveKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(keyboxWithPrivateDestination)
+      .shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.first().destinationAddress.shouldBe(peekedAddress.address)
+
+    wallets.getValue(privateActiveKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset1.localId).syncCalls.awaitItem()
+
+    processorMock.processBatchCalls.awaitItem()
+  }
+
+  test("private-to-private sweep applies tweaks correctly") {
+    val tweakedPsbtBase64 = "tweaked-psbt-base64"
+
+    // Create source private keyset
+    val sourcePrivateKeyset = lostAppKeyset1.copy(
+      f8eSpendingKeyset = lostAppKeyset1.f8eSpendingKeyset.copy(
+        privateWalletRootXpub = "xpub-source-private-root"
+      )
+    )
+
+    // Create destination private keyset
+    val destPrivateKeyset = activeKeyset.copy(
+      f8eSpendingKeyset = activeKeyset.f8eSpendingKeyset.copy(
+        privateWalletRootXpub = "xpub-dest-private-root"
+      )
+    )
+
+    val keyboxWithPrivateSweep = activeKeybox.copy(
+      activeSpendingKeyset = destPrivateKeyset,
+      keysets = listOf(destPrivateKeyset, sourcePrivateKeyset)
+    )
+
+    chaincodeDelegationTweakService.sweepPsbtWithTweaksResult =
+      Ok(psbtMock.copy(base64 = tweakedPsbtBase64))
+
+    wallets.getValue(destPrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(sourcePrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(destPrivateKeyset.localId).peekAddressResult =
+      Ok(BitcoinAddress(destinationAddress))
+
+    val result = sweepGenerator.generateSweep(keyboxWithPrivateSweep)
+      .shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.first().psbt.base64.shouldBe(tweakedPsbtBase64)
+    result.first().signaturePlan.shouldBe(SweepSignaturePlan.HardwareAndServer)
+    result.first().sourceKeyset.shouldBe(sourcePrivateKeyset)
+
+    wallets.getValue(sourcePrivateKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(destPrivateKeyset.localId).syncCalls.awaitItem()
+
+    processorMock.processBatchCalls.awaitItem()
+  }
+
+  test("private destination sweep does not apply tweaks if using AppAndHardware signature plan") {
+    // Source is legacy with same hw fingerprint as active keyset
+    val sourceLegacyKeyset = lostAppKeyset1.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "keyset-legacy-source",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-legacy")),
+        privateWalletRootXpub = null
+      )
+    )
+
+    // Destination is private
+    val destPrivateKeyset = activeKeyset.copy(
+      f8eSpendingKeyset = activeKeyset.f8eSpendingKeyset.copy(
+        privateWalletRootXpub = "xpub-dest-private-root"
+      )
+    )
+
+    val keyboxWithMigrationSweep = activeKeybox.copy(
+      activeSpendingKeyset = destPrivateKeyset,
+      keysets = listOf(destPrivateKeyset, sourceLegacyKeyset)
+    )
+
+    // Setup app private key for source keyset
+    appPrivateKeyDao.appSpendingKeys[sourceLegacyKeyset.appKey] = AppSpendingPrivateKey(
+      ExtendedPrivateKey(sourceLegacyKeyset.appKey.key.xpub, "mnemonic")
+    )
+
+    wallets.getValue(destPrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(sourceLegacyKeyset.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(keyboxWithMigrationSweep)
+      .shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.first().psbt.base64.shouldBe(psbtMock.base64)
+    result.first().signaturePlan.shouldBe(SweepSignaturePlan.AppAndHardware)
+
+    wallets.getValue(sourceLegacyKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(destPrivateKeyset.localId).syncCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
+  }
+
+  test("legacy-to-private inactive sweep applies migration tweaks correctly") {
+    val tweakedPsbtBase64 = "migration-tweaked-psbt-base64"
+
+    // Source is legacy with same hw fingerprint as active keyset
+    val sourceLegacyKeyset = lostAppKeyset1.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "keyset-legacy-source",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-legacy")),
+        privateWalletRootXpub = null
+      )
+    )
+
+    // Destination is private
+    val destPrivateKeyset = activeKeyset.copy(
+      f8eSpendingKeyset = activeKeyset.f8eSpendingKeyset.copy(
+        privateWalletRootXpub = "xpub-dest-private-root"
+      )
+    )
+
+    val keyboxWithMigrationSweep = activeKeybox.copy(
+      activeSpendingKeyset = destPrivateKeyset,
+      keysets = listOf(destPrivateKeyset, sourceLegacyKeyset)
+    )
+
+    chaincodeDelegationTweakService.migrationSweepPsbtWithTweaksResult =
+      Ok(psbtMock.copy(base64 = tweakedPsbtBase64))
+
+    wallets.getValue(destPrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(sourceLegacyKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(destPrivateKeyset.localId).peekAddressResult =
+      Ok(BitcoinAddress(destinationAddress))
+
+    val result = sweepGenerator.generateSweep(keyboxWithMigrationSweep)
+      .shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.first().psbt.base64.shouldBe(tweakedPsbtBase64)
+    result.first().signaturePlan.shouldBe(SweepSignaturePlan.HardwareAndServer)
+
+    wallets.getValue(sourceLegacyKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(destPrivateKeyset.localId).syncCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
+  }
+
+  test("sweep to private destination fails when tweak computation fails") {
+    val destPrivateKeyset = activeKeyset.copy(
+      f8eSpendingKeyset = activeKeyset.f8eSpendingKeyset.copy(
+        privateWalletRootXpub = "xpub-dest-private-root"
+      )
+    )
+
+    val keyboxWithTweakFailure = activeKeybox.copy(
+      activeSpendingKeyset = destPrivateKeyset,
+      keysets = listOf(destPrivateKeyset, lostHwKeyset1)
+    )
+
+    chaincodeDelegationTweakService.migrationSweepPsbtWithTweaksResult =
+      Err(
+        ChaincodeDelegationError.TweakComputation(
+          cause = Exception("Tweak computation failed"),
+          message = "Failed to compute tweaks"
+        )
+      )
+
+    wallets.getValue(destPrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(destPrivateKeyset.localId).peekAddressResult =
+      Ok(BitcoinAddress(destinationAddress))
+
+    val result = sweepGenerator.generateSweep(keyboxWithTweakFailure)
+
+    result.shouldBeErrOfType<SweepGeneratorError.FailedToTweakPsbt>()
+
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+    wallets.getValue(destPrivateKeyset.localId).syncCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
+  }
+
+  test("migration with multiple old keysets sweeps from all") {
+    val oldMultisigKeyset1 = lostAppKeyset1.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "old-multisig-server-1",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-old-1")),
+        privateWalletRootXpub = null
+      )
+    )
+
+    val oldMultisigKeyset2 = lostAppKeyset2.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "old-multisig-server-2",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-old-2")),
+        privateWalletRootXpub = null
+      )
+    )
+
+    val privateActiveKeyset = activeKeyset.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "private-active-server",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-private")),
+        privateWalletRootXpub = "xpub-private"
+      )
+    )
+
+    val keyboxWithMultipleOld = activeKeybox.copy(
+      activeSpendingKeyset = privateActiveKeyset,
+      keysets = listOf(privateActiveKeyset, oldMultisigKeyset1, oldMultisigKeyset2)
+    )
+
+    wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostAppKeyset2.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(keyboxWithMultipleOld).shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(2)
+    result.map { it.sourceKeyset.f8eSpendingKeyset.keysetId }
+      .shouldContainExactlyInAnyOrder("old-multisig-server-1", "old-multisig-server-2")
+    // Assert that no tweaks are applied during PrivateWalletMigration
+    result.forEach { it.psbt.base64 shouldBe "migration-tweaked-psbt" }
+
+    // Consume turbine calls (2 addresses to watch + 4 sync calls)
+    processorMock.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset1.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset2.localId).syncCalls.awaitItem()
+  }
+
+  test("post-migration sweep detected and missing hw uses AppAndServer") {
+    // Use a keyset where hardware is from a different device (different fingerprint)
+    // to simulate lost hardware scenario
+    val oldMultisigKeyset = lostHwKeyset1.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "old-multisig-server",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-old")),
+        privateWalletRootXpub = null // Legacy keyset
+      )
+    )
+
+    val privateActiveKeyset = activeKeyset.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "private-active-server",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-private")),
+        privateWalletRootXpub = "xpub-private" // Private keyset
+      )
+    )
+
+    val keyboxAfterMigration = activeKeybox.copy(
+      activeSpendingKeyset = privateActiveKeyset,
+      keysets = listOf(privateActiveKeyset, oldMultisigKeyset)
+    )
+
+    wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(keyboxAfterMigration).shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.first().signaturePlan shouldBe SweepSignaturePlan.AppAndServer
+    result.first().sourceKeyset.f8eSpendingKeyset.keysetId shouldBe "old-multisig-server"
+
+    processorMock.processBatchCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+  }
+
+  test("post-migration sweep detected and missing app uses HardwareAndServer") {
+    // Use a keyset without app key in dao to simulate lost app scenario
+    val oldMultisigKeyset = lostAppKeyset1.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "old-multisig-server",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-old")),
+        privateWalletRootXpub = null // Legacy keyset
+      )
+    )
+
+    val privateActiveKeyset = activeKeyset.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "private-active-server",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-private")),
+        privateWalletRootXpub = "xpub-private" // Private keyset
+      )
+    )
+
+    val keyboxAfterMigration = activeKeybox.copy(
+      activeSpendingKeyset = privateActiveKeyset,
+      keysets = listOf(privateActiveKeyset, oldMultisigKeyset)
+    )
+
+    wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(keyboxAfterMigration).shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.first().signaturePlan shouldBe SweepSignaturePlan.HardwareAndServer
+    result.first().sourceKeyset.f8eSpendingKeyset.keysetId shouldBe "old-multisig-server"
+
+    processorMock.processBatchCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset1.localId).syncCalls.awaitItem()
+  }
+
+  test("private wallet without local keysets returns error") {
+    val privateActiveKeyset = activeKeyset.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "private-active-server",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-private")),
+        privateWalletRootXpub = "xpub-private"
+      )
+    )
+
+    val privateKeyboxWithoutLocal = activeKeybox.copy(
+      activeSpendingKeyset = privateActiveKeyset,
+      keysets = listOf(privateActiveKeyset),
+      canUseKeyboxKeysets = false // This is the invalid state
+    )
+
+    val result = sweepGenerator.generateSweep(privateKeyboxWithoutLocal)
+
+    result.shouldBeErr(SweepGeneratorError.PrivateWalletMissingLocalKeysets)
+  }
+
+  test("checks for descriptor backup before address generation") {
+    descriptorBackupService.checkBackupForPrivateKeysetResult = Err(IllegalStateException("Backup not found"))
+
+    val keybox = activeKeybox.copy(
+      activeSpendingKeyset = PrivateSpendingKeysetMock,
+      keysets = listOf(PrivateSpendingKeysetMock, lostHwKeyset1)
+    )
+    wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(keybox)
+    result.shouldBeErrOfType<SweepGeneratorError.FailedToGenerateDestinationAddress>()
   }
 })

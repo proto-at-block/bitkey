@@ -2,6 +2,8 @@ package bitkey.recovery
 
 import bitkey.backup.DescriptorBackup
 import bitkey.recovery.DescriptorBackupError.SsekNotFound
+import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
@@ -23,8 +25,31 @@ import com.github.michaelbull.result.Result
  * 2. Encrypting descriptors with Server Storage Encryption Keys (SSEK)
  * 3. Decrypting existing descriptors during recovery
  * 4. Uploading encrypted descriptors to F8e
+ * 5. Verifying descriptor backup health for the active keyset
  */
 interface DescriptorBackupService {
+  /**
+   * Verifies that a descriptor backup exists for a private keyset before allowing operations
+   * that generate addresses (e.g., address generation, sweep destination).
+   *
+   * This method checks the [DescriptorBackupVerificationDao] cache to determine if a descriptor
+   * backup has been verified to exist for the given keyset. The cache is kept up-to-date by the background worker
+   * [DescriptorBackupHealthSyncWorker] which runs on app launch and when the spending wallet changes.
+   *
+   * This is a failsafe to prevent generating addresses for private keysets without a backup,
+   * which could lead to funds loss if the backup is lost.
+   *
+   * Behavior:
+   * - Returns [Ok] if feature flag is disabled
+   * - Returns [Ok] if backup exists for the keyset
+   * - Returns [Err] if no backup exists
+   *
+   * @param keysetId The server keysetId of the keyset to verify
+   * @return [Result] containing [Unit] if backup exists or check passes,
+   *         or [Error] if backup is missing for a private keyset
+   */
+  suspend fun checkBackupForPrivateKeyset(keysetId: String): Result<Unit, Throwable>
+
   /**
    * Prepares descriptor backup data for the recovery process based on the factor being recovered.
    *
@@ -143,6 +168,26 @@ interface DescriptorBackupService {
     sealedSsek: SealedSsek,
     encryptedDescriptorBackups: List<DescriptorBackup>,
   ): Result<List<SpendingKeyset>, DescriptorBackupError>
+
+  /**
+   * Parses a descriptor string to extract the three public keys and create a SpendingKeyset.
+   *
+   * Expected format: wsh(sortedmulti(2,key1,key2,key3))
+   *
+   * Key ordering within the descriptor string:
+   * - keys[0]: App spending public key
+   * - keys[1]: Hardware spending public key
+   * - keys[2]: Server (F8e) spending public key
+   *
+   * This ordering must match the order used when constructing the descriptor
+   * in [BitcoinMultiSigDescriptorBuilder.watchingDescriptor]
+   */
+  suspend fun parseDescriptorKeys(
+    descriptorString: String,
+    privateWalletRootXpub: String?,
+    keysetId: String,
+    networkType: BitcoinNetworkType,
+  ): Result<SpendingKeyset, DescriptorBackupError>
 }
 
 sealed class DescriptorBackupError : Error() {
@@ -157,6 +202,9 @@ sealed class DescriptorBackupError : Error() {
 
   /** Communication with F8e failed. */
   data class NetworkError(override val cause: Throwable) : DescriptorBackupError()
+
+  /** Verification of the decrypted descriptor backups failed. */
+  data class VerificationFailed(override val message: String) : DescriptorBackupError()
 }
 
 /**
@@ -193,4 +241,19 @@ sealed interface DescriptorBackupPreparedData {
     val keysetsToEncrypt: List<SpendingKeyset>,
     val sealedSsek: SealedCsek,
   ) : DescriptorBackupPreparedData
+}
+
+/**
+ * Represents the health status of descriptor backups for a given spending keyset.
+ */
+sealed interface DescriptorBackupStatus {
+  /**
+   * Descriptor backup exists and is valid for the keyset.
+   */
+  data object BackupExists : DescriptorBackupStatus
+
+  /**
+   * No backup found for the keyset.
+   */
+  data object Missing : DescriptorBackupStatus
 }

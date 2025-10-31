@@ -1,6 +1,8 @@
 package build.wallet.statemachine.walletmigration
 
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.cloud.backup.csek.SealedSsek
+import build.wallet.cloud.backup.csek.Sek
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 
 /**
@@ -15,4 +17,12 @@ internal data class KeysetInitiationNfcResult(
    * Newly generated hardware key bundle.
    */
   val newHwKeys: HwKeyBundle,
+  /**
+   * Storage encryption key to be used for encrypting descriptor backups.
+   */
+  val ssek: Sek,
+  /**
+   * Hardware encrypted version of the newly created storage key.
+   */
+  val sealedSsek: SealedSsek,
 )

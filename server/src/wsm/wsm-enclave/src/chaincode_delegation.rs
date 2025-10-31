@@ -21,7 +21,6 @@ pub enum ChaincodeDelegateSignerError {
     InvalidTweak(String),
     InvalidPsbt(String),
     InvalidWitness(String),
-    InvalidAppSignature,
 }
 
 impl Display for ChaincodeDelegateSignerError {
@@ -117,12 +116,11 @@ impl ChaincodeDelegateSigner {
                 &tweaked_custodian_public_key,
             )?;
 
-            // Compute sighash message and verify app's signature
-            let sighash_msg = self.compute_sighash(&mut sighash_cache, input_index, psbt_input)?;
-            self.verify_app_signature(psbt_input, &sighash_msg, &tweaked_app_public_key, secp)?;
-
             // Add custodian signature to PSBT
-            let signature = secp.sign_ecdsa(&sighash_msg, &tweaked_custodian_key);
+            let signature = secp.sign_ecdsa(
+                &self.compute_sighash(&mut sighash_cache, input_index, psbt_input)?,
+                &tweaked_custodian_key,
+            );
             let sighash_type = psbt_input
                 .sighash_type
                 .and_then(|sht| sht.ecdsa_hash_ty().ok())
@@ -137,7 +135,7 @@ impl ChaincodeDelegateSigner {
             );
         }
 
-        psbt.finalize_mut(&secp).map_err(|errors| {
+        psbt.finalize_mut(secp).map_err(|errors| {
             ChaincodeDelegateSignerError::InvalidPsbt(format!(
                 "Failed to finalize PSBT. Errors: {}",
                 errors
@@ -261,28 +259,6 @@ impl ChaincodeDelegateSigner {
                 "Witness UTXO script pubkey mismatch".to_string(),
             ));
         }
-
-        Ok(())
-    }
-
-    fn verify_app_signature(
-        &self,
-        psbt_input: &PsbtInput,
-        sighash_msg: &Message,
-        tweaked_app_public_key: &PublicKey,
-        secp: &Secp256k1<All>,
-    ) -> Result<(), ChaincodeDelegateSignerError> {
-        let app_sig = psbt_input
-            .partial_sigs
-            .get(&bdk::bitcoin::PublicKey::new(*tweaked_app_public_key))
-            .ok_or_else(|| {
-                ChaincodeDelegateSignerError::InvalidPsbt(
-                    "App signature not found. Has the app signed the PSBT?".to_string(),
-                )
-            })?;
-
-        secp.verify_ecdsa(sighash_msg, &app_sig.sig, tweaked_app_public_key)
-            .map_err(|_| ChaincodeDelegateSignerError::InvalidAppSignature)?;
 
         Ok(())
     }
@@ -778,7 +754,7 @@ mod tests {
         use super::*;
 
         #[test]
-        fn test_missing_app_signature() {
+        fn test_attacker_signature() {
             let setup = TestSetup::new();
             let (mut psbt, _, _, _, _) = setup.create_valid_psbt();
 
@@ -800,12 +776,12 @@ mod tests {
 
             let result = setup.signer.sign_psbt(&mut psbt, &setup.secp);
             assert!(
-                matches!(result, Err(ChaincodeDelegateSignerError::InvalidPsbt(msg)) if msg.contains("App signature not found"))
+                matches!(result, Err(ChaincodeDelegateSignerError::InvalidPsbt(msg)) if msg.contains("Failed to finalize PSBT."))
             );
         }
 
         #[test]
-        fn test_invalid_app_signature() {
+        fn test_invalid_signature() {
             let setup = TestSetup::new();
             let (mut psbt, app_tweak, _, _, _) = setup.create_valid_psbt();
 
@@ -829,10 +805,9 @@ mod tests {
             );
 
             let result = setup.signer.sign_psbt(&mut psbt, &setup.secp);
-            assert!(matches!(
-                result,
-                Err(ChaincodeDelegateSignerError::InvalidAppSignature)
-            ));
+            assert!(
+                matches!(result, Err(ChaincodeDelegateSignerError::InvalidPsbt(msg)) if msg.contains("Failed to finalize PSBT."))
+            );
         }
 
         #[test]

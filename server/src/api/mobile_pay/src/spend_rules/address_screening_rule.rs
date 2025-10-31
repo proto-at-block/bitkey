@@ -5,6 +5,7 @@ use feature_flags::service::Service as FeatureFlagsService;
 
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::bitcoin::{Address, Network};
+use types::account::entities::Account;
 
 use crate::spend_rules::errors::SpendRuleCheckError;
 use crate::spend_rules::Rule;
@@ -12,14 +13,15 @@ use screener::service::SanctionsScreener;
 
 const FLAG_KEY: &str = "f8e-sanction-test-account";
 
-pub(crate) struct AddressScreeningRule {
+pub(crate) struct AddressScreeningRule<'a> {
     screener_service: Arc<dyn SanctionsScreener>,
     feature_flags_service: FeatureFlagsService,
+    account: &'a Account,
     network: Network,
     context_key: Option<ContextKey>,
 }
 
-impl Rule for AddressScreeningRule {
+impl Rule for AddressScreeningRule<'_> {
     fn check_transaction(
         &self,
         psbt: &PartiallySignedTransaction,
@@ -44,7 +46,8 @@ impl Rule for AddressScreeningRule {
         if sanction_test_account
             || self
                 .screener_service
-                .should_block_transaction(&destination_addresses)
+                .should_block_transaction(self.account, &destination_addresses)
+                .map_err(|_| SpendRuleCheckError::ScreenerError)?
         {
             Err(SpendRuleCheckError::OutputsBelongToSanctionedIndividuals)
         } else {
@@ -53,17 +56,19 @@ impl Rule for AddressScreeningRule {
     }
 }
 
-impl AddressScreeningRule {
+impl<'a> AddressScreeningRule<'a> {
     pub fn new(
-        network: Network,
         screener_service: Arc<dyn SanctionsScreener>,
         feature_flags_service: FeatureFlagsService,
+        account: &'a Account,
+        network: Network,
         context_key: Option<ContextKey>,
     ) -> Self {
         AddressScreeningRule {
-            network,
             screener_service,
             feature_flags_service,
+            account,
+            network,
             context_key,
         }
     }
@@ -77,15 +82,55 @@ mod tests {
     use bdk_utils::bdk::bitcoin::ScriptBuf;
     use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex};
     use bdk_utils::bdk::FeeRate;
+    use errors::ApiError;
+    use secp256k1::rand::rngs::OsRng;
+    use secp256k1::{Secp256k1, SecretKey};
+    use time::OffsetDateTime;
+    use types::account::entities::{AccountProperties, CommonAccountFields, FullAccount};
+    use types::account::identifiers::{AccountId, AuthKeysId, KeysetId};
 
     struct TestSanctionsService {
         should_block_transaction: bool,
     }
 
     impl SanctionsScreener for TestSanctionsService {
-        fn should_block_transaction(&self, _addresses: &[String]) -> bool {
-            self.should_block_transaction
+        fn should_block_transaction(
+            &self,
+            _account: &Account,
+            _addresses: &[String],
+        ) -> Result<bool, ApiError> {
+            Ok(self.should_block_transaction)
         }
+    }
+
+    fn test_account() -> Account {
+        let secp = Secp256k1::new();
+        Account::Full(FullAccount {
+            id: AccountId::gen().unwrap(),
+            active_keyset_id: KeysetId::gen().unwrap(),
+            spending_keysets: Default::default(),
+            descriptor_backups_set: None,
+            spending_limit: None,
+            transaction_verification_policy: None,
+            application_auth_pubkey: None,
+            hardware_auth_pubkey: SecretKey::new(&mut OsRng).public_key(&secp),
+            auth_keys: Default::default(),
+            common_fields: CommonAccountFields {
+                active_auth_keys_id: AuthKeysId::gen().unwrap(),
+                touchpoints: Default::default(),
+                created_at: OffsetDateTime::now_utc(),
+                updated_at: OffsetDateTime::now_utc(),
+                properties: AccountProperties {
+                    is_test_account: true,
+                },
+                onboarding_complete: true,
+                recovery_auth_pubkey: None,
+                notifications_preferences_state: Default::default(),
+                configured_privileged_action_delay_durations: Default::default(),
+                comms_verification_claims: Default::default(),
+                notifications_triggers: Default::default(),
+            },
+        })
     }
 
     #[tokio::test]
@@ -112,10 +157,12 @@ mod tests {
             .add_recipient(bob_address.script_pubkey(), 1_000)
             .fee_rate(FeeRate::from_sat_per_vb(5.0));
         let (psbt, _) = builder.finish().unwrap();
+        let account = test_account();
         let rule = AddressScreeningRule::new(
-            alice_wallet.network(),
             screener_service,
             feature_flags_service,
+            &account,
+            alice_wallet.network(),
             Some(ContextKey::Account(
                 "accountid".to_string(),
                 Default::default(),
@@ -150,10 +197,12 @@ mod tests {
             .add_recipient(bob_address.script_pubkey(), 1_000)
             .fee_rate(FeeRate::from_sat_per_vb(5.0));
         let (psbt, _) = builder.finish().unwrap();
+        let account = test_account();
         let rule = AddressScreeningRule::new(
-            alice_wallet.network(),
             screener_service,
             feature_flags_service,
+            &account,
+            alice_wallet.network(),
             Some(ContextKey::Account(
                 "accountid".to_string(),
                 Default::default(),
@@ -183,10 +232,12 @@ mod tests {
             .add_recipient(bob_address.script_pubkey(), 1_000)
             .fee_rate(FeeRate::from_sat_per_vb(5.0));
         let (psbt, _) = builder.finish().unwrap();
+        let account = test_account();
         let rule = AddressScreeningRule::new(
-            alice_wallet.network(),
             screener_service,
             feature_flags_service,
+            &account,
+            alice_wallet.network(),
             Some(ContextKey::Account(
                 "accountid".to_string(),
                 Default::default(),
@@ -218,10 +269,12 @@ mod tests {
             .add_recipient(invalid_segwitv0_script, 1_000)
             .fee_rate(FeeRate::from_sat_per_vb(5.0));
         let (psbt, _) = builder.finish().unwrap();
+        let account = test_account();
         let rule = AddressScreeningRule::new(
-            alice_wallet.network(),
             screener_service,
             feature_flags_service,
+            &account,
+            alice_wallet.network(),
             Some(ContextKey::Account(
                 "accountid".to_string(),
                 Default::default(),

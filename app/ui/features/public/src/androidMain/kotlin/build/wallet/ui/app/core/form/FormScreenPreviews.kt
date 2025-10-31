@@ -24,7 +24,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.formBodyModel
 import build.wallet.statemachine.core.list.ListFormBodyModel
-import build.wallet.statemachine.money.currency.AppearancePreferenceFormModel
 import build.wallet.statemachine.money.currency.FiatCurrencyListFormModel
 import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.components.label.Label
@@ -403,28 +402,6 @@ internal fun CurrencyListPreview() {
         selectedCurrency = USD,
         currencyList = listOf(USD, GBP, EUR),
         onCurrencySelection = {}
-      )
-  )
-}
-
-@Preview
-@Composable
-fun AppearancePreferencePreview() {
-  FormScreen(
-    model =
-      AppearancePreferenceFormModel(
-        onBack = {},
-        moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
-        fiatCurrencyPreferenceString = "USD",
-        onFiatCurrencyPreferenceClick = {},
-        bitcoinDisplayPreferenceString = "Sats",
-        bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
-        defaultTimeScalePreferenceString = "1D",
-        onDefaultTimeScalePreferenceClick = {},
-        onBitcoinDisplayPreferenceClick = {},
-        onEnableHideBalanceChanged = {},
-        themePreferenceString = "Light",
-        onThemePreferenceClick = {}
       )
   )
 }

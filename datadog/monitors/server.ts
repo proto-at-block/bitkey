@@ -79,6 +79,23 @@ export class FromagerieMonitors extends Construct {
       recipients: criticalDaytimeRecipients,
     });
 
+    new Monitor(this, 'fromagerie_sanctions_screener_cosign_hit', {
+      query:
+        `logs("env:${environment} service:fromagerie-api \\"One or more outputs belong to sanctioned individuals\\"")
+           .index("*")
+           .rollup("count")
+           .last("1h")
+         > 0`,
+      name: `Sanctions screener cosign hit on env:${environment}`,
+      message: `Sanctions screener cosign hit on env:${environment}`,
+      monitorThresholds: {
+        critical: "0",
+      },
+      type: "log alert",
+      tags: [],
+      recipients: criticalDaytimeRecipients,
+    });
+
     for (const service of ["fromagerie-api", "fromagerie-job-blockchain-polling", "fromagerie-job-email", "fromagerie-job-metrics", "fromagerie-job-push", "fromagerie-job-scheduled-notification", "fromagerie-job-sms"]) {
       new ContainerCpuUtilizationHighMonitor(this, `${service}_cpu_utilization_high`, {
         name: `Service ${service} has a high container cpu utilization on env:${environment}`,

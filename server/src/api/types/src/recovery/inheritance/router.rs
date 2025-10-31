@@ -83,6 +83,8 @@ pub struct BeneficiaryInheritanceClaimViewLocked {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sealed_descriptor: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_server_root_xpub: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub benefactor_descriptor_keyset: Option<ExtendedDescriptor>,
 }
 
@@ -188,6 +190,7 @@ impl From<InheritanceClaim> for BeneficiaryInheritanceClaimView {
                     sealed_dek: locked.sealed_dek,
                     sealed_mobile_key: locked.sealed_mobile_key,
                     sealed_descriptor: locked.sealed_descriptor,
+                    sealed_server_root_xpub: locked.sealed_server_root_xpub,
                     benefactor_descriptor_keyset: locked.benefactor_descriptor_keyset,
                 })
             }

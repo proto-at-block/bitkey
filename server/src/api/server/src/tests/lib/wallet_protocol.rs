@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use bdk_utils::bdk::bitcoin::bip32::ExtendedPubKey;
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::{Address, OutPoint};
 use bdk_utils::bdk::{
@@ -7,7 +8,7 @@ use bdk_utils::bdk::{
     miniscript::descriptor::DescriptorXKey, wallet::AddressInfo, FeeRate, SignOptions, Wallet,
 };
 use crypto::chaincode_delegation::{
-    psbt_with_tweaks, HwAccountLevelDescriptorPublicKeys, Keyset as CcdKeyset, XpubWithOrigin,
+    HwAccountLevelDescriptorPublicKeys, Keyset as CcdKeyset, UntweakedPsbt, XpubWithOrigin,
 };
 use mobile_pay::routes::SignTransactionResponse;
 use types::account::{entities::FullAccount, identifiers::KeysetId, spending::SpendingKeyset};
@@ -27,6 +28,24 @@ pub struct WalletFixture {
     pub account: FullAccount,
     pub wallet: Wallet<AnyDatabase>,
     pub signing_keyset_id: KeysetId,
+}
+
+#[derive(Clone, Debug)]
+pub enum SweepDestination {
+    External(Address),
+    Internal {
+        address: Address,
+        target_keyset: CcdKeyset,
+    },
+}
+
+impl SweepDestination {
+    fn address(&self) -> Address {
+        match self {
+            SweepDestination::External(address) => address.clone(),
+            SweepDestination::Internal { address, .. } => address.clone(),
+        }
+    }
 }
 
 pub async fn setup_fixture(
@@ -90,7 +109,7 @@ pub fn build_app_signed_psbt_for_protocol(
                     origin: Some((fp, _path)),
                     xkey,
                     ..
-                }) => HwAccountLevelDescriptorPublicKeys::new(*fp, xkey.clone()),
+                }) => HwAccountLevelDescriptorPublicKeys::new(*fp, *xkey),
                 _ => panic!("Unsupported hardware descriptor public key"),
             };
 
@@ -112,9 +131,8 @@ pub fn build_app_signed_psbt_for_protocol(
             // At this part of the fixture construction, we use code from the `core` create to
             // populate the PSBT with tweaks. This keeps us aligned with the code we expect the App
             // to run.
-            let mut psbt = psbt_with_tweaks(
-                psbt,
-                &CcdKeyset {
+            let mut psbt = UntweakedPsbt::new(psbt)
+                .with_source_wallet_tweaks(&CcdKeyset {
                     hw_descriptor_public_keys,
                     server_root_xpub: super::predefined_server_root_xpub(
                         private_keyset.network,
@@ -124,9 +142,9 @@ pub fn build_app_signed_psbt_for_protocol(
                         fingerprint: predefined.app_root_xprv.fingerprint(&Secp256k1::new()),
                         xpub: app_account_xpub,
                     },
-                },
-            )
-            .expect("Failed to apply tweaks");
+                })
+                .expect("Failed to apply tweaks")
+                .into_psbt();
             fixture
                 .wallet
                 .sign(
@@ -142,32 +160,99 @@ pub fn build_app_signed_psbt_for_protocol(
     }
 }
 
+pub fn sweep_destination_for_ccd(
+    app_dpub: DescriptorPublicKey,
+    hw_dpub: DescriptorPublicKey,
+    server_root_xpub: ExtendedPubKey,
+    sweep_address: Address,
+) -> SweepDestination {
+    let app_fingerprint = app_dpub.master_fingerprint();
+    let hw_fingerprint = hw_dpub.master_fingerprint();
+
+    let new_app_account_xpub = match app_dpub {
+        DescriptorPublicKey::XPub(xkey) => xkey.xkey,
+        _ => panic!("Expected XPub descriptor"),
+    };
+    let new_hw_account_xpub = match hw_dpub {
+        DescriptorPublicKey::XPub(xkey) => xkey.xkey,
+        _ => panic!("Expected XPub descriptor"),
+    };
+
+    let target_keyset = CcdKeyset {
+        hw_descriptor_public_keys: HwAccountLevelDescriptorPublicKeys::new(
+            hw_fingerprint,
+            new_hw_account_xpub,
+        ),
+        server_root_xpub,
+        app_account_xpub_with_origin: XpubWithOrigin {
+            fingerprint: app_fingerprint,
+            xpub: new_app_account_xpub,
+        },
+    };
+
+    SweepDestination::Internal {
+        address: sweep_address,
+        target_keyset,
+    }
+}
+
 pub fn build_sweep_psbt_for_protocol(
     source_fixture: &WalletFixture,
-    destination: Address,
+    destination: SweepDestination,
 ) -> PartiallySignedTransaction {
-    match source_fixture.protocol {
-        WalletTestProtocol::Legacy => build_sweep_transaction(&source_fixture.wallet, destination),
-        WalletTestProtocol::PrivateCcd => {
-            // Build sweep PSBT draining all UTXOs to destination
-            let (psbt, _details) = {
-                let mut builder = source_fixture.wallet.build_tx();
-                builder
-                    .drain_wallet()
-                    .drain_to(destination.script_pubkey())
-                    .enable_rbf()
-                    .fee_rate(FeeRate::from_sat_per_vb(5.0));
-                builder.finish().expect("Failed to build sweep transaction")
-            };
+    let destination_address = destination.address();
+    let (psbt, _details) = {
+        let mut builder = source_fixture.wallet.build_tx();
+        builder
+            .drain_wallet()
+            .drain_to(destination_address.script_pubkey())
+            .enable_rbf()
+            .fee_rate(FeeRate::from_sat_per_vb(5.0));
+        builder.finish().expect("Failed to build sweep transaction")
+    };
 
-            // Prepare CCD keyset components for source (inactive) keyset
+    match source_fixture.protocol {
+        WalletTestProtocol::Legacy => match destination {
+            SweepDestination::External(_) => {
+                let mut psbt = psbt;
+                source_fixture
+                    .wallet
+                    .sign(
+                        &mut psbt,
+                        SignOptions {
+                            remove_partial_sigs: false,
+                            ..SignOptions::default()
+                        },
+                    )
+                    .expect("Failed to sign sweep PSBT with app key");
+                psbt
+            }
+            SweepDestination::Internal { target_keyset, .. } => {
+                let mut psbt = UntweakedPsbt::new(psbt)
+                    .with_migration_sweep_prepared_tweaks(&target_keyset)
+                    .expect("Failed to apply sweep tweaks")
+                    .into_psbt();
+                source_fixture
+                    .wallet
+                    .sign(
+                        &mut psbt,
+                        SignOptions {
+                            remove_partial_sigs: false,
+                            ..SignOptions::default()
+                        },
+                    )
+                    .expect("Failed to sign sweep PSBT with app key");
+                psbt
+            }
+        },
+        WalletTestProtocol::PrivateCcd => {
             let predefined = super::predefined_descriptor_public_keys();
             let hw_descriptor_public_keys = match &predefined.hardware_account_dpub {
                 DescriptorPublicKey::XPub(DescriptorXKey {
                     origin: Some((fp, _path)),
                     xkey,
                     ..
-                }) => HwAccountLevelDescriptorPublicKeys::new(*fp, xkey.clone()),
+                }) => HwAccountLevelDescriptorPublicKeys::new(*fp, *xkey),
                 _ => panic!("Unsupported hardware descriptor public key"),
             };
 
@@ -198,8 +283,18 @@ pub fn build_sweep_psbt_for_protocol(
                 },
             };
 
-            let mut psbt =
-                psbt_with_tweaks(psbt, &ccd_origin_keyset).expect("Failed to apply tweaks");
+            let mut psbt = match &destination {
+                SweepDestination::Internal { target_keyset, .. } => UntweakedPsbt::new(psbt)
+                    .with_source_wallet_tweaks(&ccd_origin_keyset)
+                    .and_then(|p| p.with_sweep_prepared_tweaks(target_keyset))
+                    .expect("Failed to apply sweep tweaks")
+                    .into_psbt(),
+                SweepDestination::External(_) => UntweakedPsbt::new(psbt)
+                    .with_source_wallet_tweaks(&ccd_origin_keyset)
+                    .expect("Failed to apply tweaks")
+                    .into_psbt(),
+            };
+
             source_fixture
                 .wallet
                 .sign(

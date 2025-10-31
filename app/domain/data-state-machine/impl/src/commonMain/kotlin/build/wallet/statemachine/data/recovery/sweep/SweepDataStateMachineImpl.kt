@@ -4,7 +4,6 @@ import androidx.compose.runtime.*
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.Companion.sweepPriority
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
@@ -12,6 +11,7 @@ import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
 import build.wallet.recovery.sweep.Sweep
+import build.wallet.recovery.sweep.SweepContext
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.recovery.sweep.SweepService
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
@@ -43,7 +43,7 @@ class SweepDataStateMachineImpl(
     data object NoFundsFoundState : State
 
     /**
-     * Awaiting for hardware to sign sweep psbts that require hardware signing to be broadcasted.
+     * Awaiting hardware to sign sweep PSBTs that require hardware signing to be broadcasted.
      */
     data class AwaitingHardwareSignedSweepsState(
       val sweep: Sweep,
@@ -61,6 +61,7 @@ class SweepDataStateMachineImpl(
      */
     data class SignAndBroadcastState(
       val allPsbts: Set<SweepPsbt>,
+      val sweep: Sweep,
     ) : State
 
     /**
@@ -71,9 +72,13 @@ class SweepDataStateMachineImpl(
     ) : State
 
     /**
-     * Successfully braodcasted sweep psbts.
+     * Successfully broadcast sweep psbts.
      */
-    data object SweepSuccessState : State
+    data class SweepSuccessState(
+      val sweep: Sweep,
+    ) : State
+
+    data object SweepSuccessNoDataState : State
 
     /**
      * Failed to sign or broadcast sweep psbts.
@@ -95,9 +100,25 @@ class SweepDataStateMachineImpl(
             sweepService.prepareSweep(props.keybox)
           }
             .onSuccess { sweep ->
-              sweepState = when (sweep) {
-                null -> NoFundsFoundState
-                else -> PsbtsGeneratedState(sweep)
+              when (sweep) {
+                // If SweepService determines we have no funds remaining to sweep,
+                // either we have already successfully swept funds last session (in which case,
+                // hasAttemptedSweep will be true), or our previous wallet had no funds to begin
+                // with (hasAttemptedSweep == false).
+                null -> {
+                  sweepService.markSweepHandled()
+                  if (props.hasAttemptedSweep) {
+                    sweepState = SweepSuccessNoDataState
+                  } else {
+                    // We don't show the NoFundsFoundScreen during the migration
+                    if (props.sweepContext is SweepContext.PrivateWalletMigration) {
+                      props.onSuccess()
+                    } else {
+                      sweepState = NoFundsFoundState
+                    }
+                  }
+                }
+                else -> sweepState = PsbtsGeneratedState(sweep)
               }
             }
             .onFailure { err -> sweepState = GeneratePsbtsFailedState(err) }
@@ -116,12 +137,13 @@ class SweepDataStateMachineImpl(
         PsbtsGeneratedData(
           totalFeeAmount = state.sweep.totalFeeAmount,
           totalTransferAmount = state.sweep.totalTransferAmount,
+          destinationAddress = state.sweep.destinationAddress,
           startSweep = {
             sweepState =
               if (state.sweep.psbtsRequiringHwSign.isEmpty()) {
                 // no psbts that need to be signed with hardware, all psbts are signable with app + f8e,
                 // ready to broadcast after signing
-                SignAndBroadcastState(state.sweep.unsignedPsbts)
+                SignAndBroadcastState(state.sweep.unsignedPsbts, state.sweep)
               } else {
                 AwaitingHardwareSignedSweepsState(sweep = state.sweep)
               }
@@ -133,15 +155,19 @@ class SweepDataStateMachineImpl(
           needsHwSign = state.sweep.psbtsRequiringHwSign,
           addHwSignedSweeps = { hwSignedPsbts ->
             val mergedPsbts = mergeHwSignedPsbts(state.sweep.unsignedPsbts, hwSignedPsbts)
-            sweepState = SignAndBroadcastState(mergedPsbts)
+            sweepState = SignAndBroadcastState(mergedPsbts, state.sweep)
           }
         )
 
       /** Asynchronously signing transactions using app + server, and then broadcasting */
       is SignAndBroadcastState -> {
         LaunchedEffect("sign-and-broadcast") {
+          props.onAttemptSweep()
           signAndBroadcastPsbts(props, state)
-            .onSuccess { sweepState = SweepSuccessState }
+            .onSuccess {
+              sweepService.markSweepHandled()
+              sweepState = SweepSuccessState(state.sweep)
+            }
             .onFailure { sweepState = SweepFailedState(it) }
         }
         SigningAndBroadcastingSweepsData
@@ -155,8 +181,15 @@ class SweepDataStateMachineImpl(
       /** Terminal state: Sweep succeeded */
       is SweepSuccessState ->
         SweepCompleteData(
+          totalFeeAmount = state.sweep.totalFeeAmount,
+          totalTransferAmount = state.sweep.totalTransferAmount,
+          destinationAddress = state.sweep.destinationAddress,
           proceed = props.onSuccess
         )
+
+      is SweepSuccessNoDataState ->
+        SweepCompleteNoData(props.onSuccess)
+
       /** Terminal state: Sweep failed */
       is SweepFailedState ->
         SweepFailedData(
@@ -194,38 +227,40 @@ class SweepDataStateMachineImpl(
     sweepPsbt: SweepPsbt,
   ): Result<Unit, Throwable> =
     coroutineBinding {
-      val appSignPsbt = appSignPsbt(sweepPsbt).bind()
-      val signedPsbt = serverSignPsbt(props, appSignPsbt).bind()
+      // Apply app signature if required
+      val appSignedPsbt = if (sweepPsbt.signaturePlan.requiresAppSignature) {
+        val wallet = appSpendingWalletProvider.getSpendingWallet(sweepPsbt.sourceKeyset)
+          .logFailure { "Failed to get spending wallet for source keyset ${sweepPsbt.sourceKeyset.localId}" }
+          .bind()
+
+        wallet.signPsbt(sweepPsbt.psbt)
+          .logFailure { "Failed to add app signature to PSBT" }
+          .bind()
+      } else {
+        sweepPsbt.psbt
+      }
+
+      // Apply server signature if required
+      val fullySignedPsbt = if (sweepPsbt.signaturePlan.requiresServerSignature) {
+        mobilePaySigningF8eClient.signWithSpecificKeyset(
+          f8eEnvironment = props.keybox.config.f8eEnvironment,
+          fullAccountId = props.keybox.fullAccountId,
+          keysetId = sweepPsbt.sourceKeyset.f8eSpendingKeyset.keysetId,
+          psbt = appSignedPsbt
+        )
+          .logFailure { "Failed to get server signature" }
+          .bind()
+      } else {
+        appSignedPsbt
+      }
+
+      // Broadcast the fully signed PSBT
       bitcoinWalletService
         .broadcast(
-          psbt = signedPsbt,
+          psbt = fullySignedPsbt,
           estimatedTransactionPriority = sweepPriority()
         )
         .logFailure { "Error broadcasting sweep transaction." }
         .bind()
     }
-
-  private suspend fun appSignPsbt(sweep: SweepPsbt): Result<SweepPsbt, Throwable> =
-    coroutineBinding {
-      if (sweep.signingFactor == App) {
-        val wallet = appSpendingWalletProvider.getSpendingWallet(sweep.sourceKeyset).bind()
-
-        wallet.signPsbt(sweep.psbt)
-          .map { appSignedPsbt -> sweep.copy(psbt = appSignedPsbt) }
-          .bind()
-      } else {
-        sweep
-      }
-    }
-
-  private suspend fun serverSignPsbt(
-    props: SweepDataProps,
-    sweep: SweepPsbt,
-  ): Result<Psbt, Error> =
-    mobilePaySigningF8eClient.signWithSpecificKeyset(
-      f8eEnvironment = props.keybox.config.f8eEnvironment,
-      fullAccountId = props.keybox.fullAccountId,
-      keysetId = sweep.sourceKeyset.f8eSpendingKeyset.keysetId,
-      psbt = sweep.psbt
-    )
 }

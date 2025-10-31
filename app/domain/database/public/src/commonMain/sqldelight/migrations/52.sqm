@@ -1,0 +1,41 @@
+-- Break apart the backupCompleted into distinct states
+CREATE TABLE privateWalletMigrationEntity_new(
+  rowId INTEGER NOT NULL PRIMARY KEY,
+  newHardwareKey TEXT AS HwSpendingPublicKey,
+  newAppKey TEXT AS AppSpendingPublicKey,
+  newServerKey TEXT AS F8eSpendingKeyset,
+  keysetLocalId TEXT,
+  sweepId TEXT,
+  descriptorBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  cloudBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  serverKeysetActivated INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+INSERT INTO privateWalletMigrationEntity_new (
+  rowId,
+  newHardwareKey,
+  newAppKey,
+  newServerKey,
+  keysetLocalId,
+  sweepId,
+  descriptorBackupCompleted,
+  cloudBackupCompleted,
+  serverKeysetActivated
+)
+SELECT
+  rowId,
+  newHardwareKey,
+  newAppKey,
+  newServerKey,
+  keysetLocalId,
+  sweepId,
+  0, -- descriptorBackupCompleted (new column, default value)
+  0, -- cloudBackupCompleted (new column, default value)
+  0 -- serverKeysetActivated (new column, default value)
+FROM privateWalletMigrationEntity;
+
+DROP TABLE privateWalletMigrationEntity;
+
+ALTER TABLE privateWalletMigrationEntity_new RENAME TO privateWalletMigrationEntity;
+
+PRAGMA foreign_key_check;

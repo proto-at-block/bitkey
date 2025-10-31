@@ -1,7 +1,6 @@
 package build.wallet.recovery
 
 import app.cash.sqldelight.coroutines.asFlow
-import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
@@ -105,7 +104,8 @@ class RecoveryDaoImpl(
       is UploadedDescriptorBackups -> markUploadedDescriptorBackups(progress)
       DdkBackedUp -> markDdkBackedUp()
       BackedUpToCloud -> markCloudBackedUp()
-      is SweptFunds -> markFundsSwept(progress.keyboxToActivate)
+      SweepingFunds -> markSweepInProgress()
+      is CompletedRecovery -> markFundsSwept(progress.keyboxToActivate)
     }
   }
 
@@ -169,8 +169,7 @@ class RecoveryDaoImpl(
     return databaseProvider.database()
       .awaitTransaction {
         recoveryQueries.markSpendingKeysCreated(
-          progress.f8eSpendingKeyset.keysetId,
-          progress.f8eSpendingKeyset.spendingPublicKey
+          progress.f8eSpendingKeyset
         )
       }
   }
@@ -197,10 +196,9 @@ class RecoveryDaoImpl(
         recoveryQueries.insertRecoverySpendingKeyset(
           recoveryAttemptRowId = 0, // Using stable rowId,
           keysetLocalId = it.localId,
-          keysetServerId = it.f8eSpendingKeyset.keysetId,
           appKey = it.appKey,
           hardwareKey = it.hardwareKey,
-          serverKey = it.f8eSpendingKeyset.spendingPublicKey,
+          serverKey = it.f8eSpendingKeyset,
           networkType = it.networkType
         )
       }
@@ -218,6 +216,13 @@ class RecoveryDaoImpl(
     return databaseProvider.database()
       .awaitTransaction {
         recoveryQueries.markCloudBackedUp()
+      }
+  }
+
+  private suspend fun markSweepInProgress(): Result<Unit, DbTransactionError> {
+    return databaseProvider.database()
+      .awaitTransaction {
+        recoveryQueries.markSweepInProgress()
       }
   }
 
@@ -374,23 +379,36 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
         .map {
           SpendingKeyset(
             localId = it.keysetLocalId,
-            f8eSpendingKeyset = F8eSpendingKeyset(
-              keysetId = it.keysetServerId,
-              spendingPublicKey = it.serverKey
-            ),
+            f8eSpendingKeyset = it.serverKey,
             appKey = it.appKey,
             hardwareKey = it.hardwareKey,
             networkType = it.networkType
           )
         }
 
+      val serverF8eSpendingKeyset = serverSpendingKey
+      checkNotNull(serverF8eSpendingKeyset) {
+        "serverSpendingKey should not be null when spendingKeysCreated() returns true"
+      }
+
+      if (sweepInProgress) {
+        return ServerIndependentRecovery.SweepAttempted(
+          f8eSpendingKeyset = serverF8eSpendingKeyset,
+          fullAccountId = account,
+          appSpendingKey = destinationAppSpendingKey,
+          appGlobalAuthKey = destinationAppGlobalAuthKey,
+          appRecoveryAuthKey = destinationAppRecoveryAuthKey,
+          hardwareSpendingKey = destinationHardwareSpendingKey,
+          hardwareAuthKey = destinationHardwareAuthKey,
+          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+          factorToRecover = lostFactor,
+          keysets = storedKeysets
+        )
+      }
+
       if (backedUpToCloud) {
         return ServerIndependentRecovery.BackedUpToCloud(
-          f8eSpendingKeyset =
-            F8eSpendingKeyset(
-              keysetId = serverKeysetId!!,
-              spendingPublicKey = serverSpendingKey!!
-            ),
+          f8eSpendingKeyset = serverF8eSpendingKeyset,
           fullAccountId = account,
           appSpendingKey = destinationAppSpendingKey,
           appGlobalAuthKey = destinationAppGlobalAuthKey,
@@ -405,11 +423,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
 
       if (ddkBackedUp) {
         return ServerIndependentRecovery.DdkBackedUp(
-          f8eSpendingKeyset =
-            F8eSpendingKeyset(
-              keysetId = serverKeysetId!!,
-              spendingPublicKey = serverSpendingKey!!
-            ),
+          f8eSpendingKeyset = serverF8eSpendingKeyset,
           fullAccountId = account,
           appSpendingKey = destinationAppSpendingKey,
           appGlobalAuthKey = destinationAppGlobalAuthKey,
@@ -426,11 +440,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
 
       if (spendingKeysActivated) {
         return ServerIndependentRecovery.ActivatedSpendingKeys(
-          f8eSpendingKeyset =
-            F8eSpendingKeyset(
-              keysetId = serverKeysetId!!,
-              spendingPublicKey = serverSpendingKey!!
-            ),
+          f8eSpendingKeyset = serverF8eSpendingKeyset,
           fullAccountId = account,
           appSpendingKey = destinationAppSpendingKey,
           appGlobalAuthKey = destinationAppGlobalAuthKey,
@@ -447,11 +457,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
 
       if (uploadedDescriptorBackups) {
         return ServerIndependentRecovery.UploadedDescriptorBackups(
-          f8eSpendingKeyset =
-            F8eSpendingKeyset(
-              keysetId = serverKeysetId!!,
-              spendingPublicKey = serverSpendingKey!!
-            ),
+          f8eSpendingKeyset = serverF8eSpendingKeyset,
           fullAccountId = account,
           appSpendingKey = destinationAppSpendingKey,
           appGlobalAuthKey = destinationAppGlobalAuthKey,
@@ -467,11 +473,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
       } else {
         // Spending keys have been created but not yet activated
         return ServerIndependentRecovery.CreatedSpendingKeys(
-          f8eSpendingKeyset =
-            F8eSpendingKeyset(
-              keysetId = serverKeysetId!!,
-              spendingPublicKey = serverSpendingKey!!
-            ),
+          f8eSpendingKeyset = serverF8eSpendingKeyset,
           fullAccountId = account,
           appSpendingKey = destinationAppSpendingKey,
           appGlobalAuthKey = destinationAppGlobalAuthKey,
@@ -504,7 +506,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
 }
 
 private fun LocalRecoveryAttemptEntity.spendingKeysCreated(): Boolean {
-  return serverSpendingKey != null && serverKeysetId != null && sealedCsek != null
+  return serverSpendingKey != null && sealedCsek != null
 }
 
 private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
@@ -562,10 +564,9 @@ private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
       spendingKeysetQueries.insertKeyset(
         id = keyset.localId,
         keyboxId = keybox.localId,
-        serverId = keyset.f8eSpendingKeyset.keysetId,
         appKey = keyset.appKey,
         hardwareKey = keyset.hardwareKey,
-        serverKey = keyset.f8eSpendingKeyset.spendingPublicKey,
+        serverKey = keyset.f8eSpendingKeyset,
         isActive = isActive
       )
     }
@@ -574,10 +575,9 @@ private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
     spendingKeysetQueries.insertKeyset(
       id = keybox.activeSpendingKeyset.localId,
       keyboxId = keybox.localId,
-      serverId = keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
       appKey = keybox.activeSpendingKeyset.appKey,
       hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
-      serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey,
+      serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset,
       isActive = true
     )
   }

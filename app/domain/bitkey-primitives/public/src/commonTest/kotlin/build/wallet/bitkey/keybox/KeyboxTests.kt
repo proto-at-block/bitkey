@@ -8,10 +8,11 @@ import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.f8e.isPrivateWallet
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.f8e.F8eEnvironment.Development
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -30,7 +31,7 @@ class KeyboxTests : FunSpec({
   fun createKeybox(
     activeSpendingKeyset: SpendingKeyset,
     keysets: List<SpendingKeyset> = listOf(activeSpendingKeyset),
-    localId: String = "test-keybox-id"
+    localId: String = "test-keybox-id",
   ) = Keybox(
     localId = localId,
     config = config,
@@ -46,7 +47,7 @@ class KeyboxTests : FunSpec({
   fun createSpendingKeyset(
     localId: String,
     f8eKeysetId: String,
-    serverIntegritySignature: String? = null
+    privateWalletRootXpub: String? = null,
   ) = SpendingKeyset(
     localId = localId,
     networkType = SIGNET,
@@ -55,7 +56,7 @@ class KeyboxTests : FunSpec({
     f8eSpendingKeyset = F8eSpendingKeyset(
       keysetId = f8eKeysetId,
       spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("$localId-server-dpub")),
-      serverIntegritySignature = serverIntegritySignature
+      privateWalletRootXpub = privateWalletRootXpub
     )
   )
 
@@ -79,44 +80,42 @@ class KeyboxTests : FunSpec({
   test("should allow keysets containing the active spending keyset with other keysets") {
     val keybox = createKeybox(
       activeSpendingKeyset = SpendingKeysetMock,
-      keysets = listOf(SpendingKeysetMock2, SpendingKeysetMock)
+      keysets = listOf(PrivateSpendingKeysetMock, SpendingKeysetMock)
     )
 
-    keybox.keysets.shouldBe(listOf(SpendingKeysetMock2, SpendingKeysetMock))
+    keybox.keysets.shouldBe(listOf(PrivateSpendingKeysetMock, SpendingKeysetMock))
   }
 
   test("should throw when keysets is not empty but doesn't contain active spending keyset") {
     val exception = shouldThrow<IllegalArgumentException> {
       createKeybox(
         activeSpendingKeyset = SpendingKeysetMock,
-        keysets = listOf(SpendingKeysetMock2)
+        keysets = listOf(PrivateSpendingKeysetMock)
       )
     }
 
     exception.shouldHaveMessage("activeSpendingKeyset must be present in keysets!")
   }
 
-  test("isPrivate returns false for legacy keysets without server integrity signature") {
+  test("isPrivate returns false for legacy keysets without privateWalletRootXpub") {
     val legacyKeyset = createSpendingKeyset(
       localId = "legacy-keyset",
       f8eKeysetId = "legacy-f8e-keyset-id",
-      serverIntegritySignature = null
+      privateWalletRootXpub = null
     )
 
     val keybox = createKeybox(activeSpendingKeyset = legacyKeyset)
-
-    keybox.isPrivate.shouldBe(false)
+    keybox.activeSpendingKeyset.f8eSpendingKeyset.isPrivateWallet.shouldBe(false)
   }
 
-  test("isPrivate returns true for private keysets with server integrity signature") {
+  test("isPrivate returns true for private keysets with privateWalletRootXpub") {
     val privateKeyset = createSpendingKeyset(
       localId = "private-keyset",
       f8eKeysetId = "private-f8e-keyset-id",
-      serverIntegritySignature = "integrity-signature-proof"
+      privateWalletRootXpub = "tpubD6NzVbkrYhZ4XPMXVToEroepyTscQmHYrdSDbvZvAFonusog8TjTB3iTQZ2Ds8atDfdxzN7DAioQ8Z4KBa4RD16FX7caE5hxiMbvkVr9Fom"
     )
 
     val keybox = createKeybox(activeSpendingKeyset = privateKeyset)
-
-    keybox.isPrivate.shouldBe(true)
+    keybox.activeSpendingKeyset.f8eSpendingKeyset.isPrivateWallet.shouldBe(true)
   }
 })

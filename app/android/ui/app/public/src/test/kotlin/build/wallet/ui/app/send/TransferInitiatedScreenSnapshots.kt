@@ -1,6 +1,7 @@
 package build.wallet.ui.app.send
 
 import androidx.compose.runtime.Composable
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.send.TransactionDetailModelType
 import build.wallet.statemachine.send.TransactionDetailsModel
@@ -29,7 +30,7 @@ private fun TransferInitiatedScreen(speedUp: Boolean) {
   FormScreen(
     TransferInitiatedBodyModel(
       onBack = {},
-      recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+      recipientAddress = BitcoinAddress("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"),
       transactionDetails =
         TransactionDetailsModel(
           transactionSpeedText = "~30 minutes",

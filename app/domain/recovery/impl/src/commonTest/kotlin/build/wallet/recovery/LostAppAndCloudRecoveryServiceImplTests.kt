@@ -17,8 +17,9 @@ import build.wallet.f8e.auth.AuthF8eClientMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClientFake
-import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
+import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.setFlagValue
@@ -26,6 +27,7 @@ import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError.ServerError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.notifications.DeviceTokenManagerMock
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
@@ -62,6 +64,15 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   val useEncryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(
     FeatureFlagDaoFake()
   )
+  val uuidGenerator = UuidGeneratorFake()
+  val mockRemoteKeyset =
+    LegacyRemoteKeyset(
+      keysetId = SpendingKeysetMock.f8eSpendingKeyset.keysetId,
+      networkType = SpendingKeysetMock.networkType.name,
+      appDescriptor = SpendingKeysetMock.appKey.key.dpub,
+      hardwareDescriptor = SpendingKeysetMock.hardwareKey.key.dpub,
+      serverDescriptor = SpendingKeysetMock.f8eSpendingKeyset.spendingPublicKey.key.dpub
+    )
   val service = LostAppAndCloudRecoveryServiceImpl(
     authF8eClient = authF8eClient,
     cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
@@ -75,7 +86,8 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     listKeysetsF8eClient = listKeysetsF8eClient,
     initiateAccountDelayNotifyF8eClient = initiateAccountDelayNotifyF8eClient,
     recoveryDao = recoveryDao,
-    useEncryptedDescriptorBackupsFeatureFlag = useEncryptedDescriptorBackupsFeatureFlag
+    useEncryptedDescriptorBackupsFeatureFlag = useEncryptedDescriptorBackupsFeatureFlag,
+    uuidGenerator = uuidGenerator
   )
 
   suspend fun LostAppAndCloudRecoveryService.cancel() =
@@ -142,10 +154,10 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     val hwSignedChallenge = "test-challenge"
 
     listKeysetsF8eClient.result = Ok(
-      ListKeysetsF8eClient.ListKeysetsResponse(
-        keysets = listOf(SpendingKeysetMock),
+      ListKeysetsResponse(
+        keysets = listOf(mockRemoteKeyset),
         wrappedSsek = null,
-        descriptorBackups = null
+        descriptorBackups = emptyList()
       )
     )
 
@@ -163,146 +175,46 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
   }
 
-  test("completeAuth returns WithDescriptorBackups when backups are up to date") {
-    val hwAuthKey = HwAuthPublicKeyMock
-    val accountId = FullAccountIdMock
-    val session = "test-session"
-    val hwSignedChallenge = "test-challenge"
+  context("descriptor backups matrix for private wallet root xpub") {
+    listOf(null, "foo").forEach { privateWalletRootXpub ->
+      val matrixLabel = privateWalletRootXpub ?: "null"
 
-    val mockDescriptorBackups = listOf(
-      bitkey.backup.DescriptorBackup(
-        keysetId = "keyset-1",
-        sealedDescriptor = XCiphertext(value = "encrypted-descriptor")
-      )
-    )
-    val mockWrappedSsek = "wrapped-ssek".encodeUtf8()
+      test("completeAuth returns WithDescriptorBackups when backups exist [$matrixLabel]") {
+        val hwAuthKey = HwAuthPublicKeyMock
+        val accountId = FullAccountIdMock
+        val session = "test-session"
+        val hwSignedChallenge = "test-challenge"
 
-    listKeysetsF8eClient.result = Ok(
-      ListKeysetsF8eClient.ListKeysetsResponse(
-        keysets = listOf(SpendingKeysetMock),
-        wrappedSsek = mockWrappedSsek,
-        descriptorBackups = mockDescriptorBackups
-      )
-    )
+        val mockDescriptorBackups = listOf(
+          bitkey.backup.DescriptorBackup(
+            keysetId = "keyset-1",
+            sealedDescriptor = XCiphertext(value = "encrypted-descriptor"),
+            privateWalletRootXpub = privateWalletRootXpub?.let { XCiphertext("sealed-$it") }
+          )
+        )
+        val mockWrappedSsek = "wrapped-ssek".encodeUtf8()
 
-    val result = service.completeAuth(accountId, session, hwAuthKey, hwSignedChallenge)
-    result.shouldBeOk()
+        listKeysetsF8eClient.result = Ok(
+          ListKeysetsResponse(
+            keysets = listOf(mockRemoteKeyset),
+            wrappedSsek = mockWrappedSsek,
+            descriptorBackups = mockDescriptorBackups
+          )
+        )
 
-    val completedAuth = result.value
-    completedAuth shouldBe instanceOf<CompletedAuth.WithDescriptorBackups>()
+        val result = service.completeAuth(accountId, session, hwAuthKey, hwSignedChallenge)
+        result.shouldBeOk()
 
-    val withBackups = completedAuth as CompletedAuth.WithDescriptorBackups
-    withBackups.descriptorBackups shouldBe mockDescriptorBackups
-    withBackups.wrappedSsek shouldBe mockWrappedSsek
+        val completedAuth = result.value
+        completedAuth shouldBe instanceOf<CompletedAuth.WithDescriptorBackups>()
 
-    // Consume the device token event
-    deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-  }
+        val withBackups = completedAuth as CompletedAuth.WithDescriptorBackups
+        withBackups.descriptorBackups shouldBe mockDescriptorBackups
+        withBackups.wrappedSsek shouldBe mockWrappedSsek
 
-  test("completeAuth returns WithDirectKeys when backups count doesn't match keysets") {
-    val hwAuthKey = HwAuthPublicKeyMock
-    val accountId = FullAccountIdMock
-    val session = "test-session"
-    val hwSignedChallenge = "test-challenge"
-
-    val mockDescriptorBackups = listOf(
-      bitkey.backup.DescriptorBackup(
-        keysetId = "keyset-1",
-        sealedDescriptor = XCiphertext(value = "encrypted-descriptor")
-      )
-    )
-    val mockWrappedSsek = "wrapped-ssek".encodeUtf8()
-
-    listKeysetsF8eClient.result = Ok(
-      ListKeysetsF8eClient.ListKeysetsResponse(
-        keysets = listOf(SpendingKeysetMock, SpendingKeysetMock),
-        wrappedSsek = mockWrappedSsek,
-        descriptorBackups = mockDescriptorBackups
-      )
-    )
-
-    val result = service.completeAuth(accountId, session, hwAuthKey, hwSignedChallenge)
-    result.shouldBeOk()
-
-    val completedAuth = result.value
-    completedAuth shouldBe instanceOf<CompletedAuth.WithDirectKeys>()
-
-    val directKeys = completedAuth as CompletedAuth.WithDirectKeys
-    directKeys.existingHwSpendingKeys.size shouldBe 2
-    directKeys.existingHwSpendingKeys.first() shouldBe SpendingKeysetMock.hardwareKey
-
-    // Consume the device token event
-    deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-  }
-
-  test("completeAuth returns WithDirectKeys when wrappedSsek is null") {
-    val hwAuthKey = HwAuthPublicKeyMock
-    val accountId = FullAccountIdMock
-    val session = "test-session"
-    val hwSignedChallenge = "test-challenge"
-
-    val mockDescriptorBackups = listOf(
-      bitkey.backup.DescriptorBackup(
-        keysetId = "keyset-1",
-        sealedDescriptor = XCiphertext(value = "encrypted-descriptor")
-      )
-    )
-
-    listKeysetsF8eClient.result = Ok(
-      ListKeysetsF8eClient.ListKeysetsResponse(
-        keysets = listOf(SpendingKeysetMock),
-        wrappedSsek = null,
-        descriptorBackups = mockDescriptorBackups
-      )
-    )
-
-    val result = service.completeAuth(accountId, session, hwAuthKey, hwSignedChallenge)
-    result.shouldBeOk()
-
-    val completedAuth = result.value
-    completedAuth shouldBe instanceOf<CompletedAuth.WithDirectKeys>()
-
-    val directKeys = completedAuth as CompletedAuth.WithDirectKeys
-    directKeys.existingHwSpendingKeys.size shouldBe 1
-    directKeys.existingHwSpendingKeys.first() shouldBe SpendingKeysetMock.hardwareKey
-
-    // Consume the device token event
-    deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-  }
-
-  test("completeAuth returns WithDescriptorBackups when no keysets but backups exist") {
-    val hwAuthKey = HwAuthPublicKeyMock
-    val accountId = FullAccountIdMock
-    val session = "test-session"
-    val hwSignedChallenge = "test-challenge"
-
-    val mockDescriptorBackups = listOf(
-      bitkey.backup.DescriptorBackup(
-        keysetId = "keyset-1",
-        sealedDescriptor = XCiphertext(value = "encrypted-descriptor")
-      )
-    )
-    val mockWrappedSsek = "wrapped-ssek".encodeUtf8()
-
-    listKeysetsF8eClient.result = Ok(
-      ListKeysetsF8eClient.ListKeysetsResponse(
-        keysets = emptyList(),
-        wrappedSsek = mockWrappedSsek,
-        descriptorBackups = mockDescriptorBackups
-      )
-    )
-
-    val result = service.completeAuth(accountId, session, hwAuthKey, hwSignedChallenge)
-    result.shouldBeOk()
-
-    val completedAuth = result.value
-    completedAuth shouldBe instanceOf<CompletedAuth.WithDescriptorBackups>()
-
-    val withBackups = completedAuth as CompletedAuth.WithDescriptorBackups
-    withBackups.descriptorBackups shouldBe mockDescriptorBackups
-    withBackups.wrappedSsek shouldBe mockWrappedSsek
-
-    // Consume the device token event
-    deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+        // Consume the device token event
+        deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+      }
+    }
   }
 })

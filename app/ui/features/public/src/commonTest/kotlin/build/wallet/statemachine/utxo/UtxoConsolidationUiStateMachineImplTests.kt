@@ -7,6 +7,7 @@ import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
+import build.wallet.bitcoin.utxo.UtxoConsolidationContext
 import build.wallet.bitcoin.utxo.UtxoConsolidationParams
 import build.wallet.bitcoin.utxo.UtxoConsolidationServiceFake
 import build.wallet.bitcoin.utxo.UtxoConsolidationType
@@ -136,6 +137,84 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
 
       // Continuing should proceed to confirmation screen
       // Emits twice due to currency conversion.
+      awaitBody<UtxoConsolidationConfirmationModel>()
+      awaitBody<UtxoConsolidationConfirmationModel> {
+        balanceTitle.shouldBe("Value of UTXOs")
+      }
+    }
+  }
+
+  test("private wallet migration context shows exceeds max once then loops back") {
+    utxoConsolidationService.prepareUtxoConsolidationResult = Ok(
+      listOf(
+        UtxoConsolidationParams(
+          type = UtxoConsolidationType.ConsolidateAll,
+          targetAddress = someBitcoinAddress,
+          eligibleUtxoCount = 10,
+          balance = sats(1000),
+          consolidationCost = sats(5),
+          appSignedPsbt = PsbtMock,
+          transactionPriority = SIXTY_MINUTES,
+          walletHasUnconfirmedUtxos = false,
+          walletExceedsMaxUtxoCount = true,
+          maxUtxoCount = 5
+        )
+      )
+    )
+
+    val migrationProps = UtxoConsolidationProps(
+      onConsolidationSuccess = {},
+      onBack = {},
+      context = UtxoConsolidationContext.PrivateWalletMigration
+    )
+
+    stateMachine.test(migrationProps) {
+      // Loading the consolidation psbt
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      // First time: should show exceeds max count screen
+      awaitBody<FormBodyModel> {
+        id.shouldBe(UTXO_CONSOLIDATION_EXCEEDED_MAX_COUNT)
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      // Confirmation screen (emits twice due to currency conversion)
+      awaitBody<UtxoConsolidationConfirmationModel>()
+      awaitBody<UtxoConsolidationConfirmationModel> {
+        balanceTitle.shouldBe("Value of UTXOs")
+        onContinue.invoke()
+      }
+
+      // Tap & Hold info half sheet
+      awaitSheet<TapAndHoldToConsolidateUtxosBodyModel> {
+        onConsolidate()
+      }
+
+      // Nfc signing
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>> {
+        shouldShowLongRunningOperation.shouldBeTrue()
+        onSuccess(PsbtMock)
+      }
+
+      // Broadcasting the psbt
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      // Transaction sent modal
+      awaitBody<UtxoConsolidationTransactionSentModel> {
+        // Tap done to loop back
+        onDone()
+      }
+
+      // Second consolidation: Loading again
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      // Second time: should skip exceeds max count screen and go directly to confirmation
       awaitBody<UtxoConsolidationConfirmationModel>()
       awaitBody<UtxoConsolidationConfirmationModel> {
         balanceTitle.shouldBe("Value of UTXOs")

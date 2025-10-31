@@ -1,0 +1,9 @@
+-- Add simple sweep tracking to recovery
+-- This enables basic sweep status tracking across app restarts
+
+-- Add sweep status field to existing localRecoveryAttemptEntity table
+ALTER TABLE localRecoveryAttemptEntity
+ADD COLUMN sweepInProgress INTEGER AS Boolean NOT NULL DEFAULT 0;
+
+-- Verify foreign key constraints remain valid
+PRAGMA foreign_key_check;

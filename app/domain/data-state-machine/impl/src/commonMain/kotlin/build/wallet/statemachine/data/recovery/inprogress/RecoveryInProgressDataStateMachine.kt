@@ -4,17 +4,13 @@ package build.wallet.statemachine.data.recovery.inprogress
 
 import androidx.compose.runtime.*
 import bitkey.account.*
-import bitkey.auth.AuthTokenScope
 import bitkey.backup.DescriptorBackup
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
-import bitkey.recovery.DescriptorBackupPreparedData
-import bitkey.recovery.DescriptorBackupService
-import bitkey.recovery.RecoveryStatusService
-import build.wallet.auth.AccountAuthenticator
+import bitkey.recovery.*
+import bitkey.recovery.DelayNotifyCancellationRequest.CancelLostAppAndCloudRecovery
+import bitkey.recovery.DelayNotifyCancellationRequest.CancelLostHardwareRecovery
 import build.wallet.auth.AuthProtocolError
-import build.wallet.auth.logAuthFailure
-import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.challange.DelayNotifyChallenge
@@ -29,7 +25,6 @@ import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.*
-import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SealedData
 import build.wallet.di.AppScope
@@ -39,41 +34,38 @@ import build.wallet.f8e.recovery.ServerRecovery
 import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.ktor.result.HttpError
-import build.wallet.logging.logFailure
 import build.wallet.nfc.transaction.SealDelegatedDecryptionKey
 import build.wallet.nfc.transaction.SignChallengeAndSealSeks
 import build.wallet.nfc.transaction.UnsealData
 import build.wallet.nfc.transaction.UnsealSsek
-import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.random.UuidGenerator
-import build.wallet.recovery.*
+import build.wallet.recovery.CancelDelayNotifyRecoveryError
+import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletionAttemptFailedDueToServerCancellation
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.*
 import build.wallet.relationships.DelegatedDecryptionKeyService
-import build.wallet.relationships.EndorseTrustedContactsService
 import build.wallet.relationships.RelationshipsKeysRepository
 import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.core.StateMachine
+import build.wallet.statemachine.data.recovery.inprogress.KeysetState.Complete
+import build.wallet.statemachine.data.recovery.inprogress.KeysetState.Incomplete
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ProcessingDescriptorBackupsData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.CancellationRequest.CancelLostAppAndCloudRecovery
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.CancellationRequest.CancelLostHardwareRecovery
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.*
 import build.wallet.time.MinimumLoadingDuration
 import build.wallet.time.nonNegativeDurationBetween
 import build.wallet.time.withMinimumDelay
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.andThenRecover
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
@@ -126,22 +118,16 @@ data class RecoveryInProgressProps(
 @Suppress("LargeClass")
 @BitkeyInject(AppScope::class)
 class RecoveryInProgressDataStateMachineImpl(
-  private val lostHardwareRecoveryService: LostHardwareRecoveryService,
-  private val lostAppAndCloudRecoveryService: LostAppAndCloudRecoveryService,
+  private val delayNotifyService: DelayNotifyService,
   private val clock: Clock,
   private val sekGenerator: SekGenerator,
   private val csekDao: CsekDao,
   private val ssekDao: SsekDao,
-  private val recoveryAuthCompleter: RecoveryAuthCompleter,
-  private val f8eSpendingKeyRotator: F8eSpendingKeyRotator,
   private val uuidGenerator: UuidGenerator,
   private val recoveryStatusService: RecoveryStatusService,
-  private val accountAuthenticator: AccountAuthenticator,
-  private val deviceTokenManager: DeviceTokenManager,
   private val delegatedDecryptionKeyService: DelegatedDecryptionKeyService,
   private val relationshipsKeysRepository: RelationshipsKeysRepository,
   private val relationshipsService: RelationshipsService,
-  private val endorseTrustedContactsService: EndorseTrustedContactsService,
   private val minimumLoadingDuration: MinimumLoadingDuration,
   private val accountConfigService: AccountConfigService,
   private val descriptorBackupService: DescriptorBackupService,
@@ -158,7 +144,6 @@ class RecoveryInProgressDataStateMachineImpl(
       )
     }
 
-    val scope = rememberStableCoroutineScope()
     return when (val dataState = state) {
       is WaitingForDelayPeriodState -> {
         // Suspend until delay period is finished.
@@ -172,13 +157,12 @@ class RecoveryInProgressDataStateMachineImpl(
           delayPeriodEndTime = dataState.delayPeriodEndTime,
           retryCloudRecovery = props.onRetryCloudRecovery,
           cancel = {
-            state =
-              getHwProofOfPossessionOrCancelDirectly(
-                props = props,
-                rollbackFromAwaitingProofOfPossession = {
-                  state = dataState
-                }
-              )
+            state = getHwProofOfPossessionOrCancelDirectly(
+              props = props,
+              rollbackFromAwaitingProofOfPossession = {
+                state = dataState
+              }
+            )
           }
         )
       }
@@ -193,20 +177,14 @@ class RecoveryInProgressDataStateMachineImpl(
           // for some reason (F8e or NFC error).
           canCancelRecovery = props.recovery is InitiatedRecovery || props.recovery is RotatedAuthKeys,
           startComplete = {
-            scope.launch {
-              state =
-                AwaitingChallengeAndSeksSignedWithHardwareState(
-                  challenge =
-                    DelayNotifyChallenge.fromParts(
-                      type = DelayNotifyChallenge.Type.RECOVERY,
-                      app = props.recovery.appGlobalAuthKey,
-                      recovery = props.recovery.appRecoveryAuthKey,
-                      hw = props.recovery.hardwareAuthKey
-                    ),
-                  csek = sekGenerator.generate(),
-                  ssek = sekGenerator.generate()
-                )
-            }
+            state = AwaitingChallengeAndSeksSignedWithHardwareState(
+              challenge = DelayNotifyChallenge.fromParts(
+                type = DelayNotifyChallenge.Type.RECOVERY,
+                app = props.recovery.appGlobalAuthKey,
+                recovery = props.recovery.appRecoveryAuthKey,
+                hw = props.recovery.hardwareAuthKey
+              )
+            )
           },
           cancel = {
             state =
@@ -223,18 +201,8 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is RotatingAuthTokensState -> {
         LaunchedEffect("rotate-auth-tokens") {
-          // If we are restoring the app from D+N, it means
-          // we have lost the local + cloud data and will no longer
-          // have access to the DDK, so we remove the trusted contacts
-          recoveryAuthCompleter
-            .rotateAuthTokens(
-              fullAccountId = props.recovery.fullAccountId,
-              destinationAppAuthPubKeys = AppAuthPublicKeys(
-                props.recovery.appGlobalAuthKey,
-                props.recovery.appRecoveryAuthKey,
-                props.recovery.appGlobalAuthKeyHwSignature
-              )
-            )
+          delayNotifyService
+            .rotateAuthTokens()
             .onSuccess {
               state = FetchingSealedDelegatedDecryptionKeyFromF8eState(
                 sealedCsek = dataState.sealedCsek,
@@ -251,7 +219,7 @@ class RecoveryInProgressDataStateMachineImpl(
       is CheckCompletionAttemptForSuccessOrCancellation -> {
         LaunchedEffect("checking auth") {
           withMinimumDelay(minimumLoadingDuration.value) {
-            verifyAppAuth(props)
+            delayNotifyService.verifyAuthKeysAfterRotation()
           }
             .onSuccess {
               state = RotatingAuthTokensState(
@@ -261,15 +229,11 @@ class RecoveryInProgressDataStateMachineImpl(
             }
             .onFailure { error ->
               when (error) {
-                is AuthProtocolError -> {
-                  recoveryStatusService.setLocalRecoveryProgress(
-                    CompletionAttemptFailedDueToServerCancellation
-                  )
-                }
+                is AuthProtocolError -> recoveryStatusService.setLocalRecoveryProgress(
+                  CompletionAttemptFailedDueToServerCancellation
+                )
 
-                else -> {
-                  state = FailedToRotateAuthState(cause = error)
-                }
+                else -> state = FailedToRotateAuthState(cause = error)
               }
             }
         }
@@ -300,20 +264,17 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is CancellingState -> {
         LaunchedEffect("cancelling-recovery") {
-          cancelRecovery(
-            props = props,
-            request = dataState.cancellationRequest,
-            onNeedsCommsVerificationError = {
-              state = VerifyingNotificationCommsForCancellationState
-            },
-            onError = { error ->
-              state =
+          delayNotifyService.cancelDelayNotify(dataState.cancellationRequest)
+            .onFailure { error ->
+              state = if (error is CancelDelayNotifyRecoveryError && error.isNeedsCommsVerificationError()) {
+                VerifyingNotificationCommsForCancellationState
+              } else {
                 FailedToCancelRecoveryState(
                   cause = error,
                   isNetworkError = error.isNetworkError()
                 )
+              }
             }
-          )
         }
 
         return CancellingData(props.recovery.factorToRecover)
@@ -334,62 +295,52 @@ class RecoveryInProgressDataStateMachineImpl(
         AwaitingChallengeAndCsekSignedWithHardwareData(
           nfcTransaction = SignChallengeAndSealSeks(
             challenge = dataState.challenge,
-            csek = dataState.csek,
-            ssek = dataState.ssek,
             success = { response ->
-              scope.launch {
-                csekDao.set(response.sealedCsek, dataState.csek)
-                  .onSuccess {
-                    ssekDao.set(response.sealedSsek, dataState.ssek)
-                      .onSuccess { _ ->
-                        state =
-                          RotatingAuthKeysWithF8eState(
-                            sealedCsek = response.sealedCsek,
-                            sealedSsek = response.sealedSsek,
-                            hardwareSignedChallenge = response.signedChallenge
-                          )
-                      }
-                      .onFailure { error ->
-                        state = FailedToRotateAuthState(cause = error)
-                      }
-                  }
-                  .onFailure { error ->
-                    state = FailedToRotateAuthState(cause = error)
-                  }
+              coroutineBinding {
+                csekDao.set(response.sealedCsek, response.csek).bind()
+                ssekDao.set(response.sealedSsek, response.ssek).bind()
+              }.onSuccess {
+                state = RotatingAuthKeysWithF8eState(
+                  sealedCsek = response.sealedCsek,
+                  sealedSsek = response.sealedSsek,
+                  hardwareSignedChallenge = response.signedChallenge
+                )
+              }.onFailure { error ->
+                state = FailedToRotateAuthState(cause = error)
               }
             },
-            failure = { state = ReadyToCompleteRecoveryState }
+            failure = { state = ReadyToCompleteRecoveryState },
+            sekGenerator = sekGenerator
           )
         )
       }
 
-      is FailedToRotateAuthState ->
-        FailedToRotateAuthData(
-          cause = dataState.cause,
-          factorToRecover = props.recovery.factorToRecover,
-          onConfirm = { state = ReadyToCompleteRecoveryState }
-        )
+      is FailedToRotateAuthState -> FailedToRotateAuthData(
+        cause = dataState.cause,
+        factorToRecover = props.recovery.factorToRecover,
+        onConfirm = { state = ReadyToCompleteRecoveryState }
+      )
 
       is RotatingAuthKeysWithF8eState -> {
         LaunchedEffect("rotate-auth-keys") {
-          verifyAppAuth(props)
-            .onSuccess {
-              state = RotatingAuthTokensState(
+          val rotationResult = delayNotifyService.verifyAuthKeysAfterRotation()
+            .andThenRecover {
+              // If verification failed, perform the rotation
+              delayNotifyService.rotateAuthKeys(
+                hardwareSignedChallenge = dataState.hardwareSignedChallenge,
                 sealedCsek = dataState.sealedCsek,
                 sealedSsek = dataState.sealedSsek
               )
             }
-            .onFailure {
-              rotateAuthKeys(props, dataState)
-                .onSuccess {
-                  state = RotatingAuthTokensState(
-                    sealedCsek = dataState.sealedCsek,
-                    sealedSsek = dataState.sealedSsek
-                  )
-                }
-                .onFailure { error ->
-                  state = FailedToRotateAuthState(error)
-                }
+
+          rotationResult.onSuccess {
+            state = RotatingAuthTokensState(
+              sealedCsek = dataState.sealedCsek,
+              sealedSsek = dataState.sealedSsek
+            )
+          }
+            .onFailure { error ->
+              state = FailedToRotateAuthState(cause = error)
             }
         }
 
@@ -425,53 +376,44 @@ class RecoveryInProgressDataStateMachineImpl(
           )
         } else {
           LaunchedEffect("fetch-ddk-from-f8e") {
-            relationshipsService.getRelationshipsWithoutSyncing(
-              accountId = props.recovery.fullAccountId
-            )
-              .onSuccess { relationships ->
-                // If we don't have any existing endorsed relationships, we can proceed with the recovery
-                if (relationships.protectedCustomers.isEmpty() && relationships.endorsedTrustedContacts.isEmpty()) {
-                  state = AwaitingHardwareProofOfPossessionState(
-                    sealedCsek = dataState.sealedCsek,
-                    sealedSsek = dataState.sealedSsek
-                  )
-                } else {
-                  // if we do have relationships, we need to fetch the DDK
-                  delegatedDecryptionKeyService
-                    .getSealedDelegatedDecryptionKeyData(
-                      accountId = props.recovery.fullAccountId
-                    )
-                    .onSuccess { sealedDelegatedDecryptionKeyData ->
-                      state = FetchingSealedDelegatedDecryptionKeyDataState(
-                        sealedData = sealedDelegatedDecryptionKeyData,
-                        sealedCsek = dataState.sealedCsek,
-                        sealedSsek = dataState.sealedSsek
-                      )
-                    }
-                    .onFailure { error ->
-                      // If we get a 404, we don't have a DDK stored in F8e and should remove TCs
-                      state =
-                        if (error is HttpError.ClientError && error.response.status.value == 404) {
-                          RemovingTrustedContactsState(
-                            sealedCsek = dataState.sealedCsek,
-                            sealedSsek = dataState.sealedSsek
-                          )
-                        } else {
-                          DelegatedDecryptionKeyErrorState(
-                            cause = Error(error),
-                            sealedCsek = dataState.sealedCsek,
-                            sealedSsek = dataState.sealedSsek
-                          )
-                        }
-                    }
-                }
-              }
-              .onFailure { error ->
-                state = DelegatedDecryptionKeyErrorState(
-                  cause = Error(error),
+            coroutineBinding {
+              val relationships = relationshipsService.getRelationshipsWithoutSyncing(
+                accountId = props.recovery.fullAccountId
+              ).bind()
+              // If we don't have any existing endorsed relationships, we can proceed with the recovery
+              if (relationships.protectedCustomers.isEmpty() && relationships.endorsedTrustedContacts.isEmpty()) {
+                state = AwaitingHardwareProofOfPossessionState(
                   sealedCsek = dataState.sealedCsek,
                   sealedSsek = dataState.sealedSsek
                 )
+              }
+
+              // if we do have relationships, we need to fetch the DDK
+              delegatedDecryptionKeyService.getSealedDelegatedDecryptionKeyData(
+                accountId = props.recovery.fullAccountId
+              ).bind()
+            }.onSuccess { sealedDelegatedDecryptionKeyData ->
+              state = FetchingSealedDelegatedDecryptionKeyDataState(
+                sealedData = sealedDelegatedDecryptionKeyData,
+                sealedCsek = dataState.sealedCsek,
+                sealedSsek = dataState.sealedSsek
+              )
+            }
+              .onFailure { error ->
+                // If we get a 404, we don't have a DDK stored in F8e and should remove TCs
+                state =
+                  if (error is HttpError.ClientError && error.response.status.value == 404) {
+                    RemovingTrustedContactsState(
+                      sealedCsek = dataState.sealedCsek,
+                      sealedSsek = dataState.sealedSsek
+                    )
+                  } else {
+                    DelegatedDecryptionKeyErrorState(
+                      cause = Error(error),
+                      sealedCsek = dataState.sealedCsek,
+                      sealedSsek = dataState.sealedSsek
+                    )
+                  }
               }
           }
         }
@@ -516,7 +458,7 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is RemovingTrustedContactsState -> {
         LaunchedEffect("remove-trusted-contacts") {
-          removeTrustedContacts(props)
+          delayNotifyService.removeTrustedContacts()
             .onSuccess {
               state =
                 AwaitingHardwareProofOfPossessionState(dataState.sealedCsek, dataState.sealedSsek)
@@ -552,38 +494,24 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is CreatingSpendingKeysWithF8eState -> {
         LaunchedEffect("create-spending-keys") {
-          createF8eSpendingKeyset(props, dataState)
+          delayNotifyService.createSpendingKeyset(
+            hardwareProofOfPossession = dataState.hardwareProofOfPossession
+          )
             .onSuccess { f8eSpendingKeyset ->
-              // Set progress to indicate spending keys have been created (not activated yet)
-              recoveryStatusService.setLocalRecoveryProgress(
-                LocalRecoveryAttemptProgress.CreatedSpendingKeys(
-                  f8eSpendingKeyset = f8eSpendingKeyset
-                )
-              )
-                .onSuccess {
-                  state =
-                    if (encryptedDescriptorBackupsFeatureFlag.isEnabled() && dataState.sealedSsek != null) {
-                      ProcessingDescriptorBackupsState(
-                        sealedCsek = dataState.sealedCsek,
-                        sealedSsek = dataState.sealedSsek,
-                        f8eSpendingKeyset = f8eSpendingKeyset,
-                        hardwareProofOfPossession = dataState.hardwareProofOfPossession
-                      )
-                    } else {
-                      ActivatingSpendingKeysetState(
-                        sealedCsek = dataState.sealedCsek,
-                        f8eSpendingKeyset = f8eSpendingKeyset,
-                        hardwareProofOfPossession = dataState.hardwareProofOfPossession,
-                        keysetState = KeysetState.Incomplete
-                      )
-                    }
-                }
-                .onFailure { error ->
-                  state = FailedToCreateSpendingKeysState(
-                    cause = Error(error),
+              state =
+                if (encryptedDescriptorBackupsFeatureFlag.isEnabled() && dataState.sealedSsek != null) {
+                  ProcessingDescriptorBackupsState(
                     sealedCsek = dataState.sealedCsek,
                     sealedSsek = dataState.sealedSsek,
+                    f8eSpendingKeyset = f8eSpendingKeyset,
                     hardwareProofOfPossession = dataState.hardwareProofOfPossession
+                  )
+                } else {
+                  ActivatingSpendingKeysetState(
+                    sealedCsek = dataState.sealedCsek,
+                    f8eSpendingKeyset = f8eSpendingKeyset,
+                    hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+                    keysetState = Incomplete
                   )
                 }
             }
@@ -676,37 +604,30 @@ class RecoveryInProgressDataStateMachineImpl(
         HandlingDescriptorEncryption(props.recovery.factorToRecover)
       }
 
-      is FailedToProcessDescriptorBackupsState -> {
-        FailedToProcessDescriptorBackupsData(
-          physicalFactor = props.recovery.factorToRecover,
-          cause = dataState.cause,
-          onRetry = {
-            state = ProcessingDescriptorBackupsState(
-              sealedCsek = dataState.sealedCsek,
-              sealedSsek = dataState.sealedSsek,
-              hardwareProofOfPossession = dataState.hardwareProofOfPossession,
-              f8eSpendingKeyset = dataState.f8eSpendingKeyset
-            )
-          }
-        )
-      }
+      is FailedToProcessDescriptorBackupsState -> FailedToProcessDescriptorBackupsData(
+        physicalFactor = props.recovery.factorToRecover,
+        cause = dataState.cause,
+        onRetry = {
+          state = ProcessingDescriptorBackupsState(
+            sealedCsek = dataState.sealedCsek,
+            sealedSsek = dataState.sealedSsek,
+            hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+            f8eSpendingKeyset = dataState.f8eSpendingKeyset
+          )
+        }
+      )
 
       is ActivatingSpendingKeysetState -> {
         LaunchedEffect("activate-spending-keyset") {
-          f8eSpendingKeyRotator.activateSpendingKeyset(
-            fullAccountId = props.recovery.fullAccountId,
+          delayNotifyService.activateSpendingKeyset(
             keyset = dataState.f8eSpendingKeyset,
-            appAuthKey = props.recovery.appGlobalAuthKey,
             hardwareProofOfPossession = dataState.hardwareProofOfPossession
           )
             .onSuccess {
               state = PerformingDdkBackupState(
                 sealedCsek = dataState.sealedCsek,
-                keybox = createNewKeybox(
-                  recovery = props.recovery,
-                  f8eSpendingKeyset = dataState.f8eSpendingKeyset,
-                  keysetState = dataState.keysetState
-                ),
+                f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                keysetState = dataState.keysetState,
                 delegatedDecryptionKey = null
               )
             }
@@ -723,66 +644,60 @@ class RecoveryInProgressDataStateMachineImpl(
         ActivatingSpendingKeysetData(props.recovery.factorToRecover)
       }
 
-      is AwaitingHardwareProofOfPossessionForActivationState -> {
-        AwaitingHardwareProofOfPossessionForActivationData(
-          physicalFactor = props.recovery.factorToRecover,
-          addHardwareProofOfPossession = { hwProofOfPossession ->
-            state = ActivatingSpendingKeysetState(
-              sealedCsek = dataState.sealedCsek,
-              f8eSpendingKeyset = dataState.f8eSpendingKeyset,
-              hardwareProofOfPossession = hwProofOfPossession,
-              keysetState = dataState.keysetState
-            )
-          },
-          rollback = {
-            state = calculateInitialState(props.recovery)
-          },
-          appAuthKey = props.recovery.appGlobalAuthKey,
-          fullAccountId = props.recovery.fullAccountId
-        )
-      }
+      is AwaitingHardwareProofOfPossessionForActivationState -> AwaitingHardwareProofOfPossessionForActivationData(
+        physicalFactor = props.recovery.factorToRecover,
+        addHardwareProofOfPossession = { hwProofOfPossession ->
+          state = ActivatingSpendingKeysetState(
+            sealedCsek = dataState.sealedCsek,
+            f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+            hardwareProofOfPossession = hwProofOfPossession,
+            keysetState = dataState.keysetState
+          )
+        },
+        rollback = {
+          state = calculateInitialState(props.recovery)
+        },
+        appAuthKey = props.recovery.appGlobalAuthKey,
+        fullAccountId = props.recovery.fullAccountId
+      )
 
-      is FailedToActivateSpendingKeysetState -> {
-        FailedToActivateSpendingKeysetData(
-          physicalFactor = props.recovery.factorToRecover,
-          cause = dataState.cause,
-          onRetry = {
-            state = ActivatingSpendingKeysetState(
-              sealedCsek = dataState.sealedCsek,
-              f8eSpendingKeyset = dataState.f8eSpendingKeyset,
-              hardwareProofOfPossession = dataState.hardwareProofOfPossession,
-              keysetState = dataState.keysetState
-            )
-          }
-        )
-      }
+      is FailedToActivateSpendingKeysetState -> FailedToActivateSpendingKeysetData(
+        physicalFactor = props.recovery.factorToRecover,
+        cause = dataState.cause,
+        onRetry = {
+          state = ActivatingSpendingKeysetState(
+            sealedCsek = dataState.sealedCsek,
+            f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+            hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+            keysetState = dataState.keysetState
+          )
+        }
+      )
 
-      is FailedToCreateSpendingKeysState ->
-        FailedToCreateSpendingKeysData(
-          physicalFactor = props.recovery.factorToRecover,
-          cause = dataState.cause,
-          onRetry = {
-            state =
-              CreatingSpendingKeysWithF8eState(
-                sealedCsek = dataState.sealedCsek,
-                sealedSsek = dataState.sealedSsek,
-                hardwareProofOfPossession = dataState.hardwareProofOfPossession
-              )
-          }
-        )
-
-      is FailedPerformingCloudBackupState ->
-        FailedPerformingCloudBackupData(
-          keybox = dataState.keybox,
-          physicalFactor = props.recovery.factorToRecover,
-          cause = dataState.cause,
-          retry = {
-            state = PerformingCloudBackupState(
+      is FailedToCreateSpendingKeysState -> FailedToCreateSpendingKeysData(
+        physicalFactor = props.recovery.factorToRecover,
+        cause = dataState.cause,
+        onRetry = {
+          state =
+            CreatingSpendingKeysWithF8eState(
               sealedCsek = dataState.sealedCsek,
-              keybox = dataState.keybox
+              sealedSsek = dataState.sealedSsek,
+              hardwareProofOfPossession = dataState.hardwareProofOfPossession
             )
-          }
-        )
+        }
+      )
+
+      is FailedPerformingCloudBackupState -> FailedPerformingCloudBackupData(
+        keybox = dataState.keybox,
+        physicalFactor = props.recovery.factorToRecover,
+        cause = dataState.cause,
+        retry = {
+          state = PerformingCloudBackupState(
+            sealedCsek = dataState.sealedCsek,
+            keybox = dataState.keybox
+          )
+        }
+      )
 
       is FailedRegeneratingTcCertificatesState -> {
         FailedRegeneratingTcCertificatesData(
@@ -791,7 +706,8 @@ class RecoveryInProgressDataStateMachineImpl(
           retry = {
             state = RegeneratingTcCertificatesState(
               sealedCsek = dataState.sealedCsek,
-              keybox = dataState.keybox
+              f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+              keysetState = dataState.keysetState
             )
           }
         )
@@ -806,13 +722,13 @@ class RecoveryInProgressDataStateMachineImpl(
               .onSuccess {
                 state = RegeneratingTcCertificatesState(
                   sealedCsek = dataState.sealedCsek,
-                  keybox = dataState.keybox
+                  f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                  keysetState = dataState.keysetState
                 )
               }
           }
 
           PerformingDdkBackupData(
-            keybox = dataState.keybox,
             physicalFactor = props.recovery.factorToRecover
           )
         } else if (dataState.delegatedDecryptionKey == null) {
@@ -821,21 +737,22 @@ class RecoveryInProgressDataStateMachineImpl(
               .onSuccess { keypair ->
                 state = PerformingDdkBackupState(
                   sealedCsek = dataState.sealedCsek,
-                  keybox = dataState.keybox,
+                  f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                  keysetState = dataState.keysetState,
                   delegatedDecryptionKey = keypair
                 )
               }
               .onFailure { error ->
                 state = FailedPerformingDdkBackupState(
                   sealedCsek = dataState.sealedCsek,
-                  keybox = dataState.keybox,
+                  f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                  keysetState = dataState.keysetState,
                   cause = error
                 )
               }
           }
 
           PerformingDdkBackupData(
-            keybox = dataState.keybox,
             physicalFactor = props.recovery.factorToRecover
           )
         } else {
@@ -843,30 +760,36 @@ class RecoveryInProgressDataStateMachineImpl(
             nfcTransaction = SealDelegatedDecryptionKey(
               unsealedKeypair = dataState.delegatedDecryptionKey,
               success = { sealedDataResult ->
-                delegatedDecryptionKeyService.uploadSealedDelegatedDecryptionKeyData(
-                  props.recovery.fullAccountId,
-                  sealedDataResult.sealedData
-                ).onSuccess {
+                coroutineBinding {
+                  delegatedDecryptionKeyService.uploadSealedDelegatedDecryptionKeyData(
+                    props.recovery.fullAccountId,
+                    sealedDataResult.sealedData
+                  ).bind()
+
                   recoveryStatusService.setLocalRecoveryProgress(LocalRecoveryAttemptProgress.DdkBackedUp)
-                    .onSuccess {
-                      state = RegeneratingTcCertificatesState(
-                        sealedCsek = dataState.sealedCsek,
-                        keybox = dataState.keybox
-                      )
-                    }
-                }.onFailure {
-                  state = FailedPerformingDdkBackupState(
+                    .bind()
+                }.onSuccess {
+                  state = RegeneratingTcCertificatesState(
                     sealedCsek = dataState.sealedCsek,
-                    keybox = dataState.keybox,
-                    cause = it,
-                    delegatedDecryptionKey = dataState.delegatedDecryptionKey
+                    f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                    keysetState = dataState.keysetState
                   )
                 }
+                  .onFailure {
+                    state = FailedPerformingDdkBackupState(
+                      sealedCsek = dataState.sealedCsek,
+                      f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                      keysetState = dataState.keysetState,
+                      cause = it,
+                      delegatedDecryptionKey = dataState.delegatedDecryptionKey
+                    )
+                  }
               },
               failure = {
                 state = FailedPerformingDdkBackupState(
                   sealedCsek = dataState.sealedCsek,
-                  keybox = dataState.keybox,
+                  f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                  keysetState = dataState.keysetState,
                   cause = Error("NFC Error"),
                   delegatedDecryptionKey = dataState.delegatedDecryptionKey
                 )
@@ -878,54 +801,51 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is FailedPerformingDdkBackupState ->
         FailedPerformingDdkBackupData(
-          keybox = dataState.keybox,
           physicalFactor = props.recovery.factorToRecover,
           cause = dataState.cause,
           retry = {
             state = PerformingDdkBackupState(
               sealedCsek = dataState.sealedCsek,
-              keybox = dataState.keybox,
+              f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+              keysetState = dataState.keysetState,
               delegatedDecryptionKey = dataState.delegatedDecryptionKey
             )
           }
         )
 
-      is PerformingCloudBackupState ->
-        PerformingCloudBackupData(
-          sealedCsek = dataState.sealedCsek,
-          keybox = dataState.keybox,
-          onBackupFinished = {
-            scope.launch {
-              recoveryStatusService
-                .setLocalRecoveryProgress(LocalRecoveryAttemptProgress.BackedUpToCloud)
-                .onSuccess {
-                  state = PerformingSweepState(
-                    keybox = dataState.keybox
-                  )
-                }
+      is PerformingCloudBackupState -> PerformingCloudBackupData(
+        sealedCsek = dataState.sealedCsek,
+        keybox = dataState.keybox,
+        onBackupFinished = {
+          recoveryStatusService
+            .setLocalRecoveryProgress(LocalRecoveryAttemptProgress.BackedUpToCloud)
+            .onSuccess {
+              state = PerformingSweepState(
+                hasAttemptedSweep = false,
+                keybox = dataState.keybox
+              )
             }
-          },
-          onBackupFailed = { error ->
-            state =
-              FailedPerformingCloudBackupState(
-                cause = error,
-                sealedCsek = dataState.sealedCsek,
-                keybox = dataState.keybox
-              )
-          }
-        )
+        },
+        onBackupFailed = { error ->
+          state = FailedPerformingCloudBackupState(
+            cause = error,
+            sealedCsek = dataState.sealedCsek,
+            keybox = dataState.keybox
+          )
+        }
+      )
 
-      is PerformingSweepState ->
-        PerformingSweepData(
-          physicalFactor = props.recovery.factorToRecover,
-          keybox = dataState.keybox,
-          rollback = {
-            state =
-              ExitedPerformingSweepState(
-                keybox = dataState.keybox
-              )
-          }
-        )
+      is PerformingSweepState -> PerformingSweepData(
+        hasAttemptedSweep = dataState.hasAttemptedSweep,
+        physicalFactor = props.recovery.factorToRecover,
+        keybox = dataState.keybox,
+        rollback = {
+          state =
+            ExitedPerformingSweepState(
+              keybox = dataState.keybox
+            )
+        }
+      )
 
       is ExitedPerformingSweepState ->
         ExitedPerformingSweepData(
@@ -933,6 +853,7 @@ class RecoveryInProgressDataStateMachineImpl(
           retry = {
             state =
               PerformingSweepState(
+                hasAttemptedSweep = false,
                 keybox = dataState.keybox
               )
           }
@@ -949,11 +870,29 @@ class RecoveryInProgressDataStateMachineImpl(
         )
 
       is RegeneratingTcCertificatesState -> {
-        RegenerateTcCertificatesEffect(
-          props,
-          dataState = dataState,
-          assignState = { newState -> state = newState }
-        )
+        LaunchedEffect("regenerate-tc-certificates") {
+          val keybox = createNewKeybox(
+            recovery = props.recovery,
+            f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+            keysetState = dataState.keysetState
+          )
+
+          delayNotifyService.regenerateTrustedContactCertificates(props.oldAppGlobalAuthKey)
+            .onSuccess {
+              state = PerformingCloudBackupState(
+                dataState.sealedCsek,
+                keybox = keybox
+              )
+            }
+            .onFailure {
+              state = FailedRegeneratingTcCertificatesState(
+                cause = it,
+                sealedCsek = dataState.sealedCsek,
+                f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                keysetState = dataState.keysetState
+              )
+            }
+        }
         RegeneratingTcCertificatesData
       }
 
@@ -963,30 +902,28 @@ class RecoveryInProgressDataStateMachineImpl(
           nfcTransaction = UnsealSsek(
             sealedSsek = dataState.sealedSsekForDecryption,
             success = { unsealedSsek ->
-              scope.launch {
-                // Store the unsealed CSEK and proceed with completion
-                ssekDao.set(dataState.sealedSsekForDecryption, unsealedSsek)
-                  .onSuccess {
-                    state = UploadingDescriptorBackupsState(
-                      sealedCsek = dataState.sealedCsek,
-                      sealedSsekForEncryption = dataState.sealedSsekForRecovery,
-                      sealedSsekForDecryption = dataState.sealedSsekForDecryption,
-                      f8eSpendingKeyset = dataState.f8eSpendingKeyset,
-                      hardwareProofOfPossession = dataState.hardwareProofOfPossession,
-                      descriptorsToDecrypt = dataState.descriptorsToDecrypt,
-                      keysetsToEncrypt = dataState.keysetsToEncrypt
-                    )
-                  }
-                  .onFailure { error ->
-                    state = FailedToProcessDescriptorBackupsState(
-                      sealedCsek = dataState.sealedCsek,
-                      sealedSsek = dataState.sealedSsekForRecovery,
-                      f8eSpendingKeyset = dataState.f8eSpendingKeyset,
-                      cause = Error(error),
-                      hardwareProofOfPossession = dataState.hardwareProofOfPossession
-                    )
-                  }
-              }
+              // Store the unsealed CSEK and proceed with completion
+              ssekDao.set(dataState.sealedSsekForDecryption, unsealedSsek)
+                .onSuccess {
+                  state = UploadingDescriptorBackupsState(
+                    sealedCsek = dataState.sealedCsek,
+                    sealedSsekForEncryption = dataState.sealedSsekForRecovery,
+                    sealedSsekForDecryption = dataState.sealedSsekForDecryption,
+                    f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                    hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+                    descriptorsToDecrypt = dataState.descriptorsToDecrypt,
+                    keysetsToEncrypt = dataState.keysetsToEncrypt
+                  )
+                }
+                .onFailure { error ->
+                  state = FailedToProcessDescriptorBackupsState(
+                    sealedCsek = dataState.sealedCsek,
+                    sealedSsek = dataState.sealedSsekForRecovery,
+                    f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                    cause = Error(error),
+                    hardwareProofOfPossession = dataState.hardwareProofOfPossession
+                  )
+                }
             },
             failure = {
               state = FailedToProcessDescriptorBackupsState(
@@ -1003,39 +940,34 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is UploadingDescriptorBackupsState -> {
         LaunchedEffect("upload-descriptor-backups") {
-          descriptorBackupService.uploadDescriptorBackups(
-            accountId = props.recovery.fullAccountId,
-            sealedSsekForEncryption = dataState.sealedSsekForEncryption,
-            sealedSsekForDecryption = dataState.sealedSsekForDecryption,
-            appAuthKey = props.recovery.appGlobalAuthKey,
-            hwKeyProof = dataState.hardwareProofOfPossession,
-            descriptorsToDecrypt = dataState.descriptorsToDecrypt,
-            keysetsToEncrypt = dataState.keysetsToEncrypt
-          ).mapError { Error("Failed to process descriptor backups: $it") }
-            .onSuccess { keysets ->
-              recoveryStatusService
-                .setLocalRecoveryProgress(
-                  LocalRecoveryAttemptProgress.UploadedDescriptorBackups(
-                    keysets
-                  )
+          coroutineBinding {
+            val keysets = descriptorBackupService.uploadDescriptorBackups(
+              accountId = props.recovery.fullAccountId,
+              sealedSsekForEncryption = dataState.sealedSsekForEncryption,
+              sealedSsekForDecryption = dataState.sealedSsekForDecryption,
+              appAuthKey = props.recovery.appGlobalAuthKey,
+              hwKeyProof = dataState.hardwareProofOfPossession,
+              descriptorsToDecrypt = dataState.descriptorsToDecrypt,
+              keysetsToEncrypt = dataState.keysetsToEncrypt
+            ).mapError { Error("Failed to process descriptor backups: $it") }
+              .bind()
+
+            recoveryStatusService
+              .setLocalRecoveryProgress(
+                LocalRecoveryAttemptProgress.UploadedDescriptorBackups(
+                  keysets
                 )
-                .onSuccess {
-                  state = ActivatingSpendingKeysetState(
-                    sealedCsek = dataState.sealedCsek,
-                    f8eSpendingKeyset = dataState.f8eSpendingKeyset,
-                    hardwareProofOfPossession = dataState.hardwareProofOfPossession,
-                    keysetState = KeysetState.Complete(keysets)
-                  )
-                }
-                .onFailure { error ->
-                  state = FailedToProcessDescriptorBackupsState(
-                    sealedCsek = dataState.sealedCsek,
-                    sealedSsek = dataState.sealedSsekForEncryption,
-                    f8eSpendingKeyset = dataState.f8eSpendingKeyset,
-                    cause = Error(error),
-                    hardwareProofOfPossession = dataState.hardwareProofOfPossession
-                  )
-                }
+              ).bind()
+
+            keysets
+          }
+            .onSuccess { keysets ->
+              state = ActivatingSpendingKeysetState(
+                sealedCsek = dataState.sealedCsek,
+                f8eSpendingKeyset = dataState.f8eSpendingKeyset,
+                hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+                keysetState = Complete(keysets)
+              )
             }
             .onFailure { error ->
               state = FailedToProcessDescriptorBackupsState(
@@ -1053,130 +985,6 @@ class RecoveryInProgressDataStateMachineImpl(
     }
   }
 
-  private suspend fun removeTrustedContacts(props: RecoveryInProgressProps): Result<Unit, Error> =
-    coroutineBinding {
-      relationshipsService
-        .getRelationshipsWithoutSyncing(
-          accountId = props.recovery.fullAccountId
-        )
-        .logFailure { "Error fetching relationships for removal" }
-        .onSuccess { relationships ->
-          relationships.protectedCustomers.onEach {
-            relationshipsService.removeRelationshipWithoutSyncing(
-              accountId = props.recovery.fullAccountId,
-              hardwareProofOfPossession = null,
-              AuthTokenScope.Recovery,
-              it.relationshipId
-            )
-          }
-        }
-        .bind()
-    }
-
-  /**
-   * Verify that can authenticate with new app global and recovery auth key post recovery.
-   */
-  private suspend fun verifyAppAuth(props: RecoveryInProgressProps): Result<Unit, Error> =
-    coroutineBinding {
-      accountAuthenticator
-        .appAuth(
-          appAuthPublicKey = props.recovery.appGlobalAuthKey,
-          authTokenScope = AuthTokenScope.Global
-        )
-        .logAuthFailure { "Error authenticating with new app global auth key after recovery completed." }
-        .bind()
-
-      accountAuthenticator
-        .appAuth(
-          appAuthPublicKey = props.recovery.appRecoveryAuthKey,
-          authTokenScope = AuthTokenScope.Recovery
-        )
-        .logAuthFailure { "Error authenticating with new app recovery auth key after recovery completed." }
-        .bind()
-    }
-
-  @Suppress("FunctionNaming")
-  @Composable
-  private fun RegenerateTcCertificatesEffect(
-    props: RecoveryInProgressProps,
-    dataState: RegeneratingTcCertificatesState,
-    assignState: (State) -> Unit,
-  ) {
-    LaunchedEffect("regenerate-tc-certificates") {
-      regenerateTcCertificates(props)
-        .onSuccess {
-          assignState(
-            PerformingCloudBackupState(
-              dataState.sealedCsek,
-              dataState.keybox
-            )
-          )
-        }
-        .onFailure {
-          assignState(
-            FailedRegeneratingTcCertificatesState(
-              cause = it,
-              sealedCsek = dataState.sealedCsek,
-              keybox = dataState.keybox
-            )
-          )
-        }
-    }
-  }
-
-  private suspend fun regenerateTcCertificates(props: RecoveryInProgressProps) =
-    coroutineBinding {
-      // 1. Get latest trusted contacts from f8e
-      val trustedContacts = relationshipsService
-        .getRelationshipsWithoutSyncing(
-          accountId = props.recovery.fullAccountId
-        )
-        .bind()
-        .endorsedTrustedContacts
-      // 2. Verify all trusted contacts with new auth keys
-      endorseTrustedContactsService.authenticateRegenerateAndEndorse(
-        accountId = props.recovery.fullAccountId,
-        contacts = trustedContacts,
-        oldAppGlobalAuthKey = props.oldAppGlobalAuthKey,
-        oldHwAuthKey = props.recovery.hardwareAuthKey,
-        newAppGlobalAuthKey = props.recovery.appGlobalAuthKey,
-        newAppGlobalAuthKeyHwSignature = props.recovery.appGlobalAuthKeyHwSignature
-      ).bind()
-
-      // 3. Re-sync relationships and store locally
-      relationshipsService
-        .syncAndVerifyRelationships(
-          accountId = props.recovery.fullAccountId,
-          appAuthKey = props.recovery.appGlobalAuthKey,
-          hwAuthPublicKey = props.recovery.hardwareAuthKey
-        )
-        .bind()
-    }
-
-  private suspend fun createF8eSpendingKeyset(
-    props: RecoveryInProgressProps,
-    state: CreatingSpendingKeysWithF8eState,
-  ): Result<F8eSpendingKeyset, Error> =
-    coroutineBinding {
-      // TODO(BKR-1094): Use the recovery destination auth key, not the stale ones
-      deviceTokenManager.addDeviceTokenIfPresentForAccount(
-        fullAccountId = props.recovery.fullAccountId,
-        authTokenScope = AuthTokenScope.Recovery
-      ).result.logFailure {
-        "Failed to add device token for account during Social Recovery"
-      }
-
-      f8eSpendingKeyRotator
-        .createSpendingKeyset(
-          fullAccountId = props.recovery.fullAccountId,
-          appSpendingKey = props.recovery.appSpendingKey,
-          hardwareSpendingKey = props.recovery.hardwareSpendingKey,
-          appAuthKey = props.recovery.appGlobalAuthKey,
-          hardwareProofOfPossession = state.hardwareProofOfPossession
-        )
-        .bind()
-    }
-
   private fun createNewKeybox(
     recovery: StillRecovering,
     f8eSpendingKeyset: F8eSpendingKeyset,
@@ -1190,7 +998,7 @@ class RecoveryInProgressDataStateMachineImpl(
     }
 
     val (keysets, canUseKeyboxKeysets) = when (keysetState) {
-      is KeysetState.Incomplete -> {
+      is Incomplete -> {
         val activeKeyset = SpendingKeyset(
           localId = uuidGenerator.random(),
           f8eSpendingKeyset = f8eSpendingKeyset,
@@ -1200,7 +1008,7 @@ class RecoveryInProgressDataStateMachineImpl(
         )
         listOf(activeKeyset) to false
       }
-      is KeysetState.Complete -> {
+      is Complete -> {
         keysetState.keysets to true
       }
     }
@@ -1239,92 +1047,79 @@ class RecoveryInProgressDataStateMachineImpl(
    */
   private fun calculateInitialState(recovery: StillRecovering): State {
     return when (recovery) {
-      is InitiatedRecovery ->
-        when (
-          val remainingDelayPeriod = recovery.serverRecovery.remainingDelayPeriod()
-        ) {
-          Duration.ZERO -> ReadyToCompleteRecoveryState
-          else ->
-            WaitingForDelayPeriodState(
-              remainingDelayPeriod = remainingDelayPeriod,
-              delayPeriodStartTime = recovery.serverRecovery.delayStartTime,
-              delayPeriodEndTime = recovery.serverRecovery.delayEndTime,
-              fullAccountId = recovery.fullAccountId
-            )
-        }
-
-      is MaybeNoLongerRecovering ->
-        CheckCompletionAttemptForSuccessOrCancellation(
-          sealedCsek = recovery.sealedCsek,
-          sealedSsek = recovery.sealedSsek
-        )
-
-      is RotatedAuthKeys -> {
-        FetchingSealedDelegatedDecryptionKeyFromF8eState(
-          sealedCsek = recovery.sealedCsek,
-          sealedSsek = recovery.sealedSsek
+      is InitiatedRecovery -> when (val remainingDelayPeriod = recovery.serverRecovery.remainingDelayPeriod()) {
+        Duration.ZERO -> ReadyToCompleteRecoveryState
+        else -> WaitingForDelayPeriodState(
+          remainingDelayPeriod = remainingDelayPeriod,
+          delayPeriodStartTime = recovery.serverRecovery.delayStartTime,
+          delayPeriodEndTime = recovery.serverRecovery.delayEndTime,
+          fullAccountId = recovery.fullAccountId
         )
       }
 
-      is CreatedSpendingKeys -> {
-        if (encryptedDescriptorBackupsFeatureFlag.isEnabled() && recovery.sealedSsek != null) {
-          AwaitingHardwareProofOfPossessionForDescriptorBackupsState(
-            sealedCsek = recovery.sealedCsek,
-            sealedSsek = recovery.sealedSsek!!,
-            f8eSpendingKeyset = recovery.f8eSpendingKeyset
-          )
-        } else {
-          // Feature flag is disabled or sealedSsek is null (app update during recovery)
-          // Since we don't have the hardware proof of possession stored in recovery state,
-          // we need to get it again
-          AwaitingHardwareProofOfPossessionForActivationState(
-            sealedCsek = recovery.sealedCsek,
-            f8eSpendingKeyset = recovery.f8eSpendingKeyset,
-            keysetState = KeysetState.Incomplete
-          )
-        }
-      }
+      is MaybeNoLongerRecovering -> CheckCompletionAttemptForSuccessOrCancellation(
+        sealedCsek = recovery.sealedCsek,
+        sealedSsek = recovery.sealedSsek
+      )
 
-      is UploadedDescriptorBackups -> {
+      is RotatedAuthKeys -> FetchingSealedDelegatedDecryptionKeyFromF8eState(
+        sealedCsek = recovery.sealedCsek,
+        sealedSsek = recovery.sealedSsek
+      )
+
+      is CreatedSpendingKeys -> if (encryptedDescriptorBackupsFeatureFlag.isEnabled() && recovery.sealedSsek != null) {
+        AwaitingHardwareProofOfPossessionForDescriptorBackupsState(
+          sealedCsek = recovery.sealedCsek,
+          sealedSsek = recovery.sealedSsek!!,
+          f8eSpendingKeyset = recovery.f8eSpendingKeyset
+        )
+      } else {
+        // Feature flag is disabled or sealedSsek is null (app update during recovery)
+        // Since we don't have the hardware proof of possession stored in recovery state,
+        // we need to get it again
         AwaitingHardwareProofOfPossessionForActivationState(
           sealedCsek = recovery.sealedCsek,
           f8eSpendingKeyset = recovery.f8eSpendingKeyset,
-          keysetState = KeysetState.Complete(recovery.keysets)
+          keysetState = Incomplete
         )
       }
 
-      is ActivatedSpendingKeys -> {
-        PerformingDdkBackupState(
-          sealedCsek = recovery.sealedCsek,
-          keybox = createNewKeybox(
-            recovery = recovery,
-            f8eSpendingKeyset = recovery.f8eSpendingKeyset,
-            keysetState = if (recovery.keysets.isNotEmpty()) KeysetState.Complete(recovery.keysets) else KeysetState.Incomplete
-          ),
-          delegatedDecryptionKey = null
-        )
-      }
+      is UploadedDescriptorBackups -> AwaitingHardwareProofOfPossessionForActivationState(
+        sealedCsek = recovery.sealedCsek,
+        f8eSpendingKeyset = recovery.f8eSpendingKeyset,
+        keysetState = Complete(recovery.keysets)
+      )
 
-      is DdkBackedUp -> {
-        RegeneratingTcCertificatesState(
-          sealedCsek = recovery.sealedCsek,
-          keybox = createNewKeybox(
-            recovery = recovery,
-            f8eSpendingKeyset = recovery.f8eSpendingKeyset,
-            keysetState = if (recovery.keysets.isNotEmpty()) KeysetState.Complete(recovery.keysets) else KeysetState.Incomplete
-          )
-        )
-      }
+      is ActivatedSpendingKeys -> PerformingDdkBackupState(
+        sealedCsek = recovery.sealedCsek,
+        f8eSpendingKeyset = recovery.f8eSpendingKeyset,
+        keysetState = if (recovery.keysets.isNotEmpty()) Complete(recovery.keysets) else Incomplete,
+        delegatedDecryptionKey = null
+      )
 
-      is BackedUpToCloud -> {
-        PerformingSweepState(
-          keybox = createNewKeybox(
-            recovery = recovery,
-            f8eSpendingKeyset = recovery.f8eSpendingKeyset,
-            keysetState = if (recovery.keysets.isNotEmpty()) KeysetState.Complete(recovery.keysets) else KeysetState.Incomplete
-          )
+      is DdkBackedUp -> RegeneratingTcCertificatesState(
+        sealedCsek = recovery.sealedCsek,
+        f8eSpendingKeyset = recovery.f8eSpendingKeyset,
+        keysetState = if (recovery.keysets.isNotEmpty()) Complete(recovery.keysets) else Incomplete
+      )
+
+      is BackedUpToCloud -> PerformingSweepState(
+        hasAttemptedSweep = false,
+        keybox = createNewKeybox(
+          recovery = recovery,
+          f8eSpendingKeyset = recovery.f8eSpendingKeyset,
+          keysetState = if (recovery.keysets.isNotEmpty()) Complete(recovery.keysets) else Incomplete
         )
-      }
+      )
+
+      is SweepAttempted -> PerformingSweepState(
+        hasAttemptedSweep = true,
+        keybox = createNewKeybox(
+          recovery = recovery,
+          f8eSpendingKeyset = recovery.f8eSpendingKeyset,
+          keysetState = if (recovery.keysets.isNotEmpty()) Complete(recovery.keysets) else Incomplete
+        )
+      )
     }
   }
 
@@ -1334,30 +1129,6 @@ class RecoveryInProgressDataStateMachineImpl(
       endTime = delayEndTime
     )
 
-  private suspend fun cancelRecovery(
-    props: RecoveryInProgressProps,
-    request: CancellationRequest,
-    onNeedsCommsVerificationError: () -> Unit,
-    onError: (CancelDelayNotifyRecoveryError) -> Unit,
-  ): Result<Unit, CancelDelayNotifyRecoveryError> {
-    return when (request) {
-      CancelLostHardwareRecovery ->
-        lostHardwareRecoveryService.cancelRecovery()
-      is CancelLostAppAndCloudRecovery ->
-        lostAppAndCloudRecoveryService
-          .cancelRecovery(
-            props.recovery.fullAccountId,
-            request.hwProofOfPossession
-          )
-    }.onFailure { error ->
-      if (error.isNeedsCommsVerificationError()) {
-        onNeedsCommsVerificationError()
-      } else {
-        onError(error)
-      }
-    }
-  }
-
   private fun getHwProofOfPossessionOrCancelDirectly(
     props: RecoveryInProgressProps,
     rollbackFromAwaitingProofOfPossession: () -> Unit,
@@ -1366,44 +1137,6 @@ class RecoveryInProgressDataStateMachineImpl(
       App -> AwaitingCancellationProofOfPossessionState(rollbackFromAwaitingProofOfPossession)
       Hardware -> CancellingState(CancelLostHardwareRecovery)
     }
-  }
-
-  private suspend fun rotateAuthKeys(
-    props: RecoveryInProgressProps,
-    state: RotatingAuthKeysWithF8eState,
-  ): Result<Unit, Throwable> =
-    coroutineBinding {
-      recoveryAuthCompleter
-        .rotateAuthKeys(
-          fullAccountId = props.recovery.fullAccountId,
-          hardwareSignedChallenge = state.hardwareSignedChallenge,
-          destinationAppAuthPubKeys = AppAuthPublicKeys(
-            props.recovery.appGlobalAuthKey,
-            props.recovery.appRecoveryAuthKey,
-            props.recovery.appGlobalAuthKeyHwSignature
-          ),
-          sealedCsek = state.sealedCsek,
-          sealedSsek = state.sealedSsek
-        ).bind()
-    }
-
-  /**
-   * Represents a request for cancelling a recovery.
-   */
-  private sealed interface CancellationRequest {
-    /**
-     * Request to cancel "Lost Hardware" recovery. Will be cancelled using
-     * app proof of possession.
-     */
-    data object CancelLostHardwareRecovery : CancellationRequest
-
-    /**
-     * Request to cancel "Lost App and Cloud" recovery. Will be cancelled using
-     * hardware proof of possession.
-     */
-    data class CancelLostAppAndCloudRecovery(
-      val hwProofOfPossession: HwFactorProofOfPossession,
-    ) : CancellationRequest
   }
 
   private sealed interface State {
@@ -1458,16 +1191,14 @@ class RecoveryInProgressDataStateMachineImpl(
      */
     data class AwaitingChallengeAndSeksSignedWithHardwareState(
       val challenge: DelayNotifyChallenge,
-      val csek: Csek,
-      val ssek: Ssek,
     ) : State
 
     data class CancellingState(
-      val cancellationRequest: CancellationRequest,
+      val cancellationRequest: DelayNotifyCancellationRequest,
     ) : State
 
     /**
-     * Rotating authentication keys with f8e. See [RecoveryAuthCompleter] for
+     * Rotating authentication keys with f8e. See [DelayNotifyService] for
      * details.
      */
     data class RotatingAuthKeysWithF8eState(
@@ -1557,12 +1288,14 @@ class RecoveryInProgressDataStateMachineImpl(
      */
     data class RegeneratingTcCertificatesState(
       val sealedCsek: SealedCsek,
-      val keybox: Keybox,
+      val f8eSpendingKeyset: F8eSpendingKeyset,
+      val keysetState: KeysetState,
     ) : State
 
     data class FailedRegeneratingTcCertificatesState(
       val sealedCsek: SealedCsek,
-      val keybox: Keybox,
+      val f8eSpendingKeyset: F8eSpendingKeyset,
+      val keysetState: KeysetState,
       val cause: Error,
     ) : State
 
@@ -1571,13 +1304,15 @@ class RecoveryInProgressDataStateMachineImpl(
      */
     data class PerformingDdkBackupState(
       val sealedCsek: SealedCsek,
-      val keybox: Keybox,
+      val f8eSpendingKeyset: F8eSpendingKeyset,
+      val keysetState: KeysetState,
       val delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>? = null,
     ) : State
 
     data class FailedPerformingDdkBackupState(
       val sealedCsek: SealedCsek,
-      val keybox: Keybox,
+      val f8eSpendingKeyset: F8eSpendingKeyset,
+      val keysetState: KeysetState,
       val cause: Throwable?,
       val delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>? = null,
     ) : State
@@ -1600,6 +1335,7 @@ class RecoveryInProgressDataStateMachineImpl(
      * Creating and broadcasting sweep transaction to move funds to new keyset.
      */
     data class PerformingSweepState(
+      val hasAttemptedSweep: Boolean,
       val keybox: Keybox,
     ) : State
 
@@ -1665,7 +1401,7 @@ class RecoveryInProgressDataStateMachineImpl(
   }
 }
 
-private fun CancelDelayNotifyRecoveryError.isNetworkError(): Boolean {
+private fun Error.isNetworkError(): Boolean {
   return when {
     this !is CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError -> false
     error is F8eError.ConnectivityError -> true

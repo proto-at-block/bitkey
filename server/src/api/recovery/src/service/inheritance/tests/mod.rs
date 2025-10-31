@@ -29,6 +29,7 @@ use notification::service::tests::construct_test_notification_service;
 use promotion_code::service::tests::construct_test_promotion_code_service;
 use rand::thread_rng;
 use repository::recovery::inheritance::InheritanceRepository;
+use repository::screener::ScreenerRepository;
 use screener::service::Service as ScreenerService;
 use screener::ScreenerMode;
 use std::collections::HashMap;
@@ -37,7 +38,6 @@ use std::sync::Arc;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
 use types::account::entities::FullAccount;
-use types::account::identifiers::AccountId;
 use types::account::keys::FullAccountAuthKeys;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceled,
@@ -213,10 +213,11 @@ pub async fn create_locked_claim(
     let sealed_dek = "TEST_SEALED_DEK".to_string();
     let sealed_mobile_key = "TEST_SEALED_MOBILE_KEY".to_string();
     create_inheritance_package(
-        &benefactor_account.id,
+        benefactor_account,
         &recovery_relationship_id,
         &sealed_dek,
         &sealed_mobile_key,
+        None,
         None,
     )
     .await;
@@ -278,17 +279,19 @@ pub async fn create_canceled_claim(
 }
 
 pub async fn create_inheritance_package(
-    benefactor_account_id: &AccountId,
+    benefactor_full_account: &FullAccount,
     recovery_relationship_id: &RecoveryRelationshipId,
     sealed_dek: &str,
     sealed_mobile_key: &str,
     sealed_descriptor: Option<&str>,
+    sealed_server_root_xpub: Option<&str>,
 ) {
     let package = Package {
         recovery_relationship_id: recovery_relationship_id.to_owned(),
         sealed_dek: sealed_dek.to_string(),
         sealed_mobile_key: sealed_mobile_key.to_string(),
         sealed_descriptor: sealed_descriptor.map(|s| s.to_string()),
+        sealed_server_root_xpub: sealed_server_root_xpub.map(|s| s.to_string()),
 
         updated_at: OffsetDateTime::now_utc(),
         created_at: OffsetDateTime::now_utc(),
@@ -296,7 +299,7 @@ pub async fn create_inheritance_package(
     let inheritance_service = construct_test_inheritance_service().await;
     inheritance_service
         .upload_packages(UploadPackagesInput {
-            benefactor_account_id,
+            benefactor_full_account,
             packages: vec![package],
         })
         .await
@@ -310,9 +313,14 @@ pub async fn construct_test_inheritance_service() -> inheritance::Service {
         .to_service()
         .await
         .unwrap();
-
+    let conn = config::extract::<ddb::Config>(Some("test"))
+        .unwrap()
+        .to_connection()
+        .await;
+    let repo = ScreenerRepository::new(conn);
     let screener_service = ScreenerService::new_and_load_data(
         None,
+        repo,
         screener::Config {
             screener: ScreenerMode::Test,
         },

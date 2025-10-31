@@ -29,7 +29,9 @@ import build.wallet.nfc.NfcReaderCapabilityMock
 import build.wallet.nfc.NfcSession.Parameters
 import build.wallet.nfc.NfcSession.RequirePairedHardware
 import build.wallet.nfc.NfcTransactorMock
+import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
 import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -37,6 +39,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Searching
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Success
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine.Companion.TROUBLESHOOTING_URL
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
@@ -61,6 +64,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   val accountService = AccountServiceFake()
   val checkHardwareIsPairedFeatureFlag = CheckHardwareIsPairedFeatureFlag(FeatureFlagDaoFake())
   val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
+  val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
   val stateMachine = NfcSessionUIStateMachineImpl(
     nfcReaderCapability = NfcReaderCapabilityMock(),
@@ -72,7 +76,9 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     signatureVerifier = signatureVerifier,
     accountService = accountService,
     checkHardwareIsPairedFeatureFlag = checkHardwareIsPairedFeatureFlag,
-    recoveryStatusService = recoveryStatusService
+    recoveryStatusService = recoveryStatusService,
+    inAppBrowserNavigator = inAppBrowserNavigator,
+    appVariant = AppVariant.Customer
   )
 
   val onCancelCalls = turbines.create<Unit>("onCancel calls")
@@ -107,6 +113,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     nfcTransactor.reset()
     accountService.reset()
     signatureVerifier.reset()
+    inAppBrowserNavigator.reset()
   }
 
   test("happy path") {
@@ -154,6 +161,29 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
       awaitBody<NfcBodyModel> { status.shouldBeTypeOf<Searching>() }
       nfcTransactor.transactCalls.awaitItem()
       errorCalls.awaitItem()
+    }
+  }
+
+  test("troubleshooting guide opens in browser when secondary button clicked") {
+    val error = NfcException.CommandError()
+    nfcTransactor.transactResult = Err(error)
+    stateMachine.test(props) {
+      awaitBody<NfcBodyModel> {
+        text.shouldBe("Hold device here behind phone")
+        status.shouldBeTypeOf<Searching>()
+      }
+      nfcTransactor.transactCalls.awaitItem()
+
+      awaitBody<FormBodyModel>(NfcEventTrackerScreenId.NFC_FAILURE) {
+        secondaryButton!!.text.shouldBe("View troubleshooting guide")
+
+        // Click the secondary button to open troubleshooting guide
+        secondaryButton!!.onClick()
+
+        // Verify the troubleshooting URL was opened in the browser
+        val openedUrl = inAppBrowserNavigator.onOpenCalls.awaitItem()
+        openedUrl.shouldBe(TROUBLESHOOTING_URL)
+      }
     }
   }
 

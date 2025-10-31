@@ -31,8 +31,6 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState.*
-import build.wallet.statemachine.settings.full.device.DeviceSettingsProps
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiStateMachine
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerProps
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerSettingUiStateMachine
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
@@ -55,7 +53,6 @@ class SettingsHomeUiStateMachineImpl(
   private val notificationPreferencesUiStateMachine: NotificationPreferencesUiStateMachine,
   private val appearancePreferenceUiStateMachine: AppearancePreferenceUiStateMachine,
   private val customElectrumServerSettingUiStateMachine: CustomElectrumServerSettingUiStateMachine,
-  private val deviceSettingsUiStateMachine: DeviceSettingsUiStateMachine,
   private val feedbackUiStateMachine: FeedbackUiStateMachine,
   private val helpCenterUiStateMachine: HelpCenterUiStateMachine,
   private val settingsListUiStateMachine: SettingsListUiStateMachine,
@@ -187,16 +184,6 @@ class SettingsHomeUiStateMachineImpl(
         )
       }
 
-      is ShowingBitkeyDeviceSettingsUiState ->
-        deviceSettingsUiStateMachine.model(
-          props = DeviceSettingsProps(
-            account = props.account as FullAccount,
-            lostHardwareRecoveryData = props.lostHardwareRecoveryData,
-            onBack = { state = ShowingAllSettingsUiState },
-            onUnwindToMoneyHome = props.onBack
-          )
-        )
-
       is ShowingSendFeedbackUiState ->
         feedbackUiStateMachine.model(
           props =
@@ -325,8 +312,6 @@ class SettingsHomeUiStateMachineImpl(
      * Showing settings for custom Electrum server
      */
     data object ShowingCustomElectrumServerSettingsUiState : SettingsListState()
-
-    data object ShowingBitkeyDeviceSettingsUiState : SettingsListState()
 
     data object ShowingAppearancePreferenceUiState : SettingsListState()
 

@@ -20,6 +20,7 @@ kotlin {
         implementation(projects.libs.ktorClientPublic)
         implementation(projects.domain.databasePublic)
         implementation(projects.domain.walletPublic)
+        implementation(projects.libs.chaincodeDelegationPublic)
       }
     }
 
@@ -37,6 +38,7 @@ kotlin {
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.timeFake)
         implementation(projects.libs.testingPublic)
+        implementation(projects.libs.chaincodeDelegationFake)
       }
     }
   }

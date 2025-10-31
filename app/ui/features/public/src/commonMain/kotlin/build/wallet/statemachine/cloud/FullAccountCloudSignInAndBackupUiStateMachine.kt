@@ -31,7 +31,7 @@ data class FullAccountCloudSignInAndBackupProps(
   val sealedCsek: SealedCsek?,
   val keybox: Keybox,
   val onBackupFailed: (cause: Throwable?) -> Unit,
-  val onBackupSaved: () -> Unit,
+  val onBackupSaved: suspend () -> Unit,
   val onExistingAppDataFound: (
     (
       cloudBackup: CloudBackup?,

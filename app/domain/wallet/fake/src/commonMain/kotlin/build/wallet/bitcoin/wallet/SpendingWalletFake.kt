@@ -151,6 +151,13 @@ class SpendingWalletFake(
     return Ok(lastUnusedAddress)
   }
 
+  /**
+   * Peeks at an address at a specific index without updating the wallet state.
+   */
+  override suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error> {
+    return Ok(addresses.first())
+  }
+
   private fun rotatedAddress(): BitcoinAddress {
     return addresses.elementAt((addresses.indexOf(lastUnusedAddress) + 1) % addresses.size)
   }

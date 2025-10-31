@@ -16,6 +16,8 @@ pub mod notification;
 pub mod privileged_action;
 #[cfg(feature = "recovery")]
 pub mod recovery;
+#[cfg(feature = "screener")]
+pub mod screener;
 #[cfg(feature = "serde")]
 pub mod serde;
 #[cfg(feature = "time")]

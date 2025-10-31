@@ -13,14 +13,13 @@ import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickExportTools
 import build.wallet.statemachine.ui.robots.clickSettings
-import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.testForLegacyAndPrivateWallet
 import io.kotest.core.spec.style.FunSpec
 
 class ExportToolsE2ETests : FunSpec({
 
-  test("e2e – export descriptor") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("e2e – export descriptor") { app ->
     app.onboardFullAccountWithFakeHardware()
 
     app.appUiStateMachine.test(Unit) {

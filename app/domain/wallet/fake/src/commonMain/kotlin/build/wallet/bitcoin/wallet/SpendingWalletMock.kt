@@ -60,6 +60,12 @@ class SpendingWalletMock(
     return newAddressResult
   }
 
+  var peekAddressResult: Result<BitcoinAddress, Error> = Ok(someBitcoinAddress)
+
+  override suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error> {
+    return peekAddressResult
+  }
+
   var lastUnusedAddressResult: Result<BitcoinAddress, Error> = Ok(someBitcoinAddress)
 
   override suspend fun getLastUnusedAddress(): Result<BitcoinAddress, Error> {
@@ -99,6 +105,7 @@ class SpendingWalletMock(
 
   fun reset() {
     newAddressResult = Ok(someBitcoinAddress)
+    peekAddressResult = Ok(someBitcoinAddress)
     balanceFlow.value = null
     transactionsFlow.value = null
     unspentOutputsFlow.value = null

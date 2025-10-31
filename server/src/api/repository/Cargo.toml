@@ -29,11 +29,13 @@ all = [
   "encrypted_attachment",
   "privileged_action",
   "recovery",
+  "screener",
 ]
 consent = ["types/consent"]
 encrypted_attachment = ["types/account", "types/encrypted_attachment"]
 privileged_action = ["types/privileged_action"]
 recovery = ["types/recovery"]
+screener = ["types/screener"]
 
 [lints]
 workspace = true

@@ -1,15 +1,14 @@
 import build.wallet.bitkey.app.AppSpendingPublicKey;
-import build.wallet.bitkey.f8e.F8eSpendingPublicKey;
+import build.wallet.bitkey.f8e.F8eSpendingKeyset;
 import build.wallet.bitkey.hardware.HwSpendingPublicKey;
 import kotlin.Boolean;
 
 CREATE TABLE spendingKeysetEntity(
   id          TEXT NOT NULL PRIMARY KEY,
   keyboxId    TEXT NOT NULL,
-  serverId    TEXT NOT NULL,
   appKey      TEXT AS AppSpendingPublicKey NOT NULL,
   hardwareKey TEXT AS HwSpendingPublicKey NOT NULL,
-  serverKey   TEXT AS F8eSpendingPublicKey NOT NULL,
+  serverKey   TEXT AS F8eSpendingKeyset NOT NULL,
   isActive    INTEGER AS Boolean NOT NULL DEFAULT 0,
   FOREIGN KEY (keyboxId) REFERENCES keyboxEntity(id) ON DELETE CASCADE
 );
@@ -25,8 +24,15 @@ allKeysetsForKeybox:
 SELECT * FROM spendingKeysetEntity WHERE keyboxId = ?;
 
 insertKeyset:
-INSERT INTO spendingKeysetEntity(id, keyboxId, serverId, appKey, hardwareKey, serverKey, isActive)
-VALUES(?, ?, ?, ?, ?, ?, ?);
+INSERT INTO spendingKeysetEntity(
+  id,
+  keyboxId,
+  appKey,
+  hardwareKey,
+  serverKey,
+  isActive
+)
+VALUES(?, ?, ?, ?, ?, ?);
 
 -- When fetching the keyset, join the key table for each key.
 keysetById:

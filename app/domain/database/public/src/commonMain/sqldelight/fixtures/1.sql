@@ -51,7 +51,7 @@ INSERT INTO spendingKeysetEntity (
     'serverId-val',
     'appKey-val',
     'hardwareKey-val',
-    'serverKey-val'
+    "[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2Userverdpub/*"
 );
 
 INSERT INTO authKeyRotationAttemptEntity (
@@ -468,7 +468,7 @@ INSERT INTO localRecoveryAttemptEntity (
     'sealedCsek-val',
     '1',
     'serverKeysetId-val',
-    'serverSpendingKey-val',
+    "[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2Userverdpub/*",
     '1'
 );
 

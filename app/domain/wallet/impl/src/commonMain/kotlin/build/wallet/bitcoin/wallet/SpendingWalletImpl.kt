@@ -1,8 +1,7 @@
 package build.wallet.bitcoin.wallet
 
 import build.wallet.bdk.bindings.*
-import build.wallet.bdk.bindings.BdkAddressIndex.LAST_UNUSED
-import build.wallet.bdk.bindings.BdkAddressIndex.NEW
+import build.wallet.bdk.bindings.BdkAddressIndex
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
@@ -97,11 +96,15 @@ class SpendingWalletImpl(
   }
 
   override suspend fun getNewAddress(): Result<BitcoinAddress, Error> {
-    return getAddress(NEW)
+    return getAddress(BdkAddressIndex.New)
+  }
+
+  override suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error> {
+    return getAddress(BdkAddressIndex.Peek(index))
   }
 
   override suspend fun getLastUnusedAddress(): Result<BitcoinAddress, Error> {
-    return getAddress(LAST_UNUSED)
+    return getAddress(BdkAddressIndex.LastUnused)
   }
 
   private suspend fun getAddress(index: BdkAddressIndex): Result<BitcoinAddress, Error> {

@@ -257,21 +257,20 @@ class RelationshipsCryptoImpl(
     }.mapError { RelationshipsCryptoError.EncryptionFailed(it) }
   }
 
-  override fun encryptDescriptor(
+  override fun encryptData(
     dek: PrivateKeyEncryptionKey,
-    descriptor: ByteString,
+    data: ByteString,
   ): Result<XCiphertext, RelationshipsCryptoError> {
     return catchingResult {
-      // Step 1: Encrypt the descriptor with the dek
-      val sealedDescriptor =
-        xChaCha20Poly1305.encrypt(
-          key = dek,
-          nonce = xNonceGenerator.generateXNonce(),
-          plaintext = descriptor,
-          aad = PKMAT_AAD.encodeUtf8()
-        )
+      // Step 1: Encrypt the data with the dek
+      val sealedData = xChaCha20Poly1305.encrypt(
+        key = dek,
+        nonce = xNonceGenerator.generateXNonce(),
+        plaintext = data,
+        aad = PKMAT_AAD.encodeUtf8()
+      )
 
-      sealedDescriptor
+      sealedData
     }.mapError { RelationshipsCryptoError.EncryptionFailed(it) }
   }
 

@@ -68,6 +68,7 @@ use repository::encrypted_attachment::EncryptedAttachmentRepository;
 use repository::privileged_action::PrivilegedActionRepository;
 use repository::recovery::inheritance::InheritanceRepository;
 use repository::recovery::social::SocialRecoveryRepository;
+use repository::screener::ScreenerRepository;
 use request_logger::{log_requests, RequestLoggerState};
 pub use routes::axum::axum;
 use screener::service::Service as ScreenerService;
@@ -139,6 +140,7 @@ pub struct Services {
     pub account_repository: AccountRepository,
     pub encrypted_attachment_repository: EncryptedAttachmentRepository,
     pub transaction_verification_repository: TransactionVerificationRepository,
+    pub screener_repository: ScreenerRepository,
 }
 
 #[derive(Debug, Error)]
@@ -246,6 +248,7 @@ struct Repositories {
     promotion_code_repository: PromotionCodeRepository,
     transaction_verification_repository: TransactionVerificationRepository,
     encrypted_attachment_repository: EncryptedAttachmentRepository,
+    screener_repository: ScreenerRepository,
 }
 
 #[derive(Clone, Deserialize)]
@@ -310,6 +313,7 @@ impl BootstrapBuilder {
             encrypted_attachment_repository: EncryptedAttachmentRepository::new(
                 ddb_connection.clone(),
             ),
+            screener_repository: ScreenerRepository::new(ddb_connection.clone()),
         };
 
         // Create tables concurrently
@@ -355,6 +359,7 @@ impl BootstrapBuilder {
             repositories
                 .encrypted_attachment_repository
                 .create_table_if_necessary(),
+            repositories.screener_repository.create_table_if_necessary(),
         )?;
 
         Ok(repositories)
@@ -450,6 +455,7 @@ impl BootstrapBuilder {
         let screener_service = Arc::new(
             ScreenerService::new_and_load_data(
                 overrides.blocked_addresses.clone(),
+                repositories.screener_repository.clone(),
                 screener_config,
             )
             .await,
@@ -538,6 +544,7 @@ impl BootstrapBuilder {
             transaction_verification_repository: repositories
                 .transaction_verification_repository
                 .clone(),
+            screener_repository: repositories.screener_repository.clone(),
         })
     }
 

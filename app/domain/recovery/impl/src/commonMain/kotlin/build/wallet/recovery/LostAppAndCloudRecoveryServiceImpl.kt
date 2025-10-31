@@ -23,15 +23,14 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
-import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClient
-import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.recovery.*
 import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
 import build.wallet.notifications.DeviceTokenManager
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
@@ -59,6 +58,7 @@ class LostAppAndCloudRecoveryServiceImpl(
   private val initiateAccountDelayNotifyF8eClient: InitiateAccountDelayNotifyF8eClient,
   private val recoveryDao: RecoveryDao,
   private val useEncryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
+  private val uuidGenerator: UuidGenerator,
 ) : LostAppAndCloudRecoveryService {
   override suspend fun initiateAuth(
     hwAuthKey: HwAuthPublicKey,
@@ -101,16 +101,11 @@ class LostAppAndCloudRecoveryServiceImpl(
           .bind()
 
         // Check if we have descriptor backups available
-        val descriptorBackups = listKeysetsResponse.descriptorBackups.orEmpty()
+        val descriptorBackups = listKeysetsResponse.descriptorBackups
         val wrappedSsek = listKeysetsResponse.wrappedSsek
         val keysets = listKeysetsResponse.keysets
 
-        // Backups are valid if they equal the number of keysets we have, or in the future where
-        // we no longer store keysets, when the keysets are empty.
-        val backupsAreUpToDate = descriptorBackups.isNotEmpty() && wrappedSsek != null &&
-          (descriptorBackups.size == keysets.size || keysets.isEmpty())
-
-        if (backupsAreUpToDate && useEncryptedDescriptorBackupsFeatureFlag.isEnabled()) {
+        if (descriptorBackups.isNotEmpty() && useEncryptedDescriptorBackupsFeatureFlag.isEnabled()) {
           logInfo { "Using descriptor backups to initiate lost app & cloud recovery" }
           WithDescriptorBackups(
             accountId = accountId,
@@ -118,7 +113,7 @@ class LostAppAndCloudRecoveryServiceImpl(
             hwAuthKey = hwAuthKey,
             destinationAppKeys = destinationAppKeys,
             descriptorBackups = descriptorBackups,
-            wrappedSsek = wrappedSsek
+            wrappedSsek = wrappedSsek!!
           )
         } else {
           // No descriptor backups available, use keysets directly
@@ -128,7 +123,12 @@ class LostAppAndCloudRecoveryServiceImpl(
             authTokens = authTokens,
             hwAuthKey = hwAuthKey,
             destinationAppKeys = destinationAppKeys,
-            existingHwSpendingKeys = keysets.map { it.hardwareKey }
+            existingHwSpendingKeys = keysets
+              // A person could create a private keyset but not create a descriptor
+              // backup for it IFF they started the migration process but didn't complete it.
+              // Filter out private keysets here - nothing we could do about it anyway.
+              .filterIsInstance<LegacyRemoteKeyset>()
+              .toSpendingKeysets(uuidGenerator).map { it.hardwareKey }
           )
         }
       }

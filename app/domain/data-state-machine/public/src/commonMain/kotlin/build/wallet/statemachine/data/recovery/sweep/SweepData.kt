@@ -30,6 +30,7 @@ sealed interface SweepData {
    * @property recoveredFactor the factor that was recovered prior to hitting the sweep experience
    * @property totalFeeAmount total fee amount that needs to be paid to blockchain to broadcast
    * all sweep psbts.
+   * @property destinationAddress the Bitcoin address where funds are being swept to
    * @property startSweep confirm total fee amount and initiate sweep process. If there are sweep
    * psbts that require hardware signing, should move to [AwaitingHardwareSignedSweepsData],
    * otherwise straight to [SigningAndBroadcastingSweepsData].
@@ -37,6 +38,7 @@ sealed interface SweepData {
   data class PsbtsGeneratedData(
     val totalFeeAmount: BitcoinMoney,
     val totalTransferAmount: BitcoinMoney,
+    val destinationAddress: String,
     val startSweep: () -> Unit,
   ) : SweepData
 
@@ -64,6 +66,16 @@ sealed interface SweepData {
    * @property proceed moves state machine forward by activating
    */
   data class SweepCompleteData(
+    val proceed: () -> Unit,
+    val totalFeeAmount: BitcoinMoney,
+    val totalTransferAmount: BitcoinMoney,
+    val destinationAddress: String,
+  ) : SweepData
+
+  /**
+   * We have already successfully swept funds last session
+   */
+  data class SweepCompleteNoData(
     val proceed: () -> Unit,
   ) : SweepData
 

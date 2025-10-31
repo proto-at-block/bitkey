@@ -1,0 +1,18 @@
+import build.wallet.bitkey.app.AppSpendingPublicKey;
+import build.wallet.bitkey.f8e.F8eSpendingPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import kotlin.Boolean;
+
+CREATE TABLE privateWalletMigrationEntity(
+  rowId INTEGER NOT NULL PRIMARY KEY,
+  newHardwareKey TEXT AS HwSpendingPublicKey,
+  newAppKey TEXT AS AppSpendingPublicKey,
+  newServerKey TEXT AS F8eSpendingPublicKey,
+  keysetLocalId TEXT,
+  keysetServerId TEXT,
+  serverIntegritySignature TEXT,
+  sweepId TEXT,
+  backupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+PRAGMA foreign_key_check;

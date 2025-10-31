@@ -23,10 +23,8 @@ import build.wallet.statemachine.recovery.sweep.SweepSuccessScreenBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.robots.awaitLoadingScreen
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
-import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
-import build.wallet.testing.tags.TestTag.IsolatedTest
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
@@ -37,8 +35,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class ExportTransactionsFunctionalTests : FunSpec({
 
-  test("e2e – export external, internal, and consolidation transactions") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("e2e – export external, internal, and consolidation transactions") { app ->
     app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
 
     // Make two incoming transactions
@@ -97,8 +94,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
     }
   }
 
-  test("e2e - export transactions including inactive keysets") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("e2e - export transactions including inactive keysets") { app ->
     app.onboardFullAccountWithFakeHardware()
 
     // Make two incoming transactions
@@ -228,8 +224,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
     app.returnFundsToTreasury()
   }
 
-  test("export with no transactions") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("export with no transactions") { app ->
     app.onboardFullAccountWithFakeHardware()
 
     val service = app.exportTransactionsService
@@ -239,18 +234,15 @@ class ExportTransactionsFunctionalTests : FunSpec({
     dataList.count().shouldBe(1)
   }
 
-  test("export with pending transaction")
-    .config(tags = setOf(IsolatedTest)) {
-      val app = launchNewApp()
+  testForLegacyAndPrivateWallet("export with pending transaction", isIsolatedTest = true) { app ->
+    // Make pending transaction
+    app.onboardFullAccountWithFakeHardware()
+    app.addSomeFunds(amount = sats(50000), waitForConfirmation = false)
 
-      // Make pending transaction
-      app.onboardFullAccountWithFakeHardware()
-      app.addSomeFunds(amount = sats(50000), waitForConfirmation = false)
-
-      val service = app.exportTransactionsService
-      val dataList = service.export().shouldBeOk().data.utf8().split("\n")
-      // We should have:
-      // (1) 1 heading row
-      dataList.count().shouldBe(1)
-    }
+    val service = app.exportTransactionsService
+    val dataList = service.export().shouldBeOk().data.utf8().split("\n")
+    // We should have:
+    // (1) 1 heading row
+    dataList.count().shouldBe(1)
+  }
 })

@@ -1,18 +1,18 @@
 package build.wallet.statemachine.recovery.inprogress.completing
 
 import app.cash.turbine.plusAssign
+import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.challange.DelayNotifyChallenge
 import build.wallet.bitkey.challange.SignedChallenge.HardwareSignedChallenge
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.cloud.backup.csek.SealedCsekFake
-import build.wallet.cloud.backup.csek.SealedSsekFake
-import build.wallet.cloud.backup.csek.Ssek
+import build.wallet.cloud.backup.csek.*
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.nfc.transaction.*
+import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -75,13 +75,16 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
       id = "nfc-session-ui"
     ) {}
 
+  val eventTracker = EventTrackerMock(turbines::create)
+
   val stateMachine = CompletingRecoveryUiStateMachineImpl(
     proofOfPossessionNfcStateMachine = proofOfPossessionNfcStateMachine,
     fullAccountCloudSignInAndBackupUiStateMachine = fullAccountCloudSignInAndBackupUiStateMachine,
     sweepUiStateMachine = sweepUiStateMachine,
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
     postSocRecTaskRepository = postSocRecTaskRepository,
-    recoveryStatusService = recoveryStatusService
+    recoveryStatusService = recoveryStatusService,
+    eventTracker = eventTracker
   )
 
   val baseProps = CompletingRecoveryUiProps(
@@ -275,6 +278,8 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
           challenge = mockDelayNotifyChallenge,
           signature = "test-signature"
         ),
+        csek = CsekFake,
+        ssek = SsekFake,
         sealedCsek = SealedCsekFake,
         sealedSsek = SealedSsekFake
       )
@@ -302,6 +307,8 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
         challenge = mockDelayNotifyChallenge,
         signature = "test-signature"
       ),
+      csek = CsekFake,
+      ssek = SsekFake,
       sealedCsek = SealedCsekFake,
       sealedSsek = SealedSsekFake
     )
@@ -333,6 +340,8 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
         challenge = mockDelayNotifyChallenge,
         signature = "test-signature"
       ),
+      csek = CsekFake,
+      ssek = SsekFake,
       sealedCsek = SealedCsekFake,
       sealedSsek = SealedSsekFake
     )
@@ -696,7 +705,8 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
       completingRecoveryData = PerformingSweepData(
         physicalFactor = PhysicalFactor.App,
         keybox = KeyboxMock,
-        rollback = {}
+        rollback = {},
+        hasAttemptedSweep = false
       )
     )
 
@@ -728,7 +738,6 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
   test("PerformingDdkBackupData shows LoadingBodyModel") {
     val props = baseProps.copy(
       completingRecoveryData = PerformingDdkBackupData(
-        keybox = KeyboxMock,
         physicalFactor = PhysicalFactor.App
       )
     )
@@ -742,7 +751,6 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     val retryCalls = turbines.create<Unit>("retry-ddk-backup")
     val props = baseProps.copy(
       completingRecoveryData = FailedPerformingDdkBackupData(
-        keybox = KeyboxMock,
         physicalFactor = PhysicalFactor.App,
         cause = Error("Test error"),
         retry = { retryCalls += Unit }
@@ -936,6 +944,28 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
 
       // Verify callback was invoked
       onRetryCalls.awaitItem()
+    }
+  }
+
+  test("PerformingSweepData onAttemptSweep triggers recovery progress call") {
+    val props = baseProps.copy(
+      completingRecoveryData = PerformingSweepData(
+        physicalFactor = PhysicalFactor.App,
+        keybox = KeyboxMock,
+        rollback = {},
+        hasAttemptedSweep = false
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<SweepUiProps> {
+        // Simulate sweep attempt
+        onAttemptSweep()
+      }
+
+      // Verify the transaction's onSuccess callback was triggered
+      val recoveryProgress = recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryProgress.shouldBe(LocalRecoveryAttemptProgress.SweepingFunds)
     }
   }
 })

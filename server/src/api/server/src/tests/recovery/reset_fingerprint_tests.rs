@@ -209,13 +209,13 @@ async fn test_complete_reset_fingerprint(
     if expected_status == StatusCode::OK {
         let body = complete_reset_fingerprint_response.body.unwrap();
         let signature = if let PrivilegedActionResponse::Completed(r) = body {
-            r.grant.signature
+            r.grant.wsm_signature
         } else {
             panic!("Expected pending response");
         };
 
         // expected signature for the pregenerated request
-        let expected_signature = Signature::from_str("304402205ce8b3ee12324d783c6dcbfb679d178e80c3c37f30c41cd7785ea616d01b61f60220197b7cffd2207f5590c1384f0ea1dea846f0b0448c69b711a353c1a7fb1a6059").unwrap();
+        let expected_signature = Signature::from_str("30450221009c2dde3523854c2ada86df6cdcbecda9c627bcc94fbbd59a40a249aedd424c160220262c54750eabf951cbd0fc5085721a2ba4791302405c0afdf6fd7d02d3500c0a").unwrap();
         assert_eq!(signature, expected_signature);
     }
 }
@@ -300,5 +300,6 @@ fn get_pregenerated_request() -> ResetFingerprintRequest {
         device_id: "test-device-12345".as_bytes().to_vec(),
         signature: Signature::from_str("3045022100e9941e69c0b738b70ae67f17f99cc4cfa974544cb63fbe05142a13a6b35861f5022056939b16a79fccddc55807a605546586247b6e55ded6ee932415f53e84e4755f").unwrap(),
         challenge: "random-challenge-98765".as_bytes().to_vec(),
+        app_signature: Signature::from_str("3045022100e9941e69c0b738b70ae67f17f99cc4cfa974544cb63fbe05142a13a6b35861f5022056939b16a79fccddc55807a605546586247b6e55ded6ee932415f53e84e4755f").unwrap(),
     }
 }

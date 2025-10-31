@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 
 from bitkey.metadata import Metadata
+from bitkey.fwa.bitkey_fwa.constants import (
+    PRODUCTS,
+    PRODUCT_W1A,
+    SIGNER_LOCALSTACK,
+    SIGNER_DEVELOPMENT,
+    SIGNER_STAGING,
+    SIGNER_PRODUCTION,
+)
 
 import click
 import logging
@@ -33,24 +41,26 @@ cli = click.Group()
 
 IMAGE_TYPES = ["bl", "app", "patch"]
 KEY_TYPES = ["dev", "prod", "prod-proto"]
-PRODUCTS = ["w1a"]
 
 DEFAULT_KEYS_DIR = os.path.join(os.path.dirname(
     __file__), "..", "..", "config", "keys")
 
-CERT_VERSIONS = {
-    "app": 2,
-    "bl": 1,
-    "patch": 1,
+DEV_CERT_VERSIONS = {
+    PRODUCT_W1A: {
+        "app": 2,
+        "bl": 1,
+    }
 }
 
-# The version number of the signing cert for each environment
+# The version number of the signing cert for each environment per product
 # localstack app cert will need to be generated for each user
 APP_CERT_ENV_VERSIONS = {
-    "localstack": 1,
-    "development": 1,
-    "staging": 1,
-    "production": 2,
+    PRODUCT_W1A: {
+        SIGNER_LOCALSTACK: 1,
+        SIGNER_DEVELOPMENT: 1,
+        SIGNER_STAGING: 1,
+        SIGNER_PRODUCTION: 2,
+    }
 }
 
 
@@ -85,7 +95,7 @@ class SigningKeys:
     def __init__(self, keys_dir, product, key_type, image_type):
         directory = self._key_directory(keys_dir, product, key_type)
 
-        version = CERT_VERSIONS[image_type]
+        version = DEV_CERT_VERSIONS[product][image_type]
 
         self.public_key_path = os.path.join(
             directory, f"{product}-{image_type}-signing-key-{key_type}.{version}.pub.pem")
@@ -93,8 +103,6 @@ class SigningKeys:
             directory, f"{product}-{image_type}-signing-key-{key_type}.{version}.priv.pem")
         self.cert_path = os.path.join(
             directory, f"{product}-{image_type}-signing-cert-{key_type}.{version}.bin")
-        self.patch_signing_key = os.path.join(
-            directory, f"{product}-patch-signing-key-{key_type}.{version}.priv.pem")
 
         self.image_type = image_type
         self.key_type = key_type
@@ -472,7 +480,7 @@ class FwupDeltaPatchGenerator:
 
 @cli.command(help="Sign a firmware image")
 @click.option("--elf", required=True, type=click.Path(exists=True, path_type=Path), help="ELF to sign")
-@click.option("--product", required=True, type=click.Choice(PRODUCTS), help="Which product to sign for")
+@click.option("--product", required=True, type=click.Choice(sorted(PRODUCTS)), help="Which product to sign for")
 @click.option("--key-type", required=True,
               type=click.Choice(KEY_TYPES,
                                 case_sensitive=False), help="Development or production keys")

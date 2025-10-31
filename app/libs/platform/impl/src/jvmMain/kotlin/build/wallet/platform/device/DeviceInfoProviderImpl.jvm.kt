@@ -9,6 +9,7 @@ class DeviceInfoProviderImpl : DeviceInfoProvider {
     DeviceInfo(
       deviceModel = "jvm",
       devicePlatform = DevicePlatform.Jvm,
-      isEmulator = false
+      isEmulator = false,
+      deviceNickname = null // JVM tests don't have device nicknames
     )
 }

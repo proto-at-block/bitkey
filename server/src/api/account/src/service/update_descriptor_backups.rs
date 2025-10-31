@@ -8,13 +8,21 @@ impl Service {
         &self,
         input: UpdateDescriptorBackupsInput<'_>,
     ) -> Result<Account, AccountError> {
-        for descriptor_backup in &input.descriptor_backups_set.descriptor_backups {
-            if !input
+        for descriptor_backup in input.descriptor_backups_set.descriptor_backups.iter() {
+            let spending_keyset = input
                 .account
                 .spending_keysets
-                .contains_key(&descriptor_backup.keyset_id)
-            {
-                return Err(AccountError::UnrecognizedKeysetIds);
+                .get(descriptor_backup.keyset_id());
+
+            match spending_keyset {
+                None => return Err(AccountError::UnrecognizedKeysetIds),
+                Some(spending_keyset) => {
+                    if descriptor_backup.is_legacy() && spending_keyset.is_private()
+                        || descriptor_backup.is_private() && spending_keyset.is_legacy()
+                    {
+                        return Err(AccountError::DescriptorBackupTypeMismatch);
+                    }
+                }
             }
         }
 

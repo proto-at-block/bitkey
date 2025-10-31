@@ -85,7 +85,8 @@ class CreateAccountKeysetF8eClientImpl(
 
         F8eSpendingKeyset(
           keysetId = response.keysetId,
-          spendingPublicKey = F8eSpendingPublicKey(dpub = response.spendingDpub)
+          spendingPublicKey = F8eSpendingPublicKey(dpub = response.spendingDpub),
+          privateWalletRootXpub = null // this doesn't exist for legacy wallets
         )
       }
   }

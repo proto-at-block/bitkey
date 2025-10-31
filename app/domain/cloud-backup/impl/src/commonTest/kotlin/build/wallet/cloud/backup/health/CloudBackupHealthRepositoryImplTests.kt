@@ -1,6 +1,5 @@
 package build.wallet.cloud.backup.health
 
-import app.cash.turbine.test
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.F8eUnreachable
@@ -11,15 +10,11 @@ import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.cloud.store.CloudError
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
-import build.wallet.coroutines.createBackgroundScope
-import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.emergencyexitkit.EmergencyExitKitData
 import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryFake
-import build.wallet.platform.app.AppSessionManagerFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
-import kotlinx.coroutines.launch
 import okio.ByteString
 
 class CloudBackupHealthRepositoryImplTests : FunSpec({
@@ -36,7 +31,6 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
   val cloudBackupDao = CloudBackupDaoFake()
   val emergencyExitKitRepository = EmergencyExitKitRepositoryFake()
   val fullAccountCloudBackupRepairer = FullAccountCloudBackupRepairerFake()
-  val appSessionManager = AppSessionManagerFake()
   val appFunctionalityService = AppFunctionalityServiceFake()
 
   fun createHealthRepository() =
@@ -46,7 +40,6 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       cloudBackupDao = cloudBackupDao,
       emergencyExitKitRepository = emergencyExitKitRepository,
       fullAccountCloudBackupRepairer = fullAccountCloudBackupRepairer,
-      appSessionManager = appSessionManager,
       appFunctionalityService = appFunctionalityService
     )
 
@@ -70,7 +63,6 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     cloudBackupDao.reset()
     emergencyExitKitRepository.reset()
     fullAccountCloudBackupRepairer.reset()
-    appSessionManager.reset()
     appFunctionalityService.reset()
   }
 
@@ -115,87 +107,6 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       status.eekBackupStatus.shouldBeInstanceOf<EekBackupStatus.Healthy>()
 
       healthRepository.eekBackupStatus().value.shouldBeInstanceOf<EekBackupStatus.Healthy>()
-    }
-  }
-
-  context("syncLoop") {
-    test("performs initial sync on start") {
-      val healthRepository = createHealthRepository()
-      cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-      setCloudBackup(cloudAccount, cloudBackup)
-      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
-
-      val backgroundScope = createBackgroundScope()
-
-      // Start the sync loop first
-      backgroundScope.launch {
-        healthRepository.syncLoop(fullAccount)
-      }
-
-      // Now test that the initial sync is performed correctly
-      healthRepository.appKeyBackupStatus().test {
-        awaitUntil { it is AppKeyBackupStatus.Healthy }
-      }
-
-      healthRepository.eekBackupStatus().test {
-        awaitUntil { it is EekBackupStatus.Healthy }
-      }
-    }
-
-    test("syncs when app enters foreground") {
-      val healthRepository = createHealthRepository()
-      cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
-
-      val backgroundScope = createBackgroundScope()
-
-      // Start the sync loop - this will trigger initial sync since app starts in FOREGROUND
-      backgroundScope.launch {
-        healthRepository.syncLoop(fullAccount)
-      }
-
-      // Verify the new sync detects the healthy backup
-      healthRepository.appKeyBackupStatus().test {
-        awaitUntil { it is AppKeyBackupStatus.ProblemWithBackup.BackupMissing }
-
-        appSessionManager.appDidEnterBackground()
-        setCloudBackup(cloudAccount, cloudBackup)
-
-        // Foreground the app to trigger a sync
-        appSessionManager.appDidEnterForeground()
-        awaitUntil { it is AppKeyBackupStatus.Healthy }
-      }
-    }
-  }
-
-  test("triggers sync through requestSync") {
-    val healthRepository = createHealthRepository()
-    cloudStoreAccountRepository.set(cloudAccount)
-    cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-    // Start with NO cloud backup - unhealthy state initially
-    emergencyExitKitRepository.setEekData(cloudAccount, eekData)
-
-    val backgroundScope = createBackgroundScope()
-
-    // Start the sync loop first
-    backgroundScope.launch {
-      healthRepository.syncLoop(fullAccount)
-    }
-
-    // Wait for initial sync to detect unhealthy state
-    healthRepository.appKeyBackupStatus().test {
-      awaitUntil { it is AppKeyBackupStatus.ProblemWithBackup.BackupMissing }
-
-      // Now make the backup healthy
-      setCloudBackup(cloudAccount, cloudBackup)
-
-      // Request another sync - this should detect the now-healthy backup
-      healthRepository.requestSync(fullAccount)
-
-      // Verify that the sync detects the healthy backup
-      awaitUntil { it is AppKeyBackupStatus.Healthy }
     }
   }
 

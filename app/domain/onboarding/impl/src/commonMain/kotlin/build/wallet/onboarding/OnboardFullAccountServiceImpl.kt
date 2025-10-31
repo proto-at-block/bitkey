@@ -13,15 +13,19 @@ import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppKeyBundle
+import build.wallet.bitkey.f8e.isPrivateWallet
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeys
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeysAndHardwareKeys
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.onboarding.OnboardingF8eClient
+import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId
 import build.wallet.home.GettingStartedTask.TaskState
@@ -31,6 +35,7 @@ import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
 import build.wallet.onboarding.CreateFullAccountContext.LiteToFullAccountUpgrade
 import build.wallet.onboarding.CreateFullAccountContext.NewFullAccount
@@ -53,11 +58,13 @@ class OnboardFullAccountServiceImpl(
   private val upgradeLiteAccountToFullService: UpgradeLiteAccountToFullService,
   private val onboardingCompletionService: OnboardingCompletionService,
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
+  private val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val onboardingF8eClient: OnboardingF8eClient,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val eventTracker: EventTracker,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
+  private val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
 ) : OnboardFullAccountService {
   override suspend fun createAppKeys(): Result<WithAppKeys, Throwable> =
     coroutineBinding {
@@ -108,8 +115,9 @@ class OnboardFullAccountServiceImpl(
     hwActivation: FingerprintEnrolled,
   ): Result<FullAccount, Throwable> =
     coroutineBinding {
-      storeSealedCsek(
+      storeSealedCsekAndSsek(
         sealedCsek = hwActivation.sealedCsek,
+        sealedSsek = hwActivation.sealedSsek,
         hwAuthKey = hwActivation.keyBundle.authKey,
         appGlobalAuthKeyHwSignature = hwActivation.appGlobalAuthKeyHwSignature
       ).bind()
@@ -150,15 +158,19 @@ class OnboardFullAccountServiceImpl(
         }
       }.logFailure { "Error creating full account on f8e." }
 
-  private suspend fun storeSealedCsek(
+  private suspend fun storeSealedCsekAndSsek(
     sealedCsek: SealedCsek,
+    sealedSsek: SealedSsek,
     hwAuthKey: HwAuthPublicKey,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<Unit, Throwable> =
     coroutineBinding {
-      // Set the sealed CSEK so we have it available once the keybox is created
+      // Set the sealed CSEK and sealed SSEK so we have them available once the keybox is created
       // and the data state machine transitions
       onboardingKeyboxSealedCsekDao.set(sealedCsek).bind()
+      if (encryptedDescriptorBackupsFeatureFlag.isEnabled()) {
+        onboardingKeyboxSealedSsekDao.set(sealedSsek).bind()
+      }
       // Save the hw auth public key in case we find a lite account backup and need to
       // go through lite => full account upgrade instead. Saving this pub key will allow
       // us to save a tap later.
@@ -210,6 +222,11 @@ class OnboardFullAccountServiceImpl(
       // Log that the account has been created
       eventTracker.track(Action.ACTION_APP_ACCOUNT_CREATED)
 
+      // Track private account activation if this is a private keyset
+      if (keybox.activeSpendingKeyset.f8eSpendingKeyset.isPrivateWallet) {
+        eventTracker.track(Action.ACTION_APP_PRIVATE_WALLET_NEW_ACCOUNT_ONBOARDED)
+      }
+
       // Set as active. This will transition the UI.
       keyboxDao
         .activateNewKeyboxAndCompleteOnboarding(keybox)
@@ -221,6 +238,9 @@ class OnboardFullAccountServiceImpl(
 
   override suspend fun cancelAccountCreation(): Result<Unit, Throwable> =
     coroutineBinding {
+      logInfo { "cancelling full account creation" }
+      onboardingKeyboxSealedCsekDao.clear().bind()
+      onboardingKeyboxSealedSsekDao.clear().bind()
       onboardingAppKeyKeystore.clear().bind()
       onboardingKeyboxHardwareKeysDao.clear()
       onboardingKeyboxStepStateDao.clear().bind()

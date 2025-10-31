@@ -4295,6 +4295,7 @@ dependencies = [
  "once_cell",
  "rstest",
  "screener",
+ "secp256k1 0.27.0",
  "serde",
  "serde_with 3.9.0",
  "strum_macros",
@@ -6118,6 +6119,10 @@ dependencies = [
  "aws-config",
  "aws-sdk-s3",
  "csv",
+ "database",
+ "errors",
+ "http_server",
+ "repository",
  "rstest",
  "s3-utils",
  "serde",
@@ -6125,6 +6130,7 @@ dependencies = [
  "strum_macros",
  "tokio",
  "tracing",
+ "types",
  "url",
 ]
 

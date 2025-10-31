@@ -1,6 +1,6 @@
 use bdk_utils::{
     bdk::{bitcoin::secp256k1::PublicKey, keys::DescriptorPublicKey},
-    DescriptorKeyset,
+    ChaincodeDelegationCollaboratorWallet, DescriptorKeyset,
 };
 use serde::{Deserialize, Serialize};
 
@@ -78,6 +78,14 @@ impl SpendingKeyset {
             SpendingKeyset::PrivateMultiSig(k) => Some(k),
         }
     }
+
+    pub fn is_legacy(&self) -> bool {
+        matches!(self, SpendingKeyset::LegacyMultiSig(_))
+    }
+
+    pub fn is_private(&self) -> bool {
+        matches!(self, SpendingKeyset::PrivateMultiSig(_))
+    }
 }
 
 // Backcompat deserializer
@@ -142,6 +150,12 @@ impl PrivateMultiSigSpendingKeyset {
             server_pub,
             server_pub_integrity_sig,
         }
+    }
+}
+
+impl From<PrivateMultiSigSpendingKeyset> for ChaincodeDelegationCollaboratorWallet {
+    fn from(k: PrivateMultiSigSpendingKeyset) -> Self {
+        ChaincodeDelegationCollaboratorWallet::new(k.server_pub, k.app_pub, k.hardware_pub)
     }
 }
 

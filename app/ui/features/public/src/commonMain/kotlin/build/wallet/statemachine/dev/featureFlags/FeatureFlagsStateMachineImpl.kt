@@ -17,6 +17,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.InputAlertModel
+import build.wallet.ui.model.input.TextFieldModel.KeyboardType
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import kotlinx.collections.immutable.toImmutableList
@@ -89,7 +90,8 @@ class FeatureFlagsStateMachineImpl(
                             }
                             alert = null
                           },
-                          onCancel = { alert = null }
+                          onCancel = { alert = null },
+                          keyboardType = KeyboardType.Decimal
                         )
                     }
                   )

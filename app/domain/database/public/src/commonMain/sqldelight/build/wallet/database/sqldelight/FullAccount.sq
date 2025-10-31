@@ -80,7 +80,6 @@ SELECT
   keyboxEntity.appGlobalAuthKeyHwSignature,
   keyboxEntity.canUseKeyboxKeysets,
   spendingKeysetEntity.id AS spendingPublicKeysetId,
-  spendingKeysetEntity.serverId AS spendingPublicKeysetServerId,
   spendingKeysetEntity.appKey,
   spendingKeysetEntity.hardwareKey,
   spendingKeysetEntity.serverKey,

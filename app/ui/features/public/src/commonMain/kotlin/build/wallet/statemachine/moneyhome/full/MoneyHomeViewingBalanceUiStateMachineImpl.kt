@@ -77,6 +77,7 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.wallet.migration.PrivateWalletMigrationService
+import build.wallet.wallet.migration.PrivateWalletMigrationState
 import build.wallet.worker.RefreshExecutor
 import build.wallet.worker.runRefreshOperations
 import com.github.michaelbull.result.onSuccess
@@ -130,7 +131,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         status == MoneyHomeHiddenStatus.HIDDEN
       }
     }.collectAsState()
-    val isPrivateWalletMigrationAvailable by privateWalletMigrationService.isPrivateWalletMigrationAvailable.collectAsState(false)
+    val privateWalletMigrationState by privateWalletMigrationService.migrationState.collectAsState(PrivateWalletMigrationState.NotAvailable)
 
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
     var coachmarkDisplayed by remember { mutableStateOf(false) }
@@ -257,7 +258,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               )
             }
 
-            isPrivateWalletMigrationAvailable &&
+            privateWalletMigrationState == PrivateWalletMigrationState.Available &&
               coachmarksToDisplay.contains(CoachmarkIdentifier.PrivateWalletHomeCoachmark) -> {
               coachmarkDisplayed = false
               val markCoachmarkAsDisplayed: () -> Unit = {
@@ -482,12 +483,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         enabled = appFunctionalityStatus.featureStates.receive == Available,
         onClick = {
           if (appFunctionalityStatus.featureStates.receive == Available) {
-            val initialState = AddBitcoinBottomSheetDisplayState.TransferringUiState
-            props.setState(
-              ViewingBalanceUiState(
-                bottomSheetDisplayState = Partners(initialState)
-              )
-            )
+            props.setState(ReceiveFlowUiState)
           } else {
             showAlertForLimitedStatus()
           }
@@ -510,7 +506,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               account = props.account as FullAccount,
               initialState = currentState.initialState,
               keybox = props.account.keybox,
-              onAnotherWalletOrExchange = { props.setState(ReceiveFlowUiState) },
+              onTransfer = { props.setState(ReceiveFlowUiState) },
               onPartnerRedirected = { redirectMethod, transaction ->
                 handlePartnerRedirected(
                   method = redirectMethod,

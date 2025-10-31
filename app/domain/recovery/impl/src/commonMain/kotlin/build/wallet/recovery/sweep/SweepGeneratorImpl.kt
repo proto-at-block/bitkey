@@ -1,33 +1,36 @@
 package build.wallet.recovery.sweep
 
+import bitkey.recovery.DescriptorBackupService
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.AppPrivateKeyDao
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitkey.factor.PhysicalFactor
-import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.bitcoin.wallet.WatchingWallet
+import build.wallet.bitkey.f8e.isPrivateWallet
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.chaincode.delegation.ChaincodeDelegationTweakService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.notifications.RegisterWatchAddressProcessor
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.queueprocessor.process
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.*
-import com.github.michaelbull.result.Result
+import build.wallet.recovery.sweep.SweepSignaturePlan.AppAndHardware
+import com.github.michaelbull.result.*
+import com.github.michaelbull.result.coroutines.CoroutineBindingScope
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.recoverIf
 
 @BitkeyInject(AppScope::class)
 class SweepGeneratorImpl(
@@ -36,6 +39,9 @@ class SweepGeneratorImpl(
   private val keysetWalletProvider: KeysetWalletProvider,
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val registerWatchAddressProcessor: RegisterWatchAddressProcessor,
+  private val uuidGenerator: UuidGenerator,
+  private val chaincodeDelegationTweakService: ChaincodeDelegationTweakService,
+  private val descriptorBackupService: DescriptorBackupService,
 ) : SweepGenerator {
   override suspend fun generateSweep(
     keybox: Keybox,
@@ -45,6 +51,9 @@ class SweepGeneratorImpl(
       val keysets = if (keybox.canUseKeyboxKeysets) {
         logInfo { "Using local keysets for sweep generation" }
         keybox.keysets
+      } else if (keybox.isPrivateWallet) {
+        // This should never happen as private wallets require local keysets
+        Err(PrivateWalletMissingLocalKeysets).bind()
       } else {
         logInfo { "Using remote keysets for sweep generation" }
         listKeysetsF8eClient.listKeysets(
@@ -55,6 +64,7 @@ class SweepGeneratorImpl(
           .logFailure { "Error fetching keysets for an account when generating sweep." }
           .bind()
           .keysets
+          .toSpendingKeysets(uuidGenerator)
       }
 
       // The active hw key's dpub contains the master key fingerprint for all
@@ -62,24 +72,25 @@ class SweepGeneratorImpl(
       val hardwareMasterKeyFingerprint =
         keybox.activeSpendingKeyset.hardwareKey.key.origin.fingerprint
 
-      // Find the list of keysets we can sign for using either App or Hardware
+      // Find the list of keysets we can sign for and determine their signature plans
       val signableKeysets = keysets
         .filter { it.f8eSpendingKeyset.keysetId != keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId }
-        .mapNotNull {
-          val isAppSignable =
-            isAppSignable(it)
-              .mapError(::AppPrivateKeyMissing)
-              .bind()
-          when {
-            isAppSignable -> SignableKeyset(it, App)
-            isHardwareSignable(hardwareMasterKeyFingerprint, it) ->
-              SignableKeyset(
-                it,
-                Hardware
-              )
+        .mapNotNull { keyset ->
+          val isHwSignable = isHardwareSignable(hardwareMasterKeyFingerprint, keyset)
+          val isAppSignable = isAppSignable(keyset).getOrElse { false }
 
-            else -> null
-          }
+          // Determine signature plan based keyset capabilities
+          determineSignaturePlan(
+            isAppSignable = isAppSignable,
+            isHwSignable = isHwSignable
+          ).fold(
+            success = { signaturePlan -> SignableKeyset(keyset, signaturePlan) },
+            failure = { error ->
+              // Log the error but continue with other keysets
+              logInfo { "Skipping keyset ${keyset.f8eSpendingKeyset.keysetId}: $error" }
+              null
+            }
+          )
         }
 
       val feeRate =
@@ -96,6 +107,21 @@ class SweepGeneratorImpl(
         }
       }
     }.logFailure { "Error generating sweep psbts" }
+
+  /**
+   * Determines the signature plan for a sweep based on context and keyset capabilities.
+   */
+  private fun determineSignaturePlan(
+    isAppSignable: Boolean,
+    isHwSignable: Boolean,
+  ): Result<SweepSignaturePlan, Error> {
+    return when {
+      isAppSignable && isHwSignable -> Ok(AppAndHardware)
+      isAppSignable -> Ok(SweepSignaturePlan.AppAndServer)
+      isHwSignable -> Ok(SweepSignaturePlan.HardwareAndServer)
+      else -> Err(Error("No available signing factors"))
+    }
+  }
 
   private suspend fun isAppSignable(keyset: SpendingKeyset): Result<Boolean, Throwable> {
     return appPrivateKeyDao.getAppSpendingPrivateKey(keyset.appKey).map { it != null }
@@ -121,12 +147,13 @@ class SweepGeneratorImpl(
           .mapError(::ErrorCreatingWallet)
           .bind()
 
-      // Get a new address for every keyset for anonymity
-      val destinationAddress =
-        destinationWallet
-          .getNewAddress()
+      if (destinationKeyset.isPrivateWallet) {
+        descriptorBackupService.checkBackupForPrivateKeyset(destinationKeyset.f8eSpendingKeyset.keysetId)
           .mapError(::FailedToGenerateDestinationAddress)
           .bind()
+      }
+
+      val destinationAddress = address(destinationKeyset, destinationWallet)
 
       // don't bind on process the address, if this fails we still want the sweep to continue
       registerWatchAddressProcessor.process(
@@ -162,7 +189,26 @@ class SweepGeneratorImpl(
           amount = BitcoinTransactionSendAmount.SendAll,
           feePolicy = FeePolicy.Rate(feeRate)
         )
-        .map { SweepPsbt(it, signableKeyset.signingFactor, signableKeyset.keyset) }
+        .map { psbt ->
+          // Apply tweaks if destination is a private wallet and we need to sign with server
+          val finalPsbt =
+            if (destinationKeyset.isPrivateWallet && signableKeyset.signaturePlan !is AppAndHardware) {
+              applyTweaksForPrivateDestination(
+                psbt = psbt,
+                sourceKeyset = signableKeyset.keyset,
+                destinationKeyset = destinationKeyset
+              ).bind()
+            } else {
+              psbt
+            }
+
+          SweepPsbt(
+            psbt = finalPsbt,
+            signaturePlan = signableKeyset.signaturePlan,
+            sourceKeyset = signableKeyset.keyset,
+            destinationAddress = destinationAddress.address
+          )
+        }
         // Return null if the wallet doesn't have enough funds to sweep.
         .recoverIf(
           predicate = { it is BdkError.InsufficientFunds },
@@ -172,8 +218,65 @@ class SweepGeneratorImpl(
         .bind()
     }
 
+  /**
+   * Applies tweaks to a PSBT when sweeping to a private wallet.
+   * Uses sweepPsbtWithTweaks for private-to-private sweeps,
+   * and migrationSweepPsbtWithTweaks for legacy-to-private sweeps.
+   */
+  private suspend fun applyTweaksForPrivateDestination(
+    psbt: build.wallet.bitcoin.transactions.Psbt,
+    sourceKeyset: SpendingKeyset,
+    destinationKeyset: SpendingKeyset,
+  ): Result<build.wallet.bitcoin.transactions.Psbt, SweepGeneratorError> {
+    // Check if source is a private wallet
+    return if (sourceKeyset.f8eSpendingKeyset.isPrivateWallet) {
+      // Private-to-private sweep
+      chaincodeDelegationTweakService
+        .sweepPsbtWithTweaks(
+          psbt = psbt,
+          sourceKeyset = sourceKeyset,
+          destinationKeyset = destinationKeyset
+        )
+        .mapError { FailedToTweakPsbt(it) }
+    } else {
+      // Legacy-to-private migration sweep
+      chaincodeDelegationTweakService
+        .migrationSweepPsbtWithTweaks(psbt = psbt, destinationKeyset = destinationKeyset)
+        .mapError { FailedToTweakPsbt(it) }
+    }
+  }
+
+  /**
+   * For private keysets, we must use the 0th address. This is because the sweep psbt is generated by
+   * the source wallet. As far as the source wallet is concerned, it knows nothing about the destination
+   * wallet. Therefore, it cannot populate any derivation path information about the sweep output to
+   * the destination wallet.
+   *
+   *  So, in order to be able to compute tweaks, we always assume it will be the first receive address
+   *  at index 0 (i.e. /0/0 )
+   *
+   *  For non-private keysets, we can just generate a new address
+   */
+  private suspend fun CoroutineBindingScope<SweepGeneratorError>.address(
+    destinationKeyset: SpendingKeyset,
+    destinationWallet: WatchingWallet,
+  ): BitcoinAddress {
+    val destinationAddress = if (destinationKeyset.isPrivateWallet) {
+      destinationWallet
+        .peekAddress(0u)
+        .mapError(::FailedToGenerateDestinationAddress)
+        .bind()
+    } else {
+      destinationWallet
+        .getNewAddress()
+        .mapError(::FailedToGenerateDestinationAddress)
+        .bind()
+    }
+    return destinationAddress
+  }
+
   private data class SignableKeyset(
     val keyset: SpendingKeyset,
-    val signingFactor: PhysicalFactor,
+    val signaturePlan: SweepSignaturePlan,
   )
 }

@@ -19,12 +19,14 @@ kotlin {
         implementation(projects.domain.f8eClientPublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
+        implementation(projects.domain.databasePublic)
       }
     }
 
     commonTest {
       dependencies {
         implementation(projects.domain.accountFake)
+        implementation(projects.domain.cloudBackupFake)
         implementation(projects.domain.walletmigrationFake)
         implementation(projects.domain.featureFlagFake)
         implementation(projects.libs.testingPublic)
@@ -33,6 +35,8 @@ kotlin {
         implementation(projects.domain.f8eClientFake)
         implementation(libs.kmp.test.kotest.assertions)
         implementation(projects.domain.walletFake)
+        implementation(projects.domain.recoveryFake)
+        implementation(projects.libs.cloudStoreFake)
       }
     }
   }

@@ -2,13 +2,11 @@ package build.wallet.statemachine.home.full
 
 import androidx.compose.runtime.*
 import bitkey.ui.framework.NavigatorPresenter
+import bitkey.ui.screens.device.DeviceSettingsScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import bitkey.ui.screens.securityhub.SecurityHubScreen
-import build.wallet.availability.AppFunctionalityService
-import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.RelationshipId
-import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.AppKeyBackupStatus.ProblemWithBackup.BackupMissing
 import build.wallet.cloud.backup.health.EekBackupStatus
@@ -26,6 +24,7 @@ import build.wallet.statemachine.core.*
 import build.wallet.statemachine.home.full.HomeScreen.MoneyHome
 import build.wallet.statemachine.home.full.HomeScreen.Settings
 import build.wallet.statemachine.home.full.PresentedScreen.*
+import build.wallet.statemachine.home.full.SecurityHubPresentedScreen.DeviceSettings
 import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiProps
 import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiStateMachine
 import build.wallet.statemachine.inheritance.InheritanceNotificationAction
@@ -51,9 +50,7 @@ import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVaria
 import build.wallet.time.TimeZoneProvider
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
@@ -65,8 +62,6 @@ class HomeUiStateMachineImpl(
   private val setSpendingLimitUiStateMachine: SetSpendingLimitUiStateMachine,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
   private val expectedTransactionNoticeUiStateMachine: ExpectedTransactionNoticeUiStateMachine,
-  private val cloudBackupHealthRepository: CloudBackupHealthRepository,
-  private val appFunctionalityService: AppFunctionalityService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val deepLinkHandler: DeepLinkHandler,
   private val clock: Clock,
@@ -91,8 +86,6 @@ class HomeUiStateMachineImpl(
         )
       )
     }
-
-    val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
 
     var anchorRootScreen by remember {
       mutableStateOf<HomeScreen>(MoneyHome(origin = Origin.Launch))
@@ -224,8 +217,7 @@ class HomeUiStateMachineImpl(
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS,
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE,
               -> {
-                uiState =
-                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingBitkeyDeviceSettingsUiState))
+                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub(screen = DeviceSettings))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP -> {
@@ -244,7 +236,7 @@ class HomeUiStateMachineImpl(
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_SECURITY_HUB -> {
-                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
+                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub())
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_CLOUD_REPAIR -> {
@@ -314,15 +306,6 @@ class HomeUiStateMachineImpl(
       }
     }
 
-    if (appFunctionalityStatus.featureStates.cloudBackupHealth == Available && props.account is FullAccount) {
-      LaunchedEffect("sync-cloud-backup-health") {
-        // TODO: W-9117 - migrate to app worker pattern
-        withContext(Dispatchers.Default) {
-          cloudBackupHealthRepository.syncLoop(account = props.account)
-        }
-      }
-    }
-
     return when (val presentedScreen = uiState.presentedScreen) {
       null -> {
         // Observe the global status banner model
@@ -376,8 +359,8 @@ class HomeUiStateMachineImpl(
                 )
               },
               onGoToSecurityHub = {
-                anchorRootScreen = HomeScreen.SecurityHub
-                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
+                anchorRootScreen = HomeScreen.SecurityHub()
+                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub())
               },
               onDismissOrigin = {
                 uiState = uiState.copy(rootScreen = anchorRootScreen)
@@ -393,23 +376,36 @@ class HomeUiStateMachineImpl(
               },
               account = props.account,
               settingsListState = rootScreen.screen,
-              lostHardwareRecoveryData = props.lostHardwareRecoveryData,
               homeStatusBannerModel = homeStatusBannerModel,
               goToSecurityHub = {
-                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
+                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub())
               }
             )
           )
-          HomeScreen.SecurityHub -> navigatorPresenter.model(
-            SecurityHubScreen(
-              account = props.account as FullAccount,
-              hardwareRecoveryData = props.lostHardwareRecoveryData
-            ),
-            onExit = {
-              anchorRootScreen = MoneyHome(origin = Origin.SecurityHub)
-              uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.SecurityHub))
+          is HomeScreen.SecurityHub -> {
+            val screen = when (rootScreen.screen) {
+              DeviceSettings -> DeviceSettingsScreen(
+                account = props.account as FullAccount,
+                lostHardwareRecoveryData = props.lostHardwareRecoveryData,
+                originScreen = SecurityHubScreen(
+                  account = props.account,
+                  hardwareRecoveryData = props.lostHardwareRecoveryData
+                )
+              )
+              null -> SecurityHubScreen(
+                account = props.account as FullAccount,
+                hardwareRecoveryData = props.lostHardwareRecoveryData
+              )
             }
-          )
+
+            navigatorPresenter.model(
+              initialScreen = screen,
+              onExit = {
+                anchorRootScreen = MoneyHome(origin = Origin.SecurityHub)
+                uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.SecurityHub))
+              }
+            )
+          }
         }
       }
 
@@ -579,11 +575,11 @@ private sealed interface HomeScreen {
   /**
    * Indicates that the security hub is shown.
    */
-  data object SecurityHub : HomeScreen
+  data class SecurityHub(val screen: SecurityHubPresentedScreen? = null) : HomeScreen
 }
 
 /**
- * Represents a screen presented on top of either [HomeScreen]
+ * Represents a screen presented on top of a [HomeScreen]
  */
 private sealed interface PresentedScreen {
   /** Indicates that the set spending limit flow is currently presented */
@@ -636,4 +632,14 @@ private sealed interface PresentedScreen {
 
   /** Indicates that the recovery channel settings screen is being displayed */
   data object RecoveryChannelSettings : PresentedScreen
+}
+
+/**
+ * A screen which has been presented which originates from [HomeScreen.SecurityHub]
+ *
+ * Note: This differs from [PresentedScreen] since security hub doesn't have state machine rendering
+ */
+private sealed interface SecurityHubPresentedScreen {
+  /** Indicates that the device settings screen is being displayed over security hub */
+  data object DeviceSettings : SecurityHubPresentedScreen
 }

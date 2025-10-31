@@ -3,7 +3,7 @@ use utoipa::ToSchema;
 
 use crate::currencies::CurrencyCode;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, ToSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Money {
     pub amount: u64,

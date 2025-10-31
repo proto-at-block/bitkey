@@ -2,6 +2,10 @@ use crate::daily_spend_record::entities::DailySpendingRecord;
 use crate::daily_spend_record::service::Service as DailySpendRecordService;
 use crate::entities::{Features, Settings, TransactionVerificationFeatures};
 use crate::error::SigningError;
+use crate::metrics::{
+    APP_ID_KEY, COSIGN_SUCCESS, KEYSET_TYPE_KEY, LEGACY_VALUE, MOBILE_PAY_VALUE, PRIVATE_VALUE,
+    SIGNING_STRATEGY_KEY, SWEEP_VALUE,
+};
 use crate::routes::Config;
 use crate::signed_psbt_cache::service::Service as SignedPsbtCacheService;
 use crate::signing_processor::state::{Initialized, Validated};
@@ -14,13 +18,15 @@ use crate::{
 };
 use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::{psbt::Psbt, Network};
-use bdk_utils::ElectrumRpcUris;
+use bdk_utils::{ChaincodeDelegationCollaboratorWallet, ElectrumRpcUris};
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
+use instrumentation::metrics::KeyValue;
+use instrumentation::middleware::CLIENT_REQUEST_CONTEXT;
 use screener::service::Service as ScreenerService;
 use std::sync::Arc;
-use types::account::entities::{FullAccount, TransactionVerificationPolicy};
+use types::account::entities::{Account, FullAccount, TransactionVerificationPolicy};
 use types::account::identifiers::KeysetId;
 use types::account::spending::SpendingKeyset;
 use types::transaction_verification::router::TransactionVerificationGrantView;
@@ -30,7 +36,7 @@ pub trait SigningStrategy: Sync + Send {
     async fn execute(self: Box<Self>) -> Result<Psbt, SigningError>;
 }
 
-pub struct TransferWithoutHardwareSigningStrategy {
+pub struct MobilePaySigningStrategy {
     rpc_uris: ElectrumRpcUris,
     network: Network,
     signing_method: SigningMethod,
@@ -41,8 +47,9 @@ pub struct TransferWithoutHardwareSigningStrategy {
     daily_spend_record_service: DailySpendRecordService,
 }
 
-impl TransferWithoutHardwareSigningStrategy {
+impl MobilePaySigningStrategy {
     pub fn new(
+        account: &Account,
         signing_validator: SigningProcessor<Initialized>,
         unsigned_psbt: Psbt,
         signing_method: SigningMethod,
@@ -69,6 +76,7 @@ impl TransferWithoutHardwareSigningStrategy {
                 let processor = signing_validator.validate(
                     &unsigned_psbt,
                     SpendRuleSet::mobile_pay(
+                        account,
                         &unsynced_source_wallet,
                         features,
                         &spending_entries,
@@ -83,18 +91,28 @@ impl TransferWithoutHardwareSigningStrategy {
 
                 processor
             }
-            SigningMethod::PrivateMobilePay { source_keyset } => signing_validator.validate(
-                &unsigned_psbt,
-                SpendRuleSet::mobile_pay_v2(
-                    source_keyset,
-                    features,
-                    &spending_entries,
-                    screener_service,
-                    transaction_verification_features,
-                    feature_flags_service,
-                    context_key,
-                ),
-            )?,
+            SigningMethod::PrivateMobilePay { source_keyset } => {
+                let collaborator_wallet: ChaincodeDelegationCollaboratorWallet =
+                    source_keyset.clone().into();
+
+                let processor = signing_validator.validate(
+                    &unsigned_psbt,
+                    SpendRuleSet::mobile_pay_v2(
+                        account,
+                        source_keyset,
+                        features,
+                        &spending_entries,
+                        screener_service,
+                        transaction_verification_features,
+                        feature_flags_service,
+                        context_key,
+                    ),
+                )?;
+
+                today_spending_record.update_with_psbt(&collaborator_wallet, &unsigned_psbt);
+
+                processor
+            }
             _ => return Err(SigningError::InvalidSigningMethodForStrategy),
         };
 
@@ -109,17 +127,39 @@ impl TransferWithoutHardwareSigningStrategy {
             daily_spend_record_service,
         })
     }
+
+    fn emit_success_metric(&self) {
+        let keyset_type = match self.signing_method {
+            SigningMethod::LegacyMobilePay { .. }
+            | SigningMethod::LegacySweep { .. }
+            | SigningMethod::MigrationSweep { .. } => LEGACY_VALUE,
+            SigningMethod::PrivateMobilePay { .. }
+            | SigningMethod::PrivateSweep { .. }
+            | SigningMethod::InheritanceDowngradeSweep { .. } => PRIVATE_VALUE,
+        };
+
+        let mut attributes = vec![
+            KeyValue::new(SIGNING_STRATEGY_KEY, MOBILE_PAY_VALUE),
+            KeyValue::new(KEYSET_TYPE_KEY, keyset_type),
+        ];
+
+        if let Ok(Some(app_id)) = CLIENT_REQUEST_CONTEXT.try_with(|c| c.app_id.clone()) {
+            attributes.push(KeyValue::new(APP_ID_KEY, app_id));
+        }
+
+        COSIGN_SUCCESS.add(1, &attributes);
+    }
 }
 
 #[async_trait]
-impl SigningStrategy for TransferWithoutHardwareSigningStrategy {
-    async fn execute(
-        self: Box<TransferWithoutHardwareSigningStrategy>,
-    ) -> Result<Psbt, SigningError> {
+impl SigningStrategy for MobilePaySigningStrategy {
+    async fn execute(self: Box<MobilePaySigningStrategy>) -> Result<Psbt, SigningError> {
         let mut broadcaster = self
             .signer
             .sign_transaction(&self.rpc_uris, &self.signing_method, &self.keyset_id)
             .await?;
+
+        self.emit_success_metric();
 
         let signed_psbt = broadcaster.finalized_psbt();
 
@@ -146,17 +186,21 @@ impl SigningStrategy for TransferWithoutHardwareSigningStrategy {
     }
 }
 
-pub struct RecoverySweepSigningStrategy {
+pub struct RecoverySweepSigningStrategy<T> {
     rpc_uris: ElectrumRpcUris,
-    signer: SigningProcessor<Validated>,
+    signer: T,
     signing_method: SigningMethod,
     network: Network,
     keyset_id: KeysetId,
 }
 
-impl RecoverySweepSigningStrategy {
-    pub fn new(
-        signing_validator: SigningProcessor<Initialized>,
+impl<T> RecoverySweepSigningStrategy<T>
+where
+    T: Signer,
+{
+    pub fn new<U>(
+        account: &Account,
+        signing_validator: U,
         unsigned_psbt: &Psbt,
         signing_method: SigningMethod,
         network: Network,
@@ -165,7 +209,10 @@ impl RecoverySweepSigningStrategy {
         screener_service: Arc<ScreenerService>,
         feature_flags_service: FeatureFlagsService,
         context_key: Option<ContextKey>,
-    ) -> Result<Self, SigningError> {
+    ) -> Result<Self, SigningError>
+    where
+        U: SigningValidator<SigningProcessor = T>,
+    {
         let signer = match &signing_method {
             SigningMethod::LegacySweep {
                 source_descriptor,
@@ -177,7 +224,8 @@ impl RecoverySweepSigningStrategy {
                 let active_wallet = active_descriptor.generate_wallet(true, rpc_uris)?;
                 signing_validator.validate(
                     unsigned_psbt,
-                    SpendRuleSet::sweep(
+                    SpendRuleSet::legacy_sweep(
+                        account,
                         &unsynced_source_wallet,
                         &active_wallet,
                         screener_service,
@@ -191,7 +239,8 @@ impl RecoverySweepSigningStrategy {
                 active_keyset,
             } => signing_validator.validate(
                 unsigned_psbt,
-                SpendRuleSet::sweep_v2(
+                SpendRuleSet::private_sweep(
+                    account,
                     source_keyset,
                     active_keyset,
                     screener_service,
@@ -199,6 +248,42 @@ impl RecoverySweepSigningStrategy {
                     context_key,
                 ),
             )?,
+            SigningMethod::MigrationSweep {
+                source_descriptor,
+                active_keyset,
+            } => {
+                let unsynced_source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
+                signing_validator.validate(
+                    unsigned_psbt,
+                    SpendRuleSet::migration_sweep(
+                        account,
+                        &unsynced_source_wallet,
+                        active_keyset,
+                        screener_service,
+                        feature_flags_service,
+                        context_key,
+                    ),
+                )?
+            }
+            SigningMethod::InheritanceDowngradeSweep {
+                source_keyset,
+                active_descriptor,
+            } => {
+                // W-9888: A full sync is required here, because we don't have derivation path information in
+                // the PSBT for sweep outputs so we need to generate addresses and check one-by-one.
+                let active_wallet = active_descriptor.generate_wallet(true, rpc_uris)?;
+                signing_validator.validate(
+                    unsigned_psbt,
+                    SpendRuleSet::inheritance_downgrade_sweep(
+                        account,
+                        source_keyset,
+                        &active_wallet,
+                        screener_service,
+                        feature_flags_service,
+                        context_key,
+                    ),
+                )?
+            }
             _ => return Err(SigningError::InvalidSigningMethodForStrategy),
         };
 
@@ -210,15 +295,42 @@ impl RecoverySweepSigningStrategy {
             keyset_id,
         })
     }
+
+    fn emit_success_metric(&self) {
+        let keyset_type = match self.signing_method {
+            SigningMethod::LegacyMobilePay { .. }
+            | SigningMethod::LegacySweep { .. }
+            | SigningMethod::MigrationSweep { .. } => LEGACY_VALUE,
+            SigningMethod::PrivateMobilePay { .. }
+            | SigningMethod::PrivateSweep { .. }
+            | SigningMethod::InheritanceDowngradeSweep { .. } => PRIVATE_VALUE,
+        };
+
+        let mut attributes = vec![
+            KeyValue::new(SIGNING_STRATEGY_KEY, SWEEP_VALUE),
+            KeyValue::new(KEYSET_TYPE_KEY, keyset_type),
+        ];
+
+        if let Ok(Some(app_id)) = CLIENT_REQUEST_CONTEXT.try_with(|c| c.app_id.clone()) {
+            attributes.push(KeyValue::new(APP_ID_KEY, app_id));
+        }
+
+        COSIGN_SUCCESS.add(1, &attributes);
+    }
 }
 
 #[async_trait]
-impl SigningStrategy for RecoverySweepSigningStrategy {
+impl<T> SigningStrategy for RecoverySweepSigningStrategy<T>
+where
+    T: Signer + Send + Sync,
+{
     async fn execute(self: Box<Self>) -> Result<Psbt, SigningError> {
         let mut broadcaster = self
             .signer
             .sign_transaction(&self.rpc_uris, &self.signing_method, &self.keyset_id)
             .await?;
+
+        self.emit_success_metric();
 
         broadcaster.broadcast_transaction(&self.rpc_uris, self.network)?;
 
@@ -269,28 +381,35 @@ impl SigningStrategyFactory {
             .get(signing_keyset_id)
             .ok_or_else(|| SigningError::NoSpendKeyset(signing_keyset_id.to_owned()))?;
 
-        let is_for_transfer_without_hw = full_account.active_keyset_id == *signing_keyset_id;
+        let is_mobile_pay = full_account.active_keyset_id == *signing_keyset_id;
 
         let signing_method = match source_keyset {
             SpendingKeyset::LegacyMultiSig(legacy_source) => {
-                if is_for_transfer_without_hw {
+                if is_mobile_pay {
                     SigningMethod::LegacyMobilePay {
                         source_descriptor: legacy_source.clone().into(),
                     }
                 } else {
                     let active_keyset = full_account
                         .active_spending_keyset()
-                        .ok_or(SigningError::NoActiveSpendKeyset)?
-                        .legacy_multi_sig_or(SigningError::ConflictingKeysetType)?;
+                        .ok_or(SigningError::NoActiveSpendKeyset)?;
 
-                    SigningMethod::LegacySweep {
-                        source_descriptor: legacy_source.clone().into(),
-                        active_descriptor: active_keyset.clone().into(),
+                    match active_keyset {
+                        SpendingKeyset::LegacyMultiSig(legacy_dest) => SigningMethod::LegacySweep {
+                            source_descriptor: legacy_source.clone().into(),
+                            active_descriptor: legacy_dest.clone().into(),
+                        },
+                        SpendingKeyset::PrivateMultiSig(private_dest) => {
+                            SigningMethod::MigrationSweep {
+                                source_descriptor: legacy_source.clone().into(),
+                                active_keyset: private_dest.clone(),
+                            }
+                        }
                     }
                 }
             }
             SpendingKeyset::PrivateMultiSig(source_keyset) => {
-                if is_for_transfer_without_hw {
+                if is_mobile_pay {
                     SigningMethod::PrivateMobilePay {
                         source_keyset: source_keyset.clone(),
                     }
@@ -308,8 +427,8 @@ impl SigningStrategyFactory {
             }
         };
 
-        let signing_strategy: Box<dyn SigningStrategy> = if is_for_transfer_without_hw {
-            Self::create_transfer_without_hardware_signing_strategy(
+        let signing_strategy: Box<dyn SigningStrategy> = if is_mobile_pay {
+            Self::create_mobile_pay_signing_strategy(
                 full_account,
                 &config,
                 self.signing_processor.clone(),
@@ -343,7 +462,7 @@ impl SigningStrategyFactory {
         Ok(signing_strategy)
     }
 
-    async fn create_transfer_without_hardware_signing_strategy(
+    async fn create_mobile_pay_signing_strategy(
         full_account: &FullAccount,
         config: &Config,
         signing_processor: SigningProcessor<Initialized>,
@@ -358,7 +477,7 @@ impl SigningStrategyFactory {
         signed_psbt_cache_service: &SignedPsbtCacheService,
         feature_flags_service: &FeatureFlagsService,
         context_key: Option<ContextKey>,
-    ) -> Result<Box<TransferWithoutHardwareSigningStrategy>, SigningError> {
+    ) -> Result<Box<MobilePaySigningStrategy>, SigningError> {
         let limit = full_account
             .spending_limit
             .clone()
@@ -386,7 +505,8 @@ impl SigningStrategyFactory {
         let mobile_pay_spending_record =
             get_mobile_pay_spending_record(&full_account.id, daily_spend_record_service).await?;
 
-        Ok(Box::new(TransferWithoutHardwareSigningStrategy::new(
+        Ok(Box::new(MobilePaySigningStrategy::new(
+            &full_account.clone().into(),
             signing_processor,
             unsigned_psbt,
             signing_method,
@@ -404,9 +524,9 @@ impl SigningStrategyFactory {
         )?))
     }
 
-    fn create_recovery_sweep_signing_strategy(
+    fn create_recovery_sweep_signing_strategy<T, U>(
         full_account: &FullAccount,
-        signing_processor: SigningProcessor<Initialized>,
+        signing_processor: U,
         unsigned_psbt: &Psbt,
         signing_method: SigningMethod,
         rpc_uris: &ElectrumRpcUris,
@@ -414,7 +534,11 @@ impl SigningStrategyFactory {
         screener_service: &Arc<ScreenerService>,
         feature_flags_service: &FeatureFlagsService,
         context_key: Option<ContextKey>,
-    ) -> Result<Box<RecoverySweepSigningStrategy>, SigningError> {
+    ) -> Result<Box<RecoverySweepSigningStrategy<T>>, SigningError>
+    where
+        T: Signer,
+        U: SigningValidator<SigningProcessor = T>,
+    {
         let active_spending_keyset = full_account
             .active_spending_keyset()
             .ok_or(SigningError::NoActiveSpendKeyset)?;
@@ -422,6 +546,7 @@ impl SigningStrategyFactory {
         let network = active_spending_keyset.network();
 
         Ok(Box::new(RecoverySweepSigningStrategy::new(
+            &full_account.clone().into(),
             signing_processor,
             unsigned_psbt,
             signing_method,
@@ -443,7 +568,7 @@ impl SigningStrategyFactory {
         match policy {
             Some(TransactionVerificationPolicy::Threshold(amount)) => {
                 Ok(Some(TransactionVerificationFeatures {
-                    policy: TransactionVerificationPolicy::Threshold(amount.clone()),
+                    policy: TransactionVerificationPolicy::Threshold(*amount),
                     verification_sats: sats_for_threshold(amount, config, exchange_rate_service)
                         .await?,
                     grant,

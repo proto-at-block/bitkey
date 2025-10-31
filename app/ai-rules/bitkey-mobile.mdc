@@ -50,4 +50,3 @@ Bitkey mobile application built with Kotlin Multiplatform (KMP) targeting Androi
 
 **Meta:**
 - **rule-writing.mdc** - Guidelines for writing and maintaining AI rules in this codebase
-- **ai-code-review.mdc** - AI code review standards for consistent quality assurance

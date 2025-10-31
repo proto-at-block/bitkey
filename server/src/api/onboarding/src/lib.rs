@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use errors::ApiError;
+use instrumentation::metrics::KeyValue;
+use instrumentation::middleware::CLIENT_REQUEST_CONTEXT;
 use notification::clients::iterable::{
     IterableClient, IterableUserId, ACCOUNT_ID_KEY, PLACEHOLDER_EMAIL_ADDRESS, TOUCHPOINT_ID_KEY,
     USER_SCOPE_KEY,
@@ -8,6 +10,10 @@ use notification::clients::iterable::{
 use types::account::identifiers::AccountId;
 use types::account::identifiers::TouchpointId;
 use types::notification::NotificationCategory;
+
+use crate::metrics::APP_ID_KEY;
+use crate::metrics::KEYSET_CREATED;
+use crate::metrics::KEYSET_TYPE_KEY;
 
 pub mod account_validation;
 pub(crate) mod metrics;
@@ -74,4 +80,13 @@ async fn create_touchpoint_iterable_user(
         .await?;
 
     Ok(())
+}
+
+fn emit_keyset_created(keyset_type: &str) {
+    let mut attributes = vec![KeyValue::new(KEYSET_TYPE_KEY, keyset_type.to_string())];
+
+    if let Ok(Some(app_id)) = CLIENT_REQUEST_CONTEXT.try_with(|c| c.app_id.clone()) {
+        attributes.push(KeyValue::new(APP_ID_KEY, app_id));
+    }
+    KEYSET_CREATED.add(1, &attributes);
 }

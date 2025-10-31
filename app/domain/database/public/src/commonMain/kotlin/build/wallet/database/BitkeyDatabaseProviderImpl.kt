@@ -164,7 +164,7 @@ class BitkeyDatabaseProviderImpl(
         SpendingKeysetEntity.Adapter(
           appKeyAdapter = AppSpendingPublicKeyColumnAdapter,
           hardwareKeyAdapter = HwSpendingPublicKeyColumnAdapter,
-          serverKeyAdapter = F8eSpendingPublicKeyColumnAdapter
+          serverKeyAdapter = F8eSpendingKeysetColumnAdapter
         ),
       activeServerRecoveryEntityAdapter =
         ActiveServerRecoveryEntity.Adapter(
@@ -185,7 +185,7 @@ class BitkeyDatabaseProviderImpl(
           destinationAppSpendingKeyAdapter = AppSpendingPublicKeyColumnAdapter,
           destinationHardwareSpendingKeyAdapter = HwSpendingPublicKeyColumnAdapter,
           appGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter,
-          serverSpendingKeyAdapter = F8eSpendingPublicKeyColumnAdapter,
+          serverSpendingKeyAdapter = F8eSpendingKeysetColumnAdapter,
           lostFactorAdapter = EnumColumnAdapter(),
           sealedCsekAdapter = ByteStringColumnAdapter,
           sealedSsekAdapter = ByteStringColumnAdapter
@@ -380,7 +380,7 @@ class BitkeyDatabaseProviderImpl(
       recoverySpendingKeysetEntityAdapter = RecoverySpendingKeysetEntity.Adapter(
         appKeyAdapter = AppSpendingPublicKeyColumnAdapter,
         hardwareKeyAdapter = HwSpendingPublicKeyColumnAdapter,
-        serverKeyAdapter = F8eSpendingPublicKeyColumnAdapter,
+        serverKeyAdapter = F8eSpendingKeysetColumnAdapter,
         networkTypeAdapter = EnumColumnAdapter()
       ),
       pendingPrivilegedActionsEntityAdapter = PendingPrivilegedActionsEntity.Adapter(
@@ -390,6 +390,11 @@ class BitkeyDatabaseProviderImpl(
       grantEntityAdapter = GrantEntity.Adapter(
         actionAdapter = EnumColumnAdapter(),
         createdAtAdapter = InstantAsIso8601ColumnAdapter
+      ),
+      privateWalletMigrationEntityAdapter = PrivateWalletMigrationEntity.Adapter(
+        newHardwareKeyAdapter = HwSpendingPublicKeyColumnAdapter,
+        newAppKeyAdapter = AppSpendingPublicKeyColumnAdapter,
+        newServerKeyAdapter = F8eSpendingKeysetColumnAdapter
       )
     )
   }

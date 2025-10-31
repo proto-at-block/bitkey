@@ -74,7 +74,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
           Outgoing -> TransferConfirmationScreenModel(
             onBack = props.onExit,
             variant = TransferConfirmationScreenVariant.SpeedUp,
-            recipientAddress = props.speedUpTransactionDetails.recipientAddress.chunkedAddress(),
+            recipientAddress = props.speedUpTransactionDetails.recipientAddress,
             transactionDetails = transactionDetailsCard,
             requiresHardware = true, // currently all fee bumps require hardware
             confirmButtonEnabled = true,

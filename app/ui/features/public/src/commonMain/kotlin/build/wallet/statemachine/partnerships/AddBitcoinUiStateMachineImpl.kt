@@ -8,12 +8,9 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.partnerships.AddBitcoinUiState.*
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachine
-import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiProps
-import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachine
 
 @BitkeyInject(ActivityScope::class)
 class AddBitcoinUiStateMachineImpl(
-  val partnershipsTransferUiStateMachine: PartnershipsTransferUiStateMachine,
   val partnershipsPurchaseUiStateMachine: PartnershipsPurchaseUiStateMachine,
 ) : AddBitcoinUiStateMachine {
   @Composable
@@ -22,7 +19,6 @@ class AddBitcoinUiStateMachineImpl(
       mutableStateOf(
         when (props.initialState) {
           AddBitcoinBottomSheetDisplayState.ShowingPurchaseOrTransferUiState -> ShowingBuyOrTransferUiState
-          AddBitcoinBottomSheetDisplayState.TransferringUiState -> TransferringUiState
           is AddBitcoinBottomSheetDisplayState.PurchasingUiState -> PurchasingUiState(props.initialState.selectedAmount)
         }
       )
@@ -36,23 +32,8 @@ class AddBitcoinUiStateMachineImpl(
           onPurchase = {
             uiState = PurchasingUiState(selectedAmount = null)
           },
-          onTransfer = {
-            uiState = TransferringUiState
-          },
+          onTransfer = props.onTransfer,
           onBack = props.onExit
-        )
-
-      TransferringUiState ->
-        partnershipsTransferUiStateMachine.model(
-          props =
-            PartnershipsTransferUiProps(
-              account = props.account,
-              keybox = props.keybox,
-              onBack = props.onExit,
-              onAnotherWalletOrExchange = props.onAnotherWalletOrExchange,
-              onPartnerRedirected = props.onPartnerRedirected,
-              onExit = props.onExit
-            )
         )
 
       is PurchasingUiState ->
@@ -71,8 +52,6 @@ class AddBitcoinUiStateMachineImpl(
 
 private sealed interface AddBitcoinUiState {
   data object ShowingBuyOrTransferUiState : AddBitcoinUiState
-
-  data object TransferringUiState : AddBitcoinUiState
 
   data class PurchasingUiState(val selectedAmount: FiatMoney?) : AddBitcoinUiState
 }

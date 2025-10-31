@@ -3,6 +3,7 @@ package build.wallet.bitkey.inheritance
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.encrypt.XCiphertext
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.datetime.Instant
@@ -51,6 +52,18 @@ class BeneficiaryClaimSerializerTests : FunSpec({
                 "sealed_dek": "test-sealed_dek",
                 "sealed_mobile_key": "test-sealed_mobile_key",
                 "sealed_descriptor": "test-sealed_descriptor",
+                "benefactor_descriptor_keyset": "test-keyset",
+                "sealed_server_root_xpub": "test-sealed_server_root_xpub"
+            }
+  """.trimIndent()
+  val lockedClaimBothDescriptorsNoServerRootXpub = """
+            {
+                "status": "LOCKED",
+                "id": "test-id",
+                "recovery_relationship_id": "test-relationship_id",
+                "sealed_dek": "test-sealed_dek",
+                "sealed_mobile_key": "test-sealed_mobile_key",
+                "sealed_descriptor": "test-sealed_descriptor",
                 "benefactor_descriptor_keyset": "test-keyset"
             }
   """.trimIndent()
@@ -61,7 +74,8 @@ class BeneficiaryClaimSerializerTests : FunSpec({
                 "recovery_relationship_id": "test-relationship_id",
                 "sealed_dek": "test-sealed_dek",
                 "sealed_mobile_key": "test-sealed_mobile_key",
-                "sealed_descriptor": "test-sealed_descriptor"
+                "sealed_descriptor": "test-sealed_descriptor",
+                "sealed_server_root_xpub": "test-sealed_server_root_xpub"
             }
   """.trimIndent()
   val completeClaim = """
@@ -128,8 +142,9 @@ class BeneficiaryClaimSerializerTests : FunSpec({
     result.relationshipId.value.shouldBe("test-relationship_id")
     result.sealedDek.value.shouldBe("test-sealed_dek")
     result.sealedMobileKey.value.shouldBe("test-sealed_mobile_key")
-    result.sealedDescriptor?.value.shouldBe(null)
+    result.sealedDescriptor?.value.shouldBeNull()
     result.benefactorKeyset?.value.shouldBe("test-keyset")
+    result.sealedServerRootXpub?.value.shouldBeNull()
   }
 
   test("Deserialize locked claim w/ both descriptors") {
@@ -142,6 +157,20 @@ class BeneficiaryClaimSerializerTests : FunSpec({
     result.sealedMobileKey.value.shouldBe("test-sealed_mobile_key")
     result.sealedDescriptor?.value.shouldBe("test-sealed_descriptor")
     result.benefactorKeyset?.value.shouldBe("test-keyset")
+    result.sealedServerRootXpub?.value.shouldBe("test-sealed_server_root_xpub")
+  }
+
+  test("Deserialize locked claim w/ both descriptors no server root xpub") {
+    val result = json.decodeFromString(BeneficiaryClaimSerializer, lockedClaimBothDescriptorsNoServerRootXpub)
+
+    result.shouldBeInstanceOf<BeneficiaryClaim.LockedClaim>()
+    result.claimId.value.shouldBe("test-id")
+    result.relationshipId.value.shouldBe("test-relationship_id")
+    result.sealedDek.value.shouldBe("test-sealed_dek")
+    result.sealedMobileKey.value.shouldBe("test-sealed_mobile_key")
+    result.sealedDescriptor?.value.shouldBe("test-sealed_descriptor")
+    result.benefactorKeyset?.value.shouldBe("test-keyset")
+    result.sealedServerRootXpub?.value.shouldBeNull()
   }
 
   test("Deserialize locked claim w/ no plaintext descriptor") {
@@ -154,6 +183,7 @@ class BeneficiaryClaimSerializerTests : FunSpec({
     result.sealedMobileKey.value.shouldBe("test-sealed_mobile_key")
     result.sealedDescriptor?.value.shouldBe("test-sealed_descriptor")
     result.benefactorKeyset?.value.shouldBe(null)
+    result.sealedServerRootXpub?.value.shouldBe("test-sealed_server_root_xpub")
   }
 
   test("Serialize locked claim w/ no sealed descriptor") {
@@ -163,7 +193,8 @@ class BeneficiaryClaimSerializerTests : FunSpec({
       sealedDek = XCiphertext("test-sealed_dek"),
       sealedMobileKey = XCiphertext("test-sealed_mobile_key"),
       sealedDescriptor = null,
-      benefactorKeyset = BenefactorDescriptorKeyset("test-keyset")
+      benefactorKeyset = BenefactorDescriptorKeyset("test-keyset"),
+      sealedServerRootXpub = null
     )
 
     val result = json.encodeToString(BeneficiaryClaimSerializer, input)
@@ -178,12 +209,29 @@ class BeneficiaryClaimSerializerTests : FunSpec({
       sealedDek = XCiphertext("test-sealed_dek"),
       sealedMobileKey = XCiphertext("test-sealed_mobile_key"),
       sealedDescriptor = XCiphertext("test-sealed_descriptor"),
-      benefactorKeyset = BenefactorDescriptorKeyset("test-keyset")
+      benefactorKeyset = BenefactorDescriptorKeyset("test-keyset"),
+      sealedServerRootXpub = XCiphertext("test-sealed_server_root_xpub")
     )
 
     val result = json.encodeToString(BeneficiaryClaimSerializer, input)
 
     result.shouldBe(lockedClaimBothDescriptors)
+  }
+
+  test("Serialize locked claim w/ both descriptors but no server root xpub") {
+    val input = BeneficiaryClaim.LockedClaim(
+      claimId = InheritanceClaimId("test-id"),
+      relationshipId = RelationshipId("test-relationship_id"),
+      sealedDek = XCiphertext("test-sealed_dek"),
+      sealedMobileKey = XCiphertext("test-sealed_mobile_key"),
+      sealedDescriptor = XCiphertext("test-sealed_descriptor"),
+      benefactorKeyset = BenefactorDescriptorKeyset("test-keyset"),
+      sealedServerRootXpub = null
+    )
+
+    val result = json.encodeToString(BeneficiaryClaimSerializer, input)
+
+    result.shouldBe(lockedClaimBothDescriptorsNoServerRootXpub)
   }
 
   test("Serialize locked claim w/ no plaintext descriptor") {
@@ -193,7 +241,8 @@ class BeneficiaryClaimSerializerTests : FunSpec({
       sealedDek = XCiphertext("test-sealed_dek"),
       sealedMobileKey = XCiphertext("test-sealed_mobile_key"),
       sealedDescriptor = XCiphertext("test-sealed_descriptor"),
-      benefactorKeyset = null
+      benefactorKeyset = null,
+      sealedServerRootXpub = XCiphertext("test-sealed_server_root_xpub")
     )
 
     val result = json.encodeToString(BeneficiaryClaimSerializer, input)

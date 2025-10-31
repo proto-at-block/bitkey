@@ -15,8 +15,6 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.ReceiveV2ScreenFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -58,7 +56,6 @@ import build.wallet.statemachine.partnerships.sell.PartnershipsSellUiStateMachin
 import build.wallet.statemachine.pricechart.BitcoinPriceChartUiProps
 import build.wallet.statemachine.pricechart.BitcoinPriceChartUiStateMachine
 import build.wallet.statemachine.receive.AddressQrCodeUiProps
-import build.wallet.statemachine.receive.AddressQrCodeUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
@@ -75,16 +72,17 @@ import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiProps
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiStateMachine
+import build.wallet.wallet.migration.PrivateWalletMigrationService
+import build.wallet.wallet.migration.PrivateWalletMigrationState
+import build.wallet.wallet.migration.PrivateWalletMigrationState.NotAvailable
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.launch
-import build.wallet.statemachine.receivev2.AddressQrCodeUiStateMachine as AddressQrCodeUiStateMachineV2
+import build.wallet.statemachine.receive.AddressQrCodeUiStateMachine as AddressQrCodeUiStateMachineV2
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint as FingerprintManagementEntryPoint
 
 @BitkeyInject(ActivityScope::class)
 class MoneyHomeUiStateMachineImpl(
-  private val addressQrCodeUiStateMachine: AddressQrCodeUiStateMachine,
   private val addressQrCodeUiStateMachineV2: AddressQrCodeUiStateMachineV2,
-  private val receiveV2ScreenFeatureFlag: ReceiveV2ScreenFeatureFlag,
   private val sendUiStateMachine: SendUiStateMachine,
   private val transactionDetailsUiStateMachine: TransactionDetailsUiStateMachine,
   private val transactionsActivityUiStateMachine: TransactionsActivityUiStateMachine,
@@ -110,6 +108,7 @@ class MoneyHomeUiStateMachineImpl(
   private val declineInheritanceClaimUiStateMachine: DeclineInheritanceClaimUiStateMachine,
   private val onboardingCompletionService: OnboardingCompletionService,
   private val navigatorPresenter: NavigatorPresenter,
+  private val privateWalletMigrationService: PrivateWalletMigrationService,
   private val privateWalletMigrationUiStateMachine: PrivateWalletMigrationUiStateMachine,
 ) : MoneyHomeUiStateMachine {
   @Composable
@@ -117,6 +116,8 @@ class MoneyHomeUiStateMachineImpl(
     val justCompletingSocialRecovery by remember {
       socRecService.justCompletedRecovery()
     }.collectAsState(initial = false)
+
+    val migrationState by privateWalletMigrationService.migrationState.collectAsState(NotAvailable)
 
     var hasAutoShownSocialRecoveryScreen by remember { mutableStateOf(false) }
 
@@ -128,7 +129,8 @@ class MoneyHomeUiStateMachineImpl(
 
     var uiState: MoneyHomeUiState by remember(
       props.origin,
-      justCompletingSocialRecovery
+      justCompletingSocialRecovery,
+      migrationState
     ) {
       val initialState = when (val origin = props.origin) {
         MoneyHomeUiProps.Origin.Launch -> {
@@ -136,16 +138,16 @@ class MoneyHomeUiStateMachineImpl(
           val lostHardwareRecoveryData = props.lostHardwareRecoveryData
 
           when {
+            migrationState is PrivateWalletMigrationState.InProgress -> PrivateWalletMigrationUiState(inProgress = true)
             justCompletingSocialRecovery && !hasAutoShownSocialRecoveryScreen -> {
               hasAutoShownSocialRecoveryScreen = true
               ViewHardwareRecoveryStatusUiState(InstructionsStyle.ContinuingRecovery)
             }
             lostHardwareRecoveryData is LostHardwareRecoveryInProgressData ->
               when (lostHardwareRecoveryData.recoveryInProgressData) {
-                is CompletingRecoveryData ->
-                  ViewHardwareRecoveryStatusUiState(
-                    InstructionsStyle.Independent
-                  )
+                is CompletingRecoveryData -> ViewHardwareRecoveryStatusUiState(
+                  InstructionsStyle.Independent
+                )
                 else -> ViewingBalanceUiState()
               }
             else -> ViewingBalanceUiState()
@@ -193,7 +195,6 @@ class MoneyHomeUiStateMachineImpl(
       is ViewingBalanceUiState -> moneyHomeViewingBalanceUiStateMachine.model(
         props = MoneyHomeViewingBalanceUiProps(
           account = props.account,
-          lostHardwareRecoveryData = props.lostHardwareRecoveryData,
           homeStatusBannerModel = props.homeStatusBannerModel,
           onSettings = props.onSettings,
           state = state,
@@ -204,19 +205,15 @@ class MoneyHomeUiStateMachineImpl(
           },
           onGoToSecurityHub = props.onGoToSecurityHub,
           onGoToPrivateWalletMigration = {
-            uiState = PrivateWalletMigrationUiState
+            uiState = PrivateWalletMigrationUiState()
           }
         )
       )
 
-      is PerformingSweep -> sweepUiStateMachine.model(
-        SweepUiProps(
-          presentationStyle = ScreenPresentationStyle.ModalFullScreen,
-          onExit = { uiState = ViewingBalanceUiState() },
-          onSuccess = { uiState = ViewingBalanceUiState() },
-          recoveredFactor = null,
-          keybox = (props.account as FullAccount).keybox
-        )
+      is PerformingSweep -> performSweepModel(
+        account = props.account as FullAccount,
+        onExit = { uiState = ViewingBalanceUiState() },
+        onSuccess = { uiState = ViewingBalanceUiState() }
       )
 
       SellFlowUiState -> partnershipsSellUiStateMachine.model(
@@ -227,6 +224,14 @@ class MoneyHomeUiStateMachineImpl(
 
       ReceiveFlowUiState -> ReceiveBitcoinModel(
         props,
+        onWebLinkOpened = { url, info, transaction ->
+          uiState = ShowingInAppBrowserUiState(
+            urlString = url,
+            onClose = {
+              props.onPartnershipsWebFlowCompleted(info, transaction)
+            }
+          )
+        },
         onExit = {
           uiState = ViewingBalanceUiState()
         }
@@ -420,11 +425,12 @@ class MoneyHomeUiStateMachineImpl(
         )
       )
 
-      PrivateWalletMigrationUiState -> privateWalletMigrationUiStateMachine.model(
+      is PrivateWalletMigrationUiState -> privateWalletMigrationUiStateMachine.model(
         PrivateWalletMigrationUiProps(
           account = props.account as FullAccount,
           onMigrationComplete = { uiState = ViewingBalanceUiState() },
-          onExit = { uiState = ViewingBalanceUiState() }
+          onExit = { uiState = ViewingBalanceUiState() },
+          inProgress = state.inProgress
         )
       )
 
@@ -444,19 +450,15 @@ class MoneyHomeUiStateMachineImpl(
   @Composable
   private fun ReceiveBitcoinModel(
     props: MoneyHomeUiProps,
+    onWebLinkOpened: (String, PartnerInfo, PartnershipTransaction) -> Unit,
     onExit: () -> Unit,
   ): ScreenModel {
-    val stateMachine = if (receiveV2ScreenFeatureFlag.isEnabled()) {
-      addressQrCodeUiStateMachineV2
-    } else {
-      addressQrCodeUiStateMachine
-    }
-    return stateMachine.model(
-      props =
-        AddressQrCodeUiProps(
-          account = props.account as FullAccount,
-          onBack = onExit
-        )
+    return addressQrCodeUiStateMachineV2.model(
+      props = AddressQrCodeUiProps(
+        account = props.account as FullAccount,
+        onWebLinkOpened = onWebLinkOpened,
+        onBack = onExit
+      )
     ).asModalFullScreen()
   }
 
@@ -519,6 +521,28 @@ class MoneyHomeUiStateMachineImpl(
         )
       }
     }
+  }
+
+  @Composable
+  private fun performSweepModel(
+    account: FullAccount,
+    onExit: () -> Unit,
+    onSuccess: () -> Unit,
+  ): ScreenModel {
+    val keybox = account.keybox
+
+    return sweepUiStateMachine.model(
+      SweepUiProps(
+        hasAttemptedSweep = false,
+        presentationStyle = ScreenPresentationStyle.ModalFullScreen,
+        onExit = onExit,
+        onSuccess = onSuccess,
+        keybox = keybox,
+        // This callback is used to update the RecoveryStatusService in the
+        // recovery flow, and is not necessary in this context.
+        onAttemptSweep = {}
+      )
+    )
   }
 
   @Composable
@@ -726,5 +750,7 @@ sealed interface MoneyHomeUiState {
   /**
    * Private wallet migration flow, presented modally from the coachmark
    */
-  data object PrivateWalletMigrationUiState : MoneyHomeUiState
+  data class PrivateWalletMigrationUiState(
+    val inProgress: Boolean = false,
+  ) : MoneyHomeUiState
 }

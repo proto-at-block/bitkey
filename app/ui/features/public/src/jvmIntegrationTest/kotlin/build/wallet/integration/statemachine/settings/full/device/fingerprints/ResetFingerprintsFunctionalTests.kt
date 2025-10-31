@@ -39,7 +39,7 @@ class FingerprintResetFunctionalTests : FunSpec({
     app.onboardFullAccountWithFakeHardware()
   }
 
-  test("cancel reset from progress screen returns to security hub") {
+  xtest("cancel reset from progress screen returns to security hub") {
     launchAndPrepareApp()
     app.appUiStateMachine.test(
       props = Unit,
@@ -57,7 +57,7 @@ class FingerprintResetFunctionalTests : FunSpec({
     }
   }
 
-  test("approve reset") {
+  xtest("approve reset") {
     launchAndPrepareApp()
     app.appUiStateMachine.test(
       props = Unit

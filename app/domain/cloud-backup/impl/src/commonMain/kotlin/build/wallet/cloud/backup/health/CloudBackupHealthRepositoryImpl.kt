@@ -14,13 +14,10 @@ import build.wallet.di.BitkeyInject
 import build.wallet.emergencyexitkit.EmergencyExitKitRepository
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
-import build.wallet.platform.app.AppSessionManager
-import build.wallet.platform.app.AppSessionState
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.toErrorIfNull
-import kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -33,7 +30,6 @@ class CloudBackupHealthRepositoryImpl(
   private val cloudBackupDao: CloudBackupDao,
   private val emergencyExitKitRepository: EmergencyExitKitRepository,
   private val fullAccountCloudBackupRepairer: FullAccountCloudBackupRepairer,
-  private val appSessionManager: AppSessionManager,
   private val appFunctionalityService: AppFunctionalityService,
 ) : CloudBackupHealthRepository {
   private val appKeyBackupStatus = MutableStateFlow<AppKeyBackupStatus?>(null)
@@ -49,38 +45,9 @@ class CloudBackupHealthRepositoryImpl(
   }
 
   /**
-   * A shared flow that emits a [FullAccount] every time a sync is requested.
-   * [syncLoop] listens to this flow and performs a sync whenever it emits.
-   */
-  private val syncRequests = MutableSharedFlow<FullAccount>(
-    extraBufferCapacity = 1,
-    onBufferOverflow = DROP_OLDEST
-  )
-
-  /**
    * A lock to ensure that only one sync is performed at a time.
    */
   private val syncLock = Mutex()
-
-  override suspend fun syncLoop(account: FullAccount) {
-    // Perform sync whenever a sync is requested or when the app
-    // enters the foreground.
-    combine(
-      syncRequests
-        .onStart { emit(account) }, // Use the account provided in the function call to start
-      appSessionManager.appSessionState
-        .filter { AppSessionState.FOREGROUND == it }
-        .onStart {
-          appSessionManager.appSessionState.value
-        } // always perform an initial sync regardless of app state.
-    ) { account, _ -> account }
-      .filter { it == account }
-      .collect(::performSync)
-  }
-
-  override fun requestSync(account: FullAccount) {
-    syncRequests.tryEmit(account)
-  }
 
   override suspend fun performSync(account: FullAccount): CloudBackupStatus {
     return syncLock.withLock {

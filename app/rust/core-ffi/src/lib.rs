@@ -10,7 +10,9 @@ use bitcoin::{
     Network,
 };
 use crypto::chacha20poly1305::{ChaCha20Poly1305Error, XChaCha20Poly1305};
-use crypto::chaincode_delegation::{server_account_dpub, ChaincodeDelegationError};
+use crypto::chaincode_delegation::{
+    server_account_dpub, server_root_xpub, ChaincodeDelegationError,
+};
 use crypto::crypto_box::{CryptoBox, CryptoBoxError, CryptoBoxKeyPair, CryptoBoxKeyPairError};
 use crypto::ecdh::Secp256k1SharedSecret;
 use crypto::frost::{signing::SigningError, FrostShare};
@@ -32,7 +34,7 @@ use frost::{
     ShareGenerator, SharePackage, WalletDescriptor,
 };
 use lightning_support::invoice::{Invoice, InvoiceError, Sha256};
-use miniscript::{DescriptorPublicKey, descriptor::DescriptorSecretKey};
+use miniscript::{descriptor::DescriptorSecretKey, DescriptorPublicKey};
 use wsm_integrity::{WsmContext, WsmIntegrityVerifier, WsmIntegrityVerifierError};
 
 uniffi::include_scaffolding!("core");

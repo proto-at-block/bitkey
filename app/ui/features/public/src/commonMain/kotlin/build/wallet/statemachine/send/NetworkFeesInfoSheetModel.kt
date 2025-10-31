@@ -5,6 +5,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.ui.model.SheetClosingClick
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 
 private val FEES_EXPLAINER =
@@ -16,6 +17,11 @@ private val FEES_EXPLAINER =
 
 data class NetworkFeesInfoSheetModel(
   override val onBack: () -> Unit,
+  /**
+   * If this explainer is being shown from another sheet, set this to true to ensure onBack behavior
+   * is correct.
+   */
+  val fromSheet: Boolean = false,
 ) : FormBodyModel(
     onBack = onBack,
     toolbar = null,
@@ -27,7 +33,7 @@ data class NetworkFeesInfoSheetModel(
     primaryButton = ButtonModel(
       text = "Got it",
       size = ButtonModel.Size.Footer,
-      onClick = SheetClosingClick(onBack)
+      onClick = if (fromSheet) StandardClick(onBack) else SheetClosingClick(onBack)
     ),
     renderContext = RenderContext.Sheet,
     id = SendEventTrackerScreenId.SEND_NETWORK_FEES_INFO_SHEET,

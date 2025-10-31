@@ -15,7 +15,7 @@ poetry-dynamic-versioning==1.2.0
 plotly==5.19.0
 pandas==2.2.1
 prettytable==3.10.0
-memfault-cli==1.0.7
+memfault-cli==1.6.0
 
 # Bitkey python modules
 -e ./python

@@ -1,31 +1,28 @@
-use std::{collections::BTreeMap, error::Error, fmt::Display, str::FromStr};
+use std::{collections::BTreeMap, error::Error, fmt::Display};
 pub mod common;
 
 use bitcoin::{
     bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint},
     psbt::{raw::ProprietaryKey, Psbt},
-    secp256k1::{All, PublicKey, Secp256k1},
+    secp256k1::{All, PublicKey, Scalar, Secp256k1},
     Network,
 };
-use miniscript::descriptor::{DescriptorPublicKey, DescriptorXKey, Wildcard};
+use miniscript::{
+    descriptor::{DescriptorPublicKey, DescriptorXKey, Wildcard},
+    Descriptor,
+};
 use rand::RngCore;
 
 use common::{tweak_from_path, PROPRIETARY_KEY_PREFIX, PROPRIETARY_KEY_SUBTYPE};
 
-// Generates server account descriptor public key given network and server root public key
+// Generates server account descriptor public key given network and server root xpub
 // This is used by the app during the onboarding of a private account
-pub fn server_account_dpub(network: Network, server_root_pubkey: PublicKey) -> DescriptorPublicKey {
-    let network_index = if network == Network::Bitcoin { 0 } else { 1 };
-    let account_path: DerivationPath = vec![
-        ChildNumber::Normal { index: 84 },
-        ChildNumber::Normal {
-            index: network_index,
-        },
-        ChildNumber::Normal { index: 0 },
-    ]
-    .into();
+pub fn server_account_dpub(
+    network: Network,
+    server_root_xpub: ExtendedPubKey,
+) -> DescriptorPublicKey {
+    let account_path = get_account_path(network);
 
-    let server_root_xpub = server_root_xpub(network, server_root_pubkey);
     let server_account_xpub = server_root_xpub
         .derive_pub(&Secp256k1::new(), &account_path)
         .expect("derived server xpub");
@@ -40,7 +37,7 @@ pub fn server_account_dpub(network: Network, server_root_pubkey: PublicKey) -> D
 }
 
 // Generates server root xpub given network and server root public key
-fn server_root_xpub(network: Network, server_root_pubkey: PublicKey) -> ExtendedPubKey {
+pub fn server_root_xpub(network: Network, server_root_pubkey: PublicKey) -> ExtendedPubKey {
     ExtendedPubKey {
         network,
         depth: 0,
@@ -66,6 +63,9 @@ fn generate_server_chaincode() -> ChainCode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChaincodeDelegationError {
+    InvalidPsbt {
+        reason: String,
+    },
     KeyDerivation {
         reason: String,
     },
@@ -96,6 +96,9 @@ impl Display for ChaincodeDelegationError {
             ChaincodeDelegationError::KeyMismatch { expected, actual } => {
                 write!(f, "Key mismatch: expected {:?}, got {:?}", expected, actual)
             }
+            ChaincodeDelegationError::InvalidPsbt { reason } => {
+                write!(f, "Invalid PSBT: {}", reason)
+            }
         }
     }
 }
@@ -103,58 +106,256 @@ impl Display for ChaincodeDelegationError {
 impl Error for ChaincodeDelegationError {}
 pub type Result<T> = core::result::Result<T, ChaincodeDelegationError>;
 
-// Add tweaks to the PSBT's inputs such that the App's counterparties with possession of:
-/// - Their own master raw private key
-/// - The App's raw public key derived up to the account level (i.e. 84h/0h/0h)
-/// - The HW's raw public key derived up to the account level (i.e. 84h/0h/0h)
-/// can sign the PSBT.
-///
-/// It works by reading the BIP32 derivation path from the PSBT and then using the fingerprint
-/// of the corresponding key to determine which counterparty to tweak the PSBT for. Then, it
-/// derives the tweak from the path and adds it to the PSBT's `proprietary` field, keyed using
-/// a proprietary key with the prefix `CCDT`, subtype `0`, and the public key of the counterparty.
-///
-/// NOTE: Here, we assume that the App has possession of the HW's XPUB with it's master
-/// fingerprint. This is important for the match to work.
-///
-/// # Arguments
-///
-/// * `secp` - The secp256k1 context.
-/// * `psbt` - The PSBT to add tweaks to.
-pub fn psbt_with_tweaks(psbt: Psbt, keyset: &Keyset) -> Result<Psbt> {
-    let secp = Secp256k1::new();
-    // Clone and make mutable
-    let mut psbt = psbt.clone();
-
-    for input in psbt.inputs.iter_mut() {
-        for (final_pk, (master_fingerprint, path_from_parent)) in input.bip32_derivation.iter() {
-            process_psbt_entry_tweaks(
-                &secp,
-                keyset,
-                master_fingerprint,
-                path_from_parent,
-                final_pk,
-                &mut input.proprietary,
-            )?;
-        }
+/// A wrapper around a PSBT that allows for adding tweaks to the PSBT's inputs and outputs.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct UntweakedPsbt(Psbt);
+impl UntweakedPsbt {
+    pub fn new(psbt: Psbt) -> Self {
+        Self(psbt)
     }
-    for output in psbt.outputs.iter_mut() {
-        for (final_pk, (master_fingerprint, path_from_parent)) in output.bip32_derivation.iter() {
-            process_psbt_entry_tweaks(
-                &secp,
-                keyset,
-                master_fingerprint,
-                path_from_parent,
-                final_pk,
-                &mut output.proprietary,
-            )?;
+
+    /// Prepares a PSBT for cosigning for non-sweep transactions.
+    ///
+    /// Add tweaks to the PSBT's inputs such that the App's counterparties with possession of:
+    /// - Their own master raw private key
+    /// - The App's raw public key derived up to the account level (i.e. 84h/0h/0h)
+    /// - The HW's raw public key derived up to the account level (i.e. 84h/0h/0h)
+    /// can sign the PSBT.
+    ///
+    /// It works by reading the BIP32 derivation path from the PSBT and then using the fingerprint
+    /// of the corresponding key to determine which counterparty to tweak the PSBT for. Then, it
+    /// derives the tweak from the path and adds it to the PSBT's `proprietary` field, keyed using
+    /// a proprietary key with the prefix `CCDT`, subtype `0`, and the public key of the counterparty.
+    ///
+    /// NOTE: Here, we assume that the App has possession of the HW's XPUB with it's master
+    /// fingerprint. This is important for the match to work.
+    ///
+    /// # Arguments
+    /// * `source_keyset` - The keyset that will be used to tweak the PSBT's inputs.
+    pub fn with_source_wallet_tweaks(
+        mut self,
+        source_keyset: &Keyset,
+    ) -> Result<WithSourceWalletTweaksPsbt> {
+        let secp = Secp256k1::new();
+        for input in self.0.inputs.iter_mut() {
+            for (final_pk, (master_fingerprint, path_from_parent)) in input.bip32_derivation.iter()
+            {
+                process_psbt_entry_tweaks(
+                    &secp,
+                    source_keyset,
+                    master_fingerprint,
+                    path_from_parent,
+                    final_pk,
+                    &mut input.proprietary,
+                )?;
+            }
         }
+        for output in self.0.outputs.iter_mut() {
+            for (final_pk, (master_fingerprint, path_from_parent)) in output.bip32_derivation.iter()
+            {
+                process_psbt_entry_tweaks(
+                    &secp,
+                    source_keyset,
+                    master_fingerprint,
+                    path_from_parent,
+                    final_pk,
+                    &mut output.proprietary,
+                )?;
+            }
+        }
+
+        Ok(WithSourceWalletTweaksPsbt(self.0))
+    }
+
+    /// Prepares a PSBT for cosigning for migration sweep transactions.
+    ///
+    /// Add tweaks to the PSBT's inputs such that the Server with possession of the target keyset's:
+    /// - Server master raw private key
+    /// - App's raw public key derived up to the account level (i.e. 84h/0h/0h)
+    /// - HW's raw public key derived up to the account level (i.e. 84h/0h/0h)
+    /// can verify the sweep output of the PSBT.
+    ///
+    /// # Arguments
+    /// * `target_keyset` - The keyset that will control the swept funds
+    pub fn with_migration_sweep_prepared_tweaks(
+        self,
+        target_keyset: &Keyset,
+    ) -> Result<SweepPreparedPsbt> {
+        if self.0.outputs.len() != 1 || self.0.unsigned_tx.output.len() != 1 {
+            return Err(ChaincodeDelegationError::InvalidPsbt {
+                reason: "PSBT must have exactly one output".to_string(),
+            });
+        }
+
+        let psbt = sweep_psbt_with_tweaks(self.0, target_keyset)?;
+        Ok(SweepPreparedPsbt(psbt))
+    }
+
+    pub fn into_psbt(self) -> Psbt {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct WithSourceWalletTweaksPsbt(Psbt);
+impl WithSourceWalletTweaksPsbt {
+    /// Prepares a PSBT for cosigning for private wallet sweep transactions.
+    ///
+    /// Add tweaks to the PSBT's sweep output such that the Server with possession of the target keyset's:
+    /// - Server master raw private key
+    /// - App's raw public key derived up to the account level (i.e. 84h/0h/0h)
+    /// - HW's raw public key derived up to the account level (i.e. 84h/0h/0h)
+    /// can verify the sweep output of the PSBT.
+    ///
+    /// # Arguments
+    /// * `target_keyset` - The keyset that will control the swept funds
+    pub fn with_sweep_prepared_tweaks(self, target_keyset: &Keyset) -> Result<SweepPreparedPsbt> {
+        if self.0.outputs.len() != 1 || self.0.unsigned_tx.output.len() != 1 {
+            return Err(ChaincodeDelegationError::InvalidPsbt {
+                reason: "PSBT must have exactly one output".to_string(),
+            });
+        }
+
+        let psbt = sweep_psbt_with_tweaks(self.0, target_keyset)?;
+        Ok(SweepPreparedPsbt(psbt))
+    }
+
+    pub fn into_psbt(self) -> Psbt {
+        self.0
+    }
+}
+
+/// A wrapped around a PSBT that represents a PSBT with input and output tweaks ready for validation
+/// and signing.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SweepPreparedPsbt(Psbt);
+impl SweepPreparedPsbt {
+    pub fn into_psbt(self) -> Psbt {
+        self.0
+    }
+}
+
+fn sweep_psbt_with_tweaks(psbt: Psbt, target_keyset: &Keyset) -> Result<Psbt> {
+    let mut psbt = psbt.clone();
+    // Assemble target keyset information to derive the sweep output descriptor.
+
+    // HW and App keys are derived up to the account level, so we can use the last two child numbers
+    // to derive the tweak. Server key is at the root level, so we need to use the full derivation
+    // path.
+    let sweep_server_path = get_account_path(target_keyset.server_root_xpub.network)
+        .extend(&SWEEP_RECEIVE_ADDRESS_PATH[..]);
+    let participants = [
+        (
+            target_keyset.app_account_xpub_with_origin.xpub,
+            &SWEEP_RECEIVE_ADDRESS_PATH[..],
+        ),
+        (
+            target_keyset.hw_descriptor_public_keys.account_xpub(),
+            &SWEEP_RECEIVE_ADDRESS_PATH[..],
+        ),
+        (target_keyset.server_root_xpub, &sweep_server_path[..]),
+    ];
+
+    // For each participant, derive the tweak and the tweaked public key.
+    let secp = Secp256k1::new();
+    let sweep_keys = participants
+        .iter()
+        .map(|(base_xpub, path)| {
+            let (tweak, child_xpub) = tweak_from_path(&secp, *base_xpub, path)?;
+            Ok(SweepKey::new(*base_xpub, tweak, child_xpub))
+        })
+        .collect::<Result<Vec<SweepKey>>>()?;
+
+    // Using the tweaked child public keys to build the sweep output descriptor.
+    let tweaked_pubkeys: Vec<PublicKey> = sweep_keys
+        .iter()
+        .map(|metadata| metadata.child_pubkey())
+        .collect();
+    let descriptor: Descriptor<PublicKey> = Descriptor::new_wsh_sortedmulti(2, tweaked_pubkeys)
+        .map_err(|_| ChaincodeDelegationError::InvalidPsbt {
+            reason: "Failed to build sweep descriptor".to_string(),
+        })?;
+
+    // Enforce that the expected script pubkey in the tx generated by BDK matches the descriptor.
+    let sweep_txout =
+        psbt.unsigned_tx
+            .output
+            .get(0)
+            .ok_or_else(|| ChaincodeDelegationError::InvalidPsbt {
+                reason: "PSBT must have exactly one output".to_string(),
+            })?;
+    if sweep_txout.script_pubkey != descriptor.script_pubkey() {
+        return Err(ChaincodeDelegationError::InvalidPsbt {
+            reason: "Script pubkey mismatch.".to_string(),
+        });
+    }
+
+    // Build the witness script, and add the proprietary tweaks for the sweep output validation.
+    let witness_script =
+        descriptor
+            .explicit_script()
+            .map_err(|_| ChaincodeDelegationError::InvalidPsbt {
+                reason: "Failed to build witness script".to_string(),
+            })?;
+
+    let sweep_output =
+        psbt.outputs
+            .get_mut(0)
+            .ok_or_else(|| ChaincodeDelegationError::InvalidPsbt {
+                reason: "PSBT must have exactly one output".to_string(),
+            })?;
+
+    sweep_output.witness_script = Some(witness_script);
+    for sweep_key in &sweep_keys {
+        sweep_output.proprietary.insert(
+            ProprietaryKey {
+                prefix: PROPRIETARY_KEY_PREFIX.to_vec(),
+                subtype: PROPRIETARY_KEY_SUBTYPE,
+                key: sweep_key.base_pubkey().serialize().to_vec(),
+            },
+            sweep_key.tweak.to_be_bytes().to_vec(),
+        );
     }
 
     Ok(psbt)
 }
 
+// Sweep paths should always use the first receive address of the target keyset.
+const SWEEP_RECEIVE_ADDRESS_PATH: [ChildNumber; 2] = [
+    ChildNumber::Normal { index: 0 },
+    ChildNumber::Normal { index: 0 },
+];
+
+#[derive(Clone, Debug)]
+struct SweepKey {
+    /// Base, un-tweaked, extended public key.
+    base_xpub: ExtendedPubKey,
+    /// The BIP32 scalar tweak derived using [`SWEEP_RECEIVE_ADDRESS_PATH`] from the base public key.
+    tweak: Scalar,
+    /// The tweaked extended public key derived using the tweak.
+    child_xpub: ExtendedPubKey,
+}
+
+impl SweepKey {
+    fn new(base_xpub: ExtendedPubKey, tweak: Scalar, child_xpub: ExtendedPubKey) -> Self {
+        Self {
+            base_xpub,
+            tweak,
+            child_xpub,
+        }
+    }
+
+    fn base_pubkey(&self) -> PublicKey {
+        self.base_xpub.public_key
+    }
+
+    fn child_pubkey(&self) -> PublicKey {
+        self.child_xpub.public_key
+    }
+}
+
 /// The HW's descriptor public keys. Derived up to the account level.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HwAccountLevelDescriptorPublicKeys {
     root_fingerprint: Fingerprint,
     account_xpub: ExtendedPubKey,
@@ -167,8 +368,7 @@ impl HwAccountLevelDescriptorPublicKeys {
         Self {
             root_fingerprint,
             account_xpub,
-            account_path: DerivationPath::from_str("m/84'/0'/0'")
-                .expect("Failed to create account path"),
+            account_path: get_account_path(account_xpub.network),
         }
     }
 
@@ -203,12 +403,14 @@ impl HwAccountLevelDescriptorPublicKeys {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct XpubWithOrigin {
     pub fingerprint: Fingerprint,
     pub xpub: ExtendedPubKey,
 }
 
 /// Standardize keyset that the App has possession of.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Keyset {
     pub hw_descriptor_public_keys: HwAccountLevelDescriptorPublicKeys,
     pub server_root_xpub: ExtendedPubKey,
@@ -302,6 +504,19 @@ fn process_psbt_entry_tweaks(
     }
 
     Ok(())
+}
+
+fn get_account_path(network: Network) -> DerivationPath {
+    let network_index = if network == Network::Bitcoin { 0 } else { 1 };
+
+    vec![
+        ChildNumber::Normal { index: 84 },
+        ChildNumber::Normal {
+            index: network_index,
+        },
+        ChildNumber::Normal { index: 0 },
+    ]
+    .into()
 }
 
 #[cfg(test)]
@@ -419,7 +634,10 @@ mod tests {
         );
 
         // Apply tweaks
-        psbt = psbt_with_tweaks(psbt, &keyset).unwrap();
+        psbt = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&keyset)
+            .unwrap()
+            .into_psbt();
 
         // Verify that proprietary data was added
         assert!(!psbt.inputs[0].proprietary.is_empty());
@@ -453,7 +671,10 @@ mod tests {
             (server_root_xprv.fingerprint(&secp), derivation_path),
         );
 
-        psbt = psbt_with_tweaks(psbt, &keyset).unwrap();
+        psbt = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&keyset)
+            .unwrap()
+            .into_psbt();
 
         let prop_key = psbt.inputs[0].proprietary.keys().next().unwrap();
         assert!(!psbt.inputs[0].proprietary.is_empty());
@@ -490,7 +711,10 @@ mod tests {
             ),
         );
 
-        psbt = psbt_with_tweaks(psbt, &keyset).unwrap();
+        psbt = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&keyset)
+            .unwrap()
+            .into_psbt();
         let prop_key = psbt.inputs[0].proprietary.keys().next().unwrap();
 
         assert!(!psbt.inputs[0].proprietary.is_empty());
@@ -520,7 +744,10 @@ mod tests {
             (server_root_xprv.fingerprint(&secp), server_path),
         );
 
-        psbt = psbt_with_tweaks(psbt, &keyset).unwrap();
+        psbt = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&keyset)
+            .unwrap()
+            .into_psbt();
 
         assert_eq!(psbt.inputs[0].proprietary.len(), 2);
         for tweak_bytes in psbt.inputs[0].proprietary.values() {
@@ -548,7 +775,10 @@ mod tests {
             ),
         );
 
-        psbt = psbt_with_tweaks(psbt, &keyset).unwrap();
+        psbt = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&keyset)
+            .unwrap()
+            .into_psbt();
 
         assert!(!psbt.outputs[0].proprietary.is_empty());
 
@@ -583,7 +813,7 @@ mod tests {
         );
 
         assert!(matches!(
-            psbt_with_tweaks(psbt, &keyset),
+            UntweakedPsbt::new(psbt).with_source_wallet_tweaks(&keyset),
             Err(ChaincodeDelegationError::KeyMismatch { .. })
         ));
     }
@@ -608,7 +838,7 @@ mod tests {
         );
 
         assert!(matches!(
-            psbt_with_tweaks(psbt, &keyset),
+            UntweakedPsbt::new(psbt).with_source_wallet_tweaks(&keyset),
             Err(ChaincodeDelegationError::UnknownKey { .. })
         ));
     }
@@ -617,9 +847,9 @@ mod tests {
     fn test_server_account_dpub() {
         let secp = Secp256k1::new();
         let server_root_xprv = ExtendedPrivKey::new_master(Network::Bitcoin, &[42; 32]).unwrap();
-        let server_root_pubkey = server_root_xprv.to_priv().public_key(&secp);
+        let server_root_xpub = ExtendedPubKey::from_priv(&secp, &server_root_xprv);
 
-        let dpub = server_account_dpub(Network::Bitcoin, server_root_pubkey.inner);
+        let dpub = server_account_dpub(Network::Bitcoin, server_root_xpub);
 
         // Verify it's a valid descriptor public key with expected structure
         match dpub {
@@ -644,8 +874,11 @@ mod tests {
         let server_root_xprv = ExtendedPrivKey::new_master(Network::Bitcoin, &[44; 32]).unwrap();
         let server_root_pubkey = server_root_xprv.to_priv().public_key(&secp);
 
-        let dpub1 = server_account_dpub(Network::Bitcoin, server_root_pubkey.inner);
-        let dpub2 = server_account_dpub(Network::Bitcoin, server_root_pubkey.inner);
+        let server_root_xpub1 = server_root_xpub(Network::Bitcoin, server_root_pubkey.inner);
+        let server_root_xpub2 = server_root_xpub(Network::Bitcoin, server_root_pubkey.inner);
+
+        let dpub1 = server_account_dpub(Network::Bitcoin, server_root_xpub1);
+        let dpub2 = server_account_dpub(Network::Bitcoin, server_root_xpub2);
 
         // Extract chaincodes and verify they're different (due to random generation)
         match (dpub1, dpub2) {
@@ -672,5 +905,116 @@ mod tests {
         assert_eq!(xpub.parent_fingerprint, Fingerprint::default());
         assert_eq!(xpub.child_number, ChildNumber::from_normal_idx(0).unwrap());
         assert_eq!(xpub.public_key, server_root_pubkey.inner);
+    }
+
+    #[test]
+    fn test_sweep_psbt_with_tweaks_no_sweep_outputs() {
+        let (source_keyset, _, _) = create_test_keyset();
+        let (target_keyset, _, _) = create_test_keyset();
+
+        let mut psbt = create_default_psbt();
+        psbt.outputs.clear();
+
+        let result = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&source_keyset)
+            .and_then(|p| p.with_sweep_prepared_tweaks(&target_keyset));
+        assert!(
+            matches!(
+                result,
+                Err(ChaincodeDelegationError::InvalidPsbt { ref reason })
+                    if reason.contains("exactly one output")
+            ),
+            "Expected invalid PSBT error for missing sweep output, got: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_sweep_psbt_with_tweaks_no_sweep_txouts() {
+        let (source_keyset, _, _) = create_test_keyset();
+        let (target_keyset, _, _) = create_test_keyset();
+
+        let mut psbt = create_default_psbt();
+        psbt.unsigned_tx.output.clear();
+
+        let result = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&source_keyset)
+            .and_then(|p| p.with_sweep_prepared_tweaks(&target_keyset));
+        assert!(
+            matches!(
+                result,
+                Err(ChaincodeDelegationError::InvalidPsbt { ref reason })
+                    if reason.contains("exactly one output")
+            ),
+            "Expected invalid PSBT error for missing sweep txout, got: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_sweep_psbt_with_tweaks_more_than_one_sweep_outputs() {
+        let (source_keyset, _, _) = create_test_keyset();
+        let (target_keyset, _, _) = create_test_keyset();
+
+        let mut psbt = create_default_psbt();
+        psbt.outputs.push(Default::default());
+
+        let result = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&source_keyset)
+            .and_then(|p| p.with_sweep_prepared_tweaks(&target_keyset));
+
+        assert!(
+            matches!(
+                result,
+                Err(ChaincodeDelegationError::InvalidPsbt { ref reason })
+                    if reason.contains("exactly one output")
+            ),
+            "Expected invalid PSBT error for multiple sweep outputs, got: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_sweep_psbt_with_tweaks_more_than_one_sweep_txouts() {
+        let (source_keyset, _, _) = create_test_keyset();
+        let (target_keyset, _, _) = create_test_keyset();
+
+        let mut psbt = create_default_psbt();
+        psbt.unsigned_tx.output.push(Default::default());
+
+        let result = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&source_keyset)
+            .and_then(|p| p.with_sweep_prepared_tweaks(&target_keyset));
+        assert!(
+            matches!(
+                result,
+                Err(ChaincodeDelegationError::InvalidPsbt { ref reason })
+                    if reason.contains("exactly one output")
+            ),
+            "Expected invalid PSBT error for multiple sweep outputs, got: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_sweep_psbt_with_tweaks_script_pubkey_mismatch() {
+        let (source_keyset, _, _) = create_test_keyset();
+        let (target_keyset, _, _) = create_test_keyset();
+
+        let mut psbt = create_default_psbt();
+        psbt.unsigned_tx.output[0].script_pubkey = bitcoin::ScriptBuf::new();
+
+        let result = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&source_keyset)
+            .and_then(|p| p.with_sweep_prepared_tweaks(&target_keyset));
+        assert!(
+            matches!(
+                result,
+                Err(ChaincodeDelegationError::InvalidPsbt { ref reason })
+                    if reason.contains("Script pubkey mismatch")
+            ),
+            "Expected script pubkey mismatch error, got: {:?}",
+            result
+        );
     }
 }

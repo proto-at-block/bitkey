@@ -234,7 +234,8 @@ pub struct GrantRequest {
     #[serde_as(as = "Base64")]
     pub challenge: Vec<u8>,
     pub action: u8,
-    pub signature: Signature,
+    pub hw_signature: Signature,
+    pub app_signature: Signature,
 }
 
 impl GrantRequest {
@@ -247,7 +248,7 @@ impl GrantRequest {
         data.push(self.action);
 
         if include_signature {
-            data.extend_from_slice(&self.signature.serialize_compact());
+            data.extend_from_slice(&self.hw_signature.serialize_compact());
         }
 
         data

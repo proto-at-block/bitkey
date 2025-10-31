@@ -5,6 +5,7 @@ import bitkey.account.FullAccountConfig
 import bitkey.auth.AuthTokenScope
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AccountAuthenticator.AuthData
+import build.wallet.auth.AuthTokensService
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitkey.app.AppAuthKey
@@ -23,7 +24,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
-import build.wallet.f8e.recovery.ListKeysetsF8eClient.ListKeysetsResponse
+import build.wallet.f8e.recovery.ListKeysetsResponse
+import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.logging.logWarn
@@ -52,6 +54,7 @@ class OrphanedKeyRecoveryServiceImpl(
   private val keyboxDao: KeyboxDao,
   private val uuidGenerator: UuidGenerator,
   private val keysetWalletProvider: KeysetWalletProvider,
+  private val authTokensService: AuthTokensService,
 ) : OrphanedKeyRecoveryService {
   private companion object {
     const val LOG_TAG = "[OrphanedKeyRecovery]"
@@ -131,7 +134,9 @@ class OrphanedKeyRecoveryServiceImpl(
 
       if (recoverableAccounts.isEmpty()) {
         if (discoveredButNotRecoverable.isNotEmpty()) {
-          logWarn { "$LOG_TAG No recoverable accounts found: ${discoveredButNotRecoverable.joinToString(", ")}" }
+          logWarn {
+            "$LOG_TAG No recoverable accounts found: ${discoveredButNotRecoverable.joinToString(", ")}"
+          }
         }
         Err(KeyReconstructionFailed("No recoverable accounts found with valid auth and spending keys"))
           .bind<List<RecoverableAccount>>()
@@ -148,12 +153,16 @@ class OrphanedKeyRecoveryServiceImpl(
   private suspend fun authenticateAllKeys(
     parsedKeys: KeychainParser.ParsedKeychain,
   ): Map<String, AccountAuthKeys> {
+    logWarn { "$LOG_TAG Starting authentication of ${parsedKeys.authKeys.size} discovered auth keys" }
     val accountAuthKeys = mutableMapOf<String, AccountAuthKeys>()
 
     parsedKeys.authKeys.forEach { authKeyPublic ->
       val authResult = tryAuthenticateKey(authKeyPublic, parsedKeys)
       if (authResult != null) {
         val accountId = authResult.authData.accountId
+        logWarn {
+          "$LOG_TAG Successfully authenticated key for account: $accountId with scope: ${authResult.tokenScope}"
+        }
         val existing = accountAuthKeys[accountId] ?: AccountAuthKeys()
 
         when (authResult) {
@@ -173,6 +182,9 @@ class OrphanedKeyRecoveryServiceImpl(
       }
     }
 
+    logWarn {
+      "$LOG_TAG Authentication complete. Found ${accountAuthKeys.size} account(s) with auth keys"
+    }
     return accountAuthKeys
   }
 
@@ -186,20 +198,36 @@ class OrphanedKeyRecoveryServiceImpl(
     orphanedKeys: List<KeychainScanner.KeychainEntry>,
     discoveredButNotRecoverable: MutableList<String>,
   ): RecoverableAccount? {
+    logWarn { "$LOG_TAG Starting to build recoverable account for: $accountId" }
+
     // Validate we have both auth keys
     if (!validateAuthKeys(authKeys, discoveredButNotRecoverable)) {
       return null
     }
 
-    // Fetch keysets from F8e
+    val hasGlobal = authKeys.globalAuthKey != null
+    val hasRecovery = authKeys.recoveryAuthKey != null
+    logWarn { "$LOG_TAG Found auth keys - Global: $hasGlobal, Recovery: $hasRecovery" }
+
     val keysetResponse = fetchKeysets(authKeys.authData!!)
     if (keysetResponse == null) {
+      logWarn { "$LOG_TAG Failed to fetch keysets for account: $accountId" }
       discoveredButNotRecoverable.add("Account (keyset fetch failed)")
       return null
     }
+    logWarn { "$LOG_TAG Successfully fetched ${keysetResponse.keysets.size} keysets" }
+
+    val allKeysets = keysetResponse.keysets.toSpendingKeysets(uuidGenerator)
 
     // Find matching keysets with spending keys in keychain
-    val matchingKeysets = findMatchingKeysets(keysetResponse, parsedKeys)
+    val matchingKeysets = allKeysets.filter { keyset ->
+      parsedKeys.spendingKeys.any { spendingKey ->
+        spendingKey.dpub == keyset.appKey.key.dpub &&
+          spendingKey.hasXprv &&
+          spendingKey.hasMnemonic
+      }
+    }
+
     if (matchingKeysets.isEmpty()) {
       discoveredButNotRecoverable.add("Account (no matching spending keys)")
       return null
@@ -213,14 +241,16 @@ class OrphanedKeyRecoveryServiceImpl(
     val balance = tryFetchBalance(selectedKeyset)
 
     // Order matching keysets with selected one first
-    val orderedMatchingKeysets = listOf(selectedKeyset) + matchingKeysets.filter { it != selectedKeyset }
+    val orderedMatchingKeysets = listOf(selectedKeyset) + matchingKeysets.filter {
+      it != selectedKeyset
+    }
 
     return RecoverableAccount(
       accountId = FullAccountId(accountId),
       globalAuthKey = authKeys.globalAuthKey!!,
       recoveryAuthKey = authKeys.recoveryAuthKey!!,
       matchingKeysets = orderedMatchingKeysets,
-      allKeysets = keysetResponse.keysets,
+      allKeysets = allKeysets,
       balance = balance,
       f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment,
       sourceKeychainEntries = orphanedKeys
@@ -307,34 +337,41 @@ class OrphanedKeyRecoveryServiceImpl(
   ): AuthData? {
     appPrivateKeyDao.storeAsymmetricPrivateKey(authKey, privateKey)
       .onFailure {
+        logWarn { "$LOG_TAG Failed to store private key for auth key" }
         return null
       }
 
-    return accountAuthenticator.appAuth(
+    val authData = accountAuthenticator.appAuth(
       appAuthPublicKey = authKey,
       authTokenScope = tokenScope
-    ).get()
+    ).onFailure { error ->
+      logWarn { "$LOG_TAG Authentication failed for scope $tokenScope: ${error.message}" }
+    }.get() ?: return null
+
+    authTokensService.setTokens(
+      accountId = FullAccountId(authData.accountId),
+      tokens = authData.authTokens,
+      scope = tokenScope
+    ).onFailure { error ->
+      logWarn { "$LOG_TAG Failed to store auth tokens for scope $tokenScope: ${error.message}" }
+    }
+
+    logWarn { "$LOG_TAG Successfully authenticated and stored tokens for scope $tokenScope" }
+
+    return authData
   }
 
   private suspend fun fetchKeysets(authData: AuthData): ListKeysetsResponse? {
     val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
+
+    logWarn { "$LOG_TAG Fetching keysets from F8e" }
+
     return listKeysetsF8eClient.listKeysets(
       f8eEnvironment = f8eEnvironment,
       fullAccountId = FullAccountId(authData.accountId)
-    ).get()
-  }
-
-  private fun findMatchingKeysets(
-    keysetResponse: ListKeysetsResponse,
-    parsedKeys: KeychainParser.ParsedKeychain,
-  ): List<SpendingKeyset> {
-    return keysetResponse.keysets.filter { keyset ->
-      parsedKeys.spendingKeys.any { spendingKey ->
-        spendingKey.dpub == keyset.appKey.key.dpub &&
-          spendingKey.hasXprv &&
-          spendingKey.hasMnemonic
-      }
-    }
+    ).onFailure { error ->
+      logWarn { "$LOG_TAG Failed to fetch keysets: ${error.message}" }
+    }.get()
   }
 
   @Suppress("TooGenericExceptionCaught")
@@ -347,7 +384,9 @@ class OrphanedKeyRecoveryServiceImpl(
           wallet.balance().first()
         } catch (e: Exception) {
           // Balance fetching is best-effort for orphaned key recovery display
-          logWarn { "$LOG_TAG Failed to fetch balance for keyset ${keyset.f8eSpendingKeyset.keysetId}: ${e::class.simpleName}" }
+          logWarn {
+            "$LOG_TAG Failed to fetch balance for keyset ${keyset.f8eSpendingKeyset.keysetId}: ${e::class.simpleName}"
+          }
           null
         }
       }

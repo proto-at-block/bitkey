@@ -22,7 +22,6 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.statemachine.settings.full.device.EnrolledFingerprintResult
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.*
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.EditingFingerprintUiState
 import build.wallet.statemachine.settings.full.device.fingerprints.metrics.FingerprintAddMetricDefinition
@@ -31,6 +30,15 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toast.ToastModel
+
+sealed interface EnrolledFingerprintResult {
+  /** A firmware update is required to support multiple fingerprints. */
+  data object FwUpRequired : EnrolledFingerprintResult
+
+  data class Success(
+    val enrolledFingerprints: EnrolledFingerprints,
+  ) : EnrolledFingerprintResult
+}
 
 data class ManagingFingerprintsScreen(
   val account: FullAccount,

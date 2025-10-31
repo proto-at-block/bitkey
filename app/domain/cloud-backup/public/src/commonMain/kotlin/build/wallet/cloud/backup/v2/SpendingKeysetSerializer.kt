@@ -27,6 +27,7 @@ private data class SpendingKeysetSurrogate(
   val appDpub: String,
   val hardwareDpub: String,
   val serverDpub: String,
+  val privateWalletRootXpub: String? = null,
   val bitcoinNetworkType: BitcoinNetworkType,
 )
 
@@ -44,7 +45,8 @@ object SpendingKeysetSerializer : KSerializer<SpendingKeyset> {
       f8eSpendingKeyset =
         F8eSpendingKeyset(
           keysetId = surrogate.keysetServerId,
-          spendingPublicKey = F8eSpendingPublicKey(dpub = surrogate.serverDpub)
+          spendingPublicKey = F8eSpendingPublicKey(dpub = surrogate.serverDpub),
+          privateWalletRootXpub = surrogate.privateWalletRootXpub
         )
     )
   }
@@ -60,6 +62,7 @@ object SpendingKeysetSerializer : KSerializer<SpendingKeyset> {
         appDpub = value.appKey.key.dpub,
         hardwareDpub = value.hardwareKey.key.dpub,
         serverDpub = value.f8eSpendingKeyset.spendingPublicKey.key.dpub,
+        privateWalletRootXpub = value.f8eSpendingKeyset.privateWalletRootXpub,
         bitcoinNetworkType = value.networkType
       )
     encoder.encodeSerializableValue(SpendingKeysetSurrogate.serializer(), surrogate)

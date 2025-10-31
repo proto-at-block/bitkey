@@ -14,7 +14,7 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 internal fun QrCodePreview() {
   PreviewWalletTheme {
     Box(modifier = Modifier.size(300.dp)) {
-      QrCodeV2(
+      QrCode(
         matrix = QRMatrix(
           columnWidth = 0,
           data = BooleanArray(0)

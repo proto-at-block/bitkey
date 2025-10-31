@@ -27,11 +27,15 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.domain.accountFake)
+        implementation(projects.domain.analyticsFake)
         implementation(projects.domain.authFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
+        implementation(projects.domain.cloudBackupFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.featureFlagFake)
+        implementation(projects.domain.onboardingFake)
         implementation(projects.domain.walletFake)
+        implementation(projects.libs.keyValueStoreFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)
@@ -40,6 +44,7 @@ kotlin {
 
     val jvmIntegrationTest by getting {
       dependencies {
+        implementation(projects.domain.cloudBackupFake)
         implementation(projects.shared.integrationTestingPublic)
       }
     }

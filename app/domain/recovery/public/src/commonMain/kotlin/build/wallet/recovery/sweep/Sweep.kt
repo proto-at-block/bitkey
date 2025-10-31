@@ -1,6 +1,5 @@
 package build.wallet.recovery.sweep
 
-import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.sumOf
 
@@ -22,7 +21,7 @@ data class Sweep(
    * Sweep psbts that need to be signed with hardware, if any.
    */
   val psbtsRequiringHwSign: Set<SweepPsbt> =
-    unsignedPsbts.filter { it.signingFactor == Hardware }.toSet()
+    unsignedPsbts.filter { it.signaturePlan.requiresHardwareSignature }.toSet()
 
   /**
    * Bitcoin fee amount required to broadcast the sweep transaction
@@ -34,4 +33,10 @@ data class Sweep(
    * Total amount of bitcoin to transfer in the sweep transaction.
    */
   val totalTransferAmount: BitcoinMoney = unsignedPsbts.sumOf { it.psbt.amountBtc }
+
+  /**
+   * The Bitcoin address where funds are being swept to.
+   * All PSBTs in a sweep go to addresses from the same destination keyset.
+   */
+  val destinationAddress: String = unsignedPsbts.first().destinationAddress
 }

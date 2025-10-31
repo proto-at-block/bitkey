@@ -53,7 +53,12 @@ class AppearancePreferenceUiStateMachineImpl(
   @Composable
   override fun model(props: AppearancePreferenceProps): ScreenModel {
     var state: CurrencyPreferenceUiState by remember {
-      mutableStateOf(ShowingCurrencyPreferenceUiState(isHideBalanceEnabled = false))
+      mutableStateOf(
+        ShowingCurrencyPreferenceUiState(
+          isHideBalanceEnabled = false,
+          selectedSection = AppearanceSection.DISPLAY
+        )
+      )
     }
 
     val selectedFiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference
@@ -79,6 +84,10 @@ class AppearancePreferenceUiStateMachineImpl(
           props = props,
           selectedFiatCurrency = selectedFiatCurrency,
           isHideBalanceEnabled = isHideBalanceEnabled,
+          selectedSection = uiState.selectedSection,
+          onSectionSelected = { newSection ->
+            state = uiState.copy(selectedSection = newSection)
+          },
           themePreferenceString = selectedThemePreference.displayText,
           onThemePreferenceClick = {
             state = ShowingThemeSelectionUiState(
@@ -100,12 +109,20 @@ class AppearancePreferenceUiStateMachineImpl(
                 .onSuccess {
                   eventTracker.track(Action.ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE)
                 }
-              state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled)
+              state = ShowingCurrencyPreferenceUiState(
+                isHideBalanceEnabled = isHideBalanceEnabled,
+                selectedSection = AppearanceSection.CURRENCY
+              )
             }
           }
         }
         FiatCurrencyListFormModel(
-          onClose = { state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled) },
+          onClose = {
+            state = ShowingCurrencyPreferenceUiState(
+              isHideBalanceEnabled = isHideBalanceEnabled,
+              selectedSection = AppearanceSection.CURRENCY
+            )
+          },
           selectedCurrency = selectedFiatCurrency,
           currencyList = fiatCurrenciesService.allFiatCurrencies.value,
           onCurrencySelection = onCurrencySelection
@@ -121,6 +138,8 @@ class AppearancePreferenceUiStateMachineImpl(
           props = props,
           selectedFiatCurrency = selectedFiatCurrency,
           isHideBalanceEnabled = isHideBalanceEnabled,
+          selectedSection = AppearanceSection.DISPLAY,
+          onSectionSelected = { },
           themePreferenceString = selectedTheme.displayText,
           onThemePreferenceClick = {},
           onFiatCurrencyPreferenceClick = {},
@@ -135,7 +154,12 @@ class AppearancePreferenceUiStateMachineImpl(
                   }
               }
             },
-            onExit = { state = ShowingCurrencyPreferenceUiState(uiState.isHideBalanceEnabled) }
+            onExit = {
+              state = ShowingCurrencyPreferenceUiState(
+                isHideBalanceEnabled = uiState.isHideBalanceEnabled,
+                selectedSection = AppearanceSection.DISPLAY // Since theme is in Display section
+              )
+            }
           ),
           onDefaultTimeScalePreferenceClick = {}
         )
@@ -147,12 +171,20 @@ class AppearancePreferenceUiStateMachineImpl(
           { selectedTimeScale ->
             scope.launch {
               chartRangePreference.set(selectedTimeScale)
-              state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled)
+              state = ShowingCurrencyPreferenceUiState(
+                isHideBalanceEnabled = isHideBalanceEnabled,
+                selectedSection = AppearanceSection.CURRENCY // Since time scale is in Currency section
+              )
             }
           }
         }
         TimeScaleListFormModel(
-          onClose = { state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled) },
+          onClose = {
+            state = ShowingCurrencyPreferenceUiState(
+              isHideBalanceEnabled = isHideBalanceEnabled,
+              selectedSection = AppearanceSection.CURRENCY
+            )
+          },
           selectedTimeScale = chartRangePreference.selectedRange.value,
           labels = ChartRange.entries.map { stringResourceProvider.getString(it.diffLabel) },
           timeScales = ChartRange.entries - ChartRange.ALL,
@@ -167,6 +199,8 @@ class AppearancePreferenceUiStateMachineImpl(
     props: AppearancePreferenceProps,
     selectedFiatCurrency: FiatCurrency,
     isHideBalanceEnabled: Boolean,
+    selectedSection: AppearanceSection,
+    onSectionSelected: (AppearanceSection) -> Unit,
     themePreferenceString: String,
     onThemePreferenceClick: () -> Unit,
     onFiatCurrencyPreferenceClick: () -> Unit,
@@ -244,30 +278,33 @@ class AppearancePreferenceUiStateMachineImpl(
       }
     }
 
-    return AppearancePreferenceFormModel(
-      onBack = props.onBack,
-      moneyHomeHero =
-        FormMainContentModel.MoneyHomeHero(
-          primaryAmount = moneyHomeHeroPrimaryAmountString,
-          secondaryAmount = moneyHomeHeroSecondaryAmountString,
-          isHidden = isHideBalanceEnabled
-        ),
-      themePreferenceString = themePreferenceString,
-      onThemePreferenceClick = onThemePreferenceClick,
-      fiatCurrencyPreferenceString = selectedFiatCurrency.textCode.code,
-      onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
-      bitcoinDisplayPreferenceString = selectedBitcoinUnit.displayText,
-      bitcoinDisplayPreferencePickerModel = bitcoinDisplayPreferencePickerModel,
-      defaultTimeScalePreferenceString = stringResourceProvider.getString(chartTimeScalePreference.label),
-      onDefaultTimeScalePreferenceClick = onDefaultTimeScalePreferenceClick,
-      isHideBalanceEnabled = isHideBalanceEnabled,
-      isBitcoinPriceCardEnabled = isBitcoinPriceCardEnabled,
-      onEnableHideBalanceChanged = onEnableHideBalanceChanged,
-      onBitcoinDisplayPreferenceClick = {
-        isShowingBitcoinUnitPicker = true
-      },
-      onBitcoinPriceCardPreferenceClick = onBitcoinPriceCardPreferenceClick
-    ).asRootScreen(
+    return ScreenModel(
+      body = AppearancePreferenceBodyModel(
+        onBack = props.onBack,
+        moneyHomeHero =
+          FormMainContentModel.MoneyHomeHero(
+            primaryAmount = moneyHomeHeroPrimaryAmountString,
+            secondaryAmount = moneyHomeHeroSecondaryAmountString,
+            isHidden = isHideBalanceEnabled
+          ),
+        selectedSection = selectedSection,
+        onSectionSelected = onSectionSelected,
+        themePreferenceString = themePreferenceString,
+        onThemePreferenceClick = onThemePreferenceClick,
+        fiatCurrencyPreferenceString = selectedFiatCurrency.textCode.code,
+        onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
+        bitcoinDisplayPreferenceString = selectedBitcoinUnit.displayText,
+        bitcoinDisplayPreferencePickerModel = bitcoinDisplayPreferencePickerModel,
+        defaultTimeScalePreferenceString = stringResourceProvider.getString(chartTimeScalePreference.label),
+        onDefaultTimeScalePreferenceClick = onDefaultTimeScalePreferenceClick,
+        isHideBalanceEnabled = isHideBalanceEnabled,
+        isBitcoinPriceCardEnabled = isBitcoinPriceCardEnabled,
+        onEnableHideBalanceChanged = onEnableHideBalanceChanged,
+        onBitcoinDisplayPreferenceClick = {
+          isShowingBitcoinUnitPicker = true
+        },
+        onBitcoinPriceCardPreferenceClick = onBitcoinPriceCardPreferenceClick
+      ),
       bottomSheetModel = bottomSheetModel
     )
   }
@@ -276,6 +313,7 @@ class AppearancePreferenceUiStateMachineImpl(
 sealed interface CurrencyPreferenceUiState {
   data class ShowingCurrencyPreferenceUiState(
     val isHideBalanceEnabled: Boolean = false,
+    val selectedSection: AppearanceSection = AppearanceSection.DISPLAY,
   ) : CurrencyPreferenceUiState
 
   data object ShowingCurrencyFiatSelectionUiState : CurrencyPreferenceUiState

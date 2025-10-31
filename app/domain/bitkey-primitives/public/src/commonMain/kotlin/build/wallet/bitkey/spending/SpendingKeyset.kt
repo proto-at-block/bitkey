@@ -3,6 +3,7 @@ package build.wallet.bitkey.spending
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.f8e.isPrivateWallet
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 
 /**
@@ -22,6 +23,10 @@ data class SpendingKeyset(
   /**
    * Whether this is a private keyset (server-blind via chaincode delegation).
    */
-  val isPrivate: Boolean
-    get() = f8eSpendingKeyset.isPrivate
+  val isPrivateWallet = f8eSpendingKeyset.isPrivateWallet
+
+  /**
+   * Whether this is a legacy keyset.
+   */
+  val isLegacyWallet = !f8eSpendingKeyset.isPrivateWallet
 }

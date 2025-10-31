@@ -44,10 +44,12 @@ interface InheritanceCrypto {
     sealedDek: XCiphertext,
     sealedAppKey: XCiphertext,
     sealedDescriptor: XCiphertext?,
+    sealedServerRootXpub: XCiphertext?,
   ): Result<DecryptInheritanceMaterialPackageOutput, Error>
 }
 
 data class DecryptInheritanceMaterialPackageOutput(
   val inheritanceKeyset: InheritanceKeyset,
   val descriptor: String?,
+  val serverRootXpub: String?,
 )

@@ -517,6 +517,7 @@ where
 ///
 /// Additionally, it contains a witness_script and proprietary map. These are used to verify ownership
 /// of the output when using Chaincode Delegation.
+#[derive(Debug)]
 pub struct SpkWithDerivationPaths {
     pub script_pubkey: ScriptBuf,
     pub derivation_paths: BTreeMap<SecpPublicKey, KeySource>,

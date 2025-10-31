@@ -3,20 +3,23 @@ package build.wallet.statemachine.sweep
 import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.bdk.bindings.BdkError.Generic
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.platform.web.InAppBrowserNavigatorMock
+import build.wallet.recovery.sweep.SweepContext
 import build.wallet.recovery.sweep.SweepPsbt
+import build.wallet.recovery.sweep.SweepSignaturePlan
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.InAppBrowserModel
@@ -37,6 +40,10 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachineImpl
+import build.wallet.statemachine.send.TransactionDetailModelType
+import build.wallet.statemachine.send.TransferConfirmationScreenModel
+import build.wallet.statemachine.send.TransferConfirmationScreenVariant
+import build.wallet.statemachine.send.TransferInitiatedBodyModel
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -56,6 +63,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   val onRetryCalls = turbines.create<Unit>("retry calls")
   val onRetryCallback = { onRetryCalls += Unit }
   val startSweepCalls = turbines.create<Unit>("start sweep calls")
+  val sweepProceedCalls = turbines.create<Unit>("sweep proceed calls")
   val addHwSignedSweepsCalls =
     turbines.create<Set<Psbt>>("add hw signed psbts calls")
   val nfcCommandsMock = NfcCommandsMock(turbine = turbines::create)
@@ -89,8 +97,10 @@ class SweepUiStateMachineImplTests : FunSpec({
     onExit = onExitCallback,
     presentationStyle = Root,
     keybox = KeyboxMock,
-    recoveredFactor = App,
-    onSuccess = {}
+    sweepContext = SweepContext.Recovery(App),
+    onSuccess = {},
+    hasAttemptedSweep = false,
+    onAttemptSweep = {}
   )
 
   beforeTest {
@@ -107,6 +117,24 @@ class SweepUiStateMachineImplTests : FunSpec({
       awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("No funds found")
       }
+    }
+  }
+
+  test("sweep already completed with no data shows success") {
+    sweepStateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      sweepDataStateMachine.emitModel(
+        SweepCompleteNoData(
+          proceed = { sweepProceedCalls += Unit }
+        )
+      )
+      awaitBody<FormBodyModel> {
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
+        primaryButton!!.onClick()
+      }
+      sweepProceedCalls.awaitItem()
     }
   }
 
@@ -134,6 +162,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         PsbtsGeneratedData(
           totalFeeAmount = PsbtMock.fee,
           totalTransferAmount = PsbtMock.amountBtc,
+          destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
         )
       )
@@ -162,7 +191,14 @@ class SweepUiStateMachineImplTests : FunSpec({
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      sweepDataStateMachine.emitModel(SweepCompleteData({}))
+      sweepDataStateMachine.emitModel(
+        SweepCompleteData(
+          proceed = {},
+          totalFeeAmount = PsbtMock.fee,
+          totalTransferAmount = PsbtMock.amountBtc,
+          destinationAddress = "bc1qtest"
+        )
+      )
       awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
         clickPrimaryButton()
@@ -179,13 +215,15 @@ class SweepUiStateMachineImplTests : FunSpec({
         listOf(
           SweepPsbt(
             PsbtMock.copy(id = "app-sign"),
-            App,
-            SpendingKeysetMock
+            SweepSignaturePlan.AppAndServer,
+            SpendingKeysetMock,
+            "bc1qtest"
           ),
           SweepPsbt(
             PsbtMock.copy(id = "hw-sign"),
-            Hardware,
-            SpendingKeysetMock2
+            SweepSignaturePlan.HardwareAndServer,
+            PrivateSpendingKeysetMock,
+            "bc1qtest"
           )
         )
       val totalFeeAmount =
@@ -197,7 +235,8 @@ class SweepUiStateMachineImplTests : FunSpec({
         PsbtsGeneratedData(
           totalFeeAmount,
           totalTransferAmount,
-          { startSweepCalls += Unit }
+          destinationAddress = "bc1qtest",
+          startSweep = { startSweepCalls += Unit }
         )
       )
       awaitBody<FormBodyModel> {
@@ -241,7 +280,14 @@ class SweepUiStateMachineImplTests : FunSpec({
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      sweepDataStateMachine.emitModel(SweepCompleteData({}))
+      sweepDataStateMachine.emitModel(
+        SweepCompleteData(
+          proceed = {},
+          totalFeeAmount = totalFeeAmount,
+          totalTransferAmount = totalTransferAmount,
+          destinationAddress = "bc1qtest"
+        )
+      )
       awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
         primaryButton!!.onClick()
@@ -249,21 +295,68 @@ class SweepUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("private wallet migration sweep completion shows transfer initiated screen") {
+    val migrationProps = props.copy(sweepContext = SweepContext.PrivateWalletMigration)
+
+    sweepStateMachine.test(migrationProps) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      sweepDataStateMachine.emitModel(
+        PsbtsGeneratedData(
+          totalFeeAmount = PsbtMock.fee,
+          totalTransferAmount = PsbtMock.amountBtc,
+          destinationAddress = "bc1qtest",
+          startSweep = { startSweepCalls += Unit }
+        )
+      )
+      awaitBody<TransferConfirmationScreenModel> {
+        variant shouldBe TransferConfirmationScreenVariant.PrivateWalletMigration
+        primaryButton!!.onClick()
+      }
+      startSweepCalls.awaitItem()
+      sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
+      awaitBody<LoadingSuccessBodyModel> {
+        id shouldBe WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_BROADCASTING
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      sweepDataStateMachine.emitModel(
+        SweepCompleteData(
+          proceed = { sweepProceedCalls += Unit },
+          totalFeeAmount = PsbtMock.fee,
+          totalTransferAmount = PsbtMock.amountBtc,
+          destinationAddress = "bc1qtest"
+        )
+      )
+      awaitBody<TransferInitiatedBodyModel> {
+        recipientAddress.shouldBe(BitcoinAddress("bc1qtest"))
+        transactionDetails.transactionDetailModelType.shouldBeInstanceOf<TransactionDetailModelType.Regular>().should {
+            regular ->
+          regular.totalAmountPrimaryText.shouldContain("10,000 sats")
+        }
+        clickPrimaryButton()
+      }
+      sweepProceedCalls.awaitItem()
+    }
+  }
+
   test("sweep and sign with hardware") {
-    sweepStateMachine.test(props.copy(recoveredFactor = null)) {
+    sweepStateMachine.test(props.copy(sweepContext = SweepContext.InactiveWallet)) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       val sweepPsbts = listOf(
         SweepPsbt(
           PsbtMock.copy(id = "app-sign"),
-          App,
-          SpendingKeysetMock
+          SweepSignaturePlan.AppAndServer,
+          SpendingKeysetMock,
+          "bc1qtest"
         ),
         SweepPsbt(
           PsbtMock.copy(id = "hw-sign"),
-          Hardware,
-          SpendingKeysetMock2
+          SweepSignaturePlan.HardwareAndServer,
+          PrivateSpendingKeysetMock,
+          "bc1qtest"
         )
       )
       val totalFeeAmount =
@@ -275,7 +368,8 @@ class SweepUiStateMachineImplTests : FunSpec({
         PsbtsGeneratedData(
           totalFeeAmount,
           totalTransferAmount,
-          { startSweepCalls += Unit }
+          destinationAddress = "bc1qtest",
+          startSweep = { startSweepCalls += Unit }
         )
       )
       awaitBody<FormBodyModel> {
@@ -303,7 +397,14 @@ class SweepUiStateMachineImplTests : FunSpec({
         id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_BROADCASTING
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      sweepDataStateMachine.emitModel(SweepCompleteData({}))
+      sweepDataStateMachine.emitModel(
+        SweepCompleteData(
+          proceed = {},
+          totalFeeAmount = totalFeeAmount,
+          totalTransferAmount = totalTransferAmount,
+          destinationAddress = "bc1qtest"
+        )
+      )
       awaitBody<FormBodyModel> {
         id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SUCCESS
         primaryButton!!.onClick()
@@ -320,6 +421,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         PsbtsGeneratedData(
           totalFeeAmount = PsbtMock.fee,
           totalTransferAmount = PsbtMock.amountBtc,
+          destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
         )
       )
@@ -367,6 +469,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         PsbtsGeneratedData(
           totalFeeAmount = PsbtMock.fee,
           totalTransferAmount = PsbtMock.amountBtc,
+          destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
         )
       )
@@ -415,7 +518,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   test("Sweep Funds on Inactive Wallet") {
     sweepStateMachine.test(
       props.copy(
-        recoveredFactor = null
+        sweepContext = SweepContext.InactiveWallet
       )
     ) {
       awaitBody<LoadingSuccessBodyModel> {
@@ -425,6 +528,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         PsbtsGeneratedData(
           totalFeeAmount = PsbtMock.fee,
           totalTransferAmount = PsbtMock.amountBtc,
+          destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
         )
       )
@@ -435,6 +539,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         header.shouldNotBeNull()
         header?.sublineModel.shouldNotBeNull()
         mainContentList.size.shouldBe(2)
+        mainContentList[0].shouldBeInstanceOf<FormMainContentModel.DataList>()
         mainContentList[1].shouldBeInstanceOf<FormMainContentModel.DataList>().should { dataList ->
           dataList.items.should { items ->
             items.size.shouldBe(2)
@@ -474,7 +579,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   test("Learn more button opens in-app browser") {
     sweepStateMachine.test(
       props.copy(
-        recoveredFactor = null
+        sweepContext = SweepContext.InactiveWallet
       )
     ) {
       awaitBody<LoadingSuccessBodyModel> {
@@ -484,6 +589,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         PsbtsGeneratedData(
           totalFeeAmount = PsbtMock.fee,
           totalTransferAmount = PsbtMock.amountBtc,
+          destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
         )
       )

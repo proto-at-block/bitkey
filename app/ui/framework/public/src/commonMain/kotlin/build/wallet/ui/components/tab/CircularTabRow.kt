@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -17,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import build.wallet.ui.components.label.Label
+import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.model.tab.CircularTabRowModel
 import build.wallet.ui.theme.WalletTheme
+import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
 
 private val EaseInOut = CubicBezierEasing(0.42f, 0.0f, 0.58f, 1.0f)
@@ -113,11 +114,11 @@ private fun CircularTabItem(
     targetValue = targetTextColor,
     animationSpec = tween(easing = EaseInOut)
   )
-  val tabTextWeight = remember(isSelected) {
-    if (isSelected) FontWeight.Bold else FontWeight.Normal
+  val tabTextType = remember(isSelected) {
+    if (isSelected) LabelType.Body3Bold else LabelType.Body3Medium
   }
 
-  Text(
+  Label(
     modifier = modifier
       .clickable(
         onClick = onClick,
@@ -125,9 +126,10 @@ private fun CircularTabItem(
         indication = null
       )
       .padding(vertical = 8.dp, horizontal = 12.dp),
+    type = tabTextType,
+    treatment = LabelTreatment.Unspecified,
     text = text,
     color = tabTextColor,
-    fontWeight = tabTextWeight,
-    textAlign = TextAlign.Center
+    alignment = TextAlign.Center
   )
 }

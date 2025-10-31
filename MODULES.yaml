@@ -26,6 +26,15 @@ exclude_author_from_core_reviewers: true
 autounapprove: true
 auto_assign: false
 ---
+name: bitkey-cryptosec-hwsec
+core_reviewers: [bitkey-cryptosec-eng, hwsec]
+message: "Someone working on Crypto/Security OR HWSEC must approve this pull request."
+slack: "#bitkey-software"
+minimum_core_approvals: 2
+exclude_author_from_core_reviewers: true
+autounapprove: true
+auto_assign: false
+---
 name: bitkey-server
 core_reviewers: [bitkey-server-eng]
 message: "Someone working on Bitkey Server (WSM, F8E & Infra) must approve this pull request."

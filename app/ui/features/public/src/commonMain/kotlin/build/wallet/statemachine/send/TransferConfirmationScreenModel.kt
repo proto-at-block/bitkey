@@ -1,6 +1,8 @@
 package build.wallet.statemachine.send
 
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
+import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.statemachine.core.Icon.Bitcoin
@@ -45,7 +47,7 @@ data class TransferConfirmationScreenModel(
   override val onBack: () -> Unit,
   val variant: TransferConfirmationScreenVariant,
   @Redacted
-  val recipientAddress: String,
+  val recipientAddress: BitcoinAddress,
   val transactionDetails: TransactionDetailsModel,
   val requiresHardware: Boolean,
   val confirmButtonEnabled: Boolean,
@@ -60,7 +62,7 @@ data class TransferConfirmationScreenModel(
           FormHeaderModel(
             icon = Bitcoin,
             headline = "Send your transfer",
-            subline = recipientAddress,
+            subline = recipientAddress.chunkedAddress(),
             sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
             alignment = LEADING
           )
@@ -68,7 +70,7 @@ data class TransferConfirmationScreenModel(
           FormHeaderModel(
             icon = Bitcoin,
             headline = "Speed up your transfer to",
-            subline = recipientAddress,
+            subline = recipientAddress.chunkedAddress(),
             sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
             alignment = LEADING
           )
@@ -88,8 +90,19 @@ data class TransferConfirmationScreenModel(
             subline = "Arrival times and fees are estimates.",
             alignment = LEADING
           )
+        PrivateWalletMigration ->
+          FormHeaderModel(
+            icon = Bitcoin,
+            headline = "Transaction summary",
+            subline = recipientAddress.chunkedAddress(),
+            sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
+            alignment = LEADING
+          )
       },
-    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
+    toolbar = when (variant) {
+      PrivateWalletMigration -> null
+      else -> ToolbarModel(leadingAccessory = BackAccessory(onBack))
+    },
     mainContentList = transactionDetails.toFormContent(
       variant = variant,
       onNetworkFeesClick = onNetworkFeesClick,
@@ -100,6 +113,7 @@ data class TransferConfirmationScreenModel(
       ButtonModel(
         text = when (variant) {
           is Sell -> "Confirm"
+          PrivateWalletMigration -> "Send"
           else -> "Send"
         },
         requiresBitkeyInteraction = requiresHardware,
@@ -178,30 +192,35 @@ private fun TransactionDetailsModel.toFormContent(
         )
     }
 
-  return immutableListOf(
-    Divider,
-    DataList(
-      items = immutableListOf(
-        DataList.Data(
-          title = when (variant) {
-            Regular, is Sell -> "Arrival time"
-            SpeedUp -> "New arrival time"
-          },
-          sideText = transactionSpeedText,
-          onClick = onArrivalTimeClick
+  return buildImmutableList {
+    add(Divider)
+    add(
+      DataList(
+        items = immutableListOf(
+          DataList.Data(
+            title = when (variant) {
+              Regular, is Sell -> "Arrival time"
+              SpeedUp -> "New arrival time"
+              PrivateWalletMigration -> "Arrival time"
+            },
+            sideText = transactionSpeedText,
+            onClick = onArrivalTimeClick
+          )
         )
       )
-    ),
-    DataList(
-      items = mainItems,
-      total = DataList.Data(
-        title = "Total",
-        sideText = transactionDetailModelType.totalAmountPrimaryText,
-        sideTextType = DataList.Data.SideTextType.BODY2BOLD,
-        secondarySideText = transactionDetailModelType.totalAmountSecondaryText
+    )
+    add(
+      DataList(
+        items = mainItems,
+        total = DataList.Data(
+          title = "Total",
+          sideText = transactionDetailModelType.totalAmountPrimaryText,
+          sideTextType = DataList.Data.SideTextType.BODY2BOLD,
+          secondarySideText = transactionDetailModelType.totalAmountSecondaryText
+        )
       )
     )
-  )
+  }
 }
 
 sealed interface TransferConfirmationScreenVariant {
@@ -221,4 +240,9 @@ sealed interface TransferConfirmationScreenVariant {
   data class Sell(
     val partnerInfo: PartnerInfo,
   ) : TransferConfirmationScreenVariant
+
+  /**
+   * Transaction confirmation for private wallet migration sweep.
+   */
+  data object PrivateWalletMigration : TransferConfirmationScreenVariant
 }

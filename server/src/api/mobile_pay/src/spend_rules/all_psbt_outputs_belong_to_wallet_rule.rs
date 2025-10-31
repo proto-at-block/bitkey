@@ -1,5 +1,5 @@
 use bdk_utils::{
-    is_psbt_addressed_to_attributable_wallet, is_psbt_addressed_to_wallet, AttributableWallet,
+    is_psbt_addressed_to_attributable_wallet, is_psbt_addressed_to_wallet,
     ChaincodeDelegationCollaboratorWallet,
 };
 

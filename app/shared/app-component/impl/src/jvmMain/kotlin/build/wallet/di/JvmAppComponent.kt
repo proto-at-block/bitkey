@@ -41,9 +41,11 @@ import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
+import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
+import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
 import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
@@ -107,6 +109,7 @@ interface JvmAppComponent {
   val cloudStoreAccountRepository: CloudStoreAccountRepository
   val configureDelayDurationF8eClient: ConfigureDelayDurationF8eClient
   val createAccountKeysetF8eClient: CreateAccountKeysetF8eClient
+  val createAccountKeysetV2F8eClient: CreateAccountKeysetV2F8eClient
   val listKeysetsF8eClient: ListKeysetsF8eClient
   val updateDescriptorBackupsF8eClient: UpdateDescriptorBackupsF8eClient
   val onboardFullAccountService: OnboardFullAccountService
@@ -177,4 +180,6 @@ interface JvmAppComponent {
   val inheritanceUseEncryptedDescriptorFeatureFlag: InheritanceUseEncryptedDescriptorFeatureFlag
   val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag
   val descriptorBackupService: DescriptorBackupService
+  val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao
+  val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag
 }

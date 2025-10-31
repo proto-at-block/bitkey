@@ -269,16 +269,16 @@ class RelationshipsCryptoFake(
    * Generates a ciphertext with an insecure encryption algorithm (i.e. naive key
    * expansion and XOR).
    */
-  override fun encryptDescriptor(
+  override fun encryptData(
     dek: PrivateKeyEncryptionKey,
-    descriptor: ByteString,
+    data: ByteString,
   ): Result<XCiphertext, RelationshipsCryptoError> {
-    val expandedKey = expandKey(dek.raw, descriptor.size)
-    val descriptorCiphertext = descriptor.xorWith(expandedKey)
+    val expandedKey = expandKey(dek.raw, data.size)
+    val ciphertext = data.xorWith(expandedKey)
     return Ok(
       XSealedData(
         XSealedData.Header(algorithm = "RelationshipsCryptoFake"),
-        ciphertext = descriptorCiphertext,
+        ciphertext = ciphertext,
         nonce = XNonce(ByteString.EMPTY)
       ).toOpaqueCiphertext()
     )

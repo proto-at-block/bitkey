@@ -9,9 +9,12 @@ import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADI
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.store.CloudStoreAccountFake
+import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
+import build.wallet.onboarding.OnboardingKeyboxStep.DescriptorBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.statemachine.account.ChooseAccountAccessModel
@@ -34,12 +37,13 @@ import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickSetUpNewWalletButton
 import build.wallet.testing.AppTester
-import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.testForLegacyAndPrivateWallet
+import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.core.test.TestScope
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.equals.shouldBeEqual
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -48,8 +52,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
 
-  suspend fun TestScope.launchAndPrepareApp(): AppTester {
-    return launchNewApp().apply {
+  fun AppTester.prepareApp(): AppTester {
+    return apply {
       // Set push notifications to authorized to enable us to successfully advance through
       // the notifications step in onboarding.
       pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
@@ -58,8 +62,8 @@ class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
     }
   }
 
-  test("happy path through create and then onboard and activate keybox") {
-    val app = launchAndPrepareApp()
+  testForLegacyAndPrivateWallet("happy path through create and then onboard and activate keybox") { app ->
+    app.prepareApp()
     app.appUiStateMachine.test(
       Unit,
       testTimeout = 60.seconds,
@@ -78,28 +82,77 @@ class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
 
     val account = app.accountService.activeAccount().first().shouldBeTypeOf<FullAccount>()
 
-    app.listKeysetsF8eClient
+    var observedActiveKeybox: Keybox? = null
+
+    // Assertions on keybox state
+    app.keyboxDao.activeKeybox().first().shouldBeOk { keybox ->
+      val activeKeybox = keybox.shouldNotBeNull()
+      activeKeybox.fullAccountId.shouldBeEqual(account.accountId)
+      activeKeybox.canUseKeyboxKeysets.shouldBe(true)
+      observedActiveKeybox = activeKeybox
+    }
+    val activeKeyboxValue = observedActiveKeybox.shouldNotBeNull()
+
+    // Assert onboarding stuff is cleared.
+    app.keyboxDao.onboardingKeybox().first().shouldBeOk { onboardingKeybox ->
+      onboardingKeybox.shouldBeNull()
+    }
+    app.onboardingAppKeyKeystore
+      .getAppKeyBundle(
+        localId = activeKeyboxValue.activeAppKeyBundle.localId,
+        network = account.config.bitcoinNetworkType
+      ).shouldBeNull()
+    app.onboardingKeyboxHwAuthPublicKeyDao.get().shouldBeOk { hardwareKeys ->
+      hardwareKeys.shouldBeNull()
+    }
+    app.onboardingKeyboxSealedSsekDao.get().shouldBeOk { sealedSsek ->
+      sealedSsek.shouldBeNull()
+    }
+
+    // Assertions on cloud backup state
+    app.cloudBackupRepository
+      .readActiveBackup(CloudStoreAccountFake.CloudStoreAccount1Fake)
+      .getOrThrow()
+      .shouldNotBeNull()
+
+    // Assertion on EEK state
+    app.cloudFileStore
+      .exists(
+        account = CloudStoreAccountFake.CloudStoreAccount1Fake,
+        fileName = "Emergency Exit Kit.pdf"
+      ).result.shouldBeOk { exists ->
+        exists.shouldBe(true)
+      }
+
+    val keysets = app.listKeysetsF8eClient
       .listKeysets(
         f8eEnvironment = account.config.f8eEnvironment,
         fullAccountId = account.accountId
-      ).getOrThrow()
-      .keysets
-      .shouldNotBeEmpty()
-      .size
-      .shouldBeEqual(1)
+      ).getOrThrow().keysets
+
+    // Basic keyset assertions
+    keysets.shouldNotBeEmpty()
+    keysets.size.shouldBeEqual(1)
+
+    // Check of resulting descriptor backup
+    val activeKeyset = keysets.first()
+    if (activeKeyset is PrivateMultisigRemoteKeyset) {
+      app.descriptorBackupService
+        .checkBackupForPrivateKeyset(keysetId = activeKeyset.keysetId)
+        .shouldBeOk()
+    }
   }
 
-  test("close and reopen app to cloud backup onboard step") {
-    val app = launchAndPrepareApp()
+  testForLegacyAndPrivateWallet("close and reopen app to cloud backup onboard step") { app ->
+    app.prepareApp()
     app.testCloseAndReopenAppToOnboardingScreen<FormBodyModel>(
       stepsToAdvance = emptyList(),
       screenIdExpectation = SAVE_CLOUD_BACKUP_INSTRUCTIONS
     )
   }
 
-  test("close and reopen app to notification pref onboard step") {
-    val app = launchAndPrepareApp()
-
+  testForLegacyAndPrivateWallet("close and reopen app to notification pref onboard step") { app ->
+    app.prepareApp()
     app.testCloseAndReopenAppToOnboardingScreen<FormBodyModel>(
       stepsToAdvance = listOf(CloudBackup),
       screenIdExpectation = NOTIFICATION_PREFERENCES_SETUP
@@ -164,6 +217,9 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardKeyboxScre
       }
 
       NotificationPreferences -> advanceThroughOnboardingNotificationSetupScreens()
+      DescriptorBackup -> {
+        // no-op, auto-progresses to cloud backup
+      }
     }
   }
 }

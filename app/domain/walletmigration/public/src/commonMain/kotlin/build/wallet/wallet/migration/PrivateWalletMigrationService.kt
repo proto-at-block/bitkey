@@ -2,25 +2,25 @@ package build.wallet.wallet.migration
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.HwKeyBundle
-import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.cloud.backup.csek.SealedSsek
+import build.wallet.cloud.backup.csek.Sek
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.recovery.sweep.Sweep
+import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
-import kotlinx.datetime.Instant
 
 /**
  * Service for managing private wallet migration from legacy multisig to private collaborative custody.
  */
 interface PrivateWalletMigrationService {
   /**
-   * Determines if the private wallet migration feature is available to the user.
-   * Checks if the feature flag is enabled and if the user needs migration.
+   * The current state of the private wallet migration.
    *
-   * @return True if the migration feature is available, false otherwise
+   * Use this flag to check if the user has a private wallet migration
+   * available, as well as whether they have started a migration
+   * already that needs to be resumed.
    */
-  val isPrivateWalletMigrationAvailable: Flow<Boolean>
+  val migrationState: Flow<PrivateWalletMigrationState>
 
   /**
    * Initiates the private wallet migration process.
@@ -28,46 +28,42 @@ interface PrivateWalletMigrationService {
    * @param account The full account to migrate
    * @param proofOfPossession Proof of possession needed to authorize the key creation process
    * @param newHwKeys The newly generated hardware keys to migrate to.
-   * @return Result indicating successful initiation or error
+   * @return Result containing the updated keybox with both old and new keysets, or error
    */
   suspend fun initiateMigration(
     account: FullAccount,
     proofOfPossession: HwFactorProofOfPossession,
     newHwKeys: HwKeyBundle,
-  ): Result<SpendingKeyset, PrivateWalletMigrationError>
+    ssek: Sek,
+    sealedSsek: SealedSsek,
+  ): Result<PrivateWalletMigrationState.InitiationComplete, PrivateWalletMigrationError>
 
   /**
-   * Generates the sweep transaction from old keyset to new private keyset.
-   * Uses chaincode delegation for privacy-preserving signatures.
+   * Estimates the network fees for the migration sweep transaction.
+   * This can be called before creating the new keyset to show the user
+   * an estimate of the network fees they will pay.
    *
    * @param account The account being migrated
-   * @return Result containing the prepared sweep or error
+   * @return Result containing the estimated fee or error
    */
-  suspend fun prepareSweep(
+  suspend fun estimateMigrationFees(
     account: FullAccount,
-  ): Result<PrivateWalletSweep?, PrivateWalletMigrationError>
+  ): Result<BitcoinMoney, PrivateWalletMigrationError>
 
   /**
-   * Finalizes the migration after successful sweep.
-   * This atomically activates the new private keyset and cleans up old descriptors.
-   *
-   * @param sweepTxId Transaction ID of the completed sweep
-   * @param account The account being migrated
-   * @return Result indicating successful completion or error
+   * Save the state of the migration with a cloud backup marked as complete.
    */
-  suspend fun finalizeMigration(
-    sweepTxId: String,
-    account: FullAccount,
-  ): Result<Keybox, PrivateWalletMigrationError>
+  suspend fun completeCloudBackup(): Result<Unit, PrivateWalletMigrationError>
 
   /**
-   * Cancels an in-progress migration.
-   * Cleans up any temporary state and reverts to original keyset.
-   *
-   * @param account The account with migration in progress
-   * @return Result indicating successful cancellation or error
+   * Completes the migration by clearing any local state
    */
-  suspend fun cancelMigration(account: FullAccount): Result<Unit, PrivateWalletMigrationError>
+  suspend fun completeMigration(): Result<Unit, PrivateWalletMigrationError>
+
+  /**
+   * Clears any local migration state. Used when deleting app data via the debug menu.
+   */
+  suspend fun clearMigration()
 }
 
 /**
@@ -90,38 +86,42 @@ sealed interface PrivateWalletMigrationError {
   data class KeysetCreationFailed(val error: Throwable) : PrivateWalletMigrationError
 
   /**
-   * Failed to prepare or sign sweep transaction.
+   * Cloud backup failed after keyset creation.
    */
-  data class SweepPreparationFailed(val error: Throwable) : PrivateWalletMigrationError
+  data class CloudBackupFailed(val error: Throwable) : PrivateWalletMigrationError
 
   /**
-   * Sweep transaction broadcast failed.
+   * Descriptors failed to backup to F8e.
    */
-  data class SweepBroadcastFailed(val error: Throwable) : PrivateWalletMigrationError
+  data class DescriptorBackupFailed(val error: Throwable) : PrivateWalletMigrationError
 
   /**
-   * Migration finalization failed.
+   * Failed to activate the new private keyset on the server.
    */
-  data class FinalizationFailed(val error: Throwable) : PrivateWalletMigrationError
+  data class KeysetServerActivationFailed(val error: Throwable) : PrivateWalletMigrationError
 
   /**
-   * General server error during migration.
+   * Failed to activate the new private keyset.
    */
-  data class ServerError(val error: Throwable) : PrivateWalletMigrationError
+  data class KeysetActivationFailed(val error: Throwable) : PrivateWalletMigrationError
+
+  /**
+   * Failed to estimate migration fees.
+   */
+  data class FeeEstimationFailed(val error: Throwable) : PrivateWalletMigrationError
+
+  /**
+   * Wallet balance is less than the network fees required for migration.
+   */
+  data object InsufficientFundsForMigration : PrivateWalletMigrationError
+
+  /**
+   * Failed to complete the migration
+   */
+  data class MigrationCompletionFailed(val error: Throwable) : PrivateWalletMigrationError
 
   /**
    * Unknown error occurred.
    */
   data class UnknownError(val error: Throwable) : PrivateWalletMigrationError
 }
-
-/**
- * Sweep data for private wallet migration.
- * Contains the prepared transaction for moving funds to new private keyset.
- */
-data class PrivateWalletSweep(
-  val sweep: Sweep,
-  val oldKeysetId: String,
-  val newKeysetId: String,
-  val estimatedConfirmationTime: Instant?,
-)

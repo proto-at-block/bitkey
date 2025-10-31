@@ -26,7 +26,8 @@ class InheritanceCryptoFake(
     Ok(
       DecryptInheritanceMaterialPackageOutput(
         inheritanceKeyset = InheritanceKeysetFake,
-        descriptor = "fake-descriptor"
+        descriptor = "fake-descriptor",
+        serverRootXpub = "fake-sealed-server-root-xpub"
       )
     ),
 ) : InheritanceCrypto {
@@ -45,8 +46,9 @@ class InheritanceCryptoFake(
   override suspend fun decryptInheritanceMaterialPackage(
     delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
     sealedDek: XCiphertext,
-    sealedMobileKey: XCiphertext,
+    sealedAppKey: XCiphertext,
     sealedDescriptor: XCiphertext?,
+    sealedServerRootXpub: XCiphertext?,
   ): Result<DecryptInheritanceMaterialPackageOutput, Error> {
     return inheritanceMaterialPackageResult
   }

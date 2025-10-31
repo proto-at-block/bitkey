@@ -14,6 +14,9 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.onboarding.UpgradeAccountF8eClient
 import build.wallet.f8e.onboarding.UpgradeAccountF8eClientMock
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.notifications.DeviceTokenManagerError
 import build.wallet.notifications.DeviceTokenManagerMock
@@ -31,8 +34,11 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
   val authTokensService = AuthTokensServiceFake()
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
+  val featureFlagDao = FeatureFlagDaoFake()
+  val chaincodeDelegationFeatureFlag = ChaincodeDelegationFeatureFlag(featureFlagDao)
   val keyboxDao = KeyboxDaoMock(turbines::create, defaultOnboardingKeybox = null)
   val upgradeAccountF8eClient = UpgradeAccountF8eClientMock(turbines::create)
+  val upgradeAccountV2F8eClient = UpgradeAccountV2F8eClientFake(turbines::create)
 
   val service = UpgradeLiteToFullAccountServiceImpl(
     accountAuthenticator = accountAuthenticator,
@@ -40,7 +46,9 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     deviceTokenManager = deviceTokenManager,
     keyboxDao = keyboxDao,
     upgradeAccountF8eClient = upgradeAccountF8eClient,
-    uuidGenerator = UuidGeneratorFake()
+    upgradeAccountV2F8eClient = upgradeAccountV2F8eClient,
+    uuidGenerator = UuidGeneratorFake(),
+    chaincodeDelegationFeatureFlag = chaincodeDelegationFeatureFlag
   )
 
   beforeTest {
@@ -48,7 +56,10 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     deviceTokenManager.reset()
     keyboxDao.reset()
     upgradeAccountF8eClient.reset()
+    upgradeAccountV2F8eClient.reset()
     authTokensService.reset()
+    featureFlagDao.reset()
+    chaincodeDelegationFeatureFlag.setFlagValue(value = false)
   }
 
   test("Happy path") {
@@ -109,6 +120,28 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
 
     upgradeAccountF8eClient.upgradeAccountCalls.awaitItem()
     authTokensService.getTokens(FullAccountIdMock, Global).shouldBeOk(tokens)
+    accountAuthenticator.authCalls.awaitItem()
+    deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+  }
+
+  test("uses v1 upgrade client when chaincode delegation disabled") {
+    chaincodeDelegationFeatureFlag.setFlagValue(value = false)
+    upgradeAccountV2F8eClient.upgradeAccountResult = Err(F8eError.UnhandledError(Error()))
+
+    service.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock).shouldBeOk()
+
+    upgradeAccountF8eClient.upgradeAccountCalls.awaitItem()
+    accountAuthenticator.authCalls.awaitItem()
+    deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+  }
+
+  test("uses v2 upgrade client when chaincode delegation enabled") {
+    chaincodeDelegationFeatureFlag.setFlagValue(value = true)
+    upgradeAccountF8eClient.upgradeAccountResult = Err(F8eError.UnhandledError(Error()))
+
+    service.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock).shouldBeOk()
+
+    upgradeAccountV2F8eClient.upgradeAccountCalls.awaitItem()
     accountAuthenticator.authCalls.awaitItem()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
   }

@@ -21,9 +21,8 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
-import build.wallet.bitkey.spending.PrivateWalletSpendingKeysetMock
+import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.f8e.F8eEnvironment.Development
@@ -48,8 +47,8 @@ val KeyboxMock = Keybox(
 )
 
 val PrivateWalletKeyboxMock = KeyboxMock.copy(
-  keysets = KeyboxMock.keysets + PrivateWalletSpendingKeysetMock,
-  activeSpendingKeyset = PrivateWalletSpendingKeysetMock
+  keysets = KeyboxMock.keysets + PrivateSpendingKeysetMock,
+  activeSpendingKeyset = PrivateSpendingKeysetMock
 )
 
 val EekKeyboxMock = Keybox(
@@ -78,11 +77,11 @@ val EekKeyboxMock = Keybox(
 val KeyboxMock2 = Keybox(
   localId = "keybox-fake-id",
   fullAccountId = FullAccountIdMock,
-  activeSpendingKeyset = SpendingKeysetMock2,
+  activeSpendingKeyset = PrivateSpendingKeysetMock,
   activeAppKeyBundle = AppKeyBundleMock2,
   activeHwKeyBundle = HwKeyBundleMock,
   appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-  keysets = listOf(SpendingKeysetMock2),
+  keysets = listOf(PrivateSpendingKeysetMock),
   canUseKeyboxKeysets = true,
   config = FullAccountConfig(
     bitcoinNetworkType = SIGNET,
@@ -97,6 +96,10 @@ val FullAccountMock = FullAccount(
   accountId = FullAccountIdMock,
   config = KeyboxMock.config,
   keybox = KeyboxMock
+)
+
+val PrivateAccountMock = FullAccountMock.copy(
+  keybox = PrivateWalletKeyboxMock
 )
 
 val LiteAccountConfigMock = LiteAccountConfig(

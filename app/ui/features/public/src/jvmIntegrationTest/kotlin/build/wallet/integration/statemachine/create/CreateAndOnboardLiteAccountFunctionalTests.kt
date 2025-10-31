@@ -9,9 +9,9 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
-import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.testWithTwoApps
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
@@ -22,9 +22,8 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
 
-  test("happy path through create lite account and enroll as trusted contact") {
+  testWithTwoApps("happy path through create lite account and enroll as trusted contact") { fullAccountApp, liteAccountApp ->
     // Set up a protected customer with a full account and create a trusted contact invite
-    val fullAccountApp = launchNewApp()
     fullAccountApp.onboardFullAccountWithFakeHardware()
     val (inviteCode, _) =
       fullAccountApp.createTcInvite(
@@ -33,7 +32,6 @@ class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
 
     // Going through onboarding with the lite account, becoming a trusted contact
     // and then remove the trusted contact relationship
-    val liteAccountApp = launchNewApp()
     liteAccountApp.appUiStateMachine.test(Unit) {
       advanceThroughCreateLiteAccountScreens(
         inviteCode = inviteCode

@@ -58,7 +58,7 @@ class RecoveryStatusServiceImplTests : FunSpec({
 
   test("set local recovery progress") {
     recoveryStatusService.setLocalRecoveryProgress(
-      LocalRecoveryAttemptProgress.SweptFunds(
+      LocalRecoveryAttemptProgress.CompletedRecovery(
         KeyboxMock
       )
     )

@@ -19,12 +19,13 @@ meson = "^1.2.0"
 msgpack = "^1.0.5"
 semver = "^3.0.1"
 littlefs-python = "^0.6.0"
+pytz = "2023.3.post1"
 invoke = "^2.2.0"
 bitkey-proto = "*"
 
 # memfault-cli requires an older version of pyelftools
-memfault-cli = "1.0.7"
-pyelftools = "0.28"
+memfault-cli = "1.6.0"
+pyelftools = "0.32"
 
 puncover = "0.3.4"
 jinja2 = "3.0.0"

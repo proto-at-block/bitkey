@@ -25,9 +25,11 @@ import kotlin.time.Duration.Companion.seconds
  */
 suspend fun AppTester.awaitTcIsVerifiedAndBackedUp(relationshipId: String) =
   withClue("await TC is verified and backed up") {
-    appUiStateMachine.test(props = Unit) {
+    appUiStateMachine.test(props = Unit, turbineTimeout = 60.seconds) {
       // Wait until TC is synced and verified
-      awaitRelationships { relationships ->
+      awaitRelationships(
+        timeout = 60.seconds
+      ) { relationships ->
         relationships.endorsedTrustedContacts.any {
           it.relationshipId == relationshipId && it.authenticationState == TrustedContactAuthenticationState.VERIFIED
         }

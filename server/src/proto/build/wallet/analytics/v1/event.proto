@@ -288,7 +288,16 @@ enum Action {
     /** [App] Customer has seen the private wallet settings coachmark */
     ACTION_APP_COACHMARK_VIEWED_PRIVATE_WALLET_SETTINGS = 80;
 
-    // Next tag is 81
+    /** [App] Private keyset created during new full account onboarding */
+    ACTION_APP_PRIVATE_WALLET_NEW_ACCOUNT_ONBOARDED = 81;
+
+    /** [App] Private keyset created via manual wallet migration from legacy to private */
+    ACTION_APP_PRIVATE_WALLET_MANUAL_UPGRADE = 82;
+
+    /** [App] Private keyset automatically created through recovery sweep */
+    ACTION_APP_PRIVATE_WALLET_RECOVERY_SWEEP_UPGRADE = 83;
+
+    // Next tag is 84
 }
 
 message PlatformInfo {

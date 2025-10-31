@@ -606,7 +606,7 @@ class TransferConfirmationUiStateMachineImpl(
     return TransferConfirmationScreenModel(
       onBack = props.onBack,
       variant = variant,
-      recipientAddress = props.recipientAddress.chunkedAddress(),
+      recipientAddress = props.recipientAddress,
       transactionDetails = transactionDetailsCard,
       requiresHardware = requiredSigner == Hardware,
       confirmButtonEnabled = true,

@@ -26,7 +26,6 @@ AI rules for the Bitkey mobile app. **Read actual rule content - don't assume ba
 - **ai-rules/ui-state-machines.mdc** - Overview index for UI State Machine patterns using Jetpack Compose Runtime
 
 ## Meta Rules
-- **ai-rules/ai-code-review.mdc** - AI code review standards and practices for consistent quality assurance
 - **ai-rules/rule-writing.mdc** - Standards for creating, updating, and maintaining AI rules across different AI assistants
 
 # AI Rules Index Reference

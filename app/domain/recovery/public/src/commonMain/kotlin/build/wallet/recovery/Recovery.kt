@@ -187,6 +187,22 @@ sealed interface Recovery {
       ) : ServerIndependentRecovery
 
       /**
+       * Indicates that we attempted a sweep but have not yet completed recovery.
+       */
+      data class SweepAttempted(
+        val f8eSpendingKeyset: F8eSpendingKeyset,
+        override val fullAccountId: FullAccountId,
+        override val appSpendingKey: AppSpendingPublicKey,
+        override val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+        override val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
+        override val hardwareSpendingKey: HwSpendingPublicKey,
+        override val hardwareAuthKey: HwAuthPublicKey,
+        override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+        override val factorToRecover: PhysicalFactor,
+        val keysets: List<SpendingKeyset>,
+      ) : ServerIndependentRecovery
+
+      /**
        * Indicates that we have successfully backed up the keys to the cloud.
        */
       data class BackedUpToCloud(

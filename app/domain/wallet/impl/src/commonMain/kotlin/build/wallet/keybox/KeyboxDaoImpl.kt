@@ -3,7 +3,6 @@ package build.wallet.keybox
 import bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
@@ -176,10 +175,9 @@ class KeyboxDaoImpl(
         spendingKeysetQueries.insertKeyset(
           id = keyset.localId,
           keyboxId = keybox.localId,
-          serverId = keyset.f8eSpendingKeyset.keysetId,
           appKey = keyset.appKey,
           hardwareKey = keyset.hardwareKey,
-          serverKey = keyset.f8eSpendingKeyset.spendingPublicKey,
+          serverKey = keyset.f8eSpendingKeyset,
           isActive = isActive
         )
       }
@@ -188,10 +186,9 @@ class KeyboxDaoImpl(
       spendingKeysetQueries.insertKeyset(
         id = keybox.activeSpendingKeyset.localId,
         keyboxId = keybox.localId,
-        serverId = keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
         appKey = keybox.activeSpendingKeyset.appKey,
         hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
-        serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey,
+        serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset,
         isActive = true
       )
     }
@@ -205,10 +202,7 @@ class KeyboxDaoImpl(
         .map {
           SpendingKeyset(
             localId = it.id,
-            f8eSpendingKeyset = F8eSpendingKeyset(
-              keysetId = it.serverId,
-              spendingPublicKey = it.serverKey
-            ),
+            f8eSpendingKeyset = it.serverKey,
             appKey = it.appKey,
             hardwareKey = it.hardwareKey,
             networkType = networkType
@@ -222,10 +216,7 @@ class KeyboxDaoImpl(
         canUseKeyboxKeysets = canUseKeyboxKeysets,
         activeSpendingKeyset = SpendingKeyset(
           localId = spendingPublicKeysetId,
-          f8eSpendingKeyset = F8eSpendingKeyset(
-            keysetId = spendingPublicKeysetServerId,
-            spendingPublicKey = serverKey
-          ),
+          f8eSpendingKeyset = serverKey,
           appKey = appKey,
           hardwareKey = hardwareKey,
           networkType = networkType

@@ -11,10 +11,12 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
+import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
@@ -30,12 +32,14 @@ class ExportTransactionsServiceImplTests : FunSpec({
   val watchingWallet = SpendingWalletFake()
   val watchingWalletProvider = WatchingWalletProviderMock(watchingWallet)
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
+  val uuidGenerator = UuidGeneratorFake()
   val service = ExportTransactionsServiceImpl(
     accountService = accountService,
     watchingWalletProvider = watchingWalletProvider,
     bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
     exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
-    listKeysetsF8eClient = listKeysetsF8eClient
+    listKeysetsF8eClient = listKeysetsF8eClient,
+    uuidGenerator = uuidGenerator
   )
 
   beforeEach {
@@ -48,10 +52,18 @@ class ExportTransactionsServiceImplTests : FunSpec({
       (accountService.activeAccount().first() as FullAccount).keybox.activeSpendingKeyset
     listKeysetsF8eClient.result =
       Ok(
-        ListKeysetsF8eClient.ListKeysetsResponse(
-          keysets = listOf(activeKeyset),
+        ListKeysetsResponse(
+          keysets = listOf(
+            LegacyRemoteKeyset(
+              keysetId = activeKeyset.f8eSpendingKeyset.keysetId,
+              networkType = activeKeyset.networkType.name,
+              appDescriptor = activeKeyset.appKey.key.dpub,
+              hardwareDescriptor = activeKeyset.hardwareKey.key.dpub,
+              serverDescriptor = activeKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
           wrappedSsek = null,
-          descriptorBackups = null
+          descriptorBackups = emptyList()
         )
       )
   }
@@ -132,7 +144,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
       watchingWalletProvider = watchingWalletProvider,
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
-      listKeysetsF8eClient = ListKeysetsF8eClientMock()
+      listKeysetsF8eClient = ListKeysetsF8eClientMock(),
+      uuidGenerator = UuidGeneratorFake()
     )
 
     testService.export().shouldBeOk()
@@ -160,7 +173,7 @@ class ExportTransactionsServiceImplTests : FunSpec({
     accountService.accountState.value = Ok(ActiveAccount(accountWithLocalKeysets))
 
     val f8eClientWithDifferentKeysets = ListKeysetsF8eClientMock().apply {
-      numKeysets = 1 // Will generate "spending-public-keyset-fake-server-id-0", etc
+      numKeysets = 2 // Will generate "spending-public-keyset-fake-server-id-0", etc
     }
 
     val testService = ExportTransactionsServiceImpl(
@@ -168,7 +181,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
       watchingWalletProvider = watchingWalletProvider,
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
-      listKeysetsF8eClient = f8eClientWithDifferentKeysets
+      listKeysetsF8eClient = f8eClientWithDifferentKeysets,
+      uuidGenerator = UuidGeneratorFake()
     )
 
     testService.export().shouldBeOk()
@@ -179,8 +193,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
       val requestedDescriptors = awaitUntil { it.size == 2 }
       requestedDescriptors.map { it.identifier }
         .shouldContainExactlyInAnyOrder(
-          "WatchingWallet spending-public-keyset-fake-id-0",
-          "WatchingWallet spending-public-keyset-fake-id-1"
+          "WatchingWallet uuid-0",
+          "WatchingWallet uuid-1"
         )
     }
   }

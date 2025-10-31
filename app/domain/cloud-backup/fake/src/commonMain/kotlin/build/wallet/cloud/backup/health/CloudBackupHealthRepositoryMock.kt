@@ -22,26 +22,14 @@ class CloudBackupHealthRepositoryMock(
     return eekBackupStatus
   }
 
-  val syncLoopCalls = turbine("syncLoop calls")
-
-  override suspend fun syncLoop(account: FullAccount) {
-    syncLoopCalls += Unit
-  }
-
   val performSyncCalls = turbine("performSync calls")
 
   override suspend fun performSync(account: FullAccount): CloudBackupStatus {
-    performSyncCalls += Unit
+    performSyncCalls += account
     return CloudBackupStatus(
       appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
       eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess
     )
-  }
-
-  val requestSyncCalls = turbine("requestSync calls")
-
-  override fun requestSync(account: FullAccount) {
-    requestSyncCalls += Unit
   }
 
   fun reset() {

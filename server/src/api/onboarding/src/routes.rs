@@ -93,12 +93,15 @@ use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::account_validation::{AccountValidation, AccountValidationRequest};
+use crate::metrics::LEGACY_VALUE;
 use crate::routes_v2::{
     create_account_v2, create_keyset_v2, upgrade_account_v2, CreateAccountRequestV2,
     CreateAccountResponseV2, CreateKeysetResponseV2, UpgradeAccountRequestV2,
     __path_create_account_v2, __path_create_keyset_v2, __path_upgrade_account_v2,
 };
-use crate::{create_touchpoint_iterable_user, metrics, upsert_account_iterable_user};
+use crate::{
+    create_touchpoint_iterable_user, emit_keyset_created, metrics, upsert_account_iterable_user,
+};
 
 static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
@@ -1075,6 +1078,8 @@ pub async fn create_account(
             };
             let account = account_service.create_account_and_keysets(input).await?;
 
+            emit_keyset_created(LEGACY_VALUE);
+
             // Attempt to create account Iterable user early, but don't fail the account creation if
             // this fails. We upsert the users later when they're needed anyway; this is an optimization
             // to avoid added latency or errors waiting for Iterable user database consistency on first use.
@@ -1306,6 +1311,9 @@ pub async fn upgrade_account(
     let full_account = account_service
         .upgrade_lite_account_to_full_account(input)
         .await?;
+
+    emit_keyset_created(LEGACY_VALUE);
+
     Ok(Json(CreateAccountResponse {
         account_id: full_account.id,
         keyset: Some(CreateKeysetResponse {
@@ -1434,6 +1442,8 @@ pub async fn create_keyset(
             ),
         })
         .await?;
+
+    emit_keyset_created(LEGACY_VALUE);
 
     Ok(Json(CreateKeysetResponse {
         keyset_id: inactive_spend_keyset_id,

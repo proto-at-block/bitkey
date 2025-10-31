@@ -149,6 +149,14 @@ pub enum SigningMethod {
         source_keyset: PrivateMultiSigSpendingKeyset,
         active_keyset: PrivateMultiSigSpendingKeyset,
     },
+    MigrationSweep {
+        source_descriptor: DescriptorKeyset,
+        active_keyset: PrivateMultiSigSpendingKeyset,
+    },
+    InheritanceDowngradeSweep {
+        source_keyset: PrivateMultiSigSpendingKeyset,
+        active_descriptor: DescriptorKeyset,
+    },
 }
 
 #[async_trait]
@@ -171,6 +179,9 @@ impl Signer for SigningProcessor<Validated> {
         match signing_method {
             SigningMethod::LegacyMobilePay { source_descriptor }
             | SigningMethod::LegacySweep {
+                source_descriptor, ..
+            }
+            | SigningMethod::MigrationSweep {
                 source_descriptor, ..
             } => {
                 let source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
@@ -195,7 +206,9 @@ impl Signer for SigningProcessor<Validated> {
                     },
                 })
             }
-            SigningMethod::PrivateMobilePay { .. } | SigningMethod::PrivateSweep { .. } =>
+            SigningMethod::PrivateMobilePay { .. }
+            | SigningMethod::PrivateSweep { .. }
+            | SigningMethod::InheritanceDowngradeSweep { .. } =>
             // Unlike the legacy signing, WSM would finalize for us. We won't need to finalize
             // here.
             {
@@ -242,6 +255,9 @@ impl SigningProcessor<Validated> {
             SigningMethod::LegacyMobilePay { source_descriptor }
             | SigningMethod::LegacySweep {
                 source_descriptor, ..
+            }
+            | SigningMethod::MigrationSweep {
+                source_descriptor, ..
             } => {
                 let receiving = source_descriptor.receiving().into_multisig_descriptor()?;
                 let change = source_descriptor.change().into_multisig_descriptor()?;
@@ -259,7 +275,8 @@ impl SigningProcessor<Validated> {
                 Ok(signed_psbt)
             }
             SigningMethod::PrivateMobilePay { source_keyset }
-            | SigningMethod::PrivateSweep { source_keyset, .. } => {
+            | SigningMethod::PrivateSweep { source_keyset, .. }
+            | SigningMethod::InheritanceDowngradeSweep { source_keyset, .. } => {
                 let result = self
                     .wsm_signing_service
                     .sign_psbt_v2(

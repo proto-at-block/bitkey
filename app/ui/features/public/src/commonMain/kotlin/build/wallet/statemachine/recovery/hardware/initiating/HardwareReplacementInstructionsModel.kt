@@ -17,7 +17,9 @@ data class HardwareReplacementInstructionsModel(
 ) : FormBodyModel(
     onBack = onClose,
     toolbar = ToolbarModel(leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClose)),
-    header = FormHeaderModel(headline = "Recover your wallet to a new Bitkey device"),
+    header = FormHeaderModel(
+      headline = "Recover your wallet to a new Bitkey device"
+    ),
     mainContentList = immutableListOf(
       FormMainContentModel.Explainer(
         immutableListOf(

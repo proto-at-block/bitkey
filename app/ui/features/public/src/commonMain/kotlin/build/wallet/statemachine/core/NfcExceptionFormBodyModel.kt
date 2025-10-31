@@ -29,7 +29,8 @@ fun NfcErrorFormBodyModel(
           "Contact Support",
           onClick = onSecondaryButtonClick
         )
-      else -> null
+      else ->
+        ButtonDataModel("View troubleshooting guide", onClick = onSecondaryButtonClick)
     }
 
   return ErrorFormBodyModelWithOptionalErrorData(

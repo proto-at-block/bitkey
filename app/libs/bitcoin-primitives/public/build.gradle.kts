@@ -3,6 +3,7 @@ import build.wallet.gradle.logic.extensions.targets
 plugins {
   id("build.wallet.kmp")
   id("build.wallet.redacted")
+  alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -16,6 +17,7 @@ kotlin {
        */
       dependencies {
         api(libs.kmp.kotlin.datetime)
+        api(libs.kmp.kotlin.serialization.core)
       }
     }
   }

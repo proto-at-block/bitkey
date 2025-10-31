@@ -1,0 +1,289 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
+import build.wallet.bitkey.app.AppSpendingPublicKey;
+import build.wallet.bitkey.factor.PhysicalFactor;
+import build.wallet.bitkey.f8e.F8eSpendingKeyset;
+import build.wallet.bitkey.f8e.FullAccountId;
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import build.wallet.cloud.backup.csek.SealedCsek;
+import build.wallet.cloud.backup.csek.SealedSsek;
+import build.wallet.crypto.PublicKey;
+import kotlin.Boolean;
+
+PRAGMA foreign_keys = 0;
+
+DROP VIEW IF EXISTS fullAccountView;
+DROP INDEX IF EXISTS idx_spendingKeyset_unique_active;
+
+-- Migrate privateWalletMigrationEntity to to json serialized F8eSpendingKeyset
+
+CREATE TABLE privateWalletMigrationEntity_new(
+  rowId INTEGER NOT NULL PRIMARY KEY,
+  newHardwareKey TEXT AS HwSpendingPublicKey,
+  newAppKey TEXT AS AppSpendingPublicKey,
+  newServerKey TEXT AS F8eSpendingKeyset,
+  keysetLocalId TEXT,
+  sweepId TEXT,
+  backupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+INSERT INTO privateWalletMigrationEntity_new (
+  rowId,
+  newHardwareKey,
+  newAppKey,
+  newServerKey,         -- now a JSON blob: F8eSpendingKeyset
+  keysetLocalId,
+  sweepId,
+  backupCompleted
+)
+SELECT
+  rowId,
+  newHardwareKey,
+  newAppKey,
+  CASE
+    WHEN newServerKey IS NULL THEN NULL
+    WHEN substr(ltrim(newServerKey, ' ' || char(9) || char(10) || char(13)), 1, 1) = '{' THEN newServerKey
+    ELSE
+      '{'
+        || CASE
+          WHEN keysetServerId IS NOT NULL AND trim(keysetServerId) <> '' THEN
+            '"keysetId":"'
+            || replace(replace(keysetServerId, '\', '\\'), '"', '\"') || '",'
+          ELSE ''
+        END
+        || '"spendingPublicKey":"'
+          || replace(replace(newServerKey, '\', '\\'), '"', '\"') || '"'
+        || '}'
+  END AS newServerKey,
+  keysetLocalId,
+  sweepId,
+  COALESCE(backupCompleted, 0)
+FROM privateWalletMigrationEntity;
+
+DROP TABLE privateWalletMigrationEntity;
+
+ALTER TABLE privateWalletMigrationEntity_new RENAME TO privateWalletMigrationEntity;
+
+-- Migrate spendingKeysetEntity to json serialized F8eSpendingKeyset
+
+CREATE TABLE spendingKeysetEntity_new(
+  id          TEXT NOT NULL PRIMARY KEY,
+  keyboxId    TEXT NOT NULL,
+  appKey      TEXT AS AppSpendingPublicKey NOT NULL,
+  hardwareKey TEXT AS HwSpendingPublicKey NOT NULL,
+  serverKey   TEXT AS F8eSpendingKeyset NOT NULL,
+  isActive    INTEGER AS Boolean NOT NULL DEFAULT 0,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity(id) ON DELETE CASCADE
+);
+
+INSERT INTO spendingKeysetEntity_new (
+  id,
+  keyboxId,
+  appKey,
+  hardwareKey,
+  serverKey,       -- now a JSON blob (F8eSpendingKeyset)
+  isActive
+)
+SELECT
+  id,
+  keyboxId,
+  appKey,
+  hardwareKey,
+  CASE
+    WHEN serverKey IS NULL THEN NULL
+    WHEN substr(ltrim(serverKey, ' ' || char(9) || char(10) || char(13)), 1, 1) = '{' THEN serverKey
+    ELSE
+      '{'
+        || CASE
+          WHEN serverId IS NOT NULL AND trim(serverId) <> '' THEN
+            '"keysetId":"'
+            || replace(replace(serverId, '\', '\\'), '"', '\"') || '",'
+          ELSE ''
+        END
+        || '"spendingPublicKey":"'
+          || replace(replace(serverKey, '\', '\\'), '"', '\"') || '"'
+        || '}'
+  END AS serverKey,
+  COALESCE(isActive, 0)
+FROM spendingKeysetEntity;
+
+DROP TABLE spendingKeysetEntity;
+
+ALTER TABLE spendingKeysetEntity_new RENAME TO spendingKeysetEntity;
+
+CREATE UNIQUE INDEX idx_spendingKeyset_unique_active
+ON spendingKeysetEntity (keyboxId)
+WHERE isActive = 1;
+
+-- Migrate recoverySpendingKeysetEntity to json serialized F8eSpendingKeyset
+
+CREATE TABLE recoverySpendingKeysetEntity_new(
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryAttemptRowId INTEGER NOT NULL,
+  keysetLocalId TEXT NOT NULL,
+  appKey TEXT AS AppSpendingPublicKey NOT NULL,
+  hardwareKey TEXT AS HwSpendingPublicKey NOT NULL,
+  serverKey TEXT AS F8eSpendingKeyset NOT NULL,
+  networkType TEXT AS BitcoinNetworkType NOT NULL,
+  FOREIGN KEY (recoveryAttemptRowId) REFERENCES localRecoveryAttemptEntity(rowId) ON DELETE CASCADE
+);
+
+INSERT INTO recoverySpendingKeysetEntity_new (
+  id,
+  recoveryAttemptRowId,
+  keysetLocalId,
+  appKey,
+  hardwareKey,
+  serverKey,        -- now JSON: F8eSpendingKeyset
+  networkType
+)
+SELECT
+  id,
+  recoveryAttemptRowId,
+  keysetLocalId,
+  appKey,
+  hardwareKey,
+  CASE
+    WHEN serverKey IS NULL THEN NULL
+    WHEN substr(ltrim(serverKey, ' ' || char(9) || char(10) || char(13)), 1, 1) = '{' THEN serverKey
+    ELSE
+      '{'
+        || CASE
+          WHEN keysetServerId IS NOT NULL AND trim(keysetServerId) <> '' THEN
+            '"keysetId":"'
+            || replace(replace(keysetServerId, '\', '\\'), '"', '\"') || '",'
+          ELSE ''
+        END
+        || '"spendingPublicKey":"'
+          || replace(replace(serverKey, '\', '\\'), '"', '\"') || '"'
+        || '}'
+  END AS serverKey,
+  networkType
+FROM recoverySpendingKeysetEntity;
+
+DROP TABLE recoverySpendingKeysetEntity;
+
+ALTER TABLE recoverySpendingKeysetEntity_new RENAME TO recoverySpendingKeysetEntity;
+
+-- Migrate localRecoveryAttemptEntity to json serialized F8eSpendingKeyset
+
+CREATE TABLE localRecoveryAttemptEntity_new(
+  rowId INTEGER NOT NULL PRIMARY KEY,
+  account TEXT AS FullAccountId NOT NULL,
+  destinationAppGlobalAuthKey TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  destinationAppRecoveryAuthKey TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL,
+  destinationHardwareAuthKey TEXT AS HwAuthPublicKey NOT NULL,
+  destinationAppSpendingKey TEXT AS AppSpendingPublicKey NOT NULL,
+  destinationHardwareSpendingKey TEXT AS HwSpendingPublicKey NOT NULL,
+  appGlobalAuthKeyHwSignature TEXT AS AppGlobalAuthKeyHwSignature NOT NULL,
+  lostFactor TEXT AS PhysicalFactor NOT NULL,
+  hadServerRecovery INTEGER AS Boolean NOT NULL,
+  sealedCsek BLOB AS SealedCsek,
+  authKeysRotated INTEGER AS Boolean NOT NULL,
+  serverSpendingKey TEXT AS F8eSpendingKeyset,
+  backedUpToCloud INTEGER AS Boolean NOT NULL,
+  ddkBackedUp INTEGER AS Boolean NOT NULL DEFAULT 0,
+  sealedSsek BLOB AS SealedSsek,
+  uploadedDescriptorBackups INTEGER AS Boolean NOT NULL DEFAULT 0,
+  spendingKeysActivated INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+INSERT INTO localRecoveryAttemptEntity_new (
+  rowId,
+  account,
+  destinationAppGlobalAuthKey,
+  destinationAppRecoveryAuthKey,
+  destinationHardwareAuthKey,
+  destinationAppSpendingKey,
+  destinationHardwareSpendingKey,
+  appGlobalAuthKeyHwSignature,
+  lostFactor,
+  hadServerRecovery,
+  sealedCsek,
+  authKeysRotated,
+  serverSpendingKey,      -- now JSON (F8eSpendingKeyset)
+  backedUpToCloud,
+  ddkBackedUp,
+  sealedSsek,
+  uploadedDescriptorBackups,
+  spendingKeysActivated
+)
+SELECT
+  rowId,
+  account,
+  destinationAppGlobalAuthKey,
+  destinationAppRecoveryAuthKey,
+  destinationHardwareAuthKey,
+  destinationAppSpendingKey,
+  destinationHardwareSpendingKey,
+  appGlobalAuthKeyHwSignature,
+  lostFactor,
+  hadServerRecovery,
+  sealedCsek,
+  authKeysRotated,
+  CASE
+    WHEN serverSpendingKey IS NULL THEN NULL
+    WHEN substr(ltrim(serverSpendingKey, ' ' || char(9) || char(10) || char(13)), 1, 1) = '{' THEN serverSpendingKey
+    ELSE
+      '{'
+        || CASE
+          WHEN serverKeysetId IS NOT NULL AND trim(serverKeysetId) <> '' THEN
+            '"keysetId":"'
+            || replace(replace(serverKeysetId, '\', '\\'), '"', '\"') || '",'
+          ELSE ''
+        END
+        || '"spendingPublicKey":"'
+          || replace(replace(serverSpendingKey, '\', '\\'), '"', '\"') || '"'
+        || '}'
+  END AS serverSpendingKey,
+  backedUpToCloud,
+  COALESCE(ddkBackedUp, 0),
+  sealedSsek,
+  COALESCE(uploadedDescriptorBackups, 0),
+  COALESCE(spendingKeysActivated, 0)
+FROM localRecoveryAttemptEntity;
+
+DROP TABLE localRecoveryAttemptEntity;
+
+ALTER TABLE localRecoveryAttemptEntity_new RENAME TO localRecoveryAttemptEntity;
+
+-- recreate fullAccountView
+
+CREATE VIEW fullAccountView AS
+SELECT
+  fullAccountEntity.accountId AS accountId,
+  keyboxEntity.id AS keyboxId,
+  keyboxEntity.networkType,
+  keyboxEntity.fakeHardware,
+  keyboxEntity.f8eEnvironment,
+  keyboxEntity.isTestAccount,
+  keyboxEntity.isUsingSocRecFakes,
+  keyboxEntity.delayNotifyDuration,
+  keyboxEntity.appGlobalAuthKeyHwSignature,
+  keyboxEntity.canUseKeyboxKeysets,
+  spendingKeysetEntity.id AS spendingPublicKeysetId,
+  spendingKeysetEntity.appKey,
+  spendingKeysetEntity.hardwareKey,
+  spendingKeysetEntity.serverKey,
+  appKeyBundleEntity.id AS appKeyBundleId,
+  appKeyBundleEntity.globalAuthKey,
+  appKeyBundleEntity.recoveryAuthKey,
+  hwKeyBundleEntity.id AS hwKeyBundleId,
+  hwKeyBundleEntity.authKey AS hwAuthKey,
+  hwKeyBundleEntity.spendingKey AS hwSpendingKey
+FROM fullAccountEntity
+INNER JOIN keyboxEntity
+ON keyboxEntity.accountId = fullAccountEntity.accountId
+INNER JOIN spendingKeysetEntity
+ON spendingKeysetEntity.keyboxId = keyboxEntity.id AND spendingKeysetEntity.isActive = 1
+INNER JOIN appKeyBundleEntity
+ON appKeyBundleEntity.keyboxId = keyboxEntity.id AND appKeyBundleEntity.isActive = 1
+INNER JOIN hwKeyBundleEntity
+ON hwKeyBundleEntity.keyboxId = keyboxEntity.id AND hwKeyBundleEntity.isActive = 1;
+
+PRAGMA foreign_keys = 1;
+
+PRAGMA foreign_key_check;

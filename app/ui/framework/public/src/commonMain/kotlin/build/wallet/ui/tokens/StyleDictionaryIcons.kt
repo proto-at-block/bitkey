@@ -48,6 +48,10 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       MediumIconQrCode -> Res.drawable.medium_icon_qr_code
       MediumIconTrustedContact -> Res.drawable.medium_icon_trusted_contact
       MoneyHomeHero -> Res.drawable.money_home_hero
+      Icon.MoneyHomeHeroLightWithGraph -> Res.drawable.money_home_hero_light_with_graph
+      Icon.MoneyHomeHeroLightNoGraph -> Res.drawable.money_home_hero_light_no_graph
+      Icon.MoneyHomeHeroDarkWithGraph -> Res.drawable.money_home_hero_dark_with_graph
+      Icon.MoneyHomeHeroDarkNoGraph -> Res.drawable.money_home_hero_dark_no_graph
       SecurityHubEducationTrustedContact -> Res.drawable.hero_recovery_contacts
       SecurityHubEducationMultipleFingerprints -> Res.drawable.hero_multiple_fingerprints
       SecurityHubEducationEmergencyExit -> Res.drawable.hero_eak

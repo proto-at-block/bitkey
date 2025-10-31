@@ -13,6 +13,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.chaincode.delegation.ChaincodeDelegationTweakService
 import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -57,6 +58,7 @@ class MobilePayServiceImpl(
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val mobilePaySyncFrequency: MobilePaySyncFrequency,
   private val exchangeRateService: ExchangeRateService,
+  private val chaincodeDelegationTweakService: ChaincodeDelegationTweakService,
 ) : MobilePayService, MobilePayBalanceSyncWorker {
   override val mobilePayData = MutableStateFlow<MobilePayData?>(null)
 
@@ -108,12 +110,19 @@ class MobilePayServiceImpl(
   ): Result<Psbt, Error> =
     coroutineBinding {
       val account = accountService.getAccount<FullAccount>().bind()
+      val psbtToSign = if (account.keybox.activeSpendingKeyset.isPrivateWallet) {
+        chaincodeDelegationTweakService
+          .psbtWithTweaks(psbt)
+          .bind()
+      } else {
+        psbt
+      }
 
       mobilePaySigningF8eClient.signWithSpecificKeyset(
         f8eEnvironment = account.config.f8eEnvironment,
         fullAccountId = account.accountId,
         keysetId = account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
-        psbt = psbt,
+        psbt = psbtToSign,
         grant = grant
       ).bind()
     }

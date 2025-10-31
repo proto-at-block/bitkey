@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
  *
  * @property keysetId id of a [SpendingKeyset] associated with a descriptor.
  * @property sealedDescriptor wallet descriptor encrypted with hardware.
+ * @property privateWalletRootXpub server root xpub - only present for private wallets, used to calculate psbt tweaks
  */
 @Serializable
 data class DescriptorBackup(
@@ -18,4 +19,6 @@ data class DescriptorBackup(
   val keysetId: String,
   @SerialName("sealed_descriptor")
   val sealedDescriptor: XCiphertext,
+  @SerialName("sealed_server_root_xpub")
+  val privateWalletRootXpub: XCiphertext?,
 )

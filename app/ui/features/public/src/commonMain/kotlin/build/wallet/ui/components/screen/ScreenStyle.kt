@@ -10,7 +10,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.inheritance.InheritanceUpsellBodyModel
 import build.wallet.statemachine.partnerships.purchase.CustomAmountBodyModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel
-import build.wallet.statemachine.receivev2.AddressQrCodeV2BodyModel
 import build.wallet.statemachine.send.TransferAmountBodyModel
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme.LIGHT
@@ -20,7 +19,6 @@ import build.wallet.ui.theme.WalletTheme
 // so they need system bar padding to their toolbar.
 private val bodyModelsRequiringPadding = setOf(
   AddressQrCodeBodyModel::class,
-  AddressQrCodeV2BodyModel::class,
   TransferAmountBodyModel::class,
   CustomAmountBodyModel::class
 )

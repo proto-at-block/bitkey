@@ -85,10 +85,17 @@ sealed interface LocalRecoveryAttemptProgress {
   data object BackedUpToCloud : LocalRecoveryAttemptProgress
 
   /**
-   * Successfully swept funds. Updating the `RecoveryStatusService` with this value
-   * will remove the local recovery attempt from the dao.
+   * A sweep has been begun, but has not yet completed.
    */
-  data class SweptFunds(
+  data object SweepingFunds : LocalRecoveryAttemptProgress
+
+  /**
+   * Acknowledged sweep completion and exited recovery.
+   *
+   * Updating the `RecoveryStatusService` with this value will remove the local recovery attempt
+   * from the dao.
+   */
+  data class CompletedRecovery(
     val keyboxToActivate: Keybox,
   ) : LocalRecoveryAttemptProgress
 }

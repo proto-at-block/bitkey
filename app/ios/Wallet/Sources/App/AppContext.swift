@@ -85,7 +85,7 @@ class AppContext {
             xNonceGenerator: XNonceGeneratorImpl(),
             noiseInitiator: noiseInitiator,
             p256Box: P256BoxImpl(),
-            chaincodeDelegationServerDpubGenerator: ServerChaincodeGeneratorImpl(),
+            chaincodeDelegationServerKeyGenerator: ChaincodeDelegationServerKeyGeneratorImpl(),
             publicKeyUtils: PublicKeyUtilsImpl()
         )
 

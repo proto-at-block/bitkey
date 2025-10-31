@@ -21,7 +21,6 @@ sqldelight {
       schemaOutputDirectory.set(File("src/commonMain/sqldelightDebug/databases"))
       srcDirs.setFrom(File("src/commonMain/sqldelightDebug/"))
       verifyMigrations.set(true)
-      dialect(libs.kmp.sqldelight.sqlite.dialect)
     }
   }
 }
@@ -70,6 +69,12 @@ kotlin {
       dependencies {
         implementation(projects.libs.sqldelightTesting)
         implementation(libs.jvm.sqldelight.driver)
+      }
+    }
+
+    val iosTest by getting {
+      dependencies {
+        implementation(libs.native.sqldelight.driver)
       }
     }
   }

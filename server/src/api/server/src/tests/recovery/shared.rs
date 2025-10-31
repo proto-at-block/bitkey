@@ -1,5 +1,6 @@
 use crate::tests::lib::{
-    create_lite_account, create_nontest_default_account_with_predefined_wallet,
+    create_lite_account, create_nontest_account_with_predefined_wallet,
+    create_nontest_account_with_private_wallet,
 };
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
@@ -395,14 +396,17 @@ pub(super) async fn try_endorse_recovery_relationship(
 }
 
 pub async fn create_beneficiary_account(
+    is_private: bool,
     beneficiary_account_type: types::account::AccountType,
     context: &mut TestContext,
     bootstrap: &Bootstrap,
     client: &TestClient,
 ) -> (Account, Option<Wallet<AnyDatabase>>) {
-    let (acct, wallet) =
-        create_nontest_default_account_with_predefined_wallet(context, client, &bootstrap.services)
-            .await;
+    let (acct, wallet) = if is_private {
+        create_nontest_account_with_private_wallet(context, client, &bootstrap.services).await
+    } else {
+        create_nontest_account_with_predefined_wallet(context, client, &bootstrap.services).await
+    };
     match beneficiary_account_type {
         types::account::AccountType::Full => (Account::Full(acct), Some(wallet)),
         types::account::AccountType::Lite => (

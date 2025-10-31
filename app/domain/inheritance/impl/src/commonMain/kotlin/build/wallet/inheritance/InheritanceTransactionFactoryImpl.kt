@@ -1,17 +1,23 @@
 package build.wallet.inheritance
 
+import bitkey.recovery.DescriptorBackupService
+import build.wallet.bdk.bindings.BdkAddressIndex.New
+import build.wallet.bdk.bindings.BdkAddressIndex.Peek
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.Regular
 import build.wallet.bitcoin.wallet.SpendingWalletDescriptor
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
+import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.chaincode.delegation.ChaincodeDelegationTweakService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
@@ -29,6 +35,8 @@ class InheritanceTransactionFactoryImpl(
   private val relationshipsKeysRepository: RelationshipsKeysRepository,
   private val inheritanceCrypto: InheritanceCrypto,
   private val spendingWalletProvider: SpendingWalletProvider,
+  private val chaincodeDelegationTweakService: ChaincodeDelegationTweakService,
+  private val descriptorBackupService: DescriptorBackupService,
   private val inheritanceUseEncryptedDescriptorFeatureFlag:
     InheritanceUseEncryptedDescriptorFeatureFlag,
 ) : InheritanceTransactionFactory {
@@ -37,7 +45,8 @@ class InheritanceTransactionFactoryImpl(
     claim: BeneficiaryClaim.LockedClaim,
   ): Result<InheritanceTransactionDetails, Throwable> =
     coroutineBinding {
-      val receiveAddress = bitcoinAddressService.generateAddress().bind()
+      val receiveAddressIndex = if (account.keybox.isPrivateWallet) Peek(0u) else New
+      val receiveAddress = bitcoinAddressService.generateAddress(receiveAddressIndex).bind()
       val delegatedDecryptionKey =
         relationshipsKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
           .bind()
@@ -45,7 +54,8 @@ class InheritanceTransactionFactoryImpl(
         delegatedDecryptionKey = delegatedDecryptionKey,
         sealedDek = claim.sealedDek,
         sealedAppKey = claim.sealedMobileKey,
-        sealedDescriptor = claim.sealedDescriptor
+        sealedDescriptor = claim.sealedDescriptor,
+        sealedServerRootXpub = claim.sealedServerRootXpub
       ).bind()
       val descriptorKeyset = descriptorKeysetToUse(benefactorInheritancePackage, claim)
       val inheritanceWallet = spendingWalletProvider.getWallet(
@@ -71,20 +81,72 @@ class InheritanceTransactionFactoryImpl(
       inheritanceWallet.sync().bind()
 
       val psbt = inheritanceWallet.createSignedPsbt(
-        SpendingWallet.PsbtConstructionMethod.Regular(
+        constructionType = Regular(
           recipientAddress = receiveAddress,
           amount = BitcoinTransactionSendAmount.SendAll,
           feePolicy = FeePolicy.Rate(feeRate)
         )
       ).bind()
 
+      // Apply tweaks depending on the source and destination keysets
+      val tweakedPsbt = applyTweaksIfNeeded(
+        psbt = psbt,
+        benefactorInheritancePackage = benefactorInheritancePackage,
+        destinationKeyset = account.keybox.activeSpendingKeyset
+      ).bind()
+
       InheritanceTransactionDetails(
         claim = claim,
         inheritanceWallet = inheritanceWallet,
         recipientAddress = receiveAddress,
-        psbt = psbt
+        psbt = tweakedPsbt
       )
     }
+
+  private suspend fun applyTweaksIfNeeded(
+    psbt: Psbt,
+    benefactorInheritancePackage: DecryptInheritanceMaterialPackageOutput,
+    destinationKeyset: SpendingKeyset,
+  ): Result<Psbt, Throwable> {
+    return coroutineBinding {
+      val isSourcePrivate = benefactorInheritancePackage.serverRootXpub != null
+      val sourceSpendingKeyset = if (isSourcePrivate) {
+        descriptorBackupService.parseDescriptorKeys(
+          descriptorString = benefactorInheritancePackage.descriptor!!,
+          privateWalletRootXpub = benefactorInheritancePackage.serverRootXpub,
+          keysetId = "it-doesnt-matter", // we don't have keyset-id, but it isn't used when applying tweaks
+          networkType = destinationKeyset.networkType
+        ).bind()
+      } else {
+        null
+      }
+      val isDestinationPrivate = destinationKeyset.isPrivateWallet
+
+      when {
+        isSourcePrivate && isDestinationPrivate -> {
+          chaincodeDelegationTweakService.sweepPsbtWithTweaks(
+            psbt = psbt,
+            sourceKeyset = sourceSpendingKeyset!!,
+            destinationKeyset = destinationKeyset
+          ).bind()
+        }
+        isSourcePrivate && !isDestinationPrivate -> {
+          chaincodeDelegationTweakService
+            .psbtWithTweaks(
+              psbt = psbt,
+              appSpendingPrivateKey = benefactorInheritancePackage.inheritanceKeyset.appSpendingPrivateKey.key,
+              spendingKeyset = sourceSpendingKeyset!!
+            )
+            .bind()
+        }
+        !isSourcePrivate && isDestinationPrivate ->
+          chaincodeDelegationTweakService
+            .migrationSweepPsbtWithTweaks(psbt = psbt, destinationKeyset = destinationKeyset)
+            .bind()
+        else -> psbt
+      }
+    }
+  }
 
   private fun descriptorKeysetToUse(
     decryptInheritanceMaterialPackage: DecryptInheritanceMaterialPackageOutput,

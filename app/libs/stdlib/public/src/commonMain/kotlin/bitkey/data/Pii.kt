@@ -16,6 +16,6 @@ package bitkey.data
   AnnotationTarget.FIELD,
   AnnotationTarget.CLASS,
   AnnotationTarget.PROPERTY,
-  AnnotationTarget.FUNCTION,
+  AnnotationTarget.FUNCTION
 )
 annotation class Pii

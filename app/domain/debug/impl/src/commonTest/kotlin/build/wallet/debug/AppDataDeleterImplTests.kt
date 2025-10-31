@@ -50,14 +50,17 @@ import build.wallet.notifications.NotificationTouchpointDaoMock
 import build.wallet.onboarding.OnboardingKeyboxHardwareKeys
 import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDaoFake
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoMock
+import build.wallet.onboarding.OnboardingKeyboxSealedSsekDaoFake
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
 import build.wallet.platform.config.AppVariant
+import build.wallet.recovery.DescriptorBackupVerificationDaoFake
 import build.wallet.recovery.RecoveryDaoMock
 import build.wallet.recovery.socrec.SocRecStartedChallengeDaoFake
 import build.wallet.relationships.RelationshipsKeysDaoFake
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
+import build.wallet.wallet.migration.PrivateWalletMigrationServiceFake
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -72,6 +75,7 @@ class AppDataDeleterImplTests : FunSpec({
   val clock = ClockFake()
   val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
   val onboardingKeyboxSealedCsekDao = OnboardingKeyboxSealedCsekDaoMock()
+  val onboardingKeyboxSealedSsekDao = OnboardingKeyboxSealedSsekDaoFake()
   val onboardingKeyboxStepStateDao =
     OnboardingKeyboxStepStateDaoMock(turbines::create)
   val notificationTouchpointDao = NotificationTouchpointDaoMock(turbines::create)
@@ -103,6 +107,8 @@ class AppDataDeleterImplTests : FunSpec({
   val coachmarkService = CoachmarkServiceMock(
     turbineFactory = turbines::create
   )
+  val descriptorBackupVerificationDao = DescriptorBackupVerificationDaoFake()
+  val privateWalletMigrationService = PrivateWalletMigrationServiceFake()
 
   fun appDataDeleter(appVariant: AppVariant) =
     AppDataDeleterImpl(
@@ -113,6 +119,7 @@ class AppDataDeleterImplTests : FunSpec({
       keyboxDao = keyboxDao,
       notificationTouchpointDao = notificationTouchpointDao,
       onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
+      onboardingKeyboxSealedSsekDao = onboardingKeyboxSealedSsekDao,
       onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
       onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
       mobilePayService = mobilePayService,
@@ -139,7 +146,9 @@ class AppDataDeleterImplTests : FunSpec({
       metricTrackerService = MetricTrackerServiceFake(),
       hardwareUnlockInfoService = hardwareUnlockInfoService,
       securityRecommendationInteractionDao = securityRecommendationInteractionDao,
-      coachmarkService = coachmarkService
+      coachmarkService = coachmarkService,
+      descriptorBackupVerificationDao = descriptorBackupVerificationDao,
+      privateWalletMigrationService = privateWalletMigrationService
     )
 
   beforeTest {

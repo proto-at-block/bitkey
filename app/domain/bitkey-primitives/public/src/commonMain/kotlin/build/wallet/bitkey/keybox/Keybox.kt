@@ -47,8 +47,16 @@ data class Keybox(
   }
 
   /**
-   * Whether this keybox uses a private keyset (server-blind via chaincode delegation).
+   * Whether this keybox's active keyset is a private wallet (server-blind via chaincode delegation).
    */
-  val isPrivate: Boolean
-    get() = activeSpendingKeyset.isPrivate
+  val isPrivateWallet = activeSpendingKeyset.isPrivateWallet
 }
+
+/**
+ * Copy the current keybox, inserting a new spending keyset as active.
+ */
+fun Keybox.withNewSpendingKeyset(spendingKeyset: SpendingKeyset) =
+  copy(
+    keysets = keysets + spendingKeyset,
+    activeSpendingKeyset = spendingKeyset
+  )

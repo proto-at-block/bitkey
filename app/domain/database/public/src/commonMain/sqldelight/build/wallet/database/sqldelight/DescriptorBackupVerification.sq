@@ -1,0 +1,29 @@
+import kotlinx.datetime.Instant;
+
+-- Descriptor Backup Verification Cache
+--
+-- Stores keyset IDs that have been verified to have descriptor backups on F8e.
+-- This cache enables graceful degradation during network failures - if we can't reach
+-- F8e to verify backups, we can use the cached verification instead of blocking the user.
+--
+-- The cache is:
+-- - Refreshed on app launch by DescriptorBackupHealthSyncWorker
+-- - Updated after uploading new descriptor backups
+
+CREATE TABLE descriptorBackupVerificationEntity(
+  keysetId     TEXT NOT NULL PRIMARY KEY
+);
+
+-- Store or update verification record for a keyset
+setVerifiedBackup:
+INSERT OR REPLACE INTO descriptorBackupVerificationEntity(keysetId)
+VALUES(?);
+
+-- Check if a keyset has a cached verification record
+getVerifiedBackup:
+SELECT * FROM descriptorBackupVerificationEntity
+WHERE keysetId = ?;
+
+-- Clear all verification records (used after uploading new backups)
+clearAllVerifiedBackups:
+DELETE FROM descriptorBackupVerificationEntity;

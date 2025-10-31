@@ -3,6 +3,7 @@
 package build.wallet.ui.app.send
 
 import androidx.compose.runtime.Composable
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerInfo
@@ -82,6 +83,16 @@ class TransferConfirmationScreenSnapshots : FunSpec({
       )
     }
   }
+
+  test("transfer confirmation screen - private wallet migration") {
+    paparazzi.snapshot {
+      TransferConfirmationScreen(
+        variant = TransferConfirmationScreenVariant.PrivateWalletMigration,
+        requiresHardware = true,
+        confirmButtonEnabled = true
+      )
+    }
+  }
 })
 
 @Composable
@@ -94,7 +105,7 @@ private fun TransferConfirmationScreen(
     model = TransferConfirmationScreenModel(
       variant = variant,
       onBack = {},
-      recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+      recipientAddress = BitcoinAddress("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"),
       transactionDetails = TransactionDetailsModel(
         transactionSpeedText = "~30 minutes",
         transactionDetailModelType = when (variant) {
@@ -111,7 +122,9 @@ private fun TransferConfirmationScreen(
               totalFeeText = "$2.36",
               totalFeeSecondaryText = "0.00003 BTC"
             )
-          TransferConfirmationScreenVariant.Regular ->
+          TransferConfirmationScreenVariant.Regular,
+          TransferConfirmationScreenVariant.PrivateWalletMigration,
+          ->
             TransactionDetailModelType.Regular(
               transferAmountText = "$20.00",
               transferAmountSecondaryText = "0.0003 BTC",

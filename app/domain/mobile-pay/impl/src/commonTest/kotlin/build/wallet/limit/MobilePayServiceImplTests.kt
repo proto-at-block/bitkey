@@ -18,6 +18,8 @@ import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
+import build.wallet.bitkey.keybox.PrivateAccountMock
+import build.wallet.chaincode.delegation.ChaincodeDelegationTweakServiceFake
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.awaitUntil
@@ -26,6 +28,7 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
 import build.wallet.f8e.mobilepay.MobilePaySpendingLimitF8eClientMock
 import build.wallet.f8e.mobilepay.isServerSigned
+import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.ktor.result.HttpError
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayStatus.MobilePayDisabled
@@ -68,6 +71,8 @@ class MobilePayServiceImplTests : FunSpec({
   val currencyConverter = CurrencyConverterFake()
   val mobilePaySigningF8eClient = MobilePaySigningF8eClientMock(turbines::create)
   val exchangeRateService = ExchangeRateServiceFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val chaincodeDelegationTweakService = ChaincodeDelegationTweakServiceFake()
   val syncFrequency = 100.milliseconds
 
   val mobilePayBalance = MobilePayBalance(
@@ -100,6 +105,8 @@ class MobilePayServiceImplTests : FunSpec({
     fiatCurrencyPreferenceRepository.reset()
     mobilePaySigningF8eClient.reset()
     exchangeRateService.reset()
+    featureFlagDao.reset()
+    chaincodeDelegationTweakService.reset()
 
     mobilePayService = MobilePayServiceImpl(
       eventTracker = eventTracker,
@@ -113,7 +120,8 @@ class MobilePayServiceImplTests : FunSpec({
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       mobilePaySigningF8eClient = mobilePaySigningF8eClient,
       mobilePaySyncFrequency = MobilePaySyncFrequency(syncFrequency),
-      exchangeRateService = exchangeRateService
+      exchangeRateService = exchangeRateService,
+      chaincodeDelegationTweakService = chaincodeDelegationTweakService
     )
   }
 
@@ -135,7 +143,8 @@ class MobilePayServiceImplTests : FunSpec({
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       mobilePaySigningF8eClient = mobilePaySigningF8eClient,
       mobilePaySyncFrequency = MobilePaySyncFrequency(testSyncFrequency),
-      exchangeRateService = exchangeRateService
+      exchangeRateService = exchangeRateService,
+      chaincodeDelegationTweakService = chaincodeDelegationTweakService
     )
 
     createBackgroundScope().launch {
@@ -401,6 +410,19 @@ class MobilePayServiceImplTests : FunSpec({
       .shouldBeTrue()
 
     mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBeTypeOf<Pair<Psbt, *>>().first.shouldBe(PsbtMock)
+  }
+
+  test("psbt is tweaked before signing when active keyset is private") {
+    val tweakedPsbt = PsbtMock.copy(base64 = "tweaked-${PsbtMock.base64}")
+    chaincodeDelegationTweakService.psbtWithTweaksResult = Ok(tweakedPsbt)
+    accountService.setActiveAccount(PrivateAccountMock)
+
+    mobilePayService.signPsbtWithMobilePay(PsbtMock, null).shouldBeOk()
+
+    chaincodeDelegationTweakService.psbtWithTweaksCalls.shouldBe(listOf(PsbtMock))
+    val call = mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBeTypeOf<Pair<Psbt, *>>()
+    call.first.shouldBe(tweakedPsbt)
+    call.second.shouldBeNull()
   }
 
   test("error signing a psbt with mobile pay") {

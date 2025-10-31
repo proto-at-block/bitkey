@@ -20,7 +20,7 @@ class TransferInitiatedUiStateMachineImpl(
     )
     return TransferInitiatedBodyModel(
       onBack = props.onBack,
-      recipientAddress = props.recipientAddress.chunkedAddress(),
+      recipientAddress = props.recipientAddress,
       transactionDetails = transactionDetails,
       onDone = props.onDone
     )

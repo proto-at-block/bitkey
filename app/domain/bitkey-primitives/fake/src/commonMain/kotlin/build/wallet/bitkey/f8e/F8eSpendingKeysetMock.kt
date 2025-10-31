@@ -7,5 +7,12 @@ val F8eSpendingPublicKeyMock =
 
 val F8eSpendingKeysetMock = F8eSpendingKeyset(
   keysetId = "f8e-spending-keyset-id",
-  spendingPublicKey = F8eSpendingPublicKeyMock
+  spendingPublicKey = F8eSpendingPublicKeyMock,
+  privateWalletRootXpub = null
+)
+
+val F8eSpendingKeysetPrivateWalletMock = F8eSpendingKeyset(
+  keysetId = "f8e-spending-keyset-id",
+  spendingPublicKey = F8eSpendingPublicKeyMock,
+  privateWalletRootXpub = "tpubD6NzVbkrYhZ4XPMXVToEroepyTscQmHYrdSDbvZvAFonusog8TjTB3iTQZ2Ds8atDfdxzN7DAioQ8Z4KBa4RD16FX7caE5hxiMbvkVr9Fom"
 )

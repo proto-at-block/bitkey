@@ -3,6 +3,7 @@ package build.wallet.database
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.app.AppSpendingPublicKey
+import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
@@ -187,10 +188,13 @@ class ForeignKeyConstraintsTests : FunSpec({
       database.spendingKeysetQueries.insertKeyset(
         id = "keyset-1",
         keyboxId = "keybox-1",
-        serverId = "server-id",
         appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-key-unique")),
         hardwareKey = HwSpendingPublicKey(DescriptorPublicKeyMock("hw-key-unique")),
-        serverKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-unique")),
+        serverKey = F8eSpendingKeyset(
+          keysetId = "server-id",
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-unique")),
+          privateWalletRootXpub = null
+        ),
         isActive = true
       )
 
@@ -210,10 +214,13 @@ class ForeignKeyConstraintsTests : FunSpec({
         database.spendingKeysetQueries.insertKeyset(
           id = "orphan-keyset",
           keyboxId = "non-existent-keybox",
-          serverId = "server-id",
           appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-key-unique")),
           hardwareKey = HwSpendingPublicKey(DescriptorPublicKeyMock("hw-key-unique")),
-          serverKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-unique")),
+          serverKey = F8eSpendingKeyset(
+            keysetId = "server-id",
+            spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-unique")),
+            privateWalletRootXpub = null
+          ),
           isActive = true
         )
       }
@@ -246,10 +253,13 @@ class ForeignKeyConstraintsTests : FunSpec({
       database.spendingKeysetQueries.insertKeyset(
         id = "keyset-1",
         keyboxId = "keybox-1",
-        serverId = "server-id",
         appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-key-unique")),
         hardwareKey = HwSpendingPublicKey(DescriptorPublicKeyMock("hw-key-unique")),
-        serverKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-unique")),
+        serverKey = F8eSpendingKeyset(
+          keysetId = "server-id",
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-unique")),
+          privateWalletRootXpub = null
+        ),
         isActive = true
       )
 
@@ -311,10 +321,13 @@ class ForeignKeyConstraintsTests : FunSpec({
       database.spendingKeysetQueries.insertKeyset(
         id = "keyset-1",
         keyboxId = "keybox-1",
-        serverId = "server-id-1",
         appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-key-1")),
         hardwareKey = HwSpendingPublicKey(DescriptorPublicKeyMock("hw-key-1")),
-        serverKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-1")),
+        serverKey = F8eSpendingKeyset(
+          keysetId = "server-id-1",
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-1")),
+          privateWalletRootXpub = null
+        ),
         isActive = true
       )
 
@@ -323,10 +336,13 @@ class ForeignKeyConstraintsTests : FunSpec({
         database.spendingKeysetQueries.insertKeyset(
           id = "keyset-2",
           keyboxId = "keybox-1",
-          serverId = "server-id-2",
           appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-key-2")),
           hardwareKey = HwSpendingPublicKey(DescriptorPublicKeyMock("hw-key-2")),
-          serverKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-2")),
+          serverKey = F8eSpendingKeyset(
+            keysetId = "server-id-2",
+            spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-2")),
+            privateWalletRootXpub = null
+          ),
           isActive = true
         )
       }
@@ -358,10 +374,13 @@ class ForeignKeyConstraintsTests : FunSpec({
       database.spendingKeysetQueries.insertKeyset(
         id = "keyset-1",
         keyboxId = "keybox-1",
-        serverId = "server-id-1",
         appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-key-1")),
         hardwareKey = HwSpendingPublicKey(DescriptorPublicKeyMock("hw-key-1")),
-        serverKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-1")),
+        serverKey = F8eSpendingKeyset(
+          keysetId = "server-id-1",
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-1")),
+          privateWalletRootXpub = null
+        ),
         isActive = true
       )
 
@@ -401,10 +420,13 @@ class ForeignKeyConstraintsTests : FunSpec({
       database.spendingKeysetQueries.insertKeyset(
         id = "keyset-2",
         keyboxId = "keybox-2",
-        serverId = "server-id-2",
         appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-key-2")),
         hardwareKey = HwSpendingPublicKey(DescriptorPublicKeyMock("hw-key-2")),
-        serverKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-2")),
+        serverKey = F8eSpendingKeyset(
+          keysetId = "server-id-2",
+          spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-key-2")),
+          privateWalletRootXpub = null
+        ),
         isActive = true
       )
 

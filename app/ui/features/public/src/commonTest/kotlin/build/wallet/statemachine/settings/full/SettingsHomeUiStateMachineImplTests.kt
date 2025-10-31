@@ -16,7 +16,6 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.export.ExportToolsUiProps
 import build.wallet.statemachine.export.ExportToolsUiStateMachine
 import build.wallet.statemachine.inheritance.InheritanceManagementUiProps
@@ -33,8 +32,6 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.DebugMenu
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
-import build.wallet.statemachine.settings.full.device.DeviceSettingsProps
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiStateMachine
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerProps
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerSettingUiStateMachine
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
@@ -64,7 +61,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     SettingsHomeUiProps(
       account = FullAccountMock,
       settingsListState = null,
-      lostHardwareRecoveryData = LostHardwareRecoveryDataMock,
       homeStatusBannerModel = null,
       onBack = { propsOnBackCalls.add(Unit) },
       goToSecurityHub = {}
@@ -84,8 +80,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       customElectrumServerSettingUiStateMachine = object :
         CustomElectrumServerSettingUiStateMachine,
         ScreenStateMachineMock<CustomElectrumServerProps>("custom-electrum-server") {},
-      deviceSettingsUiStateMachine = object : DeviceSettingsUiStateMachine,
-        ScreenStateMachineMock<DeviceSettingsProps>("device-settings") {},
       feedbackUiStateMachine = object : FeedbackUiStateMachine,
         ScreenStateMachineMock<FeedbackUiProps>("feedback") {},
       helpCenterUiStateMachine = object : HelpCenterUiStateMachine,

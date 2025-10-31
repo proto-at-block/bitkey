@@ -5,7 +5,6 @@ import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.ui.model.status.StatusBannerModel
 
 /**
@@ -21,7 +20,6 @@ interface MoneyHomeViewingBalanceUiStateMachine :
 
 data class MoneyHomeViewingBalanceUiProps(
   val account: Account,
-  val lostHardwareRecoveryData: LostHardwareRecoveryData,
   val homeStatusBannerModel: StatusBannerModel?,
   val onSettings: () -> Unit,
   val onPartnershipsWebFlowCompleted: (PartnerInfo, PartnershipTransaction) -> Unit,

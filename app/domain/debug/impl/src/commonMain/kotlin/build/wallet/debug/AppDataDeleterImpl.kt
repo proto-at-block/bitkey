@@ -2,6 +2,7 @@ package build.wallet.debug
 
 import bitkey.firmware.HardwareUnlockInfoService
 import bitkey.metrics.MetricTrackerService
+import bitkey.recovery.DescriptorBackupVerificationDao
 import bitkey.securitycenter.SecurityRecommendationInteractionDao
 import build.wallet.account.AccountService
 import build.wallet.auth.AuthKeyRotationAttemptDao
@@ -31,6 +32,7 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.notifications.NotificationTouchpointDao
 import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDao
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDao
+import build.wallet.onboarding.OnboardingKeyboxSealedSsekDao
 import build.wallet.onboarding.OnboardingKeyboxStepStateDao
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
@@ -38,6 +40,7 @@ import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.socrec.SocRecStartedChallengeDao
 import build.wallet.relationships.RelationshipsKeysDao
 import build.wallet.relationships.RelationshipsService
+import build.wallet.wallet.migration.PrivateWalletMigrationService
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
 @BitkeyInject(AppScope::class)
@@ -50,6 +53,7 @@ class AppDataDeleterImpl(
   private val keyboxDao: KeyboxDao,
   private val notificationTouchpointDao: NotificationTouchpointDao,
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
+  private val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val mobilePayService: MobilePayService,
@@ -76,6 +80,8 @@ class AppDataDeleterImpl(
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
   private val securityRecommendationInteractionDao: SecurityRecommendationInteractionDao,
   private val coachmarkService: CoachmarkService,
+  private val descriptorBackupVerificationDao: DescriptorBackupVerificationDao,
+  private val privateWalletMigrationService: PrivateWalletMigrationService,
 ) : AppDataDeleter {
   override suspend fun deleteAll() =
     coroutineBinding {
@@ -86,6 +92,7 @@ class AppDataDeleterImpl(
       gettingStartedTaskDao.clearTasks()
       notificationTouchpointDao.clear()
       onboardingKeyboxSealedCsekDao.clear()
+      onboardingKeyboxSealedSsekDao.clear()
       onboardingKeyboxStepStateDao.clear()
       onboardingKeyboxHardwareKeysDao.clear()
       mobilePayService.deleteLocal()
@@ -113,6 +120,8 @@ class AppDataDeleterImpl(
       hardwareUnlockInfoService.clear()
       securityRecommendationInteractionDao.clear()
       coachmarkService.resetCoachmarks()
+      descriptorBackupVerificationDao.clear()
+      privateWalletMigrationService.clearMigration()
 
       // Make sure we clear Account data last because this will transition the UI
       accountService.clear().bind()

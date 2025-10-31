@@ -3,16 +3,11 @@ package build.wallet.statemachine.account.create.full.keybox.create
 import androidx.compose.runtime.*
 import bitkey.f8e.error.F8eError
 import bitkey.onboarding.FullAccountCreationError
-import bitkey.recovery.DescriptorBackupError
-import bitkey.recovery.DescriptorBackupService
 import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.*
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeys
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
 import build.wallet.onboarding.AppKeyAlreadyInUseError
 import build.wallet.onboarding.ErrorStoringSealedCsekError
@@ -35,8 +30,6 @@ import com.github.michaelbull.result.onSuccess
 class CreateKeyboxUiStateMachineImpl(
   private val pairNewHardwareUiStateMachine: PairNewHardwareUiStateMachine,
   private val onboardFullAccountService: OnboardFullAccountService,
-  private val descriptorBackupService: DescriptorBackupService,
-  private val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
 ) : CreateKeyboxUiStateMachine {
   @Composable
   override fun model(props: CreateKeyboxUiProps): ScreenModel {
@@ -91,16 +84,7 @@ class CreateKeyboxUiStateMachineImpl(
               hwActivation = currentState.hwActivation
             )
             .onSuccess { fullAccount ->
-              if (encryptedDescriptorBackupsFeatureFlag.isEnabled()) {
-                // Account created successfully, now upload descriptors
-                state = UploadingDescriptorToServerState(
-                  fullAccount = fullAccount,
-                  hwActivation = currentState.hwActivation,
-                  appKeys = currentState.appKeys
-                )
-              } else {
-                props.onAccountCreated(fullAccount)
-              }
+              props.onAccountCreated(fullAccount)
             }
             .onFailure { accountCreationError ->
               // Account creation failed
@@ -195,39 +179,6 @@ class CreateKeyboxUiStateMachineImpl(
           secondaryButton = ButtonDataModel(text = "Back", onClick = props.onExit),
           eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE
         ).asRootScreen()
-
-      is UploadingDescriptorToServerState -> {
-        LaunchedEffect("descriptor-upload") {
-          descriptorBackupService.uploadOnboardingDescriptorBackup(
-            accountId = currentState.fullAccount.accountId,
-            sealedSsekForEncryption = currentState.hwActivation.sealedSsek,
-            appAuthKey = currentState.appKeys.appKeyBundle.authKey,
-            keysetsToEncrypt = currentState.fullAccount.keybox.keysets
-          )
-            .onSuccess {
-              props.onAccountCreated(currentState.fullAccount)
-            }
-            .onFailure { descriptorUploadError ->
-              state = PairWithServerErrorState(
-                hwActivation = currentState.hwActivation,
-                appKeys = currentState.appKeys,
-                error = descriptorUploadError,
-                onRetryClick = {
-                  state = UploadingDescriptorToServerState(
-                    fullAccount = currentState.fullAccount,
-                    hwActivation = currentState.hwActivation,
-                    appKeys = currentState.appKeys
-                  )
-                }
-              )
-            }
-        }
-
-        LoadingBodyModel(
-          message = "Setting up wallet backup...",
-          id = NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING
-        ).asRootScreen()
-      }
     }
   }
 
@@ -286,23 +237,12 @@ class CreateKeyboxUiStateMachineImpl(
       val error: Throwable,
       val onRetryClick: (() -> Unit),
     ) : State
-
-    /**
-     * Account was created successfully, but descriptor backup upload failed.
-     * This state shows a loading screen while retrying the descriptor upload.
-     */
-    data class UploadingDescriptorToServerState(
-      val fullAccount: FullAccount,
-      val hwActivation: FingerprintEnrolled,
-      val appKeys: WithAppKeys,
-    ) : State
   }
 
   private fun Throwable.isConnectivityError(): Boolean {
     // Check for account creation connectivity errors
     return when (val error = this) {
       is FullAccountCreationError.AccountCreationF8eError -> error.f8eError is F8eError.ConnectivityError
-      is DescriptorBackupError.NetworkError -> true
       else -> false
     }
   }

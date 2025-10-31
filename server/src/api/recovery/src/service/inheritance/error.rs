@@ -53,6 +53,8 @@ pub enum ServiceError {
     IncompatibleAccountType,
     #[error("Active descriptor key set not found")]
     NoActiveDescriptorKeySet,
+    #[error("Active spending key set not found")]
+    NoActiveSpendingKeyset,
     #[error("Attempting to update the claim to an unowned destination")]
     UnownedDestination,
     #[error(transparent)]
@@ -75,6 +77,8 @@ pub enum ServiceError {
     InvalidClaimStateForShortening,
     #[error("Cannot complete claim without a PSBT if previously completed with a signed PSBT")]
     AlreadyCompletedWithPsbt,
+    #[error("Inheritance package doesn't match keyset type")]
+    PackageKeysetTypeMismatch,
 }
 
 impl From<TrustedContactError> for ServiceError {
@@ -97,6 +101,7 @@ impl From<ServiceError> for ApiError {
             | ServiceError::MultiplePendingClaims
             | ServiceError::NoInheritancePackage
             | ServiceError::NoActiveDescriptorKeySet
+            | ServiceError::NoActiveSpendingKeyset
             | ServiceError::ClaimLockFailed
             | ServiceError::ClaimCompleteFailed
             | ServiceError::RecoveryRelationship(_)
@@ -120,7 +125,8 @@ impl From<ServiceError> for ApiError {
             | ServiceError::UnownedDestination
             | ServiceError::ShortenDelayForNonTestAccount
             | ServiceError::InvalidClaimStateForShortening
-            | ServiceError::AlreadyCompletedWithPsbt => ApiError::GenericBadRequest(err_msg),
+            | ServiceError::AlreadyCompletedWithPsbt
+            | ServiceError::PackageKeysetTypeMismatch => ApiError::GenericBadRequest(err_msg),
             ServiceError::InvalidChallengeSignature => ApiError::GenericUnauthorized(err_msg),
             ServiceError::Notification(e) => e.into(),
             ServiceError::PsbtSigningFailed(e) => e.into(),

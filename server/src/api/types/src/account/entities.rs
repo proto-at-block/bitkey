@@ -139,6 +139,20 @@ impl Touchpoint {
             Touchpoint::Push { .. } => true,
         }
     }
+
+    pub fn email_address(&self) -> Option<String> {
+        match self {
+            Touchpoint::Email { email_address, .. } => Some(email_address.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn phone_number(&self) -> Option<String> {
+        match self {
+            Touchpoint::Phone { phone_number, .. } => Some(phone_number.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl From<&Touchpoint> for NotificationChannel {
@@ -677,23 +691,60 @@ impl DescriptorBackupsSet {
     pub fn get_sealed_descriptor(&self, keyset_id: &KeysetId) -> Option<String> {
         self.descriptor_backups
             .iter()
-            .find(|backup| backup.keyset_id == *keyset_id)
-            .map(|backup| backup.sealed_descriptor.clone())
+            .find(|backup| backup.keyset_id() == keyset_id)
+            .map(|backup| backup.sealed_descriptor().clone())
     }
 
     pub fn is_superset(&self, other: &DescriptorBackupsSet) -> bool {
         other
             .descriptor_backups
             .iter()
-            .all(|backup| self.get_sealed_descriptor(&backup.keyset_id).is_some())
+            .all(|backup| self.get_sealed_descriptor(backup.keyset_id()).is_some())
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct DescriptorBackup {
-    pub keyset_id: KeysetId,
-    /// Server storage encryption key-sealed descriptor
-    pub sealed_descriptor: String,
+#[serde(untagged)]
+pub enum DescriptorBackup {
+    Private {
+        keyset_id: KeysetId,
+        /// Server storage encryption key-sealed descriptor
+        sealed_descriptor: String,
+        sealed_server_root_xpub: String,
+    },
+    Legacy {
+        keyset_id: KeysetId,
+        /// Server storage encryption key-sealed descriptor
+        sealed_descriptor: String,
+    },
+}
+
+impl DescriptorBackup {
+    pub fn keyset_id(&self) -> &KeysetId {
+        match self {
+            DescriptorBackup::Legacy { keyset_id, .. } => keyset_id,
+            DescriptorBackup::Private { keyset_id, .. } => keyset_id,
+        }
+    }
+
+    pub fn sealed_descriptor(&self) -> &String {
+        match self {
+            DescriptorBackup::Legacy {
+                sealed_descriptor, ..
+            } => sealed_descriptor,
+            DescriptorBackup::Private {
+                sealed_descriptor, ..
+            } => sealed_descriptor,
+        }
+    }
+
+    pub fn is_legacy(&self) -> bool {
+        matches!(self, DescriptorBackup::Legacy { .. })
+    }
+
+    pub fn is_private(&self) -> bool {
+        matches!(self, DescriptorBackup::Private { .. })
+    }
 }
 
 pub mod v2 {
@@ -740,7 +791,7 @@ mod tests {
     };
     use crate::account::{
         bitcoin::Network,
-        entities::{CommonAccountFields, FullAccount},
+        entities::{CommonAccountFields, DescriptorBackup, FullAccount},
         identifiers::{AccountId, AuthKeysId, KeysetId},
         spend_limit::SpendingLimit,
         spending::LegacyMultiSigSpendingKeyset,
@@ -918,6 +969,29 @@ mod tests {
                 comms_verification_claims: Default::default(),
                 notifications_triggers: Default::default(),
             },
+        }
+    }
+
+    #[test]
+    fn test_untagged_descriptor_backup_deserialization() {
+        let keyset_id = KeysetId::gen().unwrap();
+
+        let descriptor_backups = [
+            DescriptorBackup::Legacy {
+                keyset_id: keyset_id.clone(),
+                sealed_descriptor: "".to_string(),
+            },
+            DescriptorBackup::Private {
+                keyset_id,
+                sealed_descriptor: "".to_string(),
+                sealed_server_root_xpub: "".to_string(),
+            },
+        ];
+
+        for descriptor_backup in descriptor_backups.iter() {
+            let serialized = serde_json::to_string(descriptor_backup).unwrap();
+            let deserialized: DescriptorBackup = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(descriptor_backup, &deserialized);
         }
     }
 }

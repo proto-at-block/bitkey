@@ -1,6 +1,5 @@
 package build.wallet.notifications
 
-import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -34,10 +33,7 @@ class RegisterWatchAddressQueueImpl(
         items.map {
           RegisterWatchAddressContext(
             it.address,
-            F8eSpendingKeyset(
-              keysetId = it.spendingKeysetId,
-              spendingPublicKey = it.serverKey
-            ),
+            it.serverKey,
             it.accountId,
             it.f8eEnvironment
           )

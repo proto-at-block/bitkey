@@ -9,7 +9,10 @@ use types::{
 
 use crate::{
     tests::{
-        lib::{create_default_account_with_predefined_wallet, create_phone_touchpoint},
+        lib::{
+            create_default_account_with_predefined_wallet,
+            create_default_account_with_private_wallet, create_phone_touchpoint,
+        },
         requests::{axum::TestClient, CognitoAuthentication},
         TestContext,
     },
@@ -36,15 +39,26 @@ pub(crate) async fn setup_benefactor_and_beneficiary_account(
     context: &mut TestContext,
     bootstrap: &Bootstrap,
     client: &TestClient,
+    benefactor_is_private: bool,
+    beneficiary_is_private: bool,
     beneficiary_account_type: AccountType,
 ) -> BenefactorBeneficiarySetup {
-    let (benefactor_account, benefactor_wallet) =
-        create_default_account_with_predefined_wallet(context, client, &bootstrap.services).await;
+    let (benefactor_account, benefactor_wallet) = if benefactor_is_private {
+        create_default_account_with_private_wallet(context, client, &bootstrap.services).await
+    } else {
+        create_default_account_with_predefined_wallet(context, client, &bootstrap.services).await
+    };
     let benefactor = Account::Full(benefactor_account);
     create_phone_touchpoint(&bootstrap.services, benefactor.get_id(), true).await;
 
-    let (beneficiary, beneficiary_wallet) =
-        create_beneficiary_account(beneficiary_account_type, context, bootstrap, client).await;
+    let (beneficiary, beneficiary_wallet) = create_beneficiary_account(
+        beneficiary_is_private,
+        beneficiary_account_type,
+        context,
+        bootstrap,
+        client,
+    )
+    .await;
     create_phone_touchpoint(&bootstrap.services, beneficiary.get_id(), true).await;
 
     let create_body = try_create_relationship(

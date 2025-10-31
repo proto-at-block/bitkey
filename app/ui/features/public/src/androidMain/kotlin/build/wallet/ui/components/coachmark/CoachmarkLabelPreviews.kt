@@ -15,7 +15,8 @@ internal fun CoachmarkLabelPreviews() {
   PreviewWalletTheme {
     Box(modifier = Modifier.padding(16.dp)) {
       Column {
-        CoachmarkLabel(CoachmarkLabelModel(
+        CoachmarkLabel(
+          CoachmarkLabelModel(
             text = "New",
             treatment = CoachmarkLabelTreatment.Light
           )

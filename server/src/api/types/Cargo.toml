@@ -42,6 +42,7 @@ all = [
   "notification",
   "privileged_action",
   "recovery",
+  "screener",
   "serde",
   "time",
 ]
@@ -53,6 +54,7 @@ exchange_rate = []
 notification = []
 privileged_action = []
 recovery = []
+screener = ["serde"]
 serde = []
 time = []
 transaction_verification = []

@@ -2,20 +2,26 @@ package build.wallet.statemachine.recovery.inprogress.completing
 
 import androidx.compose.runtime.*
 import bitkey.recovery.RecoveryStatusService
+import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
+import build.wallet.analytics.v1.Action
+import build.wallet.bitkey.f8e.isPrivateWallet
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.recovery.LocalRecoveryAttemptProgress.SweptFunds
+import build.wallet.recovery.LocalRecoveryAttemptProgress
+import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletedRecovery
 import build.wallet.recovery.getEventId
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
+import build.wallet.recovery.sweep.SweepContext
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request.HwKeyProof
@@ -44,6 +50,7 @@ class CompletingRecoveryUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val recoveryStatusService: RecoveryStatusService,
+  private val eventTracker: EventTracker,
 ) : CompletingRecoveryUiStateMachine {
   @Composable
   override fun model(props: CompletingRecoveryUiProps): ScreenModel {
@@ -366,13 +373,26 @@ class CompletingRecoveryUiStateMachineImpl(
                 postSocRecTaskRepository.setHardwareReplacementNeeded(false)
                 recoveryStatusService
                   .setLocalRecoveryProgress(
-                    SweptFunds(props.completingRecoveryData.keybox)
+                    CompletedRecovery(props.completingRecoveryData.keybox)
                   )
+                if (isPrivateKeysetUpgrade(props.completingRecoveryData.keybox)) {
+                  eventTracker.track(Action.ACTION_APP_PRIVATE_WALLET_RECOVERY_SWEEP_UPGRADE)
+                }
+
                 props.onComplete?.invoke()
               }
             },
             keybox = props.completingRecoveryData.keybox,
-            recoveredFactor = props.completingRecoveryData.physicalFactor
+            sweepContext = SweepContext.Recovery(props.completingRecoveryData.physicalFactor),
+            hasAttemptedSweep = props.completingRecoveryData.hasAttemptedSweep,
+            onAttemptSweep = {
+              scope.launch {
+                // Mark sweep as in progress when we begin broadcasting
+                recoveryStatusService.setLocalRecoveryProgress(
+                  LocalRecoveryAttemptProgress.SweepingFunds
+                )
+              }
+            }
           )
         )
       }
@@ -503,6 +523,17 @@ class CompletingRecoveryUiStateMachineImpl(
     }
   }
 }
+
+/**
+ * This is a first-time upgrade to a private keyset if:
+ * 1. The destination (i.e. the active keyset) is private
+ * 2. None of the other keysets are private
+ */
+private fun isPrivateKeysetUpgrade(keybox: Keybox) =
+  keybox.activeSpendingKeyset.f8eSpendingKeyset.isPrivateWallet &&
+    keybox.keysets.filterNot {
+      it.f8eSpendingKeyset.keysetId == keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+    }.none { it.f8eSpendingKeyset.isPrivateWallet }
 
 private fun uploadingDescriptorBackupsLoadingModel(
   physicalFactor: PhysicalFactor,

@@ -29,7 +29,8 @@ val BeneficiaryLockedClaimNoSealedDescriptorFake =
     sealedDek = XCiphertext("sealed-dek"),
     sealedMobileKey = XCiphertext("sealed-mobile-key"),
     sealedDescriptor = null,
-    benefactorKeyset = BenefactorDescriptorKeyset("fake-keyset")
+    benefactorKeyset = BenefactorDescriptorKeyset("fake-keyset"),
+    sealedServerRootXpub = null
   )
 
 val BeneficiaryLockedClaimBothDescriptorsFake =
@@ -39,7 +40,8 @@ val BeneficiaryLockedClaimBothDescriptorsFake =
     sealedDek = XCiphertext("sealed-dek"),
     sealedMobileKey = XCiphertext("sealed-mobile-key"),
     sealedDescriptor = XCiphertext("sealed-descriptor"),
-    benefactorKeyset = BenefactorDescriptorKeyset("fake-keyset")
+    benefactorKeyset = BenefactorDescriptorKeyset("fake-keyset"),
+    sealedServerRootXpub = XCiphertext("server-root-xpub")
   )
 
 val BeneficiaryLockedClaimNoPlaintextDescriptorFake =
@@ -49,7 +51,8 @@ val BeneficiaryLockedClaimNoPlaintextDescriptorFake =
     sealedDek = XCiphertext("sealed-dek"),
     sealedMobileKey = XCiphertext("sealed-mobile-key"),
     sealedDescriptor = XCiphertext("sealed-descriptor"),
-    benefactorKeyset = null
+    benefactorKeyset = null,
+    sealedServerRootXpub = XCiphertext("server-root-xpub")
   )
 
 val BeneficiaryCompleteClaimFake = BeneficiaryClaim.CompleteClaim(

@@ -1,0 +1,61 @@
+import build.wallet.bitkey.app.AppSpendingPublicKey;
+import build.wallet.bitkey.f8e.F8eSpendingKeyset;
+import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import kotlin.Boolean;
+
+CREATE TABLE privateWalletMigrationEntity(
+  rowId INTEGER NOT NULL PRIMARY KEY,
+  newHardwareKey TEXT AS HwSpendingPublicKey,
+  newAppKey TEXT AS AppSpendingPublicKey,
+  newServerKey TEXT AS F8eSpendingKeyset,
+  keysetLocalId TEXT,
+  descriptorBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  cloudBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  serverKeysetActivated INTEGER AS Boolean NOT NULL DEFAULT 0,
+  sweepCompleted INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+getState:
+SELECT * FROM privateWalletMigrationEntity WHERE rowId = 0;
+
+saveHardwareKey:
+INSERT OR REPLACE INTO privateWalletMigrationEntity(rowId, newHardwareKey)
+VALUES (0, ?);
+
+saveAppKey:
+UPDATE privateWalletMigrationEntity
+SET newAppKey = ?
+WHERE rowId = 0;
+
+saveServerKey:
+UPDATE privateWalletMigrationEntity
+SET newServerKey = ?
+WHERE rowId = 0;
+
+setKeysetLocalId:
+UPDATE privateWalletMigrationEntity
+SET keysetLocalId = ?
+WHERE rowId = 0;
+
+setCloudBackupCompleted:
+UPDATE privateWalletMigrationEntity
+SET cloudBackupCompleted = 1
+WHERE rowId = 0;
+
+setDescriptorBackupCompleted:
+UPDATE privateWalletMigrationEntity
+SET descriptorBackupCompleted = 1
+WHERE rowId = 0;
+
+setServerKeysetActivated:
+UPDATE privateWalletMigrationEntity
+SET serverKeysetActivated = 1
+WHERE rowId = 0;
+
+setSweepCompleted:
+UPDATE privateWalletMigrationEntity
+SET sweepCompleted = 1
+WHERE rowId = 0;
+
+clear:
+DELETE FROM privateWalletMigrationEntity;

@@ -1,5 +1,6 @@
 package build.wallet.ui.model.alert
 
+import build.wallet.ui.model.input.TextFieldModel
 import dev.zacsweers.redacted.annotations.Redacted
 
 @Redacted
@@ -38,6 +39,7 @@ data class InputAlertModel(
   val onDismiss: () -> Unit,
   val onConfirm: (String) -> Unit,
   val onCancel: () -> Unit,
+  val keyboardType: TextFieldModel.KeyboardType = TextFieldModel.KeyboardType.Default,
 ) : AlertModel
 
 /**

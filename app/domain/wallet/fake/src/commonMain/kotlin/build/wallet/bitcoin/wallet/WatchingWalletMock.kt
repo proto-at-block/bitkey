@@ -28,6 +28,7 @@ class WatchingWalletMock(
   var myAddresses: List<BitcoinAddress> = emptyList(),
   var myScripts: List<BdkScript> = emptyList(),
   var getNewAddressResult: Result<BitcoinAddress, Error>? = null,
+  var peekAddressResult: Result<BitcoinAddress, Error>? = null,
   var getLastUnusedAddressResult: Result<BitcoinAddress, Error>? = null,
   var createPsbtResult: Result<Psbt, Throwable>? = null,
   var balanceFlow: Flow<BitcoinBalance>? = null,
@@ -44,6 +45,9 @@ class WatchingWalletMock(
 
   override suspend fun getNewAddress(): Result<BitcoinAddress, Error> =
     getNewAddressResult ?: error("getNewAddressResult not configured in WatchingWalletMock")
+
+  override suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error> =
+    peekAddressResult ?: error("peekAddressResult not configured in WatchingWalletMock")
 
   override suspend fun getLastUnusedAddress(): Result<BitcoinAddress, Error> =
     getLastUnusedAddressResult ?: error("getLastUnusedAddressResult not configured in WatchingWalletMock")
@@ -74,6 +78,7 @@ class WatchingWalletMock(
     myAddresses = emptyList()
     myScripts = emptyList()
     getNewAddressResult = null
+    peekAddressResult = null
     getLastUnusedAddressResult = null
     createPsbtResult = null
     balanceFlow = null

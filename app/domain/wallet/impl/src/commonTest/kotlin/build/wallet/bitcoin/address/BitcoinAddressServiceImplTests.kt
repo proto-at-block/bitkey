@@ -11,12 +11,18 @@ import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.keybox.PrivateWalletKeyboxMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.feature.flags.DescriptorBackupFailsafeFeatureFlag
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.notifications.RegisterWatchAddressProcessor
 import build.wallet.queueprocessor.Processor
 import build.wallet.queueprocessor.ProcessorMock
+import build.wallet.recovery.DescriptorBackupServiceFake
+import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -32,6 +38,9 @@ class BitcoinAddressServiceImplTests : FunSpec({
     Processor<RegisterWatchAddressContext> by processorMock {}
   val transactionService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
+  val descriptorBackupService = DescriptorBackupServiceFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val descriptorBackupFailsafeFeatureFlag = DescriptorBackupFailsafeFeatureFlag(featureFlagDao)
 
   fun createService(
     notificationPreferences: NotificationPreferences = NotificationPreferences(
@@ -44,7 +53,8 @@ class BitcoinAddressServiceImplTests : FunSpec({
     accountService = accountService,
     notificationsPreferencesCachedProvider = NotificationsPreferencesCachedProviderMock(
       getNotificationPreferencesResult = Ok(notificationPreferences)
-    )
+    ),
+    descriptorBackupService = descriptorBackupService
   )
 
   beforeTest {
@@ -53,6 +63,8 @@ class BitcoinAddressServiceImplTests : FunSpec({
     transactionService.reset()
     transactionService.spendingWallet.value = spendingWallet
     accountService.reset()
+    descriptorBackupService.reset()
+    featureFlagDao.reset()
   }
 
   test("generate new address successfully - money movement notifications enabled") {
@@ -123,5 +135,16 @@ class BitcoinAddressServiceImplTests : FunSpec({
     addressResult.shouldBe(error)
 
     processorMock.processBatchCalls.expectNoEvents()
+  }
+
+  test("checks descriptor backup prior to address generation") {
+    accountService.setActiveAccount(FullAccountMock.copy(keybox = PrivateWalletKeyboxMock))
+    descriptorBackupService.checkBackupForPrivateKeysetResult = Err(IllegalStateException("No descriptor backup exists"))
+    descriptorBackupFailsafeFeatureFlag.setFlagValue(BooleanFlag(true))
+
+    val service = createService()
+    spendingWallet.newAddressResult = Ok(someBitcoinAddress)
+
+    service.generateAddress().shouldBeErrOfType<IllegalStateException>()
   }
 })

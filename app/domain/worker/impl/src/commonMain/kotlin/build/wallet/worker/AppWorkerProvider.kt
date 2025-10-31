@@ -3,6 +3,7 @@ package build.wallet.worker
 import bitkey.metrics.MetricTrackerTimeoutPoller
 import bitkey.notifications.NotificationsAppWorker
 import bitkey.privilegedactions.FingerprintResetSyncWorker
+import bitkey.recovery.DescriptorBackupHealthSyncWorker
 import bitkey.recovery.RecoverySyncWorker
 import bitkey.recovery.fundslost.FundsLostRiskSyncWorker
 import bitkey.securitycenter.SecurityActionsWorker
@@ -15,6 +16,7 @@ import build.wallet.availability.AppFunctionalitySyncWorker
 import build.wallet.bitcoin.address.BitcoinRegisterWatchAddressWorker
 import build.wallet.bitcoin.sync.ElectrumServerConfigSyncWorker
 import build.wallet.bitcoin.transactions.BitcoinWalletSyncWorker
+import build.wallet.cloud.backup.health.CloudBackupHealthSyncWorker
 import build.wallet.cloud.backup.socrec.SocRecCloudBackupSyncWorker
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -75,6 +77,7 @@ class AppWorkerProviderImpl(
   private val electrumConfigSyncWorker: ElectrumServerConfigSyncWorker,
   private val partnershipTransactionsSyncWorker: PartnershipTransactionsSyncWorker,
   private val socRecCloudBackupSyncWorker: SocRecCloudBackupSyncWorker,
+  private val cloudBackupHealthSyncWorker: CloudBackupHealthSyncWorker,
   private val metricTrackerTimeoutPoller: MetricTrackerTimeoutPoller,
   private val recoverySyncWorker: RecoverySyncWorker,
   private val sweepSyncWorker: SweepSyncWorker,
@@ -85,6 +88,7 @@ class AppWorkerProviderImpl(
   private val onboardingCompletionFailsafeWorker: OnboardingCompletionFailsafeWorker,
   private val pushPermissionCheckerWorker: PushPermissionCheckerWorker,
   private val deviceTokenAppWorker: DeviceTokenAppWorker,
+  private val descriptorBackupHealthSyncWorker: DescriptorBackupHealthSyncWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -112,6 +116,7 @@ class AppWorkerProviderImpl(
       electrumConfigSyncWorker,
       partnershipTransactionsSyncWorker,
       socRecCloudBackupSyncWorker,
+      cloudBackupHealthSyncWorker,
       metricTrackerTimeoutPoller,
       recoverySyncWorker,
       sweepSyncWorker,
@@ -121,7 +126,8 @@ class AppWorkerProviderImpl(
       fingerprintResetSyncWorker,
       onboardingCompletionFailsafeWorker,
       pushPermissionCheckerWorker,
-      deviceTokenAppWorker
+      deviceTokenAppWorker,
+      descriptorBackupHealthSyncWorker
     )
   }
 }

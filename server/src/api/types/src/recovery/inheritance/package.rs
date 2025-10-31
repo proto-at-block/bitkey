@@ -19,6 +19,8 @@ pub struct Package {
     pub sealed_mobile_key: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sealed_descriptor: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_server_root_xpub: Option<String>,
 
     #[serde(with = "rfc3339")]
     pub updated_at: OffsetDateTime,

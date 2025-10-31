@@ -1,0 +1,42 @@
+-- Rename sweepId to sweepCompleted and change from TEXT to Boolean
+
+CREATE TABLE privateWalletMigrationEntity_new(
+  rowId INTEGER NOT NULL PRIMARY KEY,
+  newHardwareKey TEXT AS HwSpendingPublicKey,
+  newAppKey TEXT AS AppSpendingPublicKey,
+  newServerKey TEXT AS F8eSpendingKeyset,
+  keysetLocalId TEXT,
+  descriptorBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  cloudBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  serverKeysetActivated INTEGER AS Boolean NOT NULL DEFAULT 0,
+  sweepCompleted INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+INSERT INTO privateWalletMigrationEntity_new (
+  rowId,
+  newHardwareKey,
+  newAppKey,
+  newServerKey,
+  keysetLocalId,
+  descriptorBackupCompleted,
+  cloudBackupCompleted,
+  serverKeysetActivated,
+  sweepCompleted
+)
+SELECT
+  rowId,
+  newHardwareKey,
+  newAppKey,
+  newServerKey,
+  keysetLocalId,
+  descriptorBackupCompleted,
+  cloudBackupCompleted,
+  serverKeysetActivated,
+  0 -- sweepCompleted (new column replacing sweepId TEXT)
+FROM privateWalletMigrationEntity;
+
+DROP TABLE privateWalletMigrationEntity;
+
+ALTER TABLE privateWalletMigrationEntity_new RENAME TO privateWalletMigrationEntity;
+
+PRAGMA foreign_key_check;

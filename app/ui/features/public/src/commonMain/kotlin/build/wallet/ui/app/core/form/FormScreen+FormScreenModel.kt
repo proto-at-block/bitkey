@@ -1,18 +1,23 @@
 package build.wallet.ui.app.core.form
 
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
@@ -28,15 +33,13 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
-import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle
-import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle
-import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.FontFeatureStyle
+import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.*
 import build.wallet.statemachine.core.form.BackgroundTreatment
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
 import build.wallet.statemachine.core.form.RenderContext.Screen
-import build.wallet.ui.app.core.fadingEdge
+import build.wallet.statemachine.money.currency.AppearanceSection
 import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.callout.Callout
@@ -487,28 +490,99 @@ private fun DatePicker(model: DatePicker) {
 }
 
 @Composable
-private fun MoneyHomeHero(model: MoneyHomeHero) {
-  val image = Icon.MoneyHomeHero.painter()
+internal fun MoneyHomeHero(
+  model: MoneyHomeHero,
+  selectedSection: AppearanceSection? = null,
+  isDarkMode: Boolean = LocalTheme.current == Theme.DARK,
+  isPriceGraphEnabled: Boolean = false,
+) {
+  val easeOutCubic = CubicBezierEasing(0.645f, 0.045f, 0.355f, 1f)
+
+  val image = when {
+    isDarkMode && isPriceGraphEnabled -> Icon.MoneyHomeHeroDarkWithGraph.painter()
+    isDarkMode && !isPriceGraphEnabled -> Icon.MoneyHomeHeroDarkNoGraph.painter()
+    !isDarkMode && isPriceGraphEnabled -> Icon.MoneyHomeHeroLightWithGraph.painter()
+    !isDarkMode && !isPriceGraphEnabled -> Icon.MoneyHomeHeroLightNoGraph.painter()
+    else -> Icon.MoneyHomeHero.painter()
+  }
+  val scale by animateFloatAsState(
+    targetValue = when (selectedSection) {
+      AppearanceSection.DISPLAY -> .9f
+      AppearanceSection.CURRENCY -> 1.2f
+      AppearanceSection.PRIVACY -> 2.0f
+      null -> 1.0f
+    },
+    animationSpec = tween(durationMillis = 300, easing = easeOutCubic),
+    label = "scale"
+  )
+
+  val scaleBalance by animateFloatAsState(
+    targetValue = when (selectedSection) {
+      AppearanceSection.DISPLAY -> .4f
+      AppearanceSection.CURRENCY -> .6f
+      AppearanceSection.PRIVACY -> 1.1f
+      null -> 1.0f
+    },
+    animationSpec = tween(durationMillis = 300, easing = easeOutCubic),
+    label = "scaleBalance"
+  )
+
+  val balanceOffsetY by animateDpAsState(
+    targetValue = when (selectedSection) {
+      AppearanceSection.DISPLAY -> (-38).dp
+      AppearanceSection.CURRENCY -> 4.dp
+      AppearanceSection.PRIVACY -> 35.dp
+      null -> 0.dp
+    },
+    animationSpec = tween(durationMillis = 300, easing = easeOutCubic),
+    label = "balanceOffsetY"
+  )
+
+  val offsetY by animateDpAsState(
+    targetValue = when (selectedSection) {
+      AppearanceSection.DISPLAY -> 0.dp
+      AppearanceSection.CURRENCY -> 60.dp
+      AppearanceSection.PRIVACY -> 140.dp
+      null -> 0.dp
+    },
+    animationSpec = tween(durationMillis = 300, easing = easeOutCubic),
+    label = "offsetY"
+  )
+
   Box {
     Image(
       painter = image,
       contentDescription = "money home hero",
-      contentScale = ContentScale.Crop,
       alignment = Alignment.TopCenter,
-      modifier =
-        Modifier
-          .align(Alignment.Center)
-          .width(210.dp)
-          .height(224.dp)
+      modifier = Modifier
+        .align(Alignment.Center)
+        .clipToBounds()
+        .background(
+          color = WalletTheme.colors.subtleBackground,
+          shape = RoundedCornerShape(12.dp)
+        )
+        .offset(y = offsetY)
+        .fillMaxWidth()
+        .height(200.dp)
+        .graphicsLayer {
+          scaleX = scale
+          scaleY = scale
+        }
     )
+
     CollapsibleLabelContainer(
       modifier = Modifier
         .padding(vertical = 64.dp)
-        .align(Alignment.TopCenter),
+        .align(Alignment.TopCenter)
+        .offset(y = balanceOffsetY)
+        .graphicsLayer {
+          scaleX = scaleBalance
+          scaleY = scaleBalance
+        },
       collapsed = model.isHidden,
       verticalArrangement = Arrangement.Center,
       horizontalAlignment = Alignment.CenterHorizontally,
-      topContent = { Label(model.primaryAmount, type = LabelType.Title1) },
+      topContent = { Label(model.primaryAmount, type = LabelType.Body2Bold) },
       bottomContent = {
         Label(
           model.secondaryAmount,
@@ -522,25 +596,6 @@ private fun MoneyHomeHero(model: MoneyHomeHero) {
           shimmer = !placeholder
         )
       }
-    )
-    Box(
-      modifier =
-        Modifier
-          .align(Alignment.BottomCenter)
-          .size(
-            width = image.intrinsicSize.width.dp + 10.dp,
-            height = 50.dp
-          )
-          .fadingEdge(
-            Brush.verticalGradient(
-              0f to Color.Transparent,
-              0.7f to Color.Red
-            )
-          )
-          .background(
-            color = WalletTheme.colors.background,
-            shape = RectangleShape
-          )
     )
   }
 }

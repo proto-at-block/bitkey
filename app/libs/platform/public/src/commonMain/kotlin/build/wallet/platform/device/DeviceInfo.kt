@@ -14,6 +14,11 @@ data class DeviceInfo(
    * Best effort detection of whether the device is running inside an emulator.
    */
   val isEmulator: Boolean,
+  /**
+   * User-set device nickname (e.g., "John's iPhone", "My Pixel").
+   * Null if not available or not set by user.
+   */
+  val deviceNickname: String? = null,
 ) {
   /**
    * Whether the given device model is known to have NFC issues when other signals are enabled,

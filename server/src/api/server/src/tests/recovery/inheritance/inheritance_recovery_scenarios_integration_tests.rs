@@ -66,6 +66,8 @@ async fn test_recreate_inheritance_claim_after_completing_delay_notify(
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Full,
     )
     .await;
@@ -215,6 +217,8 @@ async fn test_rotate_authentication_keys_with_inheritance_claim(
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Full,
     )
     .await;

@@ -82,9 +82,9 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       // loading theme
-      awaitBody<AppearancePreferenceFormModel>()
+      awaitBody<AppearancePreferenceBodyModel>()
 
-      awaitBody<AppearancePreferenceFormModel> {
+      awaitBody<AppearancePreferenceBodyModel> {
         moneyHomeHero.isHidden.shouldBeFalse()
         moneyHomeHero.primaryAmount.shouldBe("$0.00")
         moneyHomeHero.secondaryAmount.shouldBe("0 sats")
@@ -100,7 +100,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().action.shouldBe(ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE)
 
-      awaitUntilBody<AppearancePreferenceFormModel>(
+      awaitUntilBody<AppearancePreferenceBodyModel>(
         matching = {
           // Wait for the fiat currency preference to be updated, which might or might not happen
           // in the next model.
@@ -118,9 +118,9 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
   test("update chart history preference") {
     stateMachine.test(props) {
       // loading theme
-      awaitBody<AppearancePreferenceFormModel>()
+      awaitBody<AppearancePreferenceBodyModel>()
 
-      awaitBody<AppearancePreferenceFormModel> {
+      awaitBody<AppearancePreferenceBodyModel> {
         onDefaultTimeScalePreferenceClick()
       }
 
@@ -128,7 +128,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
         onTimeScaleSelection(ChartRange.WEEK)
       }
 
-      awaitBody<AppearancePreferenceFormModel> {
+      awaitBody<AppearancePreferenceBodyModel> {
         defaultTimeScalePreferenceString.shouldBe("chart_history_label_week")
       }
 
@@ -139,10 +139,10 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
   test("theme selection sheet closes when onBack is called") {
     stateMachine.test(props) {
       // loading theme
-      awaitBody<AppearancePreferenceFormModel>()
+      awaitBody<AppearancePreferenceBodyModel>()
 
       // Open theme selection
-      awaitBody<AppearancePreferenceFormModel> {
+      awaitBody<AppearancePreferenceBodyModel> {
         onThemePreferenceClick()
       }
 

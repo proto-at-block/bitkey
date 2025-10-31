@@ -4,6 +4,7 @@ import bitkey.backup.DescriptorBackup
 import bitkey.recovery.DescriptorBackupError
 import bitkey.recovery.DescriptorBackupPreparedData
 import bitkey.recovery.DescriptorBackupService
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
@@ -18,13 +19,15 @@ import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.recovery.DescriptorBackupServiceFake.Companion.HW_DESCRIPTOR_PUBKEY
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
 class DescriptorBackupServiceFake : DescriptorBackupService {
   companion object {
-    val HW_DESCRIPTOR_PUBKEY = "[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK/*"
+    val HW_DESCRIPTOR_PUBKEY =
+      "[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK/*"
   }
 
   val fakeKeysetList = listOf(SpendingKeysetMock)
@@ -32,9 +35,15 @@ class DescriptorBackupServiceFake : DescriptorBackupService {
     DescriptorBackupPreparedData.EncryptOnly(fakeKeysetList)
   )
   var uploadOnboardingDescriptorBackupResult: Result<Unit, DescriptorBackupError> = Ok(Unit)
-  var uploadDescriptorBackupsResult: Result<List<SpendingKeyset>, DescriptorBackupError> = Ok(fakeKeysetList)
+  var uploadDescriptorBackupsResult: Result<List<SpendingKeyset>, DescriptorBackupError> =
+    Ok(fakeKeysetList)
+  var checkBackupForPrivateKeysetResult: Result<Unit, Throwable> = Ok(Unit)
 
   private val sealedDescriptorsStorage = mutableMapOf<String, XCiphertext>()
+
+  override suspend fun checkBackupForPrivateKeyset(keysetId: String): Result<Unit, Throwable> {
+    return checkBackupForPrivateKeysetResult
+  }
 
   override suspend fun prepareDescriptorBackupsForRecovery(
     accountId: FullAccountId,
@@ -74,11 +83,13 @@ class DescriptorBackupServiceFake : DescriptorBackupService {
     // Create fake sealed descriptors
     val descriptorBackups = keysets.map { keyset ->
       val fakeSealed = XCiphertext("fake-sealed-${keyset.f8eSpendingKeyset.keysetId}")
+      val fakeSealedPrivateWalletXpub = XCiphertext("fake-sealed-private-wallet-xpub-${keyset.f8eSpendingKeyset.keysetId}")
       sealedDescriptorsStorage[keyset.f8eSpendingKeyset.keysetId] = fakeSealed
 
       DescriptorBackup(
         keysetId = keyset.f8eSpendingKeyset.keysetId,
-        sealedDescriptor = fakeSealed
+        sealedDescriptor = fakeSealed,
+        privateWalletRootXpub = fakeSealedPrivateWalletXpub
       )
     }
 
@@ -98,6 +109,15 @@ class DescriptorBackupServiceFake : DescriptorBackupService {
     return Ok(fakeKeysets)
   }
 
+  override suspend fun parseDescriptorKeys(
+    descriptorString: String,
+    privateWalletRootXpub: String?,
+    keysetId: String,
+    networkType: BitcoinNetworkType,
+  ): Result<SpendingKeyset, DescriptorBackupError> {
+    return Ok(SpendingKeysetMock)
+  }
+
   // Reset methods for testing
   fun reset() {
     sealedDescriptorsStorage.clear()
@@ -106,12 +126,15 @@ class DescriptorBackupServiceFake : DescriptorBackupService {
     )
     uploadOnboardingDescriptorBackupResult = Ok(Unit)
     uploadDescriptorBackupsResult = Ok(fakeKeysetList)
+    checkBackupForPrivateKeysetResult = Ok(Unit)
   }
 }
 
 fun createFakeSpendingKeyset(
   keysetId: String,
   localId: String = "abc123",
+  privateWalletRootXpub: String? =
+    "tpubD6NzVbkrYhZ4XPMXVToEroepyTscQmHYrdSDbvZvAFonusog8TjTB3iTQZ2Ds8atDfdxzN7DAioQ8Z4KBa4RD16FX7caE5hxiMbvkVr9Fom",
 ): SpendingKeyset {
   // This is a simplified fake keyset for testing purposes
   // Real implementation would reconstruct from decrypted descriptor
@@ -121,7 +144,8 @@ fun createFakeSpendingKeyset(
       keysetId = keysetId,
       spendingPublicKey = F8eSpendingPublicKey(
         DescriptorPublicKey("[34eae6a8/84'/0'/0']xpubDDj952KUFGTDcNV1qY5Tuevm6vnBWK8NSpTTkCz1XTApv2SeDaqcrUTBgDdCRF9KmtxV33R8E9NtSi9VSBUPj4M3fKr4uk3kRy8Vbo1LbAv/*")
-      )
+      ),
+      privateWalletRootXpub = privateWalletRootXpub
     ),
     networkType = build.wallet.bitcoin.BitcoinNetworkType.SIGNET,
     appKey = AppSpendingPublicKey(
@@ -132,3 +156,12 @@ fun createFakeSpendingKeyset(
     )
   )
 }
+
+fun createFakeLegacyRemoteKeyset(keysetId: String): LegacyRemoteKeyset =
+  LegacyRemoteKeyset(
+    keysetId = keysetId,
+    networkType = "SIGNET",
+    appDescriptor = "[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK/*",
+    hardwareDescriptor = HW_DESCRIPTOR_PUBKEY,
+    serverDescriptor = "[34eae6a8/84'/0'/0']xpubDDj952KUFGTDcNV1qY5Tuevm6vnBWK8NSpTTkCz1XTApv2SeDaqcrUTBgDdCRF9KmtxV33R8E9NtSi9VSBUPj4M3fKr4uk3kRy8Vbo1LbAv/*"
+  )

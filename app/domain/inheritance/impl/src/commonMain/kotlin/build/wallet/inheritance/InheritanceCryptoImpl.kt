@@ -70,8 +70,19 @@ class InheritanceCryptoImpl(
         ).raw.encodeUtf8()
 
         crypto
-          .encryptDescriptor(dek = pkMatOutput.privateKeyEncryptionKey, descriptor = descriptor)
+          .encryptData(dek = pkMatOutput.privateKeyEncryptionKey, data = descriptor)
           .bind()
+      } else {
+        null
+      }
+
+      val serverRootXpub = keybox.activeSpendingKeyset.f8eSpendingKeyset.privateWalletRootXpub
+      val sealedServerRootXpub = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled() && serverRootXpub != null) {
+        logInfo { "[Privacy] Encrypting server root xpub for inheritance package" }
+        crypto.encryptData(
+          dek = pkMatOutput.privateKeyEncryptionKey,
+          data = serverRootXpub.encodeUtf8()
+        ).bind()
       } else {
         null
       }
@@ -83,7 +94,8 @@ class InheritanceCryptoImpl(
             .encryptPrivateKeyEncryptionKey(it.identityKey, pkMatOutput.privateKeyEncryptionKey)
             .bind(),
           sealedMobileKey = pkMatOutput.sealedPrivateKeyMaterial,
-          sealedDescriptor = sealedDescriptor
+          sealedDescriptor = sealedDescriptor,
+          sealedServerRootXpub = sealedServerRootXpub
         )
       }
 
@@ -110,8 +122,9 @@ class InheritanceCryptoImpl(
   override suspend fun decryptInheritanceMaterialPackage(
     delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
     sealedDek: XCiphertext,
-    sealedMobileKey: XCiphertext,
+    sealedAppKey: XCiphertext,
     sealedDescriptor: XCiphertext?,
+    sealedServerRootXpub: XCiphertext?,
   ): Result<DecryptInheritanceMaterialPackageOutput, Error> {
     return coroutineBinding {
       val pkek = crypto.decryptPrivateKeyEncryptionKey(
@@ -120,7 +133,7 @@ class InheritanceCryptoImpl(
       )
 
       val privateKeyMaterial = crypto
-        .decryptPrivateKeyMaterial(pkek, sealedMobileKey)
+        .decryptPrivateKeyMaterial(pkek, sealedAppKey)
         .bind()
 
       val inheritanceKeyset = Json
@@ -136,9 +149,19 @@ class InheritanceCryptoImpl(
         null
       }
 
+      val serverRootXpub = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
+        logInfo { "[Privacy] Decrypting server root xpub from inheritance package" }
+        sealedServerRootXpub?.let {
+          crypto.decryptPrivateKeyMaterial(pkek, it).bind().utf8()
+        }
+      } else {
+        null
+      }
+
       DecryptInheritanceMaterialPackageOutput(
         inheritanceKeyset = inheritanceKeyset,
-        descriptor = descriptor
+        descriptor = descriptor,
+        serverRootXpub = serverRootXpub
       )
     }
   }

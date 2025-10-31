@@ -229,12 +229,10 @@ sealed interface RecoveryInProgressData {
      * should move to [PerformingSweepData].
      */
     data class PerformingDdkBackupData(
-      val keybox: Keybox,
       val physicalFactor: PhysicalFactor,
     ) : CompletingRecoveryData
 
     data class FailedPerformingDdkBackupData(
-      val keybox: Keybox,
       val physicalFactor: PhysicalFactor,
       val cause: Throwable?,
       val retry: () -> Unit,
@@ -247,7 +245,7 @@ sealed interface RecoveryInProgressData {
     data class PerformingCloudBackupData(
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
-      val onBackupFinished: () -> Unit,
+      val onBackupFinished: suspend () -> Unit,
       val onBackupFailed: (Throwable?) -> Unit,
     ) : CompletingRecoveryData
 
@@ -263,6 +261,7 @@ sealed interface RecoveryInProgressData {
      * complete.
      */
     data class PerformingSweepData(
+      val hasAttemptedSweep: Boolean,
       val physicalFactor: PhysicalFactor,
       val keybox: Keybox,
       val rollback: () -> Unit,

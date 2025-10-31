@@ -7,6 +7,9 @@ enum class CreateAccountEventTrackerScreenId : EventTrackerScreenId {
   /** Loading screen shown when the app is uploading descriptor backups to the Server */
   NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING,
 
+  /** Error screen shown when we failed to upload the descriptor backup during onboarding */
+  NEW_ACCOUNT_DESCRIPTOR_BACKUP_FAILURE,
+
   /** The customer encountered a generic server error when trying to create a new account. */
   NEW_ACCOUNT_CREATION_FAILURE,
 

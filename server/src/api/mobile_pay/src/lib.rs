@@ -20,7 +20,7 @@ pub(crate) mod metrics;
 pub mod routes;
 pub mod signed_psbt_cache;
 pub mod signing_processor;
-mod signing_strategies;
+pub mod signing_strategies;
 pub mod spend_rules;
 pub(crate) mod util;
 

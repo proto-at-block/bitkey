@@ -16,12 +16,14 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
 import build.wallet.logging.logNetworkFailure
 import build.wallet.partnerships.PartnershipTransactionsService
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.getOrElse
@@ -45,6 +47,7 @@ class TransactionsActivityServiceImpl(
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val appScope: CoroutineScope,
   private val mockScenarioService: MockScenarioService,
+  private val uuidGenerator: UuidGenerator,
 ) : TransactionsActivityService, TransactionsActivitySyncWorker {
   private val transactionsCache = MutableStateFlow<List<Transaction>?>(null)
 
@@ -170,6 +173,7 @@ class TransactionsActivityServiceImpl(
           .logNetworkFailure { "Error fetching keysets for comprehensive transaction tracking." }
           .bind()
           .keysets
+          .toSpendingKeysets(uuidGenerator)
       }
         .filter { it.f8eSpendingKeyset.keysetId != activeKeysetId }
 

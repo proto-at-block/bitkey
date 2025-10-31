@@ -92,7 +92,8 @@ class UpgradeAccountF8eClientImpl(
           f8eSpendingKeyset =
             F8eSpendingKeyset(
               keysetId = response.keysetId,
-              spendingPublicKey = F8eSpendingPublicKey(dpub = response.spending)
+              spendingPublicKey = F8eSpendingPublicKey(dpub = response.spending),
+              privateWalletRootXpub = null // doesn't exist for legacy wallets
             ),
           fullAccountId = FullAccountId(response.accountId)
         )

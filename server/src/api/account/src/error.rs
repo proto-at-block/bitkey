@@ -45,6 +45,8 @@ pub enum AccountError {
     UnrecognizedKeysetIds,
     #[error("Missing descriptor backup for keyset")]
     MissingDescriptorBackup,
+    #[error("Descriptor backup type mismatch")]
+    DescriptorBackupTypeMismatch,
 }
 
 impl From<AccountErrorType> for AccountError {
@@ -86,7 +88,8 @@ impl From<AccountError> for ApiError {
             },
             AccountError::NotEligibleForDeletion
             | AccountError::ConflictingSpendingKeyDefinitionStateForRotation
-            | AccountError::MissingDescriptorBackup => Self::GenericConflict(err_msg),
+            | AccountError::MissingDescriptorBackup
+            | AccountError::DescriptorBackupTypeMismatch => Self::GenericConflict(err_msg),
             AccountError::UnauthorizedDeviceTokenRegistration => {
                 ApiError::GenericUnauthorized(err_msg)
             }

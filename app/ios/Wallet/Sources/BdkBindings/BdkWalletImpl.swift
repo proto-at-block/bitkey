@@ -9,14 +9,16 @@ class BdkWalletImpl: BdkWallet {
     }
 
     func getAddressBlocking(addressIndex: BdkAddressIndex) -> BdkResult<BdkAddressInfo> {
-        var ffiAddressIndex: AddressIndex
+        let ffiAddressIndex: AddressIndex
         switch addressIndex {
-        case .theNew:
+        case is BdkAddressIndex.New:
             ffiAddressIndex = AddressIndex.new
-        case .lastUnused:
+        case is BdkAddressIndex.LastUnused:
             ffiAddressIndex = AddressIndex.lastUnused
+        case let peek as BdkAddressIndex.Peek:
+            ffiAddressIndex = AddressIndex.peek(index: peek.index)
         default:
-            fatalError()
+            fatalError("Unknown BdkAddressIndex type: \(addressIndex)")
         }
         return BdkResult {
             let ffiAddressInfo = try wallet.getAddress(addressIndex: ffiAddressIndex)

@@ -13,8 +13,8 @@ fun PrivateWalletHomeCoachmarkModel(
 ): CoachmarkModel {
   return CoachmarkModel(
     identifier = CoachmarkIdentifier.PrivateWalletHomeCoachmark,
-    title = "Enhanced Wallet Privacy",
-    description = "Upgrade your wallet to get total balance privacy.",
+    title = "Update to a more private wallet",
+    description = "Update your wallet for increased balance and transaction privacy.",
     arrowPosition = CoachmarkModel.ArrowPosition(
       vertical = CoachmarkModel.ArrowPosition.Vertical.Bottom,
       horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered

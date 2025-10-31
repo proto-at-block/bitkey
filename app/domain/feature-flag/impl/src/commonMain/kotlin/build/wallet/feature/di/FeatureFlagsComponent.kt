@@ -127,11 +127,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun receiveV2ScreenFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    ReceiveV2ScreenFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun appUpdateModalFeatureFlag(featureFlagDao: FeatureFlagDao) =
     AppUpdateModalFeatureFlag(featureFlagDao)
 
@@ -149,6 +144,21 @@ interface FeatureFlagsComponent {
   @SingleIn(AppScope::class)
   fun orphanedKeyRecoveryFeatureFlag(featureFlagDao: FeatureFlagDao) =
     OrphanedKeyRecoveryFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun descriptorBackupFailsafeFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    DescriptorBackupFailsafeFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun updateToPrivateWalletOnRecoveryFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    UpdateToPrivateWalletOnRecoveryFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun privateWalletMigrationBalanceThresholdFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    PrivateWalletMigrationBalanceThresholdFeatureFlag(featureFlagDao)
 
   @Provides
   fun featureFlags(
@@ -173,11 +183,14 @@ interface FeatureFlagsComponent {
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
     chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
     onboardingCompletionFailsafeFeatureFlag: OnboardingCompletionFailsafeFeatureFlag,
-    receiveV2ScreenFeatureFlag: ReceiveV2ScreenFeatureFlag,
     appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
     privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
     replaceFullWithLiteAccountFeatureFlag: ReplaceFullWithLiteAccountFeatureFlag,
     orphanedKeyRecoveryFeatureFlag: OrphanedKeyRecoveryFeatureFlag,
+    descriptorBackupFailsafeFeatureFlag: DescriptorBackupFailsafeFeatureFlag,
+    updateToPrivateWalletOnRecoveryFeatureFlag: UpdateToPrivateWalletOnRecoveryFeatureFlag,
+    privateWalletMigrationBalanceThresholdFeatureFlag:
+      PrivateWalletMigrationBalanceThresholdFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       softwareWalletIsEnabledFeatureFlag,
@@ -194,11 +207,13 @@ interface FeatureFlagsComponent {
       inheritanceUseEncryptedDescriptorFeatureFlag,
       encryptedDescriptorBackupsFeatureFlag,
       encryptedDescriptorSupportUploadFeatureFlag,
-      receiveV2ScreenFeatureFlag,
       appUpdateModalFeatureFlag,
       privateWalletMigrationFeatureFlag,
       replaceFullWithLiteAccountFeatureFlag,
       orphanedKeyRecoveryFeatureFlag,
+      descriptorBackupFailsafeFeatureFlag,
+      updateToPrivateWalletOnRecoveryFeatureFlag,
+      privateWalletMigrationBalanceThresholdFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
       utxoMaxConsolidationCountFeatureFlag,

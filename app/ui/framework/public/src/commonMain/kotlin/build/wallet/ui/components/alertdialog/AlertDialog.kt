@@ -151,7 +151,7 @@ fun InputAlertDialog(
           value = inputValue,
           onValueChange = { s, _ -> inputValue = s },
           placeholderText = "",
-          keyboardType = TextFieldModel.KeyboardType.Decimal,
+          keyboardType = model.keyboardType,
           onDone = {}
         ),
         labelType = LabelType.Body2Regular,

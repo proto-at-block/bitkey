@@ -38,6 +38,7 @@ use rstest::rstest;
 use serde_json::{json, Value};
 use time::{Duration, OffsetDateTime};
 use tokio::join;
+use types::account::spending::SpendingKeyset;
 use types::{
     account::{
         bitcoin::Network, entities::Account, identifiers::AccountId, keys::FullAccountAuthKeys,
@@ -59,6 +60,15 @@ use types::{
     },
 };
 
+use crate::tests::lib::create_default_account_with_predefined_wallet;
+use crate::tests::lib::create_default_account_with_private_wallet;
+use crate::tests::lib::predefined_descriptor_public_keys;
+use crate::tests::lib::predefined_server_root_xpub;
+use crate::tests::lib::wallet_protocol::build_sweep_psbt_for_protocol;
+use crate::tests::lib::wallet_protocol::sweep_destination_for_ccd;
+use crate::tests::lib::wallet_protocol::SweepDestination;
+use crate::tests::lib::wallet_protocol::WalletFixture;
+use crate::tests::lib::wallet_protocol::WalletTestProtocol;
 use crate::tests::{
     gen_services, gen_services_with_overrides,
     lib::{create_full_account, create_new_authkeys},
@@ -154,11 +164,16 @@ pub(super) async fn try_cancel_inheritance_claim(
 }
 
 #[rstest]
-#[case::full_account(AccountType::Full, false, StatusCode::OK)]
-#[case::lite_account(AccountType::Lite, false, StatusCode::FORBIDDEN)]
-#[case::existing_claim(AccountType::Full, true, StatusCode::BAD_REQUEST)]
+#[case::legacy(false, false, AccountType::Full, false, StatusCode::OK)]
+#[case::migration(false, true, AccountType::Full, false, StatusCode::OK)]
+#[case::private(true, false, AccountType::Full, false, StatusCode::OK)]
+#[case::downgrade(true, true, AccountType::Full, false, StatusCode::OK)]
+#[case::lite_account(false, false, AccountType::Lite, false, StatusCode::FORBIDDEN)]
+#[case::existing_claim(false, false, AccountType::Full, true, StatusCode::BAD_REQUEST)]
 #[tokio::test]
 async fn start_inheritance_claim_test(
+    #[case] benefactor_is_private: bool,
+    #[case] beneficiary_is_private: bool,
     #[case] beneficiary_account_type: AccountType,
     #[case] create_existing_inheritance_claim: bool,
     #[case] expected_status_code: StatusCode,
@@ -176,6 +191,8 @@ async fn start_inheritance_claim_test(
         &mut context,
         &bootstrap,
         &client,
+        benefactor_is_private,
+        beneficiary_is_private,
         beneficiary_account_type,
     )
     .await;
@@ -299,6 +316,8 @@ pub(super) async fn try_package_upload(
     client: &TestClient,
     beneficiary_account_id: &AccountId,
     recovery_relationships: &[RecoveryRelationshipId],
+    sealed_descriptor: Option<&str>,
+    sealed_server_root_xpub: Option<&str>,
     expected_status_code: StatusCode,
 ) -> Option<UploadInheritancePackagesResponse> {
     let keys = context
@@ -315,7 +334,8 @@ pub(super) async fn try_package_upload(
                         recovery_relationship_id: r.clone(),
                         sealed_dek: "RANDOM_SEALED_DEK".to_string(),
                         sealed_mobile_key: "RANDOM_SEALED_MOBILE_KEY".to_string(),
-                        sealed_descriptor: None,
+                        sealed_descriptor: sealed_descriptor.map(|s| s.to_string()),
+                        sealed_server_root_xpub: sealed_server_root_xpub.map(|s| s.to_string()),
                     })
                     .collect(),
             },
@@ -338,24 +358,69 @@ pub(super) async fn try_package_upload(
 }
 
 #[rstest]
-#[case::success(false, StatusCode::OK)]
-#[case::invalid_relationship(true, StatusCode::BAD_REQUEST)]
+#[case::legacy_no_descriptor_with_xpub(
+    false,
+    false,
+    None,
+    Some("sealed_server_root_xpub"),
+    StatusCode::BAD_REQUEST
+)]
+#[case::legacy_with_descriptor_with_xpub(
+    false,
+    false,
+    Some("sealed_descriptor"),
+    Some("sealed_server_root_xpub"),
+    StatusCode::BAD_REQUEST
+)]
+#[case::success_legacy_no_descriptor_no_xpub(false, false, None, None, StatusCode::OK)]
+#[case::success_legacy_with_descriptor_no_xpub(
+    false,
+    false,
+    Some("sealed_descriptor"),
+    None,
+    StatusCode::OK
+)]
+#[case::private_no_descriptor_no_xpub(true, false, None, None, StatusCode::BAD_REQUEST)]
+#[case::private_no_descriptor_with_xpub(
+    true,
+    false,
+    None,
+    Some("sealed_server_root_xpub"),
+    StatusCode::BAD_REQUEST
+)]
+#[case::private_with_descriptor_no_xpub(
+    true,
+    false,
+    Some("sealed_descriptor"),
+    None,
+    StatusCode::BAD_REQUEST
+)]
+#[case::success_private_with_descriptor_with_xpub(
+    true,
+    false,
+    Some("sealed_descriptor"),
+    Some("sealed_server_root_xpub"),
+    StatusCode::OK
+)]
+#[case::invalid_relationship(false, true, None, None, StatusCode::BAD_REQUEST)]
 #[tokio::test]
 async fn package_upload_test(
+    #[case] private_benefactor_wallet: bool,
     #[case] invalid_relationships: bool,
+    #[case] sealed_encrypted_descriptor: Option<&str>,
+    #[case] sealed_server_root_xpub: Option<&str>,
     #[case] expected_status_code: StatusCode,
 ) {
     // arrange
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let benefactor_account = create_full_account(
-        &mut context,
-        &bootstrap.services,
-        Network::BitcoinSignet,
-        None,
-    )
-    .await;
+    let (benefactor_account, _) = if private_benefactor_wallet {
+        create_default_account_with_private_wallet(&mut context, &client, &bootstrap.services).await
+    } else {
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await
+    };
 
     let mut relationship_ids = Vec::new();
     if invalid_relationships {
@@ -430,6 +495,8 @@ async fn package_upload_test(
         &client,
         &benefactor_account.id,
         &relationship_ids,
+        sealed_encrypted_descriptor,
+        sealed_server_root_xpub,
         expected_status_code,
     )
     .await;
@@ -472,6 +539,8 @@ async fn cancel_inheritance_claim(
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Full,
     )
     .await;
@@ -649,6 +718,8 @@ async fn test_lock_inheritance_claim_success() {
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Full,
     )
     .await;
@@ -775,6 +846,8 @@ async fn test_lock_inheritance_claim_lite_account_forbidden() {
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Lite,
     )
     .await;
@@ -822,6 +895,8 @@ async fn test_complete_inheritance_claim_lite_account_forbidden() {
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Lite,
     )
     .await;
@@ -852,8 +927,17 @@ async fn test_complete_inheritance_claim_lite_account_forbidden() {
     // assert
     assert_eq!(response.status_code, StatusCode::FORBIDDEN);
 }
+
+#[rstest]
+#[case::legacy(false, false)]
+#[case::migration(false, true)]
+#[case::private(true, true)]
+#[case::downgrade(true, false)]
 #[tokio::test]
-async fn test_complete_inheritance_claim_success() {
+async fn test_complete_inheritance_claim_success(
+    #[case] benefactor_is_private: bool,
+    #[case] beneficiary_is_private: bool,
+) {
     // arrange
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
@@ -873,6 +957,8 @@ async fn test_complete_inheritance_claim_success() {
         &mut context,
         &bootstrap,
         &client,
+        benefactor_is_private,
+        beneficiary_is_private,
         AccountType::Full,
     )
     .await;
@@ -885,7 +971,51 @@ async fn test_complete_inheritance_claim_success() {
         &recovery_relationship_id,
     )
     .await;
-    let (psbt, _) = build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 5.0, true);
+
+    let (benefactor_full_account, beneficiary_full_account) = match (&benefactor, &beneficiary) {
+        (Account::Full(src), Account::Full(dst)) => (src, dst),
+        _ => panic!("accounts should both be full"),
+    };
+
+    let beneficiary_address = beneficiary_wallet
+        .as_ref()
+        .expect("beneficiary wallet missing")
+        .get_address(AddressIndex::Peek(0))
+        .expect("failed to peek beneficiary address")
+        .address;
+
+    let protocol = if benefactor_is_private {
+        WalletTestProtocol::PrivateCcd
+    } else {
+        WalletTestProtocol::Legacy
+    };
+
+    let source_fixture = WalletFixture {
+        protocol,
+        account: benefactor_full_account.clone(),
+        wallet: benefactor_wallet,
+        signing_keyset_id: benefactor_full_account.active_keyset_id.clone(),
+    };
+
+    let destination = if beneficiary_is_private {
+        let ks = beneficiary_full_account
+            .active_spending_keyset()
+            .expect("missing active spending keyset")
+            .optional_private_multi_sig()
+            .expect("beneficiary is not a private multi-sig account");
+
+        let keys = predefined_descriptor_public_keys();
+        sweep_destination_for_ccd(
+            keys.app_account_descriptor_keypair().1,
+            keys.hardware_account_dpub,
+            predefined_server_root_xpub(Network::BitcoinSignet, ks.server_pub),
+            beneficiary_address,
+        )
+    } else {
+        SweepDestination::External(beneficiary_address)
+    };
+
+    let psbt = build_sweep_psbt_for_protocol(&source_fixture, destination);
 
     // act
     let uri = format!(
@@ -941,8 +1071,16 @@ async fn test_complete_inheritance_claim_success() {
     assert_eq!(actual_psbt_txid, psbt.unsigned_tx.txid());
 }
 
+#[rstest]
+#[case::legacy(false, false)]
+#[case::migration(false, true)]
+#[case::private(true, true)]
+#[case::downgrade(true, false)]
 #[tokio::test]
-async fn test_complete_without_psbt_inheritance_claim_success() {
+async fn test_complete_without_psbt_inheritance_claim_success(
+    #[case] benefactor_is_private: bool,
+    #[case] beneficiary_is_private: bool,
+) {
     // arrange
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
@@ -961,6 +1099,8 @@ async fn test_complete_without_psbt_inheritance_claim_success() {
         &mut context,
         &bootstrap,
         &client,
+        benefactor_is_private,
+        beneficiary_is_private,
         AccountType::Full,
     )
     .await;
@@ -1033,6 +1173,8 @@ async fn test_complete_inheritance_claim_rbf_success() {
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Full,
     )
     .await;
@@ -1099,7 +1241,7 @@ async fn test_complete_inheritance_claim_rbf_success() {
     assert_eq!(actual_psbt_txid, rbf_psbt.unsigned_tx.txid());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_complete_inheritance_claim_sanctions_failure() {
     // arrange
     let (mut context, bootstrap) = gen_services().await;
@@ -1114,6 +1256,8 @@ async fn test_complete_inheritance_claim_sanctions_failure() {
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Full,
     )
     .await;
@@ -1187,6 +1331,8 @@ async fn test_complete_inheritance_claim_unsigned_psbt_fails() {
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Full,
     )
     .await;
@@ -1340,11 +1486,20 @@ async fn create_lockable_claim(
 
     complete_claim_delay_period(bootstrap, &pending_claim).await;
 
+    let (sealed_descriptor, sealed_server_root_xpub) = if matches!(benefactor, Account::Full(full_account) if matches!(full_account.active_spending_keyset(), Some(SpendingKeyset::PrivateMultiSig(_))))
+    {
+        (Some("sealed_descriptor"), Some("sealed_server_root_xpub"))
+    } else {
+        (None, None)
+    };
+
     try_package_upload(
         context,
         client,
         benefactor.get_id(),
         &[recovery_relationship_id.clone()],
+        sealed_descriptor,
+        sealed_server_root_xpub,
         StatusCode::OK,
     )
     .await;
@@ -1380,6 +1535,8 @@ async fn test_delete_relationship_with_claim(
         &mut context,
         &bootstrap,
         &client,
+        false,
+        false,
         AccountType::Full,
     )
     .await;

@@ -193,6 +193,8 @@ pub struct InheritanceClaimLocked {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sealed_descriptor: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_server_root_xpub: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub benefactor_descriptor_keyset: Option<ExtendedDescriptor>,
     #[serde(with = "rfc3339")]
     pub locked_at: OffsetDateTime,
@@ -273,6 +275,7 @@ impl InheritanceClaim {
                 sealed_dek: locked.sealed_dek.to_owned(),
                 sealed_mobile_key: locked.sealed_mobile_key.to_owned(),
                 sealed_descriptor: locked.sealed_descriptor.to_owned(),
+                sealed_server_root_xpub: locked.sealed_server_root_xpub.to_owned(),
                 locked_at: locked.locked_at,
             }),
             Self::Completed(completed) => Self::Completed(InheritanceClaimCompleted {

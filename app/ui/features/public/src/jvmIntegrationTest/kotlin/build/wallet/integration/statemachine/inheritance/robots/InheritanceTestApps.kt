@@ -73,11 +73,26 @@ suspend fun TestScope.launchInheritanceApps(
   beneficiaryName: String = "bob",
 ): InheritanceTestApps {
   val benefactorApp = launchNewApp(executeWorkers = false)
+  val beneficiaryApp = launchNewApp(cloudKeyValueStore = benefactorApp.cloudKeyValueStore)
+  return setupInheritanceBetween(
+    benefactorApp = benefactorApp,
+    beneficiaryApp = beneficiaryApp,
+    benefactorName = benefactorName,
+    beneficiaryName = beneficiaryName
+  )
+}
+
+suspend fun TestScope.setupInheritanceBetween(
+  benefactorApp: AppTester,
+  beneficiaryApp: AppTester,
+  benefactorName: String = "alice",
+  beneficiaryName: String = "bob",
+): InheritanceTestApps {
   benefactorApp.inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
   benefactorApp.onboardFullAccountWithFakeHardware(
     cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
   )
-  val beneficiaryApp = launchNewApp(cloudKeyValueStore = benefactorApp.cloudKeyValueStore)
+
   beneficiaryApp.inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
   beneficiaryApp.onboardFullAccountWithFakeHardware(
     cloudStoreAccountForBackup = CloudStoreAccountFake.TrustedContactFake

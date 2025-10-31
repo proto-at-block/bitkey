@@ -82,22 +82,22 @@ impl Service {
             return Err(ServiceError::ClaimDelayNotComplete);
         }
 
-        let (inheritance_package, benefactor_descriptor_keyset) = tokio::try_join!(
+        let (inheritance_package, benefactor_descriptor) = tokio::try_join!(
             self.get_inheritance_package(recovery_relationship_id),
             self.fetch_active_benefactor_descriptor_keyset(recovery_relationship_id)
         )?;
 
-        let (_, benefactor_descriptor) = benefactor_descriptor_keyset;
-        let benefactor_descriptor = benefactor_descriptor
-            .into_multisig_descriptor()
-            .map_err(ServiceError::BdkUtils)?;
+        let benefactor_descriptor_keyset = benefactor_descriptor
+            .map(|d| d.into_multisig_descriptor().map_err(ServiceError::BdkUtils))
+            .transpose()?;
 
         let locked_claim = InheritanceClaimLocked {
             common_fields: pending_claim.common_fields.to_owned(),
             sealed_dek: inheritance_package.sealed_dek,
             sealed_mobile_key: inheritance_package.sealed_mobile_key,
             sealed_descriptor: inheritance_package.sealed_descriptor,
-            benefactor_descriptor_keyset: Some(benefactor_descriptor),
+            sealed_server_root_xpub: inheritance_package.sealed_server_root_xpub,
+            benefactor_descriptor_keyset,
             locked_at: OffsetDateTime::now_utc(),
         };
 

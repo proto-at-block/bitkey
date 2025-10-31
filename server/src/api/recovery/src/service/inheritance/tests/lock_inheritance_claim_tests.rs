@@ -35,10 +35,11 @@ async fn test_lock_inheritance_claim_success() {
     let sealed_dek = "TEST_SEALED_DEK".to_string();
     let sealed_mobile_key = "TEST_SEALED_MOBILE_KEY".to_string();
     create_inheritance_package(
-        &benefactor_account.id,
+        &benefactor_account,
         &recovery_relationship_id,
         &sealed_dek,
         &sealed_mobile_key,
+        None,
         None,
     )
     .await;
@@ -111,10 +112,11 @@ async fn test_lock_inheritance_claim_before_delay_end_fails() {
     let recovery_relationship_id = pending_claim.common_fields.recovery_relationship_id.clone();
 
     create_inheritance_package(
-        &benefactor_account.id,
+        &benefactor_account,
         &recovery_relationship_id,
         "test_dek",
         "test_mobile_key",
+        None,
         None,
     )
     .await;
@@ -262,10 +264,11 @@ async fn test_lock_inheritance_claim_canceled_claim() {
     let sealed_mobile_key = "TEST_SEALED_MOBILE_KEY".to_string();
 
     create_inheritance_package(
-        &benefactor_account.id,
+        &benefactor_account,
         &recovery_relationship_id,
         &sealed_dek,
         &sealed_mobile_key,
+        None,
         None,
     )
     .await;
@@ -315,10 +318,11 @@ async fn test_lock_inheritance_claim_locked_claim_success() {
     let sealed_dek = "TEST_SEALED_DEK".to_string();
     let sealed_mobile_key = "TEST_SEALED_MOBILE_KEY".to_string();
     create_inheritance_package(
-        &benefactor_account.id,
+        &benefactor_account,
         &recovery_relationship_id,
         &sealed_dek,
         &sealed_mobile_key,
+        None,
         None,
     )
     .await;

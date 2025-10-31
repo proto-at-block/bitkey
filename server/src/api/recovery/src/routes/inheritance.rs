@@ -310,6 +310,8 @@ pub struct InheritancePackage {
     pub sealed_mobile_key: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sealed_descriptor: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_server_root_xpub: Option<String>,
 }
 impl From<InheritancePackage> for Package {
     fn from(value: InheritancePackage) -> Self {
@@ -318,6 +320,7 @@ impl From<InheritancePackage> for Package {
             sealed_dek: value.sealed_dek,
             sealed_mobile_key: value.sealed_mobile_key,
             sealed_descriptor: value.sealed_descriptor,
+            sealed_server_root_xpub: value.sealed_server_root_xpub,
 
             updated_at: OffsetDateTime::now_utc(),
             created_at: OffsetDateTime::now_utc(),
@@ -356,7 +359,7 @@ pub async fn upload_inheritance_packages(
         })
         .await?;
 
-    let Account::Full(_) = account else {
+    let Account::Full(full_account) = &account else {
         return Err(ApiError::GenericForbidden(
             "Incorrect calling account type".to_string(),
         ));
@@ -366,7 +369,7 @@ pub async fn upload_inheritance_packages(
 
     inheritance_service
         .upload_packages(UploadPackagesInput {
-            benefactor_account_id: &account_id,
+            benefactor_full_account: full_account,
             packages,
         })
         .await?;

@@ -7,6 +7,7 @@ import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.feature.setFlagValue
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.testForLegacyAndPrivateWallet
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.shouldBeOkOfType
 import io.kotest.core.spec.style.FunSpec
@@ -27,9 +28,7 @@ class AccountRepositoryImplComponentTests : FunSpec({
     }
   }
 
-  test("active Full account is present") {
-    val app = launchNewApp()
-
+  testForLegacyAndPrivateWallet("active Full account is present") { app ->
     val account = app.onboardFullAccountWithFakeHardware()
 
     app.accountService.accountStatus().test {

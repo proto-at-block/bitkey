@@ -60,6 +60,8 @@ object BeneficiaryClaimSerializer : KSerializer<BeneficiaryClaim> {
     val sealedDescriptor: XCiphertext? = null,
     @SerialName("benefactor_descriptor_keyset")
     val benefactorKeyset: BenefactorDescriptorKeyset? = null,
+    @SerialName("sealed_server_root_xpub")
+    val sealedServerRootXpub: XCiphertext? = null,
   ) {
     constructor(claim: BeneficiaryClaim) : this(
       status = when (claim) {
@@ -77,7 +79,8 @@ object BeneficiaryClaimSerializer : KSerializer<BeneficiaryClaim> {
       sealedDek = (claim as? BeneficiaryClaim.LockedClaim)?.sealedDek,
       sealedMobileKey = (claim as? BeneficiaryClaim.LockedClaim)?.sealedMobileKey,
       sealedDescriptor = (claim as? BeneficiaryClaim.LockedClaim)?.sealedDescriptor,
-      benefactorKeyset = (claim as? BeneficiaryClaim.LockedClaim)?.benefactorKeyset
+      benefactorKeyset = (claim as? BeneficiaryClaim.LockedClaim)?.benefactorKeyset,
+      sealedServerRootXpub = (claim as? BeneficiaryClaim.LockedClaim)?.sealedServerRootXpub
     )
 
     fun asPendingClaim() =
@@ -102,7 +105,8 @@ object BeneficiaryClaimSerializer : KSerializer<BeneficiaryClaim> {
         sealedDek = sealedDek!!,
         sealedMobileKey = sealedMobileKey!!,
         sealedDescriptor = sealedDescriptor,
-        benefactorKeyset = benefactorKeyset
+        benefactorKeyset = benefactorKeyset,
+        sealedServerRootXpub = sealedServerRootXpub
       )
 
     fun asCompleteClaim() =

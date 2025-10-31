@@ -56,7 +56,8 @@ class InheritanceServiceImplTests : FunSpec({
         relationshipId = RelationshipId("fake-relationship-id"),
         sealedDek = XCiphertext("fake-sealed-dek"),
         sealedMobileKey = XCiphertext("fake-encrypted-material"),
-        sealedDescriptor = XCiphertext("fake-sealed-descriptor")
+        sealedDescriptor = XCiphertext("fake-sealed-descriptor"),
+        sealedServerRootXpub = XCiphertext("fake-sealed-server-root-xpub")
       )
     )
   )

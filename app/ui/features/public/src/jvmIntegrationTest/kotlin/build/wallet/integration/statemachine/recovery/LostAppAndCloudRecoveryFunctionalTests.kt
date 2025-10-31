@@ -29,7 +29,6 @@ import build.wallet.testing.ext.*
 import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.core.test.TestScope
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -37,29 +36,32 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
 class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
-  lateinit var app: AppTester
-
-  suspend fun TestScope.setup(initWithTreasuryFunds: BitcoinMoney = BitcoinMoney.zero()) {
-    app = launchNewApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
-    app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
+  suspend fun AppTester.setupForLostApp(
+    initWithTreasuryFunds: BitcoinMoney = BitcoinMoney.zero(),
+    delayNotifyDuration: kotlin.time.Duration = 5.seconds,
+  ) {
+    encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
+    onboardFullAccountWithFakeHardware(delayNotifyDuration = delayNotifyDuration)
     if (initWithTreasuryFunds != BitcoinMoney.zero()) {
-      val wallet = app.getActiveWallet()
-      app.treasuryWallet.fund(wallet, initWithTreasuryFunds)
+      val wallet = getActiveWallet()
+      treasuryWallet.fund(wallet, initWithTreasuryFunds)
     }
-    app.appDataDeleter.deleteAll().getOrThrow()
-    app.cloudBackupDeleter.delete()
-    app.deleteBackupsFromFakeCloud()
+    appDataDeleter.deleteAll().getOrThrow()
+    cloudBackupDeleter.delete()
+    deleteBackupsFromFakeCloud()
   }
 
-  suspend fun relaunchApp() {
-    app = app.relaunchApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
-    app.defaultAccountConfigService.setDelayNotifyDuration(5.seconds)
+  suspend fun AppTester.relaunchForLostApp(
+    delayNotifyDuration: kotlin.time.Duration = 5.seconds,
+  ): AppTester {
+    return relaunchApp().also { relaunched ->
+      relaunched.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
+      relaunched.defaultAccountConfigService.setDelayNotifyDuration(delayNotifyDuration)
+    }
   }
 
-  test("delay & notify - no cloud backup") {
-    setup()
+  testForLegacyAndPrivateWallet("delay & notify - no cloud backup") { app ->
+    app.setupForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -104,8 +106,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("delay & notify - no cloud access") {
-    setup()
+  testForLegacyAndPrivateWallet("delay & notify - no cloud access") { app ->
+    app.setupForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -150,8 +152,10 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
   }
-  test("recovery lost app - force exiting in the middle of initiating") {
-    setup()
+
+  testForLegacyAndPrivateWallet("recovery lost app - force exiting in the middle of initiating") { initialApp ->
+    var app = initialApp
+    app.setupForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -176,11 +180,10 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
-
       cancelAndIgnoreRemainingEvents()
     }
 
-    relaunchApp()
+    app = app.relaunchForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -209,8 +212,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("force exiting before spending key activation takes you back to spending key activation") {
-    setup()
+  testForLegacyAndPrivateWallet("force exiting before spending key activation takes you back to spending key activation") { initialApp ->
+    var app = initialApp
+    app.setupForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -243,7 +247,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
     }
 
-    relaunchApp()
+    app = app.relaunchForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -266,8 +270,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("force exiting before cloud backup takes you back to icloud backup") {
-    setup()
+  testForLegacyAndPrivateWallet("force exiting before cloud backup takes you back to icloud backup") { initialApp ->
+    var app = initialApp
+    app.setupForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -301,7 +306,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
 
     // Force quit app before cloud backup was saved
-    relaunchApp()
+    app = app.relaunchForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -324,8 +329,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("force exiting after cloud backup & before sweep takes you back to sweep") {
-    setup()
+  testForLegacyAndPrivateWallet("force exiting after cloud backup & before sweep takes you back to sweep") { initialApp ->
+    var app = initialApp
+    app.setupForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -365,7 +371,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
 
     // Force quit app after cloud backup was saved but before sweep
-    relaunchApp()
+    app = app.relaunchForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -383,8 +389,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("force exiting during D&N wait") {
-    setup()
+  testForLegacyAndPrivateWallet("force exiting during D&N wait") { initialApp ->
+    var app = initialApp
+    app.setupForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -414,7 +421,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
 
     // Force quit app during D&N wait
-    relaunchApp()
+    app = app.relaunchForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -434,8 +441,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("ensure funds are swept after recovery") {
-    setup(BitcoinMoney.sats(10_000))
+  testForLegacyAndPrivateWallet("ensure funds are swept after recovery") { app ->
+    app.setupForLostApp(initWithTreasuryFunds = BitcoinMoney.sats(10_000))
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -481,13 +488,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
       app.waitForFunds()
       app.returnFundsToTreasury()
-
       cancelAndIgnoreRemainingEvents()
     }
   }
 
-  test("cancel initiated delay & notify recovery when delay period is in progress") {
-    setup()
+  testForLegacyAndPrivateWallet("cancel initiated delay & notify recovery when delay period is in progress") { app ->
+    app.setupForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -527,8 +533,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("cancel initiated delay & notify recovery when delay period has finished") {
-    setup()
+  testForLegacyAndPrivateWallet("cancel initiated delay & notify recovery when delay period has finished") { app ->
+    app.setupForLostApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -574,7 +580,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   }
 
   test("lost app recovery refreshes descriptor backups if enabled") {
-    setup()
+    var app = launchNewApp()
+    app.setupForLostApp()
     app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
     app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
 
@@ -587,7 +594,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     app.cloudBackupDeleter.delete()
     app.deleteBackupsFromFakeCloud()
 
-    app = app.relaunchApp()
+    app = app.relaunchForLostApp()
     app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
 
     app.performRecovery()
@@ -598,7 +605,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   }
 
   test("lost app recovery clears canUseKeyboxKeysets if backups are disabled") {
-    setup()
+    var app = launchNewApp()
+    app.setupForLostApp()
     app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
     app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
 
@@ -611,7 +619,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     app.cloudBackupDeleter.delete()
     app.deleteBackupsFromFakeCloud()
 
-    app = app.relaunchApp()
+    app = app.relaunchForLostApp()
     app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
 
     app.performRecovery()

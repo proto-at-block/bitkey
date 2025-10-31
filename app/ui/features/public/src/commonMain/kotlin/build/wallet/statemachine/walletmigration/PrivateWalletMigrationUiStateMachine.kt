@@ -30,4 +30,8 @@ data class PrivateWalletMigrationUiProps(
    * Called when user cancels migration or it fails.
    */
   val onExit: () -> Unit,
+  /**
+   * Whether the migration flow was started while in-progress.
+   */
+  val inProgress: Boolean = false,
 )

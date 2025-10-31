@@ -34,6 +34,8 @@ use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::{
     account_validation::{AccountValidation, AccountValidationRequest},
+    emit_keyset_created,
+    metrics::PRIVATE_VALUE,
     routes::Config,
     upsert_account_iterable_user,
 };
@@ -201,6 +203,8 @@ pub async fn create_account_v2(
         is_test_account: request.is_test_account,
     };
     let account = account_service.create_account_and_keysets(input).await?;
+
+    emit_keyset_created(PRIVATE_VALUE);
 
     // Attempt to create account Iterable user early, but don't fail the account creation if
     // this fails. We upsert the users later when they're needed anyway; this is an optimization
@@ -380,6 +384,8 @@ pub async fn upgrade_account_v2(
         .upgrade_lite_account_to_full_account(input)
         .await?;
 
+    emit_keyset_created(PRIVATE_VALUE);
+
     Ok(Json(CreateKeysetResponseV2 {
         keyset_id: full_account.active_keyset_id,
         server_pub,
@@ -518,6 +524,8 @@ pub async fn create_keyset_v2(
             ),
         })
         .await?;
+
+    emit_keyset_created(PRIVATE_VALUE);
 
     Ok(Json(CreateKeysetResponseV2 {
         keyset_id: inactive_spend_keyset_id,

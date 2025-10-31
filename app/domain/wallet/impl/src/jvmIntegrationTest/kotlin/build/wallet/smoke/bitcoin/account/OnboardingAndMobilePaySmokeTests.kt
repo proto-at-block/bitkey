@@ -7,13 +7,14 @@ import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
-import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.setupMobilePay
+import build.wallet.testing.ext.testForLegacyAndPrivateWallet
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.tags.TestTag.ServerSmoke
 import com.github.michaelbull.result.fold
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 
@@ -23,13 +24,11 @@ const val ALLOWED_BDK_ERROR_INPUTS_MISSING_OR_SPENT = "bad-txns-inputs-missingor
 class OnboardingAndMobilePaySmokeTests : FunSpec({
   tags(ServerSmoke)
 
-  test("smoke") {
-    val app = launchNewApp()
-
+  testForLegacyAndPrivateWallet("smoke") { app ->
     /**
      * Onboard a new fake hardware and app
      */
-    val account = app.onboardFullAccountWithFakeHardware(shouldSetUpNotifications = true)
+    app.onboardFullAccountWithFakeHardware(shouldSetUpNotifications = true)
     val keyboxWallet = app.getActiveWallet()
 
     /**
@@ -64,11 +63,9 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
           )
         ).getOrThrow()
 
-    val serverSignedPsbt = app.mobilePaySigningF8eClient.signWithSpecificKeyset(
-      account.config.f8eEnvironment,
-      account.accountId,
-      account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
-      appSignedPsbt
+    val serverSignedPsbt = app.mobilePayService.signPsbtWithMobilePay(
+      psbt = appSignedPsbt,
+      grant = null
     ).getOrThrow()
 
     app.bitcoinBlockchain.broadcast(serverSignedPsbt).fold(

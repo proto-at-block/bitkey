@@ -1,8 +1,10 @@
 package build.wallet.bitcoin.address
 
 import bitkey.notifications.NotificationsPreferencesCachedProvider
+import bitkey.recovery.DescriptorBackupService
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
+import build.wallet.bdk.bindings.BdkAddressIndex
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
@@ -25,6 +27,7 @@ class BitcoinAddressServiceImpl(
   private val bitcoinWalletService: BitcoinWalletService,
   private val accountService: AccountService,
   private val notificationsPreferencesCachedProvider: NotificationsPreferencesCachedProvider,
+  private val descriptorBackupService: DescriptorBackupService,
 ) : BitcoinAddressService, BitcoinRegisterWatchAddressWorker {
   private val addressCache = MutableStateFlow<AccountWithAddress?>(null)
 
@@ -59,12 +62,27 @@ class BitcoinAddressServiceImpl(
       ) ?: false
   }
 
-  override suspend fun generateAddress(): Result<BitcoinAddress, Throwable> {
+  override suspend fun generateAddress(
+    addressIndex: BdkAddressIndex,
+  ): Result<BitcoinAddress, Throwable> {
     return coroutineBinding {
       val account = accountService.getAccount<FullAccount>().bind()
+
+      // Check descriptor backup health first
+      val activeSpendingKeyset = account.keybox.activeSpendingKeyset
+      if (activeSpendingKeyset.isPrivateWallet) {
+        descriptorBackupService
+          .checkBackupForPrivateKeyset(activeSpendingKeyset.f8eSpendingKeyset.keysetId)
+          .bind()
+      }
+
       val wallet = bitcoinWalletService.spendingWallet().value
       ensureNotNull(wallet) { Error("No spending wallet found.") }
-      val address = wallet.getNewAddress().bind()
+      val address = when (addressIndex) {
+        BdkAddressIndex.LastUnused -> wallet.getLastUnusedAddress().bind()
+        BdkAddressIndex.New -> wallet.getNewAddress().bind()
+        is BdkAddressIndex.Peek -> wallet.peekAddress(addressIndex.index).bind()
+      }
       addressCache.emit(AccountWithAddress(account = account, bitcoinAddress = address))
       address
     }.logFailure { "Error generating bitcoin address." }

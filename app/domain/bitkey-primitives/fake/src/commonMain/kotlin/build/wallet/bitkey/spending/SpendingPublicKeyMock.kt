@@ -30,13 +30,8 @@ val SpendingKeysetMock =
     appKey = AppSpendingPublicKeyMock,
     hardwareKey = HwSpendingPublicKeyMock
   )
-val PrivateWalletSpendingKeysetMock = SpendingKeysetMock.copy(
-  f8eSpendingKeyset = SpendingKeysetMock.f8eSpendingKeyset.copy(
-    serverIntegritySignature = "test-signature"
-  )
-)
 
-val SpendingKeysetMock2 =
+val PrivateSpendingKeysetMock =
   SpendingKeyset(
     localId = "spending-public-keyset-fake-id-2",
     f8eSpendingKeyset =
@@ -45,7 +40,8 @@ val SpendingKeysetMock2 =
         spendingPublicKey =
           F8eSpendingPublicKey(
             DescriptorPublicKeyMock(identifier = "server-dpub-2")
-          )
+          ),
+        privateWalletRootXpub = "tpubD6NzVbkrYhZ4XPMXVToEroepyTscQmHYrdSDbvZvAFonusog8TjTB3iTQZ2Ds8atDfdxzN7DAioQ8Z4KBa4RD16FX7caE5hxiMbvkVr9Fom"
       ),
     networkType = SIGNET,
     appKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "app-dpub-2")),

@@ -5,7 +5,6 @@ Configuration for the Bitkey mobile app. **Read actual rule content - don't assu
 **Apply all rules below during code reviews and code generation.**
 
 @ai-rules/bitkey-mobile.mdc
-@ai-rules/ai-code-review.mdc
 @ai-rules/rule-writing.mdc
 @ai-rules/context-gathering.mdc
 @ai-rules/strong-typing.mdc

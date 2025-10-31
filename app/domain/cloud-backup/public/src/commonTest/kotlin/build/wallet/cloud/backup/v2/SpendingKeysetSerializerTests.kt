@@ -27,6 +27,19 @@ class SpendingKeysetSerializerTests : FunSpec({
       }
     }
   """
+  val encodedStringWithPrivateWalletRootXpub = """
+    {
+      "spendingKeyset": {
+        "localId": "foo",
+        "keysetServerId": "keyset-id",
+        "appDpub": "[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK/*",
+        "hardwareDpub": "[deadbeef/0h/1h/2h]xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/3h/4h/5h/*h",
+        "serverDpub": "[34eae6a8/84'/0'/0']xpubDDj952KUFGTDcNV1qY5Tuevm6vnBWK8NSpTTkCz1XTApv2SeDaqcrUTBgDdCRF9KmtxV33R8E9NtSi9VSBUPj4M3fKr4uk3kRy8Vbo1LbAv/*",
+        "privateWalletRootXpub": "tpubD6NzVbkrYhZ4XPMXVToEroepyTscQmHYrdSDbvZvAFonusog8TjTB3iTQZ2Ds8atDfdxzN7DAioQ8Z4KBa4RD16FX7caE5hxiMbvkVr9Fom",
+        "bitcoinNetworkType": "TESTNET"
+      }
+    }
+  """
   val decodedObject =
     SpendingKeysetHolder(
       SpendingKeyset(
@@ -46,19 +59,55 @@ class SpendingKeysetSerializerTests : FunSpec({
             spendingPublicKey =
               F8eSpendingPublicKey(
                 dpub = "[34eae6a8/84'/0'/0']xpubDDj952KUFGTDcNV1qY5Tuevm6vnBWK8NSpTTkCz1XTApv2SeDaqcrUTBgDdCRF9KmtxV33R8E9NtSi9VSBUPj4M3fKr4uk3kRy8Vbo1LbAv/*"
-              )
+              ),
+            privateWalletRootXpub = null
+          )
+      )
+    )
+  val decodedObjectWithPrivateWalletRootXpub =
+    SpendingKeysetHolder(
+      SpendingKeyset(
+        localId = "foo",
+        networkType = BitcoinNetworkType.TESTNET,
+        appKey =
+          AppSpendingPublicKey(
+            dpub = "[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK/*"
+          ),
+        hardwareKey =
+          HwSpendingPublicKey(
+            dpub = "[deadbeef/0h/1h/2h]xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/3h/4h/5h/*h"
+          ),
+        f8eSpendingKeyset =
+          F8eSpendingKeyset(
+            keysetId = "keyset-id",
+            spendingPublicKey =
+              F8eSpendingPublicKey(
+                dpub = "[34eae6a8/84'/0'/0']xpubDDj952KUFGTDcNV1qY5Tuevm6vnBWK8NSpTTkCz1XTApv2SeDaqcrUTBgDdCRF9KmtxV33R8E9NtSi9VSBUPj4M3fKr4uk3kRy8Vbo1LbAv/*"
+              ),
+            privateWalletRootXpub =
+              "tpubD6NzVbkrYhZ4XPMXVToEroepyTscQmHYrdSDbvZvAFonusog8TjTB3iTQZ2Ds8atDfdxzN7DAioQ8Z4KBa4RD16FX7caE5hxiMbvkVr9Fom"
           )
       )
     )
 
-  test("serialize") {
+  test("serialize legacy spending keyset") {
     val encoded = Json.encodeToString(decodedObject)
     encoded.shouldEqualJson(encodedString)
   }
 
-  test("deserialize") {
+  test("deserialize legacy spending keyset") {
     val decoded = Json.decodeFromString<SpendingKeysetHolder>(encodedString)
     decoded.shouldBeEqual(decodedObject)
+  }
+
+  test("serialize private wallet spending keyset") {
+    val encoded = Json.encodeToString(decodedObjectWithPrivateWalletRootXpub)
+    encoded.shouldEqualJson(encodedStringWithPrivateWalletRootXpub)
+  }
+
+  test("deserialize private wallet spending keyset") {
+    val decoded = Json.decodeFromString<SpendingKeysetHolder>(encodedStringWithPrivateWalletRootXpub)
+    decoded.shouldBeEqual(decodedObjectWithPrivateWalletRootXpub)
   }
 })
 

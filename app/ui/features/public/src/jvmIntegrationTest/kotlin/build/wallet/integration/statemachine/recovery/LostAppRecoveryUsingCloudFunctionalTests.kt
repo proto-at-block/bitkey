@@ -23,14 +23,14 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
+import build.wallet.testing.ext.testForLegacyAndPrivateWallet
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import kotlin.time.Duration.Companion.seconds
 
 class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
-  test("recover keybox with no funds from cloud backup") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("recover keybox with no funds from cloud backup") { app ->
     app.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccount1Fake
     )
@@ -72,8 +72,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
     }
   }
 
-  test("recover keybox with some funds from cloud backup") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("recover keybox with some funds from cloud backup") { app ->
     app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
     val treasury = app.treasuryWallet
     treasury.fund(app.getActiveWallet(), BitcoinMoney.sats(10_000))
@@ -122,8 +121,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
     }
   }
 
-  test("Cloud recovery, force exit app in middle of initiating") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("Cloud recovery, force exit app in middle of initiating") { app ->
     app.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccount1Fake
     )
@@ -161,8 +159,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
     }
   }
 
-  test("no cloud backup") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("no cloud backup") { app ->
     app.appUiStateMachine.test(Unit) {
       awaitUntilBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()

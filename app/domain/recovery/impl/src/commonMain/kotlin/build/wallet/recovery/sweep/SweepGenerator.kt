@@ -13,6 +13,9 @@ interface SweepGenerator {
   sealed class SweepGeneratorError : Error() {
     data class AppPrivateKeyMissing(override val cause: Throwable) : SweepGeneratorError()
 
+    /** Something went wrong in [build.wallet.chaincode.delegation.PsbtUtils] when tweaking the psbt. */
+    data class FailedToTweakPsbt(override val cause: Throwable) : SweepGeneratorError()
+
     /** Error listing keysets from f8e */
     data object FailedToListKeysets : SweepGeneratorError()
 
@@ -34,5 +37,11 @@ interface SweepGenerator {
     data class ErrorSyncingSpendingWallet(
       override val cause: Throwable,
     ) : SweepGeneratorError()
+
+    /**
+     * Private wallet keybox does not have local keysets.
+     * This should never happen as private wallets require local keysets for chain code delegation.
+     */
+    data object PrivateWalletMissingLocalKeysets : SweepGeneratorError()
   }
 }

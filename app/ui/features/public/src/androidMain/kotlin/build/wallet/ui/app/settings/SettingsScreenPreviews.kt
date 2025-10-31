@@ -66,9 +66,9 @@ fun SettingsScreen(securityHubClickHandler: (() -> Unit)? = null) {
                 ) {},
                 SettingsBodyModel.RowModel(
                   icon = Icon.SmallIconWallet,
-                  title = "Enhanced Wallet Privacy",
+                  title = "Private Wallet Update",
                   isDisabled = false,
-                  coachmarkLabelModel = CoachmarkLabelModel.Upgrade
+                  coachmarkLabelModel = CoachmarkLabelModel.New
                 ) {}
               )
           )

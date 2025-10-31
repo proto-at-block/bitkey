@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import bitkey.account.AccountConfigService
 import bitkey.account.DefaultAccountConfig
 import bitkey.account.FullAccountConfig
+import bitkey.account.LiteAccountConfig
 import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.account.getActiveOrOnboardingAccountOrNull
@@ -36,7 +37,9 @@ import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
 import build.wallet.nfc.NfcTransactor
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.transaction.NfcTransaction
+import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.Recovery
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.NfcSessionUIState.*
@@ -44,6 +47,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIState.AndroidOnly.*
 import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
+import build.wallet.statemachine.settings.showDebugMenu
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -129,10 +133,15 @@ class NfcSessionUIStateMachineProps<T>(
   }
 }
 
-interface NfcSessionUIStateMachine : StateMachine<NfcSessionUIStateMachineProps<*>, ScreenModel>
+interface NfcSessionUIStateMachine : StateMachine<NfcSessionUIStateMachineProps<*>, ScreenModel> {
+  companion object {
+    const val TROUBLESHOOTING_URL = "https://bitkey.world/hc/nfc-error"
+  }
+}
 
 @BitkeyInject(ActivityScope::class)
 class NfcSessionUIStateMachineImpl(
+  private val appVariant: AppVariant,
   private val nfcReaderCapability: NfcReaderCapability,
   private val enableNfcNavigator: EnableNfcNavigator,
   private val deviceInfoProvider: DeviceInfoProvider,
@@ -143,6 +152,7 @@ class NfcSessionUIStateMachineImpl(
   private val accountService: AccountService,
   private val recoveryStatusService: RecoveryStatusService,
   private val checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : NfcSessionUIStateMachine {
   /**
    * Text shown under the progress spinner (on Android) or on the iOS NFC Sheet when performing
@@ -159,6 +169,12 @@ class NfcSessionUIStateMachineImpl(
       when (accountConfig) {
         is FullAccountConfig -> accountConfig.isHardwareFake
         is DefaultAccountConfig -> accountConfig.isHardwareFake
+        // Allow the use of mock hardware to upgrade from Lite -> Full in dev/team apps
+        is LiteAccountConfig -> if (appVariant.showDebugMenu) {
+          accountConfigService.defaultConfig().value.isHardwareFake
+        } else {
+          false
+        }
         else -> false
       }
     }
@@ -299,7 +315,16 @@ class NfcSessionUIStateMachineImpl(
           exception = currentState.nfcException,
           onPrimaryButtonClick = props.onCancel,
           onSecondaryButtonClick = {
-            props.onInauthenticHardware(currentState.nfcException)
+            when (currentState.nfcException) {
+              is NfcException.InauthenticHardware -> {
+                props.onInauthenticHardware(currentState.nfcException)
+              }
+              else -> {
+                inAppBrowserNavigator.open(NfcSessionUIStateMachine.TROUBLESHOOTING_URL) {
+                  // onClose callback
+                }
+              }
+            }
           },
           segment = props.segment,
           actionDescription = props.actionDescription,

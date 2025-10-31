@@ -9,6 +9,8 @@ sealed class ChaincodeDelegationError(
     message: String?,
   ) : ChaincodeDelegationError(cause, message)
 
+  class InvalidPsbt(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
+
   class KeyMismatch(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
 
   class TweakComputation(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
@@ -16,6 +18,18 @@ sealed class ChaincodeDelegationError(
   class PublicKeyExtraction(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
 
   class UnknownKey(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
+
+  class ActiveKeyboxUnavailable(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
+
+  class AppSpendingPrivateKeyMissing(
+    cause: Throwable?,
+    message: String?,
+  ) : ChaincodeDelegationError(cause, message)
+
+  class ServerRootXpubMissing(
+    cause: Throwable?,
+    message: String?,
+  ) : ChaincodeDelegationError(cause, message)
 
   class Unknown(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
 }

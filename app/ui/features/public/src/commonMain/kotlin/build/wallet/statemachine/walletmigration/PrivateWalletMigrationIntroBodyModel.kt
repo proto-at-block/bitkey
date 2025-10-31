@@ -20,24 +20,26 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 data class PrivateWalletMigrationIntroBodyModel(
-  override val onBack: () -> Unit,
+  override val onBack: (() -> Unit)?,
   val onContinue: () -> Unit,
-  val onLearnMore: () -> Unit,
+  val onLearnHow: () -> Unit,
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_INTRO,
     onBack = onBack,
-    toolbar = ToolbarModel(
-      leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(
-        onClick = onBack
+    toolbar = onBack?.let {
+      ToolbarModel(
+        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(
+          onClick = onBack
+        )
       )
-    ),
+    },
     header = FormHeaderModel(
-      headline = "Upgrade to an enhanced privacy wallet",
+      headline = "Update your wallet for increased privacy",
       sublineModel = LabelModel.LinkSubstringModel.from(
         substringToOnClick = mapOf(
-          "Learn more" to onLearnMore
+          "Learn how" to onLearnHow
         ),
-        string = "Use Bitkey without ever revealing your descriptor — your balance and any transaction made with your two keys is private, even from Bitkey servers. Learn more",
+        string = "You can now use Bitkey without exposing balance or transaction information to the Bitkey servers. Learn how",
         underline = true,
         bold = false
       ),
@@ -46,7 +48,7 @@ data class PrivateWalletMigrationIntroBodyModel(
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
         listGroupModel = ListGroupModel(
-          header = "How it works",
+          header = "Ready to update?",
           style = ListGroupStyle.NONE,
           headerTreatment = ListGroupModel.HeaderTreatment.SECONDARY,
           items = immutableListOf(
@@ -63,7 +65,7 @@ data class PrivateWalletMigrationIntroBodyModel(
             ),
             ListItemModel(
               title = "Network fees apply",
-              secondaryText = "To upgrade your wallet, your balance will be transferred on-chain. Network fees apply.",
+              secondaryText = "Your balance will be transferred on-chain to your updated wallet. Network fees may apply.",
               leadingAccessory = ListItemAccessory.IconAccessory(
                 model = IconModel(
                   icon = Icon.SmallIconBitcoinStroked,
@@ -76,9 +78,10 @@ data class PrivateWalletMigrationIntroBodyModel(
         )
       )
     ),
-    primaryButton = ButtonModel.BitkeyInteractionButtonModel(
+    primaryButton = ButtonModel(
       text = "Continue",
       size = ButtonModel.Size.Footer,
+      treatment = ButtonModel.Treatment.Primary,
       onClick = StandardClick(onContinue)
     )
   )

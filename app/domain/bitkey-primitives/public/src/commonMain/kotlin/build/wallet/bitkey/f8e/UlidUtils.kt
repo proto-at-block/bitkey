@@ -2,7 +2,6 @@ package build.wallet.bitkey.f8e
 
 import bitkey.serialization.base32.Base32Encoding
 import com.github.michaelbull.result.getOr
-import okio.Buffer
 
 /**
  * Extracts the timestamp from a server ID URN containing a ULID.
@@ -21,11 +20,15 @@ fun extractUlidTimestampFromUrn(serverId: String): Long {
   val decodedBytes = Base32Encoding.decode(timestampPart).getOr(null)
     ?: return 0L
 
-  // ULID timestamp is 48 bits (6 bytes), pad to 8 for Long
-  val buffer = Buffer()
-  buffer.writeByte(0)  // Pad 2 bytes for 64-bit long
-  buffer.writeByte(0)
-  buffer.write(decodedBytes.toByteArray())
+  val bytes = decodedBytes.toByteArray()
 
-  return buffer.readLong()
+  // Reconstruct the timestamp as a Long from the available bytes
+  var timestamp = 0L
+  for (i in bytes.indices) {
+    timestamp = (timestamp shl 8) or (bytes[i].toLong() and 0xFF)
+  }
+
+  // The Base32 decode gives us the value shifted right by 2 bits
+  // We need to shift left by 2 to get the correct milliseconds value
+  return timestamp shl 2
 }

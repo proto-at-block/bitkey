@@ -5,7 +5,7 @@ use bitcoin::bip32::{ExtendedPrivKey, ExtendedPubKey, Fingerprint};
 use bitcoin::{psbt::Psbt, secp256k1::ecdsa::Signature, Network};
 use crypto::frost::FrostShare;
 use crypto::signature_utils::{CompactSignature, DERSignature};
-use miniscript::{DescriptorPublicKey, descriptor::DescriptorSecretKey};
+use miniscript::{descriptor::DescriptorSecretKey, DescriptorPublicKey};
 use std::convert::TryFrom;
 
 trait Stringable: Display + FromStr {}

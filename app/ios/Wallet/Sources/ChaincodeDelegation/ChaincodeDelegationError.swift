@@ -16,6 +16,8 @@ extension Shared.ChaincodeDelegationError {
             return KeyDerivation(cause: throwable, message: reason)
         case let .TweakComputation(reason: reason):
             return TweakComputation(cause: throwable, message: reason)
+        case let .InvalidPsbt(reason: reason):
+            return InvalidPsbt(cause: throwable, message: reason)
         case let .UnknownKey(fingerprint: fingerprint):
             return UnknownKey(cause: throwable, message: "Unknown fingerprint: \(fingerprint)")
         case let .KeyMismatch(expected: expected, actual: actual):

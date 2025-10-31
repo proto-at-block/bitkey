@@ -10,8 +10,8 @@ import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake2
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
+import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
@@ -76,7 +76,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
     // Create a keybox with canUseKeyboxKeysets = true and multiple keysets
     val keybox = KeyboxMock.copy(
       canUseKeyboxKeysets = true,
-      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock2)
+      keysets = listOf(SpendingKeysetMock, PrivateSpendingKeysetMock)
     )
 
     fullAccountFieldsCreator.create(
@@ -90,7 +90,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
     val fullAccountKeys = Json.decodeFromString<FullAccountKeys>(sealedJsonData.utf8())
 
     // Verify that keysets are included when canUseKeyboxKeysets is true
-    fullAccountKeys.keysets.shouldBe(listOf(SpendingKeysetMock, SpendingKeysetMock2))
+    fullAccountKeys.keysets.shouldBe(listOf(SpendingKeysetMock, PrivateSpendingKeysetMock))
   }
 
   test("keysets are empty when canUseKeyboxKeysets is false") {
@@ -99,7 +99,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
     // Create a keybox with canUseKeyboxKeysets = false
     val keybox = KeyboxMock.copy(
       canUseKeyboxKeysets = false,
-      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock2) // These should be ignored
+      keysets = listOf(SpendingKeysetMock, PrivateSpendingKeysetMock) // These should be ignored
     )
 
     fullAccountFieldsCreator.create(

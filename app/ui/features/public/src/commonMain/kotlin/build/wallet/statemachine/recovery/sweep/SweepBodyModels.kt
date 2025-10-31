@@ -5,17 +5,9 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
-import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
-import build.wallet.statemachine.core.Icon.SmallIconQuestionNoOutline
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
+import build.wallet.recovery.sweep.SweepContext
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -39,7 +31,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 
 fun generatingPsbtsBodyModel(
   id: EventTrackerScreenId?,
-  onBack: () -> Unit,
+  onBack: (() -> Unit)?,
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
@@ -128,9 +120,19 @@ private data class SweepInactiveHelpBodyModel(
     )
   )
 
+/**
+ * Context for sweep funds prompt.
+ * Excludes PrivateWalletMigration which uses TransferConfirmationScreenModel instead.
+ */
+sealed interface SweepFundsPromptContext {
+  data class Recovery(val recoveredFactor: PhysicalFactor) : SweepFundsPromptContext
+
+  data object InactiveWallet : SweepFundsPromptContext
+}
+
 fun sweepFundsPrompt(
   id: EventTrackerScreenId?,
-  recoveredFactor: PhysicalFactor?,
+  sweepContext: SweepFundsPromptContext,
   transferAmount: MoneyAmountModel,
   fee: MoneyAmountModel,
   onShowNetworkFeesInfo: () -> Unit,
@@ -148,7 +150,7 @@ fun sweepFundsPrompt(
   presentationStyle = presentationStyle,
   body = SweepFundsPromptBodyModel(
     id = id,
-    recoveredFactor = recoveredFactor,
+    sweepContext = sweepContext,
     transferAmount = transferAmount,
     fee = fee,
     onShowNetworkFeesInfo = onShowNetworkFeesInfo,
@@ -160,7 +162,7 @@ fun sweepFundsPrompt(
 
 data class SweepFundsPromptBodyModel(
   override val id: EventTrackerScreenId?,
-  val recoveredFactor: PhysicalFactor?,
+  val sweepContext: SweepFundsPromptContext,
   val transferAmount: MoneyAmountModel,
   val fee: MoneyAmountModel,
   val onShowNetworkFeesInfo: () -> Unit,
@@ -184,28 +186,28 @@ data class SweepFundsPromptBodyModel(
           ),
           onClick = StandardClick { onHelpClick() }
         )
-      ).takeIf { recoveredFactor == null }
+      ).takeIf { sweepContext !is SweepFundsPromptContext.Recovery }
     ),
     header =
       FormHeaderModel(
         iconModel = IconModel(
-          icon = when (recoveredFactor) {
-            null -> LargeIconWarningFilled
-            else -> LargeIconCheckFilled
+          icon = when (sweepContext) {
+            is SweepFundsPromptContext.Recovery -> LargeIconCheckFilled
+            is SweepFundsPromptContext.InactiveWallet -> LargeIconWarningFilled
           },
           iconSize = IconSize.Avatar,
-          iconTint = when (recoveredFactor) {
-            null -> IconTint.On30
-            else -> IconTint.Primary
+          iconTint = when (sweepContext) {
+            is SweepFundsPromptContext.Recovery -> IconTint.Primary
+            is SweepFundsPromptContext.InactiveWallet -> IconTint.On30
           }
         ),
-        headline = when (recoveredFactor) {
-          App, Hardware -> "Finalize recovery"
-          null -> "Transfer funds to active wallet"
+        headline = when (sweepContext) {
+          is SweepFundsPromptContext.Recovery -> "Finalize recovery"
+          is SweepFundsPromptContext.InactiveWallet -> "Transfer funds to active wallet"
         },
-        subline = when (recoveredFactor) {
-          App, Hardware -> null
-          null -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
+        subline = when (sweepContext) {
+          is SweepFundsPromptContext.Recovery -> null
+          is SweepFundsPromptContext.InactiveWallet -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
         }
       ),
     mainContentList = immutableListOf(
@@ -244,11 +246,14 @@ data class SweepFundsPromptBodyModel(
     ),
     primaryButton =
       ButtonModel(
-        text = when (recoveredFactor) {
-          App, Hardware -> "Complete Recovery"
-          null -> "Confirm Transfer"
+        text = when (sweepContext) {
+          is SweepFundsPromptContext.Recovery -> "Complete Recovery"
+          is SweepFundsPromptContext.InactiveWallet -> "Confirm Transfer"
         },
-        requiresBitkeyInteraction = recoveredFactor == App,
+        requiresBitkeyInteraction = when (sweepContext) {
+          is SweepFundsPromptContext.Recovery -> sweepContext.recoveredFactor == App
+          is SweepFundsPromptContext.InactiveWallet -> false
+        },
         treatment = Primary,
         onClick = onSubmit,
         size = Footer
@@ -274,10 +279,7 @@ data class ZeroBalancePromptBodyModel(
 ) : FormBodyModel(
     id = id,
     onBack = onDone,
-    toolbar =
-      ToolbarModel(
-        leadingAccessory = CloseAccessory(onClick = onDone)
-      ),
+    toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClick = onDone)),
     header =
       FormHeaderModel(
         headline = "No funds found",
@@ -294,13 +296,17 @@ data class ZeroBalancePromptBodyModel(
 
 fun broadcastingScreenModel(
   id: EventTrackerScreenId?,
+  context: SweepContext,
   onBack: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
   body =
     LoadingBodyModel(
-      message = "Recovering funds...",
+      message = when (context) {
+        is SweepContext.PrivateWalletMigration -> "Updating wallet..."
+        else -> "Recovering funds..."
+      },
       id = id,
       onBack = onBack,
       eventTrackerShouldTrack = false

@@ -1,17 +1,20 @@
 package build.wallet.onboarding
 
+import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId
 import build.wallet.home.GettingStartedTask.TaskState
-import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
 import build.wallet.testing.ext.startAndCompleteFingerprintEnrolment
+import build.wallet.testing.ext.testForLegacyAndPrivateWallet
+import build.wallet.testing.ext.testWithTwoApps
 import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
+import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
@@ -24,8 +27,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
 
   // if we have previously persisted app keys we restore those and return them (to keep account
   // creation idempotent). Otherwise, we create a new app key bundle for account creation.
-  test("createAppKeys is idempotent - same keys are returned when called multiple times") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("createAppKeys is idempotent - same keys are returned when called multiple times") { app ->
     val keys1 = app.onboardFullAccountService.createAppKeys().shouldBeOk()
     val keys2 = app.onboardFullAccountService.createAppKeys().shouldBeOk()
 
@@ -37,8 +39,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     keys1.config.shouldBe(expectedConfig)
   }
 
-  test("createAppKeys returns new keys if onboarding state is cleared") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("createAppKeys returns new keys if onboarding state is cleared") { app ->
     val keys1 = app.onboardFullAccountService.createAppKeys().shouldBeOk()
     app.onboardingAppKeyKeystore.clear().shouldBeOk()
     val keys2 = app.onboardFullAccountService.createAppKeys().shouldBeOk()
@@ -51,8 +52,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     keys1.config.shouldBe(expectedConfig)
   }
 
-  test("create and activate brand new full account using fake hardware keys successfully") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("create and activate brand new full account using fake hardware keys successfully") { app ->
     // Create app keys
     val appKeys = app.onboardFullAccountService.createAppKeys().shouldBeOk()
     // Pair hardware
@@ -76,6 +76,13 @@ class CreateFullAccountFunctionalTests : FunSpec({
     // No getting started tasks before account activation
     app.gettingStartedTaskDao.getTasks().shouldBeEmpty()
 
+    app.descriptorBackupService.uploadOnboardingDescriptorBackup(
+      accountId = account.accountId,
+      sealedSsekForEncryption = hwActivation.sealedSsek,
+      appAuthKey = appKeys.appKeyBundle.authKey,
+      keysetsToEncrypt = account.keybox.keysets
+    ).getOrThrow()
+
     // Activate account
     app.onboardFullAccountService.activateAccount(account.keybox).shouldBeOk()
 
@@ -89,10 +96,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     )
   }
 
-  test("create and activate full account for migrating lite account to full account") {
-    val app = launchNewApp()
-    // Set up a Lite account
-    val protectedCustomerApp = launchNewApp()
+  testWithTwoApps("create and activate full account for migrating lite account to full account") { protectedCustomerApp, app ->
     protectedCustomerApp.onboardFullAccountWithFakeHardware()
     val (inviteCode, _) = protectedCustomerApp.createTcInvite(tcName = "bob")
     val liteAccount =
@@ -129,6 +133,13 @@ class CreateFullAccountFunctionalTests : FunSpec({
     // No getting started tasks before account activation
     app.gettingStartedTaskDao.getTasks().shouldBeEmpty()
 
+    app.descriptorBackupService.uploadOnboardingDescriptorBackup(
+      accountId = fullAccount.accountId,
+      sealedSsekForEncryption = hwActivation.sealedSsek,
+      appAuthKey = appKeys.appKeyBundle.authKey,
+      keysetsToEncrypt = fullAccount.keybox.keysets
+    ).getOrThrow()
+
     // Activate account
     app.onboardFullAccountService.activateAccount(fullAccount.keybox).shouldBeOk()
 
@@ -142,8 +153,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     )
   }
 
-  test("cannot pair hardware that is already in use") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("cannot pair hardware that is already in use") { app ->
     // Pair hardware with one account
     app.onboardFullAccountWithFakeHardware()
 
@@ -159,8 +169,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     ).shouldBeErrOfType<HardwareKeyAlreadyInUseError>()
   }
 
-  test("createAccount - cannot create account using app key that is already associated with an account") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("createAccount - cannot create account using app key that is already associated with an account") { app ->
     // Pair hardware with one account
     val account = app.onboardFullAccountWithFakeHardware()
     // Setup quirk: reset the keybox database so that we can create a new account.
@@ -183,8 +192,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     ).shouldBeErr(AppKeyAlreadyInUseError)
   }
 
-  test("createAccount - when reusing same app and hardware keys, we get the same account") {
-    val app = launchNewApp()
+  testForLegacyAndPrivateWallet("createAccount - when reusing same app and hardware keys, we get the same account") { app ->
     // Pair hardware with one account
     val account1 = app.onboardFullAccountWithFakeHardware()
     // Setup quirk: reset the keybox database so that we can create a new account.
@@ -203,24 +211,58 @@ class CreateFullAccountFunctionalTests : FunSpec({
       hwActivation = hwActivation
     ).shouldBeOk()
 
-    // We just get the same account
-    // localId is a random local UUID, so we are ignoring it.
-    account1.copy(
+    // Canonicalize both accounts by stripping random localIds and blanking server-derived
+    // fields inside f8eSpendingKeyset (but keep keysetId intact). Then deep-compare.
+    val placeholderServerDpub = F8eSpendingPublicKey(
+      "[d7a5d79b/84/1/0]tpubDCGPQwrXBEomVdSwpVW1mvsYhv53gx8ykZeSvwBMfAhBXep5kxk91S6jqSofKFcyDQXrDQomoGHEzeLzrR3sfGdb62z6tRvAToXoNfRuera/*"
+    )
+
+    val canonicalAccount1 = account1.copy(
       keybox = account1.keybox.copy(
         localId = "",
-        activeSpendingKeyset = account1.keybox.activeSpendingKeyset.copy(localId = ""),
         activeHwKeyBundle = account1.keybox.activeHwKeyBundle.copy(localId = ""),
-        keysets = listOf(account1.keybox.activeSpendingKeyset.copy(localId = ""))
-      )
-    ).shouldBe(
-      account2.copy(
-        keybox = account2.keybox.copy(
+        activeSpendingKeyset = account1.keybox.activeSpendingKeyset.copy(
           localId = "",
-          activeSpendingKeyset = account2.keybox.activeSpendingKeyset.copy(localId = ""),
-          activeHwKeyBundle = account2.keybox.activeHwKeyBundle.copy(localId = ""),
-          keysets = listOf(account2.keybox.activeSpendingKeyset.copy(localId = ""))
-        )
+          f8eSpendingKeyset = account1.keybox.activeSpendingKeyset.f8eSpendingKeyset.copy(
+            spendingPublicKey = placeholderServerDpub,
+            privateWalletRootXpub = ""
+          )
+        ),
+        keysets = account1.keybox.keysets.map {
+          it.copy(
+            localId = "",
+            f8eSpendingKeyset = it.f8eSpendingKeyset.copy(
+              spendingPublicKey = placeholderServerDpub,
+              privateWalletRootXpub = ""
+            )
+          )
+        }
       )
     )
+
+    val canonicalAccount2 = account2.copy(
+      keybox = account2.keybox.copy(
+        localId = "",
+        activeHwKeyBundle = account2.keybox.activeHwKeyBundle.copy(localId = ""),
+        activeSpendingKeyset = account2.keybox.activeSpendingKeyset.copy(
+          localId = "",
+          f8eSpendingKeyset = account2.keybox.activeSpendingKeyset.f8eSpendingKeyset.copy(
+            spendingPublicKey = placeholderServerDpub,
+            privateWalletRootXpub = ""
+          )
+        ),
+        keysets = account2.keybox.keysets.map {
+          it.copy(
+            localId = "",
+            f8eSpendingKeyset = it.f8eSpendingKeyset.copy(
+              spendingPublicKey = placeholderServerDpub,
+              privateWalletRootXpub = ""
+            )
+          )
+        }
+      )
+    )
+
+    canonicalAccount1.shouldBe(canonicalAccount2)
   }
 })

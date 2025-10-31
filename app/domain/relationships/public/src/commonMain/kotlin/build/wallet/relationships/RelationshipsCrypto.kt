@@ -119,11 +119,11 @@ interface RelationshipsCrypto {
   ): Result<EncryptPrivateKeyMaterialOutput, RelationshipsCryptoError>
 
   /**
-   * Encrypts the descriptor with the input symmetric key and returns the ciphertext
+   * Encrypts the data with the input symmetric key and returns the ciphertext
    */
-  fun encryptDescriptor(
+  fun encryptData(
     dek: PrivateKeyEncryptionKey,
-    descriptor: ByteString,
+    data: ByteString,
   ): Result<XCiphertext, RelationshipsCryptoError>
 
   /**

@@ -223,8 +223,10 @@ pub struct GrantRequest {
     #[serde_as(as = "Base64")]
     pub challenge: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]
-    pub signature: Signature,
+    pub hw_signature: Signature,
     pub hw_auth_public_key: PublicKey,
+    #[serde_as(as = "DisplayFromStr")]
+    pub app_signature: Signature,
 }
 
 #[serde_as]
@@ -234,7 +236,9 @@ pub struct GrantResponse {
     #[serde_as(as = "Base64")]
     pub serialized_request: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]
-    pub signature: Signature,
+    pub app_signature: Signature,
+    #[serde_as(as = "DisplayFromStr")]
+    pub wsm_signature: Signature,
 }
 
 #[serde_as]

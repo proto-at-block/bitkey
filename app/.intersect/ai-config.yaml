@@ -1,7 +1,0 @@
-enabled: true
-extra_prompt_info: |
-  Use AI rules in `ai-rules/` directory. Complete index: `ai-rules/bitkey-mobile.mdc`
-
-custom_prompts:
-  - "Follow @ai-rules/ai-code-review.mdc for AI code review instructions."
-  - "Apply @ai-rules/bitkey-mobile.mdc index for all patterns"

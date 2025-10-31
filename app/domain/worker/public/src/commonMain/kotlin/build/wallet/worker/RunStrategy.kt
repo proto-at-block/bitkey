@@ -29,7 +29,7 @@ sealed interface RunStrategy {
     /**
      * A flow that, when emitted, will cause the worker to run
      */
-    val observer: Flow<Any>
+    val observer: Flow<Any?>
   }
 
   /**
@@ -38,7 +38,7 @@ sealed interface RunStrategy {
   data class Startup(
     override val backgroundStrategy: BackgroundStrategy = BackgroundStrategy.Skip,
   ) : EventStrategy {
-    override val observer: Flow<Any> = flow {
+    override val observer: Flow<Any?> = flow {
       // Immediately emit an event and complete flow
       emit(Unit)
     }
@@ -55,7 +55,7 @@ sealed interface RunStrategy {
    * @param observer A flow that, when emitted, will cause the worker to run.
    */
   data class OnEvent(
-    override val observer: Flow<Any>,
+    override val observer: Flow<Any?>,
     override val backgroundStrategy: BackgroundStrategy = BackgroundStrategy.Skip,
   ) : EventStrategy
 
@@ -71,7 +71,7 @@ sealed interface RunStrategy {
     val interval: Duration,
     override val backgroundStrategy: BackgroundStrategy = BackgroundStrategy.Skip,
   ) : EventStrategy {
-    override val observer: Flow<Any> = flow {
+    override val observer: Flow<Any?> = flow {
       while (currentCoroutineContext().isActive) {
         delay(interval)
         emit(Unit)

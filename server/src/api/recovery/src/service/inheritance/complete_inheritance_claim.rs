@@ -3,21 +3,20 @@ use super::{
 };
 
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
-use bdk_utils::bdk::database::AnyDatabase;
-use bdk_utils::bdk::Wallet;
 use bdk_utils::ElectrumRpcUris;
 use feature_flags::flag::ContextKey;
-use mobile_pay::signing_processor::{Broadcaster, Signer, SigningMethod, SigningValidator};
-use mobile_pay::spend_rules::SpendRuleSet;
+use mobile_pay::signing_processor::{SigningMethod, SigningValidator};
+use mobile_pay::signing_strategies::{RecoverySweepSigningStrategy, SigningStrategy};
 use time::OffsetDateTime;
 use tracing::instrument;
 use types::account::entities::FullAccount;
+use types::account::spending::SpendingKeyset;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimCompleted, InheritanceClaimId, InheritanceCompletionMethod,
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct SignAndCompleteInheritanceClaimInput<'a, T: SigningValidator> {
+pub(crate) struct SignAndCompleteInheritanceClaimInput<'a, T> {
     pub signing_processor: T,
     pub rpc_uris: ElectrumRpcUris,
     pub inheritance_claim_id: InheritanceClaimId,
@@ -55,6 +54,7 @@ impl Service {
     ) -> Result<InheritanceClaimCompleted, ServiceError>
     where
         T: SigningValidator,
+        <T as SigningValidator>::SigningProcessor: Send + Sync,
     {
         let (relationships, claim) = fetch_relationships_and_claim(
             self,
@@ -75,46 +75,72 @@ impl Service {
             &claim.common_fields().recovery_relationship_id,
         )?;
 
-        let (keyset_id, descriptor) = self
-            .fetch_active_benefactor_descriptor_keyset(
+        let (benefactor_keyset_id, benefactor_keyset) = self
+            .fetch_active_benefactor_spending_keyset(
                 &claim.common_fields().recovery_relationship_id,
             )
             .await?;
 
-        let beneficiary_descriptor = input
-            .beneficiary_account
-            .active_descriptor_keyset()
-            .ok_or(ServiceError::IncompatibleAccountType)?
-            .clone();
+        let signing_method = match &benefactor_keyset {
+            SpendingKeyset::LegacyMultiSig(legacy_benefactor_source) => {
+                let beneficiary_keyset = input
+                    .beneficiary_account
+                    .active_spending_keyset()
+                    .ok_or(ServiceError::NoActiveSpendingKeyset)?;
 
-        let benefactor_wallet = descriptor.generate_wallet(false, &input.rpc_uris)?;
-        let beneficiary_wallet =
-            generate_beneficiary_wallet(input.beneficiary_account, &input.rpc_uris)?;
+                match beneficiary_keyset {
+                    SpendingKeyset::LegacyMultiSig(legacy_beneficiary_dest) => {
+                        SigningMethod::LegacySweep {
+                            source_descriptor: legacy_benefactor_source.clone().into(),
+                            active_descriptor: legacy_beneficiary_dest.clone().into(),
+                        }
+                    }
+                    SpendingKeyset::PrivateMultiSig(private_beneficiary_dest) => {
+                        SigningMethod::MigrationSweep {
+                            source_descriptor: legacy_benefactor_source.clone().into(),
+                            active_keyset: private_beneficiary_dest.clone(),
+                        }
+                    }
+                }
+            }
+            SpendingKeyset::PrivateMultiSig(private_benefactor_source) => {
+                let beneficiary_keyset = input
+                    .beneficiary_account
+                    .active_spending_keyset()
+                    .ok_or(ServiceError::NoActiveSpendingKeyset)?;
 
-        let rules = SpendRuleSet::sweep(
-            &benefactor_wallet,
-            &beneficiary_wallet,
-            self.screener_service.clone(),
-            self.feature_flags_service.clone(),
-            input.context_key,
-        );
+                match beneficiary_keyset {
+                    SpendingKeyset::LegacyMultiSig(legacy_beneficiary_dest) => {
+                        SigningMethod::InheritanceDowngradeSweep {
+                            source_keyset: private_benefactor_source.clone(),
+                            active_descriptor: legacy_beneficiary_dest.clone().into(),
+                        }
+                    }
+                    SpendingKeyset::PrivateMultiSig(private_beneficiary_dest) => {
+                        SigningMethod::PrivateSweep {
+                            source_keyset: private_benefactor_source.clone(),
+                            active_keyset: private_beneficiary_dest.clone(),
+                        }
+                    }
+                }
+            }
+        };
 
-        let mut broadcaster = input
-            .signing_processor
-            .validate(&input.psbt, rules)?
-            .sign_transaction(
+        let signing_strategy: Box<dyn SigningStrategy> =
+            Box::new(RecoverySweepSigningStrategy::new(
+                &input.beneficiary_account.clone().into(),
+                input.signing_processor,
+                &input.psbt,
+                signing_method,
+                benefactor_keyset.network().into(),
+                benefactor_keyset_id,
                 &input.rpc_uris,
-                &SigningMethod::LegacySweep {
-                    source_descriptor: descriptor,
-                    active_descriptor: beneficiary_descriptor,
-                },
-                &keyset_id,
-            )
-            .await?;
+                self.screener_service.clone(),
+                self.feature_flags_service.clone(),
+                input.context_key,
+            )?);
 
-        let signed_psbt = broadcaster.finalized_psbt();
-
-        broadcaster.broadcast_transaction(&input.rpc_uris, benefactor_wallet.network())?;
+        let signed_psbt = signing_strategy.execute().await?;
 
         // If the following fails, the transaction would have been broadcast
         // but the claim would remain locked.
@@ -204,16 +230,4 @@ impl Service {
         self.mark_completed(claim, InheritanceCompletionMethod::EmptyBalance)
             .await
     }
-}
-
-fn generate_beneficiary_wallet(
-    beneficiary_account: &FullAccount,
-    rpc_uris: &ElectrumRpcUris,
-) -> Result<Wallet<AnyDatabase>, ServiceError> {
-    let keyset = beneficiary_account
-        .active_descriptor_keyset()
-        .ok_or(ServiceError::IncompatibleAccountType)?;
-
-    // W-9888: Syncing the wallet because the AllPsbtOutputsBelongToWalletRule requires it
-    Ok(keyset.generate_wallet(true, rpc_uris)?)
 }

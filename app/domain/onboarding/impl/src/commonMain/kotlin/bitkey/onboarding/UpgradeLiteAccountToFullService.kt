@@ -11,11 +11,15 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.onboarding.UpgradeAccountF8eClient
+import build.wallet.f8e.onboarding.UpgradeAccountV2F8eClient
+import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 
 interface UpgradeLiteAccountToFullService {
@@ -36,7 +40,9 @@ class UpgradeLiteToFullAccountServiceImpl(
   private val deviceTokenManager: DeviceTokenManager,
   private val keyboxDao: KeyboxDao,
   private val upgradeAccountF8eClient: UpgradeAccountF8eClient,
+  private val upgradeAccountV2F8eClient: UpgradeAccountV2F8eClient,
   private val uuidGenerator: UuidGenerator,
+  private val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
 ) : UpgradeLiteAccountToFullService {
   override suspend fun upgradeAccount(
     liteAccount: LiteAccount,
@@ -46,10 +52,19 @@ class UpgradeLiteToFullAccountServiceImpl(
       val fullAccountConfig = keyCrossDraft.config
       // Upgrade the account on the server and get a server key back.
       val (f8eSpendingKeyset, accountId) =
-        upgradeAccountF8eClient
-          .upgradeAccount(liteAccount, keyCrossDraft)
-          .mapError { FullAccountCreationError.AccountCreationF8eError(it) }
-          .bind()
+        if (chaincodeDelegationFeatureFlag.isEnabled()) {
+          upgradeAccountV2F8eClient
+            .upgradeAccount(liteAccount, keyCrossDraft)
+            .mapError { FullAccountCreationError.AccountCreationF8eError(it) }
+            .map { Pair(it.f8eSpendingKeyset, it.fullAccountId) }
+            .bind()
+        } else {
+          upgradeAccountF8eClient
+            .upgradeAccount(liteAccount, keyCrossDraft)
+            .mapError { FullAccountCreationError.AccountCreationF8eError(it) }
+            .map { Pair(it.f8eSpendingKeyset, it.fullAccountId) }
+            .bind()
+        }
 
       val spendingKeyset =
         SpendingKeyset(

@@ -1,6 +1,8 @@
 package build.wallet.statemachine.send
 
+import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -24,27 +26,30 @@ import kotlinx.collections.immutable.ImmutableList
  */
 data class TransferInitiatedBodyModel(
   override val onBack: () -> Unit,
-  val recipientAddress: String,
+  val recipientAddress: BitcoinAddress,
   val transactionDetails: TransactionDetailsModel,
+  val primaryButtonText: String = "Done",
+  val eventTrackerScreenId: EventTrackerScreenId = SendEventTrackerScreenId.SEND_INITIATED_SUCCESS,
+  val shouldTrack: Boolean = false,
   val onDone: () -> Unit,
 ) : FormBodyModel(
     onBack = onBack,
     header = FormHeaderModel(
       icon = Icon.LargeIconCheckFilled,
       headline = "Transfer sent",
-      subline = recipientAddress,
+      subline = recipientAddress.chunkedAddress(),
       sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
       alignment = LEADING
     ),
     toolbar = null,
     mainContentList = transactionDetails.toFormContent(),
     primaryButton = ButtonModel(
-      text = "Done",
+      text = primaryButtonText,
       onClick = StandardClick(onDone),
       size = Footer
     ),
-    id = SendEventTrackerScreenId.SEND_INITIATED_SUCCESS,
-    eventTrackerShouldTrack = false
+    id = eventTrackerScreenId,
+    eventTrackerShouldTrack = shouldTrack
   )
 
 private fun TransactionDetailsModel.toFormContent(): ImmutableList<FormMainContentModel> {

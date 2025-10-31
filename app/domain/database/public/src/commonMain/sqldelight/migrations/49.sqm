@@ -1,0 +1,14 @@
+import kotlinx.datetime.Instant;
+
+-- Migration 49: Add descriptor backup verification cache
+--
+-- Adds a cache table for tracking which keysets have verified descriptor backups on F8e.
+-- This enables graceful handling of network failures during backup health checks
+--
+-- See: DescriptorBackupHealthSyncWorker, DescriptorBackupDao
+
+CREATE TABLE descriptorBackupVerificationEntity(
+  keysetId     TEXT NOT NULL PRIMARY KEY
+);
+
+PRAGMA foreign_key_check;

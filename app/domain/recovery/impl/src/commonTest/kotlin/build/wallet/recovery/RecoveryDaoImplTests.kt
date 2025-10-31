@@ -53,7 +53,8 @@ class RecoveryDaoImplTests : FunSpec({
     f8eSpendingKeyset =
       F8eSpendingKeyset(
         keysetId = "keyset-server-1",
-        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-1"))
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-1")),
+        privateWalletRootXpub = "tpub-private-root-xpub-1"
       ),
     networkType = SIGNET,
     appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-dpub-1")),
@@ -62,251 +63,290 @@ class RecoveryDaoImplTests : FunSpec({
         DescriptorPublicKeyMock("hw-dpub-1", fingerprint = "deadbeef")
       )
   )
-  val spendingKeyset2 = SpendingKeyset(
-    localId = "keyset-app-2",
-    f8eSpendingKeyset =
-      F8eSpendingKeyset(
-        keysetId = "keyset-server-2",
-        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-2"))
-      ),
-    networkType = SIGNET,
-    appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-dpub-2")),
-    hardwareKey =
-      HwSpendingPublicKey(
-        DescriptorPublicKeyMock("hw-dpub-2", fingerprint = "deadbeef")
-      )
-  )
+  val privateWalletRootXpubValues = listOf("tpub-private-root-xpub-2", null)
 
+  lateinit var databaseProvider: BitkeyDatabaseProviderImpl
   lateinit var dao: RecoveryDaoImpl
 
   beforeTest {
-    val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
+    databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
     dao =
       RecoveryDaoImpl(
         databaseProvider
       )
   }
 
-  test("setLocalRecoveryProgress: Initiated") {
-    dao.activeRecovery().test {
-      awaitItem().shouldBe(Ok(NoActiveRecovery))
+  privateWalletRootXpubValues.forEach { privateWalletRootXpub ->
+    val contextDescription = privateWalletRootXpub ?: "null"
 
-      setProgressInitiated(
-        dao,
-        customerAccount,
-        keyset,
-        appGlobalAuthKey,
-        appRecoveryAuthKey,
-        hardwareAuthKey
-      )
+    context("privateWalletRootXpub = $contextDescription") {
+      val spendingKeyset2 =
+        SpendingKeyset(
+          localId = "keyset-app-2",
+          f8eSpendingKeyset =
+            F8eSpendingKeyset(
+              keysetId = "keyset-server-2",
+              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-2")),
+              privateWalletRootXpub = privateWalletRootXpub
+            ),
+          networkType = SIGNET,
+          appKey = AppSpendingPublicKey(DescriptorPublicKeyMock("app-dpub-2")),
+          hardwareKey =
+            HwSpendingPublicKey(
+              DescriptorPublicKeyMock("hw-dpub-2", fingerprint = "deadbeef")
+            )
+        )
+      val keysets = listOf(spendingKeyset1, spendingKeyset2)
 
-      dao.setActiveServerRecovery(serverRecovery)
+      test("setLocalRecoveryProgress: Initiated") {
+        dao.activeRecovery().test {
+          awaitItem().shouldBe(Ok(NoActiveRecovery))
 
-      awaitItem().shouldBe(
-        Ok(
-          Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery(
-            fullAccountId = serverRecovery.fullAccountId,
-            appSpendingKey = keyset.appKey,
-            appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
-            appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
-            hardwareSpendingKey = keyset.hardwareKey,
-            hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
-            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-            factorToRecover = Hardware,
-            serverRecovery = serverRecovery
+          setProgressInitiated(
+            dao,
+            customerAccount,
+            keyset,
+            appGlobalAuthKey,
+            appRecoveryAuthKey,
+            hardwareAuthKey
           )
-        )
-      )
 
-      setProgressGeneratedCsek(dao, sealedCsek, sealedSsek)
+          dao.setActiveServerRecovery(serverRecovery)
 
-      setProgressRotatedAuth(dao)
-
-      awaitItem().shouldBe(
-        Ok(
-          ServerIndependentRecovery.RotatedAuthKeys(
-            fullAccountId = serverRecovery.fullAccountId,
-            appSpendingKey = keyset.appKey,
-            appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
-            appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
-            hardwareSpendingKey = keyset.hardwareKey,
-            hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
-            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-            factorToRecover = Hardware,
-            sealedCsek = sealedCsek,
-            sealedSsek = sealedSsek
+          awaitItem().shouldBe(
+            Ok(
+              Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery(
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                serverRecovery = serverRecovery
+              )
+            )
           )
-        )
-      )
 
-      setProgressCreatedSpending(dao, serverSpendingKeyset)
+          setProgressGeneratedCsek(dao, sealedCsek, sealedSsek)
 
-      awaitItem().shouldBe(
-        Ok(
-          CreatedSpendingKeys(
-            f8eSpendingKeyset = serverSpendingKeyset,
-            fullAccountId = serverRecovery.fullAccountId,
-            appSpendingKey = keyset.appKey,
-            appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
-            appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
-            hardwareSpendingKey = keyset.hardwareKey,
-            hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
-            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-            factorToRecover = Hardware,
-            sealedCsek = sealedCsek,
-            sealedSsek = sealedSsek
+          setProgressRotatedAuth(dao)
+
+          awaitItem().shouldBe(
+            Ok(
+              ServerIndependentRecovery.RotatedAuthKeys(
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                sealedCsek = sealedCsek,
+                sealedSsek = sealedSsek
+              )
+            )
           )
-        )
-      )
 
-      setProgressUploadedDescriptorBackups(dao, listOf(spendingKeyset1, spendingKeyset2))
+          setProgressCreatedSpending(dao, serverSpendingKeyset)
 
-      awaitItem().shouldBe(
-        Ok(
-          ServerIndependentRecovery.UploadedDescriptorBackups(
-            f8eSpendingKeyset = serverSpendingKeyset,
-            fullAccountId = serverRecovery.fullAccountId,
-            appSpendingKey = keyset.appKey,
-            appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
-            appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
-            hardwareSpendingKey = keyset.hardwareKey,
-            hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
-            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-            factorToRecover = Hardware,
-            sealedCsek = sealedCsek,
-            sealedSsek = sealedSsek,
-            keysets = listOf(spendingKeyset1, spendingKeyset2)
+          val localRecoveryAttempt =
+            databaseProvider.database().recoveryQueries.getLocalRecovery().executeAsOne()
+          localRecoveryAttempt.serverSpendingKey
+            ?.privateWalletRootXpub
+            .shouldBe(serverSpendingKeyset.privateWalletRootXpub)
+
+          awaitItem().shouldBe(
+            Ok(
+              CreatedSpendingKeys(
+                f8eSpendingKeyset = serverSpendingKeyset,
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                sealedCsek = sealedCsek,
+                sealedSsek = sealedSsek
+              )
+            )
           )
-        )
-      )
 
-      setProgressActivatedSpending(dao, serverSpendingKeyset)
+          setProgressUploadedDescriptorBackups(dao, keysets)
 
-      awaitItem().shouldBe(
-        Ok(
-          ServerIndependentRecovery.ActivatedSpendingKeys(
-            f8eSpendingKeyset = serverSpendingKeyset,
-            fullAccountId = serverRecovery.fullAccountId,
-            appSpendingKey = keyset.appKey,
-            appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
-            appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
-            hardwareSpendingKey = keyset.hardwareKey,
-            hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
-            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-            factorToRecover = Hardware,
-            sealedCsek = sealedCsek,
-            sealedSsek = sealedSsek,
-            keysets = listOf(spendingKeyset1, spendingKeyset2)
+          awaitItem().shouldBe(
+            Ok(
+              ServerIndependentRecovery.UploadedDescriptorBackups(
+                f8eSpendingKeyset = serverSpendingKeyset,
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                sealedCsek = sealedCsek,
+                sealedSsek = sealedSsek,
+                keysets = keysets
+              )
+            )
           )
-        )
-      )
 
-      setProgressDdkBackedUp(dao)
+          setProgressActivatedSpending(dao, serverSpendingKeyset)
 
-      awaitItem().shouldBe(
-        Ok(
-          ServerIndependentRecovery.DdkBackedUp(
-            f8eSpendingKeyset = serverSpendingKeyset,
-            fullAccountId = serverRecovery.fullAccountId,
-            appSpendingKey = keyset.appKey,
-            appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
-            appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
-            hardwareSpendingKey = keyset.hardwareKey,
-            hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
-            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-            factorToRecover = Hardware,
-            sealedCsek = sealedCsek,
-            sealedSsek = sealedSsek,
-            keysets = listOf(spendingKeyset1, spendingKeyset2)
+          awaitItem().shouldBe(
+            Ok(
+              ServerIndependentRecovery.ActivatedSpendingKeys(
+                f8eSpendingKeyset = serverSpendingKeyset,
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                sealedCsek = sealedCsek,
+                sealedSsek = sealedSsek,
+                keysets = keysets
+              )
+            )
           )
-        )
-      )
 
-      setProgressBackedUpToCloud(dao)
+          setProgressDdkBackedUp(dao)
 
-      awaitItem().shouldBe(
-        Ok(
-          ServerIndependentRecovery.BackedUpToCloud(
-            f8eSpendingKeyset = serverSpendingKeyset,
-            fullAccountId = serverRecovery.fullAccountId,
-            appSpendingKey = keyset.appKey,
-            appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
-            appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
-            hardwareSpendingKey = keyset.hardwareKey,
-            hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
-            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-            factorToRecover = Hardware,
-            keysets = listOf(spendingKeyset1, spendingKeyset2)
+          awaitItem().shouldBe(
+            Ok(
+              ServerIndependentRecovery.DdkBackedUp(
+                f8eSpendingKeyset = serverSpendingKeyset,
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                sealedCsek = sealedCsek,
+                sealedSsek = sealedSsek,
+                keysets = keysets
+              )
+            )
           )
-        )
-      )
 
-      setProgressSweptFunds(dao)
+          setProgressBackedUpToCloud(dao)
 
-      awaitItem().shouldBe(
-        Ok(
-          NoActiveRecovery
-        )
-      )
-    }
-  }
+          awaitItem().shouldBe(
+            Ok(
+              ServerIndependentRecovery.BackedUpToCloud(
+                f8eSpendingKeyset = serverSpendingKeyset,
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                keysets = keysets
+              )
+            )
+          )
 
-  test("MaybeNoLongerRecovering") {
-    dao.activeRecovery().test {
-      awaitItem().shouldBe(Ok(NoActiveRecovery))
+          // Now test the new SweptFunds -> SweepCompleted transition
+          dao.setLocalRecoveryProgress(SweepingFunds)
 
-      setProgressInitiated(
-        dao,
-        customerAccount,
-        keyset,
-        appGlobalAuthKey,
-        appRecoveryAuthKey,
-        hardwareAuthKey
-      )
+          // This should create a SweepCompleted state
+          awaitItem().shouldBe(
+            Ok(
+              ServerIndependentRecovery.SweepAttempted(
+                f8eSpendingKeyset = serverSpendingKeyset,
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                keysets = listOf(spendingKeyset1, spendingKeyset2)
+              )
+            )
+          )
 
-      dao.setActiveServerRecovery(serverRecovery)
+          setProgressCompletedRecovery(dao)
 
-      awaitItem().shouldBeOkOfType<Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery>()
+          awaitItem().shouldBe(
+            Ok(
+              NoActiveRecovery
+            )
+          )
+        }
+      }
 
-      setProgressGeneratedCsek(dao, sealedCsek, sealedSsek)
+      test("MaybeNoLongerRecovering") {
+        dao.activeRecovery().test {
+          awaitItem().shouldBe(Ok(NoActiveRecovery))
 
-      dao.setActiveServerRecovery(null)
+          setProgressInitiated(
+            dao,
+            customerAccount,
+            keyset,
+            appGlobalAuthKey,
+            appRecoveryAuthKey,
+            hardwareAuthKey
+          )
 
-      awaitItem().shouldBeOkOfType<ServerIndependentRecovery.MaybeNoLongerRecovering>()
-    }
-  }
+          dao.setActiveServerRecovery(serverRecovery)
 
-  test("NoLongerRecovering") {
-    dao.activeRecovery().test {
-      awaitItem().shouldBe(Ok(NoActiveRecovery))
+          awaitItem().shouldBeOkOfType<Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery>()
 
-      setProgressInitiated(
-        dao,
-        customerAccount,
-        keyset,
-        appGlobalAuthKey,
-        appRecoveryAuthKey,
-        hardwareAuthKey
-      )
+          setProgressGeneratedCsek(dao, sealedCsek, sealedSsek)
 
-      dao.setActiveServerRecovery(serverRecovery)
+          dao.setActiveServerRecovery(null)
 
-      awaitItem().shouldBeOkOfType<Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery>()
+          awaitItem().shouldBeOkOfType<ServerIndependentRecovery.MaybeNoLongerRecovering>()
+        }
+      }
 
-      dao.setActiveServerRecovery(null)
+      test("NoLongerRecovering") {
+        dao.activeRecovery().test {
+          awaitItem().shouldBe(Ok(NoActiveRecovery))
 
-      awaitItem().shouldBeOkOfType<Recovery.NoLongerRecovering>()
-    }
-  }
+          setProgressInitiated(
+            dao,
+            customerAccount,
+            keyset,
+            appGlobalAuthKey,
+            appRecoveryAuthKey,
+            hardwareAuthKey
+          )
 
-  test("SomeoneElseIsRecovering") {
-    dao.activeRecovery().test {
-      awaitItem().shouldBe(Ok(NoActiveRecovery))
+          dao.setActiveServerRecovery(serverRecovery)
 
-      dao.setActiveServerRecovery(LostHardwareServerRecoveryMock)
+          awaitItem().shouldBeOkOfType<Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery>()
 
-      awaitItem()
-        .shouldBeOkOfType<Recovery.SomeoneElseIsRecovering>()
+          dao.setActiveServerRecovery(null)
+
+          awaitItem().shouldBeOkOfType<Recovery.NoLongerRecovering>()
+        }
+      }
+
+      test("SomeoneElseIsRecovering") {
+        dao.activeRecovery().test {
+          awaitItem().shouldBe(Ok(NoActiveRecovery))
+
+          dao.setActiveServerRecovery(LostHardwareServerRecoveryMock)
+
+          awaitItem()
+            .shouldBeOkOfType<Recovery.SomeoneElseIsRecovering>()
+        }
+      }
     }
   }
 })
@@ -381,9 +421,9 @@ private suspend fun setProgressBackedUpToCloud(dao: RecoveryDaoImpl) {
   )
 }
 
-private suspend fun setProgressSweptFunds(dao: RecoveryDaoImpl) {
+private suspend fun setProgressCompletedRecovery(dao: RecoveryDaoImpl) {
   dao.setLocalRecoveryProgress(
-    SweptFunds(KeyboxMock)
+    CompletedRecovery(KeyboxMock)
   )
 }
 

@@ -1,9 +1,12 @@
 package build.wallet.statemachine.onboard
 
 import app.cash.turbine.plusAssign
+import bitkey.recovery.DescriptorBackupError
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILED
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_DESCRIPTOR_BACKUP_FAILURE
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -11,13 +14,17 @@ import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
+import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.onboarding.OnboardAccountServiceFake
-import build.wallet.onboarding.OnboardAccountStep
+import build.wallet.onboarding.OnboardAccountStep.CloudBackup
+import build.wallet.onboarding.OnboardAccountStep.DescriptorBackup
 import build.wallet.onboarding.OnboardAccountStep.NotificationPreferences
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.OnboardFullAccountUiProps
 import build.wallet.statemachine.account.create.full.OnboardFullAccountUiStateMachineImpl
+import build.wallet.statemachine.account.create.full.onboard.OnboardDescriptorBackupUiProps
+import build.wallet.statemachine.account.create.full.onboard.OnboardDescriptorBackupUiStateMachine
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiProps
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachine
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
@@ -29,12 +36,14 @@ import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.notifications.NotificationPreferencesProps.Source.Onboarding
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.launch
 
 class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   val onboardAccountService = OnboardAccountServiceFake()
@@ -50,6 +59,12 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       NotificationPreferencesSetupUiStateMachine,
       ScreenStateMachineMock<NotificationPreferencesSetupUiProps>(
         id = "notification-preferences-setup"
+      ) {
+    },
+    onboardDescriptorBackupUiStateMachine = object :
+      OnboardDescriptorBackupUiStateMachine,
+      ScreenStateMachineMock<OnboardDescriptorBackupUiProps>(
+        id = "onboard-descriptor-backup"
       ) {
     }
   )
@@ -71,7 +86,8 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   beforeTest {
     onboardAccountService.reset()
     onboardAccountService.setPendingSteps(
-      OnboardAccountStep.CloudBackup(SealedCsekFake),
+      DescriptorBackup(SealedSsekFake),
+      CloudBackup(SealedCsekFake),
       NotificationPreferences
     )
   }
@@ -81,6 +97,17 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      // Descriptor backup state machine is invoked
+      awaitBodyMock<OnboardDescriptorBackupUiProps> {
+        fullAccount.shouldBe(FullAccountMock)
+        sealedSsek.shouldBe(SealedSsekFake)
+        onBackupComplete()
+      }
+
+      awaitBody<LoadingSuccessBodyModel>(id = NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING)
+
+      onboardAccountService.awaitPendingStep(CloudBackup(SealedCsekFake))
 
       // Complete cloud backup
       awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
@@ -110,7 +137,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("complete cloud backup step only") {
-    onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
+    onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
 
     stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
@@ -159,7 +186,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("complete cloud backup step - skip cloud backup instructions") {
-    onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
+    onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
 
     stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
 
@@ -196,7 +223,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud backup step - overwrite existing account if for the same account ID") {
-    onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
+    onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
 
     stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
@@ -212,8 +239,10 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         onExistingAppDataFound.shouldNotBeNull().invoke(
           CloudBackupV2WithFullAccountMock.copy(accountId = KeyboxMock.fullAccountId.serverId)
         ) {
-          // proceed callback: save backup to mimic cloud backup SM implementation.
-          onBackupSaved()
+          launch {
+            // proceed callback: save backup to mimic cloud backup SM implementation.
+            onBackupSaved()
+          }
         }
       }
 
@@ -226,7 +255,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud backup step - found existing lite account cloud backup") {
-    onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
+    onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
 
     stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
@@ -242,8 +271,10 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         isSkipCloudBackupInstructions.shouldBeFalse()
         // Found existing lite account cloud backup
         onExistingAppDataFound.shouldNotBeNull().invoke(liteAccountBackup) {
-          // proceed callback: save backup to mimic cloud backup SM implementation.
-          onBackupSaved()
+          launch {
+            // proceed callback: save backup to mimic cloud backup SM implementation.
+            onBackupSaved()
+          }
         }
       }
 
@@ -252,7 +283,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud backup step - found existing full account backup different account ID, show warning") {
-    onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
+    onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
 
     stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
@@ -268,8 +299,10 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         onExistingAppDataFound.shouldNotBeNull().invoke(
           CloudBackupV2WithFullAccountMock.copy(accountId = "different-account-id")
         ) {
-          // proceed callback: save backup to mimic cloud backup SM implementation.
-          onBackupSaved()
+          launch {
+            // proceed callback: save backup to mimic cloud backup SM implementation.
+            onBackupSaved()
+          }
         }
       }
 
@@ -278,7 +311,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud backup step - found existing full account backup different account ID, skip showing warning") {
-    onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
+    onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
 
     stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
 
@@ -294,8 +327,10 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         onExistingAppDataFound.shouldNotBeNull().invoke(
           CloudBackupV2WithFullAccountMock.copy(accountId = "different-account-id")
         ) {
-          // proceed callback: save backup to mimic cloud backup SM implementation.
-          onBackupSaved()
+          launch {
+            // proceed callback: save backup to mimic cloud backup SM implementation.
+            onBackupSaved()
+          }
         }
       }
 
@@ -310,7 +345,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud backup step - failed to save backup") {
-    onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
+    onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
 
     stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
@@ -327,7 +362,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
 
       awaitBody<FormBodyModel>(id = SAVE_CLOUD_BACKUP_FAILED) {
         // Cloud backup step is not complete
-        onboardAccountService.awaitPendingStep(OnboardAccountStep.CloudBackup(SealedCsekFake))
+        onboardAccountService.awaitPendingStep(CloudBackup(SealedCsekFake))
 
         // Retry
         clickPrimaryButton()
@@ -350,7 +385,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud backup step - error completing") {
-    onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
+    onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
 
     stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
@@ -413,6 +448,68 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       }
 
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
+
+      // Onboarding is complete
+      onboardAccountService.awaitPendingStep(null)
+      onOnboardingComplete.awaitItem()
+    }
+  }
+
+  test("complete descriptor backup step only") {
+    onboardAccountService.setPendingSteps(DescriptorBackup(SealedSsekFake))
+
+    stateMachine.test(props) {
+
+      // Loading initial onboarding state
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      // Descriptor backup state machine is invoked
+      awaitBodyMock<OnboardDescriptorBackupUiProps> {
+        fullAccount.shouldBe(FullAccountMock)
+        sealedSsek.shouldBe(SealedSsekFake)
+        onBackupComplete()
+      }
+
+      awaitBody<LoadingSuccessBodyModel>(id = NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING)
+
+      // Onboarding is complete
+      onboardAccountService.awaitPendingStep(null)
+      onOnboardingComplete.awaitItem()
+    }
+  }
+
+  test("descriptor backup step - failed to upload backup") {
+    onboardAccountService.setPendingSteps(DescriptorBackup(SealedSsekFake))
+
+    stateMachine.test(props) {
+      // Loading initial onboarding state
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      // Descriptor backup state machine reports failure
+      awaitBodyMock<OnboardDescriptorBackupUiProps> {
+        fullAccount.shouldBe(FullAccountMock)
+        sealedSsek.shouldBe(SealedSsekFake)
+        val error =
+          DescriptorBackupError.NetworkError(RuntimeException("Failed to upload descriptor backup"))
+        onBackupFailed(error)
+      }
+
+      awaitUntilBody<FormBodyModel>(id = NEW_ACCOUNT_DESCRIPTOR_BACKUP_FAILURE) {
+        header.shouldNotBeNull().headline.shouldBe("Error setting up wallet backup")
+        primaryButton.shouldNotBeNull().text.shouldBe("Retry")
+
+        // Retry
+        clickPrimaryButton()
+      }
+
+      // Descriptor backup state machine is invoked again and succeeds
+      awaitBodyMock<OnboardDescriptorBackupUiProps> {
+        fullAccount.shouldBe(FullAccountMock)
+        sealedSsek.shouldBe(SealedSsekFake)
+        onBackupComplete()
+      }
+
+      awaitBody<LoadingSuccessBodyModel>(id = NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING)
 
       // Onboarding is complete
       onboardAccountService.awaitPendingStep(null)

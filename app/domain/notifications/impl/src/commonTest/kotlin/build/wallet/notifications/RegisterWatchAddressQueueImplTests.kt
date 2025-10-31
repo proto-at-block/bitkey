@@ -52,10 +52,9 @@ class RegisterWatchAddressQueueImplTests : FunSpec({
     database.spendingKeysetQueries.insertKeyset(
       id = F8eSpendingKeysetMock.keysetId,
       keyboxId = KeyboxMock.localId,
-      serverId = FullAccountIdMock.serverId,
       appKey = AppSpendingPublicKeyMock,
       hardwareKey = HwSpendingPublicKeyMock,
-      serverKey = F8eSpendingKeysetMock.spendingPublicKey,
+      serverKey = F8eSpendingKeysetMock,
       isActive = true
     )
   }

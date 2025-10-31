@@ -1,8 +1,8 @@
 import bitkey.account.AccountConfigServiceFake
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.encrypt.P256BoxImpl
 import build.wallet.encrypt.XCiphertext
 import build.wallet.encrypt.XNonce
@@ -41,7 +41,7 @@ class EncryptedDescriptorAttachmentCryptoServiceImplTests : FunSpec({
 
   test("encryptAndUploadDescriptor - happy path") {
     val spendingKeyset1 = SpendingKeysetMock
-    val spendingKeyset2 = SpendingKeysetMock2
+    val spendingKeyset2 = PrivateSpendingKeysetMock
     val spendingKeysets = listOf(spendingKeyset1, spendingKeyset2)
 
     val keyset = p256Box.generateKeyPair()
@@ -66,7 +66,7 @@ class EncryptedDescriptorAttachmentCryptoServiceImplTests : FunSpec({
 
   test("p256BoxEncrypt descriptor map consistency") {
     val spendingKeyset1 = SpendingKeysetMock
-    val spendingKeyset2 = SpendingKeysetMock2
+    val spendingKeyset2 = PrivateSpendingKeysetMock
     val spendingKeysets = listOf(spendingKeyset1, spendingKeyset2)
 
     val keyset = p256Box.generateKeyPair()

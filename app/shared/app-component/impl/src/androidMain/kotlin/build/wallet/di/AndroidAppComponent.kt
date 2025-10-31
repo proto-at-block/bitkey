@@ -1,6 +1,7 @@
 package build.wallet.di
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.LifecycleObserver
 import bitkey.bugsnag.BugsnagContext
 import build.wallet.analytics.events.EventTracker
@@ -43,4 +44,10 @@ abstract class AndroidAppComponent(
   abstract val strictModeEnabler: StrictModeEnabler
   abstract val deviceInfoProvider: DeviceInfoProvider
   abstract val accelerometer: Accelerometer
+
+  /**
+   * Provide Context from Application for dependency injection.
+   */
+  @Provides
+  fun provideContext(application: Application): Context = application
 }

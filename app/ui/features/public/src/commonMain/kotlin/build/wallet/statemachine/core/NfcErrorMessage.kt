@@ -35,7 +35,7 @@ data class NfcErrorMessage(
         else ->
           NfcErrorMessage(
             title = "NFC Error",
-            description = "There was an issue communicating with your hardware. Please try again."
+            description = "There was an issue communicating with your hardware. Please try again.\n\n" + "If you continue having this issue, view our troubleshooting guide below."
           )
       }
     }

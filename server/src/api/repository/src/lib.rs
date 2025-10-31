@@ -8,5 +8,7 @@ pub mod encrypted_attachment;
 pub mod privileged_action;
 #[cfg(feature = "recovery")]
 pub mod recovery;
+#[cfg(feature = "screener")]
+pub mod screener;
 
 pub use database::ddb::DatabaseError;

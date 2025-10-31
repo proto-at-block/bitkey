@@ -30,6 +30,7 @@ kotlin {
         implementation(compose.components.resources)
         implementation(libs.kmp.molecule.runtime)
         implementation(projects.libs.composeRuntimePublic)
+        implementation(projects.libs.platformPublic)
         implementation(projects.libs.stdlibPublic)
         implementation(libs.kmp.settings)
         implementation(libs.android.voyager.navigator)

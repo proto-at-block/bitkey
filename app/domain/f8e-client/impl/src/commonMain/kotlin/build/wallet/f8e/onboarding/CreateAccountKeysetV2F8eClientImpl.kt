@@ -1,14 +1,14 @@
 package build.wallet.f8e.onboarding
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
-import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.catchingResult
+import build.wallet.chaincode.delegation.ChaincodeDelegationServerKeyGenerator
+import build.wallet.chaincode.delegation.PublicKeyUtils
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -38,6 +38,8 @@ import kotlinx.serialization.Serializable
 @BitkeyInject(AppScope::class)
 class CreateAccountKeysetV2F8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
+  private val publicKeyUtils: PublicKeyUtils,
+  private val serverKeyGenerator: ChaincodeDelegationServerKeyGenerator,
 ) : CreateAccountKeysetV2F8eClient {
   override suspend fun createKeyset(
     f8eEnvironment: F8eEnvironment,
@@ -58,8 +60,14 @@ class CreateAccountKeysetV2F8eClientImpl(
           withHardwareFactor(hardwareProofOfPossession)
           setRedactedBody(
             RequestBody(
-              appSpendingPublicKey = appSpendingKey.key.dpub,
-              hardwareSpendingPublicKey = hardwareSpendingKey.key.dpub,
+              appSpendingPublicKey = publicKeyUtils
+                .extractPublicKey(appSpendingKey.key)
+                .result
+                .getOrElse { error("Failed to extract app spending public key") },
+              hardwareSpendingPublicKey = publicKeyUtils
+                .extractPublicKey(hardwareSpendingKey.key)
+                .result
+                .getOrElse { error("Failed to extract hardware spending public key") },
               network = network.toJsonString()
             )
           )
@@ -67,8 +75,8 @@ class CreateAccountKeysetV2F8eClientImpl(
       }
       .map { response ->
         val verified = catchingResult {
-          f8eHttpClient.wsmVerifier.verify(
-            base58Message = DescriptorPublicKey(response.serverPublicKey).xpub,
+          f8eHttpClient.wsmVerifier.verifyHexMessage(
+            hexMessage = response.serverPublicKey,
             signature = response.serverIntegritySignature,
             keyVariant = f8eEnvironment.wsmIntegrityKeyVariant
           ).isValid
@@ -85,10 +93,10 @@ class CreateAccountKeysetV2F8eClientImpl(
           // Just log, don't fail the call.
         }
 
-        F8eSpendingKeyset(
-          keysetId = response.keysetId,
-          spendingPublicKey = F8eSpendingPublicKey(dpub = response.serverPublicKey),
-          serverIntegritySignature = response.serverIntegritySignature
+        serverKeyGenerator.generatePrivateSpendingKeyset(
+          network = network,
+          serverPublicKey = response.serverPublicKey,
+          keysetId = response.keysetId
         )
       }
   }

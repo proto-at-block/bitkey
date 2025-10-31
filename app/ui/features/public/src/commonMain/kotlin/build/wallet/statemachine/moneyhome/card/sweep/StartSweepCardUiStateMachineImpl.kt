@@ -10,8 +10,8 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Treatment.Warning
+import build.wallet.ui.model.callout.CalloutModel
+import build.wallet.ui.model.callout.CalloutModel.Treatment
 
 @BitkeyInject(ActivityScope::class)
 class StartSweepCardUiStateMachineImpl(
@@ -24,20 +24,17 @@ class StartSweepCardUiStateMachineImpl(
     return when (sweepRequiredState) {
       false -> null
       true -> CardModel(
-        title = LabelModel.StringWithStyledSubstringModel.from("Funds in inactive wallet", emptyMap()),
-        subtitle = "Transfer funds now",
-        leadingImage = CardModel.CardImage.StaticImage(
-          icon = Icon.SmallIconInformationFilled,
-          iconTint = CardModel.CardImage.StaticImage.IconTint.Warning
-        ),
+        title = null,
         content = null,
-        style = CardModel.CardStyle.Gradient(backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.Default),
-        onClick = props.onStartSweepClicked,
-        trailingButton = ButtonModel(
-          text = "->",
-          size = ButtonModel.Size.Compact,
-          treatment = Warning,
-          onClick = StandardClick(props.onStartSweepClicked)
+        style = CardModel.CardStyle.Callout(
+          CalloutModel(
+            title = "Funds in inactive wallet",
+            subtitle = LabelModel.StringModel("Transfer funds now"),
+            treatment = Treatment.Warning,
+            leadingIcon = Icon.SmallIconInformationFilled,
+            trailingIcon = Icon.SmallIconArrowRight,
+            onClick = StandardClick(props.onStartSweepClicked)
+          )
         )
       )
     }

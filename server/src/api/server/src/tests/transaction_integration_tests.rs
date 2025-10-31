@@ -5,7 +5,7 @@ use std::{
 };
 
 use crypto::chaincode_delegation::{
-    psbt_with_tweaks, HwAccountLevelDescriptorPublicKeys, Keyset, XpubWithOrigin,
+    HwAccountLevelDescriptorPublicKeys, Keyset, UntweakedPsbt, XpubWithOrigin,
 };
 use http::StatusCode;
 
@@ -20,19 +20,15 @@ use bdk_utils::{
         bitcoin::{
             bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey},
             ecdsa,
-            hashes::Hash,
             key::Secp256k1,
-            psbt::{PartiallySignedTransaction, PartiallySignedTransaction as Psbt},
+            psbt::PartiallySignedTransaction,
             secp256k1::Message,
             Address, Network as BdkNetwork, OutPoint, Txid,
         },
-        database::AnyDatabase,
+        database::MemoryDatabase,
         electrum_client::Error as ElectrumClientError,
         keys::DescriptorPublicKey,
-        miniscript::{
-            descriptor::{DescriptorXKey, Wildcard},
-            Descriptor,
-        },
+        miniscript::descriptor::{DescriptorXKey, Wildcard},
         wallet::{AddressIndex, AddressInfo},
         Error::Electrum,
         KeychainKind, SignOptions, Wallet,
@@ -41,16 +37,17 @@ use bdk_utils::{
     DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait,
 };
 use external_identifier::ExternalIdentifier;
-use mobile_pay::routes::{SignTransactionData, SignTransactionResponse};
+use mobile_pay::routes::SignTransactionData;
 use onboarding::routes::RotateSpendingKeysetRequest;
 use rstest::rstest;
 use types::{
     account::{
         bitcoin::Network,
+        entities::{DescriptorBackup, DescriptorBackupsSet},
         identifiers::AccountId,
         money::Money,
         spend_limit::SpendingLimit,
-        spending::{PrivateMultiSigSpendingKeyset, SpendingKeyset},
+        spending::SpendingKeyset,
     },
     currencies::CurrencyCode::{self, USD},
     transaction_verification::{
@@ -65,8 +62,8 @@ use types::{
 
 use crate::tests::lib::wallet_protocol::{
     build_app_signed_psbt_for_protocol, build_sweep_psbt_for_protocol, check_finalized_psbt,
+    setup_fixture, sweep_destination_for_ccd, SweepDestination, WalletTestProtocol,
 };
-use crate::tests::lib::wallet_protocol::{setup_fixture, WalletTestProtocol};
 use crate::tests::lib::{
     create_default_account_with_private_wallet, create_inactive_spending_keyset_for_account,
     gen_external_wallet_address, predefined_descriptor_public_keys, predefined_server_root_xpub,
@@ -125,6 +122,7 @@ async fn sign_transaction_test(
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
+    let transfer_amount = 1_000;
 
     let app_signed_psbt = if let Some(override_psbt) = override_psbt {
         override_psbt.to_string()
@@ -132,7 +130,7 @@ async fn sign_transaction_test(
         build_app_signed_psbt_for_protocol(
             &fixture,
             gen_external_wallet_address(),
-            1_000,
+            transfer_amount,
             &with_inputs,
         )
         .to_string()
@@ -164,6 +162,22 @@ async fn sign_transaction_test(
         fixture.account.id
     };
 
+    // Only check mobile pay spent amounts when we have a valid account
+    let current_spent = if !override_account_id {
+        Some(
+            client
+                .get_mobile_pay(&account_id, &keys)
+                .await
+                .body
+                .unwrap()
+                .mobile_pay()
+                .unwrap()
+                .spent,
+        )
+    } else {
+        None
+    };
+
     let actual_response = client
         .sign_transaction_with_keyset(
             &account_id,
@@ -174,11 +188,38 @@ async fn sign_transaction_test(
             },
         )
         .await;
+
+    let final_spent = if !override_account_id {
+        Some(
+            client
+                .get_mobile_pay(&account_id, &keys)
+                .await
+                .body
+                .unwrap()
+                .mobile_pay()
+                .unwrap()
+                .spent,
+        )
+    } else {
+        None
+    };
+
     assert_eq!(
         actual_response.status_code, expected_status,
         "{}",
         actual_response.body_string
     );
+
+    // Only assert on spent amounts if we have valid mobile pay data
+    if let (Some(current), Some(final_amount)) = (current_spent, final_spent) {
+        if expect_broadcast {
+            // When broadcast is expected, the spent amount should increase by the transaction amount
+            assert_eq!(final_amount.amount, current.amount + transfer_amount);
+        } else {
+            // When broadcast is not expected (transaction should fail), spent amount should remain unchanged
+            assert_eq!(final_amount.amount, current.amount);
+        }
+    }
 }
 
 #[rstest]
@@ -702,7 +743,7 @@ async fn test_spend_limit_transaction_private_ccd(
 )]
 #[case::to_external_address(None, true, StatusCode::BAD_REQUEST)]
 #[tokio::test]
-async fn test_bypass_mobile_spend_limit_for_sweep(
+async fn test_bypass_mobile_spend_limit_for_sweep_legacy(
     #[case] spending_limit: Option<SpendingLimit>,
     #[case] target_external_address: bool,
     #[case] expected_status: StatusCode,
@@ -712,11 +753,11 @@ async fn test_bypass_mobile_spend_limit_for_sweep(
         target_external_address,
         expected_status,
         WalletTestProtocol::Legacy,
+        WalletTestProtocol::Legacy,
     )
     .await
 }
 
-// TODO [W-13985] - Make sure we allow sweeping to a customer's destination wallet.
 #[rstest]
 #[case::none_spending_limit(None, false, StatusCode::OK)]
 #[case::inactive_spending_limit(
@@ -731,8 +772,7 @@ async fn test_bypass_mobile_spend_limit_for_sweep(
 )]
 #[case::to_external_address(None, true, StatusCode::BAD_REQUEST)]
 #[tokio::test]
-#[ignore]
-async fn test_bypass_mobile_spend_limit_for_sweep_private_ccd(
+async fn test_bypass_mobile_spend_limit_for_sweep_private(
     #[case] spending_limit: Option<SpendingLimit>,
     #[case] target_external_address: bool,
     #[case] expected_status: StatusCode,
@@ -742,6 +782,36 @@ async fn test_bypass_mobile_spend_limit_for_sweep_private_ccd(
         target_external_address,
         expected_status,
         WalletTestProtocol::PrivateCcd,
+        WalletTestProtocol::PrivateCcd,
+    )
+    .await
+}
+
+#[rstest]
+#[case::none_spending_limit(None, false, StatusCode::OK)]
+#[case::inactive_spending_limit(
+    Some(SpendingLimit { active: false, amount: Money { amount: 42, currency_code: USD }, ..Default::default() }),
+    false,
+    StatusCode::OK
+)]
+#[case::limit_below_balance(
+    Some(SpendingLimit { active: true, amount: Money { amount: 0, currency_code: USD }, ..Default::default() }),
+    false,
+    StatusCode::OK
+)]
+#[case::to_external_address(None, true, StatusCode::BAD_REQUEST)]
+#[tokio::test]
+async fn test_bypass_mobile_spend_limit_for_sweep_migration(
+    #[case] spending_limit: Option<SpendingLimit>,
+    #[case] target_external_address: bool,
+    #[case] expected_status: StatusCode,
+) {
+    bypass_mobile_spend_limit_for_sweep_test(
+        spending_limit,
+        target_external_address,
+        expected_status,
+        WalletTestProtocol::Legacy,
+        WalletTestProtocol::PrivateCcd,
     )
     .await
 }
@@ -750,7 +820,8 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
     spending_limit: Option<SpendingLimit>,
     target_external_address: bool,
     expected_status: StatusCode,
-    wallet_protocol: WalletTestProtocol,
+    source_protocol: WalletTestProtocol,
+    dest_protocol: WalletTestProtocol,
 ) {
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
@@ -766,7 +837,7 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, source_protocol).await;
 
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
@@ -777,9 +848,38 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
         &client,
         &fixture.account.id,
         Network::BitcoinSignet,
-        fixture.protocol,
+        dest_protocol,
     )
     .await;
+
+    let dest_backup = match dest_protocol {
+        WalletTestProtocol::Legacy => DescriptorBackup::Legacy {
+            keyset_id: active_keyset_id.clone(),
+            sealed_descriptor: Default::default(),
+        },
+        WalletTestProtocol::PrivateCcd => DescriptorBackup::Private {
+            keyset_id: active_keyset_id.clone(),
+            sealed_descriptor: Default::default(),
+            sealed_server_root_xpub: Default::default(),
+        },
+    };
+
+    let response = client
+        .update_descriptor_backups(
+            &fixture.account.id.to_string(),
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![dest_backup],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
 
     let response = client
         .rotate_to_spending_keyset(
@@ -805,10 +905,13 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
         .await
         .unwrap();
 
-    let recipient = if target_external_address {
-        gen_external_wallet_address().address
+    let app_signed_psbt = if target_external_address {
+        build_sweep_psbt_for_protocol(
+            &fixture,
+            SweepDestination::External(gen_external_wallet_address().address),
+        )
     } else {
-        match wallet_protocol {
+        match dest_protocol {
             WalletTestProtocol::Legacy => {
                 let active_descriptor_keyset: DescriptorKeyset = account
                     .spending_keysets
@@ -824,10 +927,15 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
                     .generate_wallet(true, &electrum_rpc_uris)
                     .unwrap();
 
-                active_wallet
-                    .get_address(AddressIndex::Peek(0))
-                    .unwrap()
-                    .address
+                build_sweep_psbt_for_protocol(
+                    &fixture,
+                    SweepDestination::External(
+                        active_wallet
+                            .get_address(AddressIndex::Peek(0))
+                            .unwrap()
+                            .address,
+                    ),
+                )
             }
             WalletTestProtocol::PrivateCcd => {
                 // Here, we use the new XPUBs that were generated when
@@ -838,11 +946,10 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
                     SpendingKeyset::PrivateMultiSig(k) => k.server_pub,
                     _ => panic!("Expected PrivateMultiSig keyset for PrivateCcd protocol"),
                 };
+                // The server never has a chain code, so we simulate an app generating one for us
+                let server_root_xpub =
+                    predefined_server_root_xpub(active_keyset.network(), server_pub);
                 let server_dpub = {
-                    // The server never has a chain code, so we simulate an app generating one for us
-                    let server_root_xpub =
-                        predefined_server_root_xpub(active_keyset.network(), server_pub);
-
                     let unhardened_path = DerivationPath::from_str("m/84/1/0").unwrap();
                     let derived_xpub = server_root_xpub
                         .derive_pub(&Secp256k1::new(), &unhardened_path)
@@ -856,19 +963,33 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
                     })
                 };
 
-                let descriptor =
-                    Descriptor::new_wsh_sortedmulti(2, vec![app_xpub, hw_xpub, server_dpub]);
-                descriptor
-                    .unwrap()
-                    .at_derivation_index(1)
-                    .unwrap()
-                    .address(active_keyset.network().into())
-                    .unwrap()
+                // We create a BDK wallet without syncing, to generate a sweep address
+                // This MUST be the first index.
+                let descriptor_keyset = DescriptorKeyset::new(
+                    active_keyset.network().into(),
+                    app_xpub.clone(),
+                    hw_xpub.clone(),
+                    server_dpub.clone(),
+                );
+
+                let wallet = Wallet::new(
+                    descriptor_keyset
+                        .receiving()
+                        .into_multisig_descriptor()
+                        .unwrap(),
+                    None,
+                    active_keyset.network().into(),
+                    MemoryDatabase::new(),
+                )
+                .unwrap();
+
+                let sweep_address = wallet.get_address(AddressIndex::Peek(0)).unwrap().address;
+                let destination =
+                    sweep_destination_for_ccd(app_xpub, hw_xpub, server_root_xpub, sweep_address);
+                build_sweep_psbt_for_protocol(&fixture, destination)
             }
         }
     };
-
-    let app_signed_psbt = build_sweep_psbt_for_protocol(&fixture, recipient);
 
     if let Some(limit) = spending_limit.clone() {
         // Set up Mobile Pay
@@ -888,8 +1009,6 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
         psbt: app_signed_psbt.to_string(),
         ..Default::default()
     };
-
-    println!("app_signed_psbt: {}", app_signed_psbt.to_string());
 
     // Send the sweep transaction
     let response = client
@@ -1107,14 +1226,22 @@ async fn fail_sends_to_sanctioned_address_test(wallet_protocol: WalletTestProtoc
         "{}",
         response.body_string
     );
+
+    let screener_rows = bootstrap
+        .services
+        .screener_repository
+        .test_fetch_for_account_id(&fixture.account.id)
+        .await
+        .unwrap();
+    assert_eq!(1, screener_rows.len())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_fail_sends_to_sanctioned_address() {
     fail_sends_to_sanctioned_address_test(WalletTestProtocol::Legacy).await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_fail_sends_to_sanctioned_address_private_ccd() {
     fail_sends_to_sanctioned_address_test(WalletTestProtocol::PrivateCcd).await
 }
@@ -1295,7 +1422,7 @@ async fn fail_if_signed_with_different_wallet_test(wallet_protocol: WalletTestPr
                 assert!(response.body_string.contains("Invalid PSBT"));
             }
             WalletTestProtocol::PrivateCcd => {
-                assert!(response.body_string.contains("App signature not found."));
+                assert!(response.body_string.contains("Failed to finalize PSBT."));
             }
         }
     }
@@ -1389,9 +1516,8 @@ async fn test_sign_psbt_v2_happy_path() {
             _ => panic!("Expected XPub descriptor"),
         };
 
-        let mut psbt = psbt_with_tweaks(
-            psbt,
-            &Keyset {
+        let mut psbt = UntweakedPsbt::new(psbt)
+            .with_source_wallet_tweaks(&Keyset {
                 hw_descriptor_public_keys: HwAccountLevelDescriptorPublicKeys::new(
                     hw_descriptor_public_keys.root_fingerprint(),
                     hw_descriptor_public_keys.account_xpub(),
@@ -1401,9 +1527,9 @@ async fn test_sign_psbt_v2_happy_path() {
                     fingerprint: predefined_keys.app_root_xprv.fingerprint(&Secp256k1::new()),
                     xpub: app_account_xpub,
                 },
-            },
-        )
-        .unwrap();
+            })
+            .unwrap()
+            .into_psbt();
 
         wallet.sign(&mut psbt, SignOptions::default()).unwrap();
 

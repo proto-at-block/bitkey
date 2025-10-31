@@ -61,6 +61,12 @@ interface WatchingWallet {
   suspend fun getNewAddress(): Result<BitcoinAddress, Error>
 
   /**
+   * Returns the address at a specific index without incrementing the wallet's internal counter.
+   * This is useful when you need to generate an address at a known index.
+   */
+  suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error>
+
+  /**
    * Returns the last unused address of the wallet.
    */
   suspend fun getLastUnusedAddress(): Result<BitcoinAddress, Error>

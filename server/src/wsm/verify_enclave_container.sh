@@ -177,11 +177,19 @@ EIF_INFO=$(
     nitro-cli describe-eif --eif-path /eif/wsm-enclave.eif
 )
 EIF_IMAGE_HASH=$(echo $EIF_INFO | jq -r .ImageVersion)
-CONTAINER_IMAGE_HASH=$(docker inspect wsm-enclave:latest | jq -r '.[0].Id' | cut -d : -f 2)
-if [[ ! "$EIF_IMAGE_HASH" = "$CONTAINER_IMAGE_HASH" ]]; then
+
+# In newer versions of Docker on Mac, the image hash can be different from the config digest because
+# it switched over to `containerd`. We want to read the config digest here because it is stable 
+# across platforms and stores, as is what is used in Linux, where we are building the container. 
+CI_CONFIG_PATH=$(jq -r '.[0].Config' ci/manifest.json)
+CI_CONFIG_DIGEST=$(sha256sum "ci/${CI_CONFIG_PATH}" | awk '{print $1}')
+
+if [[ ! "$EIF_IMAGE_HASH" = "$CI_CONFIG_DIGEST" ]]; then
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     echo "⛔ ENCLAVE IMAGE (.eif file) IS USING DIFFERENT CONTAINER IMAGE"
     echo "⛔ SOMETHING IS WRONG"
+    echo "EIF ImageVersion:     $EIF_IMAGE_HASH"
+    echo "CI Config Digest:     $CI_CONFIG_DIGEST"
     echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     exit 1
 fi

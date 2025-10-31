@@ -36,4 +36,10 @@ data class InheritanceMaterialPackage(
    */
   @SerialName("sealed_descriptor")
   val sealedDescriptor: XCiphertext?,
+  /**
+   * The customer's server root xpub, encrypted with [sealedDek]. Must be present for private wallets.
+   * Not guaranteed to be present even if sealedDescriptor is.
+   */
+  @SerialName("sealed_server_root_xpub")
+  val sealedServerRootXpub: XCiphertext?,
 )

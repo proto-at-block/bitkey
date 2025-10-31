@@ -9,8 +9,8 @@ import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock2
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.sqldelight.inMemorySqlDriver
@@ -48,7 +48,7 @@ class KeyboxDaoImplTests : FunSpec({
     canUseKeyboxKeysets = true
   )
 
-  val keyset2 = SpendingKeysetMock2
+  val keyset2 = PrivateSpendingKeysetMock
   val appKeyBundle2 = AppKeyBundleMock2.copy(
     spendingKey = keyset2.appKey
   )
@@ -125,9 +125,9 @@ class KeyboxDaoImplTests : FunSpec({
       awaitItem().shouldBe(Ok(keybox1))
 
       val keyset3 =
-        SpendingKeysetMock2.copy(
+        PrivateSpendingKeysetMock.copy(
           localId = "3",
-          f8eSpendingKeyset = SpendingKeysetMock2.f8eSpendingKeyset.copy(keysetId = "server-3")
+          f8eSpendingKeyset = PrivateSpendingKeysetMock.f8eSpendingKeyset.copy(keysetId = "server-3")
         )
       val keyBundle3 =
         AppKeyBundleMock2.copy(

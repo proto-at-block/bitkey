@@ -62,9 +62,10 @@ async fn create_account_v2_test_with_idempotency() {
             &first_create_response.account_id.to_string(),
             &DescriptorBackupsSet {
                 wrapped_ssek: vec![],
-                descriptor_backups: vec![DescriptorBackup {
+                descriptor_backups: vec![DescriptorBackup::Private {
                     keyset_id: first_create_response.keyset_id,
                     sealed_descriptor: "".to_string(),
+                    sealed_server_root_xpub: "".to_string(),
                 }],
             },
             Some(&keys),
@@ -191,9 +192,10 @@ async fn create_keyset_v2_test_with_idempotency() {
             &create_response.account_id.to_string(),
             &DescriptorBackupsSet {
                 wrapped_ssek: vec![],
-                descriptor_backups: vec![DescriptorBackup {
+                descriptor_backups: vec![DescriptorBackup::Private {
                     keyset_id: create_response.keyset_id.clone(),
                     sealed_descriptor: "".to_string(),
+                    sealed_server_root_xpub: "".to_string(),
                 }],
             },
             Some(&keys),

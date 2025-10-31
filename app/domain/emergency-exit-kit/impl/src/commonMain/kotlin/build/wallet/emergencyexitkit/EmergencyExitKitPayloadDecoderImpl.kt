@@ -21,6 +21,7 @@ import build.wallet.emergencyexitkit.EmergencyExitKitPayloadDecoder.DecodeError
 import build.wallet.emergencyexitkit.EmergencyExitKitPayloadDecoder.DecodeError.*
 import build.wallet.encrypt.SealedData
 import build.wallet.ensureNotNull
+import build.wallet.logging.LogLevel
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -63,7 +64,7 @@ class EmergencyExitKitPayloadDecoderImpl : EmergencyExitKitPayloadDecoder {
         .toResultOr { InvalidBackupVersion }
         .flatMap { it.toEmergencyExitKitPayload() }
         .bind()
-    }.logFailure { "Emergency Exit Kit decrypted payload failed to decode" }
+    }.logFailure(logLevel = LogLevel.Info) { "Emergency Exit Kit decrypted payload failed to decode" }
   }
 
   override suspend fun encodeBackup(backupV1: EmergencyExitKitBackup): ByteString {
@@ -238,7 +239,8 @@ fun ActiveSpendingKeysetV1.toEmergencyExitKitBackupV1():
                       .toResultOr { InvalidProtoData() }
                       .flatMap { it.toDescriptorPublicKey() }
                       .bind()
-                )
+                ),
+              privateWalletRootXpub = null // irrelevant in the context of the EEK
             )
         ),
       appSpendingKeyXprv = AppSpendingPrivateKey(

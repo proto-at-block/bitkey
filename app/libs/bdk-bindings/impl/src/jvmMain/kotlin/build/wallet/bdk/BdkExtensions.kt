@@ -3,8 +3,9 @@ package build.wallet.bdk
 import build.wallet.bdk.bindings.*
 import kotlinx.datetime.Instant
 import org.bitcoindevkit.*
-import org.bitcoindevkit.AddressIndex.LastUnused
-import org.bitcoindevkit.AddressIndex.New
+import org.bitcoindevkit.AddressIndex.LastUnused as FfiLastUnused
+import org.bitcoindevkit.AddressIndex.New as FfiNew
+import org.bitcoindevkit.AddressIndex.Peek as FfiPeek
 
 /**
  * Convert BDK type to FFI type.
@@ -12,8 +13,9 @@ import org.bitcoindevkit.AddressIndex.New
 internal val BdkAddressIndex.ffiAddressIndex: FfiAddressIndex
   get() =
     when (this) {
-      BdkAddressIndex.NEW -> New
-      BdkAddressIndex.LAST_UNUSED -> LastUnused
+      BdkAddressIndex.New -> FfiNew
+      BdkAddressIndex.LastUnused -> FfiLastUnused
+      is BdkAddressIndex.Peek -> FfiPeek(index)
     }
 
 /**

@@ -25,8 +25,8 @@ import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.testForLegacyAndPrivateWallet
 import build.wallet.testing.fakeTransact
-import build.wallet.testing.tags.TestTag.FlakyTest
 import build.wallet.ui.model.list.ListItemModel
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
@@ -40,102 +40,101 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
 class EmergencyExitRecoveryFunctionalTests : FunSpec({
-  test("recover keybox with no funds from Emergency Exit Kit")
-    .config(tags = setOf(FlakyTest)) {
-      val app = launchNewApp()
-      // Onboard a new account, and generate an EEK payload.
-      app.onboardFullAccountWithFakeHardware()
+  testForLegacyAndPrivateWallet("recover keybox with no funds from Emergency Exit Kit", isFlakyTest = true) {
+    val app = launchNewApp()
+    // Onboard a new account, and generate an EEK payload.
+    app.onboardFullAccountWithFakeHardware()
 
-      val csek = app.sekGenerator.generate()
+    val csek = app.sekGenerator.generate()
 
-      val sealedCsek =
-        app.nfcTransactor.fakeTransact(
-          transaction = { session, commands ->
-            commands.sealData(session, csek.key.raw)
-          }
-        ).getOrThrow()
+    val sealedCsek =
+      app.nfcTransactor.fakeTransact(
+        transaction = { session, commands ->
+          commands.sealData(session, csek.key.raw)
+        }
+      ).getOrThrow()
 
-      val spendingKeys = app.getActiveFullAccount().keybox.activeSpendingKeyset
-      val xprv = app.appPrivateKeyDao.getAppSpendingPrivateKey(spendingKeys.appKey)
-        .get().shouldNotBeNull()
+    val spendingKeys = app.getActiveFullAccount().keybox.activeSpendingKeyset
+    val xprv = app.appPrivateKeyDao.getAppSpendingPrivateKey(spendingKeys.appKey)
+      .get().shouldNotBeNull()
 
-      // TODO (BKR-923): There is no PDF creation implementation for the JVM, preventing the real
-      //      creation of an Emergency Exit Kit PDF. This simulates the same creation so that
-      //      the account that restores from it can validate it's the same spending keys.
-      val sealedSpendingKeys = SymmetricKeyEncryptorImpl().sealNoMetadata(
-        unsealedData = EmergencyExitKitPayloadDecoderImpl().encodeBackup(
-          EmergencyExitKitBackup.EmergencyExitKitBackupV1(
-            spendingKeyset = spendingKeys,
-            appSpendingKeyXprv = xprv
-          )
-        ),
-        key = csek.key
-      )
-      val validData =
-        EmergencyExitKitPayloadDecoderImpl().encode(
-          EmergencyExitKitPayloadV1(
-            sealedHwEncryptionKey = sealedCsek,
-            sealedActiveSpendingKeys = sealedSpendingKeys
-          )
+    // TODO (BKR-923): There is no PDF creation implementation for the JVM, preventing the real
+    //      creation of an Emergency Exit Kit PDF. This simulates the same creation so that
+    //      the account that restores from it can validate it's the same spending keys.
+    val sealedSpendingKeys = SymmetricKeyEncryptorImpl().sealNoMetadata(
+      unsealedData = EmergencyExitKitPayloadDecoderImpl().encodeBackup(
+        EmergencyExitKitBackup.EmergencyExitKitBackupV1(
+          spendingKeyset = spendingKeys,
+          appSpendingKeyXprv = xprv
         )
-
-      // New app, same hardware, no cloud backup.
-      val newApp = launchNewApp(
-        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
+      ),
+      key = csek.key
+    )
+    val validData =
+      EmergencyExitKitPayloadDecoderImpl().encode(
+        EmergencyExitKitPayloadV1(
+          sealedHwEncryptionKey = sealedCsek,
+          sealedActiveSpendingKeys = sealedSpendingKeys
+        )
       )
 
-      newApp.appUiStateMachine.test(
-        Unit,
-        turbineTimeout = 10.seconds
-      ) {
-        // Do not find backup, enter the EEK flow.
-        awaitUntilBody<ChooseAccountAccessModel>()
-          .clickMoreOptionsButton()
-        awaitUntilBody<FormBodyModel>()
-          .restoreButton.onClick.shouldNotBeNull().invoke()
-        awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
-          .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilBody<FormBodyModel>(CLOUD_BACKUP_NOT_FOUND)
-          .restoreEmergencyExitButton.onClick.shouldNotBeNull().invoke()
+    // New app, same hardware, no cloud backup.
+    val newApp = launchNewApp(
+      hardwareSeed = app.fakeHardwareKeyStore.getSeed()
+    )
 
-        // Progress through the EEK flow with manual entry.
-        awaitUntilBody<EmergencyExitKitImportWalletBodyModel>()
-          .onEnterManually()
-        awaitUntilBody<EmergencyExitKitImportPasteAppKeyBodyModel> {
-          onEnterTextChanged(validData)
-        }
-        awaitUntilBody<EmergencyExitKitImportPasteAppKeyBodyModel>(
-          matching = { it.primaryButton?.isEnabled == true }
-        ) {
-          enteredText.shouldBe(validData)
-          onContinue()
-        }
-        awaitUntilBody<EmergencyExitKitRestoreWalletBodyModel>(
-          matching = { it.primaryButton?.isEnabled == true }
-        ) {
-          onRestore.shouldNotBeNull().invoke()
-        }
+    newApp.appUiStateMachine.test(
+      Unit,
+      turbineTimeout = 10.seconds
+    ) {
+      // Do not find backup, enter the EEK flow.
+      awaitUntilBody<ChooseAccountAccessModel>()
+        .clickMoreOptionsButton()
+      awaitUntilBody<FormBodyModel>()
+        .restoreButton.onClick.shouldNotBeNull().invoke()
+      awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitUntilBody<FormBodyModel>(CLOUD_BACKUP_NOT_FOUND)
+        .restoreEmergencyExitButton.onClick.shouldNotBeNull().invoke()
 
-        awaitUntilBody<NfcBodyModel>()
-        awaitUntilBody<NfcBodyModel>()
-
-        awaitUntilBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
-          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-        }
-
-        // Validate that this is the same wallet as originally created.
-        awaitUntilBody<MoneyHomeBodyModel>(
-          matching = {
-            it.balanceModel.primaryAmount == "$0.00" && it.balanceModel.secondaryAmount == "0 sats"
-          }
-        )
-
-        newApp.getActiveFullAccount().keybox.activeSpendingKeyset.appKey
-          .shouldBeEqual(spendingKeys.appKey)
-
-        cancelAndIgnoreRemainingEvents()
+      // Progress through the EEK flow with manual entry.
+      awaitUntilBody<EmergencyExitKitImportWalletBodyModel>()
+        .onEnterManually()
+      awaitUntilBody<EmergencyExitKitImportPasteAppKeyBodyModel> {
+        onEnterTextChanged(validData)
       }
+      awaitUntilBody<EmergencyExitKitImportPasteAppKeyBodyModel>(
+        matching = { it.primaryButton?.isEnabled == true }
+      ) {
+        enteredText.shouldBe(validData)
+        onContinue()
+      }
+      awaitUntilBody<EmergencyExitKitRestoreWalletBodyModel>(
+        matching = { it.primaryButton?.isEnabled == true }
+      ) {
+        onRestore.shouldNotBeNull().invoke()
+      }
+
+      awaitUntilBody<NfcBodyModel>()
+      awaitUntilBody<NfcBodyModel>()
+
+      awaitUntilBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      // Validate that this is the same wallet as originally created.
+      awaitUntilBody<MoneyHomeBodyModel>(
+        matching = {
+          it.balanceModel.primaryAmount == "$0.00" && it.balanceModel.secondaryAmount == "0 sats"
+        }
+      )
+
+      newApp.getActiveFullAccount().keybox.activeSpendingKeyset.appKey
+        .shouldBeEqual(spendingKeys.appKey)
+
+      cancelAndIgnoreRemainingEvents()
     }
+  }
 
   test("user text is redacted") {
     val model = EmergencyExitKitImportPasteAppKeyBodyModel(

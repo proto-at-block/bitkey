@@ -36,5 +36,6 @@ internal fun ChaincodeDelegationException.toChaincodeDelegationError(): Chaincod
     is ChaincodeDelegationException.KeyMismatch -> ChaincodeDelegationError.KeyMismatch(cause, message)
     is ChaincodeDelegationException.TweakComputation -> ChaincodeDelegationError.TweakComputation(cause, message)
     is ChaincodeDelegationException.UnknownKey -> ChaincodeDelegationError.UnknownKey(cause, message)
+    is ChaincodeDelegationException.InvalidPsbt -> ChaincodeDelegationError.InvalidPsbt(cause, message)
   }
 }

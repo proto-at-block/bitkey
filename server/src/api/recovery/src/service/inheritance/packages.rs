@@ -3,14 +3,14 @@ use database::ddb::DatabaseError;
 use tracing::instrument;
 
 use types::{
-    account::identifiers::AccountId,
+    account::{entities::FullAccount, spending::SpendingKeyset},
     recovery::{inheritance::package::Package, social::relationship::RecoveryRelationshipId},
 };
 
 use super::{error::ServiceError, Service};
 
 pub struct UploadPackagesInput<'a> {
-    pub benefactor_account_id: &'a AccountId,
+    pub benefactor_full_account: &'a FullAccount,
     pub packages: Vec<Package>,
 }
 
@@ -20,9 +20,33 @@ impl Service {
         &self,
         input: UploadPackagesInput<'_>,
     ) -> Result<Vec<Package>, ServiceError> {
+        match input.benefactor_full_account.active_spending_keyset() {
+            Some(SpendingKeyset::PrivateMultiSig(_)) => {
+                if input
+                    .packages
+                    .iter()
+                    .any(|p| p.sealed_descriptor.is_none() || p.sealed_server_root_xpub.is_none())
+                {
+                    return Err(ServiceError::PackageKeysetTypeMismatch);
+                }
+            }
+            Some(SpendingKeyset::LegacyMultiSig(_)) => {
+                if input
+                    .packages
+                    .iter()
+                    .any(|p| p.sealed_server_root_xpub.is_some())
+                {
+                    return Err(ServiceError::PackageKeysetTypeMismatch);
+                }
+            }
+            None => {
+                return Err(ServiceError::NoActiveSpendingKeyset);
+            }
+        }
+
         let package_rows = self
             .repository
-            .persist_packages(input.benefactor_account_id, input.packages)
+            .persist_packages(&input.benefactor_full_account.id, input.packages)
             .await
             .map_err(|e| match e {
                 DatabaseError::DependantObjectNotFound(_) => ServiceError::InvalidRelationship,

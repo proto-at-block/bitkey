@@ -15,7 +15,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.statemachine.core.list.ListModel
@@ -293,23 +292,33 @@ fun LiteMoneyHomeScreen(
 private fun MoneyHomeButtons(model: MoneyHomeButtonsModel) {
   when (model) {
     is MoneyHomeButtonsModel.MoneyMovementButtonsModel -> {
-      val buttonCount = model.buttons.size
-      val spacing = if (buttonCount > 3) 20.dp else 40.dp
-
-      CircularActions(
-        modifier = Modifier
+      BoxWithConstraints(
+        Modifier
           .fillMaxWidth()
           .padding(top = 16.dp)
-          .padding(horizontal = 20.dp),
-        buttonContentsList = ButtonContentsList(
-          buttonContents = model.buttons.map {
-            {
-              IconButton(model = it)
+      ) {
+        val buttonCount = model.buttons.size
+        // Divide the width of the screen into chunks for each button
+        val chunkedWidth = maxWidth / buttonCount
+        // Use 1/12th of the space in each chunk for padding on either side of the buttons
+        val interButtonSpacing = chunkedWidth / 12
+        // Button size is equal to the width of the chunk minus the padding on each side
+        val buttonSize = chunkedWidth - (interButtonSpacing * 2)
+        RowOfButtons(
+          modifier = Modifier.fillMaxWidth(),
+          buttonContents = ButtonContentsList(
+            buttonContents = model.buttons.map {
+              {
+                IconButton(
+                  modifier = Modifier.size(buttonSize),
+                  model = it
+                )
+              }
             }
-          }
-        ),
-        interButtonSpacing = spacing
-      )
+          ),
+          interButtonSpacing = interButtonSpacing
+        )
+      }
     }
 
     is MoneyHomeButtonsModel.SingleButtonModel ->
@@ -322,19 +331,6 @@ private fun MoneyHomeButtons(model: MoneyHomeButtonsModel) {
         model = model.button
       )
   }
-}
-
-@Composable
-private fun CircularActions(
-  modifier: Modifier = Modifier,
-  buttonContentsList: ButtonContentsList,
-  interButtonSpacing: Dp = 40.dp, // 20.dp of spacing on either side of each button
-) {
-  RowOfButtons(
-    modifier = modifier,
-    buttonContents = buttonContentsList,
-    interButtonSpacing = interButtonSpacing
-  )
 }
 
 @Composable

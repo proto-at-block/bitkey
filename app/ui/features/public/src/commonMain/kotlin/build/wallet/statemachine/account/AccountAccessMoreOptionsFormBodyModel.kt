@@ -72,8 +72,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
                     iconSize = IconSize.Small
                   )
                 ),
-                title = "Recover from orphaned keys",
-                secondaryText = "Emergency recovery using stored keys",
+                title = "Restore from keychain",
                 onClick = it,
                 trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
               )

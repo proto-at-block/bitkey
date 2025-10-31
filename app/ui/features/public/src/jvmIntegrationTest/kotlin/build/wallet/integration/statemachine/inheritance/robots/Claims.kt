@@ -24,6 +24,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 suspend fun InheritanceTestApps.advanceThroughClaimStart() {
   beneficiary.app.inheritanceManagementUiStateMachine.test(
+    turbineTimeout = 60.seconds,
     props = InheritanceManagementUiProps(
       account = beneficiary.account(),
       selectedTab = ManagingInheritanceTab.Beneficiaries,

@@ -14,6 +14,9 @@
     <string name="chart_history_label_month_diff">Past month</string>
     <string name="chart_history_label_year_diff">Past year</string>
     <string name="chart_history_label_all_diff">Overall</string>
+    <string name="appearance_section_display">Display</string>
+    <string name="appearance_section_currency">Currency</string>
+    <string name="appearance_section_privacy">Privacy</string>
     <string name="qr_scanner_no_access_alert_title">No Camera access</string>
     <string name="qr_scanner_no_access_alert_subline">To scan codes, please allow us to use your camera in Settings.</string>
     <string name="qr_scanner_no_access_alert_button_primary">Settings</string>

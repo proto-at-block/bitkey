@@ -12,6 +12,7 @@ use repository::recovery::inheritance::InheritanceRepository;
 use screener::service::Service as ScreenerService;
 use types::account::entities::Account;
 use types::account::identifiers::{AccountId, KeysetId};
+use types::account::spending::SpendingKeyset;
 use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimId, InheritanceRole};
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
@@ -75,17 +76,39 @@ impl Service {
     async fn fetch_active_benefactor_descriptor_keyset(
         &self,
         recovery_relationship_id: &RecoveryRelationshipId,
-    ) -> Result<(KeysetId, DescriptorKeyset), ServiceError> {
+    ) -> Result<Option<DescriptorKeyset>, ServiceError> {
         let account = self.get_customer_account(recovery_relationship_id).await?;
         match account {
             Account::Full(account) => {
-                let active_descriptor_keyset = account
-                    .active_descriptor_keyset()
-                    .ok_or(ServiceError::NoActiveDescriptorKeySet)?;
+                let active_descriptor_keyset: Option<DescriptorKeyset> = account
+                    .active_spending_keyset()
+                    .ok_or(ServiceError::NoActiveSpendingKeyset)?
+                    .optional_legacy_multi_sig()
+                    .map(|k| k.clone().into());
 
-                let active_keyset_id = account.active_keyset_id;
+                match active_descriptor_keyset {
+                    Some(descriptor_keyset) => Ok(Some(descriptor_keyset)),
+                    None => Ok(None),
+                }
+            }
+            _ => Err(ServiceError::IncompatibleAccountType),
+        }
+    }
 
-                Ok((active_keyset_id, active_descriptor_keyset))
+    #[instrument(skip(self))]
+    async fn fetch_active_benefactor_spending_keyset(
+        &self,
+        recovery_relationship_id: &RecoveryRelationshipId,
+    ) -> Result<(KeysetId, SpendingKeyset), ServiceError> {
+        let account = self.get_customer_account(recovery_relationship_id).await?;
+        match account {
+            Account::Full(account) => {
+                let active_keyset_id = account.active_keyset_id.clone();
+                let active_spending_keyset = account
+                    .active_spending_keyset()
+                    .ok_or(ServiceError::NoActiveSpendingKeyset)?;
+
+                Ok((active_keyset_id, active_spending_keyset.clone()))
             }
             _ => Err(ServiceError::IncompatibleAccountType),
         }

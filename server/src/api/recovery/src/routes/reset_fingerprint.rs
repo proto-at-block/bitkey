@@ -94,6 +94,8 @@ pub struct ResetFingerprintRequest {
     pub challenge: Vec<u8>,
     #[serde_as(as = "DisplayFromStr")]
     pub signature: Signature,
+    #[serde_as(as = "DisplayFromStr")]
+    pub app_signature: Signature,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -148,7 +150,8 @@ pub async fn reset_fingerprint(
                             action: req.action,
                             device_id: req.device_id,
                             challenge: req.challenge,
-                            signature: req.signature,
+                            hw_signature: req.signature,
+                            app_signature: req.app_signature,
                         }
                         .serialize(false);
 
@@ -195,7 +198,8 @@ async fn create_signed_grant(
             action: request.action,
             device_id: request.device_id,
             challenge: request.challenge,
-            signature: request.signature,
+            hw_signature: request.signature,
+            app_signature: request.app_signature,
         })
         .await
         .map_err(|e| ApiError::from(RecoveryError::WsmGrantError(e)))

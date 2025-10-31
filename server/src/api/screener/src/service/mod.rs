@@ -5,22 +5,33 @@ use std::str::FromStr;
 use crate::sanctions_screener::{SanctionedAddresses, Screener};
 use crate::{Config, ScreenerMode};
 use csv::ReaderBuilder;
+use errors::ApiError;
+use repository::screener::ScreenerRepository;
 use s3_utils::{read_file_to_memory, ObjectPath};
-use serde::Deserialize;
+use tokio::runtime::Handle;
+use tokio::task::block_in_place;
 use tracing::error;
+use types::account::entities::Account;
+use types::screener::ScreenerRow;
 
 pub trait SanctionsScreener {
-    fn should_block_transaction(&self, addresses: &[String]) -> bool;
+    fn should_block_transaction(
+        &self,
+        account: &Account,
+        addresses: &[String],
+    ) -> Result<bool, ApiError>;
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone)]
 pub struct Service {
     screener: Screener,
+    repo: ScreenerRepository,
 }
 
 impl Service {
     pub async fn new_and_load_data(
         with_overrides: Option<HashSet<String>>,
+        screener_repo: ScreenerRepository,
         config: Config,
     ) -> Self {
         let mut screener = Screener::new();
@@ -31,7 +42,10 @@ impl Service {
                     screener.set_sanctioned_addresses(SanctionedAddresses(overrides));
                 }
 
-                Self { screener }
+                Self {
+                    screener,
+                    repo: screener_repo,
+                }
             }
             ScreenerMode::S3 => {
                 // If SQ_SDN_URI is undefined, use hardcoded addresses. If it is malformed, we should
@@ -53,7 +67,10 @@ impl Service {
 
                 screener.set_sanctioned_addresses(SanctionedAddresses(sanctioned_addresses));
 
-                Self { screener }
+                Self {
+                    screener,
+                    repo: screener_repo,
+                }
             }
         }
     }
@@ -61,11 +78,42 @@ impl Service {
 
 impl SanctionsScreener for Service {
     /// Returns true if any of the addresses belong to a sanctioned wallet.
-    fn should_block_transaction(&self, destination_addresses: &[String]) -> bool {
-        !self
+    fn should_block_transaction(
+        &self,
+        account: &Account,
+        destination_addresses: &[String],
+    ) -> Result<bool, ApiError> {
+        let sanctioned_addresses = self
             .screener
-            .find_sanctioned_addresses(destination_addresses)
-            .is_empty()
+            .find_sanctioned_addresses(destination_addresses);
+
+        if sanctioned_addresses.is_empty() {
+            return Ok(false);
+        }
+
+        let account_id = account.get_id();
+
+        let touchpoints = &account.get_common_fields().touchpoints;
+
+        let email_address = touchpoints
+            .iter()
+            .filter(|t| t.is_active())
+            .find_map(|t| t.email_address());
+
+        let phone_number = touchpoints
+            .iter()
+            .filter(|t| t.is_active())
+            .find_map(|t| t.phone_number());
+
+        let hit = ScreenerRow::new_cosign_hit(
+            account_id.clone(),
+            email_address,
+            phone_number,
+            sanctioned_addresses,
+        )?;
+        block_in_place(|| Handle::current().block_on(self.repo.persist(&hit)))?;
+
+        Ok(true)
     }
 }
 
@@ -146,12 +194,21 @@ fn extract_sanctioned_addresses(bytes: &[u8]) -> HashSet<String> {
 
 #[cfg(test)]
 mod tests {
+    use database::ddb::{self, Repository};
+    use http_server::config;
+
     use super::*;
 
     #[tokio::test]
     async fn test_load_data_local() {
+        let conn = config::extract::<ddb::Config>(Some("test"))
+            .unwrap()
+            .to_connection()
+            .await;
+        let repo = ScreenerRepository::new(conn);
         let service = Service::new_and_load_data(
             Some(HashSet::from(["addr1".to_string()])),
+            repo,
             Config {
                 screener: ScreenerMode::Test,
             },

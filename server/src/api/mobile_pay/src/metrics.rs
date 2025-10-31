@@ -45,7 +45,18 @@ pub(crate) static TIME_TO_BROADCAST: Lazy<Histogram<u64>> =
 pub(crate) static TIME_TO_CHECK_SPENDING_RULES: Lazy<Histogram<u64>> =
     Lazy::new(|| FACTORY.u64_histogram("f8e_time_to_check_spending_rules", Some("ms")));
 
+// Counts the number of successful server co-sign requests
+pub(crate) static COSIGN_SUCCESS: Lazy<Counter<u64>> =
+    Lazy::new(|| FACTORY.u64_counter("cosign_success", None));
+
 const SIGNING_CONTEXT: &str = "signing_context";
+pub const SIGNING_STRATEGY_KEY: &str = "signing_strategy";
+pub const MOBILE_PAY_VALUE: &str = "mobile_pay";
+pub const SWEEP_VALUE: &str = "sweep";
+pub const KEYSET_TYPE_KEY: &str = "keyset_type";
+pub const LEGACY_VALUE: &str = "legacy";
+pub const PRIVATE_VALUE: &str = "private";
+pub const APP_ID_KEY: &str = "app_id";
 
 pub(crate) async fn record_histogram_async<T, F, Fut>(
     metric: Histogram<u64>,

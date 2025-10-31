@@ -368,45 +368,56 @@ class InitiatingLostAppRecoveryUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("extracts hardware keys from descriptor backups when awaiting hardware proof of possession") {
-    val descriptorBackup = DescriptorBackup(
-      keysetId = "test-keyset-123",
-      sealedDescriptor = XCiphertext("fake-sealed-descriptor")
-    )
-    val sealedSsek = "fake-sealed-ssek".encodeUtf8()
-
-    val completedAuth = CompletedAuth.WithDescriptorBackups(
-      accountId = FullAccountIdMock,
-      authTokens = AccountAuthTokensMock,
-      hwAuthKey = HwAuthSecp256k1PublicKeyMock,
-      destinationAppKeys = AppKeyBundleMock,
-      descriptorBackups = listOf(descriptorBackup),
-      wrappedSsek = sealedSsek
+  val descriptorBackupScenarios: List<Pair<String, XCiphertext?>> =
+    listOf(
+      "without private wallet root xpub" to null,
+      "with private wallet root xpub" to XCiphertext("fake-private-wallet-root-xpub")
     )
 
-    val props = InitiatingLostAppRecoveryUiProps(
-      initiatingLostAppRecoveryData = AwaitingHardwareProofOfPossessionAndKeysData(
-        completedAuth = completedAuth,
-        onComplete = { _, _, _ -> onCompleteCalls += Unit },
-        rollback = { rollbackCalls += Unit }
+  descriptorBackupScenarios.forEach { (scenario, privateWalletRootXpub) ->
+    test(
+      "extracts hardware keys from descriptor backups when awaiting hardware proof of possession ($scenario)"
+    ) {
+      val descriptorBackup = DescriptorBackup(
+        keysetId = "test-keyset-123",
+        sealedDescriptor = XCiphertext("fake-sealed-descriptor"),
+        privateWalletRootXpub = privateWalletRootXpub
       )
-    )
+      val sealedSsek = "fake-sealed-ssek".encodeUtf8()
 
-    stateMachine.test(props) {
-      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(
-        id = nfcSessionUIStateMachine.id
-      ) {
-        session(NfcSessionFake(), nfcCommandsMock)
+      val completedAuth = CompletedAuth.WithDescriptorBackups(
+        accountId = FullAccountIdMock,
+        authTokens = AccountAuthTokensMock,
+        hwAuthKey = HwAuthSecp256k1PublicKeyMock,
+        destinationAppKeys = AppKeyBundleMock,
+        descriptorBackups = listOf(descriptorBackup),
+        wrappedSsek = sealedSsek
+      )
+
+      val props = InitiatingLostAppRecoveryUiProps(
+        initiatingLostAppRecoveryData = AwaitingHardwareProofOfPossessionAndKeysData(
+          completedAuth = completedAuth,
+          onComplete = { _, _, _ -> onCompleteCalls += Unit },
+          rollback = { rollbackCalls += Unit }
+        )
+      )
+
+      stateMachine.test(props) {
+        awaitBodyMock<NfcSessionUIStateMachineProps<*>>(
+          id = nfcSessionUIStateMachine.id
+        ) {
+          session(NfcSessionFake(), nfcCommandsMock)
+        }
       }
-    }
 
-    // Regardless of the descriptor backup provided, the descriptor service fake always
-    // returns the same HW_DESCRIPTOR_PUBKEY. This simply verifies that we DID go through the descriptor
-    // backup decryption flow, further validated by there being an unsealed ssek available in the ssekDao.
-    nfcCommandsMock.getNextSpendingKeyCalls.awaitItem()
-      .shouldBeInstanceOf<List<HwSpendingPublicKey>>()
-      .shouldContainExactly(HwSpendingPublicKey(HW_DESCRIPTOR_PUBKEY))
-    ssekDao.get(sealedSsek).shouldNotBeNull()
+      // Regardless of the descriptor backup provided, the descriptor service fake always
+      // returns the same HW_DESCRIPTOR_PUBKEY. This simply verifies that we DID go through the descriptor
+      // backup decryption flow, further validated by there being an unsealed ssek available in the ssekDao.
+      nfcCommandsMock.getNextSpendingKeyCalls.awaitItem()
+        .shouldBeInstanceOf<List<HwSpendingPublicKey>>()
+        .shouldContainExactly(HwSpendingPublicKey(HW_DESCRIPTOR_PUBKEY))
+      ssekDao.get(sealedSsek).shouldNotBeNull()
+    }
   }
 
   test("shows loading screen when initiating recovery with F8e") {

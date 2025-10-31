@@ -13,8 +13,10 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.logging.logInfo
 import build.wallet.logging.logNetworkFailure
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.first
@@ -28,6 +30,7 @@ class ExportTransactionsServiceImpl(
   private val bitcoinMultiSigDescriptorBuilder: BitcoinMultiSigDescriptorBuilder,
   private val exportTransactionsAsCsvSerializer: ExportTransactionsAsCsvSerializer,
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
+  private val uuidGenerator: UuidGenerator,
 ) : ExportTransactionsService {
   override suspend fun export(): Result<ExportedTransactions, Throwable> =
     coroutineBinding {
@@ -97,6 +100,7 @@ class ExportTransactionsServiceImpl(
           .logNetworkFailure { "Error fetching keysets for an account when exporting transaction history." }
           .bind()
           .keysets
+          .toSpendingKeysets(uuidGenerator)
       }
 
       allKeysets

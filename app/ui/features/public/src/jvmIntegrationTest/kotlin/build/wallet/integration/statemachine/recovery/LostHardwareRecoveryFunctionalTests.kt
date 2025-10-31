@@ -5,6 +5,7 @@ import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
+import build.wallet.feature.isEnabled
 import build.wallet.feature.setFlagValue
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.money.BitcoinMoney.Companion.sats
@@ -39,7 +40,6 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.core.test.TestScope
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -47,23 +47,21 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
 class LostHardwareRecoveryFunctionalTests : FunSpec({
-
-  lateinit var app: AppTester
-
-  suspend fun TestScope.launchAndPrepareApp() {
-    app = launchNewApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
-    app.onboardFullAccountWithFakeHardware()
-    app.fakeNfcCommands.wipeDevice()
+  suspend fun AppTester.prepareApp() {
+    encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
+    onboardFullAccountWithFakeHardware()
+    fakeNfcCommands.wipeDevice()
   }
 
-  suspend fun relaunchApp() {
-    app = app.relaunchApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
+  suspend fun AppTester.relaunchAppForLostHardware(): AppTester {
+    return relaunchApp().also { relaunched ->
+      relaunched.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
+    }
   }
 
-  test("lost hardware recovery - happy path") {
-    launchAndPrepareApp()
+  testForLegacyAndPrivateWallet("lost hardware recovery - happy path") { app ->
+    app.prepareApp()
+
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 60.seconds,
@@ -89,10 +87,11 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test(
+  testForLegacyAndPrivateWallet(
     "recovery lost hardware - force exiting before cloud backup takes you back to icloud backup"
-  ) {
-    launchAndPrepareApp()
+  ) { initialApp ->
+    var app = initialApp
+    app.prepareApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -109,7 +108,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
 
     // Force exit app while on cloud backup step
-    relaunchApp()
+    app = app.relaunchAppForLostHardware()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -132,8 +131,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("recovery lost hardware - force exiting in the middle of initiation") {
-    launchAndPrepareApp()
+  testForLegacyAndPrivateWallet("recovery lost hardware - force exiting in the middle of initiation") { initialApp ->
+    var app = initialApp
+    app.prepareApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -167,7 +167,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    relaunchApp()
+    app = app.relaunchAppForLostHardware()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -197,154 +197,152 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test(
+  testForLegacyAndPrivateWallet(
     "recovery lost hardware - force exiting after spend key gen and before activating takes you back to activating"
-  ) {
-    launchAndPrepareApp()
+  ) { initialApp ->
+    var app = initialApp
+    app.prepareApp()
 
-    app.apply {
-      appUiStateMachine.test(
-        props = Unit,
-        testTimeout = 20.seconds,
-        turbineTimeout = 60.seconds
-      ) {
-        startRecoveryAndAdvanceToDelayNotify(app)
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 20.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      startRecoveryAndAdvanceToDelayNotify(app)
 
-        // Complete recovery
-        awaitUntilBody<DelayAndNotifyNewKeyReady>()
-          .onCompleteRecovery()
-        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
-        cancelAndIgnoreRemainingEvents()
-      }
+      // Complete recovery
+      awaitUntilBody<DelayAndNotifyNewKeyReady>()
+        .onCompleteRecovery()
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
+      cancelAndIgnoreRemainingEvents()
+    }
 
-      relaunchApp()
+    app = app.relaunchAppForLostHardware()
 
-      app.appUiStateMachine.test(
-        props = Unit,
-        testTimeout = 20.seconds,
-        turbineTimeout = 60.seconds
-      ) {
-        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 20.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
 
-        awaitUntilBody<SaveBackupInstructionsBodyModel>()
-          .onBackupClick()
-        awaitUntilBody<CloudSignInModelFake>()
-          .signInSuccess(CloudStoreAccount1Fake)
-        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-        awaitUntilBody<ZeroBalancePromptBodyModel>()
-          .onDone()
+      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+        .onBackupClick()
+      awaitUntilBody<CloudSignInModelFake>()
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+      awaitUntilBody<ZeroBalancePromptBodyModel>()
+        .onDone()
 
-        awaitUntilBody<MoneyHomeBodyModel>()
-        app.awaitNoActiveRecovery()
+      awaitUntilBody<MoneyHomeBodyModel>()
+      app.awaitNoActiveRecovery()
 
-        cancelAndIgnoreRemainingEvents()
-      }
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
-  test(
+  testForLegacyAndPrivateWallet(
     "recovery lost hardware - force exiting after spend key gen and before ddk backup takes you back to DDK Backup"
-  ) {
-    launchAndPrepareApp()
+  ) { initialApp ->
+    var app = initialApp
+    app.prepareApp()
 
-    app.apply {
-      appUiStateMachine.test(
-        props = Unit,
-        testTimeout = 20.seconds,
-        turbineTimeout = 60.seconds
-      ) {
-        startRecoveryAndAdvanceToDelayNotify(app)
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 20.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      startRecoveryAndAdvanceToDelayNotify(app)
 
-        // Complete recovery
-        awaitUntilBody<DelayAndNotifyNewKeyReady>()
-          .onCompleteRecovery()
-        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_DDK_UPLOAD)
-        cancelAndIgnoreRemainingEvents()
-      }
+      // Complete recovery
+      awaitUntilBody<DelayAndNotifyNewKeyReady>()
+        .onCompleteRecovery()
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_DDK_UPLOAD)
+      cancelAndIgnoreRemainingEvents()
+    }
 
-      // Force exit app on backup step
-      relaunchApp()
+    // Force exit app on backup step
+    app = app.relaunchAppForLostHardware()
 
-      app.appUiStateMachine.test(
-        props = Unit,
-        testTimeout = 20.seconds,
-        turbineTimeout = 60.seconds
-      ) {
-        // Resume on backup step and complete recovery
-        awaitUntilBody<SaveBackupInstructionsBodyModel>()
-          .onBackupClick()
-        awaitUntilBody<CloudSignInModelFake>()
-          .signInSuccess(CloudStoreAccount1Fake)
-        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-        awaitUntilBody<ZeroBalancePromptBodyModel>()
-          .onDone()
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 20.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      // Resume on backup step and complete recovery
+      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+        .onBackupClick()
+      awaitUntilBody<CloudSignInModelFake>()
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+      awaitUntilBody<ZeroBalancePromptBodyModel>()
+        .onDone()
 
-        awaitUntilBody<MoneyHomeBodyModel>()
-        app.awaitNoActiveRecovery()
+      awaitUntilBody<MoneyHomeBodyModel>()
+      app.awaitNoActiveRecovery()
 
-        cancelAndIgnoreRemainingEvents()
-      }
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
-  test(
+  testForLegacyAndPrivateWallet(
     "recovery lost hardware - force exiting after ddk tap and before ddk backup takes you back to DDK Backup"
-  ) {
-    launchAndPrepareApp()
+  ) { initialApp ->
+    var app = initialApp
+    app.prepareApp()
 
-    app.apply {
-      appUiStateMachine.test(
-        props = Unit,
-        testTimeout = 20.seconds,
-        turbineTimeout = 60.seconds
-      ) {
-        startRecoveryAndAdvanceToDelayNotify(app)
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 20.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      startRecoveryAndAdvanceToDelayNotify(app)
 
-        // Complete recovery
-        awaitUntilBody<DelayAndNotifyNewKeyReady>()
-          .onCompleteRecovery()
-        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_DDK_UPLOAD)
-        // Initiating NFC
-        awaitUntilBody<NfcBodyModel>()
-        // Detected NFC
-        awaitUntilBody<NfcBodyModel>()
-        // Success NFC
-        awaitUntilBody<NfcBodyModel>()
+      // Complete recovery
+      awaitUntilBody<DelayAndNotifyNewKeyReady>()
+        .onCompleteRecovery()
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_DDK_UPLOAD)
+      // Initiating NFC
+      awaitUntilBody<NfcBodyModel>()
+      // Detected NFC
+      awaitUntilBody<NfcBodyModel>()
+      // Success NFC
+      awaitUntilBody<NfcBodyModel>()
 
-        cancelAndIgnoreRemainingEvents()
-      }
+      cancelAndIgnoreRemainingEvents()
+    }
 
-      // Force exit app on backup step
-      relaunchApp()
+    // Force exit app on backup step
+    app = app.relaunchAppForLostHardware()
 
-      app.appUiStateMachine.test(
-        props = Unit,
-        testTimeout = 20.seconds,
-        turbineTimeout = 60.seconds
-      ) {
-        // Resume on backup step and complete recovery
-        awaitUntilBody<SaveBackupInstructionsBodyModel>()
-          .onBackupClick()
-        awaitUntilBody<CloudSignInModelFake>()
-          .signInSuccess(CloudStoreAccount1Fake)
-        awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-        awaitUntilBody<ZeroBalancePromptBodyModel>()
-          .onDone()
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 20.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      // Resume on backup step and complete recovery
+      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+        .onBackupClick()
+      awaitUntilBody<CloudSignInModelFake>()
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+      awaitUntilBody<ZeroBalancePromptBodyModel>()
+        .onDone()
 
-        awaitUntilBody<MoneyHomeBodyModel>()
-        app.awaitNoActiveRecovery()
+      awaitUntilBody<MoneyHomeBodyModel>()
+      app.awaitNoActiveRecovery()
 
-        cancelAndIgnoreRemainingEvents()
-      }
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
-  test(
+  testForLegacyAndPrivateWallet(
     "recovery lost hardware - force exiting after cloud backup & before sweep takes you back to sweep"
-  ) {
-    launchAndPrepareApp()
+  ) { initialApp ->
+    var app = initialApp
+    app.prepareApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -366,7 +364,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
 
     // Force exit app on sweep step
-    relaunchApp()
+    app = app.relaunchAppForLostHardware()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -384,8 +382,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("recovery lost hardware - force exiting during D&N wait") {
-    launchAndPrepareApp()
+  testForLegacyAndPrivateWallet("recovery lost hardware - force exiting during D&N wait") { initialApp ->
+    var app = initialApp
+    app.prepareApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -418,7 +417,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
 
     // Force exit app during wait period
-    relaunchApp()
+    app = app.relaunchAppForLostHardware()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -456,8 +455,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("recover lost hardware - sweep real funds") {
-    launchAndPrepareApp()
+  testForLegacyAndPrivateWallet("recover lost hardware - sweep real funds") { initialApp ->
+    val app = initialApp
+    app.prepareApp()
     app.addSomeFunds(sats(10_000L))
 
     app.appUiStateMachine.test(
@@ -493,8 +493,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.returnFundsToTreasury()
   }
 
-  test("can Lost App from Cloud recovery then Lost Hardware recovery with funds") {
-    app = launchNewApp()
+  testForLegacyAndPrivateWallet("can Lost App from Cloud recovery then Lost Hardware recovery with funds") { initialApp ->
+    val app = initialApp
+
     app.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccount1Fake
     )
@@ -507,7 +508,11 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cloudStoreAccountRepository = app.cloudStoreAccountRepository,
       cloudKeyValueStore = app.cloudKeyValueStore,
       hardwareSeed = app.fakeHardwareKeyStore.getSeed()
-    )
+    ).also {
+      if (app.chaincodeDelegationFeatureFlag.isEnabled()) {
+        it.enableChaincodeDelegation()
+      }
+    }
 
     // Lost App recovery from Cloud
     newApp.appUiStateMachine.test(
@@ -573,8 +578,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("can Lost Hardware recovery then Lost App recovery from Cloud with funds") {
-    launchAndPrepareApp()
+  testForLegacyAndPrivateWallet("can Lost Hardware recovery then Lost App recovery from Cloud with funds") { initialApp ->
+    val app = initialApp
+    app.prepareApp()
     // Fund wallet with some funds
     app.addSomeFunds()
 
@@ -614,7 +620,11 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cloudStoreAccountRepository = app.cloudStoreAccountRepository,
       cloudKeyValueStore = app.cloudKeyValueStore,
       hardwareSeed = app.fakeHardwareKeyStore.getSeed()
-    )
+    ).also {
+      if (app.chaincodeDelegationFeatureFlag.isEnabled()) {
+        it.enableChaincodeDelegation()
+      }
+    }
 
     // Lost App recovery from Cloud
     newApp.appUiStateMachine.test(
@@ -643,8 +653,10 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("cancel initiated recovery") {
-    launchAndPrepareApp()
+  testForLegacyAndPrivateWallet("cancel initiated recovery") { initialApp ->
+    val app = initialApp
+    app.prepareApp()
+
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 60.seconds,
@@ -673,7 +685,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   }
 
   test("lost hardware recovery refreshes descriptor backups if enabled") {
-    app = launchNewApp()
+    val app = launchNewApp()
     app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
     app.onboardFullAccountWithFakeHardware()
 
@@ -693,7 +705,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   }
 
   test("lost hardware recovery clears canUseKeyboxKeysets if backups are disabled") {
-    app = launchNewApp()
+    val app = launchNewApp()
     app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
     app.onboardFullAccountWithFakeHardware()
 

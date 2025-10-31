@@ -3,19 +3,21 @@ package build.wallet.statemachine.receive
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
+import build.wallet.partnerships.PartnerInfo
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.qr.QrCodeModel
+import build.wallet.statemachine.qr.QrCodeState
 import build.wallet.ui.app.moneyhome.receive.AddressQrCodeScreen
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import dev.zacsweers.redacted.annotations.Redacted
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 
 data class AddressQrCodeBodyModel(
   override val onBack: () -> Unit,
@@ -24,30 +26,31 @@ data class AddressQrCodeBodyModel(
   // We don't want to track this for privacy reasons
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,
 ) : BodyModel() {
-  lateinit var onCopyClick: () -> Unit
-
   sealed interface Content {
     data class QrCode(
-      /** URL of the remote image to fetch for the QR code */
-      @Redacted val addressQrImageUrl: String?,
       /** The formatted display string for the address */
       @Redacted val addressDisplayString: LabelModel,
-      /** Fallback QR code data to use to manually draw a QR code image if fetching the remote fails */
-      @Redacted val fallbackAddressQrCodeModel: QrCodeModel?,
-      val copyButtonModel: ButtonModel,
-      val shareButtonModel: ButtonModel,
+      /** QR code state for handling loading, success, and error states */
+      @Redacted val qrCodeState: QrCodeState,
+      val partners: ImmutableList<PartnerInfo>,
+      val onPartnerClick: (PartnerInfo) -> Unit,
+      val copyButtonIcon: Icon,
+      val copyButtonLabelText: String,
       val onCopyClick: () -> Unit,
+      val onShareClick: () -> Unit,
+      val loadingPartnerId: String? = null,
     ) : Content {
       constructor(
-        addressQrImageUrl: String?,
         address: String?,
-        fallbackAddressQrCodeModel: QrCodeModel?,
+        qrCodeState: QrCodeState,
+        partners: ImmutableList<PartnerInfo> = persistentListOf(),
+        onPartnerClick: (PartnerInfo) -> Unit,
         copyButtonIcon: Icon,
         copyButtonLabelText: String,
         onCopyClick: () -> Unit,
         onShareClick: () -> Unit,
+        loadingPartnerId: String? = null,
       ) : this(
-        addressQrImageUrl = addressQrImageUrl,
         // Chunk the address into 4-letter size groups and then color all the odd
         // substrings ON60 (and the even substrings will be colored with primary color)
         addressDisplayString = address?.chunked(4)?.let { addressParts ->
@@ -61,24 +64,14 @@ data class AddressQrCodeBodyModel(
           )
         } // Fall back on showing "..." while we are loading an address
           ?: LabelModel.StringModel("..."),
-        fallbackAddressQrCodeModel = fallbackAddressQrCodeModel,
-        copyButtonModel =
-          ButtonModel(
-            text = copyButtonLabelText,
-            leadingIcon = copyButtonIcon,
-            treatment = ButtonModel.Treatment.Secondary,
-            size = ButtonModel.Size.Footer,
-            onClick = StandardClick(onCopyClick)
-          ),
-        shareButtonModel =
-          ButtonModel(
-            text = "Share",
-            leadingIcon = Icon.SmallIconShare,
-            treatment = ButtonModel.Treatment.Secondary,
-            size = ButtonModel.Size.Footer,
-            onClick = StandardClick(onShareClick)
-          ),
-        onCopyClick = onCopyClick
+        qrCodeState = qrCodeState,
+        partners = partners,
+        onPartnerClick = onPartnerClick,
+        copyButtonIcon = copyButtonIcon,
+        copyButtonLabelText = copyButtonLabelText,
+        onCopyClick = onCopyClick,
+        onShareClick = onShareClick,
+        loadingPartnerId = loadingPartnerId
       )
     }
 
@@ -90,7 +83,7 @@ data class AddressQrCodeBodyModel(
 
   constructor(
     onBack: () -> Unit,
-    onRefreshClick: () -> Unit,
+    onRefreshClick: (() -> Unit)?,
     content: Content,
   ) : this(
     onBack = onBack,
@@ -98,7 +91,7 @@ data class AddressQrCodeBodyModel(
       ToolbarModel(
         leadingAccessory = CloseAccessory(onClick = onBack),
         middleAccessory = ToolbarMiddleAccessoryModel("Receive"),
-        trailingAccessory =
+        trailingAccessory = onRefreshClick?.let {
           ToolbarAccessoryModel.IconAccessory(
             model =
               IconButtonModel(
@@ -111,6 +104,7 @@ data class AddressQrCodeBodyModel(
                 onClick = StandardClick { onRefreshClick() }
               )
           )
+        }
       ),
     content = content
   )

@@ -8,12 +8,17 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
+import build.wallet.platform.random.UuidGenerator
+import build.wallet.recovery.sweep.SweepService.SweepError.NoFundsToSweep
+import build.wallet.recovery.sweep.SweepService.SweepError.SweepGenerationFailed
 import build.wallet.worker.RefreshOperationFilter
 import build.wallet.worker.RunStrategy
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
+import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 
@@ -22,6 +27,7 @@ class SweepServiceImpl(
   private val accountService: AccountService,
   private val sweepGenerator: SweepGenerator,
   sweepSyncFrequency: SweepSyncFrequency,
+  private val uuidGenerator: UuidGenerator,
 ) : SweepService, SweepSyncWorker {
   override val runStrategy: Set<RunStrategy> = setOf(
     RunStrategy.Startup(),
@@ -40,6 +46,10 @@ class SweepServiceImpl(
 
   override suspend fun checkForSweeps() {
     sweepRequired.value = isSweepRequired()
+  }
+
+  override fun markSweepHandled() {
+    sweepRequired.value = false
   }
 
   override suspend fun executeWork() {
@@ -71,5 +81,30 @@ class SweepServiceImpl(
         sweepPsbts.isEmpty() -> null
         else -> Sweep(unsignedPsbts = sweepPsbts.toSet())
       }
+    }
+
+  override suspend fun estimateSweepWithMockDestination(
+    keybox: Keybox,
+  ): Result<Sweep, SweepService.SweepError> =
+    coroutineBinding {
+      // Create a fake destination keyset to trick the sweep generator into treating
+      // the currently active keyset as a source that must be swept.
+      val fakeDestinationKeyset = keybox.activeSpendingKeyset.copy(
+        f8eSpendingKeyset = keybox.activeSpendingKeyset.f8eSpendingKeyset.copy(
+          keysetId = uuidGenerator.random()
+        )
+      )
+
+      val mockKeybox = keybox.copy(
+        activeSpendingKeyset = fakeDestinationKeyset,
+        keysets = keybox.keysets + fakeDestinationKeyset
+      )
+
+      val sweep = prepareSweep(mockKeybox)
+        .mapError { SweepGenerationFailed(it) }
+        .bind()
+
+      // If sweep is null, there are no funds to sweep (either zero balance or fees exceed balance)
+      sweep ?: Err(NoFundsToSweep).bind()
     }
 }

@@ -28,7 +28,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.statemachine.settings.full.device.EnrolledFingerprintResult
 import build.wallet.statemachine.settings.full.device.fingerprints.metrics.FingerprintAddMetricDefinition
 import build.wallet.statemachine.settings.full.device.fingerprints.metrics.FingerprintDeleteMetricDefinition
 import build.wallet.statemachine.ui.awaitBody

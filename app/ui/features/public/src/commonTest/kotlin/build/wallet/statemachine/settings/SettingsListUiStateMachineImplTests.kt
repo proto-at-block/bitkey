@@ -14,6 +14,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
 import build.wallet.statemachine.ui.awaitUntilBodyModel
 import build.wallet.wallet.migration.PrivateWalletMigrationServiceFake
+import build.wallet.wallet.migration.PrivateWalletMigrationState
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -83,6 +84,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       awaitItem().shouldBeTypeOf<SettingsBodyModel>()
         .onBack.shouldNotBeNull().invoke()
       propsOnBackCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -100,7 +102,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
                 "Mobile Devices",
                 "Inheritance"
               ),
-              "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation", "Enhanced Wallet Privacy"),
+              "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation", "Private Wallet Update"),
               "Support" to listOf("Contact Us", "Help Center")
             )
           )
@@ -132,6 +134,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
             )
           )
       }
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -176,7 +179,14 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   test("Disabled rows in LimitedFunctionality.F8eUnreachable") {
     stateMachine.test(props) {
-      awaitItem()
+      // Wait for initial state to settle with all async services loaded
+      awaitUntilBodyModel<SettingsBodyModel>(
+        matching = { model ->
+          model.sectionModels
+            .flatMap { it.rowModels }
+            .any { it.title == "Private Wallet Update" }
+        }
+      )
       appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
           cause = F8eUnreachable(Instant.DISTANT_PAST)
@@ -189,7 +199,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Notifications",
           "Mobile Devices",
           "Inheritance",
-          "Enhanced Wallet Privacy",
+          "Private Wallet Update",
           "Contact Us",
           "Help Center"
         )
@@ -199,7 +209,14 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   test("Disabled rows in LimitedFunctionality.InternetUnreachable") {
     stateMachine.test(props) {
-      awaitItem()
+      // Wait for initial state to settle with all async services loaded
+      awaitUntilBodyModel<SettingsBodyModel>(
+        matching = { model ->
+          model.sectionModels
+            .flatMap { it.rowModels }
+            .any { it.title == "Private Wallet Update" }
+        }
+      )
       appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
           cause =
@@ -218,7 +235,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Inheritance",
           "Custom Electrum Server",
           "UTXO Consolidation",
-          "Enhanced Wallet Privacy",
+          "Private Wallet Update",
           "Contact Us",
           "Help Center"
         )
@@ -232,14 +249,14 @@ class SettingsListUiStateMachineImplTests : FunSpec({
         it.privacyMigrationRow != null
       }) {
         privacyMigrationRow.shouldNotBeNull().apply {
-          coachmarkLabelModel?.text shouldBe "Upgrade"
+          coachmarkLabelModel?.text shouldBe "New"
         }
       }
     }
   }
 
   test("private wallet migration row hidden when feature flag disabled") {
-    privateWalletMigrationService.isPrivateWalletMigrationAvailable.value = false
+    privateWalletMigrationService.migrationState.value = PrivateWalletMigrationState.NotAvailable
 
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
@@ -252,7 +269,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 private val SettingsBodyModel.privacyMigrationRow get() = sectionModels
   .first { it.sectionHeaderTitle == "Advanced" }
   .rowModels
-  .firstOrNull { it.title == "Enhanced Wallet Privacy" }
+  .firstOrNull { it.title == "Private Wallet Update" }
 
 suspend inline fun <reified T : SettingsListUiProps.SettingsListRow> SettingsListUiStateMachine.testRowOnClickCallsProps(
   rowTitle: String,
@@ -265,6 +282,7 @@ suspend inline fun <reified T : SettingsListUiProps.SettingsListRow> SettingsLis
         .onClick()
       propsOnClickCalls[T::class]?.awaitItem()
     }
+    cancelAndIgnoreRemainingEvents()
   }
 }
 

@@ -7,7 +7,7 @@ with open("README.md") as readme_file:
 
 requirements = [
     "click==8.1.7",
-    "pyelftools==0.28",
+    "pyelftools==0.32",
     "pytz==2023.3.post1",
     "pycryptodome==3.20.0",
     "PyYAML==6.0.1",

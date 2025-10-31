@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.onboarding.OnboardingKeyboxStepStateDao
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
@@ -14,6 +15,7 @@ import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.ui.model.alert.ButtonAlertModel
+import com.github.michaelbull.result.andThen
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
@@ -21,6 +23,7 @@ import com.github.michaelbull.result.onSuccess
 class OverwriteFullAccountCloudBackupUiStateMachineImpl(
   private val deleteFullAccountService: DeleteFullAccountService,
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
 ) : OverwriteFullAccountCloudBackupUiStateMachine {
   @Composable
   override fun model(props: OverwriteFullAccountCloudBackupUiProps): ScreenModel {
@@ -63,7 +66,12 @@ class OverwriteFullAccountCloudBackupUiStateMachineImpl(
             .deleteAccount(
               props.keybox.fullAccountId,
               state.proofOfPossession
-            )
+            ).andThen {
+              // TODO (W-14909): This should probably be OnboardFullAccountService#cancelAccountCreation()
+              // but it wasn't here before, so this is a targeted fix to make sure that we clear the
+              // descriptor backup step if you abandon onboarding at this point
+              onboardingKeyboxStepStateDao.clear()
+            }
             .onFailure {
               uiState = State.Failed
             }

@@ -8,12 +8,11 @@ import bitkey.ui.framework.Navigator
 import bitkey.ui.framework.Screen
 import bitkey.ui.framework.ScreenPresenter
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreenPresenter.RecoveryState.*
-import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreenPresenter.RecoveryState.ShowingNotificationsSettingsUiState.*
+import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreenPresenter.RecoveryState.ShowingNotificationsSettingsUiState.OverlayState.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -38,16 +37,13 @@ import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.notifications.NotificationOperationApprovalInstructionsFormScreenModel
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
 import build.wallet.statemachine.settings.full.notifications.*
 import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 data class RecoveryChannelSettingsScreen(
   val account: FullAccount,
@@ -76,11 +72,12 @@ class RecoveryChannelSettingsScreenPresenter(
     navigator: Navigator,
     screen: RecoveryChannelSettingsScreen,
   ): ScreenModel {
-    val scope = rememberStableCoroutineScope()
-    val smsErrorHint = uiErrorHintsProvider.errorHintFlow(UiErrorHintKey.Phone).collectAsState()
-    val notificationTouchpointData = remember {
+    val smsErrorHint by remember { uiErrorHintsProvider.errorHintFlow(UiErrorHintKey.Phone) }
+      .collectAsState()
+
+    val notificationTouchpointData by remember {
       notificationTouchpointService.notificationTouchpointData()
-    }.collectAsState(null).value
+    }.collectAsState(null)
 
     var state: RecoveryState by remember {
       mutableStateOf(
@@ -100,114 +97,106 @@ class RecoveryChannelSettingsScreenPresenter(
       )
     }
 
-    LoadNotificationsPreferences(
-      screen = screen,
-      navigator = navigator,
-      setState = { state = it },
-      updatedPrefsState = { notificationPreferences = it }
-    )
-
-    return when (val stateVal = state) {
-      is RecoveryState.TogglingNotificationChannelUiState -> {
+    return when (val currentState = state) {
+      is TogglingNotificationChannelUiState -> {
         val securitySet = notificationPreferences.accountSecurity.toMutableSet()
 
-        if (securitySet.contains(stateVal.notificationChannel)) {
-          securitySet.remove(stateVal.notificationChannel)
+        if (securitySet.contains(currentState.notificationChannel)) {
+          securitySet.remove(currentState.notificationChannel)
         } else {
-          securitySet.add(stateVal.notificationChannel)
+          securitySet.add(currentState.notificationChannel)
         }
         val updatedPrefs = notificationPreferences.copy(accountSecurity = securitySet)
 
-        return UpdateNotificationsPreferences(
+        UpdateNotificationsPreferences(
           screen = screen,
           updatedPrefs = updatedPrefs,
-          state = stateVal,
-          hwFactorProofOfPossession = stateVal.hwFactorProofOfPossession,
+          state = currentState,
+          hwFactorProofOfPossession = currentState.hwFactorProofOfPossession,
           setState = { state = it },
           updatedPrefsState = { notificationPreferences = it }
         ).asModalScreen()
       }
 
-      is DisablingNotificationChannelProofOfHwPossessionUiState ->
-        return NotificationOperationApprovalInstructionsFormScreenModel(
-          onExit = { state = ShowingNotificationsSettingsUiState() },
-          operationDescription = stateVal.notificationChannel.disableOperationDescription(
-            notificationTouchpointData
-          ),
-          isApproveButtonLoading = false,
-          errorBottomSheetState = NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState.Hidden,
-          onApprove = {
-            state = VerifyingProofOfHwPossessionUiState(stateVal.notificationChannel)
-          }
+      is DisablingNotificationChannelProofOfHwPossessionUiState -> NotificationOperationApprovalInstructionsFormScreenModel(
+        onExit = { state = ShowingNotificationsSettingsUiState() },
+        operationDescription = currentState.notificationChannel.disableOperationDescription(
+          notificationTouchpointData
+        ),
+        isApproveButtonLoading = false,
+        errorBottomSheetState = ErrorBottomSheetState.Hidden,
+        onApprove = {
+          state = VerifyingProofOfHwPossessionUiState(currentState.notificationChannel)
+        }
+      )
+
+      is VerifyingProofOfHwPossessionUiState -> VerifyingProofOfHwPossessionModel(
+        screen = screen,
+        onBack = { state = ShowingNotificationsSettingsUiState() },
+        onSuccess = { proof ->
+          state = TogglingNotificationChannelUiState(currentState.notificationChannel, proof)
+        },
+        operationDescriptiton = currentState.notificationChannel.disableOperationDescription(
+          notificationTouchpointData
+        )
+      )
+
+      is ShowingNotificationsSettingsUiState -> {
+        LoadNotificationsPreferences(
+          screen = screen,
+          navigator = navigator,
+          setState = { state = it },
+          updatedPrefsState = { notificationPreferences = it }
         )
 
-      is VerifyingProofOfHwPossessionUiState -> {
-        return VerifyingProofOfHwPossessionModel(
+        ShowingMainScreen(
+          state = currentState,
           screen = screen,
-          onBack = { state = ShowingNotificationsSettingsUiState() },
-          onSuccess = { proof ->
-            state =
-              TogglingNotificationChannelUiState(stateVal.notificationChannel, proof)
-          },
-          operationDescriptiton = stateVal.notificationChannel.disableOperationDescription(
-            notificationTouchpointData
+          navigator = navigator,
+          notificationPreferences = notificationPreferences,
+          phoneErrorHint = smsErrorHint,
+          updateState = { state = it },
+          notificationTouchpointData = notificationTouchpointData
+        )
+      }
+
+      is EnteringAndVerifyingPhoneNumberUiState -> {
+        notificationTouchpointInputAndVerificationUiStateMachine.model(
+          props = NotificationTouchpointInputAndVerificationProps(
+            accountId = screen.account.accountId,
+            touchpointType = NotificationTouchpointType.PhoneNumber,
+            entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
+            onSuccess = {
+              state = if (notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)) {
+                ShowingNotificationsSettingsUiState()
+              } else {
+                TogglingNotificationChannelUiState(NotificationChannel.Sms, null)
+              }
+            },
+            onClose = {
+              state = ShowingNotificationsSettingsUiState()
+            }
           )
         )
       }
 
-      is ShowingNotificationsSettingsUiState ->
-        ShowingMainScreen(
-          stateVal = stateVal,
-          screen = screen,
-          navigator = navigator,
-          notificationPreferences = notificationPreferences,
-          scope = scope,
-          smsErrorHint.value,
-          updateState = { state = it },
-          notificationTouchpointData = notificationTouchpointData
-        )
-
-      is RecoveryState.EnteringAndVerifyingPhoneNumberUiState -> {
+      is EnteringAndVerifyingEmailUiState -> {
         notificationTouchpointInputAndVerificationUiStateMachine.model(
-          props =
-            NotificationTouchpointInputAndVerificationProps(
-              accountId = screen.account.accountId,
-              touchpointType = NotificationTouchpointType.PhoneNumber,
-              entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
-              onSuccess = {
-                state =
-                  if (notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)) {
-                    ShowingNotificationsSettingsUiState()
-                  } else {
-                    TogglingNotificationChannelUiState(NotificationChannel.Sms, null)
-                  }
-              },
-              onClose = {
-                state = ShowingNotificationsSettingsUiState()
+          props = NotificationTouchpointInputAndVerificationProps(
+            accountId = screen.account.accountId,
+            touchpointType = NotificationTouchpointType.Email,
+            entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
+            onSuccess = {
+              state = if (notificationPreferences.accountSecurity.contains(NotificationChannel.Email)) {
+                ShowingNotificationsSettingsUiState()
+              } else {
+                TogglingNotificationChannelUiState(NotificationChannel.Email, null)
               }
-            )
-        )
-      }
-
-      is RecoveryState.EnteringAndVerifyingEmailUiState -> {
-        notificationTouchpointInputAndVerificationUiStateMachine.model(
-          props =
-            NotificationTouchpointInputAndVerificationProps(
-              accountId = screen.account.accountId,
-              touchpointType = NotificationTouchpointType.Email,
-              entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
-              onSuccess = {
-                state =
-                  if (notificationPreferences.accountSecurity.contains(NotificationChannel.Email)) {
-                    ShowingNotificationsSettingsUiState()
-                  } else {
-                    TogglingNotificationChannelUiState(NotificationChannel.Email, null)
-                  }
-              },
-              onClose = {
-                state = ShowingNotificationsSettingsUiState()
-              }
-            )
+            },
+            onClose = {
+              state = ShowingNotificationsSettingsUiState()
+            }
+          )
         )
       }
 
@@ -292,7 +281,6 @@ class RecoveryChannelSettingsScreenPresenter(
       }
     }
 
-    // Return model
     return LoadingSuccessBodyModel(
       id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_UPDATING_PREFERENCES,
       state = LoadingSuccessBodyModel.State.Loading
@@ -307,90 +295,75 @@ class RecoveryChannelSettingsScreenPresenter(
     onSuccess: (HwFactorProofOfPossession) -> Unit,
   ): ScreenModel {
     return proofOfPossessionNfcStateMachine.model(
-      props =
-        ProofOfPossessionNfcProps(
-          request = Request.HwKeyProof(onSuccess),
-          fullAccountId = screen.account.accountId,
-          onBack = onBack,
-          screenPresentationStyle = ScreenPresentationStyle.Modal,
-          onTokenRefresh = {
-            // Provide a screen model to show while the token is being refreshed.
-            // We want this to be the same as [ActivationApprovalInstructionsUiState]
-            // but with the button in a loading state
-            NotificationOperationApprovalInstructionsFormScreenModel(
-              onExit = onBack,
-              operationDescription = operationDescriptiton,
-              isApproveButtonLoading = true,
-              errorBottomSheetState = NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState.Hidden,
-              onApprove = {
-                // No-op. Button is loading.
-              }
-            )
-          },
-          onTokenRefreshError = { isConnectivityError, _ ->
-            // Provide a screen model to show if the token refresh results in an error.
-            // We want this to be the same as [ActivationApprovalInstructionsUiState]
-            // but with the error bottom sheet showing
-            NotificationOperationApprovalInstructionsFormScreenModel(
-              onExit = onBack,
-              operationDescription = operationDescriptiton,
-              isApproveButtonLoading = false,
-              errorBottomSheetState =
-                NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState.Showing(
-                  isConnectivityError = isConnectivityError,
-                  onClosed = onBack
-                ),
-              onApprove = {
-                // No-op. Showing error sheet
-              }
-            )
-          }
-        )
+      props = ProofOfPossessionNfcProps(
+        request = Request.HwKeyProof(onSuccess),
+        fullAccountId = screen.account.accountId,
+        onBack = onBack,
+        screenPresentationStyle = ScreenPresentationStyle.Modal,
+        onTokenRefresh = {
+          // Provide a screen model to show while the token is being refreshed.
+          // We want this to be the same as [ActivationApprovalInstructionsUiState]
+          // but with the button in a loading state
+          NotificationOperationApprovalInstructionsFormScreenModel(
+            onExit = onBack,
+            operationDescription = operationDescriptiton,
+            isApproveButtonLoading = true,
+            errorBottomSheetState = ErrorBottomSheetState.Hidden,
+            onApprove = {
+              // No-op. Button is loading.
+            }
+          )
+        },
+        onTokenRefreshError = { isConnectivityError, _ ->
+          // Provide a screen model to show if the token refresh results in an error.
+          // We want this to be the same as [ActivationApprovalInstructionsUiState]
+          // but with the error bottom sheet showing
+          NotificationOperationApprovalInstructionsFormScreenModel(
+            onExit = onBack,
+            operationDescription = operationDescriptiton,
+            isApproveButtonLoading = false,
+            errorBottomSheetState =
+              ErrorBottomSheetState.Showing(
+                isConnectivityError = isConnectivityError,
+                onClosed = onBack
+              ),
+            onApprove = {
+              // No-op. Showing error sheet
+            }
+          )
+        }
+      )
     )
   }
 
   @Composable
   @Suppress("CyclomaticComplexMethod")
   private fun ShowingMainScreen(
-    stateVal: ShowingNotificationsSettingsUiState,
+    state: ShowingNotificationsSettingsUiState,
     screen: RecoveryChannelSettingsScreen,
     navigator: Navigator,
     notificationPreferences: NotificationPreferences,
-    scope: CoroutineScope,
     phoneErrorHint: UiErrorHint,
     updateState: (RecoveryState) -> Unit,
     notificationTouchpointData: NotificationTouchpointData?,
   ): ScreenModel {
-    val delayedAlertOverlay = (stateVal.overlayState as? AlertOverlayState)?.alertModel
+    val usSmsEnabledFlag by remember {
+      usSmsFeatureFlag.flagValue()
+    }.collectAsState()
 
-    // iOS won't show alerts while sheet animations are running...
-    if (delayedAlertOverlay != null) {
-      scope.launch {
-        delay(800)
-        updateState(
-          ShowingNotificationsSettingsUiState(
-            overlayState =
-              DelayedAlertOverlayState(alertModel = delayedAlertOverlay)
-          )
-        )
-      }
-    }
-
-    val isDisabled = delayedAlertOverlay != null
-    val isLoading =
-      stateVal.overlayState is LoadingPreferencesOverlayState
+    val isDisabled = state.overlayState != None
+    val isLoading = state.overlayState is LoadingPreferencesOverlayState
     val smsNumber = notificationTouchpointData?.phoneNumber?.formattedDisplayValue
     val emailAddress = notificationTouchpointData?.email?.value
     val isCountryUS = telephonyCountryCodeProvider.isCountry("us")
-    val usSmsEnabledFlag = usSmsFeatureFlag.flagValue().collectAsState().value
     val usSmsEnabled = usSmsEnabledFlag.value
-    val smsRecoveryEnabled =
-      smsNumber != null && notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
-    val pushRecoveryEnabled =
-      permissionChecker.getPermissionStatus(PushNotifications) == Authorized &&
-        notificationPreferences.accountSecurity.contains(NotificationChannel.Push)
-    val smsRegisteredRecoveryDisabled =
-      smsNumber != null && !notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
+    val smsRecoveryEnabled = smsNumber != null &&
+      notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
+    val pushRecoveryEnabled = permissionChecker.getPermissionStatus(
+      PushNotifications
+    ) == Authorized && notificationPreferences.accountSecurity.contains(NotificationChannel.Push)
+    val smsRegisteredRecoveryDisabled = smsNumber != null &&
+      !notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
 
     val missingRecoveryMethods = listOfNotNull(
       NotificationChannel.Sms.takeIf {
@@ -399,8 +372,7 @@ class RecoveryChannelSettingsScreenPresenter(
         2. Either not a US sim card, or US SMS is enabled via feature flag, or the user entered a US number and got NotAvailableInYourCountry
         3. Sms is not in the list of enabled recovery options
          */
-        !isLoading &&
-          (!isCountryUS || usSmsEnabled || smsNumber != null) &&
+        !isLoading && (!isCountryUS || usSmsEnabled || smsNumber != null) &&
           !notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
       },
       NotificationChannel.Push.takeIf {
@@ -410,16 +382,20 @@ class RecoveryChannelSettingsScreenPresenter(
       }
     )
 
-    if (stateVal.overlayState is RequestingPushPermissionsOverlayState) {
+    if (state.overlayState is RequestingPushPermissionsOverlayState) {
       notificationPermissionRequester.requestNotificationPermission(
         onGranted = {
           eventTracker.track(Action.ACTION_APP_PUSH_NOTIFICATIONS_ENABLED)
-          updateState(
-            TogglingNotificationChannelUiState(
-              NotificationChannel.Push,
-              null
+          if (notificationPreferences.accountSecurity.contains(NotificationChannel.Push)) {
+            updateState(ShowingNotificationsSettingsUiState())
+          } else {
+            updateState(
+              TogglingNotificationChannelUiState(
+                NotificationChannel.Push,
+                null
+              )
             )
-          )
+          }
         },
         onDeclined = {
           eventTracker.track(Action.ACTION_APP_PUSH_NOTIFICATIONS_DISABLED)
@@ -435,9 +411,7 @@ class RecoveryChannelSettingsScreenPresenter(
         enabled = when {
           isLoading -> EnabledState.Loading
           isDisabled -> EnabledState.Disabled
-          permissionChecker.getPermissionStatus(PushNotifications) == Authorized && notificationPreferences.accountSecurity.contains(
-            NotificationChannel.Push
-          ) -> EnabledState.Enabled
+          pushRecoveryEnabled -> EnabledState.Enabled
           else -> EnabledState.Disabled
         },
         uiErrorHint = null,
@@ -548,19 +522,18 @@ class RecoveryChannelSettingsScreenPresenter(
           }
         }.takeIf { !isLoading }
       ),
-      emailItem =
-        RecoveryChannelsSettingsFormItemModel(
-          displayValue = emailAddress,
-          enabled = when {
-            isLoading -> EnabledState.Loading
-            isDisabled -> EnabledState.Disabled
-            notificationPreferences.accountSecurity.contains(NotificationChannel.Email) -> EnabledState.Enabled
-            else -> EnabledState.Disabled
-          },
-          uiErrorHint = null,
-          onClick = { updateState(EnteringAndVerifyingEmailUiState) }.takeIf { !isLoading }
-        ),
-      alertModel = (stateVal.overlayState as? DelayedAlertOverlayState)?.alertModel,
+      emailItem = RecoveryChannelsSettingsFormItemModel(
+        displayValue = emailAddress,
+        enabled = when {
+          isLoading -> EnabledState.Loading
+          isDisabled -> EnabledState.Disabled
+          notificationPreferences.accountSecurity.contains(NotificationChannel.Email) -> EnabledState.Enabled
+          else -> EnabledState.Disabled
+        },
+        uiErrorHint = null,
+        onClick = { updateState(EnteringAndVerifyingEmailUiState) }.takeIf { !isLoading }
+      ),
+      alertModel = (state.overlayState as? AlertOverlayState)?.alertModel,
       continueOnClick = null,
       onBack = if (screen.origin != null) {
         {
@@ -572,7 +545,7 @@ class RecoveryChannelSettingsScreenPresenter(
       learnOnClick = {
         updateState(ShowLearnRecoveryWebView)
       },
-      bottomSheetModel = (stateVal.overlayState as? BottomSheetOverlayState)?.bottomSheetModel
+      bottomSheetModel = (state.overlayState as? BottomSheetOverlayState)?.bottomSheetModel
     )
   }
 
@@ -654,48 +627,41 @@ class RecoveryChannelSettingsScreenPresenter(
 
   private fun NotificationChannel.disableOperationDescription(
     notificationTouchpointData: NotificationTouchpointData?,
-  ): String =
-    when (this) {
-      NotificationChannel.Email ->
-        notificationTouchpointData?.email?.value
-          ?: "(Email Address)"
+  ): String {
+    return when (this) {
+      NotificationChannel.Email -> notificationTouchpointData?.email?.value ?: "(Email Address)"
       NotificationChannel.Push -> "Push Notification"
       NotificationChannel.Sms ->
         notificationTouchpointData?.phoneNumber?.formattedDisplayValue
           ?: "(SMS Number)"
-    }.let { "Recovery channel $it will be disabled" }
+    }
+  }
 
   private sealed interface RecoveryState {
     /**
      * In editing state. If there are alerts or errors, other input should be disabled.
      */
     data class ShowingNotificationsSettingsUiState(
-      val overlayState: OverlayState = OverlayState.None,
+      val overlayState: OverlayState = None,
     ) : RecoveryState {
       sealed interface OverlayState {
         /** No overlaid info */
         data object None : OverlayState
+
+        /**
+         * Loading should be extremely short because data should be cached, but it's not zero, and
+         * it's *possible* data won't be in the cache. The UI needs to display the data in a way that
+         * doesn't cause "incorrect flickering". For example, showing "Disabled" for a recovery channel
+         * that is in fact enabled.
+         */
+        data object LoadingPreferencesOverlayState : OverlayState
+
+        data class BottomSheetOverlayState(val bottomSheetModel: SheetModel) : OverlayState
+
+        data class AlertOverlayState(val alertModel: ButtonAlertModel) : OverlayState
+
+        data object RequestingPushPermissionsOverlayState : OverlayState
       }
-
-      /**
-       * Loading should be extremely short because data should be cached, but it's not zero, and
-       * it's *possible* data won't be in the cache. The UI needs to display the data in a way that
-       * doesn't cause "incorrect flickering". For example, showing "Disabled" for a recovery channel
-       * that is in fact enabled.
-       */
-      data object LoadingPreferencesOverlayState : OverlayState
-
-      data class BottomSheetOverlayState(val bottomSheetModel: SheetModel) : OverlayState
-
-      data class AlertOverlayState(val alertModel: ButtonAlertModel) : OverlayState
-
-      /**
-       * iOS seems unable to display an AlertModel while the bottom sheet closing animation
-       * is still running. If there's a more formal way to handle this state, we can replace this.
-       */
-      data class DelayedAlertOverlayState(val alertModel: ButtonAlertModel) : OverlayState
-
-      data object RequestingPushPermissionsOverlayState : OverlayState
     }
 
     /**

@@ -22,6 +22,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.wallet.migration.PrivateWalletMigrationService
+import build.wallet.wallet.migration.PrivateWalletMigrationState
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
@@ -37,7 +38,7 @@ class SettingsListUiStateMachineImpl(
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
     val scope = rememberStableCoroutineScope()
-    val privateMigrationAvailable by privateWalletMigrationService.isPrivateWalletMigrationAvailable.collectAsState(false)
+    val privateMigrationState by privateWalletMigrationService.migrationState.collectAsState(PrivateWalletMigrationState.NotAvailable)
 
     var coachmarksToDisplay by remember { mutableStateOf(immutableListOf<CoachmarkIdentifier>()) }
     LaunchedEffect("coachmarks") {
@@ -86,7 +87,9 @@ class SettingsListUiStateMachineImpl(
             DebugMenu::class,
             UtxoConsolidation::class,
             ExportTools::class,
-            PrivateWalletMigration::class.takeIf { privateMigrationAvailable }
+            PrivateWalletMigration::class.takeIf {
+              privateMigrationState == PrivateWalletMigrationState.Available
+            }
           )
         ),
         SettingsSection(
@@ -152,12 +155,12 @@ class SettingsListUiStateMachineImpl(
         is UtxoConsolidation -> Pair(SmallIconConsolidation, "UTXO Consolidation")
         is InheritanceManagement -> Pair(SmallIconInheritance, "Inheritance")
         is ExportTools -> Pair(SmallIconDocument, "Exports")
-        is PrivateWalletMigration -> Pair(SmallIconWallet, "Enhanced Wallet Privacy")
+        is PrivateWalletMigration -> Pair(SmallIconWallet, "Private Wallet Update")
       }
     val isRowEnabled = isRowEnabled(appFunctionalityStatus)
 
     val coachmarkLabelModel = when (this) {
-      is PrivateWalletMigration -> CoachmarkLabelModel.Upgrade
+      is PrivateWalletMigration -> CoachmarkLabelModel.New
       else -> null
     }
 

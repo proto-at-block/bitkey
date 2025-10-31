@@ -22,6 +22,7 @@ kotlin {
         implementation(projects.domain.walletPublic)
         implementation(projects.libs.platformPublic)
         implementation(projects.domain.securityCenterPublic)
+        implementation(projects.domain.walletmigrationPublic)
       }
     }
 
@@ -48,6 +49,7 @@ kotlin {
         implementation(projects.libs.testingPublic)
         implementation(projects.domain.securityCenterFake)
         implementation(projects.domain.coachmarkFake)
+        implementation(projects.domain.walletmigrationFake)
       }
     }
 

@@ -6,17 +6,20 @@ import app.cash.turbine.test
 import build.wallet.account.AccountServiceFake
 import build.wallet.activity.TransactionActivityOperations
 import build.wallet.bitcoin.transactions.PsbtMock
-import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.platform.app.AppSessionManagerFake
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.ErrorSyncingSpendingWallet
+import build.wallet.recovery.sweep.SweepService.SweepError.NoFundsToSweep
+import build.wallet.recovery.sweep.SweepService.SweepError.SweepGenerationFailed
 import build.wallet.testing.shouldBeErr
+import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import build.wallet.worker.BackgroundStrategy
 import build.wallet.worker.RefreshOperationFilter
@@ -28,6 +31,7 @@ import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.*
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -35,24 +39,28 @@ class SweepServiceImplTests : FunSpec({
   val sweepGenerator = SweepGeneratorMock()
   val accountService = AccountServiceFake()
   val appSessionManager = AppSessionManagerFake()
+  val uuidGenerator = UuidGeneratorFake()
 
   val availableSweep = listOf(
     SweepPsbt(
       psbt = PsbtMock.copy(id = "app-1"),
-      signingFactor = App,
-      sourceKeyset = SpendingKeysetMock
+      signaturePlan = SweepSignaturePlan.AppAndServer,
+      sourceKeyset = SpendingKeysetMock,
+      destinationAddress = "bc1qtest"
     )
   )
 
   val sweep1 = SweepPsbt(
     psbt = PsbtMock.copy(id = "app-1"),
-    signingFactor = App,
-    sourceKeyset = SpendingKeysetMock
+    signaturePlan = SweepSignaturePlan.AppAndServer,
+    sourceKeyset = SpendingKeysetMock,
+    destinationAddress = "bc1qtest"
   )
   val sweep2 = SweepPsbt(
     psbt = PsbtMock.copy(id = "app-2"),
-    signingFactor = App,
-    sourceKeyset = SpendingKeysetMock2
+    signaturePlan = SweepSignaturePlan.AppAndServer,
+    sourceKeyset = PrivateSpendingKeysetMock,
+    destinationAddress = "bc1qtest"
   )
   val syncFrequency = 20.milliseconds
 
@@ -60,13 +68,15 @@ class SweepServiceImplTests : FunSpec({
     SweepServiceImpl(
       accountService = accountService,
       sweepGenerator = sweepGenerator,
-      sweepSyncFrequency = SweepSyncFrequency(syncFrequency)
+      sweepSyncFrequency = SweepSyncFrequency(syncFrequency),
+      uuidGenerator = uuidGenerator
     )
 
   beforeTest {
     accountService.reset()
     appSessionManager.reset()
     sweepGenerator.reset()
+    uuidGenerator.reset()
   }
 
   test("prepareSweep returns null when there are no funds to sweep") {
@@ -204,5 +214,52 @@ class SweepServiceImplTests : FunSpec({
         backgroundStrategy = BackgroundStrategy.Skip
       )
     )
+  }
+
+  test("markSweepHandled clears the sweep flag") {
+    accountService.setActiveAccount(FullAccountMock)
+    sweepGenerator.generateSweepResult = Ok(availableSweep)
+    val service = service()
+
+    service.sweepRequired.test {
+      awaitItem().shouldBeFalse()
+
+      service.checkForSweeps()
+      awaitItem().shouldBeTrue()
+
+      service.markSweepHandled()
+      awaitItem().shouldBeFalse()
+    }
+  }
+
+  test("estimateSweepWithMockDestination returns fee amount when sweep is available") {
+    accountService.setActiveAccount(FullAccountMock)
+    sweepGenerator.generateSweepResult = Ok(listOf(sweep1, sweep2))
+
+    val result = service().estimateSweepWithMockDestination(KeyboxMock)
+
+    val sweep = result.shouldBeOk()
+    sweep.unsignedPsbts.shouldContainExactly(sweep1, sweep2)
+    sweep.totalFeeAmount.shouldNotBeNull()
+  }
+
+  test("estimateSweepWithMockDestination returns NoFundsToSweep when no funds to sweep") {
+    accountService.setActiveAccount(FullAccountMock)
+    sweepGenerator.generateSweepResult = Ok(emptyList())
+
+    val result = service().estimateSweepWithMockDestination(KeyboxMock)
+
+    result.shouldBeErrOfType<NoFundsToSweep>()
+  }
+
+  test("estimateSweepWithMockDestination returns SweepGenerationFailed if sweep generation fails") {
+    accountService.setActiveAccount(FullAccountMock)
+    val error = SweepGeneratorError.FailedToListKeysets
+    sweepGenerator.generateSweepResult = Err(error)
+
+    val result = service().estimateSweepWithMockDestination(KeyboxMock)
+
+    result.shouldBeErrOfType<SweepGenerationFailed>()
+      .cause.shouldBe(error)
   }
 })

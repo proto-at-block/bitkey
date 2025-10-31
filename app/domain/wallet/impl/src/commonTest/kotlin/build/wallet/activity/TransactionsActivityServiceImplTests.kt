@@ -26,6 +26,7 @@ import build.wallet.partnerships.*
 import build.wallet.partnerships.PartnershipTransactionStatus.PENDING
 import build.wallet.partnerships.PartnershipTransactionStatus.SUCCESS
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.store.KeyValueStoreFactoryFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
@@ -48,6 +49,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
   val bitcoinWalletService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
+  val uuidGenerator = UuidGeneratorFake()
 
   val featureFlag = ExpectedTransactionsPhase2FeatureFlag(FeatureFlagDaoFake())
   lateinit var service: TransactionsActivityServiceImpl
@@ -137,7 +139,8 @@ class TransactionsActivityServiceImplTests : FunSpec({
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       listKeysetsF8eClient = listKeysetsF8eClient,
       appScope = TestScope(),
-      mockScenarioService = createMockScenarioService()
+      mockScenarioService = createMockScenarioService(),
+      uuidGenerator = uuidGenerator
     )
   }
 

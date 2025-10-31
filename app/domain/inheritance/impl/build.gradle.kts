@@ -18,6 +18,7 @@ kotlin {
         implementation(projects.domain.relationshipsPublic)
         implementation(projects.domain.walletPublic)
         implementation(projects.libs.keyValueStorePublic)
+        implementation(projects.libs.chaincodeDelegationPublic)
       }
     }
 
@@ -32,12 +33,14 @@ kotlin {
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.domain.databasePublic)
         implementation(projects.libs.platformFake)
+        implementation(projects.domain.recoveryFake)
         implementation(projects.domain.relationshipsFake)
         implementation(projects.domain.relationshipsImpl)
         implementation(projects.domain.walletFake)
         implementation(projects.libs.testingPublic)
         implementation(projects.libs.keyValueStoreFake)
         implementation(projects.domain.onboardingImpl)
+        implementation(projects.libs.chaincodeDelegationFake)
       }
     }
   }

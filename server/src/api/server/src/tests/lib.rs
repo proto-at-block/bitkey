@@ -42,8 +42,8 @@ use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
 use types::account::entities::v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2};
 use types::account::entities::{
-    Account, Factor, FullAccount, FullAccountAuthKeysInput, LiteAccount, SoftwareAccount,
-    SpendingKeysetInput, Touchpoint, TouchpointPlatform,
+    Account, DescriptorBackup, DescriptorBackupsSet, Factor, FullAccount, FullAccountAuthKeysInput,
+    LiteAccount, SoftwareAccount, SpendingKeysetInput, Touchpoint, TouchpointPlatform,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
 use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
@@ -54,7 +54,7 @@ use types::time::Clock;
 use ulid::Ulid;
 
 use super::requests::axum::TestClient;
-use crate::tests::lib::wallet_protocol::{WalletFixture, WalletTestProtocol};
+use crate::tests::lib::wallet_protocol::WalletTestProtocol;
 use crate::tests::TestContext;
 use crate::Services;
 pub mod wallet_protocol;
@@ -105,7 +105,16 @@ pub(crate) async fn create_default_account_with_predefined_wallet(
         .await
 }
 
-pub(crate) async fn create_nontest_default_account_with_predefined_wallet(
+pub(crate) async fn create_nontest_account_with_private_wallet(
+    context: &mut TestContext,
+    client: &TestClient,
+    services: &Services,
+) -> (FullAccount, BdkWallet<AnyDatabase>) {
+    create_default_account_with_predefined_wallet_internal(context, client, services, false, true)
+        .await
+}
+
+pub(crate) async fn create_nontest_account_with_predefined_wallet(
     context: &mut TestContext,
     client: &TestClient,
     services: &Services,
@@ -318,7 +327,7 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
         }
         WalletTestProtocol::PrivateCcd => match (&spend_app, &spend_hw) {
             (DescriptorPublicKey::XPub(app_xpub), DescriptorPublicKey::XPub(hw_xpub)) => {
-                let response = client
+                let create_response = client
                     .create_keyset_v2(
                         &account_id.to_string(),
                         &SpendingKeysetInputV2 {
@@ -330,9 +339,26 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
                     )
                     .await;
 
-                assert_eq!(response.status_code, StatusCode::OK);
-                let response = response.body.unwrap();
-                response.keyset_id
+                let create_response_body = create_response.body.unwrap();
+                assert_eq!(create_response.status_code, StatusCode::OK);
+
+                let update_response = client
+                    .update_descriptor_backups(
+                        &account_id.to_string(),
+                        &DescriptorBackupsSet {
+                            wrapped_ssek: vec![],
+                            descriptor_backups: vec![DescriptorBackup::Private {
+                                keyset_id: create_response_body.keyset_id.clone(),
+                                sealed_descriptor: "".to_string(),
+                                sealed_server_root_xpub: "".to_string(),
+                            }],
+                        },
+                        Some(&keys),
+                    )
+                    .await;
+
+                assert_eq!(update_response.status_code, StatusCode::OK);
+                create_response_body.keyset_id
             }
             _ => panic!("Expected XPub descriptor"),
         },

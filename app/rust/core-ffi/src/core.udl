@@ -6,7 +6,25 @@ namespace core {
   CompactSignature compact_signature_from_der([ByRef] DERSignature der_signature);
   [Throws=ChaincodeDelegationError]
   Psbt psbt_with_tweaks(Psbt psbt, DescriptorSecretKey app_account_dprv, ExtendedPubKey server_root_xpub, DescriptorPublicKey hw_dpub);
-  DescriptorPublicKey server_account_dpub(Network network, PublicKey server_root_pubkey);
+  [Throws=ChaincodeDelegationError]
+  Psbt sweep_psbt_with_tweaks(
+    Psbt psbt,
+    DescriptorPublicKey source_app_account_dpub,
+    ExtendedPubKey source_server_root_xpub,
+    DescriptorPublicKey source_hw_dpub,
+    DescriptorSecretKey target_app_account_dprv,
+    ExtendedPubKey target_server_root_xpub,
+    DescriptorPublicKey target_hw_dpub
+  );
+  [Throws=ChaincodeDelegationError]
+  Psbt migration_sweep_psbt_with_tweaks(
+    Psbt psbt,
+    DescriptorSecretKey target_app_account_dprv,
+    ExtendedPubKey target_server_root_xpub,
+    DescriptorPublicKey target_hw_dpub
+  );
+  DescriptorPublicKey server_account_dpub(Network network, ExtendedPubKey server_root_xpub);
+  ExtendedPubKey server_root_xpub(Network network, PublicKey server_root_pubkey);
   [Throws=PublicKeyError]
   PublicKey extract_public_key(DescriptorPublicKey descriptor_public_key);
 };
@@ -399,6 +417,7 @@ interface ChaincodeDelegationError {
   TweakComputation(string reason);
   UnknownKey(Fingerprint fingerprint);
   KeyMismatch(PublicKey expected, PublicKey actual);
+  InvalidPsbt(string reason);
 };
 
 [Error]

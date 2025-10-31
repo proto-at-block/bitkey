@@ -30,7 +30,9 @@ data class RecoverYourAppKeyBodyModel(
     id = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
-    header = FormHeaderModel(headline = "Recover your wallet with a new App Key"),
+    header = FormHeaderModel(
+      headline = "Recover your wallet with a new App Key"
+    ),
     mainContentList = immutableListOf(
       Explainer(
         immutableListOf(

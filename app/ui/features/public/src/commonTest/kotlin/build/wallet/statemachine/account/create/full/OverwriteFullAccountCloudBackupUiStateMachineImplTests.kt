@@ -6,6 +6,10 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.FAILURE
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.onboarding.OnboardingKeyboxStep.DescriptorBackup
+import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
+import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
+import build.wallet.onboarding.OnboardingKeyboxStepStateDaoFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
@@ -20,11 +24,14 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.flow.first
 
 class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
 
   val deleteFullAccountService = DeleteFullAccountServiceMock(turbines::create)
+  val onboardingKeyboxStepStateDao = OnboardingKeyboxStepStateDaoFake()
 
   val rollbackCalls = turbines.create<Unit>("rollback calls")
   val onOverwriteCalls = turbines.create<Unit>("overwrite calls")
@@ -39,16 +46,20 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
     OverwriteFullAccountCloudBackupUiStateMachineImpl(
       deleteFullAccountService = deleteFullAccountService,
       proofOfPossessionNfcStateMachine =
-        object : ProofOfPossessionNfcStateMachine, ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-          id = "pop-nfc"
-        ) {}
+        object : ProofOfPossessionNfcStateMachine,
+          ScreenStateMachineMock<ProofOfPossessionNfcProps>(
+            id = "pop-nfc"
+          ) {},
+      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao
     )
 
   beforeTest {
     deleteFullAccountService.reset()
+    onboardingKeyboxStepStateDao.clear()
   }
 
   test("cancel") {
+    onboardingKeyboxStepStateDao.setStateForStep(DescriptorBackup, Complete)
     overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
@@ -58,6 +69,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
       }
       awaitLoadingScreen(DELETING_FULL_ACCOUNT)
       deleteFullAccountService.deleteAccountCalls.awaitItem()
+      onboardingKeyboxStepStateDao.stateForStep(DescriptorBackup).first().shouldBe(Incomplete)
       rollbackCalls.awaitItem()
     }
   }

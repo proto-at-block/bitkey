@@ -5,13 +5,14 @@ import bitkey.account.SoftwareAccountConfig
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CreateAccountClientErrorCode
 import bitkey.f8e.error.toF8eError
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.f8e.*
 import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.catchingResult
-import build.wallet.chaincode.delegation.ChaincodeDelegationServerDpubGenerator
+import build.wallet.chaincode.delegation.ChaincodeDelegationServerKeyGenerator
 import build.wallet.chaincode.delegation.PublicKeyUtils
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
@@ -35,7 +36,7 @@ import io.ktor.client.request.*
 @BitkeyInject(AppScope::class)
 class CreateAccountF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
-  private val serverDpubGenerator: ChaincodeDelegationServerDpubGenerator,
+  private val serverKeyGenerator: ChaincodeDelegationServerKeyGenerator,
   private val publicKeyUtils: PublicKeyUtils,
 ) : CreateFullAccountF8eClient, CreateLiteAccountF8eClient, CreateSoftwareAccountF8eClient, CreatePrivateFullAccountF8eClient {
   // Full Account
@@ -74,7 +75,8 @@ class CreateAccountF8eClientImpl(
       CreateFullAccountF8eClient.Success(
         f8eSpendingKeyset = F8eSpendingKeyset(
           keysetId = response.keysetId,
-          spendingPublicKey = F8eSpendingPublicKey(dpub = response.spending)
+          spendingPublicKey = F8eSpendingPublicKey(dpub = response.spending),
+          privateWalletRootXpub = null // Legacy accounts don't have this
         ),
         fullAccountId = FullAccountId(response.accountId)
       )
@@ -132,16 +134,15 @@ class CreateAccountF8eClientImpl(
         // Just log, don't fail the call.
       }
 
-      // Combine the returned server public key with the app generated chaincode to create
-      // the server descriptor public key for use in the application
-      val serverDpub = serverDpubGenerator.generate(keyCrossDraft.config.bitcoinNetworkType, response.serverPub)
+      // Use the returned server public key to create a root xpub for the server
+      val f8eSpendingKeyset = serverKeyGenerator.generatePrivateSpendingKeyset(
+        network = keyCrossDraft.config.bitcoinNetworkType,
+        serverPublicKey = response.serverPub,
+        keysetId = response.keysetId
+      )
 
       CreateFullAccountF8eClient.Success(
-        f8eSpendingKeyset = F8eSpendingKeyset(
-          keysetId = response.keysetId,
-          spendingPublicKey = F8eSpendingPublicKey(dpub = serverDpub),
-          serverIntegritySignature = response.serverPubIntegritySig
-        ),
+        f8eSpendingKeyset = f8eSpendingKeyset,
         fullAccountId = FullAccountId(response.accountId)
       )
     }
@@ -207,4 +208,18 @@ class CreateAccountF8eClientImpl(
       }
       .mapError { it.toF8eError<CreateAccountClientErrorCode>() }
   }
+}
+
+internal fun ChaincodeDelegationServerKeyGenerator.generatePrivateSpendingKeyset(
+  network: BitcoinNetworkType,
+  serverPublicKey: String,
+  keysetId: String,
+): F8eSpendingKeyset {
+  val serverXpub = generateRootExtendedPublicKey(network, serverPublicKey)
+  val serverDpub = generateAccountDescriptorPublicKey(network, serverXpub)
+  return F8eSpendingKeyset(
+    keysetId = keysetId,
+    spendingPublicKey = F8eSpendingPublicKey(dpub = serverDpub),
+    privateWalletRootXpub = serverXpub
+  )
 }
