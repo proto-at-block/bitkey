@@ -1,5 +1,6 @@
 package build.wallet.bitkey.f8e
 
+import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.serialization.Serializable
 
 /**
@@ -17,6 +18,7 @@ import kotlinx.serialization.Serializable
 data class F8eSpendingKeyset(
   val keysetId: String,
   val spendingPublicKey: F8eSpendingPublicKey,
+  @Redacted
   val privateWalletRootXpub: String?,
 )
 

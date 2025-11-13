@@ -65,6 +65,23 @@ class OnboardAccountServiceImpl(
     }
   }
 
+  override suspend fun markStepIncomplete(step: OnboardAccountStep): Result<Unit, Throwable> {
+    return coroutineBinding {
+      val step = when (step) {
+        is DescriptorBackup -> OnboardingKeyboxStep.DescriptorBackup
+        is CloudBackup -> OnboardingKeyboxStep.CloudBackup
+        is NotificationPreferences -> OnboardingKeyboxStep.NotificationPreferences
+      }
+
+      onboardingKeyboxStepStateDao
+        .setStateForStep(
+          step = step,
+          state = OnboardingKeyboxStepState.Incomplete
+        )
+        .bind()
+    }
+  }
+
   private suspend fun completeDescriptorBackupStep(): Result<Unit, Throwable> =
     coroutineBinding {
       onboardingKeyboxStepStateDao
@@ -73,8 +90,6 @@ class OnboardAccountServiceImpl(
           state = OnboardingKeyboxStepState.Complete
         )
         .bind()
-
-      onboardingKeyboxSealedSsekDao.clear().bind()
     }.logFailure { "Error completing descriptor backup onboarding step." }
 
   private suspend fun completeCloudBackupStep(): Result<Unit, Throwable> =
@@ -88,6 +103,13 @@ class OnboardAccountServiceImpl(
 
       // Now that the backup is complete, we don't need the sealed csek anymore
       onboardingKeyboxSealedCsekDao.clear().bind()
+      // Yes, I know you're wondering why we don't clear this in completeDescriptorBackupStep. Well,
+      // the reason is we perform implicit lite account -> full account upgrades during cloud backup
+      // if we discover an existing lite account in your cloud. That means the descriptor backup
+      // step may be run for an account that isn't the final one. Yes this sucks. But either way,
+      // keeping the sealed ssek around lets us go back to the descriptor backup step in this scenario
+      // without requiring another hardware tap. And it'll get cleared here eventually anyway.
+      onboardingKeyboxSealedSsekDao.clear().bind()
     }.logFailure { "Error completing cloud backup onboarding step." }
 
   private suspend fun completeNotificationPreferencesStep(): Result<Unit, Throwable> {

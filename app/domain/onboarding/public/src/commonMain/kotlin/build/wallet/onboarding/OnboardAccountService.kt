@@ -15,4 +15,10 @@ interface OnboardAccountService {
    * Marks onboarding step as complete.
    */
   suspend fun completeStep(step: OnboardAccountStep): Result<Unit, Throwable>
+
+  /**
+   * Marks a step as incomplete. Only the type of [OnboardAccountStep] matters, any fields
+   * are ignored.
+   */
+  suspend fun markStepIncomplete(step: OnboardAccountStep): Result<Unit, Throwable>
 }

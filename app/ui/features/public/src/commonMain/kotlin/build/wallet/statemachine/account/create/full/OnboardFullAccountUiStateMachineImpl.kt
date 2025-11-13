@@ -8,6 +8,7 @@ import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.onboarding.OnboardAccountService
@@ -27,6 +28,7 @@ import build.wallet.statemachine.core.*
 import build.wallet.statemachine.notifications.NotificationPreferencesProps.Source.Onboarding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.launch
 
 @BitkeyInject(ActivityScope::class)
 class OnboardFullAccountUiStateMachineImpl(
@@ -41,6 +43,7 @@ class OnboardFullAccountUiStateMachineImpl(
   @Composable
   override fun model(props: OnboardFullAccountUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(LoadingOnboardingState) }
+    val scope = rememberStableCoroutineScope()
 
     return when (val currentState = state) {
       is LoadingOnboardingState -> {
@@ -99,7 +102,13 @@ class OnboardFullAccountUiStateMachineImpl(
                       props.onOverwriteFullAccountCloudBackupWarning()
                     }
                   } else {
-                    props.onFoundLiteAccountWithDifferentId(cloudBackup)
+                    scope.launch {
+                      // If we found a lite account, we're going to try to magically upgrade that
+                      // lite account to a full account. That means the previous descriptor backup
+                      // step is void, and we'll need to do it again.
+                      onboardAccountService.markStepIncomplete(DescriptorBackup(null))
+                      props.onFoundLiteAccountWithDifferentId(cloudBackup)
+                    }
                   }
                 },
                 presentationStyle = ScreenPresentationStyle.Root,

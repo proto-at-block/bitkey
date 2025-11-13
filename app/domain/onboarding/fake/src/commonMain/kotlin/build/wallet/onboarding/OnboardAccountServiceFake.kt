@@ -11,11 +11,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
 class OnboardAccountServiceFake : OnboardAccountService {
-  private val pendingSteps = MutableStateFlow(listOf<OnboardAccountStep?>(null))
+  private val pendingSteps = MutableStateFlow(setOf<OnboardAccountStep?>(null))
 
   fun setPendingSteps(vararg steps: OnboardAccountStep) {
     pendingSteps.update {
-      steps.toList()
+      steps.toSet()
     }
   }
 
@@ -30,9 +30,16 @@ class OnboardAccountServiceFake : OnboardAccountService {
       return Err(completeStepError!!)
     }
     pendingSteps.update {
-      val updated = it.toMutableList()
+      val updated = it.toMutableSet()
       updated.remove(step)
       updated
+    }
+    return Ok(Unit)
+  }
+
+  override suspend fun markStepIncomplete(step: OnboardAccountStep): Result<Unit, Throwable> {
+    pendingSteps.update {
+      setOf(step) + it
     }
     return Ok(Unit)
   }
@@ -44,6 +51,6 @@ class OnboardAccountServiceFake : OnboardAccountService {
 
   fun reset() {
     completeStepError = null
-    pendingSteps.value = listOf(null)
+    pendingSteps.value = setOf(null)
   }
 }

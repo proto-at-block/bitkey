@@ -11,6 +11,7 @@ import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.onboarding.OnboardingKeyboxSealedSsekDao
+import build.wallet.statemachine.cloud.SAVING_BACKUP_MESSAGE
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -97,7 +98,8 @@ class OnboardDescriptorBackupUiStateMachineImpl(
         }
 
         LoadingBodyModel(
-          id = NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING
+          id = NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING,
+          message = SAVING_BACKUP_MESSAGE
         ).asRootScreen()
       }
     }

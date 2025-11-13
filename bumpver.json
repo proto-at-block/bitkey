@@ -1,5 +1,5 @@
 {
-  "current_version": "2025.21.0-b6-sqb1303",
+  "current_version": "2025.21.1-b1-sqb1304",
   "version_pattern": "YYYY.VERSION0.PATCH-bBUILD-sqbSQB",
   "commit_message": "release: {new_version}",
   "commit": false,

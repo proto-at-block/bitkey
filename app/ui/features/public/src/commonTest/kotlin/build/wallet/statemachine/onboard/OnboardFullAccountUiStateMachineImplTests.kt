@@ -279,6 +279,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       }
 
       onFoundLiteAccountWithDifferentId.awaitItem().shouldBe(liteAccountBackup)
+      onboardAccountService.awaitPendingStep(DescriptorBackup(null))
     }
   }
 
