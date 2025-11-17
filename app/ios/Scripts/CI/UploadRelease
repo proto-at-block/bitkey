@@ -14,7 +14,13 @@ release_version="${GIT_BRANCH##*/}"
 release_type="$1"
 
 echo "Copying IPA"
-artifacts_dir="$WORKSPACE/wallet/ios-builder/artifacts" 
+: "${ARTIFACTS_DIR:?ARTIFACTS_DIR must be set by CI}"
+artifacts_dir="$ARTIFACTS_DIR"
+
+if [[ ! -d "$artifacts_dir" ]]; then
+  echo "Artifacts directory $artifacts_dir not found" >&2
+  exit 1
+fi
 case "$release_type" in
     "customer")
         release_ipa_file="release_archive.ipa"
