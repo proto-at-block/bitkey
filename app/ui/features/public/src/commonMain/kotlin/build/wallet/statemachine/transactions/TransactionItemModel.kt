@@ -18,6 +18,7 @@ fun TransactionItemModel(
   transactionType: TransactionType,
   isPending: Boolean,
   isLate: Boolean,
+  isLoading: Boolean = false,
   onClick: () -> Unit,
 ) = ListItemModel(
   title = when (transactionType) {
@@ -48,14 +49,14 @@ fun TransactionItemModel(
       },
       iconSize = when {
         isLate || isPending || transactionType is UtxoConsolidation -> IconSize.Custom(48)
-        else -> IconSize.Large
+        else -> IconSize.Custom(44)
       },
       iconBackgroundType = IconBackgroundType.Square(
         size = IconSize.Custom(48),
         color = IconBackgroundType.Square.Color.Transparent,
         cornerRadius = 0
       ),
-      iconAlignmentInBackground = IconAlignmentInBackground.Center,
+      iconAlignmentInBackground = IconAlignmentInBackground.Start,
       badge = when {
         isLate -> BadgeType.Error
         isPending -> BadgeType.Loading
@@ -67,5 +68,6 @@ fun TransactionItemModel(
     Incoming -> GREEN
     Outgoing, UtxoConsolidation -> PRIMARY
   },
-  onClick = onClick
+  onClick = onClick,
+  isLoading = isLoading
 )

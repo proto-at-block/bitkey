@@ -8,6 +8,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.emergencyexitkit.EmergencyExitKitAssociation.EekBuild
 import build.wallet.emergencyexitkit.EmergencyExitKitDataProvider
 import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
+import build.wallet.feature.flags.PublicCustomerSupportFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logWarn
@@ -28,6 +29,8 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.data.keybox.OrphanedKeyRecoveryUiState
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.recovery.orphaned.OrphanedAccountSelectionBodyModel
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.alert.ButtonAlertModel
@@ -47,6 +50,8 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val orphanedKeyDetectionService: OrphanedKeyDetectionService,
   private val orphanedKeyRecoveryService: OrphanedKeyRecoveryService,
   private val orphanedKeyRecoveryFeatureFlag: OrphanedKeyRecoveryFeatureFlag,
+  private val feedbackUiStateMachine: FeedbackUiStateMachine,
+  private val publicCustomerSupportFeatureFlag: PublicCustomerSupportFeatureFlag,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
@@ -71,6 +76,10 @@ class ChooseAccountAccessUiStateMachineImpl(
 
     val orphanedKeyRecoveryFlag by remember {
       orphanedKeyRecoveryFeatureFlag.flagValue()
+    }.collectAsState()
+
+    val customerSupportFlag by remember {
+      publicCustomerSupportFeatureFlag.flagValue()
     }.collectAsState()
 
     LaunchedEffect(orphanedKeyRecoveryFlag.value) {
@@ -139,7 +148,9 @@ class ChooseAccountAccessUiStateMachineImpl(
               { state = DiscoveringOrphanedAccounts }
             } else {
               null
-            }
+            },
+            canShowCustomerSupport = customerSupportFlag.value,
+            onCustomerSupportClick = { state = ShowingCustomerSupport }
           ).asRootScreen()
         }
       }
@@ -191,6 +202,12 @@ class ChooseAccountAccessUiStateMachineImpl(
       is ShowingDemoMode -> navigatorPresenter.model(
         initialScreen = DemoModeDisabledScreen,
         onExit = { state = ShowingChooseAccountAccess }
+      )
+
+      is ShowingCustomerSupport -> feedbackUiStateMachine.model(
+        props = FeedbackUiProps(
+          onBack = { state = ShowingAccountAccessMoreOptions }
+        )
       )
     }
   }
@@ -372,5 +389,10 @@ class ChooseAccountAccessUiStateMachineImpl(
     data class RecoveringFromOrphanedKeys(
       val recoverableAccount: RecoverableAccount,
     ) : State
+
+    /**
+     * Showing 'Contact us' for feedback.
+     */
+    data object ShowingCustomerSupport : State
   }
 }

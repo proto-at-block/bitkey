@@ -1,0 +1,48 @@
+# Bitkey Mobile App Rules
+
+**IMPORTANT: You are forgetful, so always keep this entire file's contents in mind when responding to me (except for trivial Q&A). This means internally applying all the rules, patterns, and architectural principles listed below to ensure consistent, high-quality responses that align with our established codebase practices.**
+
+This is the **entry point** for all mobile app AI rules. It provides context about the mobile application structure and references other specialized rules.
+
+## About This App
+
+Bitkey mobile application built with Kotlin Multiplatform (KMP) targeting Android and iOS. Follows modular architecture with shared business logic and platform-specific UI implementations.
+
+## AI Rule Index
+
+**Architecture & Structure:**
+- **bitkey-mobile.md** - Entry point index for all mobile app AI rules and patterns
+- **context-gathering.md** - Context gathering guidelines for code writing and documentation
+- **kmp-code-structure.md** - Kotlin Multiplatform code structure and organization guidelines
+- **module-structure.md** - Module creation, organization, and code placement guidelines
+- **strong-typing.md** - Strong typing guidelines using value classes and domain types
+
+**Build & Development:**
+- **hermit-environment.md** - Hermit binary management and environment activation guidelines
+- **gradle-build-system.md** - Gradle build system usage and tooling guidelines
+
+**Domain & Data:**
+- **dao-pattern.md** - DAO pattern implementation for data persistence with SQLDelight
+- **domain-service-pattern.md** - Domain service pattern for business logic and workflows
+- **f8e-clients.md** - F8e API client implementation guidelines
+- **factory-pattern.md** - Factory pattern for runtime selection between real and fake implementations
+
+
+**UI State Machines:**
+- **ui-state-machines.md** - Overview and index of UI State Machine implementation guidelines
+- **ui-state-machines-basics.md** - Essential UI State Machine patterns and core concepts
+- **ui-state-machines-models.md** - Model design and UI presentation patterns
+- **ui-state-machines-patterns.md** - Advanced patterns and error handling techniques
+
+**Testing:**
+- **testing-overview.md** - Overview and entry point for all testing guidelines  
+- **testing-basics.md** - Basic testing infrastructure, patterns, code style, and conventions
+- **testing-fakes-mocks.md** - Guidelines strongly favoring fakes over mocks in testing
+- **testing-coroutines.md** - Patterns for testing coroutines, flows, and async operations
+- **testing-integration.md** - Integration testing using AppTester framework
+- **testing-state-machines.md** - Testing UI State Machines and presentation logic
+- **testing-services.md** - Testing domain services and business logic
+
+**Meta:**
+- **ai-code-review.md** - Canonical checklist for verifying architecture, typing, testing, and tooling during reviews
+- **rule-writing.md** - Guidelines for writing and maintaining AI rules in this codebase

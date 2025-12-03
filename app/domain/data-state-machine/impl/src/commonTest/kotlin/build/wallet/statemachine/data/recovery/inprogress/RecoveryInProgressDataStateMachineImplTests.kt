@@ -24,9 +24,17 @@ import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.relationships.RelationshipsFake
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
+import build.wallet.firmware.FirmwareDeviceInfo
+import build.wallet.firmware.FirmwareMetadata
+import build.wallet.firmware.SecureBootConfig
+import build.wallet.fwup.FirmwareData
+import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.ktor.result.HttpError
+import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProviderFake
 import build.wallet.nfc.transaction.SealDelegatedDecryptionKey
 import build.wallet.nfc.transaction.SignChallengeAndSealSeks.SignedChallengeAndSeks
 import build.wallet.nfc.transaction.UnsealData
@@ -78,6 +86,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val encryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(
     featureFlagDao = FeatureFlagDaoFake()
   )
+  val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(
+    featureFlagDao = FeatureFlagDaoFake()
+  )
+  val firmwareDataService = FirmwareDataServiceFake()
   val fakeChallenge = SignedChallenge.HardwareSignedChallenge(
     challenge = DelayNotifyRecoveryChallengeFake,
     signature = ""
@@ -106,7 +118,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     minimumLoadingDuration = MinimumLoadingDuration(0.seconds),
     accountConfigService = accountConfigService,
     descriptorBackupService = descriptorBackupService,
-    encryptedDescriptorBackupsFeatureFlag = encryptedDescriptorBackupsFeatureFlag
+    encryptedDescriptorBackupsFeatureFlag = encryptedDescriptorBackupsFeatureFlag,
+    provisionAppAuthKeyTransactionProvider = ProvisionAppAuthKeyTransactionProviderFake(),
+    firmwareDataService = firmwareDataService,
+    minFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag
   )
 
   beforeTest {
@@ -118,6 +133,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     descriptorBackupService.reset()
     featureFlagDao.reset()
     encryptedDescriptorBackupsFeatureFlag.reset()
+    fingerprintResetMinFirmwareVersionFeatureFlag.reset()
+    firmwareDataService.reset()
 
     encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(true))
   }
@@ -144,19 +161,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
     )
 
-  val onRetryCloudRecoveryCalls = turbines.create<Unit>("on retry cloud recovery calls")
-
   fun props(recovery: StillRecovering = recovery()) =
     RecoveryInProgressProps(
       recovery = recovery,
-      oldAppGlobalAuthKey = null,
-      onRetryCloudRecovery =
-        when (recovery.factorToRecover) {
-          App -> {
-            { onRetryCloudRecoveryCalls += Unit }
-          }
-          Hardware -> null
-        }
+      oldAppGlobalAuthKey = null
     )
 
   test("recovery is ready to complete") {
@@ -435,6 +443,12 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
       }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
 
       awaitItem().let {
@@ -502,6 +516,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
       }
 
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
@@ -577,6 +596,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
       }
 
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
@@ -655,6 +679,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
       }
 
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
 
       awaitItem().let {
@@ -728,6 +757,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
       }
 
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
@@ -810,6 +844,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
       }
 
       awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
@@ -1368,4 +1407,249 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
   }
+
+  test("firmware version check - provisions app auth key when firmware version meets minimum requirement") {
+    val recovery = recovery()
+    delay(delayDuration)
+
+    // Set firmware version equal to the minimum
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.98"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndSeks(
+            signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
+            sealedCsek = SealedCsekFake,
+            sealedSsek = SealedSsekFake
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+
+      // Should proceed with provisioning
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("firmware version check - skips app auth key provisioning when firmware version is unavailable") {
+    val recovery = recovery()
+    delay(delayDuration)
+
+    // Set firmware device info to null
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = null,
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndSeks(
+            signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
+            sealedCsek = SealedCsekFake,
+            sealedSsek = SealedSsekFake
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+
+      // Should skip provisioning when firmware version is unavailable
+      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("firmware version check - skips app auth key provisioning when minimum version flag is empty") {
+    val recovery = recovery()
+    delay(delayDuration)
+
+    // Set minimum firmware version to empty string
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag(""))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.98"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndSeks(
+            signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
+            sealedCsek = SealedCsekFake,
+            sealedSsek = SealedSsekFake
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+
+      // Should skip provisioning when minimum version flag is empty
+      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("firmware version check - provisions app auth key when firmware version is higher than minimum") {
+    val recovery = recovery()
+    delay(delayDuration)
+
+    // Set firmware version higher than the minimum
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("2.0.0"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndSeks(
+            signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
+            sealedCsek = SealedCsekFake,
+            sealedSsek = SealedSsekFake
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+
+      // Should proceed with provisioning
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("firmware version check - resumes from RotatedAuthKeys and skips provisioning when version is below minimum") {
+    val recovery = RotatedAuthKeys(
+      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
+      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
+      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
+      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
+      factorToRecover = App,
+      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
+      sealedCsek = SealedCsekFake,
+      sealedSsek = SealedSsekFake
+    )
+
+    // Set firmware version below the minimum
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.97"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(props(recovery)) {
+      // Should skip provisioning and go directly to fetching DDK
+      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("firmware version check - resumes from RotatedAuthKeys and provisions when version meets minimum") {
+    val recovery = RotatedAuthKeys(
+      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
+      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
+      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
+      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
+      factorToRecover = App,
+      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
+      sealedCsek = SealedCsekFake,
+      sealedSsek = SealedSsekFake
+    )
+
+    // Set firmware version equal to the minimum
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.98"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(props(recovery)) {
+      // Should proceed with provisioning
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
 })
+
+private fun createFirmwareDeviceInfo(version: String) =
+  FirmwareDeviceInfo(
+    version = version,
+    serial = "test-serial",
+    swType = "test",
+    hwRevision = "test",
+    activeSlot = FirmwareMetadata.FirmwareSlot.A,
+    batteryCharge = 50.0,
+    vCell = 1000,
+    avgCurrentMa = 100,
+    batteryCycles = 10,
+    secureBootConfig = SecureBootConfig.DEV,
+    timeRetrieved = Instant.fromEpochSeconds(1234567890).epochSeconds,
+    bioMatchStats = null
+  )

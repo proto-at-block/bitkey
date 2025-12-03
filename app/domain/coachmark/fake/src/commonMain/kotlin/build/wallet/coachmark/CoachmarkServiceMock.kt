@@ -10,18 +10,29 @@ class CoachmarkServiceMock(
   turbineFactory: (String) -> Turbine<CoachmarkIdentifier>,
 ) : CoachmarkService {
   val markDisplayedTurbine = turbineFactory("mark coachmark displayed calls")
+  private val displayedCoachmarks = mutableSetOf<CoachmarkIdentifier>()
 
   override suspend fun coachmarksToDisplay(
     coachmarkIds: Set<CoachmarkIdentifier>,
-  ): Result<List<CoachmarkIdentifier>, Error> = Ok(defaultCoachmarks)
+  ): Result<List<CoachmarkIdentifier>, Error> =
+    Ok(defaultCoachmarks.filter { it !in displayedCoachmarks })
 
   override suspend fun markCoachmarkAsDisplayed(
     coachmarkId: CoachmarkIdentifier,
-  ): Result<Unit, Error> =
-    Ok(Unit)
-      .also { markDisplayedTurbine += coachmarkId }
+  ): Result<Unit, Error> {
+    displayedCoachmarks.add(coachmarkId)
+    markDisplayedTurbine += coachmarkId
+    return Ok(Unit)
+  }
 
-  override suspend fun resetCoachmarks(): Result<Unit, Error> =
-    Ok(Unit)
-      .also { defaultCoachmarks = emptyList() }
+  override suspend fun resetCoachmarks(): Result<Unit, Error> {
+    defaultCoachmarks = emptyList()
+    displayedCoachmarks.clear()
+    return Ok(Unit)
+  }
+
+  fun reset() {
+    displayedCoachmarks.clear()
+    defaultCoachmarks = emptyList()
+  }
 }

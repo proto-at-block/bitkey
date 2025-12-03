@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+# Wrapper for shared development environment
+# Usage: tf-development plan|apply|destroy [terraform args...]
+
+BACKEND="tfvars/development/backends.tfvars"
+VARFILE="tfvars/development/development.tfvars"
+
+# Set AWS environment
+export AWS_PROFILE=bitkey-fw-signer-development--admin
+export AWS_REGION=us-west-2
+
+# Safety: Always re-init to ensure correct backend
+echo "Initializing with shared development backend"
+terraform init -reconfigure -backend-config="$BACKEND" > /dev/null
+
+# Run terraform with correct var files and is_localstack flag
+exec terraform "$@" -var-file="$VARFILE" -var-file="$BACKEND" -var="is_localstack=false"

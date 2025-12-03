@@ -92,7 +92,7 @@ def puncover(c):
     click.echo(click.style(
         'Puncover running on http://127.0.0.1:8000/ (Press CTRL+C to quit)', fg='green'))
     c.run(
-        f"puncover --elf_file {mb.target_path(mb.target.elf)} --src_root {ROOT_DIR} --build_dir {BUILD_ROOT_DIR}")  # hide=True, warn=True
+        f"puncover --elf_file {mb.target_path(mb.target.elf)} --src_root {ROOT_DIR} --build_dir {BUILD_ROOT_DIR}")  # hide=True, warn=True  # noqa: E262
 
 
 @task

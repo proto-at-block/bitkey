@@ -45,6 +45,7 @@ class SweepGeneratorImpl(
 ) : SweepGenerator {
   override suspend fun generateSweep(
     keybox: Keybox,
+    context: SweepGenerationContext,
   ): Result<List<SweepPsbt>, SweepGeneratorError> =
     coroutineBinding {
       // Use local keysets if available and authoritative, otherwise fetch from F8e
@@ -102,7 +103,7 @@ class SweepGeneratorImpl(
       buildList<SweepPsbt> {
         signableKeysets.forEach { keyset ->
           // Generate the sweep psbt(s), failing fast on the first non-recoverable error
-          buildPsbt(keyset, keybox.activeSpendingKeyset, feeRate, keybox).bind()
+          buildPsbt(keyset, keybox.activeSpendingKeyset, feeRate, keybox, context).bind()
             ?.let { psbt -> add(psbt) }
         }
       }
@@ -139,6 +140,7 @@ class SweepGeneratorImpl(
     destinationKeyset: SpendingKeyset,
     feeRate: FeeRate,
     keybox: Keybox,
+    context: SweepGenerationContext,
   ): Result<SweepPsbt?, SweepGeneratorError> =
     coroutineBinding {
       val destinationWallet =
@@ -156,14 +158,16 @@ class SweepGeneratorImpl(
       val destinationAddress = address(destinationKeyset, destinationWallet)
 
       // don't bind on process the address, if this fails we still want the sweep to continue
-      registerWatchAddressProcessor.process(
-        RegisterWatchAddressContext(
-          address = destinationAddress,
-          f8eSpendingKeyset = destinationKeyset.f8eSpendingKeyset,
-          accountId = keybox.fullAccountId.serverId,
-          f8eEnvironment = keybox.config.f8eEnvironment
-        )
-      ).logFailure { "Error registering address with f8e" }
+      if (context is SweepGenerationContext.Real) {
+        registerWatchAddressProcessor.process(
+          RegisterWatchAddressContext(
+            address = destinationAddress,
+            f8eSpendingKeyset = destinationKeyset.f8eSpendingKeyset,
+            accountId = keybox.fullAccountId.serverId,
+            f8eEnvironment = keybox.config.f8eEnvironment
+          )
+        ).logFailure { "Error registering address with f8e" }
+      }
 
       destinationWallet
         .sync()

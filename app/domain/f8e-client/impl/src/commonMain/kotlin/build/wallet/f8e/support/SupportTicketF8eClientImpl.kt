@@ -1,12 +1,9 @@
 package build.wallet.f8e.support
 
-import bitkey.auth.AuthTokenScope
-import build.wallet.bitkey.f8e.AccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
-import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.*
@@ -32,17 +29,15 @@ class SupportTicketF8eClientImpl(
 ) : SupportTicketF8eClient {
   override suspend fun createTicket(
     f8eEnvironment: F8eEnvironment,
-    accountId: AccountId,
     ticket: CreateTicketDTO,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
-      .authenticated()
+      .unauthenticated()
       .bodyResult<CreateTicketResponse> {
         post("/api/customer_feedback") {
           withDescription("Create support ticket.")
           setRedactedBody(ticket)
           withEnvironment(f8eEnvironment)
-          withAccountId(accountId)
         }
       }
       .logNetworkFailure { "Failed to create support ticket." }
@@ -51,14 +46,12 @@ class SupportTicketF8eClientImpl(
 
   override suspend fun getFormStructure(
     f8eEnvironment: F8eEnvironment,
-    accountId: AccountId,
   ): Result<TicketFormDTO, NetworkingError> {
     return f8eHttpClient
-      .authenticated()
+      .unauthenticated()
       .bodyResult<TicketFormDTO> {
         get("/api/support/ticket-form") {
           withEnvironment(f8eEnvironment)
-          withAccountId(accountId, AuthTokenScope.Recovery)
           withDescription("Fetch support ticket form.")
         }
       }
@@ -67,20 +60,18 @@ class SupportTicketF8eClientImpl(
 
   override suspend fun uploadAttachment(
     f8eEnvironment: F8eEnvironment,
-    accountId: AccountId,
     filename: String,
     mimeType: MimeType,
     source: Source,
   ): Result<String, NetworkingError> {
     return f8eHttpClient
-      .authenticated()
+      .unauthenticated()
       .bodyResult<AttachmentUploadResponse> {
         post("/api/support/attachments?filename=${filename.encodeURLQueryComponent()}") {
           withDescription("Upload attachment")
           headers["Content-Type"] = mimeType.name
           setUnredactedBody(StreamAssetContent(source))
           withEnvironment(f8eEnvironment)
-          withAccountId(accountId)
         }
       }
       .logNetworkFailure { "Failed to upload attachment" }

@@ -15,9 +15,9 @@ buildLogic {
   app {
     version(
       yyyy = 2025,
-      version = 21,
-      patch = 1,
-      build = 4
+      version = 22,
+      patch = 0,
+      build = 5
     )
   }
   compose {

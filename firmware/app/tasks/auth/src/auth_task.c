@@ -188,7 +188,7 @@ NO_OPTIMIZE secure_bool_t is_authenticated(void) {
 #endif
 }
 
-secure_bool_t is_allowing_fingerprint_enrollment(void) {
+NO_OPTIMIZE secure_bool_t is_allowing_fingerprint_enrollment(void) {
   rtos_mutex_lock(&auth_priv.auth_lock);
   secure_bool_t result = SECURE_FALSE;
   SECURE_DO_FAILOUT(auth_state.allow_fingerprint_enrollment == SECURE_TRUE,

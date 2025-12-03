@@ -8,10 +8,13 @@ import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.relationships.*
 import build.wallet.cloud.backup.socRecDataAvailable
+import build.wallet.cloud.store.CloudKeyValueStore
 import build.wallet.cloud.store.CloudStoreAccountFake
+import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.f8e.relationships.endorseTrustedContacts
 import build.wallet.f8e.relationships.getRelationships
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
+import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyScreens
@@ -19,6 +22,7 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.testing.AppTester
+import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import com.github.michaelbull.result.getOrThrow
@@ -50,17 +54,17 @@ class SocRecE2eFunctionalTests : FunSpec({
     "full e2e test",
     app1Factory = { mode ->
       when (mode) {
-        AppMode.Legacy -> launchNewApp(executeWorkers = false)
-        AppMode.Private -> launchPrivateWalletApp(executeWorkers = false)
+        AppMode.Legacy -> launchLegacyWalletApp(executeWorkers = false)
+        AppMode.Private -> launchNewApp(executeWorkers = false)
       }
     },
     app2Factory = { customerApp, mode ->
       when (mode) {
-        AppMode.Legacy -> launchNewApp(
+        AppMode.Legacy -> launchLegacyWalletApp(
           cloudKeyValueStore = customerApp.cloudKeyValueStore,
           executeWorkers = false
         )
-        AppMode.Private -> launchPrivateWalletApp(
+        AppMode.Private -> launchNewApp(
           cloudKeyValueStore = customerApp.cloudKeyValueStore,
           executeWorkers = false
         )
@@ -142,11 +146,27 @@ class SocRecE2eFunctionalTests : FunSpec({
   }
 
   // If this test flakes, it likely points to a real issue. See comments in test.
-  test("attacker can't fake an endorsement") {
+  testWithTwoApps(
+    "attacker can't fake an endorsement", app1Factory = { mode ->
+      when (mode) {
+        AppMode.Legacy -> launchLegacyWalletApp(executeWorkers = false)
+        AppMode.Private -> launchNewApp(executeWorkers = false)
+      }
+    },
+    app2Factory = { customerApp, mode ->
+      when (mode) {
+        AppMode.Legacy -> launchLegacyWalletApp(
+          cloudKeyValueStore = customerApp.cloudKeyValueStore,
+          executeWorkers = false
+        )
+        AppMode.Private -> launchNewApp(
+          cloudKeyValueStore = customerApp.cloudKeyValueStore,
+          executeWorkers = false
+        )
+      }
+    }
+  ) { customerApp, tcApp ->
     // Onboard the protected customer
-    // TODO(W-9704): execute workers by default
-    val customerApp = launchNewApp(executeWorkers = false)
-    val cloudStore = customerApp.cloudKeyValueStore
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
@@ -161,7 +181,6 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     // TC: Onboard as Lite Account and accept invite
     // TODO(W-9704): execute workers by default
-    val tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     tcApp.appUiStateMachine.test(
       turbineTimeout = 60.seconds,
       props = Unit
@@ -368,16 +387,16 @@ class SocRecE2eFunctionalTests : FunSpec({
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
 
-  test("Lost App Cloud Recovery should succeed after PC does Lost Hardware D&N with Trusted Contact") {
+  testWithTwoApps(
+    "Lost App Cloud Recovery should succeed after PC does Lost Hardware D&N with Trusted Contact",
+    app1Factory = { mode -> launchAppForModeWithoutWorkers(mode) },
+    app2Factory = { _, mode -> launchAppForModeWithoutWorkers(mode) }
+  ) { customerApp, tcApp ->
     // Onboard the protected customer
-    // TODO(W-9704): execute workers by default
-    val customerApp = launchNewApp(executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    // TODO(W-9704): execute workers by default
-    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
       PROTECTED_CUSTOMER_ALIAS,
@@ -401,12 +420,11 @@ class SocRecE2eFunctionalTests : FunSpec({
     // PC: Start up a fresh app with clean data, persist cloud backup and hardware
     //     Perform Lost App Cloud Recovery
     val hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
-    // TODO(W-9704): execute workers by default
-    val recoveringApp = launchNewApp(
+    val recoveringApp = launchAppMatchingMode(
+      customerApp,
       cloudStoreAccountRepository = customerApp.cloudStoreAccountRepository,
       cloudKeyValueStore = customerApp.cloudKeyValueStore,
-      hardwareSeed = hardwareSeed,
-      executeWorkers = false
+      hardwareSeed = hardwareSeed
     )
     recoveringApp.appUiStateMachine.test(
       props = Unit,
@@ -428,16 +446,17 @@ class SocRecE2eFunctionalTests : FunSpec({
     verifyKeyCertificatesAreRefreshed(recoveringApp)
   }
 
-  test("social recovery should succeed after PC does lost app D&N") {
+  testWithTwoApps(
+    "social recovery should succeed after PC does lost app D&N",
+    app1Factory = { mode -> launchAppForModeWithoutWorkers(mode) },
+    app2Factory = { _, mode -> launchAppForModeWithoutWorkers(mode) }
+  ) { initialCustomerApp, tcApp ->
     // Onboard the protected customer
-    // TODO(W-9704): execute workers by default
-    var customerApp = launchNewApp(executeWorkers = false)
+    var customerApp = initialCustomerApp
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    // TODO(W-9704): execute workers by default
-    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
       PROTECTED_CUSTOMER_ALIAS,
@@ -450,8 +469,10 @@ class SocRecE2eFunctionalTests : FunSpec({
     customerApp.deleteBackupsFromFakeCloud()
     customerApp.fakeNfcCommands.wipeDevice()
 
-    // TODO(W-9704): execute workers by default
-    customerApp = launchNewApp(hardwareSeed = hardwareSeed, executeWorkers = false)
+    customerApp = launchAppMatchingMode(
+      customerApp,
+      hardwareSeed = hardwareSeed
+    )
     customerApp.appUiStateMachine.test(
       Unit,
       testTimeout = 60.seconds,
@@ -466,16 +487,21 @@ class SocRecE2eFunctionalTests : FunSpec({
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
 
-  test("social recovery should not be possible after TC does lost app D&N") {
+  testWithTwoApps(
+    "social recovery should not be possible after TC does lost app D&N",
+    app1Factory = { mode -> launchAppForModeWithoutWorkers(mode) },
+    app2Factory = { customerApp, mode ->
+      launchAppForModeWithoutWorkers(
+        mode,
+        cloudKeyValueStore = customerApp.cloudKeyValueStore
+      )
+    }
+  ) { customerApp, initialTcApp ->
     // Onboard the protected customer
-    // TODO(W-9704): execute workers by default
-    val customerApp = launchNewApp(executeWorkers = false)
-    val cloudStore = customerApp.cloudKeyValueStore
+    var tcApp = initialTcApp
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
-    // TODO(W-9704): execute workers by default
-    var tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     tcApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake(identifier = "cloud-store-protected-customer2-fake")
     )
@@ -515,8 +541,10 @@ class SocRecE2eFunctionalTests : FunSpec({
     tcApp.deleteBackupsFromFakeCloud()
     tcApp.fakeNfcCommands.wipeDevice()
 
-    // TODO(W-9704): execute workers by default
-    tcApp = launchNewApp(hardwareSeed = hardwareSeed, executeWorkers = false)
+    tcApp = launchAppMatchingMode(
+      tcApp,
+      hardwareSeed = hardwareSeed
+    )
     tcApp.appUiStateMachine.test(
       Unit,
       testTimeout = 60.seconds,
@@ -530,16 +558,16 @@ class SocRecE2eFunctionalTests : FunSpec({
     customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
   }
 
-  test("social recovery should succeed after PC does lost hardware D&N") {
+  testWithTwoApps(
+    "social recovery should succeed after PC does lost hardware D&N",
+    app1Factory = { mode -> launchAppForModeWithoutWorkers(mode) },
+    app2Factory = { _, mode -> launchAppForModeWithoutWorkers(mode) }
+  ) { customerApp, tcApp ->
     // Onboard the protected customer
-    // TODO(W-9704): execute workers by default
-    val customerApp = launchNewApp(executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    // TODO(W-9704): execute workers by default
-    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
       PROTECTED_CUSTOMER_ALIAS,
@@ -563,16 +591,16 @@ class SocRecE2eFunctionalTests : FunSpec({
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
 
-  test("lost hardware D&N should succeed after social recovery") {
+  testWithTwoApps(
+    "lost hardware D&N should succeed after social recovery",
+    app1Factory = { mode -> launchAppForModeWithoutWorkers(mode) },
+    app2Factory = { _, mode -> launchAppForModeWithoutWorkers(mode) }
+  ) { customerApp, tcApp ->
     // Onboard the protected customer
-    // TODO(W-9704): execute workers by default
-    val customerApp = launchNewApp(executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    // TODO(W-9704): execute workers by default
-    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
       PROTECTED_CUSTOMER_ALIAS,
@@ -612,9 +640,9 @@ suspend fun TestScope.shouldSucceedSocialRestore(
   // PC: Start up a fresh app with clean data and start Social Challenge
   // persist cloud account stores
   // TODO(W-9704): execute workers by default
-  val recoveringApp = launchNewApp(
-    cloudKeyValueStore = customerApp.cloudKeyValueStore,
-    executeWorkers = false
+  val recoveringApp = launchAppMatchingMode(
+    customerApp,
+    cloudKeyValueStore = customerApp.cloudKeyValueStore
   )
   lateinit var challengeCode: String
   recoveringApp.appUiStateMachine.test(
@@ -697,3 +725,46 @@ suspend fun verifyKeyCertificatesAreRefreshed(app: AppTester) {
     }
   }
 }
+
+private suspend fun TestScope.launchAppForModeWithoutWorkers(
+  mode: AppMode,
+  cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
+  cloudKeyValueStore: CloudKeyValueStore? = null,
+  hardwareSeed: FakeHardwareKeyStore.Seed? = null,
+): AppTester =
+  when (mode) {
+    AppMode.Legacy -> launchLegacyWalletApp(
+      cloudStoreAccountRepository = cloudStoreAccountRepository,
+      cloudKeyValueStore = cloudKeyValueStore,
+      hardwareSeed = hardwareSeed,
+      executeWorkers = false
+    )
+    AppMode.Private -> launchNewApp(
+      cloudStoreAccountRepository = cloudStoreAccountRepository,
+      cloudKeyValueStore = cloudKeyValueStore,
+      hardwareSeed = hardwareSeed,
+      executeWorkers = false
+    )
+  }
+
+private suspend fun TestScope.launchAppMatchingMode(
+  referenceApp: AppTester,
+  cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
+  cloudKeyValueStore: CloudKeyValueStore? = null,
+  hardwareSeed: FakeHardwareKeyStore.Seed? = null,
+): AppTester =
+  if (referenceApp.appMode == AppMode.Private) {
+    launchNewApp(
+      cloudStoreAccountRepository = cloudStoreAccountRepository,
+      cloudKeyValueStore = cloudKeyValueStore,
+      hardwareSeed = hardwareSeed,
+      executeWorkers = false
+    )
+  } else {
+    launchLegacyWalletApp(
+      cloudStoreAccountRepository = cloudStoreAccountRepository,
+      cloudKeyValueStore = cloudKeyValueStore,
+      hardwareSeed = hardwareSeed,
+      executeWorkers = false
+    )
+  }

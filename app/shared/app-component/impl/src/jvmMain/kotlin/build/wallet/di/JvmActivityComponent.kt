@@ -4,7 +4,8 @@ import build.wallet.f8e.inheritance.ShortenInheritanceClaimF8eClient
 import build.wallet.inheritance.InheritanceClaimsRepository
 import build.wallet.nfc.NfcTransactor
 import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachine
-import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachine
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiStateMachine
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseQuotesUiStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementPresenter
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachine
@@ -31,7 +32,8 @@ interface JvmActivityComponent {
   val feedbackUiStateMachine: FeedbackUiStateMachine
   val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine
   val nfcTransactor: NfcTransactor
-  val partnershipsPurchaseUiStateMachine: PartnershipsPurchaseUiStateMachine
+  val partnershipsPurchaseAmountUiStateMachine: PartnershipsPurchaseAmountUiStateMachine
+  val partnershipsPurchaseQuotesUiStateMachine: PartnershipsPurchaseQuotesUiStateMachine
   val recoveryChallengeUiStateMachine: RecoveryChallengeUiStateMachine
   val rotateAuthUIStateMachine: RotateAuthKeyUIStateMachine
   val trustedContactManagementScreenPresenter: TrustedContactManagementPresenter

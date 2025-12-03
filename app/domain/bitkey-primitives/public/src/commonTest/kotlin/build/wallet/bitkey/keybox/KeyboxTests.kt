@@ -1,6 +1,7 @@
 package build.wallet.bitkey.keybox
 
 import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.app.AppSpendingPublicKey
@@ -25,7 +26,8 @@ class KeyboxTests : FunSpec({
     isHardwareFake = false,
     f8eEnvironment = Development,
     isTestAccount = false,
-    isUsingSocRecFakes = false
+    isUsingSocRecFakes = false,
+    hardwareType = HardwareType.W1
   )
 
   fun createKeybox(

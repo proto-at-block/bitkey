@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
 import app.cash.sqldelight.driver.native.inMemoryDriver
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.f8e.F8eSpendingKeysetPrivateWalletMock
@@ -43,6 +44,7 @@ class F8eSpendingKeysetIosDriverTests : FunSpec({
         accountId = accountId,
         networkType = BitcoinNetworkType.SIGNET,
         fakeHardware = false,
+        hardwareType = HardwareType.W1,
         f8eEnvironment = F8eEnvironment.Development,
         isTestAccount = false,
         isUsingSocRecFakes = false,

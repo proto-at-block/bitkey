@@ -208,7 +208,8 @@ module "web_refund_request" {
   secrets = local.secrets
 
   task_policy_arns = merge({
-    secrets = aws_iam_policy.secrets_policy.arn
+    secrets = aws_iam_policy.secrets_policy.arn,
+    ses     = aws_iam_policy.ses_policy.arn
   }, var.task_policy_arns)
   exec_policy_arns = {
     secrets = aws_iam_policy.secrets_policy.arn

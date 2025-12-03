@@ -21,8 +21,8 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.unit.IntOffset
 
 private const val ANIMATE_MOTION_OFFSET = 40
-private const val ANIMATE_MOTION_DURATION = 150
-private const val ANIMATE_VISIBILITY_DURATION = 200
+private const val ANIMATE_MOTION_DURATION = 100
+private const val ANIMATE_VISIBILITY_DURATION = 100
 private const val COLLAPSED_SCALE = 1.3f
 private const val EXPANDED_SCALE = 0.7f
 

@@ -1,0 +1,70 @@
+---
+description: Strong typing guidelines for Kotlin code
+alwaysApply: true
+---
+
+# Strong Typing
+
+## Summary
+Use strong types instead of raw primitive types throughout Kotlin code. Pass structured objects until the raw type actually needs to be used for rendering, blob manipulation, or raw data processing. This provides compile-time safety, clearer intent, and better refactoring support.
+
+## When to Apply
+- All Kotlin classes and functions
+- Data models and DTOs
+- Function parameters and return types
+- When working with domain concepts (IDs, amounts, business entities)
+
+## How to Apply
+
+**Create domain-specific types:**
+- Use value classes for IDs, amounts, and domain business concepts
+- Use data classes to group related primitive values
+- Prefer sealed classes for state representation
+- Convert to raw types only at the last possible moment
+
+**Acceptable raw type usage:**
+- **Rendering values**: When displaying data to the user
+- **Working with blob data**: Binary data manipulation  
+- **Raw data processing**: When data needs to be in primitive form
+- **API boundaries**: When interfacing with external systems requiring specific formats
+
+## Example
+
+```kotlin
+// ✅ GOOD: Using strong types
+data class KeysetWithStatus(
+  val keyset: SpendingKeyset,
+  val isActive: Boolean
+)
+
+fun processPayment(
+  payment: PaymentRequest,
+  account: UserAccount
+): PaymentResult
+
+fun getTransactionDetails(id: TransactionId): TransactionDetails
+
+// ❌ BAD: Using raw primitive types
+// CONSEQUENCES: Runtime errors from incorrect parameter passing, difficult refactoring, 
+// unclear function contracts, easy to swap parameters accidentally, no compile-time validation
+data class KeysetWithStatus(
+  val keysetId: String,
+  val serverId: String,
+  val isActive: Boolean,
+  val appKey: String,
+  val hardwareKey: String,
+  val serverKey: String,
+)
+
+fun processPayment(
+  paymentId: String,
+  userId: String,
+  amount: String
+): String
+
+fun getTransactionDetails(id: String): Map<String, Any>
+```
+
+## Related Rules
+This rule provides the foundation for type safety that other rules can build upon.
+

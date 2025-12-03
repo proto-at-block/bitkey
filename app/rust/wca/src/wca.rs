@@ -140,6 +140,7 @@ adpu_from_proto!(GetUnlockMethodCmd);
 adpu_from_proto!(CancelFingerprintEnrollmentCmd);
 adpu_from_proto!(FingerprintResetRequestCmd);
 adpu_from_proto!(FingerprintResetFinalizeCmd);
+adpu_from_proto!(ProvisionAppAuthPubkeyCmd);
 
 impl TryFrom<crate::fwpb::CoredumpGetCmd> for apdu::Command {
     type Error = EncodeError;

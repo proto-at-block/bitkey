@@ -11,6 +11,8 @@ import kotlin.time.Duration
  * @property isTestAccount is this a test account
  * @property isUsingSocRecFakes if we should use real or fake socrec service implementation
  * @property isHardwareFake determines if real or fake hardware should be used for this account.
+ * @property hardwareType specifies which hardware type to use (W1 or W3). This can be used
+ *           to override the detected type for both real and fake hardware.
  * @property delayNotifyDuration - how long to delay during a recovery
  */
 data class FullAccountConfig(
@@ -19,5 +21,6 @@ data class FullAccountConfig(
   override val isTestAccount: Boolean,
   override val isUsingSocRecFakes: Boolean,
   val isHardwareFake: Boolean,
+  val hardwareType: HardwareType,
   val delayNotifyDuration: Duration? = null,
 ) : AccountConfig

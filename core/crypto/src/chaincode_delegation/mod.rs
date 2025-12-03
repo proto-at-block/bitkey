@@ -260,10 +260,7 @@ fn sweep_psbt_with_tweaks(psbt: Psbt, target_keyset: &Keyset) -> Result<Psbt> {
     let secp = Secp256k1::new();
     let sweep_keys = participants
         .iter()
-        .map(|(base_xpub, path)| {
-            let (tweak, child_xpub) = tweak_from_path(&secp, *base_xpub, path)?;
-            Ok(SweepKey::new(*base_xpub, tweak, child_xpub))
-        })
+        .map(|(base_xpub, path)| SweepKey::new(&secp, *base_xpub, path))
         .collect::<Result<Vec<SweepKey>>>()?;
 
     // Using the tweaked child public keys to build the sweep output descriptor.
@@ -337,12 +334,12 @@ struct SweepKey {
 }
 
 impl SweepKey {
-    fn new(base_xpub: ExtendedPubKey, tweak: Scalar, child_xpub: ExtendedPubKey) -> Self {
-        Self {
+    fn new(secp: &Secp256k1<All>, base_xpub: ExtendedPubKey, path: &[ChildNumber]) -> Result<Self> {
+        tweak_from_path(secp, base_xpub, path).map(|(tweak, child_xpub)| Self {
             base_xpub,
             tweak,
             child_xpub,
-        }
+        })
     }
 
     fn base_pubkey(&self) -> PublicKey {

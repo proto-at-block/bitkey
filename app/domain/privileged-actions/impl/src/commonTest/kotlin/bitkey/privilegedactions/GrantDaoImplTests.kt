@@ -23,13 +23,15 @@ class GrantDaoImplTests : FunSpec({
   val grant1 = Grant(
     version = 1,
     serializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.FINGERPRINT_RESET),
-    signature = ByteArray(64) { it.toByte() }
+    appSignature = ByteArray(64) { it.toByte() },
+    wsmSignature = ByteArray(64) { it.toByte() }
   )
 
   val grant2 = Grant(
     version = 1,
     serializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.TRANSACTION_VERIFICATION),
-    signature = ByteArray(64) { (it + 64).toByte() }
+    appSignature = ByteArray(64) { it.toByte() },
+    wsmSignature = ByteArray(64) { it.toByte() }
   )
 
   beforeTest {
@@ -57,7 +59,8 @@ class GrantDaoImplTests : FunSpec({
     val newFingerprintGrant = Grant(
       version = 2,
       serializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.FINGERPRINT_RESET),
-      signature = ByteArray(64) { (it + 100).toByte() }
+      appSignature = ByteArray(64) { it.toByte() },
+      wsmSignature = ByteArray(64) { it.toByte() }
     )
 
     // Save different grant with same action type - should overwrite
@@ -103,7 +106,8 @@ class GrantDaoImplTests : FunSpec({
     val anotherFingerprintGrant = Grant(
       version = 2,
       serializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.FINGERPRINT_RESET),
-      signature = ByteArray(64) { (it + 200).toByte() }
+      appSignature = ByteArray(64) { it.toByte() },
+      wsmSignature = ByteArray(64) { it.toByte() }
     )
 
     // Save it - should replace the existing one
@@ -158,7 +162,8 @@ class GrantDaoImplTests : FunSpec({
     val replacementGrant = Grant(
       version = 3,
       serializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.FINGERPRINT_RESET),
-      signature = ByteArray(64) { (it + 150).toByte() }
+      appSignature = ByteArray(64) { it.toByte() },
+      wsmSignature = ByteArray(64) { it.toByte() }
     )
     dao.saveGrant(replacementGrant).shouldBe(Ok(Unit))
 

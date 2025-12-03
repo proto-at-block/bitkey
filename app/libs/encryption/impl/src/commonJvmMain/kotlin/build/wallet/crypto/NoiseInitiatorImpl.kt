@@ -1,5 +1,6 @@
 package build.wallet.crypto
 
+import bitkey.data.PrivateData
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SymmetricKeyGenerator
@@ -12,6 +13,7 @@ data class SessionContext(
   val noiseContext: NoiseContextImpl,
 )
 
+@OptIn(PrivateData::class)
 @BitkeyInject(AppScope::class)
 class NoiseInitiatorImpl(
   private val secureEnclave: SecureEnclave,

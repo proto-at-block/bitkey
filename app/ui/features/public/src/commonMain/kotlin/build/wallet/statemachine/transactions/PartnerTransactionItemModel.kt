@@ -14,8 +14,9 @@ fun PartnerTransactionItemModel(
   amountEquivalent: String?,
   isPending: Boolean,
   isError: Boolean,
-  onClick: () -> Unit,
   sideTextTint: ListItemSideTextTint,
+  isLoading: Boolean = false,
+  onClick: () -> Unit,
 ) = ListItemModel(
   title = title,
   secondaryText = date,
@@ -29,14 +30,14 @@ fun PartnerTransactionItemModel(
       },
       iconSize = when {
         isError || isPending -> IconSize.Custom(48)
-        else -> IconSize.Large
+        else -> IconSize.Custom(44)
       },
       iconBackgroundType = IconBackgroundType.Square(
         size = IconSize.Custom(48),
         color = IconBackgroundType.Square.Color.Transparent,
         cornerRadius = 0
       ),
-      iconAlignmentInBackground = IconAlignmentInBackground.Center,
+      iconAlignmentInBackground = IconAlignmentInBackground.Start,
       badge = when {
         isError -> BadgeType.Error
         isPending -> BadgeType.Loading
@@ -45,5 +46,6 @@ fun PartnerTransactionItemModel(
     )
   ),
   sideTextTint = sideTextTint,
-  onClick = onClick
+  onClick = onClick,
+  isLoading = isLoading
 )

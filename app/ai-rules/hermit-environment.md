@@ -1,0 +1,76 @@
+---
+description: Hermit binary management for consistent development environment
+globs: ["bin/**", "hermit.hcl"]
+alwaysApply: true
+---
+
+# Hermit Environment Management
+
+## Summary
+
+Hermit provides consistent, cryptographically-verified binary versions across all development environments. Manages tools like Gradle, Rust toolchain, and development utilities. Activation required before running any commands.
+
+## When to Apply
+
+- Before running ANY bash commands in the project
+- When encountering "command not found" errors
+- When tools behave unexpectedly or use wrong versions
+
+## How to Apply
+
+### Activation
+
+```bash
+# Required once per terminal session
+. bin/activate-hermit
+
+# Then run any command
+gradle jvmTest
+ktlint --format
+cargo build
+```
+
+### Key Binaries
+
+**Primary tools (always check `hermit list` for complete list):**
+- `gradle` - Build system (NEVER use ./gradlew)
+- `corretto` - JDK for Kotlin/Java
+- `rustup`, `cargo-*` - Rust toolchain
+- `ktlint` - Kotlin formatting
+- `maestro` - Mobile UI testing
+- `gh` - GitHub CLI for PRs
+- `terraform`, `flyway` - Infrastructure tools
+
+### Troubleshooting
+
+```bash
+# Check installed binaries
+hermit list
+
+# Install missing binary
+hermit install [binary-name]
+
+# Available packages
+# https://github.com/cashapp/hermit-packages
+```
+
+## Example
+
+```bash
+# ✅ GOOD: Activate Hermit first
+. bin/activate-hermit
+gradle compileKotlin
+ktlint --format
+cargo build
+
+# ❌ BAD: Missing Hermit activation
+# CONSEQUENCES: Wrong tool versions, missing binaries, inconsistent builds, CI/local differences
+gradle compileKotlin  # Wrong Gradle version or missing
+./gradlew jvmTest     # Uses wrapper instead of Hermit Gradle
+ktlint --format       # Command not found or wrong version
+```
+
+## Related Rules
+
+- @ai-rules/gradle-build-system.md (for Gradle-specific usage)
+- @ai-rules/module-structure.md (for project structure)

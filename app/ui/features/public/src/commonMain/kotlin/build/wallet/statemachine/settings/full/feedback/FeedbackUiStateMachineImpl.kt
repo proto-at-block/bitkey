@@ -1,7 +1,6 @@
 package build.wallet.statemachine.settings.full.feedback
 
 import androidx.compose.runtime.*
-import build.wallet.bitkey.account.Account
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ButtonDataModel
@@ -28,7 +27,6 @@ class FeedbackUiStateMachineImpl(
     return when (val state = uiState) {
       FeedbackUiState.LoadingFormStructure ->
         LoadingFormStructure(
-          account = props.account,
           onStructureLoaded = { form, initialData ->
             uiState =
               FeedbackUiState.FillingForm(
@@ -51,9 +49,9 @@ class FeedbackUiStateMachineImpl(
         feedbackFormUiStateMachine.model(
           props =
             FeedbackFormUiProps(
-              account = props.account,
               formStructure = state.structure,
               initialData = state.initialData,
+              account = props.account,
               onBack = props.onBack
             )
         )
@@ -62,12 +60,11 @@ class FeedbackUiStateMachineImpl(
 
   @Composable
   private fun LoadingFormStructure(
-    account: Account,
     onStructureLoaded: (form: SupportTicketForm, initialData: SupportTicketData) -> Unit,
     onLoadFailed: () -> Unit,
   ): ScreenModel {
     LaunchedEffect("load-form-structure") {
-      supportTicketRepository.loadFormStructure(account.accountId)
+      supportTicketRepository.loadFormStructure()
         .onSuccess { value ->
           val initialData = supportTicketRepository.prefillKnownFields(value)
           onStructureLoaded(value, initialData)

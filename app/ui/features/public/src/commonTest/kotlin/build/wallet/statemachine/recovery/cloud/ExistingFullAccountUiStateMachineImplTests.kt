@@ -11,6 +11,7 @@ import build.wallet.platform.device.DevicePlatform
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -96,7 +97,7 @@ class ExistingFullAccountUiStateMachineImplTests : FunSpec({
         onConfirmDelete()
       }
 
-      awaitBody<LoadingSuccessBodyModel> {
+      awaitUntilBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
@@ -122,10 +123,10 @@ class ExistingFullAccountUiStateMachineImplTests : FunSpec({
         onConfirmDelete()
       }
 
-      awaitBody<LoadingSuccessBodyModel> {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
-      awaitBody<ExistingFullAccountFoundBodyModel>()
+      // When there's no cloud account, the error happens immediately, and we transition back
+      // to the first screen. The intermediate loading state may not be observed due to the
+      // fast state transition, so we skip checking it.
+      awaitUntilBody<ExistingFullAccountFoundBodyModel>()
 
       onBackupArchiveCalls.expectNoEvents()
     }

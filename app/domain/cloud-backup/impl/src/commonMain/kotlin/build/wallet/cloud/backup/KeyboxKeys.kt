@@ -7,13 +7,9 @@ import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.logging.*
-import build.wallet.logging.logFailure
-import com.github.michaelbull.result.Result
+import build.wallet.ensure
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.onSuccess
-import com.github.michaelbull.result.toErrorIfNull
 
 /** Get [appGlobalAuthKeypair]. */
 internal suspend fun Keybox.appGlobalAuthKeypair(
@@ -36,20 +32,25 @@ internal suspend fun Keybox.appRecoveryAuthKeypair(
     .map { appAuthPrivateKey -> AppKey(appAuthPublicKey, appAuthPrivateKey) }
 }
 
-/** Collect all private app spending keys into a map for later to be encrypted in a backup. */
+/**
+ * Collect all available private app spending keys into a map for later to be encrypted in a backup.
+ * This includes spending keys from all keysets (both active and inactive), not just the active one,
+ * although there is no guarantee that inactive public keys will have a corresponding private key.
+ */
 internal suspend fun Keybox.appKeys(
   appPrivateKeyDao: AppPrivateKeyDao,
 ): Result<Map<AppSpendingPublicKey, AppSpendingPrivateKey>, Throwable> =
   coroutineBinding {
-    buildMap {
-      // Retrieve active app spending key
-      appPrivateKeyDao
-        .getAppSpendingPrivateKey(publicKey = activeSpendingKeyset.appKey)
-        .toErrorIfNull { IllegalStateException("Active app spending private key not found.") }
-        .logFailure { "Error getting spending private key" }
-        .onSuccess { activeSpendingExtendedPrivateKey ->
-          put(activeSpendingKeyset.appKey, activeSpendingExtendedPrivateKey)
-        }
-        .bind()
+    // Retrieve each spending private key
+    val resultMap = appPrivateKeyDao.getAllAppSpendingKeyPairs()
+      .bind()
+      .associate { it.publicKey to it.privateKey }
+
+    // We MUST have the active keyset private key; inactive private keys may have been lost and
+    // that's ok.
+    ensure(resultMap.containsKey(activeSpendingKeyset.appKey)) {
+      IllegalStateException("Active app spending private key not found.")
     }
+
+    resultMap.toMap()
   }

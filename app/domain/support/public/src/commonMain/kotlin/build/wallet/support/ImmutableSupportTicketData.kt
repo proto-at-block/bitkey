@@ -8,7 +8,7 @@ import kotlinx.collections.immutable.ImmutableSet
 data class ImmutableSupportTicketData(
   override val email: Email,
   override val sendDebugData: Boolean,
-  override val sendEncryptedDescriptor: Boolean,
+  override val sendEncryptedDescriptor: SendEncryptedDescriptor,
   override val attachments: ImmutableList<SupportTicketAttachment>,
   private val data: ImmutableMap<SupportTicketField<*>, Any>,
 ) : SupportTicketData {

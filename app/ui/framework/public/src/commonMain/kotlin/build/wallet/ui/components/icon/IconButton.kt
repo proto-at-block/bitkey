@@ -21,6 +21,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
+import build.wallet.ui.model.icon.IconImage.MarketIconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.coroutines.launch
@@ -32,7 +33,9 @@ fun IconButton(
   modifier: Modifier = Modifier,
 ) {
   when (model.iconModel.iconImage) {
-    is LocalImage -> {
+    is LocalImage,
+    is MarketIconImage,
+    -> {
       val iconModel = model.iconModel
       val click: () -> Unit =
         when (model.onClick) {

@@ -22,14 +22,16 @@ import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.navigation.v1.NavigationScreenId
+import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProviderFake
 import build.wallet.platform.haptics.HapticsMock
 import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreen
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
 import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetStatusCardUiProps
@@ -82,6 +84,13 @@ class SecurityHubPresenterTests : FunSpec({
       id = "reset-fingerprints"
     ) {}
 
+  val provisionAppAuthKeyTransactionProvider = ProvisionAppAuthKeyTransactionProviderFake()
+
+  val nfcSessionUIStateMachine = object : NfcSessionUIStateMachine,
+    ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
+      id = "nfc-session"
+    ) {}
+
   val presenter = SecurityHubPresenter(
     securityActionsService = securityActionsService,
     homeStatusBannerUiStateMachine = object : HomeStatusBannerUiStateMachine,
@@ -102,7 +111,9 @@ class SecurityHubPresenterTests : FunSpec({
     fingerprintResetUiStateMachine = fingerprintResetUiStateMachine,
     appFunctionalityService = AppFunctionalityServiceFake(),
     haptics = haptics,
-    fingerprintResetAvailabilityService = fingerprintResetAvailabilityService
+    fingerprintResetAvailabilityService = fingerprintResetAvailabilityService,
+    provisionAppAuthKeyTransactionProvider = provisionAppAuthKeyTransactionProvider,
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine
   )
 
   suspend fun setupFingerprintResetFeatureFlags(
@@ -123,10 +134,13 @@ class SecurityHubPresenterTests : FunSpec({
   fun createFingerprintsAction(
     fingerprintCount: Int = 3,
     fingerprintResetReady: Boolean = true,
+    isAppKeyProvisioned: Boolean = true,
   ) = FingerprintsAction(
     fingerprintCount = fingerprintCount,
     firmwareDeviceInfo = FirmwareDeviceInfoMock,
-    fingerprintResetReady = fingerprintResetReady
+    fingerprintResetReady = fingerprintResetReady,
+    isAppKeyProvisioned = isAppKeyProvisioned,
+    isFingerprintResetEnabled = true
   )
 
   fun addFingerprintsActionToService(action: FingerprintsAction) {
@@ -136,8 +150,7 @@ class SecurityHubPresenterTests : FunSpec({
 
   fun createSecurityHubScreen() =
     SecurityHubScreen(
-      account = FullAccountMock,
-      hardwareRecoveryData = LostHardwareRecoveryDataMock
+      account = FullAccountMock
     )
 
   fun createEekBackupHealthAction(
@@ -379,6 +392,8 @@ class SecurityHubPresenterTests : FunSpec({
         ADD_FINGERPRINTS -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS)
         COMPLETE_FINGERPRINT_RESET -> recommendation.navigationScreenId()
+          .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS)
+        PROVISION_APP_KEY_TO_HARDWARE -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS)
         ADD_TRUSTED_CONTACTS -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS)

@@ -6,7 +6,6 @@ import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.analytics.v1.OSType
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.f8e.AccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.support.CreateTicketDTO
@@ -40,7 +39,6 @@ class SupportTicketRepositoryImpl(
   private val accountConfigService: AccountConfigService,
 ) : SupportTicketRepository {
   override suspend fun createTicket(
-    accountId: AccountId,
     form: SupportTicketForm,
     data: SupportTicketData,
   ): Result<Unit, Error> {
@@ -50,7 +48,6 @@ class SupportTicketRepositoryImpl(
 
         val attachmentUploadResults =
           uploadAttachments(
-            accountId = accountId,
             attachments = data.attachments + logAttachments
           )
 
@@ -109,12 +106,13 @@ class SupportTicketRepositoryImpl(
           )
 
         // If the user requested to send an encrypted descriptor, we encrypt it and upload it as an attachment
-        val attachmentId = if (data.sendEncryptedDescriptor) {
+        val sendEncryptedDescriptor = data.sendEncryptedDescriptor
+        val attachmentId = if (sendEncryptedDescriptor is SendEncryptedDescriptor.Selected) {
           val account = accountService.activeAccount().first() as? FullAccount
           account?.keybox?.keysets?.let { keysets ->
             encryptedDescriptorAttachmentCryptoService
               .encryptAndUploadDescriptor(
-                accountId,
+                sendEncryptedDescriptor.accountId,
                 keysets
               ).bind()
           }
@@ -124,16 +122,15 @@ class SupportTicketRepositoryImpl(
 
         supportTicketF8eClient.createTicket(
           f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment,
-          accountId = accountId,
           ticket = ticket.copy(debugData = ticket.debugData?.copy(descriptorEncryptedAttachmentId = attachmentId))
         ).bind()
       }
     }
   }
 
-  override suspend fun loadFormStructure(accountId: AccountId): Result<SupportTicketForm, Error> {
+  override suspend fun loadFormStructure(): Result<SupportTicketForm, Error> {
     val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
-    return supportTicketF8eClient.getFormStructure(f8eEnvironment, accountId)
+    return supportTicketF8eClient.getFormStructure(f8eEnvironment)
       .map { structureDto ->
         val fields =
           structureDto.fields.map { field ->
@@ -306,7 +303,6 @@ class SupportTicketRepositoryImpl(
   }
 
   private suspend fun uploadAttachments(
-    accountId: AccountId,
     attachments: List<SupportTicketAttachment>,
   ): List<Pair<SupportTicketAttachment, Result<String, Any>>> {
     val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
@@ -315,7 +311,6 @@ class SupportTicketRepositoryImpl(
         attachment.data()?.let { source ->
           supportTicketF8eClient.uploadAttachment(
             f8eEnvironment = f8eEnvironment,
-            accountId = accountId,
             filename = attachment.name,
             mimeType = attachment.mimeType,
             source = source

@@ -1,24 +1,17 @@
 package build.wallet.nfc.platform
 
 import bitkey.auth.AccessToken
+import bitkey.data.PrivateData
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.crypto.SealedData
-import build.wallet.firmware.CoredumpFragment
-import build.wallet.firmware.EnrolledFingerprints
+import build.wallet.crypto.SymmetricKey
+import build.wallet.crypto.SymmetricKeyImpl
+import build.wallet.firmware.*
 import build.wallet.firmware.EnrolledFingerprints.Companion.FIRST_FINGERPRINT_INDEX
-import build.wallet.firmware.EventFragment
-import build.wallet.firmware.FingerprintEnrollmentResult
-import build.wallet.firmware.FingerprintEnrollmentStatus
-import build.wallet.firmware.FingerprintHandle
-import build.wallet.firmware.FirmwareCertType
-import build.wallet.firmware.FirmwareDeviceInfo
-import build.wallet.firmware.FirmwareFeatureFlagCfg
-import build.wallet.firmware.FirmwareMetadata
-import build.wallet.firmware.UnlockInfo
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.Grant
@@ -300,6 +293,18 @@ interface NfcCommands {
     session: NfcSession,
     grant: Grant,
   ): Boolean
+
+  /**
+   * Provisions the app authentication public key on the hardware for future authentication flows.
+   *
+   * @param session the active `NfcSession` used to communicate with the hardware device
+   * @param appAuthKey the app's global authentication public key to be stored on the hardware
+   * @return true if the key was stored successfully, false otherwise
+   */
+  suspend fun provisionAppAuthKey(
+    session: NfcSession,
+    appAuthKey: ByteString,
+  ): Boolean
 }
 
 suspend fun NfcCommands.signChallenge(
@@ -311,3 +316,35 @@ suspend fun NfcCommands.signAccessToken(
   session: NfcSession,
   accessToken: AccessToken,
 ) = signChallenge(session, accessToken.raw.encodeUtf8())
+
+/**
+ * Use the hardware to seal a symmetric key's data.
+ *
+ * This wraps the NFC Command's `sealData` without needing to
+ * expose the raw data of the key.
+ */
+@OptIn(PrivateData::class)
+suspend fun NfcCommands.sealSymmetricKey(
+  session: NfcSession,
+  key: SymmetricKey,
+): SealedData =
+  sealData(
+    session = session,
+    unsealedData = key.raw
+  )
+
+/**
+ * Use the hardware to unseal a symmetric key's data.
+ *
+ * This wraps the NFC Command's `unsealData` method, keeping
+ * the raw form of the key contained in the returned [SymmetricKey].
+ */
+@OptIn(PrivateData::class)
+suspend fun NfcCommands.unsealSymmetricKey(
+  session: NfcSession,
+  sealedData: SealedData,
+): SymmetricKey =
+  unsealData(
+    session = session,
+    sealedData = sealedData
+  ).let { SymmetricKeyImpl(it) }

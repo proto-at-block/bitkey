@@ -68,13 +68,13 @@ class SymbolChecks(bitkey_fwa.TestCase):
 
         # match partial test
         for needle in match_partial:
-            self.assertEquals(self.get_elf_num_symbols_with_substring(needle), 0,
-                              f"denylist substring exists in production symbol table: {needle}")
+            self.assertEqual(self.get_elf_num_symbols_with_substring(needle), 0,
+                             f"denylist substring exists in production symbol table: {needle}")
 
         # match whole test
         for sym in match_whole:
-            self.assertEquals(self.get_elf_num_symbols_with_match(sym), 0,
-                              f"denylist symbol exists in production symbol table: {sym}")
+            self.assertEqual(self.get_elf_num_symbols_with_match(sym), 0,
+                             f"denylist symbol exists in production symbol table: {sym}")
 
     @bitkey_fwa.security("prod")
     @bitkey_fwa.suffix("elf")
@@ -89,8 +89,8 @@ class SymbolChecks(bitkey_fwa.TestCase):
             ('__shell_cmds_start', '__shell_cmds_end'),
         ]
         for sym1, sym2 in symbol_pairs:
-            self.assertEquals(self.get_elf_symbol_value_from_name(sym1),
-                              self.get_elf_symbol_value_from_name(sym2), f"there is data between: {sym1}, {sym2}")
+            self.assertEqual(self.get_elf_symbol_value_from_name(sym1),
+                             self.get_elf_symbol_value_from_name(sym2), f"there is data between: {sym1}, {sym2}")
 
     @bitkey_fwa.suffix("elf")
     @bitkey_fwa.asset("app")
@@ -122,10 +122,10 @@ class SymbolChecks(bitkey_fwa.TestCase):
             sym2_addr = self.get_elf_symbol_value_from_name(sym2)
             self.assertGreater(sym2_addr, sym1_addr,
                                f"No data between {sym1} and {sym2}")
-            self.assertEquals(sym1_addr % alignment, 0,
-                              f"symbol {sym1} is not aligned to {alignment}")
-            self.assertEquals(sym2_addr % alignment, 0,
-                              f"symbol {sym2} is not aligned to {alignment}")
+            self.assertEqual(sym1_addr % alignment, 0,
+                             f"symbol {sym1} is not aligned to {alignment}")
+            self.assertEqual(sym2_addr % alignment, 0,
+                             f"symbol {sym2} is not aligned to {alignment}")
 
     @bitkey_fwa.suffix("elf")
     @bitkey_fwa.asset("app")
@@ -138,8 +138,8 @@ class SymbolChecks(bitkey_fwa.TestCase):
         ]
 
         for sym, alignment in symbol_alignment_pairs:
-            self.assertEquals(self.get_elf_symbol_value_from_name(sym) % alignment, 0,
-                              f"symbol {sym} is not aligned to {alignment}")
+            self.assertEqual(self.get_elf_symbol_value_from_name(sym) % alignment, 0,
+                             f"symbol {sym} is not aligned to {alignment}")
 
     @bitkey_fwa.asset("app")
     @bitkey_fwa.suffix("elf")
@@ -158,8 +158,8 @@ class SymbolChecks(bitkey_fwa.TestCase):
         ramfuncs_start = self.get_elf_symbol_value_from_name('__ramfunc_start__')
         ramfuncs_end = self.get_elf_symbol_value_from_name('__ramfunc_end__')
 
-        self.assertNotEquals(ramfuncs_start, ramfuncs_end,
-                             "ramfuncs is empty")
+        self.assertNotEqual(ramfuncs_start, ramfuncs_end,
+                            "ramfuncs is empty")
 
         for func in ramfuncs:
             func_addr = self.get_elf_symbol_value_from_name(func)

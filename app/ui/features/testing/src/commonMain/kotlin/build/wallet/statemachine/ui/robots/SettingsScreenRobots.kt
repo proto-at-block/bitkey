@@ -10,6 +10,10 @@ fun SettingsBodyModel.clickExportTools() {
   clickRow("Exports")
 }
 
+fun SettingsBodyModel.clickPrivateWalletUpdateRow() {
+  clickRow("Private Wallet Update")
+}
+
 private fun SettingsBodyModel.clickRow(title: String) {
   sectionModels
     .flatMap { it.rowModels }

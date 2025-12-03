@@ -8,7 +8,6 @@ import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode.COMMS_VERIFICAT
 import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode.RECOVERY_ALREADY_EXISTS
 import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import bitkey.recovery.InitiateDelayNotifyRecoveryError.*
-import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
 import build.wallet.bitkey.account.FullAccount
@@ -36,7 +35,6 @@ import kotlinx.coroutines.withContext
 @BitkeyInject(AppScope::class)
 class LostHardwareRecoveryServiceImpl(
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
-  private val recoveryStatusService: RecoveryStatusService,
   private val recoveryLock: RecoveryLock,
   private val initiateAccountDelayNotifyF8eClient: InitiateAccountDelayNotifyF8eClient,
   private val recoveryDao: RecoveryDao,
@@ -125,7 +123,7 @@ class LostHardwareRecoveryServiceImpl(
           .mapError(::F8eCancelDelayNotifyError)
           .bind()
 
-        recoveryStatusService.clear()
+        recoveryDao.clear()
           .mapError(::LocalCancelDelayNotifyError)
           .bind()
       }
@@ -159,7 +157,7 @@ class LostHardwareRecoveryServiceImpl(
           .mapError(::F8eCancelDelayNotifyError)
           .bind()
 
-        recoveryStatusService.clear()
+        recoveryDao.clear()
           .mapError(::LocalCancelDelayNotifyError)
           .bind()
       }

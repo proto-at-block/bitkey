@@ -44,7 +44,6 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration.Companion.seconds
 import bitkey.auth.AuthTokenScope.Recovery as RecoveryScope
@@ -54,6 +53,7 @@ class DelayNotifyServiceImpl(
   private val lostAppAndCloudRecoveryService: LostAppAndCloudRecoveryService,
   private val lostHardwareRecoveryService: LostHardwareRecoveryService,
   private val recoveryStatusService: RecoveryStatusService,
+  private val recoveryDao: RecoveryDao,
   private val setActiveSpendingKeysetF8eClient: SetActiveSpendingKeysetF8eClient,
   private val accountConfigService: AccountConfigService,
   private val deviceTokenManager: DeviceTokenManager,
@@ -77,7 +77,7 @@ class DelayNotifyServiceImpl(
     request: DelayNotifyCancellationRequest,
   ): Result<Unit, Error> =
     coroutineBinding {
-      val recovery = recoveryStatusService.status().first().bind()
+      val recovery = recoveryStatusService.status.value
       ensure(recovery is Recovery.StillRecovering) {
         Error("Recovery is not in progress")
       }
@@ -95,7 +95,7 @@ class DelayNotifyServiceImpl(
     hardwareProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, Error> =
     coroutineBinding {
-      val recovery = recoveryStatusService.status().first().bind()
+      val recovery = recoveryStatusService.status.value
       ensure(recovery is Recovery.StillRecovering) {
         Error("Recovery is not in progress")
       }
@@ -111,7 +111,7 @@ class DelayNotifyServiceImpl(
         )
         .bind()
 
-      recoveryStatusService.setLocalRecoveryProgress(
+      recoveryDao.setLocalRecoveryProgress(
         LocalRecoveryAttemptProgress.ActivatedSpendingKeys(
           f8eSpendingKeyset = keyset
         )
@@ -123,7 +123,7 @@ class DelayNotifyServiceImpl(
     hardwareProofOfPossession: HwFactorProofOfPossession,
   ): Result<F8eSpendingKeyset, Error> =
     coroutineBinding {
-      val recovery = recoveryStatusService.status().first().bind()
+      val recovery = recoveryStatusService.status.value
       ensure(recovery is Recovery.StillRecovering) {
         Error("Recovery is not in progress")
       }
@@ -175,7 +175,7 @@ class DelayNotifyServiceImpl(
           .bind()
       }
 
-      recoveryStatusService.setLocalRecoveryProgress(
+      recoveryDao.setLocalRecoveryProgress(
         LocalRecoveryAttemptProgress.CreatedSpendingKeys(
           f8eSpendingKeyset = f8eSpendingKeyset
         )
@@ -191,7 +191,7 @@ class DelayNotifyServiceImpl(
   ): Result<Unit, Error> {
     return recoveryLock.withLock {
       coroutineBinding {
-        val recovery = recoveryStatusService.status().first().bind()
+        val recovery = recoveryStatusService.status.value
         ensure(recovery is Recovery.StillRecovering) {
           Error("Recovery is not in progress")
         }
@@ -203,7 +203,7 @@ class DelayNotifyServiceImpl(
             Error("Expected $hardwareSignedChallenge to be signed with Hardware factor.")
           }
 
-          recoveryStatusService
+          recoveryDao
             .setLocalRecoveryProgress(
               LocalRecoveryAttemptProgress.AttemptingCompletion(
                 sealedCsek = sealedCsek,
@@ -246,7 +246,7 @@ class DelayNotifyServiceImpl(
   override suspend fun rotateAuthTokens(): Result<Unit, Throwable> {
     return recoveryLock.withLock {
       coroutineBinding {
-        val recovery = recoveryStatusService.status().first().bind()
+        val recovery = recoveryStatusService.status.value
         ensure(recovery is Recovery.StillRecovering) {
           Error("Recovery is not in progress")
         }
@@ -262,7 +262,7 @@ class DelayNotifyServiceImpl(
           newAuthKeys = destinationAppAuthPubKeys
         ).bind()
 
-        recoveryStatusService
+        recoveryDao
           .setLocalRecoveryProgress(
             LocalRecoveryAttemptProgress.RotatedAuthKeys
           ).bind()
@@ -272,7 +272,7 @@ class DelayNotifyServiceImpl(
 
   override suspend fun verifyAuthKeysAfterRotation(): Result<Unit, Error> =
     coroutineBinding {
-      val recovery = recoveryStatusService.status().first().bind()
+      val recovery = recoveryStatusService.status.value
       ensure(recovery is Recovery.StillRecovering) {
         Error("Recovery is not in progress")
       }
@@ -298,7 +298,7 @@ class DelayNotifyServiceImpl(
     oldAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
   ): Result<Unit, Error> =
     coroutineBinding {
-      val recovery = recoveryStatusService.status().first().bind()
+      val recovery = recoveryStatusService.status.value
       ensure(recovery is Recovery.StillRecovering) {
         Error("Recovery is not in progress")
       }
@@ -333,7 +333,7 @@ class DelayNotifyServiceImpl(
 
   override suspend fun removeTrustedContacts(): Result<Unit, Error> =
     coroutineBinding {
-      val recovery = recoveryStatusService.status().first().bind()
+      val recovery = recoveryStatusService.status.value
       ensure(recovery is Recovery.StillRecovering) {
         Error("Recovery is not in progress")
       }

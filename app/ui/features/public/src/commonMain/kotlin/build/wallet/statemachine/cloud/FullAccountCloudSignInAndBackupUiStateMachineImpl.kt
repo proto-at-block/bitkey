@@ -27,6 +27,7 @@ import build.wallet.logging.logDebug
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
+import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.*
@@ -283,7 +284,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              commands.sealData(session, state.csek.key.raw)
+              commands.sealSymmetricKey(session, state.csek.key)
             },
             onSuccess = { key ->
               csekDao.set(key, state.csek)

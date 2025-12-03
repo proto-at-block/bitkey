@@ -1,0 +1,43 @@
+#!/bin/bash
+set -euo pipefail
+
+# Wrapper for personal developer stacks
+# Usage: tf-personal plan|apply|destroy [terraform args...]
+# Override developer name: DEVELOPER_NAME=alice tf-personal plan
+
+DEVELOPER_NAME=${DEVELOPER_NAME:-$(whoami)}
+BACKEND="tfvars/developer/backends-${DEVELOPER_NAME}.tfvars"
+VARFILE="tfvars/developer/developer-${DEVELOPER_NAME}.tfvars"
+
+# Check if config files exist
+if [ ! -f "$VARFILE" ]; then
+  echo "Error: Configuration file not found: $VARFILE"
+  echo ""
+  echo "Create your personal stack config files:"
+  echo "  cp tfvars/developer/developer-template.tfvars $VARFILE"
+  echo "  cp tfvars/developer/backends-template.tfvars $BACKEND"
+  echo ""
+  echo "Then edit both files to set your developer name and unique state key."
+  exit 1
+fi
+
+if [ ! -f "$BACKEND" ]; then
+  echo "Error: Backend configuration file not found: $BACKEND"
+  echo ""
+  echo "Create your backend config:"
+  echo "  cp tfvars/developer/backends-template.tfvars $BACKEND"
+  echo ""
+  echo "Then edit the file to set your unique state key."
+  exit 1
+fi
+
+# Set AWS environment
+export AWS_PROFILE=bitkey-fw-signer-development--admin
+export AWS_REGION=us-west-2
+
+# Safety: Always re-init to ensure correct backend
+echo "Initializing with backend for developer: $DEVELOPER_NAME"
+terraform init -reconfigure -backend-config="$BACKEND" > /dev/null
+
+# Run terraform with correct var files and is_localstack flag
+exec terraform "$@" -var-file="$VARFILE" -var-file="$BACKEND" -var="is_localstack=false"

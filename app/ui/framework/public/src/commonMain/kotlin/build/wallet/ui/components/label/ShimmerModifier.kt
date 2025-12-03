@@ -8,63 +8,70 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.theme.WalletTheme
-import kotlinx.coroutines.delay
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Creates a shimmer effect on the Composable by applying
- * an infinite transition on the [alpha] property.
+ * a gradient wipe animation.
  */
 fun Modifier.shimmer(): Modifier {
   return composed {
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val alpha by transition.animateFloat(
-      initialValue = 1f,
-      targetValue = 0.6f,
+    val backgroundColor = WalletTheme.colors.background
+    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+    val shimmerOffset by infiniteTransition.animateFloat(
+      initialValue = 0f,
+      targetValue = 1f,
       animationSpec = infiniteRepeatable(
-        repeatMode = RepeatMode.Reverse,
         animation = tween(
-          durationMillis = 400,
-          delayMillis = 2000,
-          easing = Ease
-        )
+          durationMillis = 2000,
+          delayMillis = 1000,
+          easing = EaseOut
+        ),
+        repeatMode = RepeatMode.Restart
       ),
-      label = "shimmer"
+      label = "shimmer-offset"
     )
-    alpha(alpha)
+
+    drawWithContent {
+      drawContent()
+
+      val gradientWidth = size.width / 2.5f
+      val startX = -gradientWidth + (size.width + gradientWidth * 2) * shimmerOffset
+
+      drawRect(
+        brush = Brush.linearGradient(
+          colors = listOf(
+            backgroundColor.copy(alpha = 0f),
+            backgroundColor.copy(alpha = 0.5f),
+            backgroundColor.copy(alpha = 0f)
+          ),
+          start = Offset(startX, 0f),
+          end = Offset(startX + gradientWidth, 0f)
+        ),
+        size = size
+      )
+    }
   }
 }
 
-/**
- * Apply a scrim over the bounds of the Composable content while
- * [isLoading] is true, applies an optional shimmer effect by default.
- *
- * @param maskColor A color to apply over the Composable, typically the surface color.
- */
 fun Modifier.loadingScrim(
   isLoading: Boolean,
   isShimmering: Boolean = true,
   maskColor: Color? = null,
 ): Modifier {
   return composed {
+    val backgroundColor = WalletTheme.colors.background
     val resolvedMaskColor = maskColor ?: WalletTheme.colors.background
     val loadingColor = WalletTheme.colors.loadingBackground
-    var targetColor by remember {
-      mutableStateOf(
-        loadingColor.copy(alpha = if (isLoading) 1f else 0f)
-      )
-    }
-    val shimmerSpec = tween<Color>(durationMillis = 1000, easing = Ease)
+
     val transitionSpec = tween<Color>(durationMillis = 300, easing = Ease)
-    val color by animateColorAsState(
-      label = "loading-scrim-shimmer-color",
-      targetValue = targetColor,
-      animationSpec = shimmerSpec
-    )
     val disabledColor by animateColorAsState(
       label = "loading-scrim-disabled-color",
       targetValue = if (isLoading) loadingColor else loadingColor.copy(alpha = 0f),
@@ -75,37 +82,76 @@ fun Modifier.loadingScrim(
       targetValue = if (isLoading) resolvedMaskColor else resolvedMaskColor.copy(alpha = 0f),
       animationSpec = transitionSpec
     )
-    LaunchedEffect(isLoading, isShimmering) {
-      targetColor = loadingColor.copy(
-        when {
-          isLoading -> if (isShimmering) 0.6f else 1f
-          else -> 0f
+
+    // Only create infinite transition when actually loading
+    val shimmerOffset = if (isLoading && isShimmering) {
+      val infiniteTransition = rememberInfiniteTransition(label = "shimmer-gradient")
+      infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+          animation = tween(
+            durationMillis = 1300,
+            easing = LinearEasing
+          ),
+          repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer-offset"
+      ).value
+    } else {
+      0f
+    }
+
+    this
+      .then(
+        if (isLoading) {
+          Modifier.semantics {
+            invisibleToUser() // Hide from screen readers when loading
+          }
+        } else {
+          Modifier
         }
       )
-      while (isLoading && isShimmering) {
-        targetColor = when (targetColor.alpha) {
-          1f -> color.copy(alpha = 0.6f)
-          else -> color.copy(alpha = 1f)
+      .drawWithContent {
+        drawContent()
+        drawIntoCanvas {
+          val radius = 32.dp.toPx()
+          val cornerRadius = CornerRadius(radius, radius)
+
+          // Draw mask background
+          drawRoundRect(
+            color = maskColorAnimated,
+            cornerRadius = cornerRadius,
+            size = size
+          )
+
+          // Draw loading background
+          drawRoundRect(
+            color = if (isLoading) loadingColor else disabledColor,
+            cornerRadius = cornerRadius,
+            size = size
+          )
+
+          // Draw gradient wipe if loading and shimmering
+          if (isLoading && isShimmering) {
+            val gradientWidth = size.width / 2.5f
+            val startX = -gradientWidth + (size.width + gradientWidth * 2) * shimmerOffset
+
+            drawRoundRect(
+              brush = Brush.linearGradient(
+                colors = listOf(
+                  backgroundColor.copy(alpha = 0f),
+                  backgroundColor.copy(alpha = 0.5f),
+                  backgroundColor.copy(alpha = 0f)
+                ),
+                start = Offset(startX, 0f),
+                end = Offset(startX + gradientWidth, 0f)
+              ),
+              cornerRadius = cornerRadius,
+              size = size
+            )
+          }
         }
-        delay(1.seconds)
       }
-    }
-    drawWithContent {
-      drawContent()
-      drawIntoCanvas {
-        val radius = 8.dp.toPx()
-        val cornerRadius = CornerRadius(radius, radius)
-        drawRoundRect(
-          color = maskColorAnimated,
-          cornerRadius = cornerRadius,
-          size = size
-        )
-        drawRoundRect(
-          color = if (isLoading) color else disabledColor,
-          cornerRadius = CornerRadius(radius, radius),
-          size = size
-        )
-      }
-    }
   }
 }

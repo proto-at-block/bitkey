@@ -17,51 +17,15 @@ class DescriptorBackupsF8eFunctionalTests : FunSpec({
     val account = app.onboardFullAccountWithFakeHardware()
     val sealedSsekByteArray = ByteArray(60) { 1 }
 
-    val descriptorBackup = if (account.keybox.activeSpendingKeyset.isLegacyWallet) {
-      // No descriptor backups for the account.
-      app.listKeysetsF8eClient
-        .listKeysets(
-          f8eEnvironment = account.config.f8eEnvironment,
-          fullAccountId = account.accountId
-        ).getOrThrow()
-        .descriptorBackups.shouldBe(emptyList())
-
-      // Upload fake descriptor backup associated with the active keyset.
-      val descriptorBackup = DescriptorBackup(
-        keysetId = account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
-        sealedDescriptor = XCiphertext("foobar"),
-        privateWalletRootXpub = null
-      )
-      app.updateDescriptorBackupsF8eClient.update(
+    val descriptorBackups = app.listKeysetsF8eClient
+      .listKeysets(
         f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
-        descriptorBackups = listOf(descriptorBackup),
-        sealedSsek = sealedSsekByteArray.toByteString(),
-        appAuthKey = app.getActiveAppGlobalAuthKey().publicKey,
-        hwKeyProof = app.getHardwareFactorProofOfPossession()
+        fullAccountId = account.accountId
       ).getOrThrow()
+      .descriptorBackups
 
-      // Verify that the descriptor backup is returned.
-      app.listKeysetsF8eClient
-        .listKeysets(
-          f8eEnvironment = account.config.f8eEnvironment,
-          fullAccountId = account.accountId
-        ).getOrThrow()
-        .descriptorBackups
-        .shouldBe(listOf(descriptorBackup))
-
-      descriptorBackup
-    } else {
-      val descriptorBackups = app.listKeysetsF8eClient
-        .listKeysets(
-          f8eEnvironment = account.config.f8eEnvironment,
-          fullAccountId = account.accountId
-        ).getOrThrow()
-        .descriptorBackups
-
-      descriptorBackups.count().shouldBe(1)
-      descriptorBackups.first()
-    }
+    descriptorBackups.count().shouldBe(1)
+    val descriptorBackup = descriptorBackups.first()
 
     // New descriptors need new keysets.
     val keyboxWithNewKeyset = app.createLostHardwareKeyset(account)

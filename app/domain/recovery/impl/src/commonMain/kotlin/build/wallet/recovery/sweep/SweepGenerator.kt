@@ -8,7 +8,10 @@ import com.github.michaelbull.result.Result
  * Generates PSBTs for sweeping funds to a new destination wallet.
  */
 interface SweepGenerator {
-  suspend fun generateSweep(keybox: Keybox): Result<List<SweepPsbt>, SweepGeneratorError>
+  suspend fun generateSweep(
+    keybox: Keybox,
+    context: SweepGenerationContext = SweepGenerationContext.Real,
+  ): Result<List<SweepPsbt>, SweepGeneratorError>
 
   sealed class SweepGeneratorError : Error() {
     data class AppPrivateKeyMissing(override val cause: Throwable) : SweepGeneratorError()
@@ -44,4 +47,17 @@ interface SweepGenerator {
      */
     data object PrivateWalletMissingLocalKeysets : SweepGeneratorError()
   }
+}
+
+sealed interface SweepGenerationContext {
+  /**
+   * Real sweep generation that uploads the destination address to F8e for monitoring.
+   */
+  object Real : SweepGenerationContext
+
+  /**
+   * Estimate-only sweep generation (e.g., for fee estimation) that skips address upload.
+   * Used when generating mock sweeps to estimate fees without actually committing to the sweep.
+   */
+  object Estimate : SweepGenerationContext
 }

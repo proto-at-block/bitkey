@@ -51,6 +51,7 @@ data class TransferConfirmationScreenModel(
   val transactionDetails: TransactionDetailsModel,
   val requiresHardware: Boolean,
   val confirmButtonEnabled: Boolean,
+  val requiresHardwareReview: Boolean,
   val onConfirmClick: () -> Unit,
   val onNetworkFeesClick: () -> Unit,
   val onArrivalTimeClick: (() -> Unit)?,
@@ -113,8 +114,8 @@ data class TransferConfirmationScreenModel(
       ButtonModel(
         text = when (variant) {
           is Sell -> "Confirm"
-          PrivateWalletMigration -> "Send"
-          else -> "Send"
+          PrivateWalletMigration -> if (requiresHardwareReview) "Review on Bitkey" else "Send"
+          else -> if (requiresHardwareReview) "Review on Bitkey" else "Send"
         },
         requiresBitkeyInteraction = requiresHardware,
         onClick = onConfirmClick,

@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import bitkey.auth.AuthTokenScope
 import bitkey.recovery.RecoveryStatusService
 import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.CLOUD_BACKUP_PROVISION_APP_AUTH_KEY
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UNSEAL_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED
@@ -28,15 +29,19 @@ import build.wallet.cloud.backup.v2.FullAccountFields
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.backup.v2.SocRecV1AccountFeatures
 import build.wallet.crypto.PublicKey
-import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.feature.flags.ReplaceFullWithLiteAccountFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.firmware.FirmwareDeviceInfoDao
+import build.wallet.fwup.semverToInt
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logFailure
 import build.wallet.nfc.NfcException
+import build.wallet.nfc.platform.unsealSymmetricKey
+import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProvider
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.random.UuidGenerator
@@ -60,8 +65,6 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
 internal const val START_SOCIAL_RECOVERY_MESSAGE = "Starting Recovery..."
-
-// TODO(W-3756): migrate this logic to RecoveringAppFromCloudBackupDataStateMachineImpl.
 
 @BitkeyInject(ActivityScope::class)
 class FullAccountCloudBackupRestorationUiStateMachineImpl(
@@ -87,6 +90,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
   private val replaceFullWithLiteAccountFeatureFlag: ReplaceFullWithLiteAccountFeatureFlag,
   private val existingFullAccountUiStateMachine: ExistingFullAccountUiStateMachine,
+  private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
+  private val fingerprintResetMinFirmwareVersionFeatureFlag:
+    FingerprintResetMinFirmwareVersionFeatureFlag,
+  private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
+  private val hardwareUnlockInfoService: bitkey.firmware.HardwareUnlockInfoService,
 ) : FullAccountCloudBackupRestorationUiStateMachine {
   @Composable
   override fun model(props: FullAccountCloudBackupRestorationUiProps): ScreenModel {
@@ -193,18 +201,25 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       }
 
       is UnsealingCsek -> {
-        val sealedCsek =
-          when (props.backup) {
-            is CloudBackupV2 -> (props.backup.fullAccountFields as FullAccountFields).sealedHwEncryptionKey
-          }
+        val sealedCsek = when (val backup = props.backup) {
+          is CloudBackupV2 -> (backup.fullAccountFields as FullAccountFields).sealedHwEncryptionKey
+        }
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              Csek(
-                SymmetricKeyImpl(
-                  commands.unsealData(session, sealedCsek)
-                )
+              val csek = Csek(
+                commands.unsealSymmetricKey(session, sealedCsek)
               )
+
+              // Unsealing proves we're on the original hardware, so reuse this session to
+              // persist current device info and fingerprint data for security hub.
+              firmwareDeviceInfoDao.setDeviceInfo(commands.getDeviceInfo(session))
+                .logFailure { "Failed to sync firmware device info during cloud recovery" }
+
+              val enrolledFingerprints = commands.getEnrolledFingerprints(session)
+              hardwareUnlockInfoService.replaceAllUnlockInfo(enrolledFingerprints.toUnlockInfoList())
+
+              csek
             },
             onSuccess = { unsealedCsek ->
               csekDao.set(
@@ -295,6 +310,42 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             onBackupArchive = props.goToLiteAccountCreation
           )
         )
+
+      is ProvisioningAppAuthKeyUiState -> {
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            transaction = provisionAppAuthKeyTransactionProvider(
+              appGlobalAuthPublicKey = state.accountRestoration.activeAppKeyBundle.authKey,
+              onSuccess = {
+                // Save the keybox as active after successful provisioning
+                uiState = SavingKeyboxUiState(
+                  accountRestoration = state.accountRestoration,
+                  fullAccountId = state.fullAccountId
+                )
+              },
+              onCancel = {
+                uiState = RestoringFromBackupFailureUiState(
+                  errorData = ErrorData(
+                    segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+                    actionDescription = "Provisioning app auth key to hardware - cancelled",
+                    cause = Error("User cancelled NFC provisioning")
+                  ),
+                  onBack = props.onExit,
+                  failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
+                )
+              }
+            ),
+            screenPresentationStyle = Root,
+            eventTrackerContext = CLOUD_BACKUP_PROVISION_APP_AUTH_KEY,
+            hardwareVerification = NotRequired
+          )
+        )
+      }
+
+      is SavingKeyboxUiState -> {
+        SavingKeyboxEffect(props, state, setState = { uiState = it })
+        loadingRestoringFromBackupModel
+      }
     }
   }
 
@@ -347,23 +398,34 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             )
           )
         }
-        .onSuccess {
-          fullAccountAuthKeyRotationService.recommendKeyRotation()
-          keyboxDao
-            .saveKeyboxAsActive(state.accountRestoration.asKeybox(uuidGenerator.random(), it))
-            .onFailure { error ->
+        .onSuccess { fullAccountId ->
+          firmwareDeviceInfoDao.getDeviceInfo().get()?.let { deviceInfo ->
+            val minFirmwareVersion = fingerprintResetMinFirmwareVersionFeatureFlag.flagValue().value.value
+            val currentVersionInt = semverToInt(deviceInfo.version)
+            val minVersionInt = semverToInt(minFirmwareVersion)
+            if (currentVersionInt >= minVersionInt) {
               setState(
-                RestoringFromBackupFailureUiState(
-                  errorData = ErrorData(
-                    segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
-                    actionDescription = "Saving keybox as active",
-                    cause = error
-                  ),
-                  onBack = props.onExit,
-                  failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
+                ProvisioningAppAuthKeyUiState(
+                  accountRestoration = state.accountRestoration,
+                  fullAccountId = fullAccountId
+                )
+              )
+            } else {
+              setState(
+                SavingKeyboxUiState(
+                  accountRestoration = state.accountRestoration,
+                  fullAccountId = fullAccountId
                 )
               )
             }
+          } ?: run {
+            setState(
+              SavingKeyboxUiState(
+                accountRestoration = state.accountRestoration,
+                fullAccountId = fullAccountId
+              )
+            )
+          }
         }
     }
   }
@@ -548,6 +610,37 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       }
     }
   }
+
+  @Composable
+  private fun SavingKeyboxEffect(
+    props: FullAccountCloudBackupRestorationUiProps,
+    state: SavingKeyboxUiState,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ) {
+    LaunchedEffect("saving-keybox") {
+      fullAccountAuthKeyRotationService.recommendKeyRotation()
+      keyboxDao
+        .saveKeyboxAsActive(
+          state.accountRestoration.asKeybox(
+            uuidGenerator.random(),
+            state.fullAccountId
+          )
+        )
+        .onFailure { error ->
+          setState(
+            RestoringFromBackupFailureUiState(
+              errorData = ErrorData(
+                segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+                actionDescription = "Saving keybox as active",
+                cause = error
+              ),
+              onBack = props.onExit,
+              failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
+            )
+          )
+        }
+    }
+  }
 }
 
 private sealed interface CloudBackupRestorationUiState {
@@ -557,7 +650,9 @@ private sealed interface CloudBackupRestorationUiState {
   data object CloudBackupFoundUiState : CloudBackupRestorationUiState
 
   /**
-   * Customer has chosen to restore. Show NFC prompt to unseal the CSEK.
+   * Customer has chosen to restore. Show the NFC prompt to unseal the CSEK and,
+   * once we know we're talking to the correct hardware, sync the device +
+   * biometric metadata.
    */
   data object UnsealingCsek : CloudBackupRestorationUiState
 
@@ -584,6 +679,22 @@ private sealed interface CloudBackupRestorationUiState {
    */
   data class CompletingCloudRecoveryUiState(
     val accountRestoration: AccountRestoration,
+  ) : CloudBackupRestorationUiState
+
+  /**
+   * Provisioning the app auth key to the hardware after completing cloud recovery
+   */
+  data class ProvisioningAppAuthKeyUiState(
+    val accountRestoration: AccountRestoration,
+    val fullAccountId: FullAccountId,
+  ) : CloudBackupRestorationUiState
+
+  /**
+   * Saving the keybox as active after provisioning
+   */
+  data class SavingKeyboxUiState(
+    val accountRestoration: AccountRestoration,
+    val fullAccountId: FullAccountId,
   ) : CloudBackupRestorationUiState
 
   data object SocialRecoveryExplanationState : CloudBackupRestorationUiState

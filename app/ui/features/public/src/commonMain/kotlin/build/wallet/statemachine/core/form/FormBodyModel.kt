@@ -17,7 +17,6 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.label.CallToActionModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
-import kotlin.native.HiddenFromObjC
 
 /**
  * A generic model capable of showing many different "form" like screens.
@@ -94,7 +93,6 @@ abstract class FormBodyModel(
   private val unique: String get() = id?.name ?: uuid().substringBefore('-')
   override val key: String get() = "${this::class.qualifiedName}-$unique."
 
-  @HiddenFromObjC
   @Composable
   override fun render(modifier: Modifier) {
     FormScreen(model = this, modifier)

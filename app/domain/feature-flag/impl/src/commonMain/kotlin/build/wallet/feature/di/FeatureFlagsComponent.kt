@@ -161,6 +161,16 @@ interface FeatureFlagsComponent {
     PrivateWalletMigrationBalanceThresholdFeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun publicCustomerSupportFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    PublicCustomerSupportFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun cashAppFeePromotionFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    CashAppFeePromotionFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
     coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
@@ -191,6 +201,8 @@ interface FeatureFlagsComponent {
     updateToPrivateWalletOnRecoveryFeatureFlag: UpdateToPrivateWalletOnRecoveryFeatureFlag,
     privateWalletMigrationBalanceThresholdFeatureFlag:
       PrivateWalletMigrationBalanceThresholdFeatureFlag,
+    publicCustomerSupportFeatureFlag: PublicCustomerSupportFeatureFlag,
+    cashAppFeePromotionFeatureFlag: CashAppFeePromotionFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       softwareWalletIsEnabledFeatureFlag,
@@ -214,6 +226,8 @@ interface FeatureFlagsComponent {
       descriptorBackupFailsafeFeatureFlag,
       updateToPrivateWalletOnRecoveryFeatureFlag,
       privateWalletMigrationBalanceThresholdFeatureFlag,
+      publicCustomerSupportFeatureFlag,
+      cashAppFeePromotionFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
       utxoMaxConsolidationCountFeatureFlag,

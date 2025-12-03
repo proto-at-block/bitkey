@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+# Wrapper for localstack environment
+# Usage: tf-local plan|apply|destroy [terraform args...]
+
+BACKEND="tfvars/development/backends_localstack.tfvars"
+VARFILE="tfvars/development/development.tfvars"
+
+# Set AWS environment (localstack uses default endpoint)
+export AWS_REGION=us-west-2
+unset AWS_PROFILE  # Localstack doesn't use AWS profiles
+
+# Safety: Always re-init to ensure correct backend
+echo "Initializing with localstack backend"
+tflocal init -reconfigure -backend-config="$BACKEND" > /dev/null
+
+# Run tflocal with correct var files and localstack flag
+exec tflocal "$@" -var-file="$VARFILE" -var-file="$BACKEND" -var='is_localstack=true'

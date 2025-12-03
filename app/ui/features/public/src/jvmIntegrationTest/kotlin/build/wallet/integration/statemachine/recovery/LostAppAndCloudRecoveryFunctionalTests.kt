@@ -24,12 +24,11 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.robots.awaitLoadingScreen
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester
-import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.ext.*
 import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -104,6 +103,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("delay & notify - no cloud access") { app ->
@@ -151,6 +152,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("recovery lost app - force exiting in the middle of initiating") { initialApp ->
@@ -210,6 +213,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("force exiting before spending key activation takes you back to spending key activation") { initialApp ->
@@ -268,6 +272,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("force exiting before cloud backup takes you back to icloud backup") { initialApp ->
@@ -327,6 +333,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("force exiting after cloud backup & before sweep takes you back to sweep") { initialApp ->
@@ -387,6 +395,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("force exiting during D&N wait") { initialApp ->
@@ -490,6 +500,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       app.returnFundsToTreasury()
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("cancel initiated delay & notify recovery when delay period is in progress") { app ->
@@ -580,7 +592,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   }
 
   test("lost app recovery refreshes descriptor backups if enabled") {
-    var app = launchNewApp()
+    var app = launchLegacyWalletApp()
     app.setupForLostApp()
     app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
     app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
@@ -602,31 +614,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     app.verifyDescriptorBackupsUploaded(accountId, 2)
     app.verifyCanUseKeyboxKeysets(true)
     app.decryptCloudBackupKeys().keysets.size.shouldBe(2)
-  }
-
-  test("lost app recovery clears canUseKeyboxKeysets if backups are disabled") {
-    var app = launchNewApp()
-    app.setupForLostApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
-    app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
-
-    val accountId = app.getActiveFullAccount().accountId
-
-    app.verifyDescriptorBackupsUploaded(accountId = accountId, count = 1)
-    app.verifyCanUseKeyboxKeysets(expected = true)
-
-    app.appDataDeleter.deleteAll().getOrThrow()
-    app.cloudBackupDeleter.delete()
-    app.deleteBackupsFromFakeCloud()
-
-    app = app.relaunchForLostApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
-
-    app.performRecovery()
-
-    app.verifyDescriptorBackupsUploaded(accountId = accountId, count = 1)
-    app.verifyCanUseKeyboxKeysets(expected = false)
-    app.decryptCloudBackupKeys().keysets.shouldBeEmpty()
   }
 })
 

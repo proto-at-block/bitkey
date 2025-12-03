@@ -1,11 +1,6 @@
 package build.wallet.statemachine.settings.full.device.fingerprints
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -16,14 +11,15 @@ import build.wallet.grants.Grant
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.statemachine.account.create.full.hardware.HardwareFingerprintEnrollmentScreenModel
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
-import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiState.ConfirmingEnrollmentStatusUiState
-import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiState.ShowingFingerprintInstructionsUiState
-import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiState.StartingEnrollmentUiState
+import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiState.*
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetEnrollmentFailureBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetErrorBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetEventTrackerScreenId

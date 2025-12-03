@@ -32,6 +32,7 @@ kotlin {
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.grantsPublic)
         implementation(projects.libs.grantsFake)
+        implementation(projects.domain.authFake)
       }
     }
   }

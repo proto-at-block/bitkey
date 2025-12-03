@@ -91,7 +91,7 @@ class EmergencyExitPayloadRestorerImplTests : FunSpec({
               nonce = ByteString.EMPTY,
               tag = ByteString.EMPTY
             ),
-          sealedHwEncryptionKey = CsekFake.key.raw
+          sealedHwEncryptionKey = SealedCsekFake
         )
     )
       .shouldBeErr(

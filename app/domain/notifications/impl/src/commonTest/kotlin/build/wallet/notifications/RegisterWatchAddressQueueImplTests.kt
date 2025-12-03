@@ -40,6 +40,7 @@ class RegisterWatchAddressQueueImplTests : FunSpec({
       accountId = FullAccountIdMock,
       networkType = KeyboxMock.config.bitcoinNetworkType,
       fakeHardware = KeyboxMock.config.isHardwareFake,
+      hardwareType = KeyboxMock.config.hardwareType,
       f8eEnvironment = KeyboxMock.config.f8eEnvironment,
       isTestAccount = KeyboxMock.config.isTestAccount,
       isUsingSocRecFakes = KeyboxMock.config.isUsingSocRecFakes,

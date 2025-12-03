@@ -12,6 +12,7 @@ import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
+import build.wallet.bitcoin.transactions.TX_FAKE_ID
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -22,12 +23,18 @@ import build.wallet.partnerships.FakePartnershipTransaction
 import build.wallet.partnerships.PartnershipTransactionStatus.PENDING
 import build.wallet.partnerships.PartnershipTransactionStatus.SUCCESS
 import build.wallet.partnerships.PartnershipTransactionType.SALE
+import build.wallet.platform.clipboard.ClipItem
+import build.wallet.platform.clipboard.ClipboardMock
+import build.wallet.platform.haptics.HapticsMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_FEE_RATE_TOO_LOW_ERROR_SCREEN
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
@@ -77,9 +84,13 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   val bitcoinWalletService = BitcoinWalletServiceFake().apply {
     this.spendingWallet.value = spendingWallet
   }
+  val feeEstimationErrorUiStateMachine = FeeEstimationErrorUiStateMachineImpl()
 
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
   val transactionActivityService = TransactionsActivityServiceFake()
+
+  val clipboard = ClipboardMock()
+  val haptics = HapticsMock()
 
   val stateMachine =
     TransactionDetailsUiStateMachineImpl(
@@ -101,7 +112,10 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       feeRateEstimator = BitcoinFeeRateEstimatorMock(),
       inAppBrowserNavigator = inAppBrowserNavigator,
       bitcoinWalletService = bitcoinWalletService,
-      transactionsActivityService = transactionActivityService
+      transactionsActivityService = transactionActivityService,
+      clipboard = clipboard,
+      haptics = haptics,
+      feeEstimationErrorUiStateMachine = feeEstimationErrorUiStateMachine
     )
 
   val receivedProps =
@@ -206,8 +220,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         content[0].shouldBeInstanceOf<StepperIndicator>()
         content[1].shouldBeInstanceOf<Divider>()
 
+        // Transaction ID
+        content[2].shouldBeInstanceOf<DataList>()
+
         // Amount Details
-        with(content[2].shouldBeInstanceOf<DataList>()) {
+        with(content[3].shouldBeInstanceOf<DataList>()) {
           items[0]
             .shouldNotBeNull()
             .expect(
@@ -221,7 +238,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         // after currency conversion
         // Should use the current exchange rate
 
-        with(content[2].shouldBeInstanceOf<DataList>()) {
+        with(content[3].shouldBeInstanceOf<DataList>()) {
           items[0]
             .shouldNotBeNull()
             .expect(
@@ -255,8 +272,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           .items[0]
           .expect(title = "Confirmed", sideText = "confirmed-time")
 
+        // Transaction ID
+        content[3].shouldBeInstanceOf<DataList>()
+
         // Amount Details
-        with(content[3].shouldBeInstanceOf<DataList>()) {
+        with(content[4].shouldBeInstanceOf<DataList>()) {
           items[0]
             .shouldNotBeNull()
             .expect(
@@ -269,7 +289,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       awaitBody<TransactionDetailModel> {
         // after currency conversion
         // Should use the current exchange rate
-        with(content[3].shouldBeInstanceOf<DataList>()) {
+        with(content[4].shouldBeInstanceOf<DataList>()) {
           items[0]
             .shouldNotBeNull()
             .expect(
@@ -302,8 +322,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           items[0].expect(title = "Arrival time", sideText = "estimated-confirmation-time")
         }
 
+        // Transaction ID
+        content[3].shouldBeInstanceOf<DataList>()
+
         // Amount Details
-        with(content[3].shouldBeInstanceOf<DataList>()) {
+        with(content[4].shouldBeInstanceOf<DataList>()) {
           items[0].expect(
             title = "Amount",
             sideText = "100,000,000 sats"
@@ -325,7 +348,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       awaitBody<TransactionDetailModel> {
         // after currency conversion
         // Should use the historical exchange rate for broadcast time
-        with(content[3].shouldBeInstanceOf<DataList>()) {
+        with(content[4].shouldBeInstanceOf<DataList>()) {
           items[0].expect(
             title = "Amount",
             sideText = "$4.00",
@@ -363,8 +386,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         content[0].shouldBeInstanceOf<StepperIndicator>()
         content[1].shouldBeInstanceOf<Divider>()
 
-        // Time Details
-        with(content[2].shouldBeInstanceOf<DataList>()) {
+        // Transaction ID
+        content[2].shouldBeInstanceOf<DataList>()
+
+        // Amount Details (no time details shown for this case)
+        with(content[3].shouldBeInstanceOf<DataList>()) {
           items[0].expect(title = "Amount", sideText = "100,000,000 sats")
         }
       }
@@ -394,8 +420,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           items[0].expect(title = "Confirmed", sideText = "confirmed-time")
         }
 
+        // Transaction ID
+        content[3].shouldBeInstanceOf<DataList>()
+
         // Amount Details
-        with(content[3].shouldBeInstanceOf<DataList>()) {
+        with(content[4].shouldBeInstanceOf<DataList>()) {
           items[0].expect(
             title = "Amount",
             sideText = "100,000,000 sats"
@@ -417,7 +446,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       awaitBody<TransactionDetailModel> {
         // after currency conversion
         // Should use the historical exchange rate
-        with(content[3].shouldBeInstanceOf<DataList>()) {
+        with(content[4].shouldBeInstanceOf<DataList>()) {
           items[0].expect(
             title = "Amount",
             sideText = "$4.00",
@@ -513,8 +542,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             items[0].expect(title = "Arrival time", sideText = "estimated-confirmation-time")
           }
 
+          // Transaction ID
+          content[3].shouldBeInstanceOf<DataList>()
+
           // Amount Details
-          with(content[3].shouldBeInstanceOf<DataList>()) {
+          with(content[4].shouldBeInstanceOf<DataList>()) {
             items[0].expect(
               title = "Amount",
               sideText = "100,000,000 sats"
@@ -536,7 +568,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the historical exchange rate for broadcast time
-          with(content[3].shouldBeInstanceOf<DataList>()) {
+          with(content[4].shouldBeInstanceOf<DataList>()) {
             items[0].expect(
               title = "Amount",
               sideText = "$4.00",
@@ -747,6 +779,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
                 .string
                 .shouldBe("The current fee rate is too low. Please try again later.")
             }
+          id.shouldBe(FEE_ESTIMATION_FEE_RATE_TOO_LOW_ERROR_SCREEN)
         }
 
         // Ensure we log analytics event
@@ -773,8 +806,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           content[0].shouldBeInstanceOf<StepperIndicator>()
           content[1].shouldBeInstanceOf<Divider>()
 
+          // Transaction ID
+          content[2].shouldBeInstanceOf<DataList>()
+
           // Amount Details
-          with(content[2].shouldBeInstanceOf<DataList>()) {
+          with(content[3].shouldBeInstanceOf<DataList>()) {
             items[0].expect(title = "UTXOs consolidated", sideText = "2 → 1")
             items[1].expect(
               title = "Consolidation cost",
@@ -787,7 +823,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the current exchange rate
-          with(content[2].shouldBeInstanceOf<DataList>()) {
+          with(content[3].shouldBeInstanceOf<DataList>()) {
             items[1].expect(
               title = "Consolidation cost",
               sideText = "$0.30",
@@ -820,8 +856,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             .items[0]
             .expect(title = "Confirmed", sideText = "confirmed-time")
 
+          // Transaction ID
+          content[3].shouldBeInstanceOf<DataList>()
+
           // Amount Details
-          with(content[3].shouldBeInstanceOf<DataList>()) {
+          with(content[4].shouldBeInstanceOf<DataList>()) {
             items[0].expect(title = "UTXOs consolidated", sideText = "2 → 1")
             items[1].expect(
               title = "Consolidation cost",
@@ -834,7 +873,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the current exchange rate
-          with(content[3].shouldBeInstanceOf<DataList>()) {
+          with(content[4].shouldBeInstanceOf<DataList>()) {
             items[1].expect(
               title = "Consolidation cost",
               sideText = "$0.30",
@@ -863,8 +902,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           content[0].shouldBeInstanceOf<StepperIndicator>()
           content[1].shouldBeInstanceOf<Divider>()
 
+          // Transaction ID
+          content[2].shouldBeInstanceOf<DataList>()
+
           // Amount Details
-          with(content[2].shouldBeInstanceOf<DataList>()) {
+          with(content[3].shouldBeInstanceOf<DataList>()) {
             items[0]
               .shouldNotBeNull()
               .expect(
@@ -878,7 +920,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           // after currency conversion
           // Should use the current exchange rate
 
-          with(content[2].shouldBeInstanceOf<DataList>()) {
+          with(content[3].shouldBeInstanceOf<DataList>()) {
             items[0]
               .shouldNotBeNull()
               .expect(
@@ -920,8 +962,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             items[0].expect(title = "Confirmed", sideText = "confirmed-time")
           }
 
+          // Transaction ID
+          content[3].shouldBeInstanceOf<DataList>()
+
           // Amount Details
-          with(content[3].shouldBeInstanceOf<DataList>()) {
+          with(content[4].shouldBeInstanceOf<DataList>()) {
             items[0].expect(
               title = "Amount",
               sideText = "100,000,000 sats"
@@ -943,7 +988,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the historical exchange rate
-          with(content[3].shouldBeInstanceOf<DataList>()) {
+          with(content[4].shouldBeInstanceOf<DataList>()) {
             items[0].expect(
               title = "Amount",
               sideText = "$4.00",
@@ -1048,6 +1093,45 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         inAppBrowserNavigator.onOpenCalls
           .awaitItem()
           .shouldBe(FakePartnershipTransaction.partnerTransactionUrl)
+      }
+    }
+
+    test("toast displays and clipboard copies when clicking transaction id") {
+      stateMachine.test(receivedProps) {
+        // Skip the initial currency conversion update
+        awaitBody<TransactionDetailModel>()
+
+        // Get the transaction detail model
+        awaitBody<TransactionDetailModel> {
+          // Find the Transaction ID data row
+          val transactionIdRow = content
+            .filterIsInstance<DataList>()
+            .flatMap { it.items }
+            .find { it.title == "Transaction ID" }
+            .shouldNotBeNull()
+
+          // Verify the truncated ID is displayed
+          transactionIdRow.sideText.shouldBe("c4f5...67be")
+
+          // Click on the transaction ID row
+          transactionIdRow.onClick?.invoke()
+        }
+
+        // Wait for the toast to appear
+        awaitItem().apply {
+          // Verify the clipboard received the full transaction ID
+          val clipboardItem = clipboard.copiedItems.awaitItem()
+          clipboardItem.shouldBeInstanceOf<ClipItem.PlainText>()
+            .data.shouldBe(TX_FAKE_ID)
+
+          // Verify the toast is displayed
+          toastModel.shouldNotBeNull().apply {
+            title.shouldBe("Copied")
+            leadingIcon.shouldNotBeNull().iconImage.shouldBe(
+              IconImage.LocalImage(Icon.SmallIconCheckFilled)
+            )
+          }
+        }
       }
     }
   }

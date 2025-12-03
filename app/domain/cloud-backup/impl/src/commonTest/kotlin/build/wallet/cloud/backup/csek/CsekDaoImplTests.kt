@@ -1,10 +1,12 @@
 package build.wallet.cloud.backup.csek
 
+import bitkey.data.PrivateData
 import build.wallet.store.EncryptedKeyValueStoreFactoryFake
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
+@OptIn(PrivateData::class)
 class CsekDaoImplTests : FunSpec({
   val secureStoreFactory = EncryptedKeyValueStoreFactoryFake()
   val dao = CsekDaoImpl(secureStoreFactory)

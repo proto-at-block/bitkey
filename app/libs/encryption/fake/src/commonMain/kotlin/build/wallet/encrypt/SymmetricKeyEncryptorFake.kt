@@ -1,5 +1,6 @@
 package build.wallet.encrypt
 
+import bitkey.data.PrivateData
 import build.wallet.crypto.SymmetricKey
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
@@ -13,6 +14,7 @@ class SymmetricKeyEncryptorFake : SymmetricKeyEncryptor {
   var lastSealedData: ByteString? = null
     private set
 
+  @OptIn(PrivateData::class)
   override fun sealNoMetadata(
     unsealedData: ByteString,
     key: SymmetricKey,

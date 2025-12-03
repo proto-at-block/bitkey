@@ -879,4 +879,48 @@ class SweepGeneratorImplTests : FunSpec({
     val result = sweepGenerator.generateSweep(keybox)
     result.shouldBeErrOfType<SweepGeneratorError.FailedToGenerateDestinationAddress>()
   }
+
+  test("skips address upload when context is Estimate") {
+    val keyboxWithLostAppKeyset = activeKeybox.copy(
+      keysets = listOf(activeKeyset, lostAppKeyset1, lostAppKeyset2)
+    )
+
+    wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostAppKeyset2.localId).createPsbtResult = Ok(psbtMock)
+
+    // Generate sweep with Estimate context
+    val result = sweepGenerator.generateSweep(
+      keyboxWithLostAppKeyset,
+      SweepGenerationContext.Estimate
+    ).shouldBeOkOfType<List<SweepPsbt>>()
+
+    // Should still generate PSBTs successfully
+    result.shouldHaveSize(2)
+    result.shouldBe(
+      listOf(
+        SweepPsbt(
+          psbtMock,
+          SweepSignaturePlan.HardwareAndServer,
+          lostAppKeyset1,
+          destinationAddress
+        ),
+        SweepPsbt(
+          psbtMock,
+          SweepSignaturePlan.HardwareAndServer,
+          lostAppKeyset2,
+          destinationAddress
+        )
+      )
+    )
+
+    // Verify no address registration calls were made
+    processorMock.processBatchCalls.expectNoEvents()
+
+    // Verify wallets were still synced
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset1.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset2.localId).syncCalls.awaitItem()
+  }
 })

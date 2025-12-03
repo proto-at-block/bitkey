@@ -1,5 +1,6 @@
 package build.wallet.database
 
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.app.AppSpendingPublicKey
@@ -43,6 +44,7 @@ class ForeignKeyConstraintsTests : FunSpec({
         accountId = FullAccountId("test-account-123"),
         networkType = BitcoinNetworkType.BITCOIN,
         fakeHardware = false,
+        hardwareType = HardwareType.W1,
         f8eEnvironment = F8eEnvironment.Development,
         isTestAccount = true,
         isUsingSocRecFakes = false,
@@ -70,6 +72,7 @@ class ForeignKeyConstraintsTests : FunSpec({
           accountId = FullAccountId("non-existent-account"),
           networkType = BitcoinNetworkType.BITCOIN,
           fakeHardware = false,
+          hardwareType = HardwareType.W1,
           f8eEnvironment = F8eEnvironment.Development,
           isTestAccount = true,
           isUsingSocRecFakes = false,
@@ -95,6 +98,7 @@ class ForeignKeyConstraintsTests : FunSpec({
         accountId = FullAccountId("test-account"),
         networkType = BitcoinNetworkType.BITCOIN,
         fakeHardware = false,
+        hardwareType = HardwareType.W1,
         f8eEnvironment = F8eEnvironment.Development,
         isTestAccount = true,
         isUsingSocRecFakes = false,
@@ -176,6 +180,7 @@ class ForeignKeyConstraintsTests : FunSpec({
         accountId = FullAccountId("test-account"),
         networkType = BitcoinNetworkType.BITCOIN,
         fakeHardware = false,
+        hardwareType = HardwareType.W1,
         f8eEnvironment = F8eEnvironment.Development,
         isTestAccount = true,
         isUsingSocRecFakes = false,
@@ -241,6 +246,7 @@ class ForeignKeyConstraintsTests : FunSpec({
         accountId = FullAccountId("test-account"),
         networkType = BitcoinNetworkType.BITCOIN,
         fakeHardware = false,
+        hardwareType = HardwareType.W1,
         f8eEnvironment = F8eEnvironment.Development,
         isTestAccount = true,
         isUsingSocRecFakes = false,
@@ -309,6 +315,7 @@ class ForeignKeyConstraintsTests : FunSpec({
         accountId = FullAccountId("test-account"),
         networkType = BitcoinNetworkType.BITCOIN,
         fakeHardware = false,
+        hardwareType = HardwareType.W1,
         f8eEnvironment = F8eEnvironment.Development,
         isTestAccount = true,
         isUsingSocRecFakes = false,
@@ -363,6 +370,7 @@ class ForeignKeyConstraintsTests : FunSpec({
         accountId = FullAccountId("account-1"),
         networkType = BitcoinNetworkType.BITCOIN,
         fakeHardware = false,
+        hardwareType = HardwareType.W1,
         f8eEnvironment = F8eEnvironment.Development,
         isTestAccount = true,
         isUsingSocRecFakes = false,
@@ -409,6 +417,7 @@ class ForeignKeyConstraintsTests : FunSpec({
         accountId = FullAccountId("account-2"),
         networkType = BitcoinNetworkType.SIGNET,
         fakeHardware = true,
+        hardwareType = HardwareType.W1,
         f8eEnvironment = F8eEnvironment.Staging,
         isTestAccount = false,
         isUsingSocRecFakes = true,

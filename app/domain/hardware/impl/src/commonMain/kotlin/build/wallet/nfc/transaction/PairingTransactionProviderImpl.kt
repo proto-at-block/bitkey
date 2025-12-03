@@ -6,26 +6,27 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.catchingResult
-import build.wallet.cloud.backup.csek.Csek
-import build.wallet.cloud.backup.csek.CsekDao
-import build.wallet.cloud.backup.csek.SekGenerator
-import build.wallet.cloud.backup.csek.Ssek
-import build.wallet.cloud.backup.csek.SsekDao
+import build.wallet.cloud.backup.csek.*
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.FingerprintEnrollmentStatus.*
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.HardwareAttestation
+import build.wallet.fwup.semverToInt
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
+import build.wallet.nfc.HardwareProvisionedAppKeyStatusDao
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.nfc.platform.signChallenge
 import build.wallet.nfc.transaction.PairingTransactionResponse.*
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.getOrThrow
+import okio.ByteString.Companion.decodeHex
 
 @BitkeyInject(AppScope::class)
 class PairingTransactionProviderImpl(
@@ -36,6 +37,9 @@ class PairingTransactionProviderImpl(
   private val appInstallationDao: AppInstallationDao,
   private val hardwareAttestation: HardwareAttestation,
   private val accountConfigService: AccountConfigService,
+  private val fingerprintResetMinFirmwareVersionFeatureFlag:
+    FingerprintResetMinFirmwareVersionFeatureFlag,
+  private val hardwareProvisionedAppKeyStatusDao: HardwareProvisionedAppKeyStatusDao,
 ) : PairingTransactionProvider {
   override operator fun invoke(
     appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
@@ -58,6 +62,9 @@ class PairingTransactionProviderImpl(
         unsealedCsek = sekGenerator.generate()
         unsealedSsek = sekGenerator.generate()
 
+        val hwAuthKey = commands.getAuthenticationKey(session)
+        val deviceInfo = commands.getDeviceInfo(session)
+
         FingerprintEnrolled(
           appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
             commands.signChallenge(session, appGlobalAuthPublicKey.value)
@@ -65,13 +72,24 @@ class PairingTransactionProviderImpl(
           keyBundle = HwKeyBundle(
             localId = uuidGenerator.random(),
             spendingKey = commands.getInitialSpendingKey(session, bitcoinNetwork),
-            authKey = commands.getAuthenticationKey(session),
+            authKey = hwAuthKey,
             networkType = bitcoinNetwork
           ),
-          sealedCsek = commands.sealData(session, unsealedCsek.key.raw),
-          sealedSsek = commands.sealData(session, unsealedSsek.key.raw),
-          serial = commands.getDeviceInfo(session).serial
-        )
+          sealedCsek = commands.sealSymmetricKey(session, unsealedCsek.key),
+          sealedSsek = commands.sealSymmetricKey(session, unsealedSsek.key),
+          serial = deviceInfo.serial
+        ).also {
+          val minFirmwareVersion = fingerprintResetMinFirmwareVersionFeatureFlag.flagValue().value.value
+          val currentVersionInt = semverToInt(deviceInfo.version)
+          val minVersionInt = semverToInt(minFirmwareVersion)
+          if (currentVersionInt >= minVersionInt) {
+            commands.provisionAppAuthKey(session, appGlobalAuthPublicKey.value.decodeHex())
+            hardwareProvisionedAppKeyStatusDao.recordProvisionedKey(
+              hwAuthPubKey = hwAuthKey,
+              appAuthPubKey = appGlobalAuthPublicKey
+            ).getOrThrow()
+          }
+        }
       }
 
       NOT_IN_PROGRESS -> {

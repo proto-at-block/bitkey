@@ -40,7 +40,7 @@ interface PrivateWalletMigrationDao {
   /**
    * Marks the descriptor backup as completed.
    */
-  suspend fun setDescriptorBackupCompete(): Result<Unit, DbError>
+  suspend fun setDescriptorBackupComplete(): Result<Unit, DbError>
 
   /**
    * Marks the cloud backup as completed.

@@ -18,7 +18,6 @@ import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
-import build.wallet.testing.ext.enableChaincodeDelegation
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
 import build.wallet.testing.ext.testWithTwoApps
@@ -39,7 +38,6 @@ class OnboardFullAccountWithExistingLiteAccountFunctionalTests : FunSpec({
       cloudStoreAccountRepository = liteApp.cloudStoreAccountRepository,
       cloudKeyValueStore = liteApp.cloudKeyValueStore
     )
-    onboardApp.enableChaincodeDelegation()
 
     // Verify the lite account backup is present in cloud
     onboardApp.cloudBackupRepository

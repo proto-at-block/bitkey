@@ -20,10 +20,12 @@ import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.PostActivationExpectations
 import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.ext.testForLegacyAndPrivateWallet
+import build.wallet.testing.ext.verifyPostActivationState
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -70,6 +72,8 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    newApp.verifyPostActivationState(PostActivationExpectations(expectedCanUseKeyboxKeysets = true, checkOnboardingArtifactsCleared = false))
   }
 
   testForLegacyAndPrivateWallet("recover keybox with some funds from cloud backup") { app ->
@@ -119,6 +123,8 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    newApp.verifyPostActivationState(PostActivationExpectations(expectedCanUseKeyboxKeysets = true, checkOnboardingArtifactsCleared = false))
   }
 
   testForLegacyAndPrivateWallet("Cloud recovery, force exit app in middle of initiating") { app ->

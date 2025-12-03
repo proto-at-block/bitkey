@@ -1,6 +1,7 @@
 locals {
-  oidc_provider = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
-  repo          = "squareup/wallet"
+  oidc_provider            = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
+  repo                     = "squareup/wallet"
+  bucket_access_principals = [for principal in var.bucket_access_principals : principal if principal != ""]
 }
 
 #
@@ -22,6 +23,43 @@ resource "aws_s3_bucket_lifecycle_configuration" "expiration_lifecycle" {
       days = 90
     }
   }
+}
+
+data "aws_iam_policy_document" "bucket_access" {
+  count = length(local.bucket_access_principals) > 0 ? 1 : 0
+
+  statement {
+    sid    = "AllowAdditionalPrincipalsToObjects"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject"
+    ]
+    principals {
+      type        = "AWS"
+      identifiers = local.bucket_access_principals
+    }
+    resources = ["${aws_s3_bucket.ci_cache_bucket.arn}/*"]
+  }
+
+  statement {
+    sid    = "AllowAdditionalPrincipalsToList"
+    effect = "Allow"
+    actions = [
+      "s3:ListBucket"
+    ]
+    principals {
+      type        = "AWS"
+      identifiers = local.bucket_access_principals
+    }
+    resources = [aws_s3_bucket.ci_cache_bucket.arn]
+  }
+}
+
+resource "aws_s3_bucket_policy" "ci_cache_bucket_access" {
+  count  = length(local.bucket_access_principals) > 0 ? 1 : 0
+  bucket = aws_s3_bucket.ci_cache_bucket.id
+  policy = data.aws_iam_policy_document.bucket_access[0].json
 }
 
 #

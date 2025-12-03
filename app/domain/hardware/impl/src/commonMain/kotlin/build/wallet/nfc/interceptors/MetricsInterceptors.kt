@@ -278,4 +278,12 @@ private class MetricsNfcCommandsImpl(
     // TODO: Add specific metrics for this command if needed
     return commands.provideGrant(session, grant)
   }
+
+  override suspend fun provisionAppAuthKey(
+    session: NfcSession,
+    appAuthKey: ByteString,
+  ): Boolean =
+    measure("provisionAppAuthKey") {
+      commands.provisionAppAuthKey(session, appAuthKey)
+    }
 }

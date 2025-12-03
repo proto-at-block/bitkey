@@ -64,7 +64,7 @@ class PrivateWalletMigrationDaoFake : PrivateWalletMigrationDao {
     return Ok(Unit)
   }
 
-  override suspend fun setDescriptorBackupCompete(): Result<Unit, DbError> {
+  override suspend fun setDescriptorBackupComplete(): Result<Unit, DbError> {
     state.value = Ok(
       state.value.value!!.copy(
         descriptorBackupCompleted = true

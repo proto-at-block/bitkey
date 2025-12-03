@@ -96,7 +96,8 @@ class CloudBackupV2RestorerImpl(
           f8eEnvironment = cloudBackupV2.f8eEnvironment,
           isHardwareFake = fullAccountFields.isFakeHardware,
           isTestAccount = cloudBackupV2.isTestAccount,
-          isUsingSocRecFakes = cloudBackupV2.isUsingSocRecFakes
+          isUsingSocRecFakes = cloudBackupV2.isUsingSocRecFakes,
+          hardwareType = fullAccountFields.hardwareType
         ),
       cloudBackupForLocalStorage = cloudBackupV2,
       appGlobalAuthKeyHwSignature = fullAccountFields.appGlobalAuthKeyHwSignature

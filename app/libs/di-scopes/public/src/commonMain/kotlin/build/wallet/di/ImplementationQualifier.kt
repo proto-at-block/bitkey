@@ -41,3 +41,11 @@ annotation class Impl
 @Qualifier
 @Target(CLASS, PROPERTY_GETTER, FUNCTION, VALUE_PARAMETER, TYPE)
 annotation class Fake
+
+/**
+ * Qualifier for W3 hardware-specific implementations.
+ * Used when providing W3-specific behavior that differs from the default W1 implementation.
+ */
+@Qualifier
+@Target(CLASS, PROPERTY_GETTER, FUNCTION, VALUE_PARAMETER, TYPE)
+annotation class W3

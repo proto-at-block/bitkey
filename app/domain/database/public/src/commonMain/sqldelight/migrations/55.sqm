@@ -1,0 +1,15 @@
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import kotlinx.datetime.Instant;
+
+-- Add hardwareProvisionedAppKeyStatusEntity table for tracking hardware provisioned app auth keys.
+-- This table records when app auth keys are provisioned to hardware via NFC commands.
+
+CREATE TABLE hardwareProvisionedAppKeyStatusEntity(
+  id                    INTEGER NOT NULL PRIMARY KEY,
+  hwAuthPubKey          TEXT AS HwAuthPublicKey NOT NULL,
+  appAuthPubKey         TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  provisionedAt         TEXT AS Instant NOT NULL
+);
+
+PRAGMA foreign_key_check;

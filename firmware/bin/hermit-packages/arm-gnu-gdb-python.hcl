@@ -15,7 +15,7 @@ platform "linux" "amd64" {
   source = "https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v${version}/xpack-arm-none-eabi-gcc-${version}-linux-x64.tar.gz"
 }
 
-version "11.3.1-1.1" {
+version "14.2.1-1.1" {
   auto-version {
     github-release = "xpack-dev-tools/arm-none-eabi-gcc-xpack"
   }

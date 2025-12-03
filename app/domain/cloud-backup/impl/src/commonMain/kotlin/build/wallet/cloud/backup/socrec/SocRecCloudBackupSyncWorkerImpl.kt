@@ -55,7 +55,7 @@ class SocRecCloudBackupSyncWorkerImpl(
   override val lastCheck: StateFlow<Instant> = lastCheckState
 
   override suspend fun executeWork() {
-    val recovery = recoveryStatusService.status().map { it.get() }
+    val recovery = recoveryStatusService.status
     val account = accountService.activeAccount()
 
     combine(recovery, account) { activeRecovery, account ->
@@ -73,8 +73,8 @@ class SocRecCloudBackupSyncWorkerImpl(
        *
        * TODO(W-8314): implement a more robust implementation for auto uploading cloud backups.
        */
-      val activeRecovery = recovery as? StillRecovering
-      val hasHardwareRecovery = activeRecovery?.factorToRecover == PhysicalFactor.Hardware
+      val stillRecovering = activeRecovery as? StillRecovering
+      val hasHardwareRecovery = stillRecovering?.factorToRecover == PhysicalFactor.Hardware
       if (account is FullAccount && !hasHardwareRecovery) {
         account
       } else {

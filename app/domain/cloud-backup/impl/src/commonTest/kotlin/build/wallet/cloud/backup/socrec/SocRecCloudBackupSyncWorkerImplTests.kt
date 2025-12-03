@@ -7,6 +7,7 @@ import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.count.id.InheritanceEventTrackerCounterId
 import build.wallet.analytics.events.count.id.SocialRecoveryEventTrackerCounterId
 import build.wallet.analytics.v1.Action
+import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.EndorsedBeneficiaryFake
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
@@ -22,6 +23,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.relationships.RelationshipsFake
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.recovery.RecoveryStatusServiceMock
+import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
@@ -104,6 +106,20 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
     cloudBackupRepository.awaitBackup(cloudAccount)
       .shouldBe(CloudBackupV2WithFullAccountMock)
   }
+
+        test("skips cloud backup refresh when lost hardware recovery is in progress") {
+          // Set up a hardware recovery in progress
+          recoveryStatusService.recoveryStatus.value =
+            StillRecoveringInitiatedRecoveryMock.copy(factorToRecover = PhysicalFactor.Hardware)
+
+          createBackgroundScope().launch {
+            socRecCloudBackupSyncWorker.executeWork()
+          }
+
+          // Verify that no cloud backup was created or uploaded
+          fullAccountCloudBackupCreator.createCalls.expectNoEvents()
+          cloudBackupRepository.awaitNoBackups()
+        }
 
   test("success - multiple") {
     createBackgroundScope().launch {

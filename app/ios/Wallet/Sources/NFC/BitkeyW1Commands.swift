@@ -350,6 +350,16 @@ public final class BitkeyW1Commands: NfcCommands {
             }
         }
     }
+
+    public func provisionAppAuthKey(
+        session: NfcSession,
+        appAuthKey: OkioByteString
+    ) async throws -> KotlinBoolean {
+        return try await .init(
+            bool: ProvisionAppAuthKey(pubkey: appAuthKey.toByteArray().asUInt8Array())
+                .transceive(session: session)
+        )
+    }
 }
 
 // MARK: -

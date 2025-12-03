@@ -21,6 +21,7 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.domain.accountFake)
+        implementation(projects.domain.hardwareFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)
       }

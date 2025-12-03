@@ -19,6 +19,12 @@ enum class SendEventTrackerScreenId : EventTrackerScreenId {
   /** Confirmation screen shown in the send flow */
   SEND_CONFIRMATION,
 
+  /** Hardware confirmation screen shown in the send flow */
+  SEND_HARDWARE_CONFIRMATION,
+
+  /** Hardware confirmation cancellation screen shown after user cancels transaction in send flow */
+  SEND_HARDWARE_CONFIRMATION_CANCELED,
+
   /** Loading screen shown while creating a PSBT */
   SEND_CREATING_PSBT_LOADING,
 

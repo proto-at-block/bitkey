@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+# Wrapper for staging environment
+# Usage: tf-staging plan|apply|destroy [terraform args...]
+
+BACKEND="tfvars/staging/backends.tfvars"
+VARFILE="tfvars/staging/staging.tfvars"
+
+# Set AWS environment
+export AWS_PROFILE=bitkey-fw-signer-staging--admin
+export AWS_REGION=us-west-2
+
+# Safety: Always re-init to ensure correct backend
+echo "Initializing with staging backend"
+terraform init -reconfigure -backend-config="$BACKEND" > /dev/null
+
+# Run terraform with correct var files and is_localstack flag
+exec terraform "$@" -var-file="$VARFILE" -var-file="$BACKEND" -var="is_localstack=false"

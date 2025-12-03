@@ -29,5 +29,6 @@ data class CalloutModel(
     Success,
     Warning,
     Danger,
+    White,
   }
 }

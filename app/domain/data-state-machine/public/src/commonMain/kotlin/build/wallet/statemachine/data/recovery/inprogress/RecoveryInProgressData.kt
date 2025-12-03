@@ -37,7 +37,6 @@ sealed interface RecoveryInProgressData {
     val factorToRecover: PhysicalFactor,
     val delayPeriodStartTime: Instant,
     val delayPeriodEndTime: Instant,
-    val retryCloudRecovery: (() -> Unit)?,
     val cancel: () -> Unit,
   ) : RecoveryInProgressData {
     fun delayPeriodProgress(clock: Clock): Progress =
@@ -145,6 +144,13 @@ sealed interface RecoveryInProgressData {
        */
       data class CheckingCompletionAttemptData(
         val physicalFactor: PhysicalFactor,
+      ) : RotatingAuthData
+
+      /**
+       * Provisioning the new app auth key to hardware via NFC after auth rotation.
+       */
+      data class ProvisioningAppAuthKeyToHardwareData(
+        val nfcTransaction: NfcTransaction<Unit>,
       ) : RotatingAuthData
 
       /**

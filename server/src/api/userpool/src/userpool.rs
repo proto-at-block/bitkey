@@ -43,7 +43,7 @@ const TEST_EXPIRES_IN_SECONDS: i32 = 300;
 // 10 minutes in seconds
 const TEST_REFRESH_EXPIRES_IN_SECONDS: i32 = 600;
 
-const FIVE_DAYS_IN_SECONDS: i32 = 5 * 24 * 60 * 60;
+const THIRTY_DAYS_IN_SECONDS: i32 = 30 * 24 * 60 * 60;
 
 #[derive(Debug, Error)]
 pub enum UserPoolError {
@@ -408,7 +408,7 @@ impl CognitoIdpConnection for CognitoConnection {
             access_token,
             refresh_token,
             expires_in,
-            refresh_token_expires_in: Some(FIVE_DAYS_IN_SECONDS),
+            refresh_token_expires_in: Some(THIRTY_DAYS_IN_SECONDS),
         })
     }
 

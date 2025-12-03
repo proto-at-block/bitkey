@@ -1,0 +1,97 @@
+# Testing: Fakes vs Mocks
+
+## Summary
+**Always prefer fakes over mocks.** Fakes provide realistic behavior, reliable tests. Mocks only for interaction verification (< 5% of cases).
+
+## When to Apply
+- Creating test doubles
+- Setting up test dependencies
+
+## How to Apply
+
+### Fakes (95% of cases)
+**Benefits:** Realistic behavior, state-based verification, stable when internals change.
+
+```kotlin
+class SpendingLimitDaoFake : SpendingLimitDao {
+  private var activeLimit: SpendingLimit? = null
+  private val limits = mutableMapOf<LimitId, SpendingLimit>()
+  
+  override suspend fun getActiveLimit(): Result<SpendingLimit?, Error> = Ok(activeLimit)
+  override suspend fun setActiveLimit(limit: SpendingLimit): Result<Unit, Error> {
+    activeLimit = limit
+    limits[limit.id] = limit
+    return Ok(Unit)
+  }
+  
+  fun reset() {
+    activeLimit = null
+    limits.clear()
+  }
+}
+```
+
+### Mocks (5% of cases)
+**Only for:** Interaction verification, audit logging, method call sequences.
+
+**Critical:** Never use `.test {}` - use direct `awaitItem()`:
+
+```kotlin
+class EventTrackerMock(
+  turbine: (name: String) -> Turbine<TrackedAction>
+) : EventTracker {
+  val eventCalls = turbine("event calls")
+  
+  override fun track(action: Action, context: EventTrackerContext?) {
+    eventCalls += TrackedAction(action, context)
+  }
+}
+
+// Usage:
+test("tracks event") {
+  service.performAction()
+  eventTracker.eventCalls.awaitItem().action.shouldBe(Action.COMPLETED)
+}
+```
+
+### Decision Framework
+- Data persistence/business logic → **FAKE**
+- Audit logging verification → **MOCK** 
+- Network retry behavior → **FAKE**
+
+### Anti-Patterns
+```kotlin
+// ❌ BAD: Fakes with turbines, mocks for data, expect* methods
+class BadFake(turbine: (String) -> Turbine<Any>) : Service // Don't do this
+val daoMock = DaoMock() // Use DaoFake instead
+mockService.calls.expectNoEvents() // Non-deterministic
+
+// ✅ GOOD: awaitNoEvents with timeout (sparingly)
+mockService.calls.awaitNoEvents(100.milliseconds)
+```
+
+## Example
+```kotlin
+class MobilePayServiceImplTests : FunSpec({
+  val limitDao = SpendingLimitDaoFake()
+  val eventTracker = EventTrackerMock(turbines::create)
+  val service = MobilePayServiceImpl(limitDao, eventTracker)
+  
+  beforeTest {
+    limitDao.reset()
+  }
+  
+  test("enables mobile pay and tracks event") {
+    val limit = SpendingLimit(BitcoinMoney.btc(0.1))
+    
+    service.enableMobilePay(limit).shouldBeOk()
+    
+    limitDao.getActiveLimit().shouldBeOk(limit)
+    eventTracker.eventCalls.awaitItem().action.shouldBe(ACTION_ENABLED)
+  }
+})
+```
+
+## Related Rules
+- @ai-rules/testing-basics.md (core patterns)
+- @ai-rules/testing-coroutines.md (turbine usage)

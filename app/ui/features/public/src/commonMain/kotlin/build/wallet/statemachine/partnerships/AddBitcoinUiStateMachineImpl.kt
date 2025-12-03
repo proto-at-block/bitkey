@@ -6,12 +6,12 @@ import build.wallet.di.BitkeyInject
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.partnerships.AddBitcoinUiState.*
-import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
-import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachine
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiProps
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiStateMachine
 
 @BitkeyInject(ActivityScope::class)
 class AddBitcoinUiStateMachineImpl(
-  val partnershipsPurchaseUiStateMachine: PartnershipsPurchaseUiStateMachine,
+  private val partnershipsPurchaseAmountUiStateMachine: PartnershipsPurchaseAmountUiStateMachine,
 ) : AddBitcoinUiStateMachine {
   @Composable
   override fun model(props: AddBitcoinUiProps): SheetModel {
@@ -19,29 +19,29 @@ class AddBitcoinUiStateMachineImpl(
       mutableStateOf(
         when (props.initialState) {
           AddBitcoinBottomSheetDisplayState.ShowingPurchaseOrTransferUiState -> ShowingBuyOrTransferUiState
-          is AddBitcoinBottomSheetDisplayState.PurchasingUiState -> PurchasingUiState(props.initialState.selectedAmount)
+          is AddBitcoinBottomSheetDisplayState.PurchasingUiState -> SelectingPurchaseAmountUiState(
+            props.initialState.selectedAmount
+          )
         }
       )
-    }
-    val showBuyOrTransferState: () -> Unit = {
-      uiState = ShowingBuyOrTransferUiState
     }
     return when (val currentState = uiState) {
       ShowingBuyOrTransferUiState ->
         BuyOrTransferModel(
           onPurchase = {
-            uiState = PurchasingUiState(selectedAmount = null)
+            uiState = SelectingPurchaseAmountUiState(selectedAmount = null)
           },
           onTransfer = props.onTransfer,
           onBack = props.onExit
         )
 
-      is PurchasingUiState ->
-        partnershipsPurchaseUiStateMachine.model(
-          props = PartnershipsPurchaseUiProps(
+      is SelectingPurchaseAmountUiState ->
+        partnershipsPurchaseAmountUiStateMachine.model(
+          props = PartnershipsPurchaseAmountUiProps(
             selectedAmount = currentState.selectedAmount,
-            onPartnerRedirected = props.onPartnerRedirected,
-            onBack = showBuyOrTransferState,
+            onAmountConfirmed = { amount ->
+              props.onPurchaseAmountConfirmed(amount)
+            },
             onSelectCustomAmount = props.onSelectCustomAmount,
             onExit = props.onExit
           )
@@ -53,5 +53,5 @@ class AddBitcoinUiStateMachineImpl(
 private sealed interface AddBitcoinUiState {
   data object ShowingBuyOrTransferUiState : AddBitcoinUiState
 
-  data class PurchasingUiState(val selectedAmount: FiatMoney?) : AddBitcoinUiState
+  data class SelectingPurchaseAmountUiState(val selectedAmount: FiatMoney?) : AddBitcoinUiState
 }

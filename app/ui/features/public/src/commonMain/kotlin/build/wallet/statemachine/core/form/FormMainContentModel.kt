@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import build.wallet.Progress
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.Icon.SmallIconCaretRight
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.TimerDirection
@@ -20,6 +21,7 @@ import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListGroupModel
+import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.model.tab.CircularTabRowModel
 import dev.zacsweers.redacted.annotations.Redacted
@@ -38,6 +40,41 @@ sealed class FormMainContentModel {
    * A basic horizontal divider line.
    */
   data object Divider : FormMainContentModel()
+
+  /**
+   * A container that allows the bitkey image/video and callout to live together
+   */
+  data class DeviceStatusCard(
+    val deviceImage: IconModel? = null,
+    val deviceVideo: VideoContent? = null,
+    val statusCallout: CalloutModel,
+  ) : FormMainContentModel() {
+    init {
+      require((deviceImage != null) || (deviceVideo != null)) {
+        "DeviceStatusCard must have either deviceImage or deviceVideo, but not both"
+      }
+    }
+
+    enum class VideoContent {
+      BITKEY_ROTATE,
+    }
+  }
+
+  /**
+   * Allows device page to have same list styling as settings screen
+   */
+  data class SettingsList(
+    val header: String,
+    val items: ImmutableList<SettingsListItem>,
+  ) : FormMainContentModel() {
+    data class SettingsListItem(
+      val title: String,
+      val icon: Icon,
+      val isEnabled: Boolean = true,
+      val treatment: ListItemTreatment = ListItemTreatment.PRIMARY,
+      val onClick: (() -> Unit)?,
+    )
+  }
 
   /**
    * A display list of text items with a title and subtext with a leading icon aligned to the
@@ -86,6 +123,7 @@ sealed class FormMainContentModel {
       ) : Content() {
         enum class Video {
           BITKEY_WIPE,
+          BITKEY_ROTATE,
           ;
 
           open val looping: Boolean = false
@@ -144,6 +182,8 @@ sealed class FormMainContentModel {
       val showBottomDivider: Boolean = false,
       val explainer: Explainer? = null,
       val onClick: (() -> Unit)? = null,
+      // only displayed if onClick is not null
+      val endIcon: Icon = SmallIconCaretRight,
     ) {
       enum class TitleTextType { REGULAR, BOLD }
 
@@ -158,6 +198,13 @@ sealed class FormMainContentModel {
       )
     }
   }
+
+  /**
+   * A device-specific data list that uses DataGroupDevice with corner radius styling
+   */
+  data class DeviceDataList(
+    val rows: DataList,
+  ) : FormMainContentModel()
 
   /**
    * A selectable list of fee options.

@@ -7,8 +7,8 @@ import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.cloudServiceProvider
-import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.testing.AppTester
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -45,11 +45,9 @@ suspend fun AppTester.decryptCloudBackupKeys(): FullAccountKeys {
   val fullAccountFields = cloudBackup.fullAccountFields.shouldNotBeNull()
 
   val decryptedSsek = Sek(
-    SymmetricKeyImpl(
-      fakeNfcCommands.unsealData(
-        session = NfcSessionFake(),
-        sealedData = fullAccountFields.sealedHwEncryptionKey
-      )
+    fakeNfcCommands.unsealSymmetricKey(
+      session = NfcSessionFake(),
+      sealedData = fullAccountFields.sealedHwEncryptionKey
     )
   )
   csekDao.set(fullAccountFields.sealedHwEncryptionKey, decryptedSsek)

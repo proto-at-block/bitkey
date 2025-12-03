@@ -1,23 +1,19 @@
 package build.wallet.statemachine.settings.full.device
 
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
-import build.wallet.statemachine.core.Icon.BitkeyDevice3D
-import build.wallet.statemachine.core.Icon.SmallIconSync
+import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
-import build.wallet.statemachine.core.form.FormMainContentModel.DataList.DataHero
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size.Compact
-import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.*
+import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize.XLarge
-import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.list.*
+import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -50,7 +46,9 @@ data class DeviceSettingsFormBodyModel(
   val onUpdateVersion: (() -> Unit)?,
   val onSyncDeviceInfo: () -> Unit,
   val onReplaceDevice: () -> Unit,
+  val onShowAboutSheet: () -> Unit = {},
   val onManageReplacement: (() -> Unit)?,
+  val onPairDevice: (() -> Unit)?,
   val onWipeDevice: (() -> Unit)?,
   override val onBack: () -> Unit,
   val onManageFingerprints: () -> Unit,
@@ -63,128 +61,94 @@ data class DeviceSettingsFormBodyModel(
     ),
     header = null,
     mainContentList = immutableListOfNotNull(
-      DataList(
-        hero = DataHero(
-          image = IconModel(
-            iconImage = LocalImage(icon = BitkeyDevice3D),
-            iconSize = XLarge,
-            iconOpacity = 0.3f.takeIf { emptyState }
-          ),
-          title = if (replacementPending != null) {
+      DeviceStatusCard(
+        deviceVideo = if (!emptyState) DeviceStatusCard.VideoContent.BITKEY_ROTATE else null,
+        deviceImage = if (emptyState) {
+          IconModel(
+            iconImage = LocalImage(icon = Icon.BitkeyFrontLit),
+            iconSize = IconSize.XXXLarge,
+            iconOpacity = 0.3f
+          )
+        } else {
+          null
+        },
+        statusCallout = CalloutModel(
+          title = if (emptyState) {
+            "No Bitkey found"
+          } else if (replacementPending != null) {
             "Replacement pending..."
           } else if (updateVersion != null) {
             "Update available"
           } else {
-            "Up to date"
-          }.takeUnless { emptyState },
-          subtitle = (replacementPending ?: currentVersion).takeUnless { emptyState },
-          button = replacementPending?.let {
-            ButtonModel(
-              text = "Manage",
-              treatment = Secondary,
-              size = Footer,
-              onClick = StandardClick { onManageReplacement?.invoke() }
-            )
-          } ?: updateVersion?.let {
-            ButtonModel(
-              text = "Update to $updateVersion",
-              treatment = Primary,
-              size = Footer,
-              onClick = StandardClick { onUpdateVersion?.invoke() }
-            )
-          }
-        ),
-        items = run {
-          val sideTextType = DataList.Data.SideTextType.REGULAR.takeIf { emptyState }
-            ?: DataList.Data.SideTextType.MEDIUM
-          val sideTextTreatment = DataList.Data.SideTextTreatment.SECONDARY.takeIf { emptyState }
-            ?: DataList.Data.SideTextTreatment.PRIMARY
-          immutableListOf(
-            DataList.Data(
-              title = "Model name",
-              sideText = modelName,
-              sideTextType = sideTextType,
-              sideTextTreatment = sideTextTreatment,
-              showBottomDivider = true
-            ),
-            DataList.Data(
-              title = "Model number",
-              sideText = modelNumber,
-              sideTextType = sideTextType,
-              sideTextTreatment = sideTextTreatment,
-              showBottomDivider = true
-            ),
-            DataList.Data(
-              title = "Serial number",
-              sideText = serialNumber,
-              sideTextType = sideTextType,
-              sideTextTreatment = sideTextTreatment,
-              showBottomDivider = true
-            ),
-            DataList.Data(
-              title = "Firmware version",
-              sideText = currentVersion,
-              sideTextType = sideTextType,
-              sideTextTreatment = sideTextTreatment,
-              showBottomDivider = true
-            ),
-            DataList.Data(
-              title = "Last known charge",
-              sideText = deviceCharge,
-              sideTextType = sideTextType,
-              sideTextTreatment = sideTextTreatment,
-              showBottomDivider = true
-            ),
-            DataList.Data(
-              title = "Last sync",
-              sideText = lastSyncDate,
-              sideTextType = sideTextType,
-              sideTextTreatment = sideTextTreatment
-            )
-          )
-        },
-        buttons = immutableListOf(
-          ButtonModel(
-            text = "Sync device info",
-            treatment = TertiaryPrimaryNoUnderline,
-            leadingIcon = SmallIconSync,
-            size = Compact,
-            onClick = StandardClick { onSyncDeviceInfo() }
-          )
-        )
-      ),
-      ListGroup(
-        listGroupModel = ListGroupModel(
-          items = immutableListOfNotNull(
-            ListItemModel(
-              title = "Fingerprints",
-              treatment = ListItemTreatment.SECONDARY,
-              trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
-              onClick = onManageFingerprints
-            ),
-            ListItemModel(
-              title = "Wipe device",
-              treatment = ListItemTreatment.SECONDARY,
-              trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
-              onClick = onWipeDevice
-            )
+            "Last synced"
+          },
+          subtitle = StringModel(
+            if (emptyState) {
+              "Add a bitkey device"
+            } else if (replacementPending != null) {
+              replacementPending
+            } else if (updateVersion != null) {
+              currentVersion
+            } else {
+              lastSyncDate
+            }
           ),
-          style = ListGroupStyle.CARD_GROUP_DIVIDER
+          treatment = when {
+            emptyState -> CalloutModel.Treatment.White
+            replacementPending != null -> CalloutModel.Treatment.White
+            updateVersion != null -> CalloutModel.Treatment.White
+            else -> CalloutModel.Treatment.White
+          },
+          trailingIcon = when {
+            emptyState -> Icon.SmallIconArrowRight
+            replacementPending != null -> Icon.SmallIconArrowRight
+            updateVersion != null -> Icon.SmallIconArrowRight
+            else -> Icon.SmallIconRefresh
+          },
+          onClick = when {
+            emptyState -> StandardClick { onPairDevice?.invoke() }
+            replacementPending != null -> StandardClick { onManageReplacement?.invoke() }
+            updateVersion != null -> StandardClick { onUpdateVersion?.invoke() }
+            else -> StandardClick(onSyncDeviceInfo)
+          }
         )
       ),
-      if (replacementPending == null) {
-        Button(
-          item = ButtonModel(
-            text = "Replace device",
-            treatment = TertiaryDestructive,
-            size = Footer,
-            onClick = StandardClick { onReplaceDevice() },
-            isEnabled = replaceDeviceEnabled
-          )
+      SettingsList(
+        header = "Device options",
+        items = immutableListOfNotNull(
+          SettingsList.SettingsListItem(
+            title = "About",
+            icon = Icon.SmallIconInformation,
+            isEnabled = !emptyState,
+            onClick = {
+              onShowAboutSheet()
+            }
+          ),
+          SettingsList.SettingsListItem(
+            title = "Fingerprints",
+            icon = Icon.SmallIconFingerprint,
+            isEnabled = !emptyState,
+            onClick = onManageFingerprints
+          ),
+          SettingsList.SettingsListItem(
+            title = "Wipe device",
+            icon = Icon.SmallIconBitkeyReset,
+            isEnabled = !emptyState,
+            onClick = onWipeDevice
+          ),
+          if (replacementPending == null) {
+            SettingsList.SettingsListItem(
+              title = "Replace device",
+              icon = Icon.SmallIconBitkey,
+              treatment = ListItemTreatment.DESTRUCTIVE,
+              isEnabled = replaceDeviceEnabled,
+              onClick = onReplaceDevice
+            )
+          } else {
+            null
+          }
         )
-      } else {
-        Spacer()
-      }
+      )
     ),
     primaryButton = null
   )

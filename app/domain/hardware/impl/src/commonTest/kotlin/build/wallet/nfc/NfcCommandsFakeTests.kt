@@ -7,6 +7,8 @@ import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.encrypt.MessageSignerFake
 import build.wallet.encrypt.SignatureUtilsMock
 import build.wallet.nfc.NfcSessionFake.Companion.invoke
+import build.wallet.nfc.platform.sealSymmetricKey
+import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.platform.random.uuid
 import com.github.michaelbull.result.Ok
 import io.kotest.assertions.throwables.shouldThrow
@@ -40,13 +42,13 @@ class NfcCommandsFakeTests : FunSpec({
     test("happy path") {
       val csekSeed = uuid()
       val generatedCsek = Csek(key = SymmetricKeyImpl(raw = csekSeed.encodeUtf8()))
-      val sealedCsek = nfcCommands.sealData(
+      val sealedCsek = nfcCommands.sealSymmetricKey(
         session = sessionFake,
-        unsealedData = generatedCsek.key.raw
+        key = generatedCsek.key
       )
       nfcCommands
-        .unsealData(sessionFake, sealedCsek)
-        .shouldBeEqual(generatedCsek.key.raw)
+        .unsealSymmetricKey(sessionFake, sealedCsek)
+        .shouldBeEqual(generatedCsek.key)
     }
 
     test("cannot unseal key when appropriate private key is not present") {

@@ -1,6 +1,7 @@
 package build.wallet.testing.ext
 
 import build.wallet.testing.AppTester
+import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.tags.TestTag.FlakyTest
 import build.wallet.testing.tags.TestTag.IsolatedTest
@@ -21,12 +22,12 @@ fun FunSpec.testForLegacyAndPrivateWallet(
 
   test("$name [legacy] ")
     .config(tags = tags) {
-      this.block(launchNewApp())
+      this.block(launchLegacyWalletApp())
     }
 
   test("$name [private]")
     .config(tags = tags) {
-      this.block(launchPrivateWalletApp())
+      this.block(launchNewApp())
     }
 }
 
@@ -74,6 +75,6 @@ enum class AppMode { Legacy, Private }
  */
 private suspend fun TestScope.launchAppForMode(mode: AppMode): AppTester =
   when (mode) {
-    AppMode.Legacy -> launchNewApp()
-    AppMode.Private -> launchPrivateWalletApp()
+    AppMode.Legacy -> launchLegacyWalletApp()
+    AppMode.Private -> launchNewApp()
   }

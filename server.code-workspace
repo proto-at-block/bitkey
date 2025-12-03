@@ -7,12 +7,10 @@
 	"settings": {
 		"files.exclude": {
 			"app/**": true,
-			".hubkins-ci/**": true,
 			".idea/**": true,
 			".hermit/**": true,
 			"factory-test/**": true,
 			"firmware/**": true,
-			"firmware-signer/**": true,
 			"fastlane/**": true,
 			"hardware/**": true,
 			"proto/**": true,

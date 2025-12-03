@@ -147,6 +147,7 @@ fun CalloutButton(
           CalloutModel.Treatment.Success -> IconBackgroundType.Square.Color.Success
           CalloutModel.Treatment.Warning -> IconBackgroundType.Square.Color.Warning
           CalloutModel.Treatment.Danger -> IconBackgroundType.Square.Color.Danger
+          CalloutModel.Treatment.White -> IconBackgroundType.Square.Color.White
         },
         cornerRadius = 12
       )
@@ -215,5 +216,13 @@ private fun CalloutModel.calloutStyle() =
       leadingIconColor = WalletTheme.colors.danger,
       trailingIconColor = WalletTheme.colors.calloutDangerTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.danger
+    )
+    CalloutModel.Treatment.White -> CalloutStyle(
+      titleColor = WalletTheme.colors.calloutDefaultTitle,
+      subtitleColor = WalletTheme.colors.calloutDefaultSubtitle,
+      backgroundColor = WalletTheme.colors.background,
+      leadingIconColor = WalletTheme.colors.calloutDefaultTitle,
+      trailingIconColor = WalletTheme.colors.foreground,
+      trailingIconBackgroundColor = WalletTheme.colors.subtleBackground
     )
   }

@@ -156,6 +156,38 @@ class AppPrivateKeyDaoImpl(
     }.logFailure { "Failed to get private key from ${AppPrivateKeyDao.STORE_NAME}" }
   }
 
+  override suspend fun getAllAppSpendingKeyPairs(): Result<List<AppSpendingKeypair>, Throwable> {
+    return catchingResult {
+      val secureStore = secureStore()
+      val allKeys = secureStore.keys()
+
+      // Get all spending public keys
+      val publicKeys = allKeys
+        .filter { it.startsWith(PrivateKeyFields.MNEMONIC.prefix()) }
+        .map { it.removePrefix("${PrivateKeyFields.MNEMONIC.prefix()}:") }
+        .toSet()
+
+      // Build list of key pairs
+      publicKeys.mapNotNull { publicKey ->
+        val secretKeyHashKey = PrivateKeyFields.SECRET_KEY.hashKey(publicKey)
+        val mnemonicHashKey = PrivateKeyFields.MNEMONIC.hashKey(publicKey)
+
+        val secretKey = secureStore.getStringOrNull(secretKeyHashKey)
+        val mnemonic = secureStore.getStringOrNull(mnemonicHashKey)
+
+        if (secretKey != null && mnemonic != null) {
+          val privateKey = ExtendedPrivateKey(xprv = secretKey, mnemonic = mnemonic)
+          val appPrivateKey = AppSpendingPrivateKey(privateKey)
+
+          val appPublicKey = AppSpendingPublicKey(publicKey)
+          AppSpendingKeypair(privateKey = appPrivateKey, publicKey = appPublicKey)
+        } else {
+          null
+        }
+      }
+    }.logFailure { "Failed to get all app spending key pairs from ${AppPrivateKeyDao.STORE_NAME}" }
+  }
+
   override suspend fun <T : KeyPurpose> getAsymmetricPrivateKey(
     key: PublicKey<T>,
   ): Result<PrivateKey<T>?, Throwable> {

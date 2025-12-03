@@ -22,6 +22,7 @@ import build.wallet.ui.components.loading.LoadingIndicatorPainter
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tokens.market.painter
 import build.wallet.ui.tokens.painter
 
 @Composable
@@ -36,6 +37,7 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
     val painter = when (step.icon) {
       IconImage.Loader -> LoadingIndicatorPainter(circleColor)
       is IconImage.LocalImage -> step.icon.icon.painter()
+      is IconImage.MarketIconImage -> step.icon.icon.painter()
       is IconImage.UrlImage -> TODO("UrlImage is not currently supported")
       null -> null
       IconImage.LoadingBadge -> LoadingBadgePainter(color = circleColor)

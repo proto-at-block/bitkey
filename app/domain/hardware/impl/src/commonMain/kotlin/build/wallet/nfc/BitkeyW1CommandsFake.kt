@@ -17,18 +17,10 @@ import build.wallet.encrypt.signResult
 import build.wallet.firmware.*
 import build.wallet.firmware.EnrolledFingerprints.Companion.FIRST_FINGERPRINT_INDEX
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
-import build.wallet.firmware.FirmwareCertType
-import build.wallet.firmware.FirmwareFeatureFlagCfg
-import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
-import build.wallet.grants.GRANT_CHALLENGE_LEN
-import build.wallet.grants.GRANT_DEVICE_ID_LEN
-import build.wallet.grants.GRANT_MESSAGE_PREFIX
-import build.wallet.grants.Grant
-import build.wallet.grants.GrantAction
-import build.wallet.grants.GrantRequest
+import build.wallet.grants.*
 import build.wallet.nfc.platform.NfcCommands
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
@@ -319,6 +311,11 @@ class BitkeyW1CommandsFake(
   override suspend fun provideGrant(
     session: NfcSession,
     grant: Grant,
+  ): Boolean = true
+
+  override suspend fun provisionAppAuthKey(
+    session: NfcSession,
+    appAuthKey: ByteString,
   ): Boolean = true
 
   private fun EnrolledFingerprints.insertOrUpdateFingerprintHandle(

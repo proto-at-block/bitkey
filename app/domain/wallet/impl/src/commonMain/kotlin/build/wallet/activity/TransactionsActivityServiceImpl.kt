@@ -50,7 +50,13 @@ class TransactionsActivityServiceImpl(
   private val uuidGenerator: UuidGenerator,
 ) : TransactionsActivityService, TransactionsActivitySyncWorker {
   private val transactionsCache = MutableStateFlow<List<Transaction>?>(null)
+  private val _transactionsState = MutableStateFlow<TransactionsActivityState>(
+    TransactionsActivityState.InitialLoading
+  )
 
+  override val transactionsState: StateFlow<TransactionsActivityState> = _transactionsState
+
+  @Suppress("DEPRECATION")
   override val transactions: StateFlow<List<Transaction>?> = transactionsCache
 
   private val activeAndInactiveWalletTransactionsCache = MutableStateFlow<List<Transaction>?>(null)
@@ -109,7 +115,15 @@ class TransactionsActivityServiceImpl(
 
       activeAndInactiveWalletTransactionsCache.value = activeAndInactiveTransactions
       activeTransactions
-    }.collect(transactionsCache)
+    }.collect { transactionsList ->
+      transactionsCache.value = transactionsList
+
+      // Update state based on transactions
+      _transactionsState.value = when {
+        transactionsList.isEmpty() -> TransactionsActivityState.Empty
+        else -> TransactionsActivityState.Loaded(transactionsList)
+      }
+    }
   }
 
   override fun transactionById(transactionId: String): Flow<Transaction?> {

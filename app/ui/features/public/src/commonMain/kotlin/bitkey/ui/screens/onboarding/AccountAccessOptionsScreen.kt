@@ -32,7 +32,11 @@ class AccountAccessOptionsScreenPresenter : ScreenPresenter<AccountAccessOptions
       onBeTrustedContactClick = {
         // TODO: implement
       },
-      onRecoverFromOrphanedKeysClick = null
+      onRecoverFromOrphanedKeysClick = null,
+      canShowCustomerSupport = true,
+      onCustomerSupportClick = {
+        // TODO: implement
+      }
     ).asRootFullScreen()
   }
 }

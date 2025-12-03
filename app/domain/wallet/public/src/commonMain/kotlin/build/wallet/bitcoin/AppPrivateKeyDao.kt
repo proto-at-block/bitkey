@@ -38,6 +38,11 @@ interface AppPrivateKeyDao {
   ): Result<AppSpendingPrivateKey?, Throwable>
 
   /**
+   * Returns all available App spending key pairs stored in the DAO.
+   */
+  suspend fun getAllAppSpendingKeyPairs(): Result<List<AppSpendingKeypair>, Throwable>
+
+  /**
    * Generic method for loading a [PrivateKey], indexed by its [PublicKey].
    */
   suspend fun <T : KeyPurpose> getAsymmetricPrivateKey(

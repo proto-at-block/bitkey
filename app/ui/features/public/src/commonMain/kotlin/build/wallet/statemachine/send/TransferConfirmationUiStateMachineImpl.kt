@@ -1,6 +1,7 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.*
+import bitkey.account.isW3Hardware
 import bitkey.ui.verification.TxVerificationAppSegment
 import bitkey.verification.ConfirmationState
 import bitkey.verification.TxVerificationApproval
@@ -52,6 +53,8 @@ import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.*
 import build.wallet.statemachine.send.fee.FeeOptionListProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachine
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetails
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -74,8 +77,10 @@ class TransferConfirmationUiStateMachineImpl(
   private val mobilePayService: MobilePayService,
   private val appFunctionalityService: AppFunctionalityService,
   private val accountService: AccountService,
+  private val accountConfigService: bitkey.account.AccountConfigService,
   private val txVerificationService: TxVerificationService,
   private val txVerificationFeatureFlag: TxVerificationFeatureFlag,
+  private val hardwareConfirmationUiStateMachine: HardwareConfirmationUiStateMachine,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
@@ -92,6 +97,8 @@ class TransferConfirmationUiStateMachineImpl(
     var appSignedPsbts: Map<EstimatedTransactionPriority, Psbt> by remember {
       mutableStateOf(persistentMapOf())
     }
+
+    val isW3 = accountConfigService.activeOrDefaultConfig().value.isW3Hardware
 
     val mobilePayAvailability by remember {
       appFunctionalityService.status
@@ -184,7 +191,8 @@ class TransferConfirmationUiStateMachineImpl(
           selectedPriority = selectedPriority,
           onAppSignSuccess = { psbts ->
             appSignedPsbts = psbts
-            val psbt = psbts[selectedPriority] ?: error("This callback should not be invoked without selected priority, this shouldn’t happen")
+            val psbt = psbts[selectedPriority]
+              ?: error("This callback should not be invoked without selected priority, this shouldn’t happen")
             uiState = CheckVerificationUiState(psbt)
           },
           onAppSignError = { cause ->
@@ -307,16 +315,34 @@ class TransferConfirmationUiStateMachineImpl(
             shouldShowLongRunningOperation = true
           )
         )
+      is ShowingHardwareConfirmationUiState ->
+        hardwareConfirmationUiStateMachine.model(
+          props = HardwareConfirmationUiProps(
+            onBack = props.onExit,
+            onConfirm = {
+              uiState = SigningWithHardwareUiState(
+                appSignedPsbt = state.appSignedPsbt,
+                grant = state.grant
+              )
+            }
+          )
+        )
       is ViewingTransferConfirmationUiState ->
         ViewConfirmation(
           props = props,
           state = state,
+          isW3 = isW3,
           selectedPriority = selectedPriority,
           requiredSigner = requiredSigner,
           onConfirm = {
             uiState =
               if (requiredSigner == F8e && spendingLimit != null) {
                 SigningWithServerUiState(
+                  appSignedPsbt = state.appSignedPsbt,
+                  grant = state.grant
+                )
+              } else if (isW3 && requiredSigner == Hardware) {
+                ShowingHardwareConfirmationUiState(
                   appSignedPsbt = state.appSignedPsbt,
                   grant = state.grant
                 )
@@ -468,7 +494,10 @@ class TransferConfirmationUiStateMachineImpl(
     setUiState(
       when {
         !txVerificationFeatureFlag.isEnabled() -> ViewingTransferConfirmationUiState(appSignedPsbt = state.psbt)
-        txVerificationService.isVerificationRequired(state.psbt.amountBtc, props.exchangeRates) -> ConfirmVerificationUiState(psbt = state.psbt)
+        txVerificationService.isVerificationRequired(
+          state.psbt.amountBtc,
+          props.exchangeRates
+        ) -> ConfirmVerificationUiState(psbt = state.psbt)
         else -> RequestHardwareGrantUiState(psbt = state.psbt)
       }
     )
@@ -578,6 +607,7 @@ class TransferConfirmationUiStateMachineImpl(
     state: ViewingTransferConfirmationUiState,
     selectedPriority: EstimatedTransactionPriority,
     requiredSigner: SigningFactor,
+    isW3: Boolean,
     onConfirm: () -> Unit,
     onNetworkFees: () -> Unit,
     onArrivalTime: (() -> Unit)?,
@@ -616,7 +646,8 @@ class TransferConfirmationUiStateMachineImpl(
         null
       } else {
         onArrivalTime
-      }
+      },
+      requiresHardwareReview = isW3
     ).asModalFullScreen(
       bottomSheetModel = when (state.sheetState) {
         InfoSheet -> SheetModel(
@@ -730,6 +761,16 @@ private sealed interface TransferConfirmationUiState {
       data object FeeSelectionSheet : SheetState
     }
   }
+
+  /**
+   * Showing hardware confirmation screen (W3 devices only)
+   *
+   * @property appSignedPsbt - the app-signed psbt associated with the transfer
+   */
+  data class ShowingHardwareConfirmationUiState(
+    val appSignedPsbt: Psbt,
+    val grant: TxVerificationApproval?,
+  ) : TransferConfirmationUiState
 
   /**
    * Signing the psbt via hardware

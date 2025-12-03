@@ -2,6 +2,7 @@ package build.wallet.recovery
 
 import bitkey.account.AccountConfigService
 import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import bitkey.auth.AuthTokenScope
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AccountAuthenticator.AuthData
@@ -464,7 +465,8 @@ class OrphanedKeyRecoveryServiceImpl(
           f8eEnvironment = account.f8eEnvironment,
           isHardwareFake = false,
           isTestAccount = false,
-          isUsingSocRecFakes = false
+          isUsingSocRecFakes = false,
+          hardwareType = HardwareType.W1
         )
 
       val keybox = Keybox(

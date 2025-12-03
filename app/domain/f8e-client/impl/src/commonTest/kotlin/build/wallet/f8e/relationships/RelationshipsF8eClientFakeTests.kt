@@ -1,6 +1,7 @@
 package build.wallet.f8e.relationships
 
 import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import bitkey.auth.AuthTokenScope
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitkey.account.FullAccount
@@ -44,7 +45,8 @@ class RelationshipsF8eClientFakeTests : FunSpec({
           f8eEnvironment = Development,
           isTestAccount = false,
           isUsingSocRecFakes = false,
-          isHardwareFake = false
+          isHardwareFake = false,
+          hardwareType = HardwareType.W1
         ),
       keybox = KeyboxMock
     )
@@ -57,7 +59,8 @@ class RelationshipsF8eClientFakeTests : FunSpec({
           f8eEnvironment = Development,
           isTestAccount = false,
           isUsingSocRecFakes = false,
-          isHardwareFake = false
+          isHardwareFake = false,
+          hardwareType = HardwareType.W1
         ),
       keybox = KeyboxMock
     )

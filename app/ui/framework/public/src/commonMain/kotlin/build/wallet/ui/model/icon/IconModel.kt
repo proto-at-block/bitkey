@@ -3,8 +3,10 @@ package build.wallet.ui.model.icon
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.model.icon.IconBackgroundType.*
 import build.wallet.ui.model.icon.IconImage.LocalImage
+import build.wallet.ui.model.icon.IconImage.MarketIconImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.model.icon.IconSize.Regular
+import build.wallet.ui.tokens.market.MarketIcon
 
 sealed class IconImage {
   /**
@@ -13,6 +15,13 @@ sealed class IconImage {
    */
   data class LocalImage(
     val icon: Icon,
+  ) : IconImage()
+
+  /**
+   * Represents icons sourced from the Market icon library.
+   */
+  data class MarketIconImage(
+    val icon: MarketIcon,
   ) : IconImage()
 
   /**
@@ -96,6 +105,24 @@ fun IconModel(
   )
 }
 
+fun IconModel(
+  icon: MarketIcon,
+  iconSize: IconSize,
+  iconBackgroundType: IconBackgroundType = Transient,
+  iconTint: IconTint? = null,
+  iconOpacity: Float? = null,
+  iconTopSpacing: Int? = null,
+): IconModel {
+  return IconModel(
+    iconImage = MarketIconImage(icon = icon),
+    iconSize = iconSize,
+    iconBackgroundType = iconBackgroundType,
+    iconTint = iconTint,
+    iconOpacity = iconOpacity,
+    iconTopSpacing = iconTopSpacing
+  )
+}
+
 /**
  * Semantic type that describes size of an icon button.
  */
@@ -111,6 +138,8 @@ sealed class IconSize(open val value: Int) {
   data object Large : IconSize(40)
 
   data object XLarge : IconSize(80)
+
+  data object XXXLarge : IconSize(250)
 
   data object Avatar : IconSize(64)
 
@@ -184,6 +213,7 @@ sealed interface IconBackgroundType {
       Warning,
       Danger,
       Transparent,
+      White,
     }
   }
 }

@@ -2,9 +2,9 @@ package build.wallet.nfc.transaction
 
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.cloud.backup.csek.Ssek
-import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.unsealSymmetricKey
 
 /**
  * NFC transaction that unseals a SSEK using hardware.
@@ -21,8 +21,8 @@ class UnsealSsek(
     session: NfcSession,
     commands: NfcCommands,
   ): Ssek {
-    val unsealedSsekBytes = commands.unsealData(session, sealedSsek)
-    return Ssek(SymmetricKeyImpl(raw = unsealedSsekBytes))
+    val unsealedKey = commands.unsealSymmetricKey(session, sealedSsek)
+    return Ssek(unsealedKey)
   }
 
   override suspend fun onSuccess(response: Ssek) = success(response)

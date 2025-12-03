@@ -1,5 +1,6 @@
 package build.wallet.encrypt
 
+import bitkey.data.PrivateData
 import build.wallet.crypto.SymmetricKey
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.AppScope
@@ -70,6 +71,7 @@ class SymmetricKeyEncryptorImpl : SymmetricKeyEncryptor {
     )
   }
 
+  @OptIn(PrivateData::class)
   private fun aesGcmCipher(
     mode: Int,
     nonce: ByteString,

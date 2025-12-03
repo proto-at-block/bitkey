@@ -13,12 +13,8 @@ import build.wallet.recovery.sweep.SweepService.SweepError.NoFundsToSweep
 import build.wallet.recovery.sweep.SweepService.SweepError.SweepGenerationFailed
 import build.wallet.worker.RefreshOperationFilter
 import build.wallet.worker.RunStrategy
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.get
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 
@@ -74,14 +70,7 @@ class SweepServiceImpl(
   }
 
   override suspend fun prepareSweep(keybox: Keybox): Result<Sweep?, Error> =
-    coroutineBinding {
-      val sweepPsbts = sweepGenerator.generateSweep(keybox).bind()
-
-      when {
-        sweepPsbts.isEmpty() -> null
-        else -> Sweep(unsignedPsbts = sweepPsbts.toSet())
-      }
-    }
+    prepareSweepInternal(keybox, SweepGenerationContext.Real)
 
   override suspend fun estimateSweepWithMockDestination(
     keybox: Keybox,
@@ -100,11 +89,24 @@ class SweepServiceImpl(
         keysets = keybox.keysets + fakeDestinationKeyset
       )
 
-      val sweep = prepareSweep(mockKeybox)
+      val sweep = prepareSweepInternal(mockKeybox, SweepGenerationContext.Estimate)
         .mapError { SweepGenerationFailed(it) }
         .bind()
 
       // If sweep is null, there are no funds to sweep (either zero balance or fees exceed balance)
       sweep ?: Err(NoFundsToSweep).bind()
+    }
+
+  private suspend fun prepareSweepInternal(
+    keybox: Keybox,
+    context: SweepGenerationContext,
+  ): Result<Sweep?, Error> =
+    coroutineBinding {
+      val sweepPsbts = sweepGenerator.generateSweep(keybox, context).bind()
+
+      when {
+        sweepPsbts.isEmpty() -> null
+        else -> Sweep(unsignedPsbts = sweepPsbts.toSet())
+      }
     }
 }

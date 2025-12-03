@@ -12,7 +12,7 @@ import build.wallet.support.SupportTicketForm
 interface FeedbackFormUiStateMachine : StateMachine<FeedbackFormUiProps, ScreenModel>
 
 data class FeedbackFormUiProps(
-  val account: Account,
+  val account: Account?,
   val formStructure: SupportTicketForm,
   val initialData: SupportTicketData,
   val onBack: () -> Unit,

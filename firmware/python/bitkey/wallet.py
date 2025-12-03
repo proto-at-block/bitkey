@@ -455,3 +455,10 @@ class Wallet:
         msg.grant = serialized_grant
         cmd.fingerprint_reset_finalize_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
+
+    def provision_app_auth_pubkey(self, pubkey):
+        cmd = self._build_cmd()
+        msg = wallet_pb.provision_app_auth_pubkey_cmd()
+        msg.pubkey = pubkey
+        cmd.provision_app_auth_pubkey_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)

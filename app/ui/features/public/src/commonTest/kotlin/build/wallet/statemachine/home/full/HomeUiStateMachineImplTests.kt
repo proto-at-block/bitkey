@@ -16,7 +16,6 @@ import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.cloud.health.RepairAppKeyBackupProps
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiProps
 import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiStateMachine
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
@@ -121,8 +120,7 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   val props =
     HomeUiProps(
-      account = FullAccountMock,
-      lostHardwareRecoveryData = LostHardwareRecoveryDataMock
+      account = FullAccountMock
     )
 
   beforeEach {

@@ -67,7 +67,7 @@ fun AddressQrCodeScreenPreviewWithPartner() {
               null,
               "Robinhood",
               PartnerId("Robinhood")
-            ),
+            )
           ).toImmutableList()
         )
       )

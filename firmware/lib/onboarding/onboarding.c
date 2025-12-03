@@ -2,6 +2,7 @@
 
 #include "assert.h"
 #include "bio.h"
+#include "grant_protocol.h"
 #include "kv.h"
 #include "log.h"
 #include "unlock.h"
@@ -30,4 +31,6 @@ void onboarding_wipe_state(void) {
   bio_wipe_state();
   unlock_wipe_state();
   kv_wipe_state();
+  grant_protocol_delete_app_auth_pubkey();
+  grant_protocol_delete_outstanding_request();
 }

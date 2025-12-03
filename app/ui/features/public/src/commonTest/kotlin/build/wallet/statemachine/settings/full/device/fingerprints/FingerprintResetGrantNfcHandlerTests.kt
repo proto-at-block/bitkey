@@ -34,7 +34,8 @@ class FingerprintResetGrantNfcHandlerTests : FunSpec({
   val testGrant = Grant(
     version = 1,
     serializedRequest = byteArrayOf(1, 2, 3),
-    signature = byteArrayOf(4, 5, 6)
+    appSignature = byteArrayOf(4, 5, 6),
+    wsmSignature = byteArrayOf(7, 8, 9)
   )
 
   val testEventTrackerContext = NfcEventTrackerScreenIdContext.ENROLLING_NEW_FINGERPRINT

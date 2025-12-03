@@ -10,7 +10,6 @@ import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode.COMMS_VERIFICAT
 import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode.RECOVERY_ALREADY_EXISTS
 import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import bitkey.recovery.InitiateDelayNotifyRecoveryError.*
-import bitkey.recovery.RecoveryStatusService
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthTokensService
 import build.wallet.auth.logAuthFailure
@@ -47,7 +46,6 @@ import kotlinx.coroutines.sync.withLock
 class LostAppAndCloudRecoveryServiceImpl(
   private val authF8eClient: AuthF8eClient,
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
-  private val recoveryStatusService: RecoveryStatusService,
   private val recoveryLock: RecoveryLock,
   private val accountConfigService: AccountConfigService,
   private val accountAuthenticator: AccountAuthenticator,
@@ -217,7 +215,7 @@ class LostAppAndCloudRecoveryServiceImpl(
           .mapError(::F8eCancelDelayNotifyError)
           .bind()
 
-        recoveryStatusService.clear()
+        recoveryDao.clear()
           .mapError(::LocalCancelDelayNotifyError)
           .bind()
       }

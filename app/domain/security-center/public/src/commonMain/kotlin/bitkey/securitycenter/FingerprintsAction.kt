@@ -6,6 +6,8 @@ class FingerprintsAction(
   private val fingerprintCount: Int,
   private val firmwareDeviceInfo: FirmwareDeviceInfo?,
   private val fingerprintResetReady: Boolean,
+  private val isAppKeyProvisioned: Boolean,
+  private val isFingerprintResetEnabled: Boolean,
 ) : SecurityAction {
   override fun getRecommendations(): List<SecurityActionRecommendation> {
     val recommendations = buildList {
@@ -13,9 +15,11 @@ class FingerprintsAction(
         add(SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET)
       }
 
-      if (fingerprintCount == 1) {
-        add(SecurityActionRecommendation.ADD_FINGERPRINTS)
-      } else if (firmwareDeviceInfo == null) {
+      if (!isAppKeyProvisioned && isFingerprintResetEnabled) {
+        add(SecurityActionRecommendation.PROVISION_APP_KEY_TO_HARDWARE)
+      }
+
+      if (fingerprintCount <= 1 || firmwareDeviceInfo == null) {
         add(SecurityActionRecommendation.ADD_FINGERPRINTS)
       }
     }

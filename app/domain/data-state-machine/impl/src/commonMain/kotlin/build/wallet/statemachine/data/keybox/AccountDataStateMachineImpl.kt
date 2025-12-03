@@ -9,11 +9,8 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.SoftwareAccount
-import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.logging.logError
 import build.wallet.mapResult
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.*
@@ -22,9 +19,6 @@ import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountDat
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.RotatingAuthKeys
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachine
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapBoth
@@ -33,7 +27,6 @@ import kotlinx.coroutines.flow.filterNot
 
 @BitkeyInject(AppScope::class)
 class AccountDataStateMachineImpl(
-  private val lostHardwareRecoveryDataStateMachine: LostHardwareRecoveryDataStateMachine,
   private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
   private val noActiveAccountDataStateMachine: NoActiveAccountDataStateMachine,
   private val accountService: AccountService,
@@ -43,7 +36,6 @@ class AccountDataStateMachineImpl(
   @Composable
   override fun model(props: AccountDataProps): AccountData {
     val activeAccountResult = rememberActiveAccount()
-    val activeRecoveryResult = rememberActiveRecovery()
     return if (activeAccountResult == null) {
       // If we don't have results yet, we're still checking
       CheckingActiveAccountData
@@ -61,13 +53,11 @@ class AccountDataStateMachineImpl(
                     // First, try to create [KeyboxData] based on recovery state.
                     fullAccountDataBasedOnRecovery(
                       activeAccount = account,
-                      activeRecovery = activeRecoveryResult.value,
                       goToLiteAccountCreation = props.goToLiteAccountCreation
                     )
                   },
                   failure = {
                     NoActiveAccountData(
-                      activeRecovery = null,
                       goToLiteAccountCreation = props.goToLiteAccountCreation
                     )
                   }
@@ -76,7 +66,6 @@ class AccountDataStateMachineImpl(
 
               else -> {
                 NoActiveAccountData(
-                  activeRecovery = null,
                   goToLiteAccountCreation = props.goToLiteAccountCreation
                 )
               }
@@ -84,7 +73,6 @@ class AccountDataStateMachineImpl(
           },
           failure = {
             NoActiveAccountData(
-              activeRecovery = null,
               goToLiteAccountCreation = props.goToLiteAccountCreation
             )
           }
@@ -95,9 +83,10 @@ class AccountDataStateMachineImpl(
   @Composable
   private fun fullAccountDataBasedOnRecovery(
     activeAccount: FullAccount?,
-    activeRecovery: Recovery,
     goToLiteAccountCreation: () -> Unit,
   ): AccountData {
+    val activeRecovery = rememberActiveRecovery()
+
     /*
     [shouldShowSomeoneElseIsRecoveringIfPresent] tracks whether we are showing an app-level notice
     of a [SomeoneElseIsRecovering] conflicted recovery state.
@@ -136,7 +125,6 @@ class AccountDataStateMachineImpl(
           // Otherwise, create [KeyboxData] solely based on keybox state.
           accountDataBasedOnAccount(
             activeAccount = activeAccount,
-            activeRecovery = activeRecovery,
             goToLiteAccountCreation = goToLiteAccountCreation
           )
         }
@@ -146,7 +134,6 @@ class AccountDataStateMachineImpl(
         // Otherwise, create [KeyboxData] solely based on Full account state.
         accountDataBasedOnAccount(
           activeAccount = activeAccount,
-          activeRecovery = activeRecovery,
           goToLiteAccountCreation = goToLiteAccountCreation
         )
       }
@@ -156,45 +143,20 @@ class AccountDataStateMachineImpl(
   @Composable
   private fun accountDataBasedOnAccount(
     activeAccount: FullAccount?,
-    activeRecovery: Recovery,
     goToLiteAccountCreation: () -> Unit,
   ): AccountData {
     return when (activeAccount) {
-      null -> {
-        NoActiveAccountData(
-          activeRecovery = activeRecovery as? StillRecovering,
-          goToLiteAccountCreation = goToLiteAccountCreation
-        )
-      }
+      null -> NoActiveAccountData(
+        goToLiteAccountCreation = goToLiteAccountCreation
+      )
 
-      else -> {
-        val hardwareRecovery =
-          (activeRecovery as? StillRecovering)?.let { stillRecovering ->
-            when (stillRecovering.factorToRecover) {
-              App -> {
-                // TODO(W-4300) remove this hack to prevent app recovery from getting through.
-                logError { "Unexpected app recovery due to data syncing issue W-4300" }
-                null
-              }
-
-              Hardware -> stillRecovering
-            }
-          }
-
-        hasActiveFullAccountData(activeAccount, hardwareRecovery)
-      }
+      else -> hasActiveFullAccountData(activeAccount)
     }
   }
 
   /** Manages the state of the case when we have an active Full Account ready to use. */
   @Composable
-  private fun hasActiveFullAccountData(
-    account: FullAccount,
-    hardwareRecovery: StillRecovering?,
-  ): HasActiveFullAccountData {
-    hardwareRecovery?.let {
-      require(it.factorToRecover == Hardware)
-    }
+  private fun hasActiveFullAccountData(account: FullAccount): HasActiveFullAccountData {
     val pendingAuthKeyRotationAttempt by remember {
       fullAccountAuthKeyRotationService.observePendingKeyRotationAttemptUntilNull()
     }.collectAsState(initial = null)
@@ -205,10 +167,7 @@ class AccountDataStateMachineImpl(
       return RotatingAuthKeys(account, pendingAttempt = it)
     }
 
-    val lostHardwareRecoveryData = lostHardwareRecoveryDataStateMachine
-      .model(LostHardwareRecoveryProps(account, hardwareRecovery))
-
-    return ActiveFullAccountLoadedData(account, lostHardwareRecoveryData)
+    return ActiveFullAccountLoadedData(account)
   }
 
   @Composable
@@ -224,19 +183,15 @@ class AccountDataStateMachineImpl(
   }
 
   @Composable
-  private fun rememberActiveRecovery(): Result<Recovery, Error> {
-    return remember { recoveryStatusService.status() }
-      .collectAsState(Ok(Loading)).value
+  private fun rememberActiveRecovery(): Recovery {
+    return remember { recoveryStatusService.status }
+      .collectAsState().value
   }
 
   @Composable
-  private fun NoActiveAccountData(
-    activeRecovery: StillRecovering?,
-    goToLiteAccountCreation: () -> Unit,
-  ): AccountData {
+  private fun NoActiveAccountData(goToLiteAccountCreation: () -> Unit): AccountData {
     return noActiveAccountDataStateMachine.model(
       NoActiveAccountDataProps(
-        existingRecovery = activeRecovery,
         goToLiteAccountCreation = goToLiteAccountCreation
       )
     )

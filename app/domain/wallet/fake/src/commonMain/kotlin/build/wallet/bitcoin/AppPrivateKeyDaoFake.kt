@@ -24,6 +24,7 @@ class AppPrivateKeyDaoFake : AppPrivateKeyDao {
   var storeAppAuthKeyPairResult: Result<Unit, Throwable> = Ok(Unit)
   var getAppSpendingPrivateKeyErrResult: Result<AppSpendingPrivateKey?, Throwable>? = null
   var getAppPrivateKeyErrResult: Result<PrivateKey<*>?, Throwable>? = null
+  var getAllAppSpendingKeyPairs: Result<List<AppSpendingKeypair>, Throwable>? = null
 
   override suspend fun storeAppSpendingKeyPair(
     keyPair: AppSpendingKeypair,
@@ -56,6 +57,14 @@ class AppPrivateKeyDaoFake : AppPrivateKeyDao {
     publicKey: AppSpendingPublicKey,
   ): Result<AppSpendingPrivateKey?, Throwable> =
     getAppSpendingPrivateKeyErrResult ?: Ok(appSpendingKeys[publicKey])
+
+  override suspend fun getAllAppSpendingKeyPairs(): Result<List<AppSpendingKeypair>, Throwable> {
+    return getAllAppSpendingKeyPairs ?: Ok(
+      appSpendingKeys.map { (publicKey, privateKey) ->
+        AppSpendingKeypair(privateKey = privateKey, publicKey = publicKey)
+      }
+    )
+  }
 
   override suspend fun <T : KeyPurpose> getAsymmetricPrivateKey(
     key: PublicKey<T>,

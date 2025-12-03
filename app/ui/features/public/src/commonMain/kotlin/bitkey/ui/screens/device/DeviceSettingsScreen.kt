@@ -2,6 +2,7 @@ package bitkey.ui.screens.device
 
 import androidx.compose.runtime.*
 import bitkey.privilegedactions.FingerprintResetAvailabilityService
+import bitkey.recovery.RecoveryStatusService
 import bitkey.ui.framework.Navigator
 import bitkey.ui.framework.Screen
 import bitkey.ui.framework.ScreenPresenter
@@ -23,18 +24,18 @@ import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.navigation.v1.NavigationScreenId
+import build.wallet.recovery.Recovery
+import build.wallet.recovery.Recovery.StillRecovering
+import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.settings.full.device.AboutDeviceSheetModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManageFingerprintsOptionsSheetModel
@@ -59,7 +60,6 @@ import kotlinx.datetime.toLocalDateTime
  */
 data class DeviceSettingsScreen(
   val account: FullAccount,
-  val lostHardwareRecoveryData: LostHardwareRecoveryData,
   val originScreen: Screen?,
 ) : Screen
 
@@ -75,6 +75,7 @@ class DeviceSettingsScreenPresenter(
   private val firmwareDataService: FirmwareDataService,
   private val fingerprintResetUiStateMachine: FingerprintResetUiStateMachine,
   private val fingerprintResetAvailabilityService: FingerprintResetAvailabilityService,
+  private val recoveryStatusService: RecoveryStatusService,
   private val clock: Clock,
 ) : ScreenPresenter<DeviceSettingsScreen> {
   @Composable
@@ -104,6 +105,10 @@ class DeviceSettingsScreenPresenter(
       .isAvailable()
       .collectAsState(initial = false)
 
+    val recovery by remember {
+      recoveryStatusService.status
+    }.collectAsState()
+
     return when (val state = uiState) {
       is ViewingDeviceDataUiState -> {
         val availability by remember {
@@ -126,9 +131,45 @@ class DeviceSettingsScreenPresenter(
             }
           }
         }
+        val aboutSheetModel = if (state.showingAboutSheet) {
+          when (availability) {
+            None -> AboutDeviceSheetModel(
+              modelName = "Bitkey",
+              modelNumber = "-",
+              serialNumber = "-",
+              currentVersion = "-",
+              deviceCharge = "-",
+              lastSyncDate = "-",
+              emptyState = true,
+              onDismiss = { uiState = ViewingDeviceDataUiState() },
+              onSyncDeviceInfo = { uiState = TappingForFirmwareMetadataUiState }
+            )
+            is Present -> {
+              val present = availability as Present
+              val firmwareDeviceInfo = present.firmwareDeviceInfo
+              AboutDeviceSheetModel(
+                modelName = "Bitkey",
+                modelNumber = firmwareDeviceInfo.hwRevision,
+                serialNumber = firmwareDeviceInfo.serial,
+                currentVersion = firmwareDeviceInfo.version,
+                deviceCharge = "${firmwareDeviceInfo.batteryChargeForUninitializedModelGauge()}%",
+                lastSyncDate = dateTimeFormatter.fullShortDateWithTime(
+                  localDateTime = Instant.fromEpochSeconds(firmwareDeviceInfo.timeRetrieved)
+                    .toLocalDateTime(timeZoneProvider.current())
+                ),
+                emptyState = false,
+                onDismiss = { uiState = ViewingDeviceDataUiState() },
+                onSyncDeviceInfo = { uiState = TappingForFirmwareMetadataUiState }
+              )
+            }
+          }
+        } else {
+          null
+        }
 
         ViewingDeviceScreenModel(
           screen = screen,
+          recovery = recovery,
           firmwareDeviceAvailability = availability,
           goToFwup = {
             navigator.goTo(
@@ -151,6 +192,11 @@ class DeviceSettingsScreenPresenter(
           onManageFingerprints = {
             uiState = state.copy(
               showingManageFingerprintsOptions = true
+            )
+          },
+          onShowAboutSheet = {
+            uiState = state.copy(
+              showingAboutSheet = true
             )
           },
           navigator = navigator
@@ -194,6 +240,7 @@ class DeviceSettingsScreenPresenter(
               },
               fingerprintResetEnabled = isFingerprintResetEnabled
             )
+            state.showingAboutSheet -> aboutSheetModel
             else -> null
           }
         )
@@ -207,9 +254,10 @@ class DeviceSettingsScreenPresenter(
                 commands.getDeviceInfo(session)
               )
             },
-            onSuccess = { uiState = ViewingDeviceDataUiState() },
-            onCancel = { uiState = ViewingDeviceDataUiState() },
+            onSuccess = { uiState = ViewingDeviceDataUiState(showingAboutSheet = true) },
+            onCancel = { uiState = ViewingDeviceDataUiState(showingAboutSheet = true) },
             needsAuthentication = false,
+            shouldLock = false,
             screenPresentationStyle = Modal,
             eventTrackerContext = METADATA
           )
@@ -260,6 +308,7 @@ class DeviceSettingsScreenPresenter(
   private fun ViewingDeviceScreenModel(
     navigator: Navigator,
     screen: DeviceSettingsScreen,
+    recovery: Recovery,
     firmwareData: FirmwareData?,
     firmwareDeviceAvailability: FirmwareDeviceAvailability,
     goToFwup: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
@@ -269,6 +318,7 @@ class DeviceSettingsScreenPresenter(
     onWipeDevice: () -> Unit,
     replaceDeviceEnabled: Boolean,
     onManageFingerprints: () -> Unit,
+    onShowAboutSheet: () -> Unit,
   ): ScreenModel {
     val noInfo = "-"
 
@@ -307,22 +357,17 @@ class DeviceSettingsScreenPresenter(
                 ),
               modelName = "Bitkey",
               emptyState = false,
-              replacementPending =
-                when (val recoveryData = screen.lostHardwareRecoveryData) {
-                  is LostHardwareRecoveryInProgressData ->
-                    when (val recoveryInProgressData = recoveryData.recoveryInProgressData) {
-                      is WaitingForRecoveryDelayPeriodData ->
-                        durationFormatter.formatWithWords(
-                          nonNegativeDurationBetween(
-                            startTime = clock.now(),
-                            endTime = recoveryInProgressData.delayPeriodEndTime
-                          )
-                        )
-                      is CompletingRecoveryData -> "Awaiting confirmation"
-                      else -> null
-                    }
-                  else -> null
+              replacementPending = when (recovery) {
+                is InitiatedRecovery -> {
+                  val remainingDelay = nonNegativeDurationBetween(
+                    startTime = clock.now(),
+                    endTime = recovery.serverRecovery.delayEndTime
+                  )
+                  durationFormatter.formatWithWords(remainingDelay)
                 }
+                is StillRecovering -> "Awaiting confirmation"
+                else -> null
+              }
             )
           }
         }
@@ -348,6 +393,11 @@ class DeviceSettingsScreenPresenter(
           onReplaceDevice = goToRecovery,
           onManageReplacement = onManageReplacement,
           onWipeDevice = onWipeDevice,
+          onPairDevice = {
+            Router.route = Route.NavigationDeeplink(
+              screen = NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
+            )
+          },
           onBack = {
             screen.originScreen?.let {
               navigator.goTo(it)
@@ -355,6 +405,7 @@ class DeviceSettingsScreenPresenter(
               navigator.exit()
             }
           },
+          onShowAboutSheet = onShowAboutSheet,
           onManageFingerprints = onManageFingerprints
         )
       },
@@ -383,6 +434,7 @@ private sealed interface DeviceSettingsUiState {
   data class ViewingDeviceDataUiState(
     val showingPromptForFingerprintFwUpdate: Boolean = false,
     val showingManageFingerprintsOptions: Boolean = false,
+    val showingAboutSheet: Boolean = false,
   ) : DeviceSettingsUiState
 
   /**

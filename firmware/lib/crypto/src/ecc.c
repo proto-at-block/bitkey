@@ -368,6 +368,21 @@ bool crypto_ecc_secp256k1_normalize_signature(uint8_t signature[ECC_SIG_SIZE]) {
   return true;
 }
 
+bool crypto_ecc_secp256k1_pubkey_verify(const uint8_t pubkey[SECP256K1_SEC1_KEY_SIZE]) {
+  ASSERT(pubkey);
+  ENSURE_CTX();
+
+  rtos_mutex_lock(&ctx_lock);
+
+  secp256k1_pubkey parsed_pubkey;
+  bool valid =
+    (secp256k1_ec_pubkey_parse(ctx, &parsed_pubkey, pubkey, SECP256K1_SEC1_KEY_SIZE) == 1);
+
+  rtos_mutex_unlock(&ctx_lock);
+
+  return valid;
+}
+
 static inline bool all_zeroes(uint8_t* buf, uint32_t size) {
   volatile uint8_t v = 0;
   for (size_t i = 0; i < size; i++) {

@@ -1,5 +1,6 @@
 package build.wallet.relationships
 
+import bitkey.data.PrivateData
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
@@ -42,6 +43,7 @@ import kotlin.random.Random
  * @param signatureVerifier used to verify a key certificate. Note that if this is `null`,
  *  then [verifyKeyCertificate] and [verifySig] will crash.
  */
+@OptIn(PrivateData::class)
 class RelationshipsCryptoFake(
   private val messageSigner: MessageSigner? = null,
   private val signatureVerifier: SignatureVerifier? = null,

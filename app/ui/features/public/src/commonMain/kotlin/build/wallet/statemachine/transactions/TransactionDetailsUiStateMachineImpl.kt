@@ -23,6 +23,7 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
@@ -34,6 +35,11 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.money.formatter.amountDisplayText
 import build.wallet.money.orZero
 import build.wallet.partnerships.PartnershipTransaction
+import build.wallet.platform.clipboard.ClipItem
+import build.wallet.platform.clipboard.Clipboard
+import build.wallet.platform.haptics.Haptics
+import build.wallet.platform.haptics.HapticsEffect
+import build.wallet.platform.random.uuid
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -41,19 +47,25 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.data.money.convertedOrNull
 import build.wallet.statemachine.data.money.convertedOrZero
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId
+import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
 import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.FeeLoadingError.TransactionMissingRecipientAddress
 import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.UiState.*
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorContext
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiError
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiProps
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiStateMachine
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.DurationFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.*
+import build.wallet.ui.model.toast.ToastModel
 import com.github.michaelbull.result.getOrElse
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
@@ -75,6 +87,9 @@ class TransactionDetailsUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val bitcoinWalletService: BitcoinWalletService,
   private val transactionsActivityService: TransactionsActivityService,
+  private val clipboard: Clipboard,
+  private val haptics: Haptics,
+  private val feeEstimationErrorUiStateMachine: FeeEstimationErrorUiStateMachine,
 ) : TransactionDetailsUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -108,6 +123,7 @@ class TransactionDetailsUiStateMachineImpl(
       is ShowingTransactionDetailUiState -> {
         var isShowingEducationSheet by remember { mutableStateOf(false) }
         var isPreparingSpeedUp by remember { mutableStateOf(false) }
+        var transactionIdCopiedToastId by remember { mutableStateOf<String?>(null) }
 
         if (isPreparingSpeedUp) {
           val bitcoinTransaction = transaction.onChainDetails()
@@ -116,20 +132,32 @@ class TransactionDetailsUiStateMachineImpl(
               prepareTransactionSpeedUp(
                 account = props.account,
                 transaction = bitcoinTransaction,
-                onInsufficientFunds = {
-                  uiState = InsufficientFundsUiState
+                onInsufficientFunds = { error ->
+                  uiState = FeeEstimationErrorUiState(
+                    error = FeeEstimationErrorUiError.InsufficientFunds,
+                    cause = error
+                  )
                 },
-                onFailedToPrepareData = {
-                  uiState = FeeLoadingErrorUiState(TransactionMissingRecipientAddress)
+                onFailedToPrepareData = { error ->
+                  uiState = FeeEstimationErrorUiState(
+                    error = FeeEstimationErrorUiError.Generic,
+                    cause = error
+                  )
                 },
-                onFeeRateTooLow = {
-                  uiState = FeeRateTooLowUiState
+                onFeeRateTooLow = { error ->
+                  uiState = FeeEstimationErrorUiState(
+                    error = FeeEstimationErrorUiError.FeeRateTooLow,
+                    cause = error
+                  )
                 },
                 onSuccessBumpingFee = { psbt, newFeeRate ->
-                  when (val details = bitcoinTransaction.toSpeedUpTransactionDetails()) {
-                    null -> FeeLoadingErrorUiState(TransactionMissingRecipientAddress)
+                  uiState = when (val details = bitcoinTransaction.toSpeedUpTransactionDetails()) {
+                    null -> FeeEstimationErrorUiState(
+                      error = FeeEstimationErrorUiError.Generic,
+                      cause = TransactionMissingRecipientAddress
+                    )
                     else -> {
-                      uiState = SpeedingUpTransactionUiState(
+                      SpeedingUpTransactionUiState(
                         psbt = psbt,
                         newFeeRate = newFeeRate,
                         speedUpTransactionDetails = details
@@ -150,7 +178,10 @@ class TransactionDetailsUiStateMachineImpl(
             }
             eventTracker.track(ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION)
             when (speedUpTransactionDetails) {
-              null -> FeeLoadingErrorUiState(TransactionMissingRecipientAddress)
+              null -> uiState = FeeEstimationErrorUiState(
+                error = FeeEstimationErrorUiError.Generic,
+                cause = TransactionMissingRecipientAddress
+              )
               else -> {
                 isPreparingSpeedUp = true
               }
@@ -177,7 +208,10 @@ class TransactionDetailsUiStateMachineImpl(
             }
           },
           onClose = props.onClose,
-          onSpeedUpTransaction = onSpeedUpTransaction
+          onSpeedUpTransaction = onSpeedUpTransaction,
+          onTransactionIdCopy = {
+            transactionIdCopiedToastId = uuid()
+          }
         ).asModalScreen()
 
         val transactionSpeedUpEducationModel = SheetModel(
@@ -194,40 +228,32 @@ class TransactionDetailsUiStateMachineImpl(
         )
 
         transactionDetailModel.body.asRootScreen(
-          bottomSheetModel = transactionSpeedUpEducationModel.takeIf { isShowingEducationSheet }
+          bottomSheetModel = transactionSpeedUpEducationModel.takeIf { isShowingEducationSheet },
+          toastModel = transactionIdCopiedToastId?.let {
+            ToastModel(
+              id = it,
+              title = "Copied",
+              leadingIcon = IconModel(
+                icon = Icon.SmallIconCheckFilled,
+                iconTint = IconTint.Success,
+                iconSize = IconSize.Accessory
+              ),
+              iconStrokeColor = ToastModel.IconStrokeColor.White
+            )
+          }
         )
       }
 
-      // TODO [W-5841]: refactor to use common error-handling state machine with FeeSelectionUiStateMachine
-      is FeeLoadingErrorUiState -> ErrorFormBodyModel(
-        title = "We couldn’t speed up this transaction",
-        subline = "We are looking into this. Please try again later.",
-        primaryButton = ButtonDataModel(
-          text = "Go Back",
-          onClick = { uiState = ShowingTransactionDetailUiState(transaction) }
-        ),
-        eventTrackerScreenId = FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
-      ).asModalScreen()
-
-      is InsufficientFundsUiState -> ErrorFormBodyModel(
-        title = "We couldn’t speed up this transaction",
-        subline = "There are not enough funds to speed up the transaction. Please add more funds and try again.",
-        primaryButton = ButtonDataModel(
-          text = "Go Back",
-          onClick = { uiState = ShowingTransactionDetailUiState(transaction) }
-        ),
-        eventTrackerScreenId = null
-      ).asModalScreen()
-
-      FeeRateTooLowUiState -> ErrorFormBodyModel(
-        title = "We couldn’t speed up this transaction",
-        subline = "The current fee rate is too low. Please try again later.",
-        primaryButton = ButtonDataModel(
-          text = "Go Back",
-          onClick = { uiState = ShowingTransactionDetailUiState(transaction) }
-        ),
-        eventTrackerScreenId = null
-      ).asModalScreen()
+      is FeeEstimationErrorUiState ->
+        feeEstimationErrorUiStateMachine
+          .model(
+            FeeEstimationErrorUiProps(
+              error = state.error,
+              onBack = { uiState = ShowingTransactionDetailUiState(transaction) },
+              errorData = feeBumpErrorData(state.cause),
+              context = FeeEstimationErrorContext.SpeedUp
+            )
+          ).asModalScreen()
     }
   }
 
@@ -273,9 +299,9 @@ class TransactionDetailsUiStateMachineImpl(
   private suspend fun prepareTransactionSpeedUp(
     account: Account,
     transaction: BitcoinTransaction,
-    onFailedToPrepareData: () -> Unit,
-    onInsufficientFunds: () -> Unit,
-    onFeeRateTooLow: () -> Unit,
+    onFailedToPrepareData: (Throwable) -> Unit,
+    onInsufficientFunds: (Throwable) -> Unit,
+    onFeeRateTooLow: (Throwable) -> Unit,
     onSuccessBumpingFee: (psbt: Psbt, newFeeRate: FeeRate) -> Unit,
   ) {
     feeRateEstimator.estimatedFeeRateForTransaction(
@@ -295,7 +321,7 @@ class TransactionDetailsUiStateMachineImpl(
 
         val wallet = bitcoinWalletService.spendingWallet().value
         if (wallet == null) {
-          onFailedToPrepareData()
+          onFailedToPrepareData(TransactionMissingRecipientAddress)
           return
         }
         val psbt = wallet
@@ -303,9 +329,9 @@ class TransactionDetailsUiStateMachineImpl(
           .logFailure { "Unable to build fee bump psbt" }
           .getOrElse {
             when (it) {
-              is BdkError.InsufficientFunds -> onInsufficientFunds()
-              is BdkError.FeeRateTooLow -> onFeeRateTooLow()
-              else -> onFailedToPrepareData()
+              is BdkError.InsufficientFunds -> onInsufficientFunds(it)
+              is BdkError.FeeRateTooLow -> onFeeRateTooLow(it)
+              else -> onFailedToPrepareData(it)
             }
             return
           }
@@ -369,7 +395,10 @@ class TransactionDetailsUiStateMachineImpl(
   private fun bitcoinTransactionFormContent(
     transaction: BitcoinTransaction,
     onViewSpeedUpEducation: () -> Unit,
+    onTransactionIdCopy: () -> Unit,
   ): ImmutableList<FormMainContentModel> {
+    val coroutineScope = rememberStableCoroutineScope()
+
     val atTime = when (transaction.transactionType) {
       Incoming, UtxoConsolidation -> transaction.confirmationTime()
       Outgoing -> transaction.broadcastTime ?: transaction.confirmationTime()
@@ -490,6 +519,22 @@ class TransactionDetailsUiStateMachineImpl(
       stepper,
       FormMainContentModel.Divider,
       confirmationData?.let { DataList(items = immutableListOf(it)) },
+      DataList(
+        items = immutableListOf(
+          Data(
+            title = "Transaction ID",
+            sideText = transaction.truncatedId(),
+            onClick = {
+              clipboard.setItem(ClipItem.PlainText(transaction.id))
+              coroutineScope.launch {
+                haptics.vibrate(HapticsEffect.LightClick)
+              }
+              onTransactionIdCopy()
+            },
+            endIcon = Icon.SmallIconCopy
+          )
+        )
+      ),
       transactionDetails
     )
   }
@@ -559,6 +604,7 @@ class TransactionDetailsUiStateMachineImpl(
     onClose: () -> Unit,
     onSpeedUpTransaction: () -> Unit,
     onViewSpeedUpEducation: () -> Unit,
+    onTransactionIdCopy: () -> Unit,
   ): TransactionDetailModel {
     val transactionsData by remember { bitcoinWalletService.transactionsData() }.collectAsState()
 
@@ -595,13 +641,15 @@ class TransactionDetailsUiStateMachineImpl(
       content = when (transaction) {
         is Transaction.BitcoinWalletTransaction -> bitcoinTransactionFormContent(
           transaction = transaction.details,
-          onViewSpeedUpEducation = onViewSpeedUpEducation
+          onViewSpeedUpEducation = onViewSpeedUpEducation,
+          onTransactionIdCopy = onTransactionIdCopy
         )
 
         is Transaction.PartnershipTransaction -> if (transaction.bitcoinTransaction != null) {
           bitcoinTransactionFormContent(
             transaction = requireNotNull(transaction.bitcoinTransaction),
-            onViewSpeedUpEducation = onViewSpeedUpEducation
+            onViewSpeedUpEducation = onViewSpeedUpEducation,
+            onTransactionIdCopy = onTransactionIdCopy
           )
         } else {
           partnershipTransactionFormContent(
@@ -611,6 +659,13 @@ class TransactionDetailsUiStateMachineImpl(
       }
     )
   }
+
+  private fun feeBumpErrorData(cause: Throwable?): ErrorData =
+    ErrorData(
+      segment = MoneyHomeAppSegment.Transactions,
+      actionDescription = "Speeding up an on-chain transaction",
+      cause = cause ?: IllegalStateException("Unknown fee bump error")
+    )
 
   private sealed interface UiState {
     /**
@@ -628,20 +683,11 @@ class TransactionDetailsUiStateMachineImpl(
     ) : UiState
 
     /**
-     * User currently does not have enough funds to fee bump the transaction.
+     * Represents any fee estimation error while preparing a speed up.
      */
-    data object InsufficientFundsUiState : UiState
-
-    /**
-     * Fee rates are currently too low to fee bump the transaction.
-     */
-    data object FeeRateTooLowUiState : UiState
-
-    /**
-     * We failed to construct a fee estimation required to fee bump a transaction.
-     */
-    data class FeeLoadingErrorUiState(
-      val feeLoadingError: FeeLoadingError,
+    data class FeeEstimationErrorUiState(
+      val error: FeeEstimationErrorUiError,
+      val cause: Throwable?,
     ) : UiState
   }
 

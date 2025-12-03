@@ -678,6 +678,13 @@ message fingerprint_reset_finalize_cmd {
 message fingerprint_reset_finalize_rsp {
 }
 
+message provision_app_auth_pubkey_cmd {
+  bytes pubkey = 1 [(nanopb).max_size = 64];  // 33-byte compressed secp256k1 pubkey
+}
+
+message provision_app_auth_pubkey_rsp {
+}
+
 enum status {
   UNSPECIFIED = 0;
   SUCCESS = 1;
@@ -760,6 +767,7 @@ message wallet_cmd {
     cancel_fingerprint_enrollment_cmd cancel_fingerprint_enrollment_cmd = 56;
     fingerprint_reset_request_cmd fingerprint_reset_request_cmd = 57;
     fingerprint_reset_finalize_cmd fingerprint_reset_finalize_cmd = 58;
+    provision_app_auth_pubkey_cmd provision_app_auth_pubkey_cmd = 59;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
@@ -825,6 +833,7 @@ message wallet_rsp {
     cancel_fingerprint_enrollment_rsp cancel_fingerprint_enrollment_rsp = 56;
     fingerprint_reset_request_rsp fingerprint_reset_request_rsp = 57;
     fingerprint_reset_finalize_rsp fingerprint_reset_finalize_rsp = 58;
+    provision_app_auth_pubkey_rsp provision_app_auth_pubkey_rsp = 59;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations

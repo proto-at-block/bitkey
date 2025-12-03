@@ -12,4 +12,5 @@ enum class LabelTreatment {
   Strikethrough,
   Warning,
   Jumbo,
+  Destructive,
 }

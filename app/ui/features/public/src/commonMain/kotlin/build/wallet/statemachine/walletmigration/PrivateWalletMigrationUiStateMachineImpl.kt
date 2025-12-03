@@ -20,6 +20,7 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.feature.flags.UtxoMaxConsolidationCountFeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.platform.web.InAppBrowserNavigator
@@ -315,9 +316,9 @@ class PrivateWalletMigrationUiStateMachineImpl(
               )
 
               val unsealedSsek = sekGenerator.generate()
-              val sealedSsek = commands.sealData(
+              val sealedSsek = commands.sealSymmetricKey(
                 session = session,
-                unsealedData = unsealedSsek.key.raw
+                key = unsealedSsek.key
               )
 
               KeysetInitiationNfcResult(

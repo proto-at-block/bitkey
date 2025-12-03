@@ -75,3 +75,10 @@ bool crypto_ecc_secp256k1_pub_tweak_add(uint8_t sec_encoded_pubkey[SECP256K1_SEC
                                         uint8_t tweak[SECP256K1_KEY_SIZE]);
 
 bool crypto_ecc_secp256k1_normalize_signature(uint8_t signature[ECC_SIG_SIZE]);
+
+/**
+ * @brief Validates a compressed secp256k1 public key
+ * @param pubkey The compressed public key to validate (33 bytes)
+ * @return true if the pubkey is valid and on-curve, false otherwise
+ */
+bool crypto_ecc_secp256k1_pubkey_verify(const uint8_t pubkey[SECP256K1_SEC1_KEY_SIZE]);

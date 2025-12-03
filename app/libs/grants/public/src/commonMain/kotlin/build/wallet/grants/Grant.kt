@@ -10,26 +10,30 @@ private const val SERIALIZATION_TAG = "GrantSerialization"
  * A message signed by WSM indicating authorization for the requested action.
  * - version: Byte (1 byte)
  * - serialized_request: ByteArray (90 bytes)
- * - signature: ByteArray (64 bytes)
+ * - app_signature: ByteArray (64 bytes) - App signature over request core + label
+ * - wsm_signature: ByteArray (64 bytes) - WSM Integrity Key signature over version + serialized_request + app_signature + label
  */
 data class Grant(
   val version: Byte,
   val serializedRequest: ByteArray,
-  val signature: ByteArray,
+  val appSignature: ByteArray,
+  val wsmSignature: ByteArray,
 ) {
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
     return other is Grant &&
       version == other.version &&
       serializedRequest.contentEquals(other.serializedRequest) &&
-      signature.contentEquals(other.signature)
+      appSignature.contentEquals(other.appSignature) &&
+      wsmSignature.contentEquals(other.wsmSignature)
   }
 
   override fun hashCode(): Int {
     return arrayOf(
       version,
       serializedRequest.contentHashCode(),
-      signature.contentHashCode()
+      appSignature.contentHashCode(),
+      wsmSignature.contentHashCode()
     ).contentHashCode()
   }
 
@@ -37,7 +41,8 @@ data class Grant(
    * Serializes the Grant into a ByteString following the packed struct format:
    * - version: Byte (1 byte)
    * - serialized_request: ByteArray (90 bytes)
-   * - signature: ByteArray (64 bytes)
+   * - app_signature: ByteArray (64 bytes)
+   * - wsm_signature: ByteArray (64 bytes)
    *
    * Returns null if the Grant has fields with invalid lengths for serialization.
    */
@@ -48,9 +53,15 @@ data class Grant(
       }
       return null
     }
-    if (signature.size != GRANT_SIGNATURE_LEN) {
+    if (appSignature.size != GRANT_SIGNATURE_LEN) {
       logError(tag = SERIALIZATION_TAG) {
-        "signature length is ${signature.size}, expected $GRANT_SIGNATURE_LEN"
+        "appSignature length is ${appSignature.size}, expected $GRANT_SIGNATURE_LEN"
+      }
+      return null
+    }
+    if (wsmSignature.size != GRANT_SIGNATURE_LEN) {
+      logError(tag = SERIALIZATION_TAG) {
+        "wsmSignature length is ${wsmSignature.size}, expected $GRANT_SIGNATURE_LEN"
       }
       return null
     }
@@ -58,7 +69,8 @@ data class Grant(
     val buffer = Buffer()
     buffer.writeByte(version.toInt())
     buffer.write(serializedRequest)
-    buffer.write(signature)
+    buffer.write(appSignature)
+    buffer.write(wsmSignature)
 
     return buffer.readByteString()
   }

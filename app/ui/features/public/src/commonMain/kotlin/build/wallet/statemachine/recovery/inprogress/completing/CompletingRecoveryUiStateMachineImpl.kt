@@ -173,6 +173,16 @@ class CompletingRecoveryUiStateMachineImpl(
           eventTrackerShouldTrack = false
         ).asScreen(presentationStyle = props.presentationStyle)
 
+      is ProvisioningAppAuthKeyToHardwareData ->
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            transaction = props.completingRecoveryData.nfcTransaction,
+            screenPresentationStyle = props.presentationStyle,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_PROVISION_APP_AUTH_KEY,
+            hardwareVerification = Required(useRecoveryPubKey = true)
+          )
+        )
+
       is FetchingSealedDelegatedDecryptionKeyFromF8eData ->
         LoadingBodyModel(
           message = "Fetching recovery data...",

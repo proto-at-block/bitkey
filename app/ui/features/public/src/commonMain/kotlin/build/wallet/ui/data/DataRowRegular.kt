@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon.SmallIconCaretRight
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data.SideTextTreatment
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data.SideTextType
@@ -38,21 +37,19 @@ internal fun DataRowRegular(
   DataRowRegular(
     modifier =
       modifier
+        .thenIf(model.onClick != null) {
+          Modifier.clickable {
+            model.onClick?.invoke()
+          }
+        }
         .padding(
-          start = 16.dp,
           top =
             if (isFirst) {
               16.dp
             } else {
               0.dp
-            },
-          end = 16.dp
-        )
-        .thenIf(model.onClick != null) {
-          Modifier.clickable {
-            model.onClick?.invoke()
-          }
-        },
+            }
+        ),
     showBottomDivider = model.showBottomDivider,
     leadingContent = {
       Row(
@@ -116,7 +113,12 @@ internal fun DataRowRegular(
           }
         }
         model.onClick?.let {
-          Icon(icon = SmallIconCaretRight, size = Small, color = WalletTheme.colors.foreground30)
+          Spacer(modifier = Modifier.width(2.dp))
+          Icon(
+            icon = model.endIcon,
+            size = Small,
+            color = WalletTheme.colors.foreground30
+          )
         }
       }
     },
@@ -200,11 +202,13 @@ internal fun DataRowRegular(
 ) {
   val lineColor = Color.Black.copy(alpha = 0.05F)
 
-  Column {
+  Column(
+    modifier = modifier
+  ) {
     Row(
-      modifier =
-        modifier
-          .fillMaxWidth(),
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.SpaceBetween
     ) {

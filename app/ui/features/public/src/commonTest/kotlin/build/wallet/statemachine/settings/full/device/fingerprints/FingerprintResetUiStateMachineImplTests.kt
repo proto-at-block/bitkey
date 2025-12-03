@@ -12,15 +12,12 @@ import bitkey.privilegedactions.FingerprintResetServiceImpl
 import bitkey.privilegedactions.GrantDaoFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.auth.AppAuthKeyMessageSignerMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.SignatureUtilsMock
-import build.wallet.firmware.EnrolledFingerprints
-import build.wallet.firmware.FingerprintHandle
-import build.wallet.firmware.FirmwareFeatureFlag
-import build.wallet.firmware.FirmwareFeatureFlagCfg
-import build.wallet.firmware.HardwareUnlockInfoServiceFake
+import build.wallet.firmware.*
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.grants.GrantTestHelpers
@@ -37,15 +34,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
 import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetConfirmationBodyModel
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetConfirmationSheetModel
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetEventTrackerScreenId
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetGrantProvisionResult
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetGrantRequestResult
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetProps
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetSuccessBodyModel
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachineImpl
-import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FinishFingerprintResetBodyModel
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.*
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitSheet
@@ -88,7 +77,8 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     signatureUtils = signatureUtils,
     clock = clock,
     grantDao = grantDaoFake,
-    hardwareUnlockInfoService = hardwareUnlockInfoService
+    hardwareUnlockInfoService = hardwareUnlockInfoService,
+    messageSigner = AppAuthKeyMessageSignerMock()
   )
 
   val enrollingFingerprintUiStateMachine =
@@ -660,7 +650,8 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     val mockGrant = build.wallet.grants.Grant(
       version = 1,
       serializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.FINGERPRINT_RESET),
-      signature = ByteArray(64) { it.toByte() }
+      appSignature = ByteArray(64) { it.toByte() },
+      wsmSignature = ByteArray(64) { it.toByte() }
     )
 
     grantDaoFake.saveGrant(mockGrant)
@@ -819,7 +810,8 @@ private fun createFingerprintResetResponse(): FingerprintResetResponse {
   return FingerprintResetResponse(
     version = 1,
     serializedRequest = mockSerializedRequest.encodeBase64(),
-    signature = ByteArray(64) { 0x04 }.toByteString().hex()
+    appSignature = ByteArray(64) { 0x04 }.toByteString().hex(),
+    wsmSignature = ByteArray(64) { 0x04 }.toByteString().hex()
   )
 }
 

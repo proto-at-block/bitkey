@@ -22,11 +22,8 @@ memfault-cli==1.6.0
 -e ./python/bitkey/fwa
 -e ./lib/protobuf
 
-# Bitkey firmware-signer
--e ../firmware-signer/src/lib
-
 # VSCode Support
-autopep8==2.0.4
+autopep8==2.3.1
 
 # CI deps
 codespell==2.2.6

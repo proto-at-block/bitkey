@@ -34,7 +34,7 @@ jinja2 = "3.0.0"
 # Automation
 pytest = "^7.4.0"
 allure-pytest = "^2.13.2"
-bip32 = "^3.4"
+bip32 = "^4.0"
 bip32utils = "^0.3.post4"
 pytest-repeat = "^0.9.1"
 pytest-timeout = "^2.1.0"

@@ -6,6 +6,7 @@ deps = [
   log_dep,
   wallet_dep,
   kv_dep,
+  grant_dep,
 ]
 
 onboarding_lib = library('onboarding',

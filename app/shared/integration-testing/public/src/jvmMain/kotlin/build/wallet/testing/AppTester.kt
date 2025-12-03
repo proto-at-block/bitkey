@@ -21,6 +21,8 @@ import build.wallet.di.JvmAppComponentImpl
 import build.wallet.di.create
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Local
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.setFlagValue
 import build.wallet.logging.LogLevel
 import build.wallet.logging.Logger
 import build.wallet.logging.logTesting
@@ -32,6 +34,7 @@ import build.wallet.platform.data.databasesDir
 import build.wallet.platform.data.filesDir
 import build.wallet.platform.random.uuid
 import build.wallet.store.KeyValueStoreFactoryImpl
+import build.wallet.testing.ext.AppMode
 import io.kotest.common.KotestInternal
 import io.kotest.core.test.TestScope
 import kotlinx.coroutines.*
@@ -57,6 +60,7 @@ class AppTester(
   internal val initialF8eEnvironment: F8eEnvironment,
   val initialBitcoinNetworkType: BitcoinNetworkType,
   val isUsingSocRecFakes: Boolean,
+  val appMode: AppMode,
 ) : JvmAppComponent by appComponent, JvmActivityComponent by activityComponent {
   val treasuryWallet: TreasuryWallet by lazy {
     runBlocking {
@@ -120,7 +124,34 @@ class AppTester(
         cloudKeyValueStore,
         hardwareSeed,
         isUsingSocRecFakes,
-        executeWorkers
+        executeWorkers,
+        appMode = AppMode.Private
+      )
+    }
+
+    /**
+     * Creates a brand new [AppTester], without chaincode delegation.
+     */
+    suspend fun TestScope.launchLegacyWalletApp(
+      bdkBlockchainFactory: BdkBlockchainFactory? = null,
+      f8eEnvironment: F8eEnvironment? = null,
+      bitcoinNetworkType: BitcoinNetworkType? = null,
+      cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
+      cloudKeyValueStore: CloudKeyValueStore? = null,
+      hardwareSeed: FakeHardwareKeyStore.Seed? = null,
+      isUsingSocRecFakes: Boolean = false,
+      executeWorkers: Boolean = true,
+    ): AppTester {
+      return launchApp(
+        bdkBlockchainFactory = bdkBlockchainFactory,
+        f8eEnvironment = f8eEnvironment,
+        bitcoinNetworkType = bitcoinNetworkType,
+        cloudStoreAccountRepository = cloudStoreAccountRepository,
+        cloudKeyValueStore = cloudKeyValueStore,
+        hardwareSeed = hardwareSeed,
+        isUsingSocRecFakes = isUsingSocRecFakes,
+        executeWorkers = executeWorkers,
+        appMode = AppMode.Legacy
       )
     }
 
@@ -154,6 +185,7 @@ class AppTester(
       hardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean,
       executeWorkers: Boolean = true,
+      appMode: AppMode = AppMode.Private,
     ): AppTester {
       // "Disable" default kermit logger until we have our own custom logger setup.
       // Use Error as minimum log level and use no loger writers to "suppress" logs in meantime.
@@ -185,6 +217,7 @@ class AppTester(
         cloudKeyValueStoreOverride = cloudKeyValueStore
       )
       appComponent.loggerInitializer.initialize()
+
       if (hardwareSeed != null) {
         appComponent.fakeHardwareKeyStore.setSeed(hardwareSeed)
       }
@@ -212,6 +245,10 @@ class AppTester(
           .first() // Suspend until first `true` value
       }
 
+      // TODO [W-14961]: Remove override once LD flag is set to true by default.
+      appComponent.chaincodeDelegationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(appMode == AppMode.Private), true)
+      appComponent.encryptedDescriptorBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true), true)
+
       return AppTester(
         testScope = this,
         appComponent = appComponent,
@@ -219,7 +256,8 @@ class AppTester(
         blockchainControl = blockchainControl,
         initialF8eEnvironment = f8eEnvironment,
         initialBitcoinNetworkType = bitcoinNetworkType,
-        isUsingSocRecFakes = isUsingSocRecFakes
+        isUsingSocRecFakes = isUsingSocRecFakes,
+        appMode = appMode
       )
     }
   }

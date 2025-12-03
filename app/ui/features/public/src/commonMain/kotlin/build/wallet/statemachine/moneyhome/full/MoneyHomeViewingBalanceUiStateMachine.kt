@@ -1,6 +1,7 @@
 package build.wallet.statemachine.moneyhome.full
 
 import build.wallet.bitkey.account.Account
+import build.wallet.money.FiatMoney
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.statemachine.core.ScreenModel
@@ -28,4 +29,8 @@ data class MoneyHomeViewingBalanceUiProps(
   val onStartSweepFlow: () -> Unit,
   val onGoToSecurityHub: () -> Unit,
   val onGoToPrivateWalletMigration: () -> Unit,
+  /**
+   * Called when the user has confirmed a purchase amount and is ready to see partner quotes.
+   */
+  val onPurchaseAmountConfirmed: (FiatMoney) -> Unit,
 )

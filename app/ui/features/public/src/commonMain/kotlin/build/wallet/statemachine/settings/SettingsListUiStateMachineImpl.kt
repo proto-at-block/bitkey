@@ -38,7 +38,8 @@ class SettingsListUiStateMachineImpl(
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
     val scope = rememberStableCoroutineScope()
-    val privateMigrationState by privateWalletMigrationService.migrationState.collectAsState(PrivateWalletMigrationState.NotAvailable)
+    val privateMigrationState by privateWalletMigrationService.migrationState
+      .collectAsState(PrivateWalletMigrationState.NotAvailable)
 
     var coachmarksToDisplay by remember { mutableStateOf(immutableListOf<CoachmarkIdentifier>()) }
     LaunchedEffect("coachmarks") {

@@ -80,12 +80,14 @@ class GrantSerializationTests : FunSpec({
       val grant = Grant(
         version = testVersion,
         serializedRequest = serializedGrantRequest,
-        signature = grantSignature
+        appSignature = grantSignature,
+        wsmSignature = grantSignature
       )
 
       val serializedGrant = grant.serializeToPackedStruct()!!
 
-      serializedGrant.size shouldBe (1 + serializedGrantRequest.size + grantSignature.size)
+      // Expected length: 1 (version) + 90 (serializedRequest) + 64 (appSignature) + 64 (wsmSignature) = 219
+      serializedGrant.size shouldBe (1 + serializedGrantRequest.size + grantSignature.size + grantSignature.size)
 
       var offset = 0
       serializedGrant[offset] shouldBe testVersion
@@ -93,6 +95,9 @@ class GrantSerializationTests : FunSpec({
 
       serializedGrant.sliceArray(offset until offset + serializedGrantRequest.size) shouldBe serializedGrantRequest
       offset += serializedGrantRequest.size
+
+      serializedGrant.sliceArray(offset until offset + grantSignature.size) shouldBe grantSignature
+      offset += grantSignature.size
 
       serializedGrant.sliceArray(offset until offset + grantSignature.size) shouldBe grantSignature
     }

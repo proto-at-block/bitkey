@@ -16,6 +16,8 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform.Android
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -73,6 +75,12 @@ class AccountConfigUiStateMachineImpl(
         )
         add(
           ListItemModel(
+            title = "Hardware Type",
+            sideText = accountConfig.hardwareType.toString()
+          )
+        )
+        add(
+          ListItemModel(
             title = "Bitcoin wallet",
             trailingAccessory = ListItemAccessory.drillIcon(),
             onClick = onBitcoinWalletClick
@@ -91,6 +99,7 @@ class AccountConfigUiStateMachineImpl(
       items = buildImmutableList {
         addAll(AccountConfigItems(accountConfig))
         add(MockBitkeyItem(defaultConfig))
+        add(HardwareTypeItem(defaultConfig))
       }
     )
   }
@@ -120,6 +129,7 @@ class AccountConfigUiStateMachineImpl(
           )
         ),
         MockBitkeyItem(defaultConfig),
+        HardwareTypeItem(defaultConfig),
         ListItemModel(
           title = "Use SocRec Fakes",
           secondaryText = "SocRec interactions will be mocked",
@@ -174,6 +184,42 @@ class AccountConfigUiStateMachineImpl(
             }
           },
           testTag = "mock-bitkey"
+        )
+      )
+    )
+  }
+
+  @Composable
+  private fun HardwareTypeItem(defaultConfig: DefaultAccountConfig): ListItemModel {
+    val scope = rememberStableCoroutineScope()
+    val hardwareTypeText = when (defaultConfig.hardwareType) {
+      null -> "Auto-detect"
+      HardwareType.W1 -> "W1"
+      HardwareType.W3 -> "W3"
+    }
+    return ListItemModel(
+      title = "Hardware Type",
+      secondaryText = if (defaultConfig.isHardwareFake) {
+        "Choose W1 or W3 for fake hardware"
+      } else {
+        "Auto-detect or force W1/W3"
+      },
+      sideText = hardwareTypeText,
+      trailingAccessory = ListItemAccessory.ButtonAccessory(
+        model = ButtonModel(
+          text = "Toggle",
+          size = ButtonModel.Size.Compact,
+          treatment = ButtonModel.Treatment.Secondary,
+          onClick = StandardClick {
+            scope.launch {
+              val nextType = when (defaultConfig.hardwareType) {
+                null -> HardwareType.W1
+                HardwareType.W1 -> HardwareType.W3
+                HardwareType.W3 -> null
+              }
+              accountConfigService.setHardwareType(nextType)
+            }
+          }
         )
       )
     )

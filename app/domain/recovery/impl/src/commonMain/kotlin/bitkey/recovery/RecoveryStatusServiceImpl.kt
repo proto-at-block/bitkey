@@ -32,15 +32,23 @@ class RecoveryStatusServiceImpl(
   private val accountConfigService: AccountConfigService,
   private val recoverySyncFrequency: RecoverySyncFrequency,
 ) : RecoveryStatusService, RecoverySyncWorker {
+  private val _status = MutableStateFlow<Recovery>(Recovery.Loading)
+
+  override val status: StateFlow<Recovery> = _status
+
   override suspend fun executeWork() {
     coroutineScope {
       val activeAccount = accountService.activeAccount().distinctUntilChanged()
-      val activeRecovery = status().map { it.get() }.distinctUntilChanged()
+      val activeRecovery = recoveryDao.activeRecovery()
+        .mapNotNull { it.get() }
+        .distinctUntilChanged()
 
       // Sync recovery:
       // - when we have an active full account (with Lost Hardware recovery or in case if there's a Recovery Conflict)
       // - when we don't have an active full account but have active recovery (Lost App + Cloud recovery)
       combine(activeAccount, activeRecovery) { account, recovery ->
+        _status.update { recovery }
+
         val hasFullAccount = account is FullAccount
         // Specifically ignore Lost Hardware recovery because it should only happen when we already
         // have a full account. This prevents any possibility for race conditions between account
@@ -89,15 +97,6 @@ class RecoveryStatusServiceImpl(
           .bind()
       }
     }
-
-  override fun status(): Flow<Result<Recovery, Error>> {
-    // Return a flow that emits whenever the recovery status changes. This could be an advancement
-    // of a local recovery to a new phase, or entering a state where our local recovery attempt
-    // was canceled on the server. We do this by listening to changes to both the cached active
-    // serer recovery and any local ongoing recovery attempt we have and running comparisons
-    // against the two to calculate the recovery status.
-    return recoveryDao.activeRecovery().distinctUntilChanged()
-  }
 
   override suspend fun setLocalRecoveryProgress(
     progress: LocalRecoveryAttemptProgress,

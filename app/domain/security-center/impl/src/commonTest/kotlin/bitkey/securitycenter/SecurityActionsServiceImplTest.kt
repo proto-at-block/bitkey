@@ -74,6 +74,7 @@ class SecurityActionsServiceImplTest : FunSpec({
         SecurityActionRecommendation.ENABLE_PUSH_NOTIFICATIONS -> false
         SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS -> false
         SecurityActionRecommendation.ENABLE_SMS_NOTIFICATIONS -> false
+        SecurityActionRecommendation.PROVISION_APP_KEY_TO_HARDWARE -> true
         else -> true
       }
 
@@ -140,6 +141,7 @@ class SecurityActionsServiceImplTest : FunSpec({
           SecurityActionRecommendation.BACKUP_EAK,
           SecurityActionRecommendation.ADD_FINGERPRINTS,
           SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET,
+          SecurityActionRecommendation.PROVISION_APP_KEY_TO_HARDWARE,
           SecurityActionRecommendation.ADD_TRUSTED_CONTACTS,
           SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS,
           SecurityActionRecommendation.SETUP_BIOMETRICS,

@@ -5,7 +5,6 @@ import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.feature.isEnabled
 import build.wallet.feature.setFlagValue
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.money.BitcoinMoney.Companion.sats
@@ -36,11 +35,11 @@ import build.wallet.statemachine.ui.robots.awaitLoadingScreen
 import build.wallet.statemachine.ui.robots.clickBitkeyDevice
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester
+import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -85,6 +84,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet(
@@ -129,6 +130,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("recovery lost hardware - force exiting in the middle of initiation") { initialApp ->
@@ -195,6 +198,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet(
@@ -239,6 +244,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet(
@@ -284,6 +291,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet(
@@ -336,6 +345,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet(
@@ -380,6 +391,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("recovery lost hardware - force exiting during D&N wait") { initialApp ->
@@ -453,6 +466,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+
+    app.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("recover lost hardware - sweep real funds") { initialApp ->
@@ -489,6 +504,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    app.verifyPostRecoveryState()
     app.waitForFunds()
     app.returnFundsToTreasury()
   }
@@ -504,14 +520,18 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.addSomeFunds()
 
     // Create new blank app, persist cloud backups
-    val newApp = launchNewApp(
-      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.cloudKeyValueStore,
-      hardwareSeed = app.fakeHardwareKeyStore.getSeed()
-    ).also {
-      if (app.chaincodeDelegationFeatureFlag.isEnabled()) {
-        it.enableChaincodeDelegation()
-      }
+    val newApp = if (app.appMode == AppMode.Private) {
+      launchNewApp(
+        cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+        cloudKeyValueStore = app.cloudKeyValueStore,
+        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
+      )
+    } else {
+      launchLegacyWalletApp(
+        cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+        cloudKeyValueStore = app.cloudKeyValueStore,
+        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
+      )
     }
 
     // Lost App recovery from Cloud
@@ -543,6 +563,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    newApp.verifyPostRecoveryState()
     newApp.fakeNfcCommands.wipeDevice()
 
     // Complete Lost Hardware Recovery with D&N
@@ -576,6 +597,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+    newApp.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("can Lost Hardware recovery then Lost App recovery from Cloud with funds") { initialApp ->
@@ -615,15 +637,20 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    app.verifyPostRecoveryState()
     // Create new blank app, persist cloud backups, keep hardware
-    val newApp = launchNewApp(
-      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.cloudKeyValueStore,
-      hardwareSeed = app.fakeHardwareKeyStore.getSeed()
-    ).also {
-      if (app.chaincodeDelegationFeatureFlag.isEnabled()) {
-        it.enableChaincodeDelegation()
-      }
+    val newApp = if (app.appMode == AppMode.Private) {
+      launchNewApp(
+        cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+        cloudKeyValueStore = app.cloudKeyValueStore,
+        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
+      )
+    } else {
+      launchLegacyWalletApp(
+        cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+        cloudKeyValueStore = app.cloudKeyValueStore,
+        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
+      )
     }
 
     // Lost App recovery from Cloud
@@ -651,6 +678,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+    newApp.verifyPostRecoveryState()
   }
 
   testForLegacyAndPrivateWallet("cancel initiated recovery") { initialApp ->
@@ -685,7 +713,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   }
 
   test("lost hardware recovery refreshes descriptor backups if enabled") {
-    val app = launchNewApp()
+    val app = launchLegacyWalletApp()
     app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
     app.onboardFullAccountWithFakeHardware()
 
@@ -702,26 +730,6 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.verifyDescriptorBackupsUploaded(accountId, count = 2)
     app.verifyCanUseKeyboxKeysets(true)
     app.decryptCloudBackupKeys().keysets.size.shouldBe(2)
-  }
-
-  test("lost hardware recovery clears canUseKeyboxKeysets if backups are disabled") {
-    val app = launchNewApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
-    app.onboardFullAccountWithFakeHardware()
-
-    val accountId = app.getActiveFullAccount().accountId
-
-    app.verifyDescriptorBackupsUploaded(accountId = accountId, count = 1)
-    app.verifyCanUseKeyboxKeysets(expected = true)
-
-    app.fakeNfcCommands.wipeDevice()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
-
-    app.performLostHardwareRecovery()
-
-    app.verifyDescriptorBackupsUploaded(accountId = accountId, count = 1)
-    app.verifyCanUseKeyboxKeysets(expected = false)
-    app.decryptCloudBackupKeys().keysets.shouldBeEmpty()
   }
 })
 

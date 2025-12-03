@@ -1,5 +1,6 @@
 package build.wallet.nfc
 
+import bitkey.account.HardwareType
 import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
 import build.wallet.nfc.platform.NfcSessionProvider
 
@@ -20,6 +21,7 @@ class NfcSessionFake(
     val FakeParameters =
       NfcSession.Parameters(
         isHardwareFake = true,
+        hardwareType = HardwareType.W1,
         needsAuthentication = true,
         shouldLock = true,
         skipFirmwareTelemetry = false,

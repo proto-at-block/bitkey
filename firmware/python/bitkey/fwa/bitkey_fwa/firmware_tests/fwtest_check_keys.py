@@ -39,8 +39,8 @@ class KeyChecks(bitkey_fwa.TestCase):
         signature_data = self.get_elf_section_data(signature)
         signature_addr = self.get_elf_section_addr(signature)
 
-        self.assertEquals(self.get_elf_section_size(signature), ECC_SIGNATURE_SIZE,
-                          f"Incorrect signature section size: {self.get_elf_section_size(signature)}")
+        self.assertEqual(self.get_elf_section_size(signature), ECC_SIGNATURE_SIZE,
+                         f"Incorrect signature section size: {self.get_elf_section_size(signature)}")
 
         app_start_addr = self.get_elf_symbol_value_from_name(
             f'app_{slot}_slot_page')
@@ -88,8 +88,8 @@ class KeyChecks(bitkey_fwa.TestCase):
         bl_base_addr = self.get_elf_symbol_value_from_name("bl_base_addr")
         bl_signature_size = self.get_elf_symbol_value_from_name("bl_signature_size")
 
-        self.assertEquals(bl_signature_size, ECC_SIGNATURE_SIZE,
-                          f"Incorrect signature section size: {bl_signature_size}")
+        self.assertEqual(bl_signature_size, ECC_SIGNATURE_SIZE,
+                         f"Incorrect signature section size: {bl_signature_size}")
 
         bl_slot_data = self.get_elf_data_from_addr_range(
             bl_base_addr, bl_base_addr + bl_slot_size)
@@ -105,8 +105,8 @@ class KeyChecks(bitkey_fwa.TestCase):
         signature_data_copy = self.get_elf_section_data(
             codesigning_signature_section)
 
-        self.assertEquals(signature_data, signature_data_copy,
-                          "Signature mismatch! Symbol or section address is incorrect")
+        self.assertEqual(signature_data, signature_data_copy,
+                         "Signature mismatch! Symbol or section address is incorrect")
 
         self.verify_signature(loader_signing_key_fmt,
                               signing_data, signature_data)

@@ -26,6 +26,8 @@ data class AccountAccessMoreOptionsFormBodyModel(
   val onRestoreYourWalletClick: (() -> Unit),
   val onBeTrustedContactClick: (() -> Unit),
   val onRecoverFromOrphanedKeysClick: (() -> Unit)?,
+  val canShowCustomerSupport: Boolean,
+  val onCustomerSupportClick: (() -> Unit),
 ) : FormBodyModel(
     id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
     onBack = onBack,
@@ -76,6 +78,23 @@ data class AccountAccessMoreOptionsFormBodyModel(
                 onClick = it,
                 trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
               )
+            },
+            if (canShowCustomerSupport) {
+              ListItemModel(
+                leadingAccessory = IconAccessory(
+                  iconPadding = 12,
+                  model = IconModel(
+                    icon = Icon.SmallIconMessage,
+                    iconSize = IconSize.Small
+                  )
+                ),
+                title = "Contact Us",
+                onClick = onCustomerSupportClick,
+                trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
+                testTag = "contact-us"
+              )
+            } else {
+              null
             }
           ),
           style = ListGroupStyle.CARD_ITEM

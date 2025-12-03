@@ -1,5 +1,6 @@
 package build.wallet.encrypt
 
+import bitkey.data.PrivateData
 import build.wallet.crypto.SymmetricKey
 import build.wallet.crypto.SymmetricKeyImpl
 import okio.ByteString.Companion.toByteString
@@ -16,5 +17,6 @@ fun SymmetricKey(data: NSData): SymmetricKey {
 /**
  * Interop helper to convert KMP [SymmetricKey] type to native [NSData].
  */
+@PrivateData
 @Suppress("unused") // used by iOS code
 fun SymmetricKey.toData(): NSData = raw.toByteArray().toData()

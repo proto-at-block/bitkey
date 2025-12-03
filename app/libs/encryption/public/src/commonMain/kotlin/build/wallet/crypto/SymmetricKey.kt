@@ -1,5 +1,6 @@
 package build.wallet.crypto
 
+import bitkey.data.PrivateData
 import okio.ByteString
 
 /**
@@ -7,11 +8,7 @@ import okio.ByteString
  * by [SymmetricKeyEncryptor].
  */
 interface SymmetricKey : Key {
-  /*
-   * TODO(W-644): should we avoid exposing raw key when passing it around? Alternative: persist key
-   *  in local encrypted storage, use key hash as a key reference to access it.
-   * Once that is done, remove this field from the interface.
-   */
+  @PrivateData
   val raw: ByteString
   val length: Int
 }

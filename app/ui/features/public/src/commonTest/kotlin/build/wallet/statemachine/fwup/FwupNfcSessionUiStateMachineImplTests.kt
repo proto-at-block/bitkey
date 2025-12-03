@@ -8,9 +8,12 @@ import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_DETEC
 import build.wallet.analytics.v1.Action.ACTION_APP_FWUP_COMPLETE
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.encrypt.SignatureVerifierMock
+import build.wallet.encrypt.SignatureVerifierMock.VerifyEcdsaCall
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.fwup.*
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
+import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.nfc.*
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.statemachine.core.test
@@ -33,6 +36,8 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
   val firmwareDataService = FirmwareDataServiceFake()
   val accountConfigService = AccountConfigServiceFake()
   val fwupDataDaoProvider = FwupDataDaoProviderMock(turbines::create)
+  val signatureVerifierTurbine = turbines.create<VerifyEcdsaCall>("verifyEcdsa calls")
+  val keyboxDao = KeyboxDaoMock(turbines::create)
 
   val stateMachine =
     FwupNfcSessionUiStateMachineImpl(
@@ -44,7 +49,9 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       nfcTransactor = nfcTransactor,
       fwupDataDaoProvider = fwupDataDaoProvider,
       firmwareDataService = firmwareDataService,
-      accountConfigService = accountConfigService
+      accountConfigService = accountConfigService,
+      keyboxDao = keyboxDao,
+      signatureVerifier = SignatureVerifierMock(signatureVerifierTurbine)
     )
 
   val onBackCalls = turbines.create<Unit>("onBack calls")
@@ -63,6 +70,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     accountConfigService.reset()
     deviceInfoProvider.reset()
     nfcTransactor.reset()
+    keyboxDao.reset()
     firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock.copy(
       firmwareUpdateState = PendingUpdate(FwupDataMock)
     )

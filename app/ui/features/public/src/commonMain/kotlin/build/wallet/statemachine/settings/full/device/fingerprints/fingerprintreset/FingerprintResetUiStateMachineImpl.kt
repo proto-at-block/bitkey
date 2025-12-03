@@ -19,11 +19,7 @@ import build.wallet.firmware.FirmwareFeatureFlag
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.logging.logError
-import build.wallet.statemachine.core.AppSegment
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
@@ -40,7 +36,6 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -67,12 +62,10 @@ class FingerprintResetUiStateMachineImpl(
       mutableStateOf(FingerprintResetUiState.Loading)
     }
 
-    val coroutineScope = rememberCoroutineScope()
-
     return when (val state = uiState) {
       is FingerprintResetUiState.Loading -> {
         LaunchedEffect("loading-fingerprint-reset-status") {
-          handleInitialLoading(coroutineScope) { newState -> uiState = newState }
+          handleInitialLoading { newState -> uiState = newState }
         }
         ScreenModel(
           body = LoadingBodyModel(
@@ -87,7 +80,7 @@ class FingerprintResetUiStateMachineImpl(
         handleShowingConfirmation(state, props) { newState -> uiState = newState }
 
       is FingerprintResetUiState.CreatingGrantRequestViaNfc ->
-        handleCreatingGrantRequestViaNfc(props, coroutineScope) { newState -> uiState = newState }
+        handleCreatingGrantRequestViaNfc(props) { newState -> uiState = newState }
 
       is FingerprintResetUiState.ShowingDelayAndNotifyProgress ->
         handleShowingDelayAndNotifyProgress(props, state) { newState -> uiState = newState }
@@ -102,7 +95,7 @@ class FingerprintResetUiStateMachineImpl(
         handleProvidingGrantViaNfc(state) { newState -> uiState = newState }
 
       is FingerprintResetUiState.EnrollingFingerprints ->
-        handleEnrollingFingerprints(state) { newState -> uiState = newState }
+        handleEnrollingFingerprints(props, state) { newState -> uiState = newState }
 
       is FingerprintResetUiState.Success ->
         handleSuccess(state, props)
@@ -115,62 +108,57 @@ class FingerprintResetUiStateMachineImpl(
     }
   }
 
-  private fun handleInitialLoading(
-    coroutineScope: CoroutineScope,
-    updateState: (FingerprintResetUiState) -> Unit,
-  ) {
-    coroutineScope.launch {
-      fingerprintResetService.getFingerprintResetState()
-        .onSuccess { resetState ->
-          when (resetState) {
-            is FingerprintResetState.DelayCompleted -> {
-              metricTrackerService.startMetric(
-                metricDefinition = FingerprintResetCompleteMetricDefinition
-              )
-              when (val authStrategy = resetState.action.authorizationStrategy) {
-                is AuthorizationStrategy.DelayAndNotify -> updateState(
-                  FingerprintResetUiState.DelayAndNotifyComplete.DelayComplete(
-                    actionId = resetState.action.id,
-                    completionToken = authStrategy.completionToken,
-                    cancellationToken = authStrategy.cancellationToken,
-                    hasStartedCompleteMetric = true
-                  )
-                )
-              }
-            }
-            is FingerprintResetState.DelayInProgress -> {
-              updateState(
-                FingerprintResetUiState.ShowingDelayAndNotifyProgress(
+  private suspend fun handleInitialLoading(updateState: (FingerprintResetUiState) -> Unit) {
+    fingerprintResetService.getFingerprintResetState()
+      .onSuccess { resetState ->
+        when (resetState) {
+          is FingerprintResetState.DelayCompleted -> {
+            metricTrackerService.startMetric(
+              metricDefinition = FingerprintResetCompleteMetricDefinition
+            )
+            when (val authStrategy = resetState.action.authorizationStrategy) {
+              is AuthorizationStrategy.DelayAndNotify -> updateState(
+                FingerprintResetUiState.DelayAndNotifyComplete.DelayComplete(
                   actionId = resetState.action.id,
-                  startTime = resetState.delayAndNotify.delayStartTime,
-                  endTime = resetState.delayAndNotify.delayEndTime,
-                  completionToken = resetState.delayAndNotify.completionToken,
-                  cancellationToken = resetState.delayAndNotify.cancellationToken
-                )
-              )
-            }
-            is FingerprintResetState.GrantReady -> {
-              metricTrackerService.startMetric(
-                metricDefinition = FingerprintResetCompleteMetricDefinition
-              )
-              updateState(
-                FingerprintResetUiState.DelayAndNotifyComplete.ResumingFromLocalGrant(
-                  grant = resetState.grant,
+                  completionToken = authStrategy.completionToken,
+                  cancellationToken = authStrategy.cancellationToken,
                   hasStartedCompleteMetric = true
                 )
               )
             }
-            is FingerprintResetState.None -> {
-              updateState(FingerprintResetUiState.ShowingConfirmation())
-            }
+          }
+          is FingerprintResetState.DelayInProgress -> {
+            updateState(
+              FingerprintResetUiState.ShowingDelayAndNotifyProgress(
+                actionId = resetState.action.id,
+                startTime = resetState.delayAndNotify.delayStartTime,
+                endTime = resetState.delayAndNotify.delayEndTime,
+                completionToken = resetState.delayAndNotify.completionToken,
+                cancellationToken = resetState.delayAndNotify.cancellationToken
+              )
+            )
+          }
+          is FingerprintResetState.GrantReady -> {
+            metricTrackerService.startMetric(
+              metricDefinition = FingerprintResetCompleteMetricDefinition
+            )
+            updateState(
+              FingerprintResetUiState.DelayAndNotifyComplete.ResumingFromLocalGrant(
+                grant = resetState.grant,
+                hasStartedCompleteMetric = true
+              )
+            )
+          }
+          is FingerprintResetState.None -> {
+            updateState(FingerprintResetUiState.ShowingConfirmation())
           }
         }
-        .onFailure { error ->
-          logError { "Failed to get fingerprint reset state: $error" }
-          // Fallback to showing confirmation
-          updateState(FingerprintResetUiState.ShowingConfirmation())
-        }
-    }
+      }
+      .onFailure { error ->
+        logError { "Failed to get fingerprint reset state: $error" }
+        // Fallback to showing confirmation
+        updateState(FingerprintResetUiState.ShowingConfirmation())
+      }
   }
 
   @Composable
@@ -209,7 +197,6 @@ class FingerprintResetUiStateMachineImpl(
   @Composable
   private fun handleCreatingGrantRequestViaNfc(
     props: FingerprintResetProps,
-    coroutineScope: CoroutineScope,
     updateState: (FingerprintResetUiState) -> Unit,
   ): ScreenModel {
     return nfcSessionUIStateMachine.model(
@@ -230,35 +217,32 @@ class FingerprintResetUiStateMachineImpl(
         onSuccess = { result ->
           when (result) {
             is FingerprintResetGrantRequestResult.GrantRequestRetrieved -> {
-              coroutineScope.launch {
-                val serviceResult =
-                  fingerprintResetService.createFingerprintResetPrivilegedAction(
-                    grantRequest = result.grantRequest
-                  )
+              val serviceResult = fingerprintResetService.createFingerprintResetPrivilegedAction(
+                grantRequest = result.grantRequest
+              )
 
-                serviceResult
-                  .onSuccess { actionInstance ->
-                    when (val authStrategy = actionInstance.authorizationStrategy) {
-                      is AuthorizationStrategy.DelayAndNotify -> {
-                        completeResetInitiateMetric(MetricOutcome.Succeeded)
-                        updateState(
-                          FingerprintResetUiState.ShowingDelayAndNotifyProgress(
-                            actionId = actionInstance.id,
-                            startTime = authStrategy.delayStartTime,
-                            endTime = authStrategy.delayEndTime,
-                            completionToken = authStrategy.completionToken,
-                            cancellationToken = authStrategy.cancellationToken
-                          )
+              serviceResult
+                .onSuccess { actionInstance ->
+                  when (val authStrategy = actionInstance.authorizationStrategy) {
+                    is AuthorizationStrategy.DelayAndNotify -> {
+                      completeResetInitiateMetric(MetricOutcome.Succeeded)
+                      updateState(
+                        FingerprintResetUiState.ShowingDelayAndNotifyProgress(
+                          actionId = actionInstance.id,
+                          startTime = authStrategy.delayStartTime,
+                          endTime = authStrategy.delayEndTime,
+                          completionToken = authStrategy.completionToken,
+                          cancellationToken = authStrategy.cancellationToken
                         )
-                      }
+                      )
                     }
                   }
-                  .onFailure { error ->
-                    logError { "Failed to create fingerprint reset privileged action: $error" }
-                    completeResetInitiateMetric(MetricOutcome.Failed)
-                    updateState(FingerprintResetUiState.Error.CreatePrivilegedActionError(error))
-                  }
-              }
+                }
+                .onFailure { error ->
+                  logError { "Failed to create fingerprint reset privileged action: $error" }
+                  completeResetInitiateMetric(MetricOutcome.Failed)
+                  updateState(FingerprintResetUiState.Error.CreatePrivilegedActionError(error))
+                }
             }
             FingerprintResetGrantRequestResult.FwUpRequired -> {
               // Complete the initiate metric as canceled when firmware update is required
@@ -530,11 +514,13 @@ class FingerprintResetUiStateMachineImpl(
 
   @Composable
   private fun handleEnrollingFingerprints(
+    props: FingerprintResetProps,
     state: FingerprintResetUiState.EnrollingFingerprints,
     updateState: (FingerprintResetUiState) -> Unit,
   ): ScreenModel {
     return enrollingFingerprintUiStateMachine.model(
       EnrollingFingerprintProps(
+        account = props.account,
         onCancel = {
           updateState(
             FingerprintResetUiState.DelayAndNotifyComplete.ResumingFromLocalGrant(

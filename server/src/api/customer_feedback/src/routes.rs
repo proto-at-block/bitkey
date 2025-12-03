@@ -66,14 +66,16 @@ pub struct RouteState(
 
 impl RouterBuilder for RouteState {
     fn unauthed_router(&self) -> Router {
-        Router::new().with_state(self.to_owned())
-    }
-
-    fn basic_validation_router(&self) -> Router {
         Router::new()
             .route("/api/customer_feedback", post(create_task))
             .route("/api/support/ticket-form", get(load_form))
             .route("/api/support/attachments", post(upload_attachment))
+            .route_layer(metrics::FACTORY.route_layer("customer_feedback".to_owned()))
+            .with_state(self.to_owned())
+    }
+
+    fn basic_validation_router(&self) -> Router {
+        Router::new()
             .route(
                 "/api/support/encrypted-attachments",
                 post(create_encrypted_attachment),

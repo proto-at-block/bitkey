@@ -1,10 +1,12 @@
 package build.wallet.encrypt
 
+import bitkey.data.PrivateData
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import okio.ByteString
 import okio.ByteString.Companion.decodeHex
 
+@OptIn(PrivateData::class)
 class HkdfImplTests : FunSpec({
   val hkdf = HkdfImpl()
 

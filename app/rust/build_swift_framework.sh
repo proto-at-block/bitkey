@@ -106,6 +106,7 @@ bindgen() {
 			generate \
 			--library $BUILD_TARGET/$target/release/lib$LIB.dylib \
 			--language swift \
+			--no-format \
 			--out-dir $swift_root
 	)
 }

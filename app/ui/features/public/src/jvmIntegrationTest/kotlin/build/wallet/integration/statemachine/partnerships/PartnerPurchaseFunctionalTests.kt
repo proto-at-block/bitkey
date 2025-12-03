@@ -4,6 +4,7 @@ import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
+import build.wallet.money.FiatMoney
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransaction
@@ -11,7 +12,8 @@ import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiProps
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseQuotesUiProps
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.tags.TestTag
@@ -28,6 +30,7 @@ import kotlin.test.assertTrue
 class PartnerPurchaseFunctionalTests : FunSpec({
   tags(TestTag.ServerSmoke)
 
+  val onAmountConfirmedCalls = turbines.create<FiatMoney>("onAmountConfirmed")
   val onPartnerRedirectedCalls =
     turbines.create<Pair<PartnerRedirectionMethod, PartnershipTransaction>>("onPartnerRedirected")
 
@@ -36,19 +39,17 @@ class PartnerPurchaseFunctionalTests : FunSpec({
     val bitcoinNetworkType = getBitcoinNetworkType(f8eEnvironment)
     val app = launchNewApp(bitcoinNetworkType = bitcoinNetworkType)
     app.onboardFullAccountWithFakeHardware()
-    val purchaseUiProps = PartnershipsPurchaseUiProps(
-      onBack = {},
-      selectedAmount = null,
-      onPartnerRedirected = { redirectionMethod, transaction ->
-        onPartnerRedirectedCalls.add(redirectionMethod to transaction)
-      },
-      onSelectCustomAmount = { _, _ -> },
-      onExit = {}
-    )
     val expectedPartners = getExpectedPartners(f8eEnvironment)
 
     test("displays the expected purchase options") {
-      app.partnershipsPurchaseUiStateMachine.test(props = purchaseUiProps) {
+      val amountProps = PartnershipsPurchaseAmountUiProps(
+        selectedAmount = null,
+        onAmountConfirmed = { onAmountConfirmedCalls.add(it) },
+        onSelectCustomAmount = { _, _ -> },
+        onExit = {}
+      )
+
+      app.partnershipsPurchaseAmountUiStateMachine.test(props = amountProps) {
         val sheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS
         }
@@ -69,12 +70,17 @@ class PartnerPurchaseFunctionalTests : FunSpec({
     }
 
     test("displays the expected quotes") {
-      app.partnershipsPurchaseUiStateMachine.test(props = purchaseUiProps) {
-        val amountsSheetModel = awaitUntil {
-          it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS
-        }
-        amountsSheetModel.body.shouldBeInstanceOf<FormBodyModel>().primaryButton?.onClick?.invoke()
+      val amount = FiatMoney.usd(10000)
+      val quotesProps = PartnershipsPurchaseQuotesUiProps(
+        purchaseAmount = amount,
+        onPartnerRedirected = { redirectionMethod, transaction ->
+          onPartnerRedirectedCalls.add(redirectionMethod to transaction)
+        },
+        onBack = {},
+        onExit = {}
+      )
 
+      app.partnershipsPurchaseQuotesUiStateMachine.test(props = quotesProps) {
         val quotesSheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
         }
@@ -100,12 +106,17 @@ class PartnerPurchaseFunctionalTests : FunSpec({
     }
 
     test("redirects correctly") {
-      app.partnershipsPurchaseUiStateMachine.test(props = purchaseUiProps) {
-        val amountsSheetModel = awaitUntil {
-          it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS
-        }
-        amountsSheetModel.body.shouldBeInstanceOf<FormBodyModel>().primaryButton?.onClick?.invoke()
+      val amount = FiatMoney.usd(10000)
+      val quotesProps = PartnershipsPurchaseQuotesUiProps(
+        purchaseAmount = amount,
+        onPartnerRedirected = { redirectionMethod, transaction ->
+          onPartnerRedirectedCalls.add(redirectionMethod to transaction)
+        },
+        onBack = {},
+        onExit = {}
+      )
 
+      app.partnershipsPurchaseQuotesUiStateMachine.test(props = quotesProps) {
         val quotesSheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
         }

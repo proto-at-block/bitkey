@@ -9,7 +9,7 @@ class SymmetricKeyTests : FunSpec({
   val key = SymmetricKeyImpl(raw = "bytes1234".encodeUtf8())
 
   test("SymmetricKey is redacted") {
-    "$key".shouldBe("SymmetricKeyImpl(██)")
-    key.toString().shouldBe("SymmetricKeyImpl(██)")
+    "$key".shouldBe("SymmetricKeyImpl(raw=██)")
+    key.toString().shouldBe("SymmetricKeyImpl(raw=██)")
   }
 })

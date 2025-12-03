@@ -7,6 +7,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconImage.LocalImage
+import build.wallet.ui.model.icon.IconImage.MarketIconImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -32,36 +33,48 @@ fun WalletTheme.iconStyle(
   return IconStyle(
     color =
       when (icon) {
-        is LocalImage ->
-          when {
-            icon.icon.canApplyTint() ->
-              when (tint) {
-                IconTint.Primary -> colors.bitkeyPrimary
-                IconTint.Foreground -> colors.foreground
-                IconTint.Background -> colors.background
-                IconTint.On60 -> colors.foreground60
-                IconTint.On30 -> colors.foreground30
-                IconTint.On10 -> colors.foreground10
-                IconTint.Destructive -> colors.destructiveForeground
-                IconTint.OutOfDate -> colors.outOfDate
-                IconTint.OnTranslucent -> colors.translucentForeground
-                IconTint.Green -> colors.positiveForeground
-                IconTint.Warning -> colors.warningForeground
-                IconTint.Success -> colors.calloutSuccessTrailingIconBackground
-                IconTint.Information -> colors.calloutInformationTrailingIconBackground
-                IconTint.White -> Color.White
-                null -> when (color) {
-                  Color.Unspecified -> colors.primaryIcon
-                  else -> color
-                }
-              }
-            else -> Color.Unspecified
-          }
+        is LocalImage -> when {
+          icon.icon.canApplyTint() -> applyTint(color, tint)
+          else -> Color.Unspecified
+        }
 
+        is MarketIconImage ->
+          if (!icon.icon.multiColor) {
+            applyTint(color, tint)
+          } else {
+            Color.Unspecified
+          }
         is UrlImage, IconImage.Loader -> color
         IconImage.LoadingBadge -> Color.Unspecified
       }
   )
+}
+
+@Composable
+private fun WalletTheme.applyTint(
+  color: Color,
+  tint: IconTint?,
+): Color {
+  return when (tint) {
+    IconTint.Primary -> colors.bitkeyPrimary
+    IconTint.Foreground -> colors.foreground
+    IconTint.Background -> colors.background
+    IconTint.On60 -> colors.foreground60
+    IconTint.On30 -> colors.foreground30
+    IconTint.On10 -> colors.foreground10
+    IconTint.Destructive -> colors.destructiveForeground
+    IconTint.OutOfDate -> colors.outOfDate
+    IconTint.OnTranslucent -> colors.translucentForeground
+    IconTint.Green -> colors.positiveForeground
+    IconTint.Warning -> colors.warningForeground
+    IconTint.Success -> colors.calloutSuccessTrailingIconBackground
+    IconTint.Information -> colors.calloutInformationTrailingIconBackground
+    IconTint.White -> Color.White
+    null -> when (color) {
+      Color.Unspecified -> colors.primaryIcon
+      else -> color
+    }
+  }
 }
 
 private fun Icon.canApplyTint(): Boolean {
@@ -75,6 +88,7 @@ private fun Icon.canApplyTint(): Boolean {
     Icon.BitkeyDeviceRaised,
     Icon.BitkeyDeviceRaisedSmall,
     Icon.BitkeyDevice3D,
+    Icon.BitkeyFrontLit,
     Icon.SmallIconCheckboxSelected,
     Icon.SmallIconSettingsBadged,
     Icon.BitkeyLogo,

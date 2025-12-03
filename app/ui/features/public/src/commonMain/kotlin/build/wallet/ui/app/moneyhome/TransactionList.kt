@@ -21,11 +21,13 @@ fun TransactionList(
     model.headerText?.let {
       ListHeader(title = it)
     }
-    model.sections.forEach { section ->
-      ListGroup(
-        model = section,
-        collapseContent = hideValue
-      )
+    Column {
+      model.sections.forEach { section ->
+        ListGroup(
+          model = section,
+          collapseContent = hideValue
+        )
+      }
     }
   }
 }

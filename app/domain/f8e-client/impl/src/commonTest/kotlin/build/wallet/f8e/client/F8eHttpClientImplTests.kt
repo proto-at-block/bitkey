@@ -38,6 +38,7 @@ import build.wallet.platform.data.MimeType
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.settings.CountryCodeGuesserMock
 import build.wallet.time.ClockFake
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getErrorOr
 import io.kotest.core.spec.style.FunSpec
@@ -49,14 +50,21 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.client.call.*
-import io.ktor.client.engine.*
-import io.ktor.client.engine.mock.*
-import io.ktor.client.plugins.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.utils.io.*
+import io.ktor.client.call.body
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.respondError
+import io.ktor.client.engine.mock.respondOk
+import io.ktor.client.plugins.SocketTimeoutException
+import io.ktor.client.request.get
+import io.ktor.client.request.put
+import io.ktor.client.statement.request
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import io.ktor.http.isSuccess
+import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -257,6 +265,10 @@ class F8eHttpClientImplTests : FunSpec({
       accessTokenExpiresAt = null
     )
     authTokensService.setTokens(FullAccountId("1234"), tokens, AuthTokenScope.Global)
+
+    // Explicitly fail app signing since we only want HW factor, not app factor
+    fakeAppAuthKeyMessageSigner.result =
+      Err(Throwable("App signing not expected for HW-only factor"))
 
     val engine =
       MockEngine {

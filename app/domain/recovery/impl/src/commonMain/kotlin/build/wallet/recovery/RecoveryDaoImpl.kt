@@ -522,6 +522,7 @@ private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
     appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
     networkType = keybox.config.bitcoinNetworkType,
     fakeHardware = keybox.config.isHardwareFake,
+    hardwareType = keybox.config.hardwareType,
     f8eEnvironment = keybox.config.f8eEnvironment,
     isTestAccount = keybox.config.isTestAccount,
     isUsingSocRecFakes = keybox.config.isUsingSocRecFakes,

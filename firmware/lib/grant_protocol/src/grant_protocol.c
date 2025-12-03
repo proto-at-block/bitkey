@@ -85,19 +85,45 @@ static grant_protocol_result_t sign_request(grant_request_t* request) {
   return GRANT_RESULT_OK;
 }
 
+static grant_protocol_result_t verify_app_signature(const grant_t* grant,
+                                                    const grant_request_t* request) {
+  ASSERT(grant && request);
+
+  // Check if app auth pubkey exists
+  uint8_t app_pubkey[33] = {0};
+  if (!grant_storage_read_app_auth_pubkey(app_pubkey)) {
+    LOGE("App auth pubkey not provisioned");
+    return GRANT_RESULT_ERROR_NO_APP_PUBKEY;
+  }
+
+  // Build the message that app signed: "BKAppBind" || request_core
+  // Request core is: version, device_id, challenge, action (excluding signature)
+  uint8_t app_signed_message[APP_BIND_LABEL_LEN + GRANT_REQUEST_EXCLUDING_SIGNATURE_LEN] = {0};
+  memcpy(app_signed_message, APP_BIND_LABEL, APP_BIND_LABEL_LEN);
+  memcpy(app_signed_message + APP_BIND_LABEL_LEN, request, GRANT_REQUEST_EXCLUDING_SIGNATURE_LEN);
+
+  if (!crypto_ecc_secp256k1_verify_signature(
+        app_pubkey, app_signed_message, APP_BIND_LABEL_LEN + GRANT_REQUEST_EXCLUDING_SIGNATURE_LEN,
+        grant->app_signature)) {
+    LOGE("Failed to verify app signature");
+    return GRANT_RESULT_ERROR_APP_VERIFICATION;
+  }
+
+  return GRANT_RESULT_OK;
+}
+
 static grant_protocol_result_t verify_grant_signature(const grant_t* grant,
                                                       const grant_request_t* request) {
   ASSERT(grant && request);
 
-  // Verify the signature over the serialized request.
-  // This is the data up to (but not including) the signature field, along with the "BKGrant" label.
+  // Verify the WIK signature over version + serialized_request + app_signature + "BKGrant"
   uint8_t signed_serialized_grant[GRANT_SIGNABLE_LEN] = {0};
   memcpy(signed_serialized_grant, GRANT_LABEL, GRANT_LABEL_LEN);  // Prepend the label.
-  memcpy(signed_serialized_grant + GRANT_LABEL_LEN, grant, GRANT_EXCLUDING_SIGNATURE_LEN);
+  memcpy(signed_serialized_grant + GRANT_LABEL_LEN, grant, GRANT_EXCLUDING_WSM_SIGNATURE_LEN);
 
   if (!crypto_ecc_secp256k1_verify_signature(grant_ctx.wik_pubkey, signed_serialized_grant,
-                                             GRANT_SIGNABLE_LEN, grant->signature)) {
-    LOGE("Failed to verify grant signature");
+                                             GRANT_SIGNABLE_LEN, grant->wsm_signature)) {
+    LOGE("Failed to verify WIK signature");
     return GRANT_RESULT_ERROR_VERIFICATION;
   }
 
@@ -140,6 +166,14 @@ grant_protocol_result_t grant_protocol_create_request(grant_action_t action,
                                                       grant_request_t* out_request) {
   ASSERT(out_request);
   ASSERT(grant_ctx.wik_pubkey);
+
+  // For fingerprint reset, require app auth pubkey to be provisioned
+  if (action == ACTION_FINGERPRINT_RESET) {
+    if (!grant_storage_app_auth_pubkey_exists()) {
+      LOGE("App auth pubkey must be provisioned before creating fingerprint reset request");
+      return GRANT_RESULT_ERROR_NO_APP_PUBKEY;
+    }
+  }
 
   out_request->version = GRANT_PROTOCOL_VERSION;
   out_request->action = action;
@@ -205,10 +239,17 @@ grant_protocol_result_t grant_protocol_verify_grant(const grant_t* grant) {
     goto out;
   }
 
-  // Verify that the signature in the grant matches the original request
+  // Verify the app signature over the request core
+  result = verify_app_signature(grant, &original_request);
+  if (result != GRANT_RESULT_OK) {
+    LOGE("App signature verification failed");
+    goto out;
+  }
+
+  // Verify the WIK signature over the grant (including app_signature)
   result = verify_grant_signature(grant, &original_request);
   if (result != GRANT_RESULT_OK) {
-    LOGE("Signature verification failed");
+    LOGE("WIK signature verification failed");
     goto out;
   }
 
@@ -226,4 +267,11 @@ out:
 
 grant_protocol_result_t grant_protocol_delete_outstanding_request(void) {
   return delete_outstanding_request();
+}
+
+grant_protocol_result_t grant_protocol_delete_app_auth_pubkey(void) {
+  if (!grant_storage_delete_app_auth_pubkey()) {
+    return GRANT_RESULT_ERROR_STORAGE;
+  }
+  return GRANT_RESULT_OK;
 }

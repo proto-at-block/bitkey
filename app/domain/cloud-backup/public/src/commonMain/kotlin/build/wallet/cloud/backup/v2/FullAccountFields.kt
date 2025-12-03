@@ -1,5 +1,6 @@
 package build.wallet.cloud.backup.v2
 
+import bitkey.account.HardwareType
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingPrivateKey
@@ -49,6 +50,11 @@ data class FullAccountFields(
   @Serializable(with = AppKeyKeyPairSerializer::class)
   val rotationAppRecoveryAuthKeypair: AppKey<AppRecoveryAuthKey>?,
   val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+  /**
+   * Hardware type for the account (W1 or W3).
+   * Defaults to W1 for backward compatibility with existing backups.
+   */
+  val hardwareType: HardwareType = HardwareType.W1,
 ) : SocRecV1AccountFeatures
 
 /**

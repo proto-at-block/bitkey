@@ -25,10 +25,17 @@ import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.feature.flags.ReplaceFullWithLiteAccountFeatureFlag
+import build.wallet.firmware.FirmwareDeviceInfo
+import build.wallet.firmware.FirmwareDeviceInfoDaoMock
+import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
+import build.wallet.firmware.HardwareUnlockInfoServiceFake
+import build.wallet.firmware.SecureBootConfig
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.nfc.NfcException
+import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProviderFake
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.random.UuidGeneratorFake
@@ -110,6 +117,14 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   val existingFullAccountUiStateMachine = object : ExistingFullAccountUiStateMachine,
     ScreenStateMachineMock<ExistingFullAccountUiProps>("existing-full-account-fake") {}
 
+  val provisionAppAuthKeyTransactionProvider = ProvisionAppAuthKeyTransactionProviderFake()
+
+  val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
+  val fingerprintResetMinFirmwareVersionFeatureFlag =
+    FingerprintResetMinFirmwareVersionFeatureFlag(FeatureFlagDaoFake())
+
+  val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
+
   val stateMachineActiveDeviceFlagOn =
     FullAccountCloudBackupRestorationUiStateMachineImpl(
       appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
@@ -135,7 +150,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       existingFullAccountUiStateMachine = existingFullAccountUiStateMachine,
       replaceFullWithLiteAccountFeatureFlag = ReplaceFullWithLiteAccountFeatureFlag(
         FeatureFlagDaoFake()
-      )
+      ),
+      provisionAppAuthKeyTransactionProvider = provisionAppAuthKeyTransactionProvider,
+      fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
+      firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+      hardwareUnlockInfoService = hardwareUnlockInfoService
     )
 
   val props = FullAccountCloudBackupRestorationUiProps(
@@ -151,8 +170,27 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
     keyboxDao.reset()
     recoveryStatusService.reset()
     cloudBackupDao.reset()
+    provisionAppAuthKeyTransactionProvider.reset()
+    firmwareDeviceInfoDao.reset()
     backupRestorer.restoration = AccountRestorationMock.copy(
       cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock
+    )
+    // Set up firmware device info with version that meets minimum requirement
+    firmwareDeviceInfoDao.setDeviceInfo(
+      FirmwareDeviceInfo(
+        version = "2.0.0", // Version that meets minimum requirement
+        serial = "fake-serial",
+        swType = "dev",
+        hwRevision = "evt",
+        activeSlot = FirmwareSlot.A,
+        batteryCharge = 80.0,
+        vCell = 4200,
+        avgCurrentMa = 100,
+        batteryCycles = 10,
+        secureBootConfig = SecureBootConfig.PROD,
+        timeRetrieved = 1234567890,
+        bioMatchStats = null
+      )
     )
   }
 
@@ -212,6 +250,101 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       relationshipsService.syncCalls.awaitItem()
       spendingWallet.syncCalls.awaitItem()
 
+      // Provisioning app auth key to hardware
+      awaitBodyMock<NfcSessionUIStateMachineProps<Unit>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        // Simulate successful provisioning by calling onSuccess on the transaction
+        onSuccess(Unit)
+      }
+
+      // Saving keybox as active (final loading state)
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      fullAccountAuthKeyRotationService.recommendKeyRotationCalls.awaitItem()
+      keyboxDao.activeKeybox.value
+        .shouldBeOk()
+        .shouldNotBeNull()
+    }
+  }
+
+  test("restore from cloud backup skips provisioning when firmware version is below minimum") {
+    // Set firmware version below the minimum requirement
+    firmwareDeviceInfoDao.setDeviceInfo(
+      FirmwareDeviceInfo(
+        version = "0.5.0", // Version below minimum requirement
+        serial = "fake-serial",
+        swType = "dev",
+        hwRevision = "evt",
+        activeSlot = FirmwareSlot.A,
+        batteryCharge = 80.0,
+        vCell = 4200,
+        avgCurrentMa = 100,
+        batteryCycles = 10,
+        secureBootConfig = SecureBootConfig.PROD,
+        timeRetrieved = 1234567890,
+        bioMatchStats = null
+      )
+    )
+
+    stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+      accountAuthorizer.authResults =
+        mutableListOf(
+          Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id")),
+          Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id"))
+        )
+
+      // Cloud back up found model
+      awaitBody<FormBodyModel> {
+        clickPrimaryButton()
+      }
+      // Unsealing CSEK
+      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(CsekFake)
+      }
+      csekDao.get(SealedCsekFake).shouldBe(Ok(CsekFake))
+
+      // activating restored keybox
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      cloudBackupDao.get("account-id").shouldBeOk(CloudBackupV2WithFullAccountMock)
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED)
+      )
+
+      // Set the global token
+      accountAuthorizer.authCalls.awaitItem()
+      authTokensService.getTokens(FullAccountId("account-id"), Global).shouldBeOk(
+        AccountAuthTokens(
+          accessToken = AccessToken("access-token-fake"),
+          refreshToken = RefreshToken("refresh-token-fake"),
+          accessTokenExpiresAt = Instant.DISTANT_FUTURE
+        )
+      )
+
+      // Set the recovery token
+      accountAuthorizer.authCalls.awaitItem()
+      authTokensService.getTokens(FullAccountId("account-id"), Recovery).shouldBeOk(
+        AccountAuthTokens(
+          accessToken = AccessToken("access-token-fake"),
+          refreshToken = RefreshToken("refresh-token-fake"),
+          accessTokenExpiresAt = Instant.DISTANT_FUTURE
+        )
+      )
+
+      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+      recoveryStatusService.clearCalls.awaitItem()
+      relationshipsService.syncCalls.awaitItem()
+      spendingWallet.syncCalls.awaitItem()
+
+      // App auth key provisioning should be skipped, no NFC session for provisioning
+      // Keybox should be saved directly
       fullAccountAuthKeyRotationService.recommendKeyRotationCalls.awaitItem()
       keyboxDao.activeKeybox.value
         .shouldBeOk()

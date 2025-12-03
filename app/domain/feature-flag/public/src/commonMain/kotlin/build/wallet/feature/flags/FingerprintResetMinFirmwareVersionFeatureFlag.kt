@@ -10,7 +10,7 @@ class FingerprintResetMinFirmwareVersionFeatureFlag(
     identifier = "fingerprint-reset-min-firmware-version",
     title = "Fingerprint Reset Min Firmware Version",
     description = "Minimum firmware version required for fingerprint reset functionality",
-    defaultFlagValue = FeatureFlagValue.StringFlag("1.0.98"),
+    defaultFlagValue = FeatureFlagValue.StringFlag("1.0.101"),
     featureFlagDao = featureFlagDao,
     type = FeatureFlagValue.StringFlag::class
   )

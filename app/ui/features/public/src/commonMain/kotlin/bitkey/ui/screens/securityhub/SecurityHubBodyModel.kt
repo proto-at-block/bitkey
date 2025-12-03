@@ -581,6 +581,7 @@ private fun SecurityActionRecommendation.title(): StringResource =
     BACKUP_EAK -> Res.string.backup_eak_recommendation_title
     ADD_FINGERPRINTS -> Res.string.add_fingerprints_recommendation_title
     COMPLETE_FINGERPRINT_RESET -> Res.string.complete_fingerprint_reset_recommendation_title
+    PROVISION_APP_KEY_TO_HARDWARE -> Res.string.provision_app_key_to_hardware_recommendation_title
     ADD_TRUSTED_CONTACTS -> Res.string.add_recovery_contacts_recommendation_title
     ENABLE_CRITICAL_ALERTS -> Res.string.enable_critical_alerts_recommendation_title
     ADD_BENEFICIARY -> Res.string.add_beneficiary_recommendation_title
@@ -599,6 +600,7 @@ private fun SecurityActionRecommendation.icon(): Icon =
     BACKUP_EAK -> Icon.SmallIconRecovery
     ADD_FINGERPRINTS -> Icon.SmallIconFingerprint
     COMPLETE_FINGERPRINT_RESET -> Icon.SmallIconFingerprint
+    PROVISION_APP_KEY_TO_HARDWARE -> Icon.SmallIconFingerprint
     ADD_TRUSTED_CONTACTS -> Icon.SmallIconShieldPerson
     ENABLE_CRITICAL_ALERTS, ENABLE_SMS_NOTIFICATIONS, ENABLE_EMAIL_NOTIFICATIONS,
     ENABLE_PUSH_NOTIFICATIONS,

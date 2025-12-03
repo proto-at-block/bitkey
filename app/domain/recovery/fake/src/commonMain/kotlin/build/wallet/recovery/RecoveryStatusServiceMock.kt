@@ -5,22 +5,20 @@ import app.cash.turbine.plusAssign
 import bitkey.recovery.RecoveryStatusService
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class RecoveryStatusServiceMock(
-  val recovery: Recovery = Recovery.NoActiveRecovery,
+  var recovery: Recovery = Recovery.NoActiveRecovery,
   turbine: (String) -> Turbine<Any>,
 ) : RecoveryStatusService {
-  val recoveryStatus = MutableStateFlow<Result<Recovery, Error>>(Ok(recovery))
+  val recoveryStatus = MutableStateFlow(recovery)
   val clearCalls = turbine("clear recovery syncer calls")
   val setLocalRecoveryProgressCalls = turbine("set local recovery progress calls")
   var setLocalRecoveryProgressResult: Result<Unit, Error> = Ok(Unit)
   var clearCallResult: Result<Unit, Error> = Ok(Unit)
 
-  override fun status(): Flow<Result<Recovery, Error>> {
-    return recoveryStatus
-  }
+  override val status: StateFlow<Recovery> = recoveryStatus
 
   override suspend fun clear(): Result<Unit, Error> {
     clearCalls += Unit
@@ -35,7 +33,7 @@ class RecoveryStatusServiceMock(
   }
 
   fun reset() {
-    recoveryStatus.value = Ok(recovery)
+    recoveryStatus.value = recovery
     setLocalRecoveryProgressResult = Ok(Unit)
     clearCallResult = Ok(Unit)
   }

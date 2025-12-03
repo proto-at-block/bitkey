@@ -1,5 +1,6 @@
 package build.wallet.nfc
 
+import bitkey.account.HardwareType
 import okio.ByteString
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -26,11 +27,14 @@ interface NfcSession : AutoCloseable {
    * @param shouldLock: Whether or not the hardware should be locked when the transaction completes
    * @param skipFirmwareTelemetry: Whether or not to skip shipping up firmware telemetry
    * @param asyncNfcSigning: Whether or not to use async NFC signing
+   * @param isHardwareFake: Whether to use fake/simulated hardware
+   * @param hardwareType: The type of hardware (W1 or W3) to use/simulate
    * @param checkHardwareIsPaired: Function to verify if a challenge signature was made by the paired hardware
    * @param requirePairedHardware: Whether to validate that the hardware being used is the one paired with the account
    */
   class Parameters(
     val isHardwareFake: Boolean,
+    val hardwareType: HardwareType?,
     val needsAuthentication: Boolean,
     val shouldLock: Boolean,
     val skipFirmwareTelemetry: Boolean,

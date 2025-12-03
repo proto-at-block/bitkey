@@ -1,0 +1,19 @@
+-- Add appSignature column and rename signature to wsmSignature in grantEntity table.
+-- This supports the new grant protocol that requires both app and WSM signatures.
+-- Completely drop the old table since it hasn't been released yet
+
+-- Drop the old table
+DROP TABLE grantEntity;
+
+-- Create a new table with the updated schema
+CREATE TABLE grantEntity (
+    action TEXT NOT NULL PRIMARY KEY,
+    version INTEGER NOT NULL,
+    serializedRequest BLOB NOT NULL,
+    appSignature BLOB NOT NULL,
+    wsmSignature BLOB NOT NULL,
+    createdAt TEXT NOT NULL,
+    delivered INTEGER NOT NULL DEFAULT 0
+);
+
+PRAGMA foreign_key_check;

@@ -20,9 +20,9 @@ import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
+import build.wallet.testing.ext.testWithTwoApps
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.core.test.TestScope
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -30,13 +30,13 @@ import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
 class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
-  test("replace full account with lite account backup") {
-    val (app, liteAccount, liteBackup) = createLiteAccountWithInvite()
+  testWithTwoApps("replace full account with lite account backup") { protectedCustomerApp, liteApp ->
+    val (liteAccount, liteBackup) = createLiteAccountWithInvite(protectedCustomerApp, liteApp)
 
     // Start a new app to attempt to onboard a new full account.
     val onboardApp = launchNewApp(
-      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.cloudKeyValueStore
+      cloudStoreAccountRepository = liteApp.cloudStoreAccountRepository,
+      cloudKeyValueStore = liteApp.cloudKeyValueStore
     )
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
@@ -89,13 +89,13 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
     verifyAccountDataIsPreserved(onboardApp, liteAccount)
   }
 
-  test("relaunch app before backing up upgraded lite account") {
-    val (app, liteAccount, liteBackup) = createLiteAccountWithInvite()
+  testWithTwoApps("relaunch app before backing up upgraded lite account") { protectedCustomerApp, liteApp ->
+    val (liteAccount, liteBackup) = createLiteAccountWithInvite(protectedCustomerApp, liteApp)
 
     // Start a new app to attempt to onboard a new full account.
     var onboardApp = launchNewApp(
-      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.cloudKeyValueStore
+      cloudStoreAccountRepository = liteApp.cloudStoreAccountRepository,
+      cloudKeyValueStore = liteApp.cloudKeyValueStore
     )
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
@@ -164,12 +164,13 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
 
 private const val PROTECTED_CUSTOMER_NAME = "protected customer"
 
-private suspend fun TestScope.createLiteAccountWithInvite(): Triple<AppTester, LiteAccount, CloudBackupV2> {
-  val fullApp = launchNewApp()
-  fullApp.onboardFullAccountWithFakeHardware()
-  val liteApp = launchNewApp()
+private suspend fun createLiteAccountWithInvite(
+  protectedCustomerApp: AppTester,
+  liteApp: AppTester,
+): Pair<LiteAccount, CloudBackupV2> {
+  protectedCustomerApp.onboardFullAccountWithFakeHardware()
 
-  val (inviteCode, _) = fullApp.createTcInvite("Recovery Contact")
+  val (inviteCode, _) = protectedCustomerApp.createTcInvite("Recovery Contact")
   val liteAccount =
     liteApp.onboardLiteAccountFromInvitation(
       inviteCode,
@@ -185,7 +186,7 @@ private suspend fun TestScope.createLiteAccountWithInvite(): Triple<AppTester, L
     requireAuthRefresh = true
   ).getOrThrow()
 
-  return Triple(liteApp, liteAccount, liteBackup)
+  return liteAccount to liteBackup
 }
 
 private suspend fun verifyAccountDataIsPreserved(

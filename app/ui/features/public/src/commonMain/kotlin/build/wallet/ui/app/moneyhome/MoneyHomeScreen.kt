@@ -125,7 +125,8 @@ fun MoneyHomeScreen(
             ),
             primaryAmount = AnnotatedString(primaryAmount),
             contextLine = secondaryAmount,
-            hideBalance = model.hideBalance
+            hideBalance = model.hideBalance,
+            isLoading = isLoading
           )
         }
         Spacer(Modifier.height(32.dp))

@@ -493,6 +493,46 @@ out:
   proto_send_rsp(cmd, rsp);
 }
 
+void handle_provision_app_auth_pubkey(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_provision_app_auth_pubkey_rsp_tag;
+  rsp->status = fwpb_status_ERROR;
+
+  // Check pubkey size (33 bytes for compressed secp256k1)
+  if (cmd->msg.provision_app_auth_pubkey_cmd.pubkey.size != 33) {
+    rsp->status = fwpb_status_INVALID_ARGUMENT;
+    LOGE("Invalid app auth pubkey size: %d (expected 33)",
+         cmd->msg.provision_app_auth_pubkey_cmd.pubkey.size);
+    goto out;
+  }
+
+  grant_protocol_result_t result =
+    grant_protocol_provision_app_auth_pubkey(cmd->msg.provision_app_auth_pubkey_cmd.pubkey.bytes);
+
+  switch (result) {
+    case GRANT_RESULT_OK:
+      rsp->status = fwpb_status_SUCCESS;
+      break;
+    case GRANT_RESULT_ERROR_INVALID_ARGUMENT:
+      rsp->status = fwpb_status_INVALID_ARGUMENT;
+      break;
+    case GRANT_RESULT_ERROR_APP_VERIFICATION:
+      rsp->status = fwpb_status_VERIFICATION_FAILED;
+      break;
+    case GRANT_RESULT_ERROR_STORAGE:
+      rsp->status = fwpb_status_STORAGE_ERR;
+      break;
+    default:
+      rsp->status = fwpb_status_ERROR;
+      break;
+  }
+
+out:
+  proto_send_rsp(cmd, rsp);
+}
+
 void key_manager_thread(void* UNUSED(args)) {
   sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
 
@@ -551,6 +591,10 @@ void key_manager_thread(void* UNUSED(args)) {
       }
       case IPC_PROTO_FINGERPRINT_RESET_FINALIZE_CMD: {
         handle_fingerprint_reset_finalize(&message);
+        break;
+      }
+      case IPC_PROTO_PROVISION_APP_AUTH_PUBKEY_CMD: {
+        handle_provision_app_auth_pubkey(&message);
         break;
       }
       default:

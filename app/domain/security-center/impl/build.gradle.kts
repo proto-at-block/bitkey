@@ -39,6 +39,7 @@ kotlin {
         implementation(projects.domain.privilegedActionsFake)
         implementation(projects.domain.privilegedActionsImpl)
         implementation(projects.domain.availabilityFake)
+        implementation(projects.domain.featureFlagFake)
       }
     }
   }

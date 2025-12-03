@@ -342,7 +342,6 @@ class HomeUiStateMachineImpl(
           is MoneyHome -> moneyHomeUiStateMachine.model(
             props = MoneyHomeUiProps(
               account = props.account,
-              lostHardwareRecoveryData = props.lostHardwareRecoveryData,
               homeStatusBannerModel = homeStatusBannerModel,
               onSettings = {
                 anchorRootScreen = Settings(null)
@@ -386,15 +385,12 @@ class HomeUiStateMachineImpl(
             val screen = when (rootScreen.screen) {
               DeviceSettings -> DeviceSettingsScreen(
                 account = props.account as FullAccount,
-                lostHardwareRecoveryData = props.lostHardwareRecoveryData,
                 originScreen = SecurityHubScreen(
-                  account = props.account,
-                  hardwareRecoveryData = props.lostHardwareRecoveryData
+                  account = props.account
                 )
               )
               null -> SecurityHubScreen(
-                account = props.account as FullAccount,
-                hardwareRecoveryData = props.lostHardwareRecoveryData
+                account = props.account as FullAccount
               )
             }
 

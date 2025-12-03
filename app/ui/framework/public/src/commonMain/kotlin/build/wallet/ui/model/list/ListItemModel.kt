@@ -5,6 +5,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.icon.IconAlignmentInBackground
+import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconTint.On10
 import build.wallet.ui.model.list.ListItemAccessory.*
@@ -34,6 +35,17 @@ data class ListItemModel(
   val titleLabel: LabelModel? = null,
   val coachmark: CoachmarkModel? = null,
   val allowFontScaling: Boolean = true,
+  val isLoading: Boolean = false,
+  val explainer: ListItemExplainer? = null,
+)
+
+/**
+ * Model for an explainer box that displays explanatory text below a list item.
+ */
+data class ListItemExplainer(
+  val title: String? = null,
+  val subtitle: String? = null,
+  val iconButton: IconButtonModel? = null,
 )
 
 enum class ListItemTitleAlignment {
@@ -54,6 +66,7 @@ enum class ListItemTreatment {
   SECONDARY_DISPLAY,
   QUATERNARY,
   INFO,
+  DESTRUCTIVE,
 }
 
 enum class ListItemTitleBackgroundTreatment {

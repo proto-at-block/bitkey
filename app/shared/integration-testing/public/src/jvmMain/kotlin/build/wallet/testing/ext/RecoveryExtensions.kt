@@ -11,13 +11,12 @@ import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.encrypt.toSecp256k1PublicKey
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.testing.AppTester
-import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.matchers.shouldBe
 
 suspend fun AppTester.awaitNoActiveRecovery() {
-  recoveryStatusService.status().test {
-    awaitUntil { it.get() is NoActiveRecovery }
+  recoveryStatusService.status.test {
+    awaitUntil { it is NoActiveRecovery }
   }
 }
 

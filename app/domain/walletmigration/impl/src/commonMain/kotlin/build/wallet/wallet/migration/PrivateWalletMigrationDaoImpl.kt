@@ -62,7 +62,7 @@ class PrivateWalletMigrationDaoImpl(
       }
   }
 
-  override suspend fun setDescriptorBackupCompete(): Result<Unit, DbError> {
+  override suspend fun setDescriptorBackupComplete(): Result<Unit, DbError> {
     return databaseProvider.database()
       .privateWalletMigrationQueries
       .awaitTransaction {

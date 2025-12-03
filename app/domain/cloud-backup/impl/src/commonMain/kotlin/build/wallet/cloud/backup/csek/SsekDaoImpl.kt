@@ -1,5 +1,6 @@
 package build.wallet.cloud.backup.csek
 
+import bitkey.data.PrivateData
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -24,6 +25,7 @@ class SsekDaoImpl(
       .getStringOrNullWithResult(key = key.forStore)
       .map { it?.let { rawKeyHex -> Ssek(key = SymmetricKeyImpl(raw = rawKeyHex.decodeHex())) } }
 
+  @OptIn(PrivateData::class)
   override suspend fun set(
     key: SealedSsek,
     value: Ssek,

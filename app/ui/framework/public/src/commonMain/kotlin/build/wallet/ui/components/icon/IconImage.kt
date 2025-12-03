@@ -24,9 +24,11 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.icon.IconBackgroundType.*
 import build.wallet.ui.model.icon.IconImage.LocalImage
+import build.wallet.ui.model.icon.IconImage.MarketIconImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.painter
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun Icon(
@@ -154,6 +156,14 @@ fun IconImage(
             tint = style.color
           )
 
+        is MarketIconImage ->
+          Icon(
+            modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
+            painter = painterResource(image.icon.resource),
+            contentDescription = model.text,
+            tint = style.color
+          )
+
         is UrlImage ->
           UrlImage(
             image = image,
@@ -172,7 +182,7 @@ fun IconImage(
 
       when (model.badge) {
         BadgeType.Loading -> LoadingBadge(
-          modifier = Modifier.padding(bottom = 6.dp, end = 6.dp)
+          modifier = Modifier.padding(bottom = 5.dp, end = 5.dp)
             .size(IconSize.XSmall.dp)
             .align(Alignment.BottomEnd)
         )
@@ -228,6 +238,7 @@ private fun Modifier.background(
               Square.Color.Success -> WalletTheme.colors.calloutSuccessTrailingIconBackground
               Square.Color.Warning -> WalletTheme.colors.calloutWarningTrailingIconBackground
               Square.Color.Danger -> WalletTheme.colors.danger
+              Square.Color.White -> WalletTheme.colors.subtleBackground
               Square.Color.Transparent -> Color.Transparent
             },
             shape = RoundedCornerShape(type.cornerRadius)

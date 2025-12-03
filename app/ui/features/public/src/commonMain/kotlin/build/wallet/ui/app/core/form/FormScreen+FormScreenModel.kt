@@ -43,6 +43,7 @@ import build.wallet.statemachine.money.currency.AppearanceSection
 import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.callout.Callout
+import build.wallet.ui.components.card.BitkeyDevice
 import build.wallet.ui.components.explainer.Explainer
 import build.wallet.ui.components.explainer.Statement
 import build.wallet.ui.components.fee.FeeOption
@@ -59,6 +60,7 @@ import build.wallet.ui.components.layout.CollapsedMoneyView
 import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListGroup
+import build.wallet.ui.components.list.SettingsListComponent
 import build.wallet.ui.components.loading.FormLoader
 import build.wallet.ui.components.progress.StepperIndicator
 import build.wallet.ui.components.tab.CircularTabRow
@@ -69,6 +71,7 @@ import build.wallet.ui.components.webview.WebView
 import build.wallet.ui.compose.getVideoResource
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.data.DataGroup
+import build.wallet.ui.data.DataGroupDevice
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.label.CallToActionModel
@@ -159,6 +162,9 @@ fun FormScreen(
           is Showcase -> Showcase(model = mainContent)
           is CircularTabRow -> CircularTabRow(model = mainContent.item)
           is Upsell -> mainContent.render(modifier = Modifier)
+          is DeviceDataList -> DataGroupDevice(rows = mainContent.rows)
+          is DeviceStatusCard -> BitkeyDevice(model = mainContent)
+          is SettingsList -> SettingsListComponent(model = mainContent)
         }
         if (index < model.mainContentList.lastIndex) {
           Spacer(modifier = Modifier.height(16.dp))
@@ -285,6 +291,7 @@ private fun ShowcaseVideoContent(content: Showcase.Content.VideoContent) {
           Theme.DARK -> Res.getVideoResource("bitkey_wipe_dark")
         }
       }
+      Showcase.Content.VideoContent.Video.BITKEY_ROTATE -> Res.getVideoResource("bitkey_rotate")
     },
     backgroundColor = WalletTheme.colors.background,
     autoStart = false,

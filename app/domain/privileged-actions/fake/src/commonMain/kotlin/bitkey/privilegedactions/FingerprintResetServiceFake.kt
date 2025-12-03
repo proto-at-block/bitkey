@@ -35,7 +35,8 @@ class FingerprintResetServiceFake(
     Grant(
       version = 1,
       serializedRequest = byteArrayOf(1, 2, 3, 4),
-      signature = byteArrayOf(5, 6, 7, 8)
+      appSignature = byteArrayOf(5, 6, 7, 8),
+      wsmSignature = byteArrayOf(9, 10, 11, 12)
     )
   )
   var getLatestFingerprintResetActionResult: Result<PrivilegedActionInstance?, PrivilegedActionError> =
@@ -120,7 +121,8 @@ class FingerprintResetServiceFake(
       Grant(
         version = 1,
         serializedRequest = byteArrayOf(1, 2, 3, 4),
-        signature = byteArrayOf(5, 6, 7, 8)
+        appSignature = byteArrayOf(5, 6, 7, 8),
+        wsmSignature = byteArrayOf(9, 10, 11, 12)
       )
     )
 

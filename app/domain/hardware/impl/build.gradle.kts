@@ -61,6 +61,7 @@ kotlin {
         implementation(projects.libs.testingPublic)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.domain.walletFake)
+        implementation(projects.domain.featureFlagFake)
       }
     }
     val commonJvmTest by getting {

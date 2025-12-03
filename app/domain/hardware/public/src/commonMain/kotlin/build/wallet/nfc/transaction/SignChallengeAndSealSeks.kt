@@ -5,6 +5,7 @@ import build.wallet.bitkey.challange.SignedChallenge.HardwareSignedChallenge
 import build.wallet.cloud.backup.csek.*
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.nfc.transaction.SignChallengeAndSealSeks.SignedChallengeAndSeks
 
 class SignChallengeAndSealSeks(
@@ -30,8 +31,8 @@ class SignChallengeAndSealSeks(
       ),
       csek = csek,
       ssek = ssek,
-      sealedCsek = commands.sealData(session, csek.key.raw),
-      sealedSsek = commands.sealData(session, ssek.key.raw)
+      sealedCsek = commands.sealSymmetricKey(session, csek.key),
+      sealedSsek = commands.sealSymmetricKey(session, ssek.key)
     )
   }
 

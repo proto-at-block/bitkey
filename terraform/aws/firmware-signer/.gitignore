@@ -1,0 +1,13 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+*.tfplan
+*.tfvars.backup
+
+# Personal developer stack configs (keep only templates)
+tfvars/developer/developer-*.tfvars
+tfvars/developer/backends-*.tfvars
+!tfvars/developer/developer-template.tfvars
+!tfvars/developer/backends-template.tfvars

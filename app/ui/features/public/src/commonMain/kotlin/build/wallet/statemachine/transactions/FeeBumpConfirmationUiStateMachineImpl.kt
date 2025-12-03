@@ -3,6 +3,7 @@ package build.wallet.statemachine.transactions
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
+import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.transactions.BitcoinWalletService
@@ -10,14 +11,19 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.statemachine.core.*
+import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.*
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorContext
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiError
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiProps
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiStateMachine
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpConfirmationModel
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpTransactionSentModel
 import com.github.michaelbull.result.onFailure
@@ -32,6 +38,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val transferInitiatedUiStateMachine: TransferInitiatedUiStateMachine,
   private val bitcoinWalletService: BitcoinWalletService,
+  private val feeEstimationErrorUiStateMachine: FeeEstimationErrorUiStateMachine,
 ) : FeeBumpConfirmationUiStateMachine {
   @Composable
   override fun model(props: FeeBumpConfirmationProps): ScreenModel {
@@ -82,7 +89,8 @@ class FeeBumpConfirmationUiStateMachineImpl(
               uiState = State.SigningWithHardware(currentState.appSignedPsbt)
             },
             onNetworkFeesClick = {},
-            onArrivalTimeClick = null
+            onArrivalTimeClick = null,
+            requiresHardwareReview = false
           ).asModalFullScreen()
           UtxoConsolidation -> UtxoConsolidationSpeedUpConfirmationModel(
             onBack = props.onExit,
@@ -137,8 +145,13 @@ class FeeBumpConfirmationUiStateMachineImpl(
             .onSuccess {
               uiState = State.ViewingFeeBumpConfirmation(currentState.appAndHwSignedPsbt)
             }
-            .onFailure {
-              uiState = State.UnableToBumpFee
+            .onFailure { error ->
+              uiState =
+                State.BroadcastFailed(
+                  appAndHwSignedPsbt = currentState.appAndHwSignedPsbt,
+                  error = error.toFeeEstimationError(),
+                  cause = error
+                )
             }
         }
 
@@ -154,16 +167,29 @@ class FeeBumpConfirmationUiStateMachineImpl(
           eventTrackerShouldTrack = false
         ).asModalScreen()
       }
-      State.UnableToBumpFee -> ErrorFormBodyModel(
-        title = "We couldn’t speed up this transaction",
-        subline = "We are looking into this. Please try again later.",
-        primaryButton =
-          ButtonDataModel(
-            text = "Go Back",
-            onClick = { props.onExit() }
-          ),
-        eventTrackerScreenId = FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
-      ).asModalScreen()
+      is State.BroadcastFailed -> {
+        val retryHandler =
+          when (currentState.error) {
+            is FeeEstimationErrorUiError.LoadFailed ->
+              {
+                {
+                  uiState = State.BroadcastingTransaction(currentState.appAndHwSignedPsbt)
+                }
+              }
+            else -> null
+          }
+
+        feeEstimationErrorUiStateMachine
+          .model(
+            FeeEstimationErrorUiProps(
+              error = currentState.error,
+              onBack = props.onExit,
+              onRetry = retryHandler,
+              errorData = broadcastErrorData(currentState.cause),
+              context = FeeEstimationErrorContext.SpeedUp
+            )
+          ).asModalScreen()
+      }
       is State.ViewingFeeBumpConfirmation -> {
         val transactionDetails = TransactionDetails.SpeedUp(
           transferAmount = BitcoinMoney
@@ -236,5 +262,28 @@ sealed interface State {
     val appAndHwSignedPsbt: Psbt,
   ) : State
 
-  data object UnableToBumpFee : State
+  data class BroadcastFailed(
+    val appAndHwSignedPsbt: Psbt,
+    val error: FeeEstimationErrorUiError,
+    val cause: Error,
+  ) : State
 }
+
+private fun broadcastErrorData(cause: Throwable) =
+  ErrorData(
+    segment = MoneyHomeAppSegment.Transactions,
+    actionDescription = "Broadcasting a fee bump transaction",
+    cause = cause
+  )
+
+private fun Error.toFeeEstimationError(): FeeEstimationErrorUiError =
+  when (this) {
+    is BdkError.InsufficientFunds -> FeeEstimationErrorUiError.InsufficientFunds
+    is BdkError.FeeRateTooLow, is BdkError.FeeTooLow -> FeeEstimationErrorUiError.FeeRateTooLow
+    is BdkError.Esplora,
+    is BdkError.Electrum,
+    is BdkError.Rpc,
+    is NetworkingError,
+    -> FeeEstimationErrorUiError.LoadFailed(isConnectivityError = true)
+    else -> FeeEstimationErrorUiError.Generic
+  }

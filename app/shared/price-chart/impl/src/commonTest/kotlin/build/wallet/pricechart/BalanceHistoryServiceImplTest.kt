@@ -2,6 +2,7 @@ package build.wallet.pricechart
 
 import build.wallet.activity.Transaction
 import build.wallet.activity.TransactionsActivityService
+import build.wallet.activity.TransactionsActivityState
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
@@ -22,6 +23,7 @@ import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.doubles.shouldBeWithinPercentageOf
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.datetime.Instant
@@ -350,6 +352,17 @@ private class FakeChartDataFetcherService : ChartDataFetcherService {
 }
 
 private class FakeTransactionsActivityService : TransactionsActivityService {
+  override val transactionsState: StateFlow<TransactionsActivityState>
+    get() = (
+      transactions.value?.let {
+        if (it.isEmpty()) {
+          TransactionsActivityState.Empty
+        } else {
+          TransactionsActivityState.Loaded(it)
+        }
+      } ?: TransactionsActivityState.InitialLoading
+    ).let { MutableStateFlow(it) }
+
   override val transactions = MutableStateFlow<List<Transaction>?>(emptyList())
   override val activeAndInactiveWalletTransactions = MutableStateFlow<List<Transaction>?>(emptyList())
 

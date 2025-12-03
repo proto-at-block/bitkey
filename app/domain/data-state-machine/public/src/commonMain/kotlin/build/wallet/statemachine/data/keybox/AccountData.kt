@@ -8,7 +8,6 @@ import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 
 /**
  * Describes Account state in the app. This could be Customer or Trusted Contact
@@ -128,7 +127,6 @@ sealed interface AccountData {
      */
     data class ActiveFullAccountLoadedData(
       override val account: FullAccount,
-      val lostHardwareRecoveryData: LostHardwareRecoveryData,
     ) : HasActiveFullAccountData
   }
 

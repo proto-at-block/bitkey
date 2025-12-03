@@ -10,15 +10,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class RecoveryDaoMock(
-  turbine: (name: String) -> Turbine<Unit>,
+  turbine: (name: String) -> Turbine<Any>,
 ) : RecoveryDao {
-  var recovery: Recovery = NoActiveRecovery
+  private val recoveryState = MutableStateFlow<Result<Recovery, Error>>(Ok(NoActiveRecovery))
 
-  override fun activeRecovery(): Flow<Result<Recovery, Error>> {
-    return MutableStateFlow<Result<Recovery, Error>>(
-      Ok(recovery)
-    )
-  }
+  var recovery: Recovery = NoActiveRecovery
+    set(value) {
+      field = value
+      recoveryState.value = Ok(value)
+    }
+
+  override fun activeRecovery(): Flow<Result<Recovery, Error>> = recoveryState
 
   val setActiveServerRecoveryCalls = turbine("setActiveServerRecoveryCalls calls")
 
@@ -38,16 +40,18 @@ class RecoveryDaoMock(
   }
 
   val setLocalRecoveryProgressCalls = turbine("setLocalRecoveryProgress calls")
+  var setLocalRecoveryProgressResult: Result<Unit, Error> = Ok(Unit)
 
   override suspend fun setLocalRecoveryProgress(
     progress: LocalRecoveryAttemptProgress,
   ): Result<Unit, Error> {
-    setLocalRecoveryProgressCalls += Unit
-    return Ok(Unit)
+    setLocalRecoveryProgressCalls += progress
+    return setLocalRecoveryProgressResult
   }
 
   fun reset() {
     recovery = NoActiveRecovery
     clearCallResult = Ok(Unit)
+    setLocalRecoveryProgressResult = Ok(Unit)
   }
 }

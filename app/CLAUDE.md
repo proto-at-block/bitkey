@@ -1,23 +1,28 @@
-# Claude Code Configuration
+@ai-rules/.generated-ai-rules/ai-rules-generated-testing-overview.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-gradle-build-system.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-hermit-environment.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-dao-pattern.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-basics.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-testing-basics.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-kmp-code-structure.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-goosehints.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-module-structure.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-testing-coroutines.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-ai-code-review.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-factory-pattern.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-bitkey-mobile.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-testing-integration.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-testing-state-machines.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-domain-service-pattern.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-testing-services.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-strong-typing.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-models.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-rule-writing.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-testing-fakes-mocks.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-patterns.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-f8e-clients.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-CLAUDE.md
 
-Configuration for the Bitkey mobile app. **Read actual rule content - don't assume based on filenames alone.**
-
-**Apply all rules below during code reviews and code generation.**
-
-@ai-rules/bitkey-mobile.mdc
-@ai-rules/rule-writing.mdc
-@ai-rules/context-gathering.mdc
-@ai-rules/strong-typing.mdc
-@ai-rules/f8e-clients.mdc
-@ai-rules/module-structure.mdc
-@ai-rules/domain-service-pattern.mdc
-@ai-rules/ui-state-machines.mdc
-@ai-rules/dao-pattern.mdc
-@ai-rules/kmp-code-structure.mdc
-@ai-rules/hermit-environment.mdc
-@ai-rules/gradle-build-system.mdc
-@ai-rules/factory-pattern.mdc
-
-## AI Rules Index Reference
-
-The complete, authoritative list of all AI rules is maintained in `@ai-rules/bitkey-mobile.mdc`. This index serves as the single source of truth for rule discovery and contains the full catalog of available rules.
+@ai-rules/.generated-ai-rules/ai-rules-generated-optional.md

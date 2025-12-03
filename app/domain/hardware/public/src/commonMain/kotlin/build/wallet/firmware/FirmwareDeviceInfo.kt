@@ -1,5 +1,6 @@
 package build.wallet.firmware
 
+import bitkey.account.HardwareType
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
 import build.wallet.firmware.HwKeyConfig.DEV
 import build.wallet.firmware.HwKeyConfig.PROD
@@ -59,6 +60,19 @@ data class FirmwareDeviceInfo(
   val timeRetrieved: Long,
   val bioMatchStats: BioMatchStats?,
 ) {
+  /**
+   * Detects the hardware type from the hardware revision string.
+   * Hardware revision format: "w{N}{variant}-{stage}" where N is 1 for W1, 3 for W3, etc.
+   * Examples: "w1a-dvt", "w3a-evt", "w3b-mp"
+   */
+  fun hardwareType(): HardwareType {
+    return when {
+      hwRevision.startsWith("w3", ignoreCase = true) -> HardwareType.W3
+      hwRevision.startsWith("w1", ignoreCase = true) -> HardwareType.W1
+      else -> HardwareType.W1 // Default to W1 for unknown/legacy hardware
+    }
+  }
+
   // Transform a hwRevision like 'w1a-dvt' to 'dvt'.
   // Memfault prefers the latter.
   private fun hwRevisionWithoutProduct() = hwRevision.split("-").last()

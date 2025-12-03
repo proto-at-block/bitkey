@@ -1,6 +1,5 @@
 package build.wallet.support
 
-import build.wallet.bitkey.f8e.AccountId
 import com.github.michaelbull.result.Result
 
 /**
@@ -12,7 +11,6 @@ interface SupportTicketRepository {
    * Creates a new support ticket from the provided [data].
    */
   suspend fun createTicket(
-    accountId: AccountId,
     form: SupportTicketForm,
     data: SupportTicketData,
   ): Result<Unit, Error>
@@ -20,7 +18,7 @@ interface SupportTicketRepository {
   /**
    * Fetches the structure of the ticket form from backend.
    */
-  suspend fun loadFormStructure(accountId: AccountId): Result<SupportTicketForm, Error>
+  suspend fun loadFormStructure(): Result<SupportTicketForm, Error>
 
   /**
    * Returns an instance of [SupportTicketData] populated with available values

@@ -47,12 +47,30 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
     onBack = {}
   )
 
+  val propsWithNullAccount = FeedbackFormUiProps(
+    account = null,
+    formStructure = SupportTicketForm(
+      id = 1L,
+      fields = emptyList(),
+      conditions = OptimizedSupportTicketFieldConditions(emptyMap())
+    ),
+    initialData = SupportTicketData.Empty,
+    onBack = {}
+  )
+
   beforeTest {
     encryptedDescriptorSupportUploadFeatureFlag.reset()
   }
 
   test("smoke test") {
     stateMachine.test(props) {
+      // A silly smoke test to make sure the state machine doesn't crash. INC-3635.
+      awaitBody<FillingFormBodyModel>()
+    }
+  }
+
+  test("smoke test - without account") {
+    stateMachine.test(propsWithNullAccount) {
       // A silly smoke test to make sure the state machine doesn't crash. INC-3635.
       awaitBody<FillingFormBodyModel>()
     }
@@ -107,7 +125,7 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
 
     val propsWithSupportRequestedDescriptor = props.copy(
       initialData = buildSupportTicketData {
-        sendEncryptedDescriptor = true
+        sendEncryptedDescriptor = SendEncryptedDescriptor.Selected(FullAccountMock.accountId)
       }
     )
 
@@ -126,6 +144,28 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
             content.title == "Has Support requested a wallet descriptor?"
         }
         hasSupportRequestedDescriptorPicker.shouldBe(true)
+      }
+    }
+  }
+
+  test("feature flag enabled but account is not available - SendEncryptedDescriptorDataModel and supportRequestedDescriptor picker not shown") {
+    encryptedDescriptorSupportUploadFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+    stateMachine.test(propsWithNullAccount) {
+      awaitBody<FillingFormBodyModel> {
+        val hasEncryptedDescriptorModel = mainContentList.any { content ->
+          content is FormMainContentModel.ListGroup &&
+            content.listGroupModel.items.any { item ->
+              item.title == "Wallet Descriptor"
+            }
+        }
+        hasEncryptedDescriptorModel.shouldBe(false)
+
+        val hasSupportRequestedDescriptorPicker = mainContentList.any { content ->
+          content is FormMainContentModel.Picker &&
+            content.title == "Has Support requested a wallet descriptor?"
+        }
+        hasSupportRequestedDescriptorPicker.shouldBe(false)
       }
     }
   }

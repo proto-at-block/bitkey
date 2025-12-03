@@ -24,8 +24,9 @@ class GrantTests : FunSpec({
       testAction,
       testSignature
     ).serializeToPackedStruct()!!
-    val baseGrantSignature = Random.nextBytes(64)
-    val baseGrant = Grant(testVersion, baseGrantRequestBytes, baseGrantSignature)
+    val baseAppSignature = Random.nextBytes(64)
+    val baseWsmSignature = Random.nextBytes(64)
+    val baseGrant = Grant(testVersion, baseGrantRequestBytes, baseAppSignature, baseWsmSignature)
 
     test("reflexivity - an object should be equal to itself") {
       baseGrant shouldBe baseGrant
@@ -33,14 +34,20 @@ class GrantTests : FunSpec({
 
     test("symmetry - if a equals b, then b should equal a") {
       val sameGrant =
-        Grant(testVersion, baseGrantRequestBytes.copyOf(), baseGrantSignature.copyOf())
+        Grant(
+          testVersion,
+          baseGrantRequestBytes.copyOf(),
+          baseAppSignature.copyOf(),
+          baseWsmSignature.copyOf()
+        )
       (baseGrant == sameGrant) shouldBe true
       (sameGrant == baseGrant) shouldBe true
       baseGrant.hashCode() shouldBe sameGrant.hashCode()
     }
 
     test("objects with different version should not be equal") {
-      val differentGrant = Grant(2.toByte(), baseGrantRequestBytes, baseGrantSignature)
+      val differentGrant =
+        Grant(2.toByte(), baseGrantRequestBytes, baseAppSignature, baseWsmSignature)
       baseGrant shouldNotBe differentGrant
     }
 
@@ -52,12 +59,20 @@ class GrantTests : FunSpec({
         testAction,
         testSignature
       ).serializeToPackedStruct()!!
-      val differentGrant = Grant(testVersion, differentRequestBytes, baseGrantSignature)
+      val differentGrant =
+        Grant(testVersion, differentRequestBytes, baseAppSignature, baseWsmSignature)
       baseGrant shouldNotBe differentGrant
     }
 
-    test("objects with different signature should not be equal") {
-      val differentGrant = Grant(testVersion, baseGrantRequestBytes, Random.nextBytes(64))
+    test("objects with different appSignature should not be equal") {
+      val differentGrant =
+        Grant(testVersion, baseGrantRequestBytes, Random.nextBytes(64), baseWsmSignature)
+      baseGrant shouldNotBe differentGrant
+    }
+
+    test("objects with different wsmSignature should not be equal") {
+      val differentGrant =
+        Grant(testVersion, baseGrantRequestBytes, baseAppSignature, Random.nextBytes(64))
       baseGrant shouldNotBe differentGrant
     }
 

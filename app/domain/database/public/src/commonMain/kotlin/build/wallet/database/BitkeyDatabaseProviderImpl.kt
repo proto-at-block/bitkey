@@ -109,6 +109,7 @@ class BitkeyDatabaseProviderImpl(
         KeyboxEntity.Adapter(
           accountIdAdapter = FullAccountColumnAdapter,
           networkTypeAdapter = EnumColumnAdapter(),
+          hardwareTypeAdapter = HardwareTypeColumnAdapter,
           f8eEnvironmentAdapter = F8eEnvironmentColumnAdapter,
           delayNotifyDurationAdapter = DurationColumnAdapter,
           appGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter
@@ -154,6 +155,12 @@ class BitkeyDatabaseProviderImpl(
         HwKeyBundleEntity.Adapter(
           spendingKeyAdapter = HwSpendingPublicKeyColumnAdapter,
           authKeyAdapter = HwAuthPublicKeyColumnAdapter
+        ),
+      hardwareProvisionedAppKeyStatusEntityAdapter =
+        HardwareProvisionedAppKeyStatusEntity.Adapter(
+          hwAuthPubKeyAdapter = HwAuthPublicKeyColumnAdapter,
+          appAuthPubKeyAdapter = PublicKeyColumnAdapter(),
+          provisionedAtAdapter = InstantAsIso8601ColumnAdapter
         ),
       registerWatchAddressEntityAdapter =
         RegisterWatchAddressEntity.Adapter(
@@ -214,6 +221,7 @@ class BitkeyDatabaseProviderImpl(
         ),
       defaultAccountConfigEntityAdapter = DefaultAccountConfigEntity.Adapter(
         bitcoinNetworkTypeAdapter = EnumColumnAdapter(),
+        hardwareTypeAdapter = HardwareTypeColumnAdapter,
         f8eEnvironmentAdapter = F8eEnvironmentColumnAdapter,
         delayNotifyDurationAdapter = DurationColumnAdapter
       ),

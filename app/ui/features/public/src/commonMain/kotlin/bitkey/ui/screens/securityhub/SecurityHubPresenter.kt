@@ -14,6 +14,7 @@ import bitkey.ui.screens.device.DeviceSettingsScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
 import bitkey.ui.sheets.ViewInvitationSheet
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.bitkey.account.FullAccount
@@ -28,6 +29,7 @@ import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.navigation.v1.NavigationScreenId
+import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProvider
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.router.Route
@@ -35,9 +37,12 @@ import build.wallet.router.Router
 import build.wallet.statemachine.biometric.BiometricSettingScreen
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreen
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
+import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.moneyhome.card.CardListModel
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
 import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetStatusCardUiProps
@@ -62,7 +67,6 @@ import kotlinx.coroutines.launch
 // TODO remove dependency on full account when children no longer need it
 data class SecurityHubScreen(
   val account: FullAccount,
-  val hardwareRecoveryData: LostHardwareRecoveryData,
   val initialState: SecurityHubUiState = SecurityHubUiState.ViewingSecurityHub,
 ) : Screen
 
@@ -78,6 +82,8 @@ class SecurityHubPresenter(
   private val appFunctionalityService: AppFunctionalityService,
   private val haptics: Haptics,
   private val fingerprintResetAvailabilityService: FingerprintResetAvailabilityService,
+  private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
+  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
 ) : ScreenPresenter<SecurityHubScreen> {
   @Composable
   override fun model(
@@ -206,6 +212,9 @@ class SecurityHubPresenter(
               COMPLETE_FINGERPRINT_RESET -> {
                 uiState = SecurityHubUiState.FingerprintResetState
               }
+              PROVISION_APP_KEY_TO_HARDWARE -> {
+                uiState = SecurityHubUiState.ProvisioningAppKeyState
+              }
               else -> {
                 if (recommendation.shouldShowEducation()) {
                   navigator.goTo(
@@ -268,6 +277,24 @@ class SecurityHubPresenter(
               )
             },
             account = screen.account
+          )
+        )
+      }
+      is SecurityHubUiState.ProvisioningAppKeyState -> {
+        nfcSessionUIStateMachine.model(
+          props = NfcSessionUIStateMachineProps(
+            transaction = provisionAppAuthKeyTransactionProvider(
+              appGlobalAuthPublicKey = screen.account.keybox.activeAppKeyBundle.authKey,
+              onSuccess = {
+                uiState = SecurityHubUiState.ViewingSecurityHub
+              },
+              onCancel = {
+                uiState = SecurityHubUiState.ViewingSecurityHub
+              }
+            ),
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_PROVISION_APP_AUTH_KEY,
+            hardwareVerification = HardwareVerification.Required()
           )
         )
       }
@@ -337,7 +364,6 @@ fun Navigator.navigateToScreen(
     NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE -> goTo(
       screen = DeviceSettingsScreen(
         account = originScreen.account,
-        lostHardwareRecoveryData = originScreen.hardwareRecoveryData,
         originScreen = originScreen
       )
     )
@@ -356,7 +382,6 @@ private fun Navigator.onCannotUnlock(
     goTo(
       SecurityHubScreen(
         account = originScreen.account,
-        hardwareRecoveryData = originScreen.hardwareRecoveryData,
         initialState = SecurityHubUiState.FingerprintResetState
       )
     )
@@ -379,8 +404,7 @@ private fun onEditFingerprints(
             onExit = {
               navigator.goTo(
                 SecurityHubScreen(
-                  account = originScreen.account,
-                  hardwareRecoveryData = originScreen.hardwareRecoveryData
+                  account = originScreen.account
                 )
               )
             }
@@ -390,8 +414,7 @@ private fun onEditFingerprints(
       entryPoint = EntryPoint.SECURITY_HUB,
       enrolledFingerprints = enrolledFingerprints,
       origin = SecurityHubScreen(
-        account = originScreen.account,
-        hardwareRecoveryData = originScreen.hardwareRecoveryData
+        account = originScreen.account
       )
     )
   )
@@ -416,6 +439,7 @@ fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =
     BACKUP_EAK -> NavigationScreenId.NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH
     ADD_FINGERPRINTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS
     COMPLETE_FINGERPRINT_RESET -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS
+    PROVISION_APP_KEY_TO_HARDWARE -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS
     ADD_TRUSTED_CONTACTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS
     ENABLE_CRITICAL_ALERTS, ENABLE_PUSH_NOTIFICATIONS, ENABLE_SMS_NOTIFICATIONS,
     ENABLE_EMAIL_NOTIFICATIONS,
@@ -437,4 +461,9 @@ sealed interface SecurityHubUiState {
    * State for resetting fingerprints
    */
   data object FingerprintResetState : SecurityHubUiState
+
+  /**
+   * State for provisioning app key
+   */
+  data object ProvisioningAppKeyState : SecurityHubUiState
 }

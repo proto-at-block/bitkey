@@ -15,6 +15,6 @@ interface FeedbackUiStateMachine : StateMachine<FeedbackUiProps, ScreenModel>
  * @property onBack - invoked once a back action has occurred
  */
 data class FeedbackUiProps(
-  val account: Account,
+  val account: Account? = null,
   val onBack: () -> Unit,
 )

@@ -1,12 +1,14 @@
 package build.wallet.statemachine.data.keybox
 
 import androidx.compose.runtime.*
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.recovery.Recovery
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
@@ -20,6 +22,7 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryProps
 class NoActiveAccountDataStateMachineImpl(
   private val lostAppRecoveryDataStateMachine: LostAppRecoveryDataStateMachine,
   private val eventTracker: EventTracker,
+  private val recoveryStatusService: RecoveryStatusService,
 ) : NoActiveAccountDataStateMachine {
   @Composable
   override fun model(props: NoActiveAccountDataProps): NoActiveAccountData {
@@ -27,25 +30,20 @@ class NoActiveAccountDataStateMachineImpl(
       eventTracker.track(ACTION_APP_OPEN_KEY_MISSING)
     }
 
-    // Indicates if customer is attempting a cloud backup recovery,
-    // while there is a Delay Notify already in progress.
-    var retryingCloudRecovery by remember { mutableStateOf(false) }
+    val recovery by remember {
+      recoveryStatusService.status
+    }.collectAsState()
 
-    return when (props.existingRecovery) {
-      null -> NoActiveKeybox(props, forceCloudRetry = retryingCloudRecovery)
-
-      else ->
-        Recovery(
-          cloudBackup = null,
-          props = props,
-          onRollback = {
-            // Data change handles this navigation.
-          },
-          onRetryCloudRecovery = {
-            retryingCloudRecovery = true
-          },
-          goToLiteAccountCreation = props.goToLiteAccountCreation
-        )
+    return when (val currentRecovery = recovery) {
+      is Recovery.StillRecovering -> Recovery(
+        cloudBackup = null,
+        recovery = currentRecovery,
+        onRollback = {
+          // Data change handles this navigation.
+        },
+        goToLiteAccountCreation = props.goToLiteAccountCreation
+      )
+      else -> NoActiveKeybox(props, forceCloudRetry = false)
     }
   }
 
@@ -125,21 +123,14 @@ class NoActiveAccountDataStateMachineImpl(
           onExit = { state = GettingStartedState }
         )
 
-      is FullAccountRecoveryState ->
-        Recovery(
-          cloudBackup = dataState.backup,
-          props = props,
-          onRollback = {
-            state = GettingStartedState
-          },
-          onRetryCloudRecovery = {
-            state =
-              CheckCloudBackupAndRouteState(
-                startIntent = StartIntent.RestoreBitkey
-              )
-          },
-          goToLiteAccountCreation = props.goToLiteAccountCreation
-        )
+      is FullAccountRecoveryState -> Recovery(
+        cloudBackup = dataState.backup,
+        recovery = null,
+        onRollback = {
+          state = GettingStartedState
+        },
+        goToLiteAccountCreation = props.goToLiteAccountCreation
+      )
 
       is EmergencyExitAccountRecoveryState ->
         RecoveringAccountWithEmergencyExitKit(
@@ -151,17 +142,15 @@ class NoActiveAccountDataStateMachineImpl(
   @Composable
   private fun Recovery(
     cloudBackup: CloudBackup?,
-    props: NoActiveAccountDataProps,
+    recovery: Recovery.StillRecovering?,
     onRollback: () -> Unit,
-    onRetryCloudRecovery: () -> Unit,
     goToLiteAccountCreation: () -> Unit,
   ) = RecoveringAccountData(
     lostAppRecoveryData = lostAppRecoveryDataStateMachine.model(
       LostAppRecoveryProps(
         cloudBackup = cloudBackup,
-        activeRecovery = props.existingRecovery,
+        activeRecovery = recovery,
         onRollback = onRollback,
-        onRetryCloudRecovery = onRetryCloudRecovery,
         goToLiteAccountCreation = goToLiteAccountCreation
       )
     )

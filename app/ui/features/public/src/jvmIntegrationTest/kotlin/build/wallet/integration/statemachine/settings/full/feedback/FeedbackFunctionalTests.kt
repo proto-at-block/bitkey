@@ -53,7 +53,6 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          account = account,
           onBack = { onBackCalls.add(Unit) }
         )
     ) {
@@ -82,7 +81,6 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          account = account,
           onBack = { onBackCalls.add(Unit) }
         )
     ) {
@@ -156,7 +154,6 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          account = account,
           onBack = { onBackCalls.add(Unit) }
         )
     ) {

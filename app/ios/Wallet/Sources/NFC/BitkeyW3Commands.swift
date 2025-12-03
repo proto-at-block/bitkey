@@ -7,6 +7,7 @@ import Shared
  * to an existing implementation otherwise.
  */
 public final class BitkeyW3Commands: NfcCommands {
+
     private let delegate: NfcCommands
 
     public init(delegate: NfcCommands) {
@@ -234,5 +235,12 @@ public final class BitkeyW3Commands: NfcCommands {
         grant: Shared.Grant
     ) async throws -> KotlinBoolean {
         return try await delegate.provideGrant(session: session, grant: grant)
+    }
+
+    public func provisionAppAuthKey(
+        session: NfcSession,
+        appAuthKey: OkioByteString
+    ) async throws -> KotlinBoolean {
+        return try await delegate.provisionAppAuthKey(session: session, appAuthKey: appAuthKey)
     }
 }

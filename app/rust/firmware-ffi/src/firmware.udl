@@ -221,6 +221,12 @@ interface FingerprintResetFinalize {
   BooleanState next(sequence<u8> response);
 };
 
+interface ProvisionAppAuthKey {
+  constructor(sequence<u8> pubkey);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
 [Enum]
 interface BooleanState {
   Data(sequence<u8> response);

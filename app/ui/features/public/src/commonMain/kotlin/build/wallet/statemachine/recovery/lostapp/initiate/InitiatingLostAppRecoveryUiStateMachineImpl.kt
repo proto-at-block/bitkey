@@ -14,7 +14,6 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.cloud.backup.csek.Sek
 import build.wallet.cloud.backup.csek.SsekDao
-import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -22,6 +21,7 @@ import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.platform.signChallenge
+import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.RetreatStyle.Back
@@ -281,8 +281,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
 
       is CompletedAuth.WithDescriptorBackups -> {
         coroutineBinding {
-          val unsealedSsek = commands.unsealData(session, completedAuth.wrappedSsek)
-          ssekDao.set(completedAuth.wrappedSsek, Sek(SymmetricKeyImpl(unsealedSsek))).bind()
+          val unsealedSsek = commands.unsealSymmetricKey(session, completedAuth.wrappedSsek)
+          ssekDao.set(completedAuth.wrappedSsek, Sek(unsealedSsek)).bind()
 
           val keysets = descriptorBackupService.unsealDescriptors(
             sealedSsek = completedAuth.wrappedSsek,

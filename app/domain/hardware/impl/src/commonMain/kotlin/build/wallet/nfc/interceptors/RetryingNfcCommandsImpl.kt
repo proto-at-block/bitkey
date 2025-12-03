@@ -218,6 +218,11 @@ private class RetryingNfcCommandsImpl(
     // Not retried: Firmware deletes its stored GrantRequest after the first attempt to process a Grant.
     return commands.provideGrant(session, grant)
   }
+
+  override suspend fun provisionAppAuthKey(
+    session: NfcSession,
+    appAuthKey: ByteString,
+  ) = retry { commands.provisionAppAuthKey(session, appAuthKey) }
 }
 
 private inline fun <T> retry(block: () -> T): T {

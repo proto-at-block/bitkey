@@ -1,5 +1,6 @@
 package build.wallet.fwup
 
+import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.StateFlow
 
@@ -26,4 +27,15 @@ interface FirmwareDataService {
    * has changed.
    */
   suspend fun syncLatestFwupData(): Result<Unit?, Error>
+
+  /**
+   * Checks if the active keybox has a hardware provisioned app auth key.
+   *
+   * This compares the keys in the active keybox against the hardware provisioned keys
+   * recorded in the database via a SQL join. If no matching record exists, it means
+   * the hardware has not been provisioned with the current app auth key.
+   *
+   * @return true if the active keybox has a matching hardware provisioned key record, false otherwise
+   */
+  suspend fun hasProvisionedKey(): Result<Boolean, DbError>
 }

@@ -1,0 +1,31 @@
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import build.wallet.crypto.PublicKey;
+import kotlinx.datetime.Instant;
+
+-- Table for tracking hardware provisioned app auth keys
+CREATE TABLE hardwareProvisionedAppKeyStatusEntity(
+  id                    INTEGER NOT NULL PRIMARY KEY,
+  hwAuthPubKey          TEXT AS HwAuthPublicKey NOT NULL,
+  appAuthPubKey         TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  provisionedAt         TEXT AS Instant NOT NULL
+);
+
+-- Insert a new hardware provisioned app key status record
+insertHardwareProvisionedAppKeyStatus:
+INSERT OR REPLACE INTO hardwareProvisionedAppKeyStatusEntity(id, hwAuthPubKey, appAuthPubKey, provisionedAt)
+VALUES(0, ?, ?, ?);
+
+-- Clear all hardware provisioned app key status records
+clear:
+DELETE FROM hardwareProvisionedAppKeyStatusEntity;
+
+-- Check if the active keybox has a matching hardware provisioned key record
+isKeyProvisionedForActiveAccount:
+SELECT EXISTS(
+  SELECT 1 
+  FROM hardwareProvisionedAppKeyStatusEntity hwProvision
+  INNER JOIN fullAccountView account ON
+    hwProvision.hwAuthPubKey = account.hwAuthKey AND
+    hwProvision.appAuthPubKey = account.globalAuthKey
+);

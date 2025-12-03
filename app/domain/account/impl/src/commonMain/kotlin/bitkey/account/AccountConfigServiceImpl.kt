@@ -10,6 +10,7 @@ import build.wallet.database.sqldelight.DefaultAccountConfigEntity
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
+import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
@@ -31,6 +32,7 @@ class AccountConfigServiceImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val appVariant: AppVariant,
   accountService: AccountService,
+  private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
 ) : AccountConfigService {
   private val fallbackAppConfig by lazy {
     fallbackAppConfig(appVariant)
@@ -89,6 +91,10 @@ class AccountConfigServiceImpl(
     return updateDefaultAppConfig { it.copy(isHardwareFake = value) }
   }
 
+  override suspend fun setHardwareType(value: HardwareType?): Result<Unit, Error> {
+    return updateDefaultAppConfig { it.copy(hardwareType = value) }
+  }
+
   override suspend fun setIsTestAccount(value: Boolean): Result<Unit, Error> {
     return updateDefaultAppConfig { it.copy(isTestAccount = value) }
   }
@@ -131,6 +137,15 @@ class AccountConfigServiceImpl(
     }
   }
 
+  override suspend fun resolveHardwareTypeAndCreateFullAccountConfig(): FullAccountConfig {
+    val defaultConfig = defaultConfig().value
+    val resolvedHardwareType = defaultConfig.hardwareType
+      ?: firmwareDeviceInfoDao.getDeviceInfo().get()?.hardwareType()
+      ?: HardwareType.W1
+
+    return defaultConfig.toFullAccountConfig(hardwareTypeOverride = resolvedHardwareType)
+  }
+
   private suspend fun updateDefaultAppConfig(
     bypassCustomerAppValidation: Boolean = false,
     block: (currentConfig: DefaultAccountConfig) -> DefaultAccountConfig,
@@ -147,6 +162,7 @@ class AccountConfigServiceImpl(
       defaultAccountConfigQueries.setConfig(
         bitcoinNetworkType = updatedConfig.bitcoinNetworkType,
         fakeHardware = updatedConfig.isHardwareFake,
+        hardwareType = updatedConfig.hardwareType,
         f8eEnvironment = updatedConfig.f8eEnvironment,
         isTestAccount = updatedConfig.isTestAccount,
         isUsingSocRecFakes = updatedConfig.isUsingSocRecFakes,
@@ -162,6 +178,7 @@ private fun DefaultAccountConfigEntity.toConfig(): DefaultAccountConfig {
   return DefaultAccountConfig(
     bitcoinNetworkType = bitcoinNetworkType,
     isHardwareFake = fakeHardware,
+    hardwareType = hardwareType,
     f8eEnvironment = f8eEnvironment,
     isTestAccount = isTestAccount,
     isUsingSocRecFakes = isUsingSocRecFakes,
@@ -184,7 +201,8 @@ private fun fallbackAppConfig(appVariant: AppVariant) =
       isUsingSocRecFakes = false,
       delayNotifyDuration = 20.seconds,
       skipNotificationsOnboarding = false,
-      skipCloudBackupOnboarding = false
+      skipCloudBackupOnboarding = false,
+      hardwareType = HardwareType.W1
     )
     AppVariant.Alpha -> DefaultAccountConfig(
       bitcoinNetworkType = BitcoinNetworkType.BITCOIN,

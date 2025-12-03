@@ -8,10 +8,7 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
-import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.DescriptorBackup
@@ -38,16 +35,11 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickSetUpNewWalletButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.ext.testForLegacyAndPrivateWallet
-import build.wallet.testing.shouldBeOk
-import com.github.michaelbull.result.getOrThrow
+import build.wallet.testing.ext.verifyPostOnboardingState
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldNotBeEmpty
-import io.kotest.matchers.equals.shouldBeEqual
-import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
@@ -80,67 +72,7 @@ class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    val account = app.accountService.activeAccount().first().shouldBeTypeOf<FullAccount>()
-
-    var observedActiveKeybox: Keybox? = null
-
-    // Assertions on keybox state
-    app.keyboxDao.activeKeybox().first().shouldBeOk { keybox ->
-      val activeKeybox = keybox.shouldNotBeNull()
-      activeKeybox.fullAccountId.shouldBeEqual(account.accountId)
-      activeKeybox.canUseKeyboxKeysets.shouldBe(true)
-      observedActiveKeybox = activeKeybox
-    }
-    val activeKeyboxValue = observedActiveKeybox.shouldNotBeNull()
-
-    // Assert onboarding stuff is cleared.
-    app.keyboxDao.onboardingKeybox().first().shouldBeOk { onboardingKeybox ->
-      onboardingKeybox.shouldBeNull()
-    }
-    app.onboardingAppKeyKeystore
-      .getAppKeyBundle(
-        localId = activeKeyboxValue.activeAppKeyBundle.localId,
-        network = account.config.bitcoinNetworkType
-      ).shouldBeNull()
-    app.onboardingKeyboxHwAuthPublicKeyDao.get().shouldBeOk { hardwareKeys ->
-      hardwareKeys.shouldBeNull()
-    }
-    app.onboardingKeyboxSealedSsekDao.get().shouldBeOk { sealedSsek ->
-      sealedSsek.shouldBeNull()
-    }
-
-    // Assertions on cloud backup state
-    app.cloudBackupRepository
-      .readActiveBackup(CloudStoreAccountFake.CloudStoreAccount1Fake)
-      .getOrThrow()
-      .shouldNotBeNull()
-
-    // Assertion on EEK state
-    app.cloudFileStore
-      .exists(
-        account = CloudStoreAccountFake.CloudStoreAccount1Fake,
-        fileName = "Emergency Exit Kit.pdf"
-      ).result.shouldBeOk { exists ->
-        exists.shouldBe(true)
-      }
-
-    val keysets = app.listKeysetsF8eClient
-      .listKeysets(
-        f8eEnvironment = account.config.f8eEnvironment,
-        fullAccountId = account.accountId
-      ).getOrThrow().keysets
-
-    // Basic keyset assertions
-    keysets.shouldNotBeEmpty()
-    keysets.size.shouldBeEqual(1)
-
-    // Check of resulting descriptor backup
-    val activeKeyset = keysets.first()
-    if (activeKeyset is PrivateMultisigRemoteKeyset) {
-      app.descriptorBackupService
-        .checkBackupForPrivateKeyset(keysetId = activeKeyset.keysetId)
-        .shouldBeOk()
-    }
+    app.verifyPostOnboardingState()
   }
 
   testForLegacyAndPrivateWallet("close and reopen app to cloud backup onboard step") { app ->

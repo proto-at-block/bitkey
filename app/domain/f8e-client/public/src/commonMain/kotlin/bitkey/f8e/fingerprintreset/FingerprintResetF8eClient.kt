@@ -36,6 +36,8 @@ data class FingerprintResetRequest(
   val signature: String,
   @SerialName("hw_auth_public_key")
   val hwAuthPublicKey: String,
+  @SerialName("app_signature")
+  val appSignature: String,
 ) : RedactedRequestBody
 
 /**
@@ -46,5 +48,8 @@ data class FingerprintResetResponse(
   val version: Int,
   @SerialName("serialized_request")
   val serializedRequest: String,
-  val signature: String,
+  @SerialName("app_signature")
+  val appSignature: String,
+  @SerialName("wsm_signature")
+  val wsmSignature: String,
 ) : RedactedResponseBody

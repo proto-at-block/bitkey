@@ -2,6 +2,7 @@ package build.wallet.statemachine.transactions
 
 import build.wallet.activity.Transaction
 import build.wallet.activity.Transaction.BitcoinWalletTransaction
+import build.wallet.activity.TransactionsActivityState
 import build.wallet.bitcoin.BlockTimeFake
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransactionFake
@@ -78,7 +79,8 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
   }
 
   test("model with All visibility") {
-    transactionsActivityService.transactions.value = txnListAllPending + txnListAllConfirmed
+    transactionsActivityService.transactionsState.value =
+      TransactionsActivityState.Loaded(txnListAllPending + txnListAllConfirmed)
 
     stateMachine.test(createProps(transactionVisibility = All)) {
       awaitItem().shouldNotBeNull().should {
@@ -94,8 +96,8 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
     val transactionVisibility = Some(numberOfVisibleTransactions)
 
     // Test list of 1 transaction
-    transactionsActivityService.transactions.value =
-      listOf(BitcoinWalletTransaction(BitcoinTransactionFake))
+    transactionsActivityService.transactionsState.value =
+      TransactionsActivityState.Loaded(listOf(BitcoinWalletTransaction(BitcoinTransactionFake)))
 
     stateMachine.test(createProps(transactionVisibility)) {
       awaitItem().shouldNotBeNull().should {
@@ -106,12 +108,14 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
     }
 
     // Test list of 4 transactions, last 3 are confirmed
-    transactionsActivityService.transactions.value = listOf(
-      BitcoinTransactionFake,
-      BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
-      BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
-      BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake))
-    ).map(::BitcoinWalletTransaction)
+    transactionsActivityService.transactionsState.value = TransactionsActivityState.Loaded(
+      listOf(
+        BitcoinTransactionFake,
+        BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
+        BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
+        BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake))
+      ).map(::BitcoinWalletTransaction)
+    )
     stateMachine.test(createProps(transactionVisibility)) {
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()
@@ -121,12 +125,14 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
     }
 
     // We always show pending over confirmed in Some visibility, so pending should show even though it's last.
-    transactionsActivityService.transactions.value = listOf(
-      BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
-      BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
-      BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
-      BitcoinTransactionFake
-    ).map(::BitcoinWalletTransaction)
+    transactionsActivityService.transactionsState.value = TransactionsActivityState.Loaded(
+      listOf(
+        BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
+        BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
+        BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
+        BitcoinTransactionFake
+      ).map(::BitcoinWalletTransaction)
+    )
     stateMachine.test(createProps(transactionVisibility)) {
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()
@@ -136,12 +142,14 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
     }
 
     // Test list of 4 transactions, first 3 are pending
-    transactionsActivityService.transactions.value = listOf(
-      BitcoinTransactionFake,
-      BitcoinTransactionFake,
-      BitcoinTransactionFake,
-      BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake))
-    ).map(::BitcoinWalletTransaction)
+    transactionsActivityService.transactionsState.value = TransactionsActivityState.Loaded(
+      listOf(
+        BitcoinTransactionFake,
+        BitcoinTransactionFake,
+        BitcoinTransactionFake,
+        BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake))
+      ).map(::BitcoinWalletTransaction)
+    )
     stateMachine.test(createProps(transactionVisibility)) {
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()
@@ -151,12 +159,14 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
     }
 
     // We always show pending over confirmed in Some visibility, so pending should show even though it's last.
-    transactionsActivityService.transactions.value = listOf(
-      BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
-      BitcoinTransactionFake,
-      BitcoinTransactionFake,
-      BitcoinTransactionFake
-    ).map(::BitcoinWalletTransaction)
+    transactionsActivityService.transactionsState.value = TransactionsActivityState.Loaded(
+      listOf(
+        BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
+        BitcoinTransactionFake,
+        BitcoinTransactionFake,
+        BitcoinTransactionFake
+      ).map(::BitcoinWalletTransaction)
+    )
     stateMachine.test(createProps(transactionVisibility)) {
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()

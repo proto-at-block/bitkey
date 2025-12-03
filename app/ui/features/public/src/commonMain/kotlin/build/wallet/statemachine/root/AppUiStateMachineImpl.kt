@@ -44,7 +44,6 @@ import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
 import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.keybox.OrphanedKeyRecoveryUiState.*
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.home.full.HomeUiProps
 import build.wallet.statemachine.home.full.HomeUiStateMachine
@@ -422,8 +421,7 @@ class AppUiStateMachineImpl(
     } else {
       homeUiStateMachine.model(
         props = HomeUiProps(
-          account = account,
-          lostHardwareRecoveryData = LostHardwareRecoveryData.LostHardwareRecoveryNotStarted
+          account = account
         )
       )
     }
@@ -637,8 +635,7 @@ class AppUiStateMachineImpl(
   private fun HomeScreenModel(accountData: ActiveFullAccountLoadedData): ScreenModel =
     homeUiStateMachine.model(
       props = HomeUiProps(
-        account = accountData.account,
-        lostHardwareRecoveryData = accountData.lostHardwareRecoveryData
+        account = accountData.account
       )
     )
 

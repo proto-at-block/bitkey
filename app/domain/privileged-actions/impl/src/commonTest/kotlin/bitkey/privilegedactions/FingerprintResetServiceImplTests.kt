@@ -28,7 +28,7 @@ import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.util.*
+import io.ktor.util.encodeBase64
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okio.ByteString.Companion.decodeHex
@@ -46,17 +46,19 @@ class FingerprintResetServiceImplTests : FunSpec({
   val signatureUtils = SignatureUtilsMock()
   val grantDao = GrantDaoFake(clock)
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
+  val messageSigner = build.wallet.auth.AppAuthKeyMessageSignerMock()
 
   lateinit var service: FingerprintResetServiceImpl
 
   val mockDerSignature =
-    "3045022100b6e8f2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2022003f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2"
+    "3045022100b6e8f2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2022003f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2"
 
   fun createMockGrant(signatureOffset: Int = 0) =
     Grant(
       version = 1,
       serializedRequest = GrantTestHelpers.createMockSerializedGrantRequest(GrantAction.FINGERPRINT_RESET),
-      signature = ByteArray(64) { (it + signatureOffset).toByte() }
+      appSignature = ByteArray(64) { (it + signatureOffset).toByte() },
+      wsmSignature = ByteArray(64) { (it + signatureOffset + 100).toByte() }
     )
 
   beforeEach {
@@ -64,22 +66,24 @@ class FingerprintResetServiceImplTests : FunSpec({
     grantDao.reset()
     fingerprintResetF8eClient.reset()
     hardwareUnlockInfoService.clear()
+    messageSigner.reset()
     service = FingerprintResetServiceImpl(
       privilegedActionF8eClient = fingerprintResetF8eClient,
       accountService = accountService,
       signatureUtils = signatureUtils,
       clock = clock,
       grantDao = grantDao,
-      hardwareUnlockInfoService = hardwareUnlockInfoService
+      hardwareUnlockInfoService = hardwareUnlockInfoService,
+      messageSigner = messageSigner
     )
   }
 
   test("createFingerprintResetPrivilegedAction should create a fingerprint reset request and call createPrivilegedAction") {
     val testVersion = 1
     val testDeviceId = byteArrayOf(-76, 53, 34, -1, -2, -20, 80, -61)
-    val testChallengeBytes = listOf(12, 255, 0, 128).map { (it and 0xFF).toByte() }.toByteArray()
+    val testChallengeBytes = ByteArray(16) { (it and 0xFF).toByte() }
     val testSignature =
-      "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498"
+      "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498" // 128 hex chars = 64 bytes
     val grantRequest = GrantRequest(
       version = testVersion.toByte(),
       deviceId = testDeviceId,
@@ -99,6 +103,7 @@ class FingerprintResetServiceImplTests : FunSpec({
       )
     )
 
+    messageSigner.result = Ok("test-app-signature")
     fingerprintResetF8eClient.createPrivilegedActionResult = Ok(expectedInstance)
 
     val result = service.createFingerprintResetPrivilegedAction(grantRequest)
@@ -111,9 +116,10 @@ class FingerprintResetServiceImplTests : FunSpec({
       version shouldBe testVersion
       action shouldBe GrantAction.FINGERPRINT_RESET.value
       deviceId shouldBe "tDUi//7sUMM="
-      challenge shouldBe "DP8AgA=="
       signature shouldBe "abababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab"
+      challenge shouldBe "AAECAwQFBgcICQoLDA0ODw=="
       hwAuthPublicKey shouldBe FullAccountMock.keybox.activeHwKeyBundle.authKey.pubKey.value
+      appSignature shouldBe "test-app-signature"
     }
   }
 
@@ -187,7 +193,8 @@ class FingerprintResetServiceImplTests : FunSpec({
     val expectedResponse = FingerprintResetResponse(
       version = 1,
       serializedRequest = "test-serialized-request",
-      signature = "test-signature"
+      appSignature = "test-app-signature",
+      wsmSignature = "test-wsm-signature"
     )
 
     fingerprintResetF8eClient.continuePrivilegedActionResult = Ok(expectedResponse)
@@ -219,7 +226,8 @@ class FingerprintResetServiceImplTests : FunSpec({
     val invalidResponse = FingerprintResetResponse(
       version = 1,
       serializedRequest = "not-valid-base64!",
-      signature = "not-valid-hex!"
+      appSignature = "not-valid-hex!",
+      wsmSignature = "not-valid-hex!"
     )
 
     fingerprintResetF8eClient.getPrivilegedActionInstancesResult = Ok(listOf(actionInstance))
@@ -255,7 +263,8 @@ class FingerprintResetServiceImplTests : FunSpec({
     val response = FingerprintResetResponse(
       version = 1,
       serializedRequest = grantRequestBytes.encodeBase64(),
-      signature = mockDerSignature
+      appSignature = mockDerSignature,
+      wsmSignature = mockDerSignature
     )
 
     fingerprintResetF8eClient.getPrivilegedActionInstancesResult = Ok(listOf(actionInstance))
@@ -295,7 +304,8 @@ class FingerprintResetServiceImplTests : FunSpec({
     val response = FingerprintResetResponse(
       version = 1,
       serializedRequest = grantRequestBytes.encodeBase64(),
-      signature = mockDerSignature
+      appSignature = mockDerSignature,
+      wsmSignature = mockDerSignature
     )
 
     fingerprintResetF8eClient.getPrivilegedActionInstancesResult = Ok(listOf(actionInstance))
@@ -371,7 +381,8 @@ class FingerprintResetServiceImplTests : FunSpec({
       signatureUtils = signatureUtils,
       clock = clock,
       grantDao = grantDao,
-      hardwareUnlockInfoService = hardwareUnlockInfoService
+      hardwareUnlockInfoService = hardwareUnlockInfoService,
+      messageSigner = messageSigner
     )
 
     service.getPendingFingerprintResetGrant() shouldBe Ok(grant)
@@ -400,7 +411,8 @@ class FingerprintResetServiceImplTests : FunSpec({
       signatureUtils = signatureUtils,
       clock = clock,
       grantDao = grantDao,
-      hardwareUnlockInfoService = hardwareUnlockInfoService
+      hardwareUnlockInfoService = hardwareUnlockInfoService,
+      messageSigner = messageSigner
     )
 
     newService.getPendingFingerprintResetGrant() shouldBe Ok(grant)
@@ -415,7 +427,8 @@ class FingerprintResetServiceImplTests : FunSpec({
       signatureUtils = signatureUtils,
       clock = clock,
       grantDao = grantDao,
-      hardwareUnlockInfoService = hardwareUnlockInfoService
+      hardwareUnlockInfoService = hardwareUnlockInfoService,
+      messageSigner = messageSigner
     )
 
     // Verify no grant initially

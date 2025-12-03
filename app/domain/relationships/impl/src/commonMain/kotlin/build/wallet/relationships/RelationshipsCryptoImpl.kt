@@ -1,5 +1,6 @@
 package build.wallet.relationships
 
+import bitkey.data.PrivateData
 import bitkey.serialization.hex.decodeHexWithResult
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.bitkey.app.AppGlobalAuthKey
@@ -25,6 +26,7 @@ import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
 
+@OptIn(PrivateData::class)
 @BitkeyInject(AppScope::class)
 class RelationshipsCryptoImpl(
   private val symmetricKeyGenerator: SymmetricKeyGenerator,

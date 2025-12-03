@@ -105,7 +105,8 @@ class FingerprintsActionFactoryFake : FingerprintsActionFactory,
   FakeActionFactory(
     recommendations = listOf(
       SecurityActionRecommendation.ADD_FINGERPRINTS,
-      SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET
+      SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET,
+      SecurityActionRecommendation.PROVISION_APP_KEY_TO_HARDWARE
     ),
     category = SecurityActionCategory.SECURITY,
     type = SecurityActionType.FINGERPRINTS

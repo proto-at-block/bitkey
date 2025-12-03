@@ -10,6 +10,7 @@ import build.wallet.cloud.backup.csek.Ssek
 import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.onboarding.OnboardingKeyboxSealedSsekDao
 import build.wallet.statemachine.cloud.SAVING_BACKUP_MESSAGE
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -55,7 +56,7 @@ class OnboardDescriptorBackupUiStateMachineImpl(
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              commands.sealData(session, currentState.unsealedSsek.key.raw)
+              commands.sealSymmetricKey(session, currentState.unsealedSsek.key)
             },
             onSuccess = { sealedSsek ->
               ssekDao.set(sealedSsek, currentState.unsealedSsek)

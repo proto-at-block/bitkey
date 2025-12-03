@@ -15,9 +15,26 @@ class AccountAccessMoreOptionsFormScreenSnapshots :
         FormScreen(
           AccountAccessMoreOptionsFormBodyModel(
             onBack = {},
-            onBeTrustedContactClick = {},
             onRestoreYourWalletClick = {},
-            onRecoverFromOrphanedKeysClick = null
+            onBeTrustedContactClick = {},
+            onRecoverFromOrphanedKeysClick = null,
+            canShowCustomerSupport = false,
+            onCustomerSupportClick = {}
+          )
+        )
+      }
+    }
+
+    test("regular app variant - show customer support flag is on") {
+      paparazzi.snapshot {
+        FormScreen(
+          AccountAccessMoreOptionsFormBodyModel(
+            onBack = {},
+            onRestoreYourWalletClick = {},
+            onBeTrustedContactClick = {},
+            onRecoverFromOrphanedKeysClick = null,
+            canShowCustomerSupport = true,
+            onCustomerSupportClick = {}
           )
         )
       }

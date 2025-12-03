@@ -1,3 +1,4 @@
+import bitkey.account.HardwareType;
 import build.wallet.bitcoin.BitcoinNetworkType;
 import build.wallet.f8e.F8eEnvironment;
 import kotlin.Boolean;
@@ -8,6 +9,7 @@ CREATE TABLE defaultAccountConfigEntity(
   rowId                         INTEGER NOT NULL PRIMARY KEY,
   bitcoinNetworkType            TEXT AS BitcoinNetworkType NOT NULL,
   fakeHardware                  INTEGER AS Boolean NOT NULL,
+  hardwareType                  TEXT AS HardwareType,
   f8eEnvironment                TEXT AS F8eEnvironment NOT NULL,
   isTestAccount                 INTEGER AS Boolean NOT NULL,
   isUsingSocRecFakes            INTEGER AS Boolean NOT NULL,
@@ -17,9 +19,9 @@ CREATE TABLE defaultAccountConfigEntity(
 );
 
 setConfig:
-INSERT OR REPLACE INTO defaultAccountConfigEntity(rowId, bitcoinNetworkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, skipCloudBackupOnboarding, skipNotificationsOnboarding)
+INSERT OR REPLACE INTO defaultAccountConfigEntity(rowId, bitcoinNetworkType, fakeHardware, hardwareType, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, skipCloudBackupOnboarding, skipNotificationsOnboarding)
 -- Use stable row ID to ensure we only ever have a single config in table.
-VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 config:
 SELECT * FROM defaultAccountConfigEntity;

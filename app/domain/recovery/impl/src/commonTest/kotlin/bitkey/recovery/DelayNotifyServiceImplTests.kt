@@ -53,6 +53,7 @@ class DelayNotifyServiceImplTests : FunSpec({
     StillRecoveringInitiatedRecoveryMock,
     turbines::create
   )
+  val recoveryDao = RecoveryDaoMock(turbines::create)
   val setActiveSpendingKeysetF8eClient = SetActiveSpendingKeysetF8eClientFake()
   val accountConfigService = AccountConfigServiceFake()
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
@@ -79,6 +80,7 @@ class DelayNotifyServiceImplTests : FunSpec({
     lostAppAndCloudRecoveryService = lostAppAndCloudRecoveryService,
     lostHardwareRecoveryService = lostHardwareRecoveryService,
     recoveryStatusService = recoveryStatusService,
+    recoveryDao = recoveryDao,
     setActiveSpendingKeysetF8eClient = setActiveSpendingKeysetF8eClient,
     accountConfigService = accountConfigService,
     deviceTokenManager = deviceTokenManager,
@@ -102,6 +104,7 @@ class DelayNotifyServiceImplTests : FunSpec({
     lostAppAndCloudRecoveryService.reset()
     lostHardwareRecoveryService.reset()
     recoveryStatusService.reset()
+    recoveryDao.reset()
     setActiveSpendingKeysetF8eClient.reset()
     accountConfigService.reset()
     deviceTokenManager.reset()
@@ -118,9 +121,9 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("cancel Lost App recovery with hw proof of possession - success") {
-    recoveryStatusService.recoveryStatus.value = Ok(
+    recoveryStatusService.recoveryStatus.value =
       StillRecoveringInitiatedRecoveryMock.copy(factorToRecover = PhysicalFactor.App)
-    )
+
     val hwProof = HwFactorProofOfPossession("test-proof")
     val request = CancelLostAppAndCloudRecovery(hwProof)
 
@@ -128,9 +131,9 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("cancel Lost App recovery with hw proof of possession - failure") {
-    recoveryStatusService.recoveryStatus.value = Ok(
+    recoveryStatusService.recoveryStatus.value =
       StillRecoveringInitiatedRecoveryMock.copy(factorToRecover = PhysicalFactor.App)
-    )
+
     val error = CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError(
       cause = Error("Network error")
     )
@@ -143,17 +146,16 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("cancel Lost Hardware recovery - success") {
-    recoveryStatusService.recoveryStatus.value = Ok(
+    recoveryStatusService.recoveryStatus.value =
       StillRecoveringInitiatedRecoveryMock.copy(factorToRecover = PhysicalFactor.Hardware)
-    )
 
     service.cancelDelayNotify(CancelLostHardwareRecovery).shouldBeOk()
   }
 
   test("cancel Lost Hardware recovery - failure") {
-    recoveryStatusService.recoveryStatus.value = Ok(
+    recoveryStatusService.recoveryStatus.value =
       StillRecoveringInitiatedRecoveryMock.copy(factorToRecover = PhysicalFactor.Hardware)
-    )
+
     val error = CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError(
       error = F8eError.UnhandledError(HttpError.NetworkError(Throwable("Server error")))
     )
@@ -163,21 +165,15 @@ class DelayNotifyServiceImplTests : FunSpec({
       .shouldBeErrOfType<CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError>()
   }
 
-  test("cancel when recovery status returns error") {
-    recoveryStatusService.recoveryStatus.value = Err(Error("Failed to get recovery status"))
-
-    service.cancelDelayNotify(CancelLostHardwareRecovery).shouldBeErrOfType<Error>()
-  }
-
   test("cancel when no active recovery returns error") {
-    recoveryStatusService.recoveryStatus.value = Ok(Recovery.NoActiveRecovery)
+    recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
     service.cancelDelayNotify(CancelLostHardwareRecovery)
       .shouldBeErrOfType<Error>()
   }
 
   test("activateSpendingKeyset success") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     setActiveSpendingKeysetF8eClient.setResult = Ok(Unit)
 
     val result = service.activateSpendingKeyset(
@@ -189,11 +185,11 @@ class DelayNotifyServiceImplTests : FunSpec({
     val expectedProgress = LocalRecoveryAttemptProgress.ActivatedSpendingKeys(
       f8eSpendingKeyset = F8eSpendingKeysetMock
     )
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem().shouldBe(expectedProgress)
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem().shouldBe(expectedProgress)
   }
 
   test("activateSpendingKeyset returns error when f8e call fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val networkError = HttpError.NetworkError(Throwable("Network error"))
     setActiveSpendingKeysetF8eClient.setResult = Err(networkError)
 
@@ -203,14 +199,14 @@ class DelayNotifyServiceImplTests : FunSpec({
     )
 
     result.shouldBeErrOfType<HttpError.NetworkError>()
-    recoveryStatusService.setLocalRecoveryProgressCalls.expectNoEvents()
+    recoveryDao.setLocalRecoveryProgressCalls.expectNoEvents()
   }
 
   test("activateSpendingKeyset returns error when updating local recovery progress fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     setActiveSpendingKeysetF8eClient.setResult = Ok(Unit)
     val error = Error("uh oh")
-    recoveryStatusService.setLocalRecoveryProgressResult = Err(error)
+    recoveryDao.setLocalRecoveryProgressResult = Err(error)
 
     val result = service.activateSpendingKeyset(
       keyset = F8eSpendingKeysetMock,
@@ -218,22 +214,11 @@ class DelayNotifyServiceImplTests : FunSpec({
     )
 
     result.shouldBeErrOfType<Error>()
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
   }
 
   test("activateSpendingKeyset returns error when no active recovery") {
-    recoveryStatusService.recoveryStatus.value = Ok(Recovery.NoActiveRecovery)
-
-    val result = service.activateSpendingKeyset(
-      keyset = F8eSpendingKeysetMock,
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
-    )
-
-    result.shouldBeErrOfType<Error>()
-  }
-
-  test("activateSpendingKeyset returns error when recovery status fails") {
-    recoveryStatusService.recoveryStatus.value = Err(Error("Failed to get recovery status"))
+    recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
     val result = service.activateSpendingKeyset(
       keyset = F8eSpendingKeysetMock,
@@ -244,7 +229,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("createSpendingKeyset success with v1 client") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     createAccountKeysetF8eClient.createKeysetResult = Ok(F8eSpendingKeysetMock)
 
     val result = service.createSpendingKeyset(
@@ -256,13 +241,13 @@ class DelayNotifyServiceImplTests : FunSpec({
     val expectedProgress = LocalRecoveryAttemptProgress.CreatedSpendingKeys(
       f8eSpendingKeyset = F8eSpendingKeysetMock
     )
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem().shouldBe(expectedProgress)
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem().shouldBe(expectedProgress)
   }
 
   test("createSpendingKeyset success with v2 client when chaincode delegation and implicit private updates are enabled") {
     chaincodeDelegationFeatureFlag.setFlagValue(true)
     updateToPrivateWalletOnRecoveryFeatureFlag.setFlagValue(true)
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
 
     val result = service.createSpendingKeyset(
       hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
@@ -273,13 +258,13 @@ class DelayNotifyServiceImplTests : FunSpec({
     val expectedProgress = LocalRecoveryAttemptProgress.CreatedSpendingKeys(
       f8eSpendingKeyset = F8eSpendingKeysetPrivateWalletMock
     )
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem().shouldBe(expectedProgress)
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem().shouldBe(expectedProgress)
   }
 
   test("createSpendingKeyset uses v2 client when account has private keyset even if feature flags are disabled") {
     chaincodeDelegationFeatureFlag.setFlagValue(false)
     updateToPrivateWalletOnRecoveryFeatureFlag.setFlagValue(false)
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
 
     listKeysetsF8eClient.result = Ok(
       ListKeysetsResponse(
@@ -306,11 +291,11 @@ class DelayNotifyServiceImplTests : FunSpec({
     val expectedProgress = LocalRecoveryAttemptProgress.CreatedSpendingKeys(
       f8eSpendingKeyset = F8eSpendingKeysetPrivateWalletMock
     )
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem().shouldBe(expectedProgress)
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem().shouldBe(expectedProgress)
   }
 
   test("createSpendingKeyset returns error when f8e call fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val networkError = HttpError.NetworkError(Throwable("Network error"))
     createAccountKeysetF8eClient.createKeysetResult = Err(networkError)
 
@@ -320,14 +305,14 @@ class DelayNotifyServiceImplTests : FunSpec({
 
     result.shouldBeErrOfType<HttpError.NetworkError>()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-    recoveryStatusService.setLocalRecoveryProgressCalls.expectNoEvents()
+    recoveryDao.setLocalRecoveryProgressCalls.expectNoEvents()
   }
 
   test("createSpendingKeyset returns error when updating local recovery progress fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     createAccountKeysetF8eClient.createKeysetResult = Ok(F8eSpendingKeysetMock)
     val error = Error("uh oh")
-    recoveryStatusService.setLocalRecoveryProgressResult = Err(error)
+    recoveryDao.setLocalRecoveryProgressResult = Err(error)
 
     val result = service.createSpendingKeyset(
       hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
@@ -335,21 +320,11 @@ class DelayNotifyServiceImplTests : FunSpec({
 
     result.shouldBeErrOfType<Error>()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
   }
 
   test("createSpendingKeyset returns error when no active recovery") {
-    recoveryStatusService.recoveryStatus.value = Ok(Recovery.NoActiveRecovery)
-
-    val result = service.createSpendingKeyset(
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
-    )
-
-    result.shouldBeErrOfType<Error>()
-  }
-
-  test("createSpendingKeyset returns error when recovery status fails") {
-    recoveryStatusService.recoveryStatus.value = Err(Error("Failed to get recovery status"))
+    recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
     val result = service.createSpendingKeyset(
       hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
@@ -359,7 +334,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("rotateAuthKeys success") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val hardwareSignedChallenge =
       SignedChallenge.HardwareSignedChallenge(
         challenge = DelayNotifyRecoveryChallengeFake,
@@ -377,29 +352,12 @@ class DelayNotifyServiceImplTests : FunSpec({
     // Verify complete was called
     completeDelayNotifyF8eClient.completeRecoveryCalls.awaitItem()
     // Verify progress was set to AttemptingCompletion
-    val progressCall = recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+    val progressCall = recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
     progressCall.shouldBeTypeOf<LocalRecoveryAttemptProgress.AttemptingCompletion>()
   }
 
-  test("rotateAuthKeys returns error when recovery status fails") {
-    recoveryStatusService.recoveryStatus.value = Err(Error("Failed to get recovery status"))
-    val hardwareSignedChallenge =
-      SignedChallenge.HardwareSignedChallenge(
-        challenge = DelayNotifyRecoveryChallengeFake,
-        signature = "hw-signature"
-      )
-
-    val result = service.rotateAuthKeys(
-      hardwareSignedChallenge = hardwareSignedChallenge,
-      sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
-    )
-
-    result.shouldBeErrOfType<Error>()
-  }
-
   test("rotateAuthKeys returns error when no active recovery") {
-    recoveryStatusService.recoveryStatus.value = Ok(Recovery.NoActiveRecovery)
+    recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
     val hardwareSignedChallenge =
       SignedChallenge.HardwareSignedChallenge(
         challenge = DelayNotifyRecoveryChallengeFake,
@@ -416,7 +374,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("rotateAuthKeys returns error when app signature fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val hardwareSignedChallenge =
       SignedChallenge.HardwareSignedChallenge(
         challenge = DelayNotifyRecoveryChallengeFake,
@@ -433,11 +391,11 @@ class DelayNotifyServiceImplTests : FunSpec({
 
     result.shouldBeErrOfType<Throwable>()
     // Verify progress was still set to AttemptingCompletion before failure
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
   }
 
   test("rotateAuthKeys returns error when f8e complete fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val hardwareSignedChallenge =
       SignedChallenge.HardwareSignedChallenge(
         challenge = DelayNotifyRecoveryChallengeFake,
@@ -454,18 +412,18 @@ class DelayNotifyServiceImplTests : FunSpec({
     // The mock returns Ok(Unit) by default, but we can verify the call was made
     result.shouldBeOk(Unit)
     completeDelayNotifyF8eClient.completeRecoveryCalls.awaitItem()
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
   }
 
   test("rotateAuthKeys returns error when setting local recovery progress fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val hardwareSignedChallenge =
       SignedChallenge.HardwareSignedChallenge(
         challenge = DelayNotifyRecoveryChallengeFake,
         signature = "hw-signature"
       )
     val error = Error("Failed to set progress")
-    recoveryStatusService.setLocalRecoveryProgressResult = Err(error)
+    recoveryDao.setLocalRecoveryProgressResult = Err(error)
 
     val result = service.rotateAuthKeys(
       hardwareSignedChallenge = hardwareSignedChallenge,
@@ -474,11 +432,11 @@ class DelayNotifyServiceImplTests : FunSpec({
     )
 
     result.shouldBeErrOfType<Error>()
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
   }
 
   test("rotateAuthTokens success") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     accountAuthenticator.authResults = mutableListOf(
       defaultAuthResult,
       defaultAuthResult
@@ -491,20 +449,12 @@ class DelayNotifyServiceImplTests : FunSpec({
     accountAuthenticator.authCalls.awaitItem()
     accountAuthenticator.authCalls.awaitItem()
     // Verify progress was set to RotatedAuthKeys
-    val progressCall = recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+    val progressCall = recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
     progressCall.shouldBe(LocalRecoveryAttemptProgress.RotatedAuthKeys)
   }
 
-  test("rotateAuthTokens returns error when recovery status fails") {
-    recoveryStatusService.recoveryStatus.value = Err(Error("Failed to get recovery status"))
-
-    val result = service.rotateAuthTokens()
-
-    result.shouldBeErrOfType<Error>()
-  }
-
   test("rotateAuthTokens returns error when no active recovery") {
-    recoveryStatusService.recoveryStatus.value = Ok(Recovery.NoActiveRecovery)
+    recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
     val result = service.rotateAuthTokens()
 
@@ -512,7 +462,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("rotateAuthTokens returns error when global auth fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val authError = AuthProtocolError(
       cause = Throwable("Auth failed")
     )
@@ -525,7 +475,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("rotateAuthTokens returns error when recovery auth fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val authError = AuthProtocolError(cause = Throwable("Auth failed"))
     accountAuthenticator.authResults = mutableListOf(
       defaultAuthResult,
@@ -540,7 +490,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("rotateAuthTokens returns error when saving auth tokens fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     accountAuthenticator.authResults = mutableListOf(
       defaultAuthResult,
       defaultAuthResult
@@ -556,24 +506,24 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("rotateAuthTokens returns error when setting local recovery progress fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     accountAuthenticator.authResults = mutableListOf(
       defaultAuthResult,
       defaultAuthResult
     )
     val error = Error("Failed to set progress")
-    recoveryStatusService.setLocalRecoveryProgressResult = Err(error)
+    recoveryDao.setLocalRecoveryProgressResult = Err(error)
 
     val result = service.rotateAuthTokens()
 
     result.shouldBeErrOfType<Error>()
     accountAuthenticator.authCalls.awaitItem()
     accountAuthenticator.authCalls.awaitItem()
-    recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
   }
 
   test("verifyAuthKeysAfterRotation success") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     accountAuthenticator.authResults = mutableListOf(
       defaultAuthResult,
       defaultAuthResult
@@ -587,16 +537,8 @@ class DelayNotifyServiceImplTests : FunSpec({
     accountAuthenticator.authCalls.awaitItem()
   }
 
-  test("verifyAuthKeysAfterRotation returns error when recovery status fails") {
-    recoveryStatusService.recoveryStatus.value = Err(Error("Failed to get recovery status"))
-
-    val result = service.verifyAuthKeysAfterRotation()
-
-    result.shouldBeErrOfType<Error>()
-  }
-
   test("verifyAuthKeysAfterRotation returns error when no active recovery") {
-    recoveryStatusService.recoveryStatus.value = Ok(Recovery.NoActiveRecovery)
+    recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
     val result = service.verifyAuthKeysAfterRotation()
 
@@ -604,7 +546,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("verifyAuthKeysAfterRotation returns error when global auth fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val authError = AuthProtocolError(cause = Throwable("Auth failed"))
     accountAuthenticator.authResults = mutableListOf(Err(authError))
 
@@ -615,7 +557,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("verifyAuthKeysAfterRotation returns error when recovery auth fails") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     val authError = AuthProtocolError(cause = Throwable("Auth failed"))
     accountAuthenticator.authResults = mutableListOf(
       defaultAuthResult,
@@ -630,7 +572,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("regenerateTrustedContactCertificates success") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
 
     val result = service.regenerateTrustedContactCertificates(oldAppGlobalAuthKey = null)
 
@@ -638,16 +580,8 @@ class DelayNotifyServiceImplTests : FunSpec({
     relationshipsService.syncCalls.awaitItem()
   }
 
-  test("regenerateTrustedContactCertificates returns error when recovery status fails") {
-    recoveryStatusService.recoveryStatus.value = Err(Error("Failed to get recovery status"))
-
-    val result = service.regenerateTrustedContactCertificates(oldAppGlobalAuthKey = null)
-
-    result.shouldBeErrOfType<Error>()
-  }
-
   test("regenerateTrustedContactCertificates returns error when no active recovery") {
-    recoveryStatusService.recoveryStatus.value = Ok(Recovery.NoActiveRecovery)
+    recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
     val result = service.regenerateTrustedContactCertificates(oldAppGlobalAuthKey = null)
 
@@ -655,23 +589,15 @@ class DelayNotifyServiceImplTests : FunSpec({
   }
 
   test("removeTrustedContacts success") {
-    recoveryStatusService.recoveryStatus.value = Ok(StillRecoveringInitiatedRecoveryMock)
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
 
     val result = service.removeTrustedContacts()
 
     result.shouldBeOk(Unit)
   }
 
-  test("removeTrustedContacts returns error when recovery status fails") {
-    recoveryStatusService.recoveryStatus.value = Err(Error("Failed to get recovery status"))
-
-    val result = service.removeTrustedContacts()
-
-    result.shouldBeErrOfType<Error>()
-  }
-
   test("removeTrustedContacts returns error when no active recovery") {
-    recoveryStatusService.recoveryStatus.value = Ok(Recovery.NoActiveRecovery)
+    recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
     val result = service.removeTrustedContacts()
 

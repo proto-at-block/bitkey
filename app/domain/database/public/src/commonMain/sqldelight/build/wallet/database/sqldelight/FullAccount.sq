@@ -73,6 +73,7 @@ SELECT
   keyboxEntity.id AS keyboxId,
   keyboxEntity.networkType,
   keyboxEntity.fakeHardware,
+  keyboxEntity.hardwareType,
   keyboxEntity.f8eEnvironment,
   keyboxEntity.isTestAccount,
   keyboxEntity.isUsingSocRecFakes,

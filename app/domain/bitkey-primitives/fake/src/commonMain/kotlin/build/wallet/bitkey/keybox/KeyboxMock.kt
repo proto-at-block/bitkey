@@ -1,6 +1,7 @@
 package build.wallet.bitkey.keybox
 
 import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import bitkey.account.LiteAccountConfig
 import bitkey.account.SoftwareAccountConfig
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
@@ -42,7 +43,8 @@ val KeyboxMock = Keybox(
     isHardwareFake = false,
     f8eEnvironment = Development,
     isUsingSocRecFakes = false,
-    isTestAccount = true
+    isTestAccount = true,
+    hardwareType = HardwareType.W1
   )
 )
 
@@ -88,7 +90,8 @@ val KeyboxMock2 = Keybox(
     isHardwareFake = false,
     f8eEnvironment = Development,
     isUsingSocRecFakes = true,
-    isTestAccount = true
+    isTestAccount = true,
+    hardwareType = HardwareType.W1
   )
 )
 

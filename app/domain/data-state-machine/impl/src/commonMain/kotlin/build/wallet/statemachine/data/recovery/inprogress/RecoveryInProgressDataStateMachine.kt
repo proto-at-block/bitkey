@@ -32,12 +32,12 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.ServerRecovery
 import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.fwup.FirmwareDataService
+import build.wallet.fwup.semverToInt
 import build.wallet.ktor.result.HttpError
-import build.wallet.nfc.transaction.SealDelegatedDecryptionKey
-import build.wallet.nfc.transaction.SignChallengeAndSealSeks
-import build.wallet.nfc.transaction.UnsealData
-import build.wallet.nfc.transaction.UnsealSsek
+import build.wallet.nfc.transaction.*
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.CancelDelayNotifyRecoveryError
 import build.wallet.recovery.LocalRecoveryAttemptProgress
@@ -97,23 +97,10 @@ sealed interface KeysetState {
   data class Complete(val keysets: List<SpendingKeyset>) : KeysetState
 }
 
-/**
- * @param onRetryCloudRecovery
- */
 data class RecoveryInProgressProps(
   val recovery: StillRecovering,
   val oldAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
-  val onRetryCloudRecovery: (() -> Unit)?,
-) {
-  init {
-    when (recovery.factorToRecover) {
-      // When recovering App factor, we should have an option to go through Cloud Backup recovery
-      App -> requireNotNull(onRetryCloudRecovery)
-      // Cloud Backup recovery is not relevant when recovering Hardware factor
-      Hardware -> require(onRetryCloudRecovery == null)
-    }
-  }
-}
+)
 
 @Suppress("LargeClass")
 @BitkeyInject(AppScope::class)
@@ -132,6 +119,9 @@ class RecoveryInProgressDataStateMachineImpl(
   private val accountConfigService: AccountConfigService,
   private val descriptorBackupService: DescriptorBackupService,
   private val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
+  private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
+  private val minFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
+  private val firmwareDataService: FirmwareDataService,
 ) : RecoveryInProgressDataStateMachine {
   @Composable
   override fun model(props: RecoveryInProgressProps): RecoveryInProgressData {
@@ -155,7 +145,6 @@ class RecoveryInProgressDataStateMachineImpl(
           factorToRecover = props.recovery.factorToRecover,
           delayPeriodStartTime = dataState.delayPeriodStartTime,
           delayPeriodEndTime = dataState.delayPeriodEndTime,
-          retryCloudRecovery = props.onRetryCloudRecovery,
           cancel = {
             state = getHwProofOfPossessionOrCancelDirectly(
               props = props,
@@ -200,20 +189,56 @@ class RecoveryInProgressDataStateMachineImpl(
       }
 
       is RotatingAuthTokensState -> {
+        val firmwareData by remember { firmwareDataService.firmwareData() }.collectAsState()
+        val firmwareVersion = firmwareData.firmwareDeviceInfo?.version
+        val minFirmwareVersion = minFirmwareVersionFeatureFlag.flagValue().value.value
+
+        // Check if we should skip provisioning based on firmware version
+        val shouldSkipProvisioning = firmwareVersion == null ||
+          minFirmwareVersion.isEmpty() ||
+          semverToInt(firmwareVersion) < semverToInt(minFirmwareVersion)
+
         LaunchedEffect("rotate-auth-tokens") {
           delayNotifyService
             .rotateAuthTokens()
             .onSuccess {
-              state = FetchingSealedDelegatedDecryptionKeyFromF8eState(
-                sealedCsek = dataState.sealedCsek,
-                sealedSsek = dataState.sealedSsek
-              )
+              state = if (shouldSkipProvisioning) {
+                FetchingSealedDelegatedDecryptionKeyFromF8eState(
+                  sealedCsek = dataState.sealedCsek,
+                  sealedSsek = dataState.sealedSsek
+                )
+              } else {
+                ProvisioningAppAuthKeyToHardwareState(
+                  sealedCsek = dataState.sealedCsek,
+                  sealedSsek = dataState.sealedSsek,
+                  appGlobalAuthKey = props.recovery.appGlobalAuthKey
+                )
+              }
             }
             .onFailure { error ->
               state = FailedToRotateAuthState(cause = error)
             }
         }
         RotatingAuthKeysWithF8eData(props.recovery.factorToRecover)
+      }
+
+      is ProvisioningAppAuthKeyToHardwareState -> {
+        ProvisioningAppAuthKeyToHardwareData(
+          nfcTransaction = provisionAppAuthKeyTransactionProvider(
+            appGlobalAuthPublicKey = dataState.appGlobalAuthKey,
+            onSuccess = {
+              state = FetchingSealedDelegatedDecryptionKeyFromF8eState(
+                sealedCsek = dataState.sealedCsek,
+                sealedSsek = dataState.sealedSsek
+              )
+            },
+            onCancel = {
+              state = FailedToRotateAuthState(
+                cause = Error("Cancelled provisioning app auth key to hardware")
+              )
+            }
+          )
+        )
       }
 
       is CheckCompletionAttemptForSuccessOrCancellation -> {
@@ -1062,10 +1087,29 @@ class RecoveryInProgressDataStateMachineImpl(
         sealedSsek = recovery.sealedSsek
       )
 
-      is RotatedAuthKeys -> FetchingSealedDelegatedDecryptionKeyFromF8eState(
-        sealedCsek = recovery.sealedCsek,
-        sealedSsek = recovery.sealedSsek
-      )
+      is RotatedAuthKeys -> {
+        val firmwareData = firmwareDataService.firmwareData().value
+        val firmwareVersion = firmwareData.firmwareDeviceInfo?.version
+        val minFirmwareVersion = minFirmwareVersionFeatureFlag.flagValue().value.value
+
+        // Check if we should skip provisioning based on firmware version
+        val shouldSkipProvisioning = firmwareVersion == null ||
+          minFirmwareVersion.isEmpty() ||
+          semverToInt(firmwareVersion) < semverToInt(minFirmwareVersion)
+
+        if (shouldSkipProvisioning) {
+          FetchingSealedDelegatedDecryptionKeyFromF8eState(
+            sealedCsek = recovery.sealedCsek,
+            sealedSsek = recovery.sealedSsek
+          )
+        } else {
+          ProvisioningAppAuthKeyToHardwareState(
+            sealedCsek = recovery.sealedCsek,
+            sealedSsek = recovery.sealedSsek,
+            appGlobalAuthKey = recovery.appGlobalAuthKey
+          )
+        }
+      }
 
       is CreatedSpendingKeys -> if (encryptedDescriptorBackupsFeatureFlag.isEnabled() && recovery.sealedSsek != null) {
         AwaitingHardwareProofOfPossessionForDescriptorBackupsState(
@@ -1205,6 +1249,15 @@ class RecoveryInProgressDataStateMachineImpl(
       val sealedCsek: SealedCsek,
       val sealedSsek: SealedSsek,
       val hardwareSignedChallenge: SignedChallenge.HardwareSignedChallenge,
+    ) : State
+
+    /**
+     * Provisioning the new app auth key to hardware via NFC.
+     */
+    data class ProvisioningAppAuthKeyToHardwareState(
+      val sealedCsek: SealedCsek,
+      val sealedSsek: SealedSsek?,
+      val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     ) : State
 
     data class FetchingSealedDelegatedDecryptionKeyFromF8eState(

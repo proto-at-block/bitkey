@@ -1,3 +1,4 @@
+--exclude rust/_build
 --acronyms ID,URL,UUID
 --allman false
 --anonymousforeach convert

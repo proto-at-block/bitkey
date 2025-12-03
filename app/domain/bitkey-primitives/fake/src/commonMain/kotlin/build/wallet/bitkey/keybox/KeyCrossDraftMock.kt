@@ -1,6 +1,7 @@
 package build.wallet.bitkey.keybox
 
 import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.BitcoinNetworkType.TESTNET
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.app.AppKeyBundle
@@ -38,6 +39,7 @@ private val config =
     f8eEnvironment = Development,
     isTestAccount = true,
     isUsingSocRecFakes = true,
+    hardwareType = HardwareType.W1,
     delayNotifyDuration = Duration.ZERO
   )
 

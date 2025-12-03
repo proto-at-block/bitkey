@@ -71,8 +71,7 @@ class SecurityHubEducationScreenPresenter(
       onBack = {
         navigator.goTo(
           SecurityHubScreen(
-            account = screen.originScreen.account,
-            hardwareRecoveryData = screen.originScreen.hardwareRecoveryData
+            account = screen.originScreen.account
           )
         )
       },
@@ -86,7 +85,6 @@ class SecurityHubEducationScreenPresenter(
             navigator.goTo(
               SecurityHubScreen(
                 account = screen.originScreen.account,
-                hardwareRecoveryData = screen.originScreen.hardwareRecoveryData,
                 initialState = SecurityHubUiState.FingerprintResetState
               )
             )

@@ -4,6 +4,7 @@ import app.cash.turbine.plusAssign
 import bitkey.privilegedactions.FingerprintResetF8eClientFake
 import bitkey.privilegedactions.FingerprintResetServiceFake
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.EnrolledFingerprints
@@ -61,11 +62,13 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
   val testGrant = Grant(
     version = 1,
     serializedRequest = byteArrayOf(1, 2, 3, 4),
-    signature = byteArrayOf(5, 6, 7, 8)
+    appSignature = byteArrayOf(5, 6, 7, 8),
+    wsmSignature = byteArrayOf(9, 10, 11, 12)
   )
 
   val fingerprintHandle = FingerprintHandle(index = 2, label = "Right Thumb")
   val props = EnrollingFingerprintProps(
+    account = FullAccountMock,
     onCancel = { onCancelCalls += Unit },
     onSuccess = { onSuccessCalls += it },
     fingerprintHandle = fingerprintHandle,

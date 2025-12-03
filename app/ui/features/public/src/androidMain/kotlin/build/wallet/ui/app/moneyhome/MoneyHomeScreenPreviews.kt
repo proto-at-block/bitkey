@@ -16,6 +16,7 @@ import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
 import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.transactions.PartnerTransactionItemModel
+import build.wallet.statemachine.transactions.SkeletonTransactionItemModel
 import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -50,6 +51,9 @@ fun MoneyHomeScreenFull(
   largeBalance: Boolean = false,
   showSellButton: Boolean = false,
   securityHubBadged: Boolean = false,
+  isLoading: Boolean = false,
+  isLoadingTransactions: Boolean = false,
+  useSkeletonTransactions: Boolean = false,
 ) {
   MoneyHomeScreen(
     model =
@@ -60,12 +64,14 @@ fun MoneyHomeScreenFull(
         balanceModel = if (largeBalance) {
           MoneyAmountModel(
             primaryAmount = "$88,888,888.88",
-            secondaryAmount = "153,984,147,317 sats"
+            secondaryAmount = "153,984,147,317 sats",
+            isLoading = isLoading
           )
         } else {
           MoneyAmountModel(
             primaryAmount = "$289,745",
-            secondaryAmount = "424,567 sats"
+            secondaryAmount = "424,567 sats",
+            isLoading = isLoading
           )
         },
         cardsModel = CardListModel(cards = emptyImmutableList()),
@@ -77,7 +83,14 @@ fun MoneyHomeScreenFull(
                 ListGroupModel(
                   header = null,
                   style = ListGroupStyle.NONE,
-                  items =
+                  items = if (useSkeletonTransactions) {
+                    immutableListOf(
+                      SkeletonTransactionItemModel(),
+                      SkeletonTransactionItemModel(),
+                      SkeletonTransactionItemModel(),
+                      SkeletonTransactionItemModel()
+                    )
+                  } else {
                     immutableListOf(
                       TransactionItemModel(
                         truncatedRecipientAddress = "1AH7...CkGJ",
@@ -87,6 +100,7 @@ fun MoneyHomeScreenFull(
                         transactionType = Incoming,
                         isPending = false,
                         isLate = false,
+                        isLoading = isLoadingTransactions,
                         onClick = {}
                       ),
                       TransactionItemModel(
@@ -97,6 +111,7 @@ fun MoneyHomeScreenFull(
                         transactionType = Outgoing,
                         isPending = false,
                         isLate = false,
+                        isLoading = isLoadingTransactions,
                         onClick = {}
                       ),
                       TransactionItemModel(
@@ -107,6 +122,7 @@ fun MoneyHomeScreenFull(
                         transactionType = UtxoConsolidation,
                         isPending = false,
                         isLate = false,
+                        isLoading = isLoadingTransactions,
                         onClick = {}
                       ),
                       PartnerTransactionItemModel(
@@ -116,11 +132,13 @@ fun MoneyHomeScreenFull(
                         amount = "$31.36",
                         amountEquivalent = "0.000305 BTC",
                         isPending = false,
-                        onClick = {},
+                        isError = false,
                         sideTextTint = ListItemSideTextTint.GREEN,
-                        isError = false
+                        isLoading = isLoadingTransactions,
+                        onClick = {}
                       )
                     )
+                  }
                 )
               )
           ),

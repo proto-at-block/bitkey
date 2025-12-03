@@ -9,6 +9,7 @@ import build.wallet.emergencyexitkit.EmergencyExitKitPayload.EmergencyExitKitPay
 import build.wallet.emergencyexitkit.EmergencyExitKitPayloadDecoderImpl
 import build.wallet.encrypt.SymmetricKeyEncryptorImpl
 import build.wallet.integration.statemachine.create.restoreButton
+import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -50,7 +51,7 @@ class EmergencyExitRecoveryFunctionalTests : FunSpec({
     val sealedCsek =
       app.nfcTransactor.fakeTransact(
         transaction = { session, commands ->
-          commands.sealData(session, csek.key.raw)
+          commands.sealSymmetricKey(session, csek.key)
         }
       ).getOrThrow()
 

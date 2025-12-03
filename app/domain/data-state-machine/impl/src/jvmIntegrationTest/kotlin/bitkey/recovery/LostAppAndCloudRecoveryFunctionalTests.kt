@@ -1,24 +1,25 @@
 package bitkey.recovery
 
 import bitkey.auth.AuthTokenScope.Global
+import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth.WithDescriptorBackups
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth.WithDirectKeys
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveHwAuthKey
 import build.wallet.testing.ext.getHardwareFactorProofOfPossession
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.signChallengeWithHardware
+import build.wallet.testing.ext.testWithTwoApps
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 
 class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
-  test("authenticate with hardware and initiate recovery") {
-    val oldApp = launchNewApp()
+  testWithTwoApps("authenticate with hardware and initiate recovery") { oldApp, newApp ->
     val account = oldApp.onboardFullAccountWithFakeHardware()
 
-    val newApp = launchNewApp(hardwareSeed = oldApp.fakeHardwareKeyStore.getSeed())
+    val hardwareSeed = oldApp.fakeHardwareKeyStore.getSeed()
+    newApp.fakeHardwareKeyStore.setSeed(hardwareSeed)
 
     // Initiate auth
     val hwAuthKey = newApp.getActiveHwAuthKey().publicKey
@@ -38,11 +39,17 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       hwSignedChallenge = signedChallenge
     ).shouldBeOk()
 
-    completedAuth.shouldBeInstanceOf<WithDirectKeys>()
-    completedAuth.hwAuthKey.shouldBe(hwAuthKey)
-    completedAuth.existingHwSpendingKeys.shouldContainExactly(
-      account.keybox.activeHwKeyBundle.spendingKey
-    )
+    when (completedAuth) {
+      is WithDescriptorBackups -> {
+        completedAuth.hwAuthKey.shouldBe(hwAuthKey)
+      }
+      is WithDirectKeys -> {
+        completedAuth.hwAuthKey.shouldBe(hwAuthKey)
+        completedAuth.existingHwSpendingKeys.shouldContainExactly(
+          account.keybox.activeHwKeyBundle.spendingKey
+        )
+      }
+    }
     // TODO: test starting and completing recovery
   }
 

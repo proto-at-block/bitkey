@@ -62,7 +62,12 @@ class RecoveryStatusServiceImplTests : FunSpec({
         KeyboxMock
       )
     )
-    recoveryDao.setLocalRecoveryProgressCalls.awaitItem().shouldBe(Unit)
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
+      .shouldBe(
+        LocalRecoveryAttemptProgress.CompletedRecovery(
+          KeyboxMock
+        )
+      )
   }
 
   test("clear") {

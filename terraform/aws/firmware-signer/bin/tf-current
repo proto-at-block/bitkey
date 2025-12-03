@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+
+# Shows which terraform backend is currently initialized
+
+if [ ! -f ".terraform/terraform.tfstate" ]; then
+  echo "No terraform backend initialized"
+  echo "Run one of the tf-* commands to initialize a backend"
+  exit 1
+fi
+
+# Extract key and bucket from terraform state
+KEY=$(grep '"key":' .terraform/terraform.tfstate | head -1 | cut -d'"' -f4)
+BUCKET=$(grep '"bucket":' .terraform/terraform.tfstate | head -1 | cut -d'"' -f4)
+
+if [ -z "$KEY" ] || [ -z "$BUCKET" ]; then
+  echo "Could not parse backend configuration"
+  exit 1
+fi
+
+# Determine which environment based on the key and bucket
+echo "Current Terraform Backend:"
+echo "=========================="
+echo "Bucket: $BUCKET"
+echo "Key:    $KEY"
+echo ""
+
+# Identify environment
+if [[ "$KEY" == "tfstate-dev-"* ]]; then
+  DEVELOPER_NAME=$(echo "$KEY" | sed 's/tfstate-dev-//')
+  echo "Environment: Personal Developer Stack"
+  echo "Developer:   $DEVELOPER_NAME"
+  echo ""
+  echo "Use: tf-personal <command>"
+elif [[ "$KEY" == "tfstate" && "$BUCKET" == *"development"* && "$BUCKET" != *"localstack"* ]]; then
+  echo "Environment: Shared Development"
+  echo ""
+  echo "Use: tf-development <command>"
+elif [[ "$KEY" == "tfstate" && "$BUCKET" == *"staging"* ]]; then
+  echo "Environment: Staging"
+  echo ""
+  echo "Use: tf-staging <command>"
+elif [[ "$KEY" == "tfstate" && "$BUCKET" == *"production"* ]]; then
+  echo "Environment: Production"
+  echo ""
+  echo "Use: terraform <command> (via Atlantis)"
+elif [[ "$BUCKET" == *"localstack"* ]]; then
+  echo "Environment: Localstack (Local)"
+  echo ""
+  echo "Use: tf-local <command>"
+else
+  echo "Environment: Unknown"
+  echo ""
+  echo "⚠️  Warning: Could not determine environment from backend config"
+fi

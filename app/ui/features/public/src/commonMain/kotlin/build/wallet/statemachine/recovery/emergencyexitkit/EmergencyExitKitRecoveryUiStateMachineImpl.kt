@@ -6,13 +6,13 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
-import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.emergencyexitkit.EmergencyExitKitPayload
 import build.wallet.emergencyexitkit.EmergencyExitKitPayloadDecoder
 import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer
 import build.wallet.keybox.KeyboxDao
+import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.permissions.Permission
 import build.wallet.platform.random.UuidGenerator
@@ -171,7 +171,7 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              Csek(SymmetricKeyImpl(commands.unsealData(session, sealedCsek)))
+              Csek(commands.unsealSymmetricKey(session, sealedCsek))
             },
             onSuccess = { unsealedCsek ->
               csekDao.set(

@@ -1,5 +1,6 @@
 package build.wallet.support
 
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.email.Email
 
 /**
@@ -9,7 +10,7 @@ interface SupportTicketData {
   val email: Email
   val sendDebugData: Boolean
 
-  val sendEncryptedDescriptor: Boolean
+  val sendEncryptedDescriptor: SendEncryptedDescriptor
   val attachments: List<SupportTicketAttachment>
 
   val fields: Set<SupportTicketField<*>>
@@ -34,7 +35,7 @@ interface SupportTicketData {
   object Empty : SupportTicketData {
     override val email = Email("")
     override val sendDebugData: Boolean = true
-    override val sendEncryptedDescriptor: Boolean = false
+    override val sendEncryptedDescriptor: SendEncryptedDescriptor = SendEncryptedDescriptor.NotSelected
     override val attachments: List<SupportTicketAttachment> = emptyList()
     override val fields: Set<SupportTicketField<*>> = emptySet()
 
@@ -42,4 +43,10 @@ interface SupportTicketData {
 
     override fun asMap(): Map<SupportTicketField<*>, Any> = emptyMap()
   }
+}
+
+sealed class SendEncryptedDescriptor {
+  object NotSelected : SendEncryptedDescriptor()
+
+  data class Selected(val accountId: AccountId) : SendEncryptedDescriptor()
 }

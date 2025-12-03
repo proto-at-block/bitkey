@@ -9,6 +9,7 @@ import build.wallet.emergencyexitkit.EmergencyExitKitAssociation
 import build.wallet.emergencyexitkit.EmergencyExitKitDataProviderFake
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
+import build.wallet.feature.flags.PublicCustomerSupportFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.keybox.KeyboxDaoMock
@@ -24,7 +25,10 @@ import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachi
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.dev.DebugMenuScreen
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.TimeZoneProviderMock
 import io.kotest.core.spec.style.FunSpec
@@ -41,10 +45,15 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val orphanedKeyRecoveryFeatureFlag = OrphanedKeyRecoveryFeatureFlag(featureFlagDao)
   val orphanedKeyDetectionService = OrphanedKeyDetectionServiceMock(turbines::create)
   val orphanedKeyRecoveryService = OrphanedKeyRecoveryServiceMock(turbines::create)
+  val publicCustomerSupportFeatureFlag = PublicCustomerSupportFeatureFlag(featureFlagDao)
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val createSoftwareWalletUiStateMachine = object : CreateSoftwareWalletUiStateMachine,
     ScreenStateMachineMock<CreateSoftwareWalletProps>(
       id = "create-software-wallet"
+    ) {}
+  val feedbackUiStateMachine = object : FeedbackUiStateMachine,
+    ScreenStateMachineMock<FeedbackUiProps>(
+      id = "feedback"
     ) {}
   val navigatorPresenter = NavigatorPresenterFake()
 
@@ -60,6 +69,8 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       orphanedKeyRecoveryService = orphanedKeyRecoveryService,
       orphanedKeyRecoveryFeatureFlag = orphanedKeyRecoveryFeatureFlag,
       moneyDisplayFormatter = MoneyDisplayFormatterFake,
+      feedbackUiStateMachine = feedbackUiStateMachine,
+      publicCustomerSupportFeatureFlag = publicCustomerSupportFeatureFlag,
       dateTimeFormatter = DateTimeFormatterMock(),
       timeZoneProvider = TimeZoneProviderMock(),
       keyboxDao = keyboxDao
@@ -211,4 +222,27 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       startEmergencyExitRecoveryCalls.awaitItem()
     }
   }
-})
+
+  context("public customer support flag is on") {
+    publicCustomerSupportFeatureFlag.setFlagValue(true)
+
+    test("contact us option is shown") {
+      stateMachine.test(props) {
+        awaitBody<ChooseAccountAccessModel> {
+          buttons[1].shouldNotBeNull().onClick()
+        }
+
+        awaitBody<AccountAccessMoreOptionsFormBodyModel> {
+          onCustomerSupportClick()
+        }
+
+        awaitBodyMock<FeedbackUiProps> {
+          onBack()
+        }
+
+        awaitBody<AccountAccessMoreOptionsFormBodyModel>()
+      }
+    }
+  }
+}
+)

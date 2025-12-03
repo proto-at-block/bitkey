@@ -17,6 +17,13 @@ import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintre
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.fold
 
+data class AppSignedGrant(
+  val version: Byte,
+  val serializedRequest: ByteArray,
+  val appSignature: ByteArray,
+  val wsmSignature: ByteArray,
+)
+
 /**
  * Shared handler for common NFC grant provisioning logic used by both
  * FingerprintResetUiStateMachine and EnrollingFingerprintUiStateMachine.

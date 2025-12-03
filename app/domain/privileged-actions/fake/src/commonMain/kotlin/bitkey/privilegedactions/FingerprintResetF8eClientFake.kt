@@ -3,10 +3,9 @@ package bitkey.privilegedactions
 import bitkey.f8e.fingerprintreset.FingerprintResetF8eClient
 import bitkey.f8e.fingerprintreset.FingerprintResetRequest
 import bitkey.f8e.fingerprintreset.FingerprintResetResponse
+import bitkey.f8e.privilegedactions.*
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.f8e.privilegedactions.AuthorizationStrategyType
-import bitkey.f8e.privilegedactions.CancelPrivilegedActionRequest
-import bitkey.f8e.privilegedactions.ContinuePrivilegedActionRequest
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.f8e.privilegedactions.PrivilegedActionType
 import build.wallet.bitkey.f8e.FullAccountId
@@ -48,7 +47,8 @@ class FingerprintResetF8eClientFake(
     FingerprintResetResponse(
       version = 1,
       serializedRequest = "mockSerializedRequest",
-      signature = "mockSignature"
+      appSignature = "mockAppSignature",
+      wsmSignature = "mockWsmSignature"
     )
   )
   var cancelFingerprintResetResult: Result<EmptyResponseBody, Throwable> = Ok(EmptyResponseBody)

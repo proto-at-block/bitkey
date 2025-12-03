@@ -72,7 +72,7 @@ class OnboardFullAccountServiceImpl(
       // Reuse keybox configuration used for ongoing onboarding,
       // otherwise fall back on debug options
       val accountConfig = onboardingKeybox?.config
-        ?: accountConfigService.defaultConfig().first().toFullAccountConfig()
+        ?: accountConfigService.resolveHardwareTypeAndCreateFullAccountConfig()
 
       val appKeyBundle = generateAppKeys(accountConfig.bitcoinNetworkType).bind()
       // once we successfully generate app keys, persist them in the case onboarding is

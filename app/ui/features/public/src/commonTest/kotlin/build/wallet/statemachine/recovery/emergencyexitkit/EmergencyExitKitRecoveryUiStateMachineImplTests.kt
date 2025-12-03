@@ -9,6 +9,7 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
+import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyexitkit.EmergencyExitKitBackup
@@ -81,7 +82,7 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
   beforeSpec {
     validData = EmergencyExitKitPayloadDecoderImpl().encode(
       EmergencyExitKitPayloadV1(
-        sealedHwEncryptionKey = CsekFake.key.raw,
+        sealedHwEncryptionKey = SealedCsekFake,
         sealedActiveSpendingKeys = SealedData(
           ciphertext = EmergencyExitKitPayloadDecoderImpl().encodeBackup(
             EmergencyExitKitBackup.EmergencyExitKitBackupV1(

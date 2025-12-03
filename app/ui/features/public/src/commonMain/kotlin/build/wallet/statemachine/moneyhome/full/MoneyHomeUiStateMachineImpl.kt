@@ -21,6 +21,9 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.onboarding.OnboardingCompletionService
 import build.wallet.partnerships.*
 import build.wallet.platform.clipboard.Clipboard
+import build.wallet.platform.links.DeepLinkHandler
+import build.wallet.platform.links.OpenDeeplinkResult
+import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.*
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.pricechart.ChartType
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
@@ -35,6 +38,8 @@ import build.wallet.statemachine.core.list.ListFormBodyModel
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataProps
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.inheritance.*
 import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachine
@@ -50,6 +55,8 @@ import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransact
 import build.wallet.statemachine.partnerships.AddBitcoinBottomSheetDisplayState
 import build.wallet.statemachine.partnerships.purchase.CustomAmountEntryUiProps
 import build.wallet.statemachine.partnerships.purchase.CustomAmountEntryUiStateMachine
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseQuotesUiProps
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseQuotesUiStateMachine
 import build.wallet.statemachine.partnerships.sell.ConfirmedPartnerSale
 import build.wallet.statemachine.partnerships.sell.PartnershipsSellUiProps
 import build.wallet.statemachine.partnerships.sell.PartnershipsSellUiStateMachine
@@ -72,6 +79,7 @@ import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiProps
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiStateMachine
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.wallet.migration.PrivateWalletMigrationService
 import build.wallet.wallet.migration.PrivateWalletMigrationState
 import build.wallet.wallet.migration.PrivateWalletMigrationState.NotAvailable
@@ -110,6 +118,9 @@ class MoneyHomeUiStateMachineImpl(
   private val navigatorPresenter: NavigatorPresenter,
   private val privateWalletMigrationService: PrivateWalletMigrationService,
   private val privateWalletMigrationUiStateMachine: PrivateWalletMigrationUiStateMachine,
+  private val lostHardwareRecoveryDataStateMachine: LostHardwareRecoveryDataStateMachine,
+  private val partnershipsPurchaseQuotesUiStateMachine: PartnershipsPurchaseQuotesUiStateMachine,
+  private val deepLinkHandler: DeepLinkHandler,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
@@ -120,6 +131,12 @@ class MoneyHomeUiStateMachineImpl(
     val migrationState by privateWalletMigrationService.migrationState.collectAsState(NotAvailable)
 
     var hasAutoShownSocialRecoveryScreen by remember { mutableStateOf(false) }
+
+    val lostHardwareRecoveryData = lostHardwareRecoveryDataStateMachine.model(
+      props = LostHardwareRecoveryDataProps(
+        account = props.account as FullAccount
+      )
+    )
 
     LaunchedEffect("mark-onboarding-completed") {
       // Ensure onboarding is recorded for users who completed it before
@@ -135,7 +152,7 @@ class MoneyHomeUiStateMachineImpl(
       val initialState = when (val origin = props.origin) {
         MoneyHomeUiProps.Origin.Launch -> {
           // Navigate directly to hardware recovery when completing hardware recovery
-          val lostHardwareRecoveryData = props.lostHardwareRecoveryData
+          val lostHardwareRecoveryData = lostHardwareRecoveryData
 
           when {
             migrationState is PrivateWalletMigrationState.InProgress -> PrivateWalletMigrationUiState(inProgress = true)
@@ -163,7 +180,7 @@ class MoneyHomeUiStateMachineImpl(
         is MoneyHomeUiProps.Origin.LostHardwareRecovery -> {
           ViewHardwareRecoveryStatusUiState(
             instructionsStyle = when {
-              props.lostHardwareRecoveryData is CompletingRecoveryData ||
+              lostHardwareRecoveryData is CompletingRecoveryData ||
                 !origin.isContinuingRecovery -> InstructionsStyle.Independent
               else -> InstructionsStyle.ResumedRecoveryAttempt
             }
@@ -206,6 +223,9 @@ class MoneyHomeUiStateMachineImpl(
           onGoToSecurityHub = props.onGoToSecurityHub,
           onGoToPrivateWalletMigration = {
             uiState = PrivateWalletMigrationUiState()
+          },
+          onPurchaseAmountConfirmed = { amount ->
+            uiState = ViewingPartnerPurchaseQuotesUiState(purchaseAmount = amount)
           }
         )
       )
@@ -262,7 +282,7 @@ class MoneyHomeUiStateMachineImpl(
 
       is ViewHardwareRecoveryStatusUiState -> HardwareRecoveryModel(
         account = props.account as FullAccount,
-        lostHardwareRecoveryData = props.lostHardwareRecoveryData,
+        lostHardwareRecoveryData = lostHardwareRecoveryData,
         instructionsStyle = state.instructionsStyle,
         onExit = {
           uiState = ViewingBalanceUiState()
@@ -345,15 +365,8 @@ class MoneyHomeUiStateMachineImpl(
               )
           },
           onNext = { selectedAmount ->
-            uiState =
-              ViewingBalanceUiState(
-                bottomSheetDisplayState =
-                  Partners(
-                    initialState = AddBitcoinBottomSheetDisplayState.PurchasingUiState(
-                      selectedAmount = selectedAmount
-                    )
-                  )
-              )
+            // Go directly to quotes flow with the custom amount
+            uiState = ViewingPartnerPurchaseQuotesUiState(purchaseAmount = selectedAmount)
           }
         )
       )
@@ -444,6 +457,12 @@ class MoneyHomeUiStateMachineImpl(
           )
         )
       }
+
+      is ViewingPartnerPurchaseQuotesUiState -> ViewingPartnerPurchaseQuotesModel(
+        props = props,
+        state = state,
+        setState = { uiState = it }
+      )
     }
   }
 
@@ -572,6 +591,104 @@ class MoneyHomeUiStateMachineImpl(
         onComplete = onExit
       )
     )
+  }
+
+  @Composable
+  private fun ViewingPartnerPurchaseQuotesModel(
+    props: MoneyHomeUiProps,
+    state: ViewingPartnerPurchaseQuotesUiState,
+    setState: (MoneyHomeUiState) -> Unit,
+  ): ScreenModel {
+    var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
+
+    val screenModel = partnershipsPurchaseQuotesUiStateMachine.model(
+      props = PartnershipsPurchaseQuotesUiProps(
+        purchaseAmount = state.purchaseAmount,
+        onPartnerRedirected = { redirectMethod, transaction ->
+          handlePartnerRedirected(
+            method = redirectMethod,
+            transaction = transaction,
+            props = props,
+            setState = setState,
+            onShowAlert = { alertModel = it },
+            onDismissAlert = { alertModel = null }
+          )
+        },
+        onBack = {
+          // Return to amount selection sheet
+          setState(
+            ViewingBalanceUiState(
+              bottomSheetDisplayState = Partners(
+                initialState = AddBitcoinBottomSheetDisplayState.PurchasingUiState(
+                  selectedAmount = state.purchaseAmount
+                )
+              )
+            )
+          )
+        },
+        onExit = { setState(ViewingBalanceUiState()) }
+      )
+    )
+
+    return screenModel.copy(alertModel = alertModel)
+  }
+
+  private fun handlePartnerRedirected(
+    method: PartnerRedirectionMethod,
+    transaction: PartnershipTransaction,
+    props: MoneyHomeUiProps,
+    setState: (MoneyHomeUiState) -> Unit,
+    onShowAlert: (ButtonAlertModel) -> Unit,
+    onDismissAlert: () -> Unit,
+  ) {
+    when (method) {
+      is PartnerRedirectionMethod.Deeplink -> {
+        val result = deepLinkHandler.openDeeplink(
+          url = method.urlString,
+          appRestrictions = method.appRestrictions
+        )
+        val alert: ButtonAlertModel? = when (result) {
+          OpenDeeplinkResult.Failed ->
+            ButtonAlertModel(
+              title = "Failed to open ${method.partnerName}.",
+              subline = null,
+              onDismiss = onDismissAlert,
+              primaryButtonText = "OK",
+              onPrimaryButtonClick = onDismissAlert
+            )
+
+          is OpenDeeplinkResult.Opened ->
+            when (result.appRestrictionResult) {
+              is Failed ->
+                ButtonAlertModel(
+                  title = "The version of ${method.partnerName} may be out of date. Please update your app.",
+                  subline = null,
+                  onDismiss = onDismissAlert,
+                  primaryButtonText = "OK",
+                  onPrimaryButtonClick = onDismissAlert
+                )
+
+              None, Success -> null
+            }
+        }
+        // Dismiss quotes screen and return to balance
+        setState(ViewingBalanceUiState())
+
+        // Show alert if there is one
+        alert?.let { onShowAlert(it) }
+      }
+
+      is PartnerRedirectionMethod.Web -> {
+        setState(
+          ShowingInAppBrowserUiState(
+            urlString = method.urlString,
+            onClose = {
+              props.onPartnershipsWebFlowCompleted(method.partnerInfo, transaction)
+            }
+          )
+        )
+      }
+    }
   }
 }
 
@@ -752,5 +869,12 @@ sealed interface MoneyHomeUiState {
    */
   data class PrivateWalletMigrationUiState(
     val inProgress: Boolean = false,
+  ) : MoneyHomeUiState
+
+  /**
+   * Indicates that we are viewing partner purchase quotes for a confirmed amount.
+   */
+  data class ViewingPartnerPurchaseQuotesUiState(
+    val purchaseAmount: FiatMoney,
   ) : MoneyHomeUiState
 }

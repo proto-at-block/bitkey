@@ -185,6 +185,11 @@ extension SignVerifyAttestationChallenge: IOCommand {
     typealias ResultType = Bool
 }
 
+extension ProvisionAppAuthKey: IOCommand {
+    typealias FFIStateType = BooleanState
+    typealias ResultType = Bool
+}
+
 extension IOCommand {
     // These are defined ONCE per monomorphized result type
 

@@ -2,41 +2,28 @@ package bitkey.privilegedactions
 
 import bitkey.f8e.fingerprintreset.FingerprintResetF8eClient
 import bitkey.f8e.fingerprintreset.FingerprintResetRequest
-import bitkey.f8e.privilegedactions.Authorization
+import bitkey.f8e.privilegedactions.*
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.f8e.privilegedactions.AuthorizationStrategyType
-import bitkey.f8e.privilegedactions.CancelPrivilegedActionRequest
-import bitkey.f8e.privilegedactions.ContinuePrivilegedActionRequest
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
-import bitkey.f8e.privilegedactions.PrivilegedActionInstanceRef
 import bitkey.f8e.privilegedactions.PrivilegedActionType
 import bitkey.firmware.HardwareUnlockInfoService
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
+import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SignatureUtils
-import build.wallet.grants.GRANT_SIGNATURE_LEN
-import build.wallet.grants.Grant
-import build.wallet.grants.GrantAction
-import build.wallet.grants.GrantRequest
+import build.wallet.grants.*
 import build.wallet.logging.logError
 import build.wallet.logging.logInfo
 import build.wallet.worker.RetryStrategy
 import build.wallet.worker.RunStrategy
 import build.wallet.worker.TimeoutStrategy
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.get
-import com.github.michaelbull.result.mapBoth
-import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.Clock
@@ -46,6 +33,8 @@ import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.toByteString
 import kotlin.time.Duration.Companion.seconds
 
+private const val HARDWARE_SIGNATURE_LENGTH = 64
+
 @BitkeyInject(AppScope::class)
 class FingerprintResetServiceImpl(
   override val privilegedActionF8eClient: FingerprintResetF8eClient,
@@ -54,6 +43,7 @@ class FingerprintResetServiceImpl(
   private val signatureUtils: SignatureUtils,
   private val grantDao: GrantDao,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
+  private val messageSigner: AppAuthKeyMessageSigner,
 ) : FingerprintResetService, FingerprintResetSyncWorker {
   private val fingerprintResetActionCache = MutableStateFlow<PrivilegedActionInstance?>(null)
 
@@ -91,13 +81,32 @@ class FingerprintResetServiceImpl(
           return@flatMap Err(PrivilegedActionError.InvalidRequest(e))
         }
 
+        val appAuthKey = account.keybox.activeAppKeyBundle.authKey
+
+        // Build the request core from serialized grant request (excluding signature)
+        val serializedGrantRequest = grantRequest.serializeToPackedStruct()
+          ?: return@flatMap Err(
+            PrivilegedActionError.InvalidRequest(
+              IllegalArgumentException("Failed to serialize grant request")
+            )
+          )
+
+        // The request core is the serialized request minus the 64-byte signature at the end
+        val requestCore = serializedGrantRequest.copyOfRange(0, serializedGrantRequest.size - HARDWARE_SIGNATURE_LENGTH)
+
+        // Sign "BKAppBind" + request_core
+        val signingInput = "BKAppBind".encodeToByteArray() + requestCore
+        val appSignatureResult = messageSigner.signMessage(appAuthKey, signingInput.toByteString())
+        val appSignatureHex = appSignatureResult.value
+
         val request = FingerprintResetRequest(
           version = grantRequest.version.toInt(),
           action = grantRequest.action.value,
           deviceId = grantRequest.deviceId.toByteString().base64(),
           challenge = grantRequest.challenge.toByteString().base64(),
           signature = derEncodedSignature.hex(),
-          hwAuthPublicKey = hwAuthPublicKey.pubKey.value
+          hwAuthPublicKey = hwAuthPublicKey.pubKey.value,
+          appSignature = appSignatureHex
         )
         createAction(request)
       }
@@ -148,13 +157,17 @@ class FingerprintResetServiceImpl(
             )
           ).bind()
 
-        val derEncodedSignature = fingerprintResetResponse.signature.decodeHex()
-        val compactSignature = signatureUtils.decodeSignatureFromDer(derEncodedSignature)
+        val appSignatureBytes = fingerprintResetResponse.appSignature.decodeHex()
+        val compactAppSignature = signatureUtils.decodeSignatureFromDer(appSignatureBytes)
+
+        val wsmSignatureBytes = fingerprintResetResponse.wsmSignature.decodeHex()
+        val compactWsmSignature = signatureUtils.decodeSignatureFromDer(wsmSignatureBytes)
 
         Grant(
           version = fingerprintResetResponse.version.toByte(),
           serializedRequest = serializedRequest.toByteArray(),
-          signature = compactSignature
+          appSignature = compactAppSignature,
+          wsmSignature = compactWsmSignature
         )
       } catch (e: IllegalArgumentException) {
         Err(PrivilegedActionError.InvalidResponse(e)).bind()

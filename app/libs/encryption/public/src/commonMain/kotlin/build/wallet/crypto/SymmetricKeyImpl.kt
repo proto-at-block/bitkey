@@ -1,7 +1,7 @@
 package build.wallet.crypto
 
+import bitkey.data.PrivateData
 import bitkey.serialization.hex.ByteStringAsHexSerializer
-import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.serialization.Serializable
 import okio.ByteString
 
@@ -12,10 +12,10 @@ import okio.ByteString
  * TODO(W-644): should we avoid exposing raw key when passing it around? Alternative: persist key
  *  in local encrypted storage, use key hash as a key reference to access it.
  */
-@Redacted
 @Serializable
 data class SymmetricKeyImpl(
   @Serializable(with = ByteStringAsHexSerializer::class)
+  @PrivateData
   override val raw: ByteString,
 ) : SymmetricKey {
   companion object {
@@ -23,6 +23,7 @@ data class SymmetricKeyImpl(
     const val ALGORITHM = "AES"
   }
 
+  @OptIn(PrivateData::class)
   override val length: Int
     get() = raw.size
 }

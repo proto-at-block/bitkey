@@ -44,6 +44,11 @@ class OnboardAccountFunctionalTests : FunSpec({
         awaitUntil { it.skipCloudBackupOnboarding }
       }
 
+      val descriptorBackupStep = onboardAccountService.pendingStep()
+        .shouldBeOkOfType<OnboardAccountStep.DescriptorBackup>()
+
+      onboardAccountService.completeStep(descriptorBackupStep).shouldBeOk()
+
       val notificationsStep = onboardAccountService.pendingStep()
         .shouldBeOkOfType<OnboardAccountStep.NotificationPreferences>()
 
@@ -60,6 +65,11 @@ class OnboardAccountFunctionalTests : FunSpec({
       defaultAccountConfigService.defaultConfig().test {
         awaitUntil { it.skipNotificationsOnboarding }
       }
+
+      val descriptorBackupStep = onboardAccountService.pendingStep()
+        .shouldBeOkOfType<OnboardAccountStep.DescriptorBackup>()
+
+      onboardAccountService.completeStep(descriptorBackupStep).shouldBeOk()
 
       val cloudBackupStep =
         onboardAccountService.pendingStep().shouldBeOkOfType<OnboardAccountStep.CloudBackup>()

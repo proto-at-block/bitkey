@@ -1,56 +1,36 @@
 package build.wallet.statemachine.partnerships
 
-import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
-import build.wallet.money.exchange.CurrencyConverterFake
-import build.wallet.money.exchange.ExchangeRateServiceFake
-import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.PartnershipPurchaseServiceFake
-import build.wallet.partnerships.PartnershipTransactionsServiceMock
+import build.wallet.statemachine.BodyModelMock
+import build.wallet.statemachine.SheetStateMachineMock
+import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.partnerships.purchase.LoadingBodyModel
-import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
-import build.wallet.statemachine.partnerships.purchase.SelectPartnerQuoteBodyModel
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiProps
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiStateMachine
 import build.wallet.statemachine.ui.awaitSheet
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class AddBitcoinUiStateMachineImplTests : FunSpec({
   val partnershipPurchaseService = PartnershipPurchaseServiceFake()
-  val partnershipTransactionsService = PartnershipTransactionsServiceMock(
-    clearCalls = turbines.create("clear calls"),
-    syncCalls = turbines.create("sync calls"),
-    createCalls = turbines.create("create calls"),
-    fetchMostRecentCalls = turbines.create("fetch most recent calls"),
-    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls"),
-    getCalls = turbines.create("get transaction by id calls")
-  )
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
-  val eventTracker = EventTrackerMock(turbines::create)
+  val onPurchaseAmountConfirmedCalls = turbines.create<FiatMoney>("onPurchaseAmountConfirmed calls")
 
-  // state machines
-  val stateMachine =
-    AddBitcoinUiStateMachineImpl(
-      partnershipsPurchaseUiStateMachine = PartnershipsPurchaseUiStateMachineImpl(
-        moneyDisplayFormatter = MoneyDisplayFormatterFake,
-        partnershipPurchaseService = partnershipPurchaseService,
-        partnershipTransactionsService = partnershipTransactionsService,
-        fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-        eventTracker = eventTracker,
-        currencyConverter = CurrencyConverterFake(),
-        exchangeRateService = ExchangeRateServiceFake()
-      )
-    )
+  val stateMachine = AddBitcoinUiStateMachineImpl(
+    partnershipsPurchaseAmountUiStateMachine = object : PartnershipsPurchaseAmountUiStateMachine,
+      SheetStateMachineMock<PartnershipsPurchaseAmountUiProps>(id = "partnerships-purchase-amount") {}
+  )
 
   fun props(purchaseAmount: FiatMoney? = null): AddBitcoinUiProps =
     AddBitcoinUiProps(
       account = FullAccountMock,
       onTransfer = {},
-      onPartnerRedirected = { _, _ -> },
       onExit = {},
       keybox = KeyboxMock,
       onSelectCustomAmount = { _, _ -> },
@@ -58,10 +38,16 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
         AddBitcoinBottomSheetDisplayState.PurchasingUiState(purchaseAmount)
       } else {
         AddBitcoinBottomSheetDisplayState.ShowingPurchaseOrTransferUiState
+      },
+      onPurchaseAmountConfirmed = { amount ->
+        onPurchaseAmountConfirmedCalls.add(amount)
       }
     )
 
-  // tests
+  beforeTest {
+    partnershipPurchaseService.reset()
+    fiatCurrencyPreferenceRepository.reset()
+  }
 
   test("show purchase or transfer") {
     stateMachine.test(props()) {
@@ -74,19 +60,17 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("resume purchase flow") {
-    val purchaseAmount = FiatMoney.Companion.usd(123.0)
+  test("shows purchase amount selection when initialized with purchase amount") {
+    val purchaseAmount = FiatMoney.usd(100.0)
+
     stateMachine.test(props(purchaseAmount = purchaseAmount)) {
-      // load purchase amounts
-      awaitSheet<LoadingBodyModel>()
-
-      // load purchase quotes
-      awaitSheet<LoadingBodyModel>()
-
-      // show purchase quotes
-      awaitSheet<SelectPartnerQuoteBodyModel>()
-
-      eventTracker.eventCalls.awaitItem()
+      with(awaitItem()) {
+        shouldBeInstanceOf<SheetModel>()
+          .body.shouldBeInstanceOf<BodyModelMock<PartnershipsPurchaseAmountUiProps>>()
+          .latestProps.apply {
+            selectedAmount.shouldBe(purchaseAmount)
+          }
+      }
     }
   }
 })

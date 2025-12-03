@@ -16,10 +16,10 @@ use wca::commands::{
     GetCoredumpFragment, GetDeviceIdentifiers, GetDeviceInfo, GetEnrolledFingerprints, GetEvents,
     GetFingerprintEnrollmentStatus, GetFirmwareFeatureFlags, GetFirmwareMetadata,
     GetInitialSpendingKey, GetNextSpendingKey, GetTelemetryIdentifiers, GetUnlockMethod,
-    LockDevice, PartiallySignedTransaction, QueryAuthentication, SecureBootConfig,
-    SetFingerprintLabel, SetFirmwareFeatureFlags, SignChallenge, SignChallengeV2, SignTransaction,
-    SignVerifyAttestationChallenge, Signature, StartFingerprintEnrollment, TemplateMatchStats,
-    UnlockInfo, Version, WipeState,
+    LockDevice, PartiallySignedTransaction, ProvisionAppAuthKey, QueryAuthentication,
+    SecureBootConfig, SetFingerprintLabel, SetFirmwareFeatureFlags, SignChallenge, SignChallengeV2,
+    SignTransaction, SignVerifyAttestationChallenge, Signature, StartFingerprintEnrollment,
+    TemplateMatchStats, UnlockInfo, Version, WipeState,
 };
 use wca::errors::CommandError;
 use wca::fwpb::cert_get_cmd::CertType;

@@ -1,0 +1,142 @@
+-- Add hardwareType column to defaultAccountConfigEntity and keyboxEntity tables, and update fullAccountView
+-- This column specifies which hardware type (W1 or W3) to use for both real and fake hardware
+-- hardwareType is nullable to support auto-detection (null = auto-detect from firmware)
+-- Also recreates fullAccountView to expose the new hardwareType column
+
+PRAGMA foreign_keys = 0;
+
+-- Drop view first before modifying tables it references
+DROP VIEW IF EXISTS fullAccountView;
+
+-- Migrate defaultAccountConfigEntity
+CREATE TABLE defaultAccountConfigEntity_new(
+  rowId                         INTEGER NOT NULL PRIMARY KEY,
+  bitcoinNetworkType            TEXT NOT NULL,
+  fakeHardware                  INTEGER NOT NULL,
+  hardwareType                  TEXT,
+  f8eEnvironment                TEXT NOT NULL,
+  isTestAccount                 INTEGER NOT NULL,
+  isUsingSocRecFakes            INTEGER NOT NULL,
+  delayNotifyDuration           TEXT,
+  skipCloudBackupOnboarding     INTEGER NOT NULL,
+  skipNotificationsOnboarding   INTEGER NOT NULL
+);
+
+INSERT INTO defaultAccountConfigEntity_new (
+  rowId,
+  bitcoinNetworkType,
+  fakeHardware,
+  hardwareType,
+  f8eEnvironment,
+  isTestAccount,
+  isUsingSocRecFakes,
+  delayNotifyDuration,
+  skipCloudBackupOnboarding,
+  skipNotificationsOnboarding
+)
+SELECT
+  rowId,
+  bitcoinNetworkType,
+  fakeHardware,
+  'W1', -- Default to W1 for existing configs
+  f8eEnvironment,
+  isTestAccount,
+  isUsingSocRecFakes,
+  delayNotifyDuration,
+  skipCloudBackupOnboarding,
+  skipNotificationsOnboarding
+FROM defaultAccountConfigEntity;
+
+DROP TABLE defaultAccountConfigEntity;
+
+ALTER TABLE defaultAccountConfigEntity_new RENAME TO defaultAccountConfigEntity;
+
+-- Migrate keyboxEntity
+CREATE TABLE keyboxEntity_new(
+  id                                    TEXT NOT NULL PRIMARY KEY,
+  accountId                             TEXT NOT NULL,
+  networkType                           TEXT NOT NULL,
+  fakeHardware                          INTEGER NOT NULL,
+  hardwareType                          TEXT NOT NULL,
+  f8eEnvironment                        TEXT NOT NULL,
+  isTestAccount                         INTEGER NOT NULL,
+  isUsingSocRecFakes                    INTEGER NOT NULL,
+  delayNotifyDuration                   TEXT,
+  appGlobalAuthKeyHwSignature           TEXT NOT NULL,
+  canUseKeyboxKeysets                   INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (accountId)               REFERENCES fullAccountEntity(accountId) ON DELETE CASCADE
+);
+
+INSERT INTO keyboxEntity_new (
+  id,
+  accountId,
+  networkType,
+  fakeHardware,
+  hardwareType,
+  f8eEnvironment,
+  isTestAccount,
+  isUsingSocRecFakes,
+  delayNotifyDuration,
+  appGlobalAuthKeyHwSignature,
+  canUseKeyboxKeysets
+)
+SELECT
+  id,
+  accountId,
+  networkType,
+  fakeHardware,
+  'W1', -- Default to W1 for existing keyboxes
+  f8eEnvironment,
+  isTestAccount,
+  isUsingSocRecFakes,
+  delayNotifyDuration,
+  appGlobalAuthKeyHwSignature,
+  canUseKeyboxKeysets
+FROM keyboxEntity;
+
+DROP TABLE keyboxEntity;
+
+ALTER TABLE keyboxEntity_new RENAME TO keyboxEntity;
+
+-- Recreate fullAccountView to include hardwareType from keyboxEntity
+-- The view needs to be dropped and recreated when the underlying tables change
+CREATE VIEW fullAccountView AS
+SELECT
+  fullAccountEntity.accountId AS accountId,
+  keyboxEntity.id AS keyboxId,
+  keyboxEntity.networkType,
+  keyboxEntity.fakeHardware,
+  keyboxEntity.hardwareType,
+  keyboxEntity.f8eEnvironment,
+  keyboxEntity.isTestAccount,
+  keyboxEntity.isUsingSocRecFakes,
+  keyboxEntity.delayNotifyDuration,
+  keyboxEntity.appGlobalAuthKeyHwSignature,
+  keyboxEntity.canUseKeyboxKeysets,
+  spendingKeysetEntity.id AS spendingPublicKeysetId,
+  spendingKeysetEntity.appKey,
+  spendingKeysetEntity.hardwareKey,
+  spendingKeysetEntity.serverKey,
+  appKeyBundleEntity.id AS appKeyBundleId,
+  appKeyBundleEntity.globalAuthKey,
+  appKeyBundleEntity.recoveryAuthKey,
+  hwKeyBundleEntity.id AS hwKeyBundleId,
+  hwKeyBundleEntity.authKey AS hwAuthKey,
+  hwKeyBundleEntity.spendingKey AS hwSpendingKey
+FROM fullAccountEntity
+-- keybox
+INNER JOIN keyboxEntity
+ON keyboxEntity.accountId = fullAccountEntity.accountId
+-- spending public keyset (active one only)
+INNER JOIN spendingKeysetEntity
+ON spendingKeysetEntity.keyboxId = keyboxEntity.id AND spendingKeysetEntity.isActive = 1
+-- app key bundle (active one only)
+INNER JOIN appKeyBundleEntity
+ON appKeyBundleEntity.keyboxId = keyboxEntity.id AND appKeyBundleEntity.isActive = 1
+-- hw key bundle (active one only)
+INNER JOIN hwKeyBundleEntity
+ON hwKeyBundleEntity.keyboxId = keyboxEntity.id AND hwKeyBundleEntity.isActive = 1;
+
+PRAGMA foreign_keys = 1;
+
+PRAGMA foreign_key_check;

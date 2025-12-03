@@ -15,6 +15,9 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
   /** NFC flow to sign and rotate keys during app recovery */
   APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS,
 
+  /** NFC flow to provision app auth key to hardware after auth key rotation */
+  APP_DELAY_NOTIFY_PROVISION_APP_AUTH_KEY,
+
   /** NFC flow to seal ddk during lost hardware recovery */
   APP_DELAY_NOTIFY_SEAL_DDK,
 
@@ -29,6 +32,9 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
 
   /** NFC flow to sign auth during cloud backup recovery */
   CLOUD_BACKUP_SIGN_AUTH,
+
+  /** NFC flow to provision app auth key during cloud backup recovery */
+  CLOUD_BACKUP_PROVISION_APP_AUTH_KEY,
 
   /** NFC flow to get the spending key during app recovery */
   APP_DELAY_NOTIFY_GET_INITIAL_SPENDING_KEY,

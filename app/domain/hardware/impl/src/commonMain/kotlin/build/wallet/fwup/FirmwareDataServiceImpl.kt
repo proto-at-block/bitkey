@@ -1,6 +1,7 @@
 package build.wallet.fwup
 
 import build.wallet.coroutines.flow.tickerFlow
+import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
@@ -12,13 +13,17 @@ import build.wallet.logging.LogLevel
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.nfc.FakeFirmwareDeviceInfo
+import build.wallet.nfc.HardwareProvisionedAppKeyStatusDao
 import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.recoverIf
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
@@ -28,6 +33,7 @@ class FirmwareDataServiceImpl(
   private val fwupDataDaoProvider: FwupDataDaoProvider,
   private val appSessionManager: AppSessionManager,
   private val firmwareUpdateSyncFrequency: FirmwareUpdateSyncFrequency,
+  private val hardwareProvisionedAppKeyStatusDao: HardwareProvisionedAppKeyStatusDao,
 ) : FirmwareDataService, FirmwareDataSyncWorker {
   private val internalSyncFlow = MutableStateFlow(Unit)
 
@@ -115,5 +121,9 @@ class FirmwareDataServiceImpl(
       }
     }
       .logFailure(LogLevel.Warn) { "Check for new firmware failed" }
+  }
+
+  override suspend fun hasProvisionedKey(): Result<Boolean, DbError> {
+    return hardwareProvisionedAppKeyStatusDao.isKeyProvisionedForActiveAccount()
   }
 }

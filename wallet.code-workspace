@@ -21,10 +21,6 @@
 			"path": "factory-test"
 		},
 		{
-			"name": "Firmware Signer",
-			"path": "firmware-signer"
-		},
-		{
 			"name": "Workspace",
 			"path": "."
 		},

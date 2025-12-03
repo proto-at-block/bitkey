@@ -2,6 +2,7 @@ package build.wallet.keybox
 
 import app.cash.turbine.test
 import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
@@ -34,7 +35,8 @@ class KeyboxDaoImplTests : FunSpec({
     isHardwareFake = false,
     f8eEnvironment = Development,
     isTestAccount = false,
-    isUsingSocRecFakes = false
+    isUsingSocRecFakes = false,
+    hardwareType = HardwareType.W1
   )
   val keybox1 = Keybox(
     localId = "keybox-1",

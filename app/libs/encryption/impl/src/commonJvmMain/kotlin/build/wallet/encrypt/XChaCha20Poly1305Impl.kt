@@ -1,5 +1,6 @@
 package build.wallet.encrypt
 
+import bitkey.data.PrivateData
 import build.wallet.crypto.SymmetricKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -7,6 +8,7 @@ import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import build.wallet.rust.core.XChaCha20Poly1305 as CoreXChaCha20Poly1305
 
+@OptIn(PrivateData::class)
 @BitkeyInject(AppScope::class)
 class XChaCha20Poly1305Impl : XChaCha20Poly1305 {
   val tagLength = 16

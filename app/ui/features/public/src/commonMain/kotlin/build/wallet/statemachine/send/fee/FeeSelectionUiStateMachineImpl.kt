@@ -21,13 +21,15 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.ErrorData
+import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
 import build.wallet.statemachine.send.fee.FeeOptionsUiState.*
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.*
+import build.wallet.statemachine.transactions.fee.*
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableMap
@@ -43,6 +45,7 @@ class FeeSelectionUiStateMachineImpl(
   private val transactionBaseCalculator: BitcoinTransactionBaseCalculator,
   private val bitcoinWalletService: BitcoinWalletService,
   private val accountService: AccountService,
+  private val feeEstimationErrorUiStateMachine: FeeEstimationErrorUiStateMachine,
 ) : FeeSelectionUiStateMachine {
   @Composable
   override fun model(props: FeeSelectionUiProps): BodyModel {
@@ -53,24 +56,15 @@ class FeeSelectionUiStateMachineImpl(
         LoadingTransactionInfoUiState ->
           LoadingTransactionInfoModel(
             props,
-            onFeesLoadFailed = {
-              when (it) {
-                is FeeEstimationError.InsufficientFundsError -> {
-                  uiState = InsufficientFundsErrorUiState
-                }
-                is FeeEstimationError.SpendingBelowDustLimitError -> {
-                  uiState = SpendBelowDustLimitErrorUiState
-                }
-                is FeeEstimationError.CannotGetFeesError -> {
-                  uiState =
-                    LoadingFeeEstimationFailedErrorUiState(
-                      isConnectivityError = it.isConnectivityError
-                    )
-                }
-                else -> {
-                  uiState = GenericFeeEstimationFailedErrorUiState
-                }
-              }
+            onFeesLoadFailed = { error ->
+              uiState =
+                FeeEstimationErrorUiState(
+                  error = error.toUiError(),
+                  errorData = error.toErrorData(
+                    segment = MoneyHomeAppSegment.Transactions,
+                    actionDescription = "Estimating fees for a send transaction"
+                  )
+                )
             },
             onFeesLoaded = { transactionBaseAmount, fees, defaultPriority ->
               uiState = if (props.preselectedPriority != null) {
@@ -108,36 +102,14 @@ class FeeSelectionUiStateMachineImpl(
             }
           )
 
-        is InsufficientFundsErrorUiState ->
-          ErrorFormBodyModel(
-            title = "We couldn’t send this transaction",
-            subline = "The amount you are trying to send is too high. Please decrease the amount and try again.",
-            primaryButton = ButtonDataModel(text = "Go Back", onClick = props.onBack),
-            eventTrackerScreenId = FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
-          )
-
-        is SpendBelowDustLimitErrorUiState ->
-          ErrorFormBodyModel(
-            title = "We couldn’t send this transaction",
-            subline = "The amount you are trying to send is too low. Please try increasing the amount and try again.",
-            primaryButton = ButtonDataModel(text = "Go Back", onClick = props.onBack),
-            eventTrackerScreenId = FEE_ESTIMATION_BELOW_DUST_LIMIT_ERROR_SCREEN
-          )
-
-        is LoadingFeeEstimationFailedErrorUiState ->
-          NetworkErrorFormBodyModel(
-            title = "We couldn’t determine fees for this transaction",
-            isConnectivityError = state.isConnectivityError,
-            onBack = props.onBack,
-            eventTrackerScreenId = FEE_ESTIMATION_LOAD_FEES_ERROR_SCREEN
-          )
-
-        is GenericFeeEstimationFailedErrorUiState ->
-          ErrorFormBodyModel(
-            title = "We couldn’t send this transaction",
-            subline = "We are looking into this. Please try again later.",
-            primaryButton = ButtonDataModel(text = "Go Back", onClick = props.onBack),
-            eventTrackerScreenId = FEE_ESTIMATION_PSBT_CONSTRUCTION_ERROR_SCREEN
+        is FeeEstimationErrorUiState ->
+          feeEstimationErrorUiStateMachine.model(
+            FeeEstimationErrorUiProps(
+              error = state.error,
+              onBack = props.onBack,
+              errorData = state.errorData,
+              context = FeeEstimationErrorContext.Send
+            )
           )
       }
     }
@@ -319,24 +291,10 @@ private sealed interface FeeOptionsUiState {
   data object LoadingTransactionInfoUiState : FeeOptionsUiState
 
   /**
-   * Not enough funds to generate a transfer
+   * Fee estimation failures.
    */
-  data object InsufficientFundsErrorUiState : FeeOptionsUiState
-
-  /**
-   * Trying to spend below dust limit
-   */
-  data object SpendBelowDustLimitErrorUiState : FeeOptionsUiState
-
-  /**
-   * Loading the fee estimates failed
-   */
-  data class LoadingFeeEstimationFailedErrorUiState(
-    val isConnectivityError: Boolean,
+  data class FeeEstimationErrorUiState(
+    val error: FeeEstimationErrorUiError,
+    val errorData: ErrorData,
   ) : FeeOptionsUiState
-
-  /**
-   * Generic fee estimation failures
-   */
-  data object GenericFeeEstimationFailedErrorUiState : FeeOptionsUiState
 }

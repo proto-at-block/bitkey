@@ -9,6 +9,7 @@ import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.UpToDate
 import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
 import build.wallet.fwup.FwupDataFetcher.FwupDataFetcherError.DownloadError
+import build.wallet.nfc.HardwareProvisionedAppKeyStatusDaoFake
 import build.wallet.platform.app.AppSessionManagerFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -29,6 +30,7 @@ class FirmwareDataServiceImplTests : FunSpec({
     FirmwareDeviceInfoDaoMock(turbines::create)
   val fwupDataFetcher = FwupDataFetcherMock(turbines::create)
   val fwupDataDaoProvider = FwupDataDaoProviderMock(turbines::create)
+  val hardwareProvisionedAppKeyStatusDao = HardwareProvisionedAppKeyStatusDaoFake()
 
   val appSessionManager = AppSessionManagerFake()
   val defaultAppConfigService = AccountConfigServiceFake()
@@ -41,7 +43,8 @@ class FirmwareDataServiceImplTests : FunSpec({
       fwupDataFetcher = fwupDataFetcher,
       fwupDataDaoProvider = fwupDataDaoProvider,
       appSessionManager = appSessionManager,
-      firmwareUpdateSyncFrequency = FirmwareUpdateSyncFrequency()
+      firmwareUpdateSyncFrequency = FirmwareUpdateSyncFrequency(),
+      hardwareProvisionedAppKeyStatusDao = hardwareProvisionedAppKeyStatusDao
     )
     firmwareDeviceInfoDao.reset()
     fwupDataDaoProvider.reset(testName = it.name.testName)
@@ -205,7 +208,8 @@ class FirmwareDataServiceImplTests : FunSpec({
       fwupDataFetcher = fwupDataFetcher,
       fwupDataDaoProvider = realFwupDataDaoProvider,
       appSessionManager = appSessionManager,
-      firmwareUpdateSyncFrequency = FirmwareUpdateSyncFrequency()
+      firmwareUpdateSyncFrequency = FirmwareUpdateSyncFrequency(),
+      hardwareProvisionedAppKeyStatusDao = hardwareProvisionedAppKeyStatusDao
     )
 
     serviceWithRealProvider.firmwareData().test {

@@ -1,5 +1,6 @@
 package build.wallet.nfc.interceptors
 
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.encrypt.MessageSignerFake
@@ -39,6 +40,7 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
     val session = NfcSessionFake(
       NfcSession.Parameters(
         isHardwareFake = false,
+        hardwareType = HardwareType.W1,
         needsAuthentication = false,
         shouldLock = false,
         skipFirmwareTelemetry = false,
@@ -62,6 +64,7 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
     val session = NfcSessionFake(
       NfcSession.Parameters(
         isHardwareFake = false,
+        hardwareType = HardwareType.W1,
         needsAuthentication = false,
         shouldLock = false,
         skipFirmwareTelemetry = false,
@@ -84,6 +87,7 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
     val session = NfcSessionFake(
       NfcSession.Parameters(
         isHardwareFake = false,
+        hardwareType = HardwareType.W1,
         needsAuthentication = false,
         shouldLock = false,
         skipFirmwareTelemetry = false,

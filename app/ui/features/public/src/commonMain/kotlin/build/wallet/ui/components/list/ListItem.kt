@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -17,9 +18,12 @@ import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.components.coachmark.CoachmarkLabel
 import build.wallet.ui.components.coachmark.CoachmarkPresenter
+import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.LabelTreatment.*
+import build.wallet.ui.components.label.LabelTreatment.Destructive
+import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.layout.CollapsedMoneyView
 import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.compose.resId
@@ -31,6 +35,12 @@ import build.wallet.ui.model.list.ListItemAccessoryAlignment.TOP
 import build.wallet.ui.model.list.ListItemTreatment.*
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+
+/**
+ * Helper extension to hide content when loading by setting alpha to 0.
+ */
+private fun Modifier.hideWhenLoading(isLoading: Boolean): Modifier =
+  if (isLoading) alpha(0f) else this
 
 @Composable
 fun ListItem(
@@ -64,6 +74,7 @@ fun ListItem(
               QUATERNARY -> Quaternary
               PRIMARY_TITLE -> Jumbo
               SECONDARY_DISPLAY -> Jumbo
+              DESTRUCTIVE -> Destructive
             }
           false -> Disabled
         },
@@ -76,6 +87,7 @@ fun ListItem(
           PRIMARY_TITLE -> LabelType.Title1
           SECONDARY_DISPLAY -> LabelType.Display2
           INFO -> LabelType.Body4Regular
+          DESTRUCTIVE -> LabelType.Body2Medium
         },
       listItemTitleBackgroundTreatment = listItemTitleBackgroundTreatment,
       secondaryText =
@@ -115,7 +127,9 @@ fun ListItem(
       collapseContent = collapseContent,
       testTag = testTag,
       coachmark = model.coachmark,
-      coachmarkLabel = model.coachmarkLabel
+      coachmarkLabel = model.coachmarkLabel,
+      isLoading = model.isLoading,
+      explainer = model.explainer
     )
   }
 }
@@ -143,6 +157,8 @@ fun ListItem(
   specialTrailingAccessory: ListItemAccessory? = null,
   coachmark: CoachmarkModel? = null,
   coachmarkLabel: CoachmarkLabelModel? = null,
+  isLoading: Boolean = false,
+  explainer: ListItemExplainer? = null,
 ) {
   ListItem(
     modifier = modifier,
@@ -165,7 +181,9 @@ fun ListItem(
     testTag = testTag,
     titleLabel = titleLabel,
     coachmark = coachmark,
-    coachmarkLabel = coachmarkLabel
+    coachmarkLabel = coachmarkLabel,
+    isLoading = isLoading,
+    explainer = explainer
   )
 }
 
@@ -209,6 +227,8 @@ fun ListItem(
   collapseContent: Boolean = false,
   coachmark: CoachmarkModel?,
   coachmarkLabel: CoachmarkLabelModel? = null,
+  isLoading: Boolean = false,
+  explainer: ListItemExplainer? = null,
 ) {
   ListItem(
     modifier = modifier,
@@ -216,7 +236,7 @@ fun ListItem(
     leadingAccessoryContent =
       leadingAccessory?.let {
         {
-          ListItemAccessory(model = leadingAccessory)
+          ListItemAccessory(model = leadingAccessory, isLoading = isLoading)
         }
       },
     leadingAccessoryAlignment = leadingAccessoryAlignment,
@@ -238,9 +258,12 @@ fun ListItem(
           }
         } ?: Alignment.TopStart
       ) {
-        Row {
+        Row(
+          modifier = if (isLoading) Modifier.loadingScrim(isLoading) else Modifier
+        ) {
           if (titleLabel == null) {
             Label(
+              modifier = Modifier.hideWhenLoading(isLoading),
               text = title,
               treatment = titleTreatment,
               type = titleType,
@@ -248,6 +271,7 @@ fun ListItem(
             )
           } else {
             Label(
+              modifier = Modifier.hideWhenLoading(isLoading),
               model = titleLabel,
               treatment = titleTreatment,
               type = titleType,
@@ -273,6 +297,9 @@ fun ListItem(
       secondaryText?.let {
         {
           Label(
+            modifier = Modifier
+              .loadingScrim(isLoading)
+              .hideWhenLoading(isLoading),
             text = secondaryText,
             type = secondaryTextType,
             allowFontScaling = allowFontScaling
@@ -283,6 +310,9 @@ fun ListItem(
       sideText?.let {
         {
           Label(
+            modifier = Modifier
+              .loadingScrim(isLoading)
+              .hideWhenLoading(isLoading),
             text = sideText,
             type = titleType,
             alignment = TextAlign.End,
@@ -294,6 +324,9 @@ fun ListItem(
       secondarySideText?.let {
         {
           Label(
+            modifier = Modifier
+              .loadingScrim(isLoading)
+              .hideWhenLoading(isLoading),
             text = secondarySideText,
             type = LabelType.Body3Regular,
             treatment = LabelTreatment.Secondary,
@@ -305,19 +338,19 @@ fun ListItem(
     specialTrailingAccessoryContent =
       specialTrailingAccessory?.let {
         {
-          ListItemAccessory(model = specialTrailingAccessory)
+          ListItemAccessory(model = specialTrailingAccessory, isLoading = isLoading)
         }
       },
     trailingAccessoryContent =
       trailingAccessory?.let {
         {
-          ListItemAccessory(model = trailingAccessory)
+          ListItemAccessory(model = trailingAccessory, isLoading = isLoading)
         }
       },
     topAccessoryContent =
       topAccessory?.let {
         {
-          ListItemAccessory(model = topAccessory)
+          ListItemAccessory(model = topAccessory, isLoading = isLoading)
         }
       },
     pickerMenuContent =
@@ -331,7 +364,57 @@ fun ListItem(
     offset = if (listItemTreatment == INFO) Offset(0f, -12f) else Offset.Zero,
     collapseContent = collapseContent,
     testTag = testTag,
-    coachmark = coachmark
+    coachmark = coachmark,
+    explainerContent = explainer?.let {
+      {
+        BoxWithConstraints(
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          val extraWidth = 32.dp
+          Column(
+            modifier =
+              Modifier
+                .requiredWidth(maxWidth + extraWidth)
+                .background(
+                  color = WalletTheme.colors.secondary,
+                  shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                )
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.Start
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Column(
+                modifier = Modifier.weight(1f)
+              ) {
+                it.title?.let { title ->
+                  Label(
+                    text = title,
+                    type = LabelType.Body3Bold,
+                    alignment = TextAlign.Start,
+                    treatment = LabelTreatment.Primary
+                  )
+                }
+                if (it.title != null && it.subtitle != null) {
+                  Spacer(Modifier.height(6.dp))
+                }
+                it.subtitle?.let { subtitle ->
+                  Label(
+                    text = subtitle,
+                    type = LabelType.Body3Regular,
+                    alignment = TextAlign.Start,
+                    treatment = LabelTreatment.Secondary
+                  )
+                }
+              }
+              it.iconButton?.let { iconButton ->
+                IconButton(model = iconButton)
+              }
+            }
+          }
+        }
+      }
+    }
   )
 }
 
@@ -359,6 +442,7 @@ private fun ListItem(
   coachmark: CoachmarkModel?,
   collapseContent: Boolean = false,
   testTag: String? = null,
+  explainerContent: (@Composable () -> Unit)? = null,
 ) {
   Box(
     modifier =
@@ -436,7 +520,7 @@ private fun ListItem(
                 CollapsedMoneyView(
                   height = 16.dp,
                   modifier = Modifier.align(Alignment.Center),
-                  shimmer = !placeholder
+                  shimmer = false
                 )
               }
             }
@@ -451,6 +535,11 @@ private fun ListItem(
       }
       pickerMenuContent?.run {
         Box { pickerMenuContent() }
+      }
+      explainerContent?.let {
+        Box(modifier = Modifier.fillMaxWidth()) {
+          explainerContent()
+        }
       }
 
       coachmark?.let {

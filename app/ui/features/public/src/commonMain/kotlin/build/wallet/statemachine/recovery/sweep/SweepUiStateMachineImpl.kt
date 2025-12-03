@@ -157,7 +157,8 @@ class SweepUiStateMachineImpl(
                 confirmButtonEnabled = true,
                 onConfirmClick = sweepData.startSweep,
                 onNetworkFeesClick = { showingNetworkFeesInfo = true },
-                onArrivalTimeClick = null
+                onArrivalTimeClick = null,
+                requiresHardwareReview = false
               ),
               bottomSheetModel = if (showingNetworkFeesInfo) {
                 SheetModel(

@@ -1,6 +1,5 @@
 package build.wallet.statemachine.data.keybox
 
-import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
 
@@ -13,6 +12,5 @@ interface NoActiveAccountDataStateMachine :
   StateMachine<NoActiveAccountDataProps, NoActiveAccountData>
 
 data class NoActiveAccountDataProps(
-  val existingRecovery: StillRecovering?,
   val goToLiteAccountCreation: () -> Unit,
 )

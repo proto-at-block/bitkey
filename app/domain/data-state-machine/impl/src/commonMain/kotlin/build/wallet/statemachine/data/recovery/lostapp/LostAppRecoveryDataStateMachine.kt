@@ -26,7 +26,6 @@ data class LostAppRecoveryProps(
   val cloudBackup: CloudBackup?,
   val activeRecovery: StillRecovering?,
   val onRollback: () -> Unit,
-  val onRetryCloudRecovery: () -> Unit,
   val goToLiteAccountCreation: () -> Unit,
 )
 
@@ -54,8 +53,7 @@ class LostAppRecoveryDataStateMachineImpl(
             recoveryInProgressDataStateMachine.model(
               RecoveryInProgressProps(
                 recovery = props.activeRecovery,
-                oldAppGlobalAuthKey = null,
-                onRetryCloudRecovery = props.onRetryCloudRecovery
+                oldAppGlobalAuthKey = null
               )
             )
         )

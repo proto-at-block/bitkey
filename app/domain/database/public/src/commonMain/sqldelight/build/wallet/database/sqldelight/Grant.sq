@@ -6,15 +6,16 @@ CREATE TABLE grantEntity(
     action TEXT AS GrantAction NOT NULL PRIMARY KEY,
     version INTEGER NOT NULL,
     serializedRequest BLOB NOT NULL,
-    signature BLOB NOT NULL,
+    appSignature BLOB NOT NULL,
+    wsmSignature BLOB NOT NULL,
     createdAt TEXT AS Instant NOT NULL,
     delivered INTEGER AS Boolean NOT NULL DEFAULT 0
 );
 
 -- Insert or replace a grant (overwrites if action already exists)
 insertGrant:
-INSERT OR REPLACE INTO grantEntity(action, version, serializedRequest, signature, createdAt, delivered)
-VALUES(?, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO grantEntity(action, version, serializedRequest, appSignature, wsmSignature, createdAt, delivered)
+VALUES(?, ?, ?, ?, ?, ?, ?);
 
 -- Get grant by action type
 getGrantByAction:

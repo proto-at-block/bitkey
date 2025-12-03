@@ -1,5 +1,3 @@
-@file:JvmName("DataRowGroupKt")
-
 package build.wallet.ui.data
 
 import androidx.compose.foundation.background
@@ -18,7 +16,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.theme.WalletTheme
-import kotlin.jvm.JvmName
 
 @Composable
 fun DataGroup(

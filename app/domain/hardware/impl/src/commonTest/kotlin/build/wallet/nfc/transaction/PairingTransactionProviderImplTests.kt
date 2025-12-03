@@ -5,6 +5,7 @@ import build.wallet.account.analytics.AppInstallation
 import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.hardware.HwKeyBundle
@@ -13,8 +14,13 @@ import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.SekGeneratorMock
 import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
+import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.firmware.HardwareAttestationFake
+import build.wallet.nfc.HardwareProvisionedAppKeyStatusDaoFake
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.platform.random.UuidGeneratorFake
@@ -37,6 +43,7 @@ class PairingTransactionProviderImplTests : FunSpec({
   val appInstallationDao = AppInstallationDaoMock()
   val hardwareAttestation = HardwareAttestationFake()
   val accountConfigService = AccountConfigServiceFake()
+  val hardwareProvisionedAppKeyStatusDao = HardwareProvisionedAppKeyStatusDaoFake()
 
   appInstallationDao.appInstallation =
     AppInstallation(localId = "foo", hardwareSerialNumber = null)
@@ -49,7 +56,11 @@ class PairingTransactionProviderImplTests : FunSpec({
       uuidGenerator = uuid,
       appInstallationDao = appInstallationDao,
       hardwareAttestation = hardwareAttestation,
-      accountConfigService = accountConfigService
+      accountConfigService = accountConfigService,
+      fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(
+        FeatureFlagDaoFake()
+      ),
+      hardwareProvisionedAppKeyStatusDao = hardwareProvisionedAppKeyStatusDao
     )
 
   beforeTest {
@@ -74,7 +85,7 @@ class PairingTransactionProviderImplTests : FunSpec({
 
     val transaction =
       provider(
-        appGlobalAuthPublicKey = AppGlobalAuthPublicKeyMock,
+        appGlobalAuthPublicKey = PublicKey<AppGlobalAuthKey>("6170702D617574682D64707562"),
         onCancel = {},
         onSuccess = { onSuccessCalls.add(Unit) }
       )
@@ -83,6 +94,11 @@ class PairingTransactionProviderImplTests : FunSpec({
         .session(nfcSession, nfcCommands)
         .also { transaction.onSuccess(it) }
         .shouldBeTypeOf<PairingTransactionResponse.FingerprintEnrolled>()
+
+    nfcCommands.getDeviceInfoCalls.awaitItem().shouldBe(FirmwareDeviceInfoMock)
+
+    nfcCommands.provisionAppAuthKeyCalls.awaitItem()
+      .shouldBe(AppGlobalAuthPublicKeyMock.value.encodeUtf8())
 
     activationResult.keyBundle.shouldBe(
       HwKeyBundle(

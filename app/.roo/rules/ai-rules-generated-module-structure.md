@@ -1,0 +1,187 @@
+# Module Creation and Organization
+
+## Summary
+Modular architecture emphasizing extending existing modules over creating new ones. Interface-first development with strict `:public`/`:impl`/`:fake` separation.
+
+## When to Apply
+- Deciding where to place new code/functionality
+- Considering new modules (rare - prefer extending existing)
+- Refactoring across module boundaries
+
+## How to Apply
+
+### Step 1: Explore Existing Modules First
+**CRITICAL: Default to extending existing modules**
+
+1. Consult Module Index below for appropriate existing modules
+2. Ask: Can this fit into existing module? Does this require new architectural boundary?
+3. Only create new modules with clear, justified architectural boundary
+
+### Step 2: Module Types
+**`:public`** - Minimal API interfaces for external consumption, depend only on other `:public`
+**`:impl`** - Concrete implementations, depend only on `:public` modules, only app modules can depend on these
+**`:fake`** - Test doubles implementing `:public` APIs, only tests depend on these
+
+### Step 3: Directory Structure
+| Directory | Purpose |
+|-----------|----------|
+| `domain/` | Business services, domain entities |
+| `libs/` | Utilities, shared infrastructure |
+| `ui/` | UI features, screens, design system |
+| `android/` | Platform-specific Android code |
+| `ios/` | Platform-specific iOS code |
+| `shared/` | **DEPRECATED - DO NOT ADD NEW** |
+
+### Step 4: Dependency Rules
+**Layer Dependencies:**
+```
+Android App → DI Graph → UI Layer → Domain Layer → Library Layer → Rust/Native
+iOS App → XCFramework Assembly
+```
+
+**Module Type Dependencies:**
+1. Only app/DI modules depend on `:impl`
+2. `:impl` modules depend only on `:public`
+3. `:public` modules depend on other `:public`
+4. Tests can depend on `:fake`
+5. No `:impl` to `:impl` dependencies
+
+**Legacy:** `:shared` modules DEPRECATED - don't create new, acceptable to add to existing.
+
+### Gradle Module Naming
+**Path Transformation:** `:domain:wallet:impl` → `:domain:wallet-impl` (prevents naming conflicts)
+
+**Task Execution:**
+```bash
+gradle :domain:wallet-impl:jvmTest  # ✅ Correct
+gradle :domain:wallet:impl:jvmTest  # ❌ Won't work
+```
+
+**Dependencies:** `implementation(projects.domain.walletImpl)`
+
+## Example
+```kotlin
+// ✅ GOOD: Extending existing module
+// In domain/security-center/public/src/.../SecurityCenterService.kt
+interface SecurityCenterService {
+  fun getSecurityStatus(): SecurityStatus
+  fun performSecurityAction(action: SecurityAction): Result<Unit> // New function
+}
+
+// ❌ BAD: Creating unnecessary new module
+// domain/single-security-action/public/... (Don't do this)
+
+// ✅ GOOD: Proper dependency flow
+class WalletServiceImpl(
+  private val storage: StorageService // from libs/key-value-store/public
+) : WalletService
+
+// ❌ BAD: Improper dependencies
+class BadWalletServiceImpl(
+  private val anotherImpl: PaymentServiceImpl // :impl depending on :impl - forbidden
+) : WalletService
+```
+
+## Module Index (Source of Truth)
+**CRITICAL: Use this index to find appropriate existing modules before creating new ones.**
+
+### Core Application
+- `:android:app` - Main Android application
+- `:sample:android-app` - Sample/demo application
+
+### Platform Integration & UI
+- `:android:ui:app` - Android-specific UI layer
+- `:ui:features` - UI screens, state machines, presenters
+- `:ui:framework` - UI framework, Navigator, design system
+- `:ui:router` - Deeplinking routing/navigation
+
+### Account & Authentication
+- `:domain:account` - User account management
+- `:domain:auth` - Authentication and authorization
+- `:domain:in-app-security` - Biometrics, PIN, security
+
+### Wallet & Bitcoin
+- `:domain:wallet` - Core wallet functionality
+- `:libs:bdk-bindings` - Bitcoin Development Kit bindings
+- `:libs:bitcoin-primitives` - Bitcoin cryptographic primitives
+- `:domain:tx-verification` - Bitcoin transaction verification
+- `:libs:frost` - FROST threshold signatures
+
+### Hardware Integration
+- `:domain:hardware` - Hardware wallet integration
+- `:rust:core-ffi` - Rust UniFFI core bindings
+- `:rust:firmware-ffi` - Rust UniFFI firmware bindings
+
+### Financial & Payments
+- `:libs:amount` - Amount handling/calculations
+- `:libs:money` - Money/currency handling
+- `:domain:mobile-pay` - Mobile payment features
+
+### Security & Recovery
+- `:domain:recovery` - Account/wallet recovery
+- `:domain:emergency-exit-kit` - Emergency recovery (EEK)
+- `:domain:security-center` - Security management hub
+- `:domain:privileged-actions` - High-security operations
+- `:libs:secure-enclave` - Secure storage/HSM
+- `:libs:encryption` - Encryption utilities
+- `:libs:grants` - F8E permission protocol
+
+### Cloud & Backup
+- `:domain:cloud-backup` - Cloud backup (iCloud/Google Drive)
+- `:libs:cloud-store` - Cloud storage abstractions
+
+### Monitoring & Analytics
+- `:libs:datadog` - Datadog integration
+- `:libs:bugsnag` - Bugsnag integration
+- `:libs:logging` - Logging framework
+- `:domain:analytics` - Analytics tracking
+- `:domain:metrics` - Performance metrics
+
+### User Experience
+- `:domain:bootstrap` - App/wallet initialization
+- `:domain:onboarding` - User onboarding flows
+- `:domain:coachmark` - UI tutorials/tips
+- `:domain:home` - Home screen logic
+
+### Communication
+- `:domain:notifications` - Push notifications
+- `:libs:contact-method` - Email/SMS handling
+- `:domain:support` - Customer support
+
+### Social Features
+- `:domain:relationships` - Trusted contacts
+- `:domain:partnerships` - Third-party integrations
+- `:domain:inheritance` - Digital inheritance
+
+### Backend Integration
+- `:domain:f8e-client` - F8e API clients
+- `:domain:availability` - Service monitoring
+- `:libs:ktor-client` - HTTP client utilities
+
+### Infrastructure
+- `:domain:feature-flag` - Feature toggles
+- `:domain:worker` - Background tasks
+- `:domain:database` - SQLDelight schemas
+- `:domain:debug` - Debug utilities
+
+### Development & Testing
+- `:libs:platform` - Platform abstractions
+- `:libs:stdlib` - Standard library extensions
+- `:libs:testing` - Test infrastructure
+- `:libs:time` - Time/date utilities
+- `:libs:di-scopes` - DI scopes
+- `:libs:state-machine` - State machine framework
+- `:libs:key-value-store` - Key-value storage
+- `:libs:sqldelight` - SQLDelight utilities
+
+### Build Tools
+- `:gradle:di-codegen` - DI code generation
+- `:gradle:snapshot-generator` - UI snapshot generation
+
+### Legacy/Shared
+- `:shared:app-component` - Legacy app component (transitional)
+- `:shared:integration-testing` - Integration test utilities
+- `:shared:xc-framework` - XCFramework assembly
+
+**Maintenance:** Check `settings.gradle.kts` for definitive source. Update index when modules evolve.
+

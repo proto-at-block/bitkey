@@ -1,6 +1,7 @@
 package build.wallet.emergencyexitkit
 
 import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.catchingResult
@@ -78,7 +79,8 @@ class EmergencyExitPayloadRestorerImpl(
                 f8eEnvironment = F8eEnvironment.ForceOffline,
                 isHardwareFake = false,
                 isUsingSocRecFakes = false,
-                isTestAccount = false
+                isTestAccount = false,
+                hardwareType = HardwareType.W1
               )
           )
         }

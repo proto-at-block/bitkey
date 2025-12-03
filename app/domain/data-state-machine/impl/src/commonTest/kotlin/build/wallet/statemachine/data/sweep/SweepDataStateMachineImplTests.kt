@@ -41,6 +41,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.CompletableDeferred
 import kotlin.time.Duration
 
 class SweepDataStateMachineImplTests : FunSpec({
@@ -353,6 +354,7 @@ class SweepDataStateMachineImplTests : FunSpec({
     sweepService.prepareSweepResult = Ok(null)
     sweepService.sweepRequired.value = true
     var successCount = 0
+    val onSuccessCompleted = CompletableDeferred<Unit>()
 
     stateMachine.test(
       SweepDataProps(
@@ -360,11 +362,17 @@ class SweepDataStateMachineImplTests : FunSpec({
         onAttemptSweep = {},
         keybox = KeyboxMock,
         sweepContext = SweepContext.PrivateWalletMigration,
-        onSuccess = { successCount++ }
+        onSuccess = {
+          successCount++
+          onSuccessCompleted.complete(Unit)
+        }
       )
     ) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
       expectNoEvents()
+
+      // Deterministically wait for onSuccess callback to complete
+      onSuccessCompleted.await()
     }
 
     successCount.shouldBe(1)

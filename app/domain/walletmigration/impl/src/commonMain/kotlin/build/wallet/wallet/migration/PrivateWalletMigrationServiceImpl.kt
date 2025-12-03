@@ -427,7 +427,7 @@ class PrivateWalletMigrationServiceImpl(
         .mapError { PrivateWalletMigrationError.DescriptorBackupFailed(it) }
         .bind()
 
-      privateWalletMigrationDao.setDescriptorBackupCompete()
+      privateWalletMigrationDao.setDescriptorBackupComplete()
         .mapError { PrivateWalletMigrationError.DescriptorBackupFailed(it) }
         .bind()
     }

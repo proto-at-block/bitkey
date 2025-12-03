@@ -48,7 +48,10 @@ import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
 import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
+import build.wallet.feature.flags.PrivateWalletMigrationBalanceThresholdFeatureFlag
+import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.feature.flags.UtxoMaxConsolidationCountFeatureFlag
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.keybox.KeyboxDao
@@ -75,6 +78,7 @@ import build.wallet.relationships.*
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.store.EncryptedKeyValueStoreFactory
+import build.wallet.wallet.migration.PrivateWalletMigrationDao
 import build.wallet.worker.AppWorkerExecutor
 import kotlinx.coroutines.CoroutineScope
 
@@ -182,4 +186,8 @@ interface JvmAppComponent {
   val descriptorBackupService: DescriptorBackupService
   val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao
   val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag
+  val privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag
+  val balanceThresholdFeatureFlag: PrivateWalletMigrationBalanceThresholdFeatureFlag
+  val privateWalletMigrationDao: PrivateWalletMigrationDao
+  val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag
 }

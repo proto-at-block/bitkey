@@ -23,9 +23,6 @@ import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringD
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachine
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -50,15 +47,9 @@ class AccountDataStateMachineImplTests : FunSpec({
       ShowingSomeoneElseIsRecoveringData(App, {})
     ) {}
 
-  val lostHardwareRecoveryDataStateMachine = object : LostHardwareRecoveryDataStateMachine,
-    StateMachineMock<LostHardwareRecoveryProps, LostHardwareRecoveryData>(
-      LostHardwareRecoveryData.LostHardwareRecoveryNotStarted
-    ) {}
-
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceMock(turbines::create)
 
   val stateMachine = AccountDataStateMachineImpl(
-    lostHardwareRecoveryDataStateMachine = lostHardwareRecoveryDataStateMachine,
     fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService,
     noActiveAccountDataStateMachine = noActiveKeyboxDataStateMachine,
     accountService = accountService,
@@ -78,7 +69,7 @@ class AccountDataStateMachineImplTests : FunSpec({
 
     stateMachine.test(AccountDataProps({}, {})) {
       awaitItem().shouldBe(CheckingActiveAccountData)
-      recoveryStatusServiceMock.recoveryStatus.value = Ok(NoActiveRecovery)
+      recoveryStatusServiceMock.recoveryStatus.value = NoActiveRecovery
       awaitItem().shouldBe(CheckingRecovery)
     }
   }
@@ -110,7 +101,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   }
 
   test("NoLongerRecoveringData") {
-    recoveryStatusServiceMock.recoveryStatus.value = Ok(Recovery.NoLongerRecovering(App))
+    recoveryStatusServiceMock.recoveryStatus.value = Recovery.NoLongerRecovering(App)
     accountService.setActiveAccount(FullAccountMock)
 
     stateMachine.test(AccountDataProps({}, {})) {
@@ -119,7 +110,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   }
 
   test("SomeoneElseIsRecoveringData") {
-    recoveryStatusServiceMock.recoveryStatus.value = Ok(Recovery.SomeoneElseIsRecovering(App))
+    recoveryStatusServiceMock.recoveryStatus.value = Recovery.SomeoneElseIsRecovering(App)
     accountService.setActiveAccount(FullAccountMock)
 
     stateMachine.test(

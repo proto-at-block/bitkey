@@ -281,18 +281,16 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
 
     // Set up recovery status with new hardware key
     val newHwAuthKey = HwAuthPublicKey(Secp256k1PublicKey("hw-auth-dpub-new"))
-    recoveryStatusService.recoveryStatus.value = Ok(
-      InitiatedRecovery(
-        fullAccountId = FullAccountIdMock,
-        appSpendingKey = AppSpendingPublicKeyMock,
-        appGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-        appRecoveryAuthKey = AppRecoveryAuthPublicKeyMock,
-        hardwareSpendingKey = HwSpendingPublicKeyMock,
-        hardwareAuthKey = newHwAuthKey,
-        appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-        factorToRecover = Hardware,
-        serverRecovery = LostHardwareServerRecoveryMock
-      )
+    recoveryStatusService.recoveryStatus.value = InitiatedRecovery(
+      fullAccountId = FullAccountIdMock,
+      appSpendingKey = AppSpendingPublicKeyMock,
+      appGlobalAuthKey = AppGlobalAuthPublicKeyMock,
+      appRecoveryAuthKey = AppRecoveryAuthPublicKeyMock,
+      hardwareSpendingKey = HwSpendingPublicKeyMock,
+      hardwareAuthKey = newHwAuthKey,
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+      factorToRecover = Hardware,
+      serverRecovery = LostHardwareServerRecoveryMock
     )
 
     nfcTransactor.transactResult = Ok(Unit)

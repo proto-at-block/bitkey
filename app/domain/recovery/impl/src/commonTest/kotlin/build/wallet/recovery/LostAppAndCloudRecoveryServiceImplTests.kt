@@ -10,16 +10,11 @@ import build.wallet.bitkey.auth.HwAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.db.DbQueryError
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.AuthF8eClientMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
-import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClientFake
-import build.wallet.f8e.recovery.LegacyRemoteKeyset
-import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
-import build.wallet.f8e.recovery.ListKeysetsResponse
+import build.wallet.f8e.recovery.*
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.setFlagValue
@@ -31,7 +26,6 @@ import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
-import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.shouldBeOkOfType
@@ -47,10 +41,6 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
 
   val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
   val authF8eClient = AuthF8eClientMock()
-  val recoveryStatusService = RecoveryStatusServiceMock(
-    StillRecoveringInitiatedRecoveryMock,
-    turbines::create
-  )
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
   val authTokensService = AuthTokensServiceFake()
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
@@ -58,9 +48,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val accountConfigService = AccountConfigServiceFake()
   val initiateAccountDelayNotifyF8eClient = InitiateAccountDelayNotifyF8eClientFake()
-  val sqlDriver = inMemorySqlDriver()
-  val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
-  val recoveryDao = RecoveryDaoImpl(databaseProvider)
+  val recoveryDao = RecoveryDaoMock(turbines::create)
   val useEncryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(
     FeatureFlagDaoFake()
   )
@@ -76,7 +64,6 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   val service = LostAppAndCloudRecoveryServiceImpl(
     authF8eClient = authF8eClient,
     cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
-    recoveryStatusService = recoveryStatusService,
     recoveryLock = RecoveryLockImpl(),
     accountConfigService = accountConfigService,
     accountAuthenticator = accountAuthenticator,
@@ -98,7 +85,6 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
 
   beforeTest {
     cancelDelayNotifyRecoveryF8eClient.reset()
-    recoveryStatusService.reset()
     accountConfigService.reset()
     authF8eClient.reset()
     accountAuthenticator.reset()
@@ -106,7 +92,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     deviceTokenManager.reset()
     listKeysetsF8eClient.reset()
     appKeysGenerator.reset()
-    recoveryDao.clear()
+    recoveryDao.reset()
     useEncryptedDescriptorBackupsFeatureFlag.reset()
 
     useEncryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
@@ -115,7 +101,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   test("success") {
     service.cancel().shouldBeOkOfType<Unit>()
 
-    recoveryStatusService.clearCalls.awaitItem()
+    recoveryDao.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
@@ -125,7 +111,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
 
     service.cancel().shouldBeOk()
 
-    recoveryStatusService.clearCalls.awaitItem()
+    recoveryDao.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
@@ -139,11 +125,11 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   }
 
   test("failure - dao") {
-    recoveryStatusService.clearCallResult = Err(DbQueryError(IllegalStateException()))
+    recoveryDao.clearCallResult = Err(DbQueryError(IllegalStateException()))
 
     service.cancel().shouldBeErrOfType<LocalCancelDelayNotifyError>()
 
-    recoveryStatusService.clearCalls.awaitItem()
+    recoveryDao.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 

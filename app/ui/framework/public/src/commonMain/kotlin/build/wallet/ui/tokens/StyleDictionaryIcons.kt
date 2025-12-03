@@ -23,6 +23,8 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       BitcoinConsolidation -> Res.drawable.bitcoin_consolidation
       BitcoinBadged -> Res.drawable.bitcoin_badged
       BitkeyDevice3D -> Res.drawable.bitkey_device_3d
+      BitkeyFrontLit -> Res.drawable.bitkey_front_lit
+      SmallIconBitkeyReset -> Res.drawable.bitkey_reset
       BitkeyDeviceRaised -> Res.drawable.bitkey_device_raised
       BitkeyDeviceRaisedSmall -> Res.drawable.bitkey_device_raised_small
       BitkeyLogo -> Res.drawable.bitkey_logo

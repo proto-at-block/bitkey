@@ -28,6 +28,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             replaceDeviceEnabled = true,
             onReplaceDevice = {},
             onBack = {},
+            onPairDevice = {},
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
             onManageReplacement = {},
@@ -59,6 +60,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
             onManageReplacement = {},
+            onPairDevice = {},
             onManageFingerprints = {},
             onWipeDevice = {}
           )
@@ -87,6 +89,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
             onManageReplacement = {},
+            onPairDevice = {},
             onManageFingerprints = {},
             onWipeDevice = {}
           )
@@ -114,6 +117,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onBack = {},
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
+            onPairDevice = {},
             onManageReplacement = {},
             onManageFingerprints = {},
             onWipeDevice = {}
@@ -142,6 +146,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onBack = {},
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
+            onPairDevice = {},
             onManageReplacement = {},
             onManageFingerprints = {},
             onWipeDevice = {}

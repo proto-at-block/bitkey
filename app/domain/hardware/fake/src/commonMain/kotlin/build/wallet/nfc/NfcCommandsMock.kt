@@ -8,18 +8,7 @@ import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.crypto.SealedData
-import build.wallet.firmware.CoredumpFragment
-import build.wallet.firmware.EnrolledFingerprints
-import build.wallet.firmware.EventFragment
-import build.wallet.firmware.FingerprintEnrollmentResult
-import build.wallet.firmware.FingerprintEnrollmentStatus
-import build.wallet.firmware.FingerprintHandle
-import build.wallet.firmware.FirmwareCertType
-import build.wallet.firmware.FirmwareDeviceInfoMock
-import build.wallet.firmware.FirmwareFeatureFlag
-import build.wallet.firmware.FirmwareFeatureFlagCfg
-import build.wallet.firmware.FirmwareMetadataMock
-import build.wallet.firmware.UnlockInfo
+import build.wallet.firmware.*
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.Grant
@@ -27,7 +16,6 @@ import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.money.BitcoinMoney
 import build.wallet.nfc.platform.NfcCommands
-import io.ktor.utils.io.core.toByteArray
 import okio.ByteString
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
@@ -44,6 +32,8 @@ class NfcCommandsMock(
   val getGrantRequestCalls = turbine.invoke("GetGrantRequest calls")
   val provideGrantCalls = turbine.invoke("ProvideGrant calls")
   val getNextSpendingKeyCalls = turbine.invoke("GetNextSpendingKey calls")
+  val provisionAppAuthKeyCalls = turbine.invoke("ProvisionAppAuthKey calls")
+  val getDeviceInfoCalls = turbine.invoke("GetDeviceInfo calls")
 
   private val defaultEnrollmentResult = FingerprintEnrollmentResult(
     status = FingerprintEnrollmentStatus.COMPLETE,
@@ -113,7 +103,10 @@ class NfcCommandsMock(
     offset: Int,
   ) = CoredumpFragment(emptyList(), 0, true, 0)
 
-  override suspend fun getDeviceInfo(session: NfcSession) = FirmwareDeviceInfoMock
+  override suspend fun getDeviceInfo(session: NfcSession) =
+    FirmwareDeviceInfoMock.also {
+      getDeviceInfoCalls.add(it)
+    }
 
   override suspend fun getEvents(session: NfcSession) = EventFragment(emptyList(), 0)
 
@@ -242,6 +235,11 @@ class NfcCommandsMock(
     session: NfcSession,
     grant: Grant,
   ) = provideGrantResult.also { provideGrantCalls.add(grant) }
+
+  override suspend fun provisionAppAuthKey(
+    session: NfcSession,
+    appAuthKey: ByteString,
+  ) = true.also { provisionAppAuthKeyCalls.add(appAuthKey) }
 
   fun setEnrollmentStatus(enrollmentStatus: FingerprintEnrollmentStatus) {
     this.enrollmentResult.status = enrollmentStatus

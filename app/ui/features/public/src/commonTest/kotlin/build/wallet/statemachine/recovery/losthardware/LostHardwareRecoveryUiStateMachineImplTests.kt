@@ -66,8 +66,7 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
               factorToRecover = Hardware,
               delayPeriodEndTime = StillRecoveringInitiatedRecoveryMock.serverRecovery.delayEndTime,
               delayPeriodStartTime = StillRecoveringInitiatedRecoveryMock.serverRecovery.delayStartTime,
-              cancel = { },
-              retryCloudRecovery = null
+              cancel = { }
             )
         )
     )

@@ -92,7 +92,8 @@ class FullAccountFieldsCreatorImpl(
         hwFullAccountKeysCiphertext = fullCustomerKeysInfoEncodedHardwareEncrypted,
         socRecSealedFullAccountKeys = socRecPKMatOutput.sealedPrivateKeyMaterial,
         rotationAppRecoveryAuthKeypair = null,
-        appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature
+        appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
+        hardwareType = keybox.config.hardwareType
       )
     }
 }

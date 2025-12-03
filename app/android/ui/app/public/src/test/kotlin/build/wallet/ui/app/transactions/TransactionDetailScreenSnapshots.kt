@@ -4,6 +4,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
+import build.wallet.statemachine.core.Icon.SmallIconCopy
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -50,6 +51,16 @@ class TransactionDetailScreenSnapshots :
                 immutableListOf(
                   processingTransactionStepper,
                   FormMainContentModel.Divider,
+                  DataList(
+                    items = immutableListOf(
+                      Data(
+                        title = "Transaction ID",
+                        sideText = "c4f5...67be",
+                        onClick = {},
+                        endIcon = SmallIconCopy
+                      )
+                    )
+                  ),
                   DataList(
                     items = immutableListOf(
                       Data(
@@ -123,6 +134,16 @@ class TransactionDetailScreenSnapshots :
                       )
                   ),
                   DataList(
+                    items = immutableListOf(
+                      Data(
+                        title = "Transaction ID",
+                        sideText = "c4f5...67be",
+                        onClick = {},
+                        endIcon = SmallIconCopy
+                      )
+                    )
+                  ),
+                  DataList(
                     items =
                       immutableListOf(
                         Data(
@@ -183,6 +204,16 @@ class TransactionDetailScreenSnapshots :
                           sideText = "03-17-1963"
                         )
                       )
+                  ),
+                  DataList(
+                    items = immutableListOf(
+                      Data(
+                        title = "Transaction ID",
+                        sideText = "c4f5...67be",
+                        onClick = {},
+                        endIcon = SmallIconCopy
+                      )
+                    )
                   ),
                   DataList(
                     items =
@@ -249,6 +280,16 @@ class TransactionDetailScreenSnapshots :
                   DataList(
                     items = immutableListOf(
                       Data(
+                        title = "Transaction ID",
+                        sideText = "c4f5...67be",
+                        onClick = {},
+                        endIcon = SmallIconCopy
+                      )
+                    )
+                  ),
+                  DataList(
+                    items = immutableListOf(
+                      Data(
                         title = "Amount",
                         sideText = "$10.00",
                         sideTextType = Data.SideTextType.BODY2BOLD,
@@ -295,6 +336,16 @@ class TransactionDetailScreenSnapshots :
                           sideText = "Sep 20 at 1:28 pm"
                         )
                       )
+                  ),
+                  DataList(
+                    items = immutableListOf(
+                      Data(
+                        title = "Transaction ID",
+                        sideText = "c4f5...67be",
+                        onClick = {},
+                        endIcon = SmallIconCopy
+                      )
+                    )
                   ),
                   DataList(
                     items =
@@ -389,6 +440,16 @@ class TransactionDetailScreenSnapshots :
                           sideText = "03-17-1963"
                         )
                       )
+                  ),
+                  DataList(
+                    items = immutableListOf(
+                      Data(
+                        title = "Transaction ID",
+                        sideText = "c4f5...67be",
+                        onClick = {},
+                        endIcon = SmallIconCopy
+                      )
+                    )
                   ),
                   DataList(
                     items =

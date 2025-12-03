@@ -20,9 +20,16 @@ fun Grant.serializeToPackedStruct(): ByteArray? {
     }
     return null
   }
-  if (this.signature.size != GRANT_SIGNATURE_LEN) {
+  if (this.appSignature.size != GRANT_SIGNATURE_LEN) {
     logError(tag = SERIALIZATION_TAG) {
-      "Grant serialization failed: signature length is ${this.signature.size}, expected $GRANT_SIGNATURE_LEN"
+      "Grant serialization failed: signature length is ${this.appSignature.size}, expected $GRANT_SIGNATURE_LEN"
+    }
+    return null
+  }
+
+  if (this.wsmSignature.size != GRANT_SIGNATURE_LEN) {
+    logError(tag = SERIALIZATION_TAG) {
+      "Grant serialization failed: signature length is ${this.wsmSignature.size}, expected $GRANT_SIGNATURE_LEN"
     }
     return null
   }
@@ -31,7 +38,8 @@ fun Grant.serializeToPackedStruct(): ByteArray? {
 
   buffer.writeByte(this.version.toInt())
   buffer.write(this.serializedRequest)
-  buffer.write(this.signature)
+  buffer.write(this.appSignature)
+  buffer.write(this.wsmSignature)
 
   return buffer.readByteArray()
 }

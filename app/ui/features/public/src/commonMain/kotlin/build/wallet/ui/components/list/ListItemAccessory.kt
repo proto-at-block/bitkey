@@ -24,6 +24,7 @@ import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.icon.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.components.switch.Switch
 import build.wallet.ui.model.icon.IconSize
@@ -36,29 +37,37 @@ import org.jetbrains.compose.resources.imageResource
 import kotlin.random.Random
 
 @Composable
-internal fun ListItemAccessory(model: ListItemAccessory) {
+internal fun ListItemAccessory(
+  model: ListItemAccessory,
+  isLoading: Boolean = false,
+) {
   when (model) {
     is IconAccessory ->
-      IconImage(
-        modifier =
-          Modifier
-            .padding(model.iconPadding?.dp ?: 0.dp)
-            .let { modifier ->
-              model.onClick?.let {
-                modifier.clickable(
-                  onClick = it
-                )
-              } ?: modifier
-            },
-        model = model.model
-      )
+      {
+        IconImage(
+          modifier =
+            Modifier
+              .loadingScrim(isLoading)
+              .padding(model.iconPadding?.dp ?: 0.dp)
+              .let { modifier ->
+                model.onClick?.let {
+                  modifier.clickable(
+                    onClick = it
+                  )
+                } ?: modifier
+              },
+          model = model.model
+        )
+      }
 
     is SwitchAccessory -> Switch(model.model)
     is ButtonAccessory -> Button(model.model)
     is TextAccessory ->
       Label(
+        modifier = Modifier
+          .loadingScrim(isLoading)
+          .padding(end = 12.dp),
         text = model.text,
-        modifier = Modifier.padding(end = 12.dp),
         type = LabelType.Body2Regular
       )
     is CircularCharacterAccessory -> CircularCharacterAccessory(model)

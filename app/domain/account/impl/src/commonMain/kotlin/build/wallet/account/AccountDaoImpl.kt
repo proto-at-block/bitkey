@@ -248,6 +248,7 @@ class AccountDaoImpl(
           f8eEnvironment = f8eEnvironment,
           isTestAccount = isTestAccount,
           isUsingSocRecFakes = isUsingSocRecFakes,
+          hardwareType = hardwareType,
           delayNotifyDuration = delayNotifyDuration
         )
       )

@@ -3,7 +3,6 @@ package build.wallet.statemachine.settings.full.feedback
 import androidx.compose.runtime.*
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.f8e.AccountId
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.di.ActivityScope
@@ -70,7 +69,6 @@ class FeedbackFormUiStateMachineImpl(
 
       is FeedbackFormUiState.SubmittingFormData ->
         SubmittingFormData(
-          accountId = props.account.accountId,
           structure = props.formStructure,
           data = formData,
           onSuccess = {
@@ -112,7 +110,7 @@ class FeedbackFormUiStateMachineImpl(
 
   @Composable
   private fun FillingForm(
-    account: Account,
+    account: Account?,
     structure: SupportTicketForm,
     formData: StateMapBackedSupportTicketData,
     onBack: () -> Unit,
@@ -157,15 +155,19 @@ class FeedbackFormUiStateMachineImpl(
           SupportRequestedDescriptorPickerModel(
             title = "Has Support requested a wallet descriptor?",
             options = immutableListOf(true, false),
-            selectedOption = formData.sendEncryptedDescriptor,
+            selectedOption = formData.sendEncryptedDescriptor is SendEncryptedDescriptor.Selected,
             onOptionSelected = {
-              formData.sendEncryptedDescriptor = it
+              formData.sendEncryptedDescriptor = if (it) {
+                SendEncryptedDescriptor.Selected(account.accountId)
+              } else {
+                SendEncryptedDescriptor.NotSelected
+              }
             },
             titleSelector = { if (it == true) "Yes" else "No" }
           )
         )
 
-        if (formData.sendEncryptedDescriptor) {
+        if (formData.sendEncryptedDescriptor is SendEncryptedDescriptor.Selected) {
           add(DeviceInfoLearnMoreModel(LearnMore.EncryptedDescriptor))
         }
       }
@@ -178,7 +180,7 @@ class FeedbackFormUiStateMachineImpl(
         )
       )
 
-      if (!formData.sendEncryptedDescriptor) {
+      if (formData.sendEncryptedDescriptor is SendEncryptedDescriptor.NotSelected) {
         add(SendDebugDataModel(formData.sendDebugData, formData::sendDebugData::set))
         add(DeviceInfoLearnMoreModel(LearnMore.DeviceInfo))
       }
@@ -449,7 +451,6 @@ class FeedbackFormUiStateMachineImpl(
 
   @Composable
   private fun SubmittingFormData(
-    accountId: AccountId,
     structure: SupportTicketForm,
     data: SupportTicketData,
     onSuccess: () -> Unit,
@@ -458,7 +459,6 @@ class FeedbackFormUiStateMachineImpl(
   ): ScreenModel {
     LaunchedEffect(data) {
       supportTicketRepository.createTicket(
-        accountId = accountId,
         form = structure,
         data = data
       )

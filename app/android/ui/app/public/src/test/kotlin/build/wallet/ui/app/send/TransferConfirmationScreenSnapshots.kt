@@ -22,7 +22,8 @@ class TransferConfirmationScreenSnapshots : FunSpec({
       TransferConfirmationScreen(
         variant = TransferConfirmationScreenVariant.Regular,
         requiresHardware = true,
-        confirmButtonEnabled = true
+        confirmButtonEnabled = true,
+        requiresHardwareConfirmation = false
       )
     }
   }
@@ -32,7 +33,8 @@ class TransferConfirmationScreenSnapshots : FunSpec({
       TransferConfirmationScreen(
         variant = TransferConfirmationScreenVariant.Regular,
         requiresHardware = false,
-        confirmButtonEnabled = true
+        confirmButtonEnabled = true,
+        requiresHardwareConfirmation = false
       )
     }
   }
@@ -42,7 +44,8 @@ class TransferConfirmationScreenSnapshots : FunSpec({
       TransferConfirmationScreen(
         variant = TransferConfirmationScreenVariant.Regular,
         requiresHardware = true,
-        confirmButtonEnabled = false
+        confirmButtonEnabled = false,
+        requiresHardwareConfirmation = false
       )
     }
   }
@@ -52,7 +55,8 @@ class TransferConfirmationScreenSnapshots : FunSpec({
       TransferConfirmationScreen(
         variant = TransferConfirmationScreenVariant.Regular,
         requiresHardware = false,
-        confirmButtonEnabled = false
+        confirmButtonEnabled = false,
+        requiresHardwareConfirmation = false
       )
     }
   }
@@ -62,7 +66,8 @@ class TransferConfirmationScreenSnapshots : FunSpec({
       TransferConfirmationScreen(
         variant = TransferConfirmationScreenVariant.SpeedUp,
         requiresHardware = false,
-        confirmButtonEnabled = false
+        confirmButtonEnabled = false,
+        requiresHardwareConfirmation = false
       )
     }
   }
@@ -79,7 +84,8 @@ class TransferConfirmationScreenSnapshots : FunSpec({
           )
         ),
         requiresHardware = true,
-        confirmButtonEnabled = true
+        confirmButtonEnabled = true,
+        requiresHardwareConfirmation = false
       )
     }
   }
@@ -89,7 +95,19 @@ class TransferConfirmationScreenSnapshots : FunSpec({
       TransferConfirmationScreen(
         variant = TransferConfirmationScreenVariant.PrivateWalletMigration,
         requiresHardware = true,
-        confirmButtonEnabled = true
+        confirmButtonEnabled = true,
+        requiresHardwareConfirmation = false
+      )
+    }
+  }
+
+  test("transfer confirmation screen - send with hardware confirmation") {
+    paparazzi.snapshot {
+      TransferConfirmationScreen(
+        variant = TransferConfirmationScreenVariant.Regular,
+        requiresHardware = true,
+        confirmButtonEnabled = true,
+        requiresHardwareConfirmation = true
       )
     }
   }
@@ -100,6 +118,7 @@ private fun TransferConfirmationScreen(
   variant: TransferConfirmationScreenVariant,
   requiresHardware: Boolean,
   confirmButtonEnabled: Boolean,
+  requiresHardwareConfirmation: Boolean,
 ) {
   FormScreen(
     model = TransferConfirmationScreenModel(
@@ -151,7 +170,8 @@ private fun TransferConfirmationScreen(
       onArrivalTimeClick = when (variant) {
         TransferConfirmationScreenVariant.Regular -> { -> }
         else -> null
-      }
+      },
+      requiresHardwareReview = requiresHardwareConfirmation
     )
   )
 }

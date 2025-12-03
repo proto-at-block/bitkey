@@ -142,6 +142,7 @@ class KeyboxDaoImpl(
       appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
       networkType = keybox.config.bitcoinNetworkType,
       fakeHardware = keybox.config.isHardwareFake,
+      hardwareType = keybox.config.hardwareType,
       f8eEnvironment = keybox.config.f8eEnvironment,
       isTestAccount = keybox.config.isTestAccount,
       isUsingSocRecFakes = keybox.config.isUsingSocRecFakes,
@@ -241,6 +242,7 @@ class KeyboxDaoImpl(
           f8eEnvironment = f8eEnvironment,
           isTestAccount = isTestAccount,
           isUsingSocRecFakes = isUsingSocRecFakes,
+          hardwareType = hardwareType,
           delayNotifyDuration = delayNotifyDuration
         )
       )

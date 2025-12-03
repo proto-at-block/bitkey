@@ -4,7 +4,7 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.Recovery
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Syncs the account's active Recovery and caches it on the client, providing information about
@@ -15,7 +15,7 @@ interface RecoveryStatusService {
    * A flow that emits whenever the recovery status changes. This could be an advancement
    * of a local recovery to a new phase, or entering a state where our local recovery attempt.
    */
-  fun status(): Flow<Result<Recovery, Error>>
+  val status: StateFlow<Recovery>
 
   /**
    * Clears server and local recovery db states.

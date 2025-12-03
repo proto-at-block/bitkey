@@ -236,6 +236,7 @@ class ManagingFingerprintsScreenPresenter(
       is CheckingFingerprintsUiState -> TODO("W-6590")
       is AddingNewFingerprintUiState -> enrollingFingerprintUiStateMachine.model(
         EnrollingFingerprintProps(
+          account = screen.account,
           onCancel = {
             metricTrackerService.completeMetric(
               metricDefinition = FingerprintAddMetricDefinition,

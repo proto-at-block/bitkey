@@ -1,6 +1,7 @@
 package build.wallet.statemachine.transactions
 
 import app.cash.turbine.test
+import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
@@ -14,22 +15,27 @@ import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.ktor.result.HttpError
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.*
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpConfirmationModel
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpTransactionSentModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 
 class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
@@ -64,7 +70,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
       BodyStateMachineMock<TransferInitiatedUiProps>(
         "transfer-initiated"
       ) {},
-    bitcoinWalletService = bitcoinWalletService
+    bitcoinWalletService = bitcoinWalletService,
+    feeEstimationErrorUiStateMachine = FeeEstimationErrorUiStateMachineImpl()
   )
 
   val props = FeeBumpConfirmationProps(
@@ -134,6 +141,60 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
       awaitBody<UtxoConsolidationSpeedUpTransactionSentModel> {
         onDone()
       }
+    }
+  }
+
+  test("broadcast failure shows insufficient funds error") {
+    bitcoinWalletService.broadcastError =
+      BdkError.InsufficientFunds(cause = null, message = "insufficient funds")
+
+    stateMachine.test(props) {
+      awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
+        onSuccess(PsbtMock)
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<FormBodyModel> {
+        val headerModel = header.shouldNotBeNull()
+        headerModel.headline.shouldBe("We couldn’t speed up this transaction")
+        headerModel.sublineModel.shouldNotBeNull().string.shouldBe(
+          "There are not enough funds to speed up the transaction. Please add more funds and try again."
+        )
+      }
+    }
+  }
+
+  test("network broadcast failure offers retry") {
+    bitcoinWalletService.broadcastError =
+      HttpError.NetworkError(cause = RuntimeException("offline"))
+
+    stateMachine.test(props) {
+      awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
+        onSuccess(PsbtMock)
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<FormBodyModel> {
+        val headerModel = header.shouldNotBeNull()
+        headerModel.headline.shouldBe("We couldn’t determine fees for this transaction")
+        val retryButton = primaryButton.shouldNotBeNull()
+        retryButton.text.shouldBe("Retry")
+        retryButton.onClick()
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("We couldn’t determine fees for this transaction")
+      }
+
+      bitcoinWalletService.broadcastedPsbts.value shouldBe listOf(PsbtMock, PsbtMock)
     }
   }
 })

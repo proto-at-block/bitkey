@@ -13,7 +13,6 @@ import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
@@ -39,8 +38,7 @@ class SecurityHubEducationScreenPresenterTests : FunSpec({
           featureState = FeatureState.Available
         ),
         originScreen = SecurityHubScreen(
-          account = FullAccountMock,
-          hardwareRecoveryData = LostHardwareRecoveryDataMock
+          account = FullAccountMock
         ),
         firmwareData = FirmwareDataPendingUpdateMock.firmwareUpdateState
       )
@@ -60,8 +58,7 @@ class SecurityHubEducationScreenPresenterTests : FunSpec({
           firmwareData = FirmwareDataPendingUpdateMock
         ),
         originScreen = SecurityHubScreen(
-          account = FullAccountMock,
-          hardwareRecoveryData = LostHardwareRecoveryDataMock
+          account = FullAccountMock
         ),
         firmwareData = FirmwareDataPendingUpdateMock.firmwareUpdateState
       )
@@ -75,8 +72,7 @@ class SecurityHubEducationScreenPresenterTests : FunSpec({
       screen = SecurityHubEducationScreen.RecommendationEducation(
         recommendation = SecurityActionRecommendation.ADD_TRUSTED_CONTACTS,
         originScreen = SecurityHubScreen(
-          account = FullAccountMock,
-          hardwareRecoveryData = LostHardwareRecoveryDataMock
+          account = FullAccountMock
         ),
         firmwareData = FirmwareDataPendingUpdateMock.firmwareUpdateState
       )

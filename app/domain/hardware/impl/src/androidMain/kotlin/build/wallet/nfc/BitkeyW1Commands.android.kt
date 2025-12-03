@@ -35,13 +35,12 @@ import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.rust.firmware.*
-import build.wallet.rust.firmware.CommandException
 import build.wallet.rust.firmware.FirmwareSlot.A
 import build.wallet.rust.firmware.FirmwareSlot.B
 import build.wallet.rust.firmware.SecureBootConfig
 import build.wallet.toByteString
 import build.wallet.toUByteList
-import io.ktor.utils.io.*
+import io.ktor.utils.io.CancellationException
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import okio.ByteString
@@ -482,6 +481,21 @@ class BitkeyW1Commands(
       }
     }
   }
+
+  override suspend fun provisionAppAuthKey(
+    session: NfcSession,
+    appAuthKey: ByteString,
+  ) = executeCommand(
+    session = session,
+    generateCommand = {
+      ProvisionAppAuthKey(
+        pubkey = appAuthKey.toUByteList()
+      )
+    },
+    getNext = { command, data -> command.next(data) },
+    getResponse = { state: BooleanState.Data -> state.response },
+    generateResult = { state: BooleanState.Result -> state.value }
+  )
 }
 
 @Suppress(

@@ -9,7 +9,7 @@ import build.wallet.statemachine.core.SheetSize
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.list.ListGroupModel
@@ -110,7 +110,7 @@ internal data class SelectPurchaseAmountBodyModel(
         text = "Next",
         isEnabled = selectedAmount != null,
         size = Footer,
-        onClick = StandardClick {
+        onClick = SheetClosingClick {
           selectedAmount?.let { onNext(selectedAmount) }
         }
       ),

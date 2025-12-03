@@ -4,6 +4,6 @@
 #
 # See https://git.sqcorp.co/projects/SQ/repos/square-stash-plugins/browse/owner-owl for
 # available options.
-r: [bitkey-firmware-eng]
+r: [bitkey-firmware-eng, hwsec]
 modules: [bitkey-firmware]
 include_ancestors: false

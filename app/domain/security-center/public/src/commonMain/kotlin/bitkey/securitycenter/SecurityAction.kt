@@ -83,6 +83,10 @@ enum class SecurityActionRecommendation(
     actionType = SecurityActionType.CRITICAL_ALERTS,
     hasEducation = true
   ),
+  PROVISION_APP_KEY_TO_HARDWARE(
+    actionType = SecurityActionType.FINGERPRINTS,
+    hasEducation = false
+  ),
   ADD_BENEFICIARY(
     actionType = SecurityActionType.INHERITANCE,
     hasEducation = false

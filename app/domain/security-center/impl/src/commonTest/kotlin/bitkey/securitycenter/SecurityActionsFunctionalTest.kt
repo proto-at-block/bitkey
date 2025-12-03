@@ -18,11 +18,16 @@ import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.FingerprintResetFeatureFlag
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.*
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.fwup.FwupDataMock
 import build.wallet.inappsecurity.BiometricAuthServiceFake
+import build.wallet.nfc.HardwareProvisionedAppKeyStatusDaoFake
 import build.wallet.recovery.socrec.SocRecServiceFake
 import io.kotest.assertions.fail
 import io.kotest.core.spec.style.FunSpec
@@ -60,7 +65,8 @@ class SecurityActionsFunctionalTest : FunSpec({
     protectedCustomers = emptyImmutableList()
   )
   socRecService.socRecRelationships.value = emptyRelationships
-  val socialRecoveryActionFactory = SocialRecoveryActionFactoryImpl(socRecService, appFunctionalityService)
+  val socialRecoveryActionFactory =
+    SocialRecoveryActionFactoryImpl(socRecService, appFunctionalityService)
 
   val biometricAuthService = BiometricAuthServiceFake()
   biometricAuthService.isBiometricAuthRequiredFlow.value = false
@@ -86,10 +92,18 @@ class SecurityActionsFunctionalTest : FunSpec({
     accountService,
     clock
   )
+  val hardwareProvisionedAppKeyStatusDao = HardwareProvisionedAppKeyStatusDaoFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
+  val fingerprintResetMinFirmwareVersionFeatureFlag =
+    FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
   val fingerprintsActionFactory = FingerprintsActionFactoryImpl(
     hardwareUnlockInfoService,
     firmwareDeviceInfoDao,
     fingerprintResetService,
+    hardwareProvisionedAppKeyStatusDao,
+    fingerprintResetMinFirmwareVersionFeatureFlag,
+    fingerprintResetFeatureFlag,
     clock
   )
 
@@ -129,6 +143,14 @@ class SecurityActionsFunctionalTest : FunSpec({
     firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
     firmwareDataService.syncLatestFwupData()
     fingerprintResetService.setupReadyToCompleteFingerprintReset()
+    hardwareProvisionedAppKeyStatusDao.reset()
+    featureFlagDao.reset()
+    // Set default feature flag values
+    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    // Set activeAccountKeys but don't record provisioned key - simulates not provisioned state
+    hardwareProvisionedAppKeyStatusDao.activeAccountKeys =
+      FullAccountMock.keybox.activeHwKeyBundle.authKey to FullAccountMock.keybox.activeAppKeyBundle.authKey
   }
 
   test("getRecommendations updates when individual action sources change") {
@@ -206,6 +228,20 @@ class SecurityActionsFunctionalTest : FunSpec({
         SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET
       ),
       Triple(
+        "App key provisioned to hardware",
+        {
+          runBlocking {
+            hardwareProvisionedAppKeyStatusDao.activeAccountKeys =
+              FullAccountMock.keybox.activeHwKeyBundle.authKey to FullAccountMock.keybox.activeAppKeyBundle.authKey
+            hardwareProvisionedAppKeyStatusDao.recordProvisionedKey(
+              hwAuthPubKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+              appAuthPubKey = FullAccountMock.keybox.activeAppKeyBundle.authKey
+            )
+          }
+        },
+        SecurityActionRecommendation.PROVISION_APP_KEY_TO_HARDWARE
+      ),
+      Triple(
         "Device updated",
         {
           runBlocking {
@@ -227,6 +263,7 @@ class SecurityActionsFunctionalTest : FunSpec({
       SecurityActionRecommendation.ADD_TRUSTED_CONTACTS,
       SecurityActionRecommendation.UPDATE_FIRMWARE,
       SecurityActionRecommendation.ENABLE_PUSH_NOTIFICATIONS,
+      SecurityActionRecommendation.PROVISION_APP_KEY_TO_HARDWARE,
       SecurityActionRecommendation.SETUP_BIOMETRICS,
       SecurityActionRecommendation.ENABLE_TRANSACTION_VERIFICATION
     )

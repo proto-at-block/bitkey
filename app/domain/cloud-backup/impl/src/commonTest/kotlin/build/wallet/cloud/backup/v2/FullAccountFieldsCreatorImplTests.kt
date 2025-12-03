@@ -199,7 +199,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
         privateKey = AppGlobalAuthPrivateKeyMock
       )
     )
-    appPrivateKeyDao.getAppSpendingPrivateKeyErrResult = Err(throwable)
+    appPrivateKeyDao.getAllAppSpendingKeyPairs = Err(throwable)
     symmetricKeyEncryptor.sealNoMetadataResult = SealedDataMock
     val createResult =
       fullAccountFieldsCreator.create(

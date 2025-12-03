@@ -8,6 +8,11 @@
 #include "log.h"
 #include "rtos.h"
 #include "secutils.h"
+
+// Define this if not already defined via includes
+#ifndef SECP256K1_SEC1_KEY_SIZE
+#define SECP256K1_SEC1_KEY_SIZE (33u)
+#endif
 #include "wallet.h"
 
 #include <criterion/criterion.h>
@@ -145,11 +150,22 @@ static extended_key_t fake_auth_key;
 static const uint8_t FAKE_BIP32_SIGNATURE[64] = {0x55};
 static const uint8_t FAKE_WIK_PROD_SIGNATURE[GRANT_SIGNATURE_LEN] = {0x66};
 static const uint8_t FAKE_WIK_DEV_SIGNATURE[GRANT_SIGNATURE_LEN] = {0x77};
+static const uint8_t FAKE_APP_SIGNATURE[GRANT_SIGNATURE_LEN] = {0x88};
+static const uint8_t FAKE_APP_PUBKEY[33] = {0x02, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                                            0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11,
+                                            0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
+                                            0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00};
 
 static struct {
   bool pass_signature_verification;
+  bool pass_app_signature_verification;
+  bool pass_wik_signature_verification;
+  bool use_separate_verification;  // When true, use separate verification flags
 } test_ctx = {
   .pass_signature_verification = true,
+  .pass_app_signature_verification = true,
+  .pass_wik_signature_verification = true,
+  .use_separate_verification = false,
 };
 
 void sysinfo_chip_id_read(uint8_t* chip_id_out, uint32_t* length_out) {
@@ -173,15 +189,55 @@ bool crypto_random(uint8_t* data, uint32_t num_bytes) {
   return true;
 }
 
+// WIK public keys for comparison (defined in grant_protocol.c)
+static const uint8_t WIK_TEST_PUBKEY_LOCAL[] = {
+  0x03, 0x07, 0x84, 0x51, 0xe0, 0xc1, 0xe1, 0x27, 0x43, 0xd2, 0xfd,
+  0xd9, 0x3a, 0xe7, 0xd0, 0x3d, 0x5c, 0xf7, 0x81, 0x3d, 0x2f, 0x61,
+  0x2d, 0xe1, 0x09, 0x04, 0xe1, 0xc6, 0xa0, 0xb8, 0x7f, 0x70, 0x71,
+};
+
+static const uint8_t WIK_PROD_PUBKEY_LOCAL[] = {
+  0x02, 0x95, 0x21, 0x6a, 0x2e, 0x0b, 0x54, 0xb3, 0x82, 0xcc, 0x39,
+  0x38, 0xe2, 0x07, 0x29, 0x8d, 0x21, 0xcb, 0x8c, 0x5f, 0x68, 0x6f,
+  0x78, 0xb0, 0x5d, 0x9f, 0x14, 0xb4, 0xe4, 0x66, 0x9e, 0x56, 0x0f,
+};
+
+bool crypto_ecc_secp256k1_pubkey_verify(const uint8_t pubkey[SECP256K1_SEC1_KEY_SIZE]) {
+  // Basic validation for testing
+  // Check that first byte is 0x02 or 0x03 (compressed pubkey prefix)
+  if (pubkey[0] != 0x02 && pubkey[0] != 0x03) {
+    return false;
+  }
+  // In tests, we accept our known test keys as valid
+  return true;
+}
+
 bool crypto_ecc_secp256k1_verify_signature(const uint8_t pubkey[SECP256K1_KEY_SIZE],
                                            const uint8_t* message, uint32_t message_size,
                                            const uint8_t signature[ECC_SIG_SIZE]) {
+  if (test_ctx.use_separate_verification) {
+    // Check if this is app signature verification (pubkey matches
+    // FAKE_APP_PUBKEY)
+    if (memcmp(pubkey, FAKE_APP_PUBKEY, 33) == 0) {
+      return test_ctx.pass_app_signature_verification;
+    }
+    // Check if this is WIK signature verification (check both test and prod
+    // keys)
+    if (memcmp(pubkey, WIK_TEST_PUBKEY_LOCAL, 33) == 0 ||
+        memcmp(pubkey, WIK_PROD_PUBKEY_LOCAL, 33) == 0) {
+      return test_ctx.pass_wik_signature_verification;
+    }
+  }
+  // Default behavior for backward compatibility
   return test_ctx.pass_signature_verification;
 }
 
 void setup(void) {
   grant_ctx.wik_pubkey = NULL;
   test_ctx.pass_signature_verification = true;
+  test_ctx.pass_app_signature_verification = true;
+  test_ctx.pass_wik_signature_verification = true;
+  test_ctx.use_separate_verification = false;
   init_lfs();
 }
 
@@ -206,11 +262,12 @@ static void asserted_grant_request(grant_request_t* req, grant_action_t action) 
 static void mock_server_sign_grant(grant_request_t* req, grant_t* grant, bool is_production) {
   grant->version = GRANT_PROTOCOL_VERSION;
   memcpy(grant->serialized_request, req, sizeof(grant_request_t));
+  memcpy(grant->app_signature, FAKE_APP_SIGNATURE, GRANT_SIGNATURE_LEN);
 
   if (is_production) {
-    memcpy(grant->signature, FAKE_WIK_PROD_SIGNATURE, GRANT_SIGNATURE_LEN);
+    memcpy(grant->wsm_signature, FAKE_WIK_PROD_SIGNATURE, GRANT_SIGNATURE_LEN);
   } else {
-    memcpy(grant->signature, FAKE_WIK_DEV_SIGNATURE, GRANT_SIGNATURE_LEN);
+    memcpy(grant->wsm_signature, FAKE_WIK_DEV_SIGNATURE, GRANT_SIGNATURE_LEN);
   }
 }
 
@@ -234,6 +291,9 @@ Test(grant_protocol_tests, fingerprint_reset_ok, .init = setup, .fini = fini) {
   const bool production = true;
   grant_protocol_init(production);
 
+  // Provision app auth pubkey before creating request
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
+
   // Generate the grant request.
   grant_request_t req;
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
@@ -251,25 +311,37 @@ Test(grant_protocol_tests, fingerprint_reset_ok, .init = setup, .fini = fini) {
   assert_grant_deleted();
 }
 
-Test(grant_protocol_tests, invalid_server_signature, .init = setup, .fini = fini) {
+Test(grant_protocol_tests, invalid_wsm_signature, .init = setup, .fini = fini) {
   const bool production = true;
   grant_protocol_init(production);
+
+  // Provision app auth pubkey before creating request
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
   grant_request_t req;
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
 
   grant_t grant;
   mock_server_sign_grant(&req, &grant, production);
-  grant.signature[0] ^= 0x01;
-  test_ctx.pass_signature_verification = false;
 
+  // Enable separate verification to test WSM signature independently
+  test_ctx.use_separate_verification = true;
+  test_ctx.pass_app_signature_verification = true;   // App sig should pass
+  test_ctx.pass_wik_signature_verification = false;  // WIK sig should fail
+
+  // No need to corrupt the signature - our mock will make it fail
   grant_protocol_result_t res = grant_protocol_verify_grant(&grant);
+
+  // Now we should get WIK verification error since app sig passes
   cr_assert_eq(res, GRANT_RESULT_ERROR_VERIFICATION);
 }
 
 Test(grant_protocol_tests, uses_debug_wik, .init = setup, .fini = fini) {
   const bool production = false;
   grant_protocol_init(production);
+
+  // Provision app auth pubkey before creating request
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
   grant_request_t req;
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
@@ -278,12 +350,15 @@ Test(grant_protocol_tests, uses_debug_wik, .init = setup, .fini = fini) {
   mock_server_sign_grant(&req, &grant, production);
 
   // Ensure that the debug wik is used.
-  cr_util_cmp_buffers(grant.signature, FAKE_WIK_DEV_SIGNATURE, GRANT_SIGNATURE_LEN);
+  cr_util_cmp_buffers(grant.wsm_signature, FAKE_WIK_DEV_SIGNATURE, GRANT_SIGNATURE_LEN);
 }
 
 Test(grant_protocol_tests, uses_production_wik, .init = setup, .fini = fini) {
   const bool production = true;
   grant_protocol_init(production);
+
+  // Provision app auth pubkey before creating request
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
   grant_request_t req;
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
@@ -292,12 +367,15 @@ Test(grant_protocol_tests, uses_production_wik, .init = setup, .fini = fini) {
   mock_server_sign_grant(&req, &grant, production);
 
   // Ensure that the production wik is used.
-  cr_util_cmp_buffers(grant.signature, FAKE_WIK_PROD_SIGNATURE, GRANT_SIGNATURE_LEN);
+  cr_util_cmp_buffers(grant.wsm_signature, FAKE_WIK_PROD_SIGNATURE, GRANT_SIGNATURE_LEN);
 }
 
 Test(grant_protocol_tests, prevents_replays, .init = setup, .fini = fini) {
   const bool production = true;
   grant_protocol_init(production);
+
+  // Provision app auth pubkey
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
   grant_request_t req;
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
@@ -324,6 +402,9 @@ Test(grant_protocol_tests, prevents_replays, .init = setup, .fini = fini) {
 Test(grant_protocol_tests, prevents_substitution_attack, .init = setup, .fini = fini) {
   const bool production = true;
   grant_protocol_init(production);
+
+  // Provision app auth pubkey
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
   // Victim's device generates a request.
   grant_request_t victim_req;
@@ -353,6 +434,9 @@ Test(grant_protocol_tests, grant_already_consumed, .init = setup, .fini = fini) 
   const bool production = true;
   grant_protocol_init(production);
 
+  // Provision app auth pubkey
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
+
   // Generate the grant request.
   grant_request_t req;
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
@@ -372,4 +456,94 @@ Test(grant_protocol_tests, grant_already_consumed, .init = setup, .fini = fini) 
   // Second verification should fail with STORAGE error (file not found)
   res = grant_protocol_verify_grant(&grant);
   cr_assert_eq(res, GRANT_RESULT_ERROR_STORAGE);
+}
+
+Test(grant_protocol_tests, no_app_auth_pubkey, .init = setup, .fini = fini) {
+  const bool production = true;
+  grant_protocol_init(production);
+
+  // Do NOT provision app auth pubkey to test the failure case
+
+  // Try to create a fingerprint reset request without app auth pubkey
+  grant_request_t req;
+  grant_protocol_result_t res = grant_protocol_create_request(ACTION_FINGERPRINT_RESET, &req);
+
+  // Should fail because no app auth pubkey is provisioned
+  cr_assert_eq(res, GRANT_RESULT_ERROR_NO_APP_PUBKEY);
+}
+
+Test(grant_protocol_tests, both_signatures_valid, .init = setup, .fini = fini) {
+  const bool production = true;
+  grant_protocol_init(production);
+
+  // Provision app auth pubkey
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
+
+  grant_request_t req;
+  asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
+
+  grant_t grant;
+  mock_server_sign_grant(&req, &grant, production);
+
+  // Enable separate verification with both signatures passing
+  test_ctx.use_separate_verification = true;
+  test_ctx.pass_app_signature_verification = true;
+  test_ctx.pass_wik_signature_verification = true;
+
+  grant_protocol_result_t res = grant_protocol_verify_grant(&grant);
+  cr_assert_eq(res, GRANT_RESULT_OK);
+
+  // Clean up
+  cr_assert_eq(grant_protocol_delete_outstanding_request(), GRANT_RESULT_OK);
+}
+
+Test(grant_protocol_tests, invalid_app_signature, .init = setup, .fini = fini) {
+  const bool production = true;
+  grant_protocol_init(production);
+
+  // Provision app auth pubkey
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
+
+  grant_request_t req;
+  asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
+
+  grant_t grant;
+  mock_server_sign_grant(&req, &grant, production);
+
+  // Enable separate verification to test app signature independently
+  test_ctx.use_separate_verification = true;
+  test_ctx.pass_app_signature_verification = false;  // App sig should fail
+  test_ctx.pass_wik_signature_verification = true;   // WIK sig would pass (but we won't get there)
+
+  grant_protocol_result_t res = grant_protocol_verify_grant(&grant);
+  cr_assert_eq(res, GRANT_RESULT_ERROR_APP_VERIFICATION);
+}
+
+Test(grant_protocol_tests, app_auth_pubkey_provisioning, .init = setup, .fini = fini) {
+  // Test initial provisioning
+  cr_assert_eq(grant_storage_app_auth_pubkey_exists(), false);
+
+  grant_protocol_result_t res = grant_protocol_provision_app_auth_pubkey(FAKE_APP_PUBKEY);
+  cr_assert_eq(res, GRANT_RESULT_OK);
+  cr_assert(grant_storage_app_auth_pubkey_exists());
+
+  uint8_t read_pubkey[33];
+  cr_assert(grant_storage_read_app_auth_pubkey(read_pubkey));
+  cr_util_cmp_buffers(read_pubkey, FAKE_APP_PUBKEY, 33);
+}
+
+Test(grant_protocol_tests, app_auth_pubkey_overwrite, .init = setup, .fini = fini) {
+  // First provision a key
+  grant_protocol_result_t res = grant_protocol_provision_app_auth_pubkey(FAKE_APP_PUBKEY);
+  cr_assert_eq(res, GRANT_RESULT_OK);
+
+  // Overwrite with a new key (no signature required anymore)
+  uint8_t new_pubkey[33] = {0x03};  // Different pubkey
+  res = grant_protocol_provision_app_auth_pubkey(new_pubkey);
+  cr_assert_eq(res, GRANT_RESULT_OK);
+
+  // Verify new key is in place
+  uint8_t read_pubkey[33];
+  cr_assert(grant_storage_read_app_auth_pubkey(read_pubkey));
+  cr_util_cmp_buffers(read_pubkey, new_pubkey, 33);
 }

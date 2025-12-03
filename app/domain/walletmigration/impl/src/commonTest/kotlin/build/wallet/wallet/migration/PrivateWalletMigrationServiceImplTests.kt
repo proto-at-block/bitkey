@@ -424,7 +424,7 @@ class PrivateWalletMigrationServiceImplTests : FunSpec({
     privateWalletMigrationDao.saveAppKey(AppKeyBundleMock.spendingKey).shouldBeOk()
     privateWalletMigrationDao.saveServerKey(F8eSpendingKeysetMock).shouldBeOk()
     privateWalletMigrationDao.saveKeysetLocalId("test-keyset-id").shouldBeOk()
-    privateWalletMigrationDao.setDescriptorBackupCompete().shouldBeOk()
+    privateWalletMigrationDao.setDescriptorBackupComplete().shouldBeOk()
     privateWalletMigrationDao.setServerKeysetActive().shouldBeOk()
     privateWalletMigrationDao.setCloudBackupComplete().shouldBeOk()
 
@@ -453,7 +453,7 @@ class PrivateWalletMigrationServiceImplTests : FunSpec({
     privateWalletMigrationDao.saveAppKey(AppKeyBundleMock.spendingKey).shouldBeOk()
     privateWalletMigrationDao.saveServerKey(F8eSpendingKeysetMock).shouldBeOk()
     privateWalletMigrationDao.saveKeysetLocalId("test-keyset-id").shouldBeOk()
-    privateWalletMigrationDao.setDescriptorBackupCompete().shouldBeOk()
+    privateWalletMigrationDao.setDescriptorBackupComplete().shouldBeOk()
     privateWalletMigrationDao.setServerKeysetActive().shouldBeOk()
     privateWalletMigrationDao.setCloudBackupComplete().shouldBeOk()
     privateWalletMigrationDao.setSweepCompleted().shouldBeOk()
@@ -571,7 +571,7 @@ class PrivateWalletMigrationServiceImplTests : FunSpec({
     )
     privateWalletMigrationDao.saveServerKey(privateKeysetResult).shouldBeOk()
     privateWalletMigrationDao.saveKeysetLocalId("uuid-0").shouldBeOk()
-    privateWalletMigrationDao.setDescriptorBackupCompete().shouldBeOk()
+    privateWalletMigrationDao.setDescriptorBackupComplete().shouldBeOk()
     privateWalletMigrationDao.setServerKeysetActive().shouldBeOk()
     privateWalletMigrationDao.setCloudBackupComplete().shouldBeOk()
 

@@ -21,11 +21,11 @@ import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilSheet
 import build.wallet.statemachine.ui.robots.advanceUntilScreenWithBody
 import build.wallet.testing.AppTester
+import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.AppMode
 import build.wallet.testing.ext.addSomeFunds
 import build.wallet.testing.ext.getActiveWallet
-import build.wallet.testing.ext.launchPrivateWalletApp
 import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.ext.testWithTwoApps
 import build.wallet.testing.shouldBeOk
@@ -71,8 +71,8 @@ class InheritanceClaimE2eTests : FunSpec({
   }
 
   test("Complete Inheritance Claim [private -> legacy]") {
-    val benefactorApp = launchPrivateWalletApp(executeWorkers = false)
-    val beneficiaryApp = launchNewApp(
+    val benefactorApp = launchNewApp(executeWorkers = false)
+    val beneficiaryApp = launchLegacyWalletApp(
       cloudKeyValueStore = benefactorApp.cloudKeyValueStore
     )
     val apps = setupInheritanceBetween(
@@ -317,8 +317,8 @@ private fun FunSpec.testAcrossWalletModes(
 
 private suspend fun TestScope.launchBenefactorForMode(mode: AppMode): AppTester =
   when (mode) {
-    AppMode.Legacy -> launchNewApp(executeWorkers = false)
-    AppMode.Private -> launchPrivateWalletApp(executeWorkers = false)
+    AppMode.Legacy -> launchLegacyWalletApp(executeWorkers = false)
+    AppMode.Private -> launchNewApp(executeWorkers = false)
   }
 
 private suspend fun TestScope.launchBeneficiaryForMode(
@@ -326,8 +326,8 @@ private suspend fun TestScope.launchBeneficiaryForMode(
   mode: AppMode,
 ): AppTester =
   when (mode) {
-    AppMode.Legacy -> launchNewApp(cloudKeyValueStore = benefactorApp.cloudKeyValueStore)
-    AppMode.Private -> launchPrivateWalletApp(
+    AppMode.Legacy -> launchLegacyWalletApp(cloudKeyValueStore = benefactorApp.cloudKeyValueStore)
+    AppMode.Private -> launchNewApp(
       cloudKeyValueStore = benefactorApp.cloudKeyValueStore
     )
   }

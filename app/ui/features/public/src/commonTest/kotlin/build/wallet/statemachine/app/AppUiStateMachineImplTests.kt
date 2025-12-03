@@ -228,7 +228,6 @@ class AppUiStateMachineImplTests : FunSpec({
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(ActiveKeyboxLoadedDataMock.account)
-        lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
       }
 
       appWorkerExecutor.executeAllCalls.awaitItem()
@@ -248,7 +247,6 @@ class AppUiStateMachineImplTests : FunSpec({
 
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(ActiveKeyboxLoadedDataMock.account)
-        lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
       }
 
       appWorkerExecutor.executeAllCalls.awaitItem()
@@ -275,8 +273,7 @@ class AppUiStateMachineImplTests : FunSpec({
               factorToRecover = PhysicalFactor.Hardware,
               delayPeriodStartTime = Instant.DISTANT_PAST,
               delayPeriodEndTime = Instant.DISTANT_PAST,
-              cancel = {},
-              retryCloudRecovery = null
+              cancel = {}
             )
         )
       )
@@ -731,7 +728,6 @@ class AppUiStateMachineImplTests : FunSpec({
       // Should show the normal home screen, not the update modal
       awaitBodyMock<HomeUiProps> {
         account.shouldBe(ActiveKeyboxLoadedDataMock.account)
-        lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
       }
 
       appWorkerExecutor.executeAllCalls.awaitItem()

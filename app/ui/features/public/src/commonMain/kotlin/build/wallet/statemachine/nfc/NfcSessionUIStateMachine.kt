@@ -4,7 +4,9 @@ import androidx.compose.runtime.*
 import bitkey.account.AccountConfigService
 import bitkey.account.DefaultAccountConfig
 import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import bitkey.account.LiteAccountConfig
+import bitkey.account.SoftwareAccountConfig
 import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.account.getActiveOrOnboardingAccountOrNull
@@ -178,6 +180,13 @@ class NfcSessionUIStateMachineImpl(
         else -> false
       }
     }
+    val hardwareType = remember {
+      when (accountConfig) {
+        is FullAccountConfig -> accountConfig.hardwareType
+        is DefaultAccountConfig -> accountConfig.hardwareType ?: HardwareType.W1
+        is LiteAccountConfig, is SoftwareAccountConfig -> null
+      }
+    }
 
     var newState by remember {
       mutableStateOf(
@@ -194,6 +203,7 @@ class NfcSessionUIStateMachineImpl(
         nfcTransactor.transact(
           parameters = NfcSession.Parameters(
             isHardwareFake = isHardwareFake,
+            hardwareType = hardwareType,
             needsAuthentication = props.needsAuthentication,
             shouldLock = props.shouldLock,
             requirePairedHardware = determineNfcHardwarePairingRequired(props.hardwareVerification),
@@ -353,7 +363,7 @@ class NfcSessionUIStateMachineImpl(
     // Retrieve the hardware pubkey expected to be used; using the recovery pubkey is specified
     // and otherwise the hw auth pubkey associated with the account.
     val hwPubKey = if (hardwareVerification.useRecoveryPubKey) {
-      when (val recoveryStatus = recoveryStatusService.status().first().get()) {
+      when (val recoveryStatus = recoveryStatusService.status.first()) {
         is Recovery.StillRecovering -> recoveryStatus.hardwareAuthKey.pubKey
         else -> null
       }

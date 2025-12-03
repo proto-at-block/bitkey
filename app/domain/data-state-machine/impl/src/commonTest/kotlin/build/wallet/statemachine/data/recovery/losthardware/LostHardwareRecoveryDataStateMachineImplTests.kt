@@ -2,6 +2,8 @@ package build.wallet.statemachine.data.recovery.losthardware
 
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.coroutines.turbine.turbines
+import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
@@ -16,6 +18,7 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class LostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
   val recovery = StillRecoveringInitiatedRecoveryMock.copy(factorToRecover = Hardware)
+  val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
 
   val recoveryInProgressDataStateMachine = object : RecoveryInProgressDataStateMachine,
     StateMachineMock<RecoveryInProgressProps, RecoveryInProgressData>(
@@ -23,19 +26,22 @@ class LostHardwareRecoveryDataStateMachineImplTests : FunSpec({
         factorToRecover = Hardware,
         delayPeriodStartTime = recovery.serverRecovery.delayStartTime,
         delayPeriodEndTime = recovery.serverRecovery.delayEndTime,
-        cancel = { },
-        retryCloudRecovery = null
+        cancel = { }
       )
     ) {}
 
   val stateMachine = LostHardwareRecoveryDataStateMachineImpl(
-    recoveryInProgressDataStateMachine = recoveryInProgressDataStateMachine
+    recoveryInProgressDataStateMachine = recoveryInProgressDataStateMachine,
+    recoveryStatusService = recoveryStatusService
   )
 
-  val props = LostHardwareRecoveryProps(
-    account = FullAccountMock,
-    hardwareRecovery = null
+  val props = LostHardwareRecoveryDataProps(
+    account = FullAccountMock
   )
+
+  beforeTest {
+    recoveryStatusService.reset()
+  }
 
   test("lost hardware recovery -- recovery absent") {
     stateMachine.test(props = props) {
@@ -44,7 +50,9 @@ class LostHardwareRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("lost hardware recovery -- recovery present") {
-    stateMachine.test(props = props.copy(hardwareRecovery = recovery)) {
+    recoveryStatusService.recoveryStatus.value = recovery
+
+    stateMachine.test(props = props) {
       awaitItem().shouldBeTypeOf<LostHardwareRecoveryInProgressData>().let {
         it.recoveryInProgressData.shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>()
       }

@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import build.wallet.email.Email
 import build.wallet.support.ImmutableSupportTicketData
 import build.wallet.support.MutableSupportTicketData
+import build.wallet.support.SendEncryptedDescriptor
 import build.wallet.support.SupportTicketAttachment
 import build.wallet.support.SupportTicketData
 import build.wallet.support.SupportTicketField
@@ -22,7 +23,7 @@ class StateMapBackedSupportTicketData(
   override var email: Email by mutableStateOf(initialData.email)
   override var sendDebugData: Boolean by mutableStateOf(initialData.sendDebugData)
 
-  override var sendEncryptedDescriptor: Boolean by mutableStateOf(initialData.sendEncryptedDescriptor)
+  override var sendEncryptedDescriptor: SendEncryptedDescriptor by mutableStateOf(initialData.sendEncryptedDescriptor)
   private val mutableAttachments: MutableList<SupportTicketAttachment> = mutableStateListOf()
   override val attachments: List<SupportTicketAttachment> = mutableAttachments
 

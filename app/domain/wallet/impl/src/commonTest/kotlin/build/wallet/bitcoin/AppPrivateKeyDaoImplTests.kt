@@ -173,4 +173,52 @@ class AppPrivateKeyDaoImplTests : FunSpec({
     keystore.getAsymmetricPrivateKey(AppGlobalAuthPublicKeyMock).shouldBeOk(null)
     keystore.getAsymmetricPrivateKey(AppRecoveryAuthPublicKeyMock).shouldBeOk(null)
   }
+
+  test("getAllAppSpendingKeyPairs returns empty list when no keys stored") {
+    dao.getAllAppSpendingKeyPairs().shouldBeOk(emptyList())
+  }
+
+  test("getAllAppSpendingKeyPairs returns single key pair") {
+    val keypair = AppSpendingKeypair(spendingPublicKey, spendingPrivateKey)
+    dao.storeAppSpendingKeyPair(keypair).shouldBeOk()
+
+    val result = dao.getAllAppSpendingKeyPairs().shouldBeOk()
+    result.size.shouldBe(1)
+    result[0].publicKey.shouldBe(spendingPublicKey)
+    result[0].privateKey.shouldBe(spendingPrivateKey)
+  }
+
+  test("getAllAppSpendingKeyPairs returns multiple key pairs") {
+    val keypair1 = AppSpendingKeypair(spendingPublicKey, spendingPrivateKey)
+    val publicKey2 = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "xpub456"))
+    val privateKey2 =
+      AppSpendingPrivateKey(ExtendedPrivateKey(xprv = "xprv456", mnemonic = "mnemonic456"))
+    val keypair2 = AppSpendingKeypair(publicKey2, privateKey2)
+
+    dao.storeAppSpendingKeyPair(keypair1).shouldBeOk()
+    dao.storeAppSpendingKeyPair(keypair2).shouldBeOk()
+
+    val result = dao.getAllAppSpendingKeyPairs().shouldBeOk()
+    result.size.shouldBe(2)
+
+    // Verify both key pairs are present (order may vary)
+    val publicKeys = result.map { it.publicKey }.toSet()
+    publicKeys.shouldBe(setOf(spendingPublicKey, publicKey2))
+  }
+
+  test("getAllAppSpendingKeyPairs ignores keys with missing mnemonic") {
+    val validKeypair = AppSpendingKeypair(spendingPublicKey, spendingPrivateKey)
+    dao.storeAppSpendingKeyPair(validKeypair).shouldBeOk()
+
+    // Add a key with missing mnemonic
+    val invalidPublicKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "invalid"))
+    encryptedKeyValueStoreFactory.store.putString(
+      key = "secret-key:${invalidPublicKey.key.dpub}",
+      value = "xprv-invalid"
+    )
+
+    val result = dao.getAllAppSpendingKeyPairs().shouldBeOk()
+    result.size.shouldBe(1)
+    result[0].publicKey.shouldBe(spendingPublicKey)
+  }
 })

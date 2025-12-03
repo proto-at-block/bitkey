@@ -25,15 +25,28 @@ data class TransactionsActivityProps(
   val onTransactionClicked: (transaction: Transaction) -> Unit,
 ) {
   sealed interface TransactionVisibility {
+    val numberOfSkeletonTransactions: Int
+
     /**
      * All wallet's transactions will be shown.
      */
-    data object All : TransactionVisibility
+    data object All : TransactionVisibility {
+      // Only show 5 skeleton transactions when loading
+      override val numberOfSkeletonTransactions: Int = DEFAULT_VISIBLE_TRANSACTIONS
+    }
 
     /**
      * Only recent transactions up to [numberOfVisibleTransactions] amount will be shown.
      */
-    data class Some(val numberOfVisibleTransactions: Int) : TransactionVisibility
+    data class Some(
+      val numberOfVisibleTransactions: Int = DEFAULT_VISIBLE_TRANSACTIONS,
+    ) : TransactionVisibility {
+      override val numberOfSkeletonTransactions: Int = numberOfVisibleTransactions
+    }
+
+    companion object {
+      private const val DEFAULT_VISIBLE_TRANSACTIONS = 5
+    }
   }
 }
 

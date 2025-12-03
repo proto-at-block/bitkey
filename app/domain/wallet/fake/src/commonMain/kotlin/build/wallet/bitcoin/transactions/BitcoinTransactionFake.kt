@@ -22,7 +22,7 @@ import kotlin.time.toDuration
 
 val defaultTransactionWeight = 325UL
 
-private const val TX_FAKE_ID = "c4f5835c0b77d438160cf54c4355208b0a39f58919ff4c221df6ebedc1ad67be"
+const val TX_FAKE_ID = "c4f5835c0b77d438160cf54c4355208b0a39f58919ff4c221df6ebedc1ad67be"
 
 val BitcoinTransactionFake =
   BitcoinTransaction(

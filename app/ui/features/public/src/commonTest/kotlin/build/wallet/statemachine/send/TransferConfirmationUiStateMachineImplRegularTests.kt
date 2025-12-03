@@ -1,6 +1,7 @@
 package build.wallet.statemachine.send
 
 import app.cash.turbine.test
+import bitkey.account.AccountConfigServiceFake
 import bitkey.verification.TxVerificationServiceFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.availability.AppFunctionalityServiceFake
@@ -33,6 +34,9 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -79,6 +83,19 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
       initialModel = initialModel
     ) {}
 
+  // Define the initial HardwareConfirmationScreenModel
+  val hardwareConfirmationInitialModel = HardwareConfirmationScreenModel(
+    onBack = {},
+    onSend = {},
+    onLearnMore = {}
+  )
+
+  // Initialize the HardwareConfirmationUiStateMachine
+  val hardwareConfirmationUiStateMachine = object : HardwareConfirmationUiStateMachine,
+    StateMachineMock<HardwareConfirmationUiProps, HardwareConfirmationScreenModel>(
+      initialModel = hardwareConfirmationInitialModel
+    ) {}
+
   // Initialize the NfcSessionUIStateMachine
   val nfcSessionUIStateMachine = object : NfcSessionUIStateMachine,
     ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc-regular") {}
@@ -112,6 +129,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   val accountService = AccountServiceFake()
   val txVerificationService = TxVerificationServiceFake()
   val verificationFlag = TxVerificationFeatureFlag(FeatureFlagDaoFake())
+  val accountConfigService = AccountConfigServiceFake()
 
   // Initialize the TransferConfirmationUiStateMachineImpl with all dependencies
   val stateMachine = TransferConfirmationUiStateMachineImpl(
@@ -124,7 +142,9 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     appFunctionalityService = appFunctionalityService,
     accountService = accountService,
     txVerificationService = txVerificationService,
-    txVerificationFeatureFlag = verificationFlag
+    txVerificationFeatureFlag = verificationFlag,
+    hardwareConfirmationUiStateMachine = hardwareConfirmationUiStateMachine,
+    accountConfigService = accountConfigService
   )
 
   // Reset mocks before each test

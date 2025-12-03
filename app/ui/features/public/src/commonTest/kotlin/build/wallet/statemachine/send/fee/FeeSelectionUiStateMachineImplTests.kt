@@ -31,6 +31,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_BELOW_DUST_LIMIT_ERROR_SCREEN
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_PSBT_CONSTRUCTION_ERROR_SCREEN
+import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
@@ -49,6 +50,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
   val bitcoinTransactionBaseCalculator = BitcoinTransactionBaseCalculatorMock(BitcoinMoney.zero())
   val bitcoinWalletService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
+  val feeEstimationErrorUiStateMachine = FeeEstimationErrorUiStateMachineImpl()
 
   val stateMachine =
     FeeSelectionUiStateMachineImpl(
@@ -57,7 +59,8 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
       feeOptionListUiStateMachine = feeOptionListUiStateMachine,
       transactionBaseCalculator = bitcoinTransactionBaseCalculator,
       bitcoinWalletService = bitcoinWalletService,
-      accountService = accountService
+      accountService = accountService,
+      feeEstimationErrorUiStateMachine = feeEstimationErrorUiStateMachine
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")

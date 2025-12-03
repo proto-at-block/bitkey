@@ -34,6 +34,10 @@ class AppContext {
             symmetricKeyGenerator: SymmetricKeyGeneratorImpl()
         )
 
+        // Create NFC command implementations
+        let w1Commands = BitkeyW1Commands()
+        let w3Commands = BitkeyW3Commands(delegate: w1Commands)
+
         // Create IosAppComponent with iOS implementations
         self.appComponent = IosAppComponentCreateComponentKt.create(
             appVariant: appVariant,
@@ -66,7 +70,8 @@ class AppContext {
                 minSeverity: .info
             )] },
             messageSigner: MessageSignerImpl(),
-            nfcCommandsImpl: BitkeyW1Commands(),
+            nfcCommandsImpl: w1Commands,
+            nfcCommandsW3: w3Commands,
             nfcSessionProvider: NfcSessionProviderImpl(),
             pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
             phoneNumberLibBindings: PhoneNumberLibBindingsImpl(),

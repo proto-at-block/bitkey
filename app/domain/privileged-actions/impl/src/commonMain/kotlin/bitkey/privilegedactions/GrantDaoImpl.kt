@@ -13,12 +13,7 @@ import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitAsOneResult
 import build.wallet.sqldelight.awaitTransaction
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.get
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -36,7 +31,8 @@ class GrantDaoImpl(
           action = grant.getGrantAction(),
           version = grant.version.toLong(),
           serializedRequest = grant.serializedRequest,
-          signature = grant.signature,
+          appSignature = grant.appSignature,
+          wsmSignature = grant.wsmSignature,
           createdAt = clock.now(),
           delivered = false
         )
@@ -101,7 +97,8 @@ class GrantDaoImpl(
     return Grant(
       version = this.version.toByte(),
       serializedRequest = this.serializedRequest,
-      signature = this.signature
+      appSignature = this.appSignature,
+      wsmSignature = this.wsmSignature
     )
   }
 }

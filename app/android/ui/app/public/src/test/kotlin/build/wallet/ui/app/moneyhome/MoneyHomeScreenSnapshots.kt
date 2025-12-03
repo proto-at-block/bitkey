@@ -30,6 +30,18 @@ class MoneyHomeScreenSnapshots : FunSpec({
     }
   }
 
+  test("MoneyHome Screen Full loading") {
+    paparazzi.snapshot {
+      MoneyHomeScreenFull(isLoading = true)
+    }
+  }
+
+  test("MoneyHome Screen Full with skeleton transactions") {
+    paparazzi.snapshot {
+      MoneyHomeScreenFull(useSkeletonTransactions = true)
+    }
+  }
+
   test("MoneyHome Screen Lite with protecting wallets") {
     paparazzi.snapshot {
       MoneyHomeScreenLite()

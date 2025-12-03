@@ -28,6 +28,9 @@ enum class DepositEventTrackerScreenId : EventTrackerScreenId {
   /** Sheet showing a list of purchase quotes from partners */
   PARTNER_QUOTES_LIST,
 
+  /** Sheet showing information about a promotion */
+  PARTNER_QUOTE_PROMOTION_INFO_SHEET,
+
   /** Loading screen shown when we are loading the list of purchase quotes from partners */
   LOADING_PARTNER_QUOTES_LIST,
 

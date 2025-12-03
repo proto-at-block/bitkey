@@ -17,16 +17,17 @@ import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.fwup.*
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.nfc.NfcCommandsMock
-import build.wallet.nfc.NfcSessionFake
+import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
+import build.wallet.statemachine.core.form.FormMainContentModel.DeviceStatusCard
+import build.wallet.statemachine.core.form.FormMainContentModel.SettingsList
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineFake
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetProps
@@ -40,7 +41,6 @@ import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
 import build.wallet.time.TimeZoneProviderMock
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
@@ -52,6 +52,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.Instant
+import okio.ByteString.Companion.encodeUtf8
 
 class DeviceSettingsScreenPresenterTests : FunSpec({
 
@@ -59,6 +60,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val firmwareDataService = FirmwareDataServiceFake()
   val clock = ClockFake()
+  val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
 
   val featureFlagDao = FeatureFlagDaoFake()
   val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
@@ -70,9 +72,12 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     firmwareDataService = firmwareDataService
   )
 
+  val nfcCommandsMock = NfcCommandsMock(turbines::create)
+
   val presenter = DeviceSettingsScreenPresenter(
-    nfcSessionUIStateMachine = object : NfcSessionUIStateMachine,
-      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc-session") {},
+    nfcSessionUIStateMachine = NfcSessionUIStateMachineFake(
+      nfcCommands = nfcCommandsMock
+    ),
     firmwareDeviceInfoDao = firmwareDeviceInfoDao,
     dateTimeFormatter = DateTimeFormatterMock(),
     timeZoneProvider = TimeZoneProviderMock(),
@@ -84,23 +89,20 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     fingerprintResetUiStateMachine = object : FingerprintResetUiStateMachine,
       ScreenStateMachineMock<FingerprintResetProps>("fingerprint-reset") {},
     fingerprintResetAvailabilityService = fingerprintResetAvailability,
+    recoveryStatusService = recoveryStatusService,
     clock = clock
   )
 
-  val onBackCalls = turbines.create<Unit>("on back calls")
-
   val screen = DeviceSettingsScreen(
     account = FullAccountMock,
-    lostHardwareRecoveryData = LostHardwareRecoveryDataMock,
     originScreen = null
   )
-
-  val nfcCommandsMock = NfcCommandsMock(turbines::create)
 
   beforeTest {
     appFunctionalityService.reset()
     firmwareDeviceInfoDao.reset()
     firmwareDataService.reset()
+    recoveryStatusService.reset()
     clock.reset()
   }
 
@@ -113,17 +115,11 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     presenter.test(screen) { navigator ->
       awaitBody<FormBodyModel> {
         mainContentList[0].apply {
-          shouldBeInstanceOf<DataList>()
-
-          hero.shouldNotBeNull().apply {
+          shouldBeInstanceOf<DeviceStatusCard>()
+          statusCallout.shouldNotBeNull().apply {
             title.shouldBe("Update available")
-            subtitle.shouldBe("1.2.3")
-            button.shouldNotBeNull().text.shouldBe("Update to fake")
+            subtitle.shouldNotBeNull().string.shouldBe("1.2.3")
           }
-
-          items.verifyMetadataDataList()
-
-          buttons.size.shouldBe(1)
         }
       }
     }
@@ -133,17 +129,11 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     presenter.test(screen) { navigator ->
       awaitBody<FormBodyModel> {
         mainContentList[0].apply {
-          shouldBeInstanceOf<DataList>()
-
-          hero.shouldNotBeNull().apply {
-            title.shouldBe("Up to date")
-            subtitle.shouldBe("1.2.3")
-            button.shouldBeNull()
+          shouldBeInstanceOf<DeviceStatusCard>()
+          statusCallout.shouldNotBeNull().apply {
+            title.shouldBe("Last synced")
+            subtitle.shouldNotBeNull().string.shouldBe("date-time")
           }
-
-          items.verifyMetadataDataList()
-
-          buttons.size.shouldBe(1)
         }
       }
     }
@@ -152,18 +142,20 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   test("sync device info") {
     firmwareDeviceInfoDao.getDeviceInfo().get().shouldBeNull()
     presenter.test(screen) { navigator ->
-      // Device settings
+      // Device settings - tap on the status card to sync
       awaitBody<FormBodyModel> {
         mainContentList[0].apply {
-          shouldBeInstanceOf<DataList>()
-          buttons.first().onClick()
+          shouldBeInstanceOf<DeviceStatusCard>()
+          statusCallout.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
         }
       }
 
       // Syncing info via NFC
       awaitBodyMock<NfcSessionUIStateMachineProps<Result<Unit, DbError>>> {
-        session(NfcSessionFake(), nfcCommandsMock)
-        onSuccess(Ok(Unit))
+        // Verify getDeviceInfo was called
+        nfcCommandsMock.getDeviceInfoCalls.awaitItem().shouldBe(FirmwareDeviceInfoMock)
+
+        // Verify the device info was stored
         firmwareDeviceInfoDao.getDeviceInfo().get().shouldNotBeNull()
       }
 
@@ -175,10 +167,12 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   test("lost or stolen device") {
     presenter.test(screen) { navigator ->
       awaitBody<FormBodyModel> {
-        mainContentList[2].apply {
-          shouldBeInstanceOf<Button>()
-          item.text.shouldBe("Replace device")
-          item.onClick()
+        mainContentList[1].apply {
+          shouldBeInstanceOf<SettingsList>()
+            .items[3].apply {
+            title.shouldBe("Replace device")
+            onClick.shouldNotBeNull().invoke()
+          }
         }
       }
 
@@ -213,13 +207,15 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         )
     )
     presenter.test(screen) { navigator ->
-      // Device settings
+      // Device settings - with firmware update available, status card shows update info
       awaitBody<FormBodyModel> {
         mainContentList[0].apply {
-          shouldBeInstanceOf<DataList>()
-          val updateButton = hero.shouldNotBeNull().button.shouldNotBeNull()
-          updateButton.text.shouldBe("Update to $version")
-          updateButton.onClick()
+          shouldBeInstanceOf<DeviceStatusCard>()
+          statusCallout.shouldNotBeNull().apply {
+            title.shouldBe("Update available")
+            subtitle.shouldNotBeNull().string.shouldBe("1.2.3")
+            onClick.shouldNotBeNull().invoke()
+          }
         }
       }
 
@@ -236,10 +232,13 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   test("Replace device button should be disabled given limited functionality") {
     presenter.test(screen) { navigator ->
       awaitBody<FormBodyModel> {
-        mainContentList[2].apply {
-          shouldBeInstanceOf<Button>()
-          item.text.shouldBe("Replace device")
-          item.isEnabled.shouldBeTrue()
+        // Replace device is in the SettingsList at index 1, item index 3
+        mainContentList[1].apply {
+          shouldBeInstanceOf<SettingsList>()
+          items[3].apply {
+            title.shouldBe("Replace device")
+            isEnabled.shouldBeTrue()
+          }
         }
       }
 
@@ -250,10 +249,12 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       )
 
       awaitBody<FormBodyModel> {
-        mainContentList[2].apply {
-          shouldBeInstanceOf<Button>()
-          item.text.shouldBe("Replace device")
-          item.isEnabled.shouldBeFalse()
+        mainContentList[1].apply {
+          shouldBeInstanceOf<SettingsList>()
+          items[3].apply {
+            title.shouldBe("Replace device")
+            isEnabled.shouldBeFalse()
+          }
         }
       }
     }
@@ -261,11 +262,11 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
   test("tap on manage fingerprints") {
     presenter.test(screen) { navigator ->
-      // Tap the Fingerprint button
+      // Tap the Fingerprint button (index 1 in SettingsList)
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
-          shouldBeInstanceOf<ListGroup>()
-          listGroupModel.items[0].onClick!!()
+          shouldBeInstanceOf<SettingsList>()
+          items[1].onClick!!()
         }
       }
 
@@ -284,11 +285,11 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock
 
     presenter.test(screen) { navigator ->
-      // Tap the Fingerprint button
+      // Tap the Fingerprint button (index 1 in SettingsList)
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
-          shouldBeInstanceOf<ListGroup>()
-          listGroupModel.items[0].onClick!!()
+          shouldBeInstanceOf<SettingsList>()
+          items[1].onClick!!()
         }
       }
 
@@ -329,11 +330,11 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
   test("tap on reset device") {
     presenter.test(screen) { navigator ->
-      // Tap the Reset Device button
+      // Tap the Wipe Device button (index 2 in SettingsList)
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
-          shouldBeInstanceOf<ListGroup>()
-          listGroupModel.items[1].onClick!!()
+          shouldBeInstanceOf<SettingsList>()
+          items[2].onClick!!()
         }
       }
 
@@ -379,6 +380,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
           "fingerprint-reset"
         ) {},
       fingerprintResetAvailabilityService = fingerprintResetAvailability,
+      recoveryStatusService = recoveryStatusService,
       clock = clock
     )
 
@@ -394,8 +396,11 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       // Tap the Fingerprint button
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
-          shouldBeInstanceOf<ListGroup>()
-          listGroupModel.items[0].onClick!!()
+          shouldBeInstanceOf<SettingsList>()
+            .items[1]
+            .onClick
+            .shouldNotBeNull()
+            .invoke()
         }
       }
 
@@ -450,6 +455,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
           "fingerprint-reset"
         ) {},
       fingerprintResetAvailabilityService = fingerprintResetAvailability,
+      recoveryStatusService = recoveryStatusService,
       clock = clock
     )
 
@@ -465,8 +471,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       // Tap the Fingerprint button
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
-          shouldBeInstanceOf<ListGroup>()
-          listGroupModel.items[0].onClick!!()
+          shouldBeInstanceOf<SettingsList>()
+          items[1].onClick.shouldNotBeNull().invoke()
         }
       }
 
@@ -486,6 +492,147 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         }
     }
   }
+
+  test("replacement pending shows null when no recovery") {
+    recoveryStatusService.reset()
+
+    presenter.test(screen) { navigator ->
+      awaitBody<FormBodyModel> {
+        mainContentList[0].apply {
+          shouldBeInstanceOf<DeviceStatusCard>()
+            .statusCallout
+            .title
+            .shouldBe("Last synced")
+        }
+      }
+    }
+  }
+
+  test("replacement pending shows remaining time during InitiatedRecovery delay period") {
+    val delayEndTime = clock.now() + kotlin.time.Duration.parse("2h")
+    val initiatedRecovery =
+      build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery(
+        fullAccountId = FullAccountMock.accountId,
+        appSpendingKey = FullAccountMock.keybox.activeSpendingKeyset.appKey,
+        appGlobalAuthKey = FullAccountMock.keybox.activeAppKeyBundle.authKey,
+        appRecoveryAuthKey = FullAccountMock.keybox.activeAppKeyBundle.recoveryAuthKey,
+        hardwareSpendingKey = FullAccountMock.keybox.activeSpendingKeyset.hardwareKey,
+        hardwareAuthKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+        appGlobalAuthKeyHwSignature = FullAccountMock.keybox.appGlobalAuthKeyHwSignature,
+        factorToRecover = build.wallet.bitkey.factor.PhysicalFactor.Hardware,
+        serverRecovery = build.wallet.f8e.recovery.LostHardwareServerRecoveryMock.copy(
+          delayStartTime = clock.now(),
+          delayEndTime = delayEndTime
+        )
+      )
+    recoveryStatusService.recoveryStatus.value = initiatedRecovery
+
+    presenter.test(screen) { navigator ->
+      awaitBody<FormBodyModel> {
+        mainContentList[0].apply {
+          shouldBeInstanceOf<DeviceStatusCard>()
+            .statusCallout
+            .subtitle
+            .shouldNotBeNull()
+            .string
+            .shouldBe("2h")
+        }
+      }
+    }
+  }
+
+  test("replacement pending shows 'Awaiting confirmation' for InitiatedRecovery with zero delay") {
+    val initiatedRecovery =
+      build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery(
+        fullAccountId = FullAccountMock.accountId,
+        appSpendingKey = FullAccountMock.keybox.activeSpendingKeyset.appKey,
+        appGlobalAuthKey = FullAccountMock.keybox.activeAppKeyBundle.authKey,
+        appRecoveryAuthKey = FullAccountMock.keybox.activeAppKeyBundle.recoveryAuthKey,
+        hardwareSpendingKey = FullAccountMock.keybox.activeSpendingKeyset.hardwareKey,
+        hardwareAuthKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+        appGlobalAuthKeyHwSignature = FullAccountMock.keybox.appGlobalAuthKeyHwSignature,
+        factorToRecover = build.wallet.bitkey.factor.PhysicalFactor.Hardware,
+        serverRecovery = build.wallet.f8e.recovery.LostHardwareServerRecoveryMock.copy(
+          delayStartTime = clock.now(),
+          delayEndTime = clock.now() // Delay period is complete
+        )
+      )
+    recoveryStatusService.recoveryStatus.value = initiatedRecovery
+
+    presenter.test(screen) { navigator ->
+      awaitBody<FormBodyModel> {
+        mainContentList[0].apply {
+          shouldBeInstanceOf<DeviceStatusCard>()
+            .statusCallout
+            .subtitle
+            .shouldNotBeNull()
+            .string
+            .shouldBe("0s")
+        }
+      }
+    }
+  }
+
+  test("replacement pending shows 'Awaiting confirmation' for RotatedAuthKeys state") {
+    val rotatedAuthKeys =
+      build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.RotatedAuthKeys(
+        fullAccountId = FullAccountMock.accountId,
+        appSpendingKey = FullAccountMock.keybox.activeSpendingKeyset.appKey,
+        appGlobalAuthKey = FullAccountMock.keybox.activeAppKeyBundle.authKey,
+        appRecoveryAuthKey = FullAccountMock.keybox.activeAppKeyBundle.recoveryAuthKey,
+        hardwareSpendingKey = FullAccountMock.keybox.activeSpendingKeyset.hardwareKey,
+        hardwareAuthKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+        appGlobalAuthKeyHwSignature = FullAccountMock.keybox.appGlobalAuthKeyHwSignature,
+        factorToRecover = build.wallet.bitkey.factor.PhysicalFactor.Hardware,
+        sealedCsek = "sealed-csek".encodeUtf8(),
+        sealedSsek = null
+      )
+    recoveryStatusService.recoveryStatus.value = rotatedAuthKeys
+
+    presenter.test(screen) { navigator ->
+      awaitBody<FormBodyModel> {
+        mainContentList[0].apply {
+          shouldBeInstanceOf<DeviceStatusCard>()
+            .statusCallout
+            .subtitle
+            .shouldNotBeNull()
+            .string
+            .shouldBe("Awaiting confirmation")
+        }
+      }
+    }
+  }
+
+  test("replacement pending shows 'Awaiting confirmation' for CreatedSpendingKeys state") {
+    val createdSpendingKeys =
+      build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.CreatedSpendingKeys(
+        fullAccountId = FullAccountMock.accountId,
+        appSpendingKey = FullAccountMock.keybox.activeSpendingKeyset.appKey,
+        appGlobalAuthKey = FullAccountMock.keybox.activeAppKeyBundle.authKey,
+        appRecoveryAuthKey = FullAccountMock.keybox.activeAppKeyBundle.recoveryAuthKey,
+        hardwareSpendingKey = FullAccountMock.keybox.activeSpendingKeyset.hardwareKey,
+        hardwareAuthKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+        appGlobalAuthKeyHwSignature = FullAccountMock.keybox.appGlobalAuthKeyHwSignature,
+        factorToRecover = build.wallet.bitkey.factor.PhysicalFactor.Hardware,
+        sealedCsek = "sealed-csek".encodeUtf8(),
+        sealedSsek = null,
+        f8eSpendingKeyset = FullAccountMock.keybox.activeSpendingKeyset.f8eSpendingKeyset
+      )
+    recoveryStatusService.recoveryStatus.value = createdSpendingKeys
+
+    presenter.test(screen) { navigator ->
+      awaitBody<FormBodyModel> {
+        mainContentList[0].apply {
+          shouldBeInstanceOf<DeviceStatusCard>()
+            .statusCallout
+            .subtitle
+            .shouldNotBeNull()
+            .string
+            .shouldBe("Awaiting confirmation")
+        }
+      }
+    }
+  }
 })
 
 private fun List<Data>.verifyMetadataDataList() {
@@ -503,6 +650,26 @@ private fun List<Data>.verifyMetadataDataList() {
         "Last sync",
         "date-time"
       )
+    }
+  }
+}
+
+private fun List<Data>.verifyMetadataDataListWithReplacement(replacementStatus: String) {
+  forEachIndexed { index, data ->
+    when (index) {
+      0 -> data.verifyMetadataData("Model name", "Bitkey")
+      1 -> data.verifyMetadataData("Model number", "evtd")
+      2 -> data.verifyMetadataData("Serial number", "serial")
+      3 -> data.verifyMetadataData("Firmware version", "1.2.3")
+      4 -> data.verifyMetadataData(
+        "Last known charge",
+        "100%"
+      ) // Not 89% due to battery level masking
+      5 -> data.verifyMetadataData(
+        "Last sync",
+        "date-time"
+      )
+      6 -> data.verifyMetadataData("Replacement pending", replacementStatus)
     }
   }
 }

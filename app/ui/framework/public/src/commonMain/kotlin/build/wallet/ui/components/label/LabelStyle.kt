@@ -11,6 +11,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration.Companion.LineThrough
 import androidx.compose.ui.text.style.TextDecoration.Companion.None
 import androidx.compose.ui.text.style.TextDecoration.Companion.Underline
+import build.wallet.ui.components.label.LabelTreatment.Destructive
 import build.wallet.ui.components.label.LabelTreatment.Disabled
 import build.wallet.ui.components.label.LabelTreatment.Jumbo
 import build.wallet.ui.components.label.LabelTreatment.Primary
@@ -63,6 +64,7 @@ fun WalletTheme.textStyle(
       Disabled -> colors.foreground10
       Warning -> colors.warningForeground
       Unspecified -> textColor
+      Destructive -> colors.destructiveForeground
     }
 
   val textDecoration =

@@ -1,6 +1,7 @@
 package build.wallet.cloud.backup.v2
 
 import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.auth.*
@@ -52,7 +53,8 @@ class CloudBackupV2RestorerImplTests : FunSpec({
       f8eEnvironment = Development,
       isHardwareFake = false,
       isTestAccount = true,
-      isUsingSocRecFakes = false
+      isUsingSocRecFakes = false,
+      hardwareType = HardwareType.W1
     ),
     cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock,
     appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
