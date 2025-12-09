@@ -28,7 +28,6 @@ class AppContext {
         let cloudFileStore = CloudFileStoreImpl(iCloudDriveFileStore: iCloudDriveFileStore())
         let datadogTracer = DatadogTracerImpl()
         let secp256k1KeyGenerator = Secp256k1KeyGeneratorImpl()
-        let biometricsPrompter = BiometricPrompterImpl()
         let noiseInitiator = NoiseInitiatorImpl(
             secureEnclave: SecureEnclaveImpl(),
             symmetricKeyGenerator: SymmetricKeyGeneratorImpl()
@@ -50,7 +49,6 @@ class AppContext {
             signatureUtils: SignatureUtilsImpl(),
             bdkTxBuilderFactory: BdkTxBuilderFactoryImpl(),
             bdkWalletFactory: BdkWalletFactoryImpl(),
-            biometricPrompter: biometricsPrompter,
             cloudFileStore: cloudFileStore,
             cryptoBox: CryptoBoxImpl(),
             datadogRumMonitor: datadogRumMonitor,

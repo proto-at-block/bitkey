@@ -156,7 +156,6 @@ echo "Public key saved to: $KMS_PUBLIC_KEY_FILE"
 echo
 
 # Define key names with their file patterns
-# Some keys use -kms-dev.priv.pem, others use -dev.priv.pem
 # Using indexed arrays for Bash 3.2 compatibility
 KEY_NAMES=(
     "c3-dm-verity-rootfs-signing-key"
@@ -170,12 +169,12 @@ KEY_NAMES=(
 )
 
 KEY_FILES=(
-    "c3-dm-verity-rootfs-signing-key-kms-dev.priv.pem"
-    "c3-leaf-fwup-signing-key-kms-dev.priv.pem"
-    "c3-leaf-trusted-app-signing-key-kms-dev.priv.pem"
-    "c3-linux-image-signing-key-kms-dev.priv.pem"
-    "c3-nontrusted-os-firmware-key-kms-dev.priv.pem"
-    "c3-trusted-os-firmware-key-kms-dev.priv.pem"
+    "c3-dm-verity-rootfs-signing-key-dev.priv.pem"
+    "c3-leaf-fwup-signing-key-dev.priv.pem"
+    "c3-leaf-trusted-app-signing-key-dev.priv.pem"
+    "c3-linux-image-signing-key-dev.priv.pem"
+    "c3-nontrusted-os-firmware-key-dev.priv.pem"
+    "c3-trusted-os-firmware-key-dev.priv.pem"
     "c3-nontrusted-world-key-dev.priv.pem"
     "c3-trusted-world-key-dev.priv.pem"
 )

@@ -10,13 +10,13 @@ import kotlinx.coroutines.flow.map
 class TxVerificationDaoFake : TxVerificationDao {
   val activePolicy: MutableStateFlow<TxVerificationPolicy.Active?> = MutableStateFlow(null)
 
-  override suspend fun setActivePolicy(
-    txVerificationPolicy: TxVerificationPolicy.Active,
-  ): Result<TxVerificationPolicy.Active, Error> {
+  override suspend fun setEnabledThreshold(
+    threshold: VerificationThreshold.Enabled,
+  ): Result<Unit, Error> {
     return Ok(
-      txVerificationPolicy
+      Unit
     ).also {
-      activePolicy.value = it.value
+      activePolicy.value = TxVerificationPolicy.Active(threshold)
     }
   }
 

@@ -50,8 +50,8 @@ resource "aws_s3_object" "certs" {
       }
     }
   ]...)
-  bucket = aws_s3_bucket.truststore.id
-  key    = "${each.value.fam}/${basename(each.value.path)}"
-  source = each.value.path
-  etag   = filesha256(each.value.path)
+  bucket      = aws_s3_bucket.truststore.id
+  key         = "${each.value.fam}/${basename(each.value.path)}"
+  source      = each.value.path
+  source_hash = filesha256(each.value.path)
 }

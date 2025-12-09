@@ -41,7 +41,7 @@ class DemoCodeEntrySubmissionScreenPresenter(
 
     return LoadingBodyModel(
       id = DemoCodeTrackerScreenId.DEMO_MODE_CODE_SUBMISSION,
-      message = "Submitting demo mode code...",
+      title = "Submitting demo mode code...",
       onBack = {
         navigator.goTo(DemoModeCodeEntryScreen)
       }

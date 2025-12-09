@@ -62,7 +62,7 @@ class RefreshAuthTokensUiStateMachineImpl(
         when (val onTokenRefresh = props.onTokenRefresh) {
           null ->
             LoadingBodyModel(
-              message = "Authenticating with server...",
+              title = "Authenticating with server...",
               id = REFRESHING_AUTH_TOKENS_FOR_HW_POP
             ).asScreen(props.screenPresentationStyle)
 

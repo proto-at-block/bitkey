@@ -84,6 +84,7 @@ kotlin {
 
 val generateEmergencyExitKitInformation by tasks.registering(GenerateEmergencyExitKitInformationTask::class) {
   val variables = reproducibleBuildVariables.variables
+  buildType = variables.map { it.buildType }
   apkVersion = variables.map { it.emergencyApkVersion }
   apkHash = variables.map { it.emergencyApkHash }
   apkUrl = variables.map { it.emergencyApkUrl }

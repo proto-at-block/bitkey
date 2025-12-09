@@ -53,14 +53,11 @@ class BalanceHistoryServiceImpl(
       val alignedEnd = actualEnd.truncateTo(range.interval)
       val alignedStart = alignedEnd - range.duration
 
-      // Extend the range to include transactions up to the current time
-      val extendedEnd = if (actualEnd > alignedEnd) {
-        alignedEnd + range.interval
-      } else {
-        alignedEnd
-      }
-
-      val rangeIntervals = generateRangeIntervals(alignedStart, extendedEnd, range.interval)
+      // Generate aligned intervals, then add actualEnd to capture recent transactions
+      val rangeIntervals = generateRangeIntervals(alignedStart, alignedEnd, range.interval)
+        .let { intervals ->
+          if (actualEnd > alignedEnd) intervals + actualEnd else intervals
+        }
 
       try {
         val fiatCurrency = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.first()

@@ -33,4 +33,9 @@ enum class CreateAccountClientErrorCode : F8eClientErrorCode {
    * the account was set up with, they'll run into the above error.
    */
   APP_AUTH_PUBKEY_IN_USE,
+
+  /**
+   * Indicates that account is already a full account.
+   */
+  CONFLICT,
 }

@@ -808,7 +808,8 @@ TwitterCompose:
       LocalSheetCloser,
       LocalIsPreviewTheme,
       LocalDeviceInfo,
-      LocalAccelerometer
+      LocalAccelerometer,
+      LocalHaptics,
   CompositionLocalNaming:
     active: true
   ContentEmitterReturningValues:

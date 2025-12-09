@@ -1,8 +1,8 @@
-import BitcoinDevKit
+import BitcoinDevKitLegacy
 import Shared
 
 /**
- * Executes given `body` block while catching any `BitcoinDevKit.BdkError` and maps result to
+ * Executes given `body` block while catching any `BitcoinDevKitLegacy.BdkError` and maps result to
  * `Shared.BdkResultOk` or `Shared.BdkResultErr`. Should not be used with any blocks that throw
  * non `BdkError`s.
  */

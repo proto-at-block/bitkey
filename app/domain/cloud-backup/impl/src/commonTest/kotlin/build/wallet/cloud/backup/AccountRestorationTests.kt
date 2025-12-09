@@ -20,79 +20,91 @@ import io.kotest.matchers.shouldBe
 
 class AccountRestorationTests : FunSpec({
 
-  val baseAccountRestoration = AccountRestoration(
-    activeSpendingKeyset = SpendingKeysetMock,
-    keysets = listOf(SpendingKeysetMock),
-    activeAppKeyBundle = AppKeyBundle(
-      localId = "app-key-bundle-id",
-      spendingKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "spending-dpub")),
-      authKey = PublicKey("auth-dpub"),
-      networkType = TESTNET,
-      recoveryAuthKey = AppRecoveryAuthPublicKeyMock
-    ),
-    activeHwKeyBundle = HwKeyBundleMock,
-    config = FullAccountConfig(
-      isHardwareFake = false,
-      bitcoinNetworkType = SIGNET,
-      f8eEnvironment = Development,
-      isTestAccount = false,
-      isUsingSocRecFakes = false,
-      hardwareType = HardwareType.W1
-    ),
-    cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock,
-    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
-  )
+  context("parameterized tests for all backup versions") {
+    AllFullAccountBackupMocks.forEach { backup ->
+      val backupVersion = when (backup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
+      }
 
-  test("asKeybox creates correct Keybox with all fields mapped properly") {
-    val keyboxId = "test-keybox-id"
-    val fullAccountId = FullAccountId("test-account-id")
+      context("backup $backupVersion") {
+        val baseAccountRestoration = AccountRestoration(
+          activeSpendingKeyset = SpendingKeysetMock,
+          keysets = listOf(SpendingKeysetMock),
+          activeAppKeyBundle = AppKeyBundle(
+            localId = "app-key-bundle-id",
+            spendingKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "spending-dpub")),
+            authKey = PublicKey("auth-dpub"),
+            networkType = TESTNET,
+            recoveryAuthKey = AppRecoveryAuthPublicKeyMock
+          ),
+          activeHwKeyBundle = HwKeyBundleMock,
+          config = FullAccountConfig(
+            isHardwareFake = false,
+            bitcoinNetworkType = SIGNET,
+            f8eEnvironment = Development,
+            isTestAccount = false,
+            isUsingSocRecFakes = false,
+            hardwareType = HardwareType.W1
+          ),
+          cloudBackupForLocalStorage = backup as CloudBackup,
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
+        )
 
-    val keybox = baseAccountRestoration.asKeybox(
-      keyboxId = keyboxId,
-      fullAccountId = fullAccountId
-    )
+        test("asKeybox creates correct Keybox with all fields mapped properly") {
+          val keyboxId = "test-keybox-id"
+          val fullAccountId = FullAccountId("test-account-id")
 
-    keybox.localId.shouldBe(keyboxId)
-    keybox.fullAccountId.shouldBe(fullAccountId)
-    keybox.activeSpendingKeyset.shouldBe(baseAccountRestoration.activeSpendingKeyset)
-    keybox.activeAppKeyBundle.shouldBe(baseAccountRestoration.activeAppKeyBundle)
-    keybox.activeHwKeyBundle.shouldBe(baseAccountRestoration.activeHwKeyBundle)
-    keybox.config.shouldBe(baseAccountRestoration.config)
-    keybox.keysets.shouldBe(baseAccountRestoration.keysets)
-    keybox.appGlobalAuthKeyHwSignature.shouldBe(baseAccountRestoration.appGlobalAuthKeyHwSignature)
-  }
+          val keybox = baseAccountRestoration.asKeybox(
+            keyboxId = keyboxId,
+            fullAccountId = fullAccountId
+          )
 
-  test("asKeybox sets canUseKeyboxKeysets to true when keysets is not empty") {
-    val keyboxId = "test-keybox-id"
-    val fullAccountId = FullAccountId("test-account-id")
+          keybox.localId.shouldBe(keyboxId)
+          keybox.fullAccountId.shouldBe(fullAccountId)
+          keybox.activeSpendingKeyset.shouldBe(baseAccountRestoration.activeSpendingKeyset)
+          keybox.activeAppKeyBundle.shouldBe(baseAccountRestoration.activeAppKeyBundle)
+          keybox.activeHwKeyBundle.shouldBe(baseAccountRestoration.activeHwKeyBundle)
+          keybox.config.shouldBe(baseAccountRestoration.config)
+          keybox.keysets.shouldBe(baseAccountRestoration.keysets)
+          keybox.appGlobalAuthKeyHwSignature.shouldBe(baseAccountRestoration.appGlobalAuthKeyHwSignature)
+        }
 
-    val accountRestorationWithKeysets = baseAccountRestoration.copy(
-      keysets = listOf(SpendingKeysetMock)
-    )
+        test("asKeybox sets canUseKeyboxKeysets to true when keysets is not empty") {
+          val keyboxId = "test-keybox-id"
+          val fullAccountId = FullAccountId("test-account-id")
 
-    val keybox = accountRestorationWithKeysets.asKeybox(
-      keyboxId = keyboxId,
-      fullAccountId = fullAccountId
-    )
+          val accountRestorationWithKeysets = baseAccountRestoration.copy(
+            keysets = listOf(SpendingKeysetMock)
+          )
 
-    keybox.canUseKeyboxKeysets.shouldBe(true)
-    keybox.keysets.shouldBe(listOf(SpendingKeysetMock))
-  }
+          val keybox = accountRestorationWithKeysets.asKeybox(
+            keyboxId = keyboxId,
+            fullAccountId = fullAccountId
+          )
 
-  test("asKeybox sets canUseKeyboxKeysets to false and uses active keyset when keysets is empty") {
-    val keyboxId = "test-keybox-id"
-    val fullAccountId = FullAccountId("test-account-id")
+          keybox.canUseKeyboxKeysets.shouldBe(true)
+          keybox.keysets.shouldBe(listOf(SpendingKeysetMock))
+        }
 
-    val accountRestorationWithoutKeysets = baseAccountRestoration.copy(
-      keysets = emptyList()
-    )
+        test("asKeybox sets canUseKeyboxKeysets to false and uses active keyset when keysets is empty") {
+          val keyboxId = "test-keybox-id"
+          val fullAccountId = FullAccountId("test-account-id")
 
-    val keybox = accountRestorationWithoutKeysets.asKeybox(
-      keyboxId = keyboxId,
-      fullAccountId = fullAccountId
-    )
+          val accountRestorationWithoutKeysets = baseAccountRestoration.copy(
+            keysets = emptyList()
+          )
 
-    keybox.canUseKeyboxKeysets.shouldBe(false)
-    keybox.keysets.shouldBe(listOf(SpendingKeysetMock))
+          val keybox = accountRestorationWithoutKeysets.asKeybox(
+            keyboxId = keyboxId,
+            fullAccountId = fullAccountId
+          )
+
+          keybox.canUseKeyboxKeysets.shouldBe(false)
+          keybox.keysets.shouldBe(listOf(SpendingKeysetMock))
+        }
+      }
+    }
   }
 })

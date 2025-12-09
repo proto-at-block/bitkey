@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
  */
 @Suppress("TooManyFunctions")
 interface FingerprintResetService :
-  PrivilegedActionService<FingerprintResetRequest, FingerprintResetResponse> {
+  DirectPrivilegedActionService<FingerprintResetRequest, FingerprintResetResponse> {
   /**
    * Create a fingerprint reset privileged action using a GrantRequest
    */

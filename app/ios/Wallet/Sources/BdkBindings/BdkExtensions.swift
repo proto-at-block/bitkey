@@ -1,4 +1,4 @@
-import BitcoinDevKit
+import BitcoinDevKitLegacy
 import Foundation
 import Shared
 

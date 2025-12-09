@@ -4,6 +4,7 @@ import bitkey.serialization.json.decodeFromStringResult
 import bitkey.serialization.json.encodeToStringResult
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
@@ -15,6 +16,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.orElse
 import com.russhwolf.settings.coroutines.SuspendSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -40,6 +42,7 @@ class CloudBackupDaoImpl(
     backup: CloudBackup,
   ): Result<Unit, BackupStorageError> {
     return when (backup) {
+      is CloudBackupV3 -> Json.encodeToStringResult(backup)
       is CloudBackupV2 -> Json.encodeToStringResult(backup)
     }
       .mapError { error -> BackupStorageError(error) }
@@ -63,8 +66,9 @@ class CloudBackupDaoImpl(
 
       if (backupJson == null) return@coroutineBinding null
 
-      // When V3 is added, try V3 first then fall back to V2. See the cloud backup README.md.
-      Json.decodeFromStringResult<CloudBackupV2>(backupJson)
+      // Try V3 first, then fall back to V2. See the cloud backup README.md.
+      Json.decodeFromStringResult<CloudBackupV3>(backupJson)
+        .orElse { Json.decodeFromStringResult<CloudBackupV2>(backupJson) }
         .mapError(::BackupStorageError)
         .bind()
     }

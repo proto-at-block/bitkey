@@ -33,6 +33,7 @@ import bitkey.ui.features_public.generated.resources.*
 import build.wallet.Progress
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.platform.haptics.Haptics
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
@@ -75,6 +76,7 @@ data class SecurityHubBodyModel(
   val onRecommendationClick: (SecurityActionRecommendation) -> Unit,
   val onSecurityActionClick: (SecurityAction) -> Unit,
   val onHomeTabClick: () -> Unit,
+  val haptics: Haptics? = null,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = EventTrackerScreenInfo(
     eventTrackerScreenId = SecurityHubEventTrackerScreenId.SECURITY_HUB_SCREEN
   ),
@@ -261,7 +263,10 @@ private fun RecommendationList(
       Divider(modifier = Modifier.fillMaxWidth(), thickness = 2.dp)
       recommendations.mapIndexed { index, recommendation ->
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-          RecommendationRow(recommendation, onRecommendationClick = onRecommendationClick)
+          RecommendationRow(
+            recommendation = recommendation,
+            onRecommendationClick = onRecommendationClick
+          )
           if (index != recommendations.lastIndex) {
             Divider(modifier = Modifier.fillMaxWidth())
           }

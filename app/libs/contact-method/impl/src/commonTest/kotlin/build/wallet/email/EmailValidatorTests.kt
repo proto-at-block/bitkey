@@ -33,7 +33,8 @@ class EmailValidatorTests : FunSpec({
       "email@example@example.com",
       "あいうえお@example.com",
       " email@example.com (Joe Smith)",
-      "email@example..com"
+      "email@example..com",
+      "firstname@co"
     )
 
   test("valid email addresses are all valid") {

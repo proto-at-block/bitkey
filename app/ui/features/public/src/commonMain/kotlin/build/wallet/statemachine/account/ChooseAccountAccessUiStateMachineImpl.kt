@@ -236,7 +236,7 @@ class ChooseAccountAccessUiStateMachineImpl(
     }
 
     return LoadingBodyModel(
-      message = "Discovering recoverable accounts...",
+      title = "Discovering recoverable accounts...",
       id = null
     ).asRootScreen()
   }
@@ -302,17 +302,17 @@ class ChooseAccountAccessUiStateMachineImpl(
 
     return when (uiState) {
       OrphanedKeyRecoveryUiState.Recovering -> LoadingBodyModel(
-        message = "Recovering your wallet...",
+        title = "Recovering your wallet...",
         id = null
       ).asRootScreen()
 
       OrphanedKeyRecoveryUiState.Success -> LoadingBodyModel(
-        message = "Recovery successful!",
+        title = "Recovery successful!",
         id = null
       ).asRootScreen()
 
       else -> LoadingBodyModel(
-        message = "Recovery failed",
+        title = "Recovery failed",
         id = null
       ).asRootScreen()
     }

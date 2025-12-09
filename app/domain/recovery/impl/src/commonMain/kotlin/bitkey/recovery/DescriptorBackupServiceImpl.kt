@@ -32,7 +32,6 @@ import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.flags.DescriptorBackupFailsafeFeatureFlag
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
@@ -56,7 +55,6 @@ class DescriptorBackupServiceImpl(
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val updateDescriptorBackupsF8eClient: UpdateDescriptorBackupsF8eClient,
   private val accountService: AccountService,
-  private val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
   private val descriptorBackupFailsafeFeatureFlag: DescriptorBackupFailsafeFeatureFlag,
   private val descriptorBackupVerificationDao: DescriptorBackupVerificationDao,
   bitcoinWalletService: BitcoinWalletService,
@@ -677,11 +675,6 @@ class DescriptorBackupServiceImpl(
   private suspend fun ensureActiveKeysetHasDescriptorBackup(): Result<Unit, Error> {
     return coroutineBinding {
       logInfo { "Ensuring descriptor backup exists for active keyset" }
-
-      // Check feature flag first
-      if (!encryptedDescriptorBackupsFeatureFlag.isEnabled()) {
-        return@coroutineBinding
-      }
 
       // Get current account
       val account = accountService.getAccountOrNull<FullAccount>()

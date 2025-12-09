@@ -24,8 +24,6 @@ import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.onboarding.OnboardingF8eClient
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId
 import build.wallet.home.GettingStartedTask.TaskState
@@ -64,7 +62,6 @@ class OnboardFullAccountServiceImpl(
   private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val eventTracker: EventTracker,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
-  private val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
 ) : OnboardFullAccountService {
   override suspend fun createAppKeys(): Result<WithAppKeys, Throwable> =
     coroutineBinding {
@@ -168,9 +165,7 @@ class OnboardFullAccountServiceImpl(
       // Set the sealed CSEK and sealed SSEK so we have them available once the keybox is created
       // and the data state machine transitions
       onboardingKeyboxSealedCsekDao.set(sealedCsek).bind()
-      if (encryptedDescriptorBackupsFeatureFlag.isEnabled()) {
-        onboardingKeyboxSealedSsekDao.set(sealedSsek).bind()
-      }
+      onboardingKeyboxSealedSsekDao.set(sealedSsek).bind()
       // Save the hw auth public key in case we find a lite account backup and need to
       // go through lite => full account upgrade instead. Saving this pub key will allow
       // us to save a tap later.

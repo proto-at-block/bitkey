@@ -34,5 +34,9 @@ http_server = { workspace = true }
 repository = { workspace = true, features = ["encrypted_attachment"] }
 types = { workspace = true, features = ["encrypted_attachment"] }
 
+[dev-dependencies]
+tokio = { workspace = true }
+wiremock = { workspace = true }
+
 [lints]
 workspace = true

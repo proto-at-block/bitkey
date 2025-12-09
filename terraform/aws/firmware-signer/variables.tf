@@ -65,3 +65,9 @@ variable "w3_uxc_imported_key_id" {
   type    = string
   default = null
 }
+
+variable "force_lambda_update" {
+  description = "Force Lambda functions to update by pulling the latest image. Use when you've pushed new images to ECR with the same tag."
+  type        = bool
+  default     = false
+}

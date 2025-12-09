@@ -10,7 +10,7 @@ class EmailValidatorImpl : EmailValidator {
    * https://html.spec.whatwg.org/multipage/input.html#input.email.attrs.value.multiple
    */
   private val emailPattern =
-    "^[a-zA-Z0-9.!#\$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*\$"
+    "^[a-zA-Z0-9.!#\$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)+\$"
 
   override fun validateEmail(email: Email): Boolean {
     return emailPattern.toRegex().matches(email.value.trim())

@@ -1,13 +1,13 @@
-import BitcoinDevKit
+import BitcoinDevKitLegacy
 import Shared
 
 extension Shared.BdkError {
 
     /**
-     * Maps `BitcoinDevKit.BdkError` type from `bdk-swift` to KMP `Shared.BdkError` type.
+     * Maps `BitcoinDevKitLegacy.BdkError` type from `bdk-swift` to KMP `Shared.BdkError` type.
      */
     static func create(_ error: Error) -> Shared.BdkError {
-        let bdkError = error as! BitcoinDevKit.BdkError
+        let bdkError = error as! BitcoinDevKitLegacy.BdkError
         // Convert Swift Error to Kotlin Throwable.
         let throwable = NSErrorKt.asThrowable(error)
 

@@ -223,7 +223,7 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
   private fun importingBackupScreen(): LoadingSuccessBodyModel =
     LoadingBodyModel(
       onBack = null,
-      message = "Importing Emergency Exit Kit backup...",
+      title = "Importing Emergency Exit Kit backup...",
       id = EmergencyAccessKitTrackerScreenId.LOADING_BACKUP
     )
 

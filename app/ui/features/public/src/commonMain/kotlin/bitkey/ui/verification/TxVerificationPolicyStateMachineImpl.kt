@@ -7,6 +7,7 @@ import bitkey.verification.VerificationThreshold
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -50,13 +51,31 @@ class TxVerificationPolicyStateMachineImpl(
 
     when (val current = viewState) {
       is State.Updating -> LaunchedEffect("Update Policy") {
-        withMinimumDelay(minimumLoadingDuration.value) {
+        val result = withMinimumDelay(minimumLoadingDuration.value) {
           txVerificationService.updateThreshold(
-            TxVerificationPolicy.Active(current.threshold),
-            current.hwFactorProofOfPossession
+            policy = TxVerificationPolicy.Active(current.threshold),
+            amountBtc = current.amountBtc,
+            hwFactorProofOfPossession = current.hwFactorProofOfPossession
           )
         }
-        viewState = State.Overview
+        result.onSuccess { policy ->
+          viewState = when (policy) {
+            is TxVerificationPolicy.Active -> State.Overview
+            is TxVerificationPolicy.Pending -> State.AwaitingApproval(
+              policy = policy,
+              threshold = current.threshold,
+              amountBtc = current.amountBtc,
+              hwFactorProofOfPossession = current.hwFactorProofOfPossession
+            )
+          }
+        }.onFailure { error ->
+          viewState = State.UpdateError(
+            error = error,
+            threshold = current.threshold,
+            amountBtc = current.amountBtc,
+            hwFactorProofOfPossession = current.hwFactorProofOfPossession
+          )
+        }
       }
       else -> {}
     }
@@ -65,7 +84,10 @@ class TxVerificationPolicyStateMachineImpl(
       viewState = if (enable) {
         State.ChooseEnabledType
       } else {
-        State.HardwareConfirmation(VerificationThreshold.Always)
+        State.HardwareConfirmation(
+          threshold = VerificationThreshold.Disabled,
+          amountBtc = null
+        )
       }
     }
 
@@ -86,7 +108,10 @@ class TxVerificationPolicyStateMachineImpl(
             viewState = State.Overview
           },
           onAlwaysClick = {
-            viewState = State.HardwareConfirmation(VerificationThreshold.Always)
+            viewState = State.HardwareConfirmation(
+              threshold = VerificationThreshold.Always,
+              amountBtc = BitcoinMoney.zero()
+            )
           },
           onAboveAmountClick = {
             viewState = State.EnterAmount
@@ -114,9 +139,10 @@ class TxVerificationPolicyStateMachineImpl(
               onBack = { viewState = State.ChooseEnabledType },
               onConfirmClick = {
                 viewState = State.HardwareConfirmation(
-                  VerificationThreshold(
+                  threshold = VerificationThreshold.Enabled(
                     amount = moneyInputModel.primaryAmount
-                  )
+                  ),
+                  amountBtc = moneyInputModel.secondaryAmount as BitcoinMoney
                 )
               },
               model = moneyInputModel
@@ -128,7 +154,11 @@ class TxVerificationPolicyStateMachineImpl(
         props = ProofOfPossessionNfcProps(
           request = Request.HwKeyProof(
             onSuccess = { hwFactorProofOfPossession ->
-              viewState = State.Updating(current.threshold, hwFactorProofOfPossession)
+              viewState = State.Updating(
+                threshold = current.threshold,
+                amountBtc = current.amountBtc,
+                hwFactorProofOfPossession = hwFactorProofOfPossession
+              )
             }
           ),
           fullAccountId = props.account.accountId,
@@ -148,6 +178,30 @@ class TxVerificationPolicyStateMachineImpl(
           }
         )
       )
+      is State.AwaitingApproval -> ApproveLimitBodyModel(
+        onResendEmail = {
+          viewState = State.HardwareConfirmation(
+            threshold = current.threshold,
+            amountBtc = current.amountBtc
+          )
+        },
+        onCancel = {
+          viewState = State.Overview
+        }
+      ).asRootScreen()
+      is State.UpdateError -> PolicyUpdateFailureBody(
+        error = current.error,
+        onRetry = {
+          viewState = State.Updating(
+            threshold = current.threshold,
+            amountBtc = current.amountBtc,
+            hwFactorProofOfPossession = current.hwFactorProofOfPossession
+          )
+        },
+        onExit = {
+          viewState = State.Overview
+        }
+      ).asRootScreen()
     }
   }
 
@@ -205,15 +259,39 @@ class TxVerificationPolicyStateMachineImpl(
     data object EnterAmount : State
 
     /**
+     * Waiting screen displayed while waiting for an out-of-band approval to complete.
+     */
+    data class AwaitingApproval(
+      val policy: TxVerificationPolicy.Pending,
+      val threshold: VerificationThreshold,
+      val amountBtc: BitcoinMoney?,
+      val hwFactorProofOfPossession: HwFactorProofOfPossession,
+    ) : State
+
+    /**
      * Hardware proof-of-possession confirmation screen.
      */
-    data class HardwareConfirmation(val threshold: VerificationThreshold) : State
+    data class HardwareConfirmation(
+      val threshold: VerificationThreshold,
+      val amountBtc: BitcoinMoney?,
+    ) : State
 
     /**
      * Loading indicator while the transaction verification policy is being updated on F8e.
      */
     data class Updating(
       val threshold: VerificationThreshold,
+      val amountBtc: BitcoinMoney?,
+      val hwFactorProofOfPossession: HwFactorProofOfPossession,
+    ) : State
+
+    /**
+     * Error screen displayed when the policy update fails.
+     */
+    data class UpdateError(
+      val error: Error,
+      val threshold: VerificationThreshold,
+      val amountBtc: BitcoinMoney?,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,
     ) : State
   }

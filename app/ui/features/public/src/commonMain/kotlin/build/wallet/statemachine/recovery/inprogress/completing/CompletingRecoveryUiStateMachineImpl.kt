@@ -153,7 +153,7 @@ class CompletingRecoveryUiStateMachineImpl(
 
       is RotatingAuthKeysWithF8eData ->
         LoadingBodyModel(
-          message = "Updating your credentials...",
+          title = "Updating your credentials...",
           id =
             props.completingRecoveryData.physicalFactor.getEventId(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
@@ -164,7 +164,7 @@ class CompletingRecoveryUiStateMachineImpl(
 
       is CheckingCompletionAttemptData ->
         LoadingBodyModel(
-          message = "Checking recovery status...",
+          title = "Checking recovery status...",
           id =
             props.completingRecoveryData.physicalFactor.getEventId(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
@@ -185,7 +185,7 @@ class CompletingRecoveryUiStateMachineImpl(
 
       is FetchingSealedDelegatedDecryptionKeyFromF8eData ->
         LoadingBodyModel(
-          message = "Fetching recovery data...",
+          title = "Fetching recovery data...",
           id =
             props.completingRecoveryData.physicalFactor.getEventId(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
@@ -196,7 +196,7 @@ class CompletingRecoveryUiStateMachineImpl(
 
       is RemovingTrustedContactsData ->
         LoadingBodyModel(
-          message = "Removing Recovery Contacts...",
+          title = "Removing Recovery Contacts...",
           id =
             props.completingRecoveryData.physicalFactor.getEventId(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
@@ -252,7 +252,7 @@ class CompletingRecoveryUiStateMachineImpl(
 
       is CreatingSpendingKeysWithF8EData ->
         LoadingBodyModel(
-          message = "Creating your keys...",
+          title = "Creating your keys...",
           id =
             props.completingRecoveryData.physicalFactor.getEventId(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS,
@@ -287,7 +287,7 @@ class CompletingRecoveryUiStateMachineImpl(
         ).asScreen(props.presentationStyle)
 
       is ActivatingSpendingKeysetData -> LoadingBodyModel(
-        message = "Activating your keys...",
+        title = "Activating your keys...",
         id =
           props.completingRecoveryData.physicalFactor.getEventId(
             DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS,
@@ -440,7 +440,7 @@ class CompletingRecoveryUiStateMachineImpl(
 
       is PerformingDdkBackupData ->
         LoadingBodyModel(
-          message = "Updating backup...",
+          title = "Updating backup...",
           id =
             props.completingRecoveryData.physicalFactor.getEventId(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_DDK_UPLOAD,
@@ -549,7 +549,7 @@ private fun uploadingDescriptorBackupsLoadingModel(
   physicalFactor: PhysicalFactor,
   presentationStyle: ScreenPresentationStyle,
 ) = LoadingBodyModel(
-  message = "Updating backup...",
+  title = "Updating backup...",
   id = physicalFactor.getEventId(
     DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ENCRYPTED_DESCRIPTOR_UPLOAD,
     HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ENCRYPTED_DESCRIPTOR_UPLOAD

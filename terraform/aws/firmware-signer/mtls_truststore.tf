@@ -40,7 +40,7 @@ resource "aws_s3_object" "mtls_cert_truststore" {
   content_type = "application/x-pem-file"
 
   # Use content hash for change detection instead of file hash
-  etag = md5(local.combined_certs)
+  source_hash = md5(local.combined_certs)
 
   # Ensure bucket encryption is configured first
   depends_on = [

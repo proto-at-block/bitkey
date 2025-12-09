@@ -201,7 +201,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
         }
 
         LoadingBodyModel(
-          message = SAVING_BACKUP_MESSAGE,
+          title = SAVING_BACKUP_MESSAGE,
           onBack = {
             props.onBackupFailed(null)
           },
@@ -400,7 +400,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
     )
 
     return LoadingBodyModel(
-      message = SAVING_BACKUP_MESSAGE,
+      title = SAVING_BACKUP_MESSAGE,
       onBack = onBack,
       id = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING
     )

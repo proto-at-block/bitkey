@@ -1,5 +1,6 @@
 package bitkey.f8e.privilegedactions
 
+import bitkey.privilegedactions.AuthorizationStrategy.*
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
@@ -38,24 +39,6 @@ interface PrivilegedActionsF8eClient<Req, Res> {
         }
       }.map { body -> body.privilegedActionInstances }
   }
-
-  /**
-   * Create a privileged action instance
-   */
-  suspend fun createPrivilegedAction(
-    f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
-    request: Req,
-  ): Result<PrivilegedActionInstance, Throwable>
-
-  /**
-   * Continue a privileged action instance after it's authorized
-   */
-  suspend fun continuePrivilegedAction(
-    f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
-    request: ContinuePrivilegedActionRequest,
-  ): Result<Res, Throwable>
 
   /**
    * Cancel a privileged action instance
@@ -112,6 +95,7 @@ data class Authorization(
 @Serializable
 enum class PrivilegedActionType {
   RESET_FINGERPRINT,
+  LOOSEN_TRANSACTION_VERIFICATION_POLICY,
 }
 
 /**
@@ -153,6 +137,7 @@ data class PrivilegedActionInstanceResponse(
 enum class AuthorizationStrategyType {
   DELAY_AND_NOTIFY,
   HARDWARE_PROOF_OF_POSSESSION,
+  OUT_OF_BAND,
 }
 
 /**
@@ -182,6 +167,13 @@ sealed class AuthorizationStrategy {
     @SerialName("completion_token")
     val completionToken: String,
   ) : AuthorizationStrategy()
+
+  @Serializable
+  @SerialName("OUT_OF_BAND")
+  data class OutOfBand(
+    @SerialName("authorization_strategy_type")
+    override val authorizationStrategyType: AuthorizationStrategyType,
+  ) : AuthorizationStrategy()
 }
 
 /**
@@ -198,12 +190,15 @@ fun PrivilegedActionInstance.toPrimitive(): bitkey.privilegedactions.PrivilegedA
     id = id,
     privilegedActionType = privilegedActionType.toPrimitive(),
     authorizationStrategy = when (authorizationStrategy) {
-      is AuthorizationStrategy.DelayAndNotify -> bitkey.privilegedactions.AuthorizationStrategy.DelayAndNotify(
+      is AuthorizationStrategy.DelayAndNotify -> DelayAndNotify(
         authorizationStrategyType = authorizationStrategy.authorizationStrategyType.toPrimitive(),
         delayStartTime = authorizationStrategy.delayStartTime,
         delayEndTime = authorizationStrategy.delayEndTime,
         cancellationToken = authorizationStrategy.cancellationToken,
         completionToken = authorizationStrategy.completionToken
+      )
+      is AuthorizationStrategy.OutOfBand -> OutOfBand(
+        authorizationStrategyType = authorizationStrategy.authorizationStrategyType.toPrimitive()
       )
     }
   )
@@ -212,6 +207,7 @@ fun PrivilegedActionInstance.toPrimitive(): bitkey.privilegedactions.PrivilegedA
 fun PrivilegedActionType.toPrimitive(): bitkey.privilegedactions.PrivilegedActionType {
   return when (this) {
     PrivilegedActionType.RESET_FINGERPRINT -> bitkey.privilegedactions.PrivilegedActionType.RESET_FINGERPRINT
+    PrivilegedActionType.LOOSEN_TRANSACTION_VERIFICATION_POLICY -> bitkey.privilegedactions.PrivilegedActionType.LOOSEN_TRANSACTION_VERIFICATION_POLICY
   }
 }
 
@@ -219,5 +215,6 @@ fun AuthorizationStrategyType.toPrimitive(): bitkey.privilegedactions.Authorizat
   return when (this) {
     AuthorizationStrategyType.DELAY_AND_NOTIFY -> bitkey.privilegedactions.AuthorizationStrategyType.DELAY_AND_NOTIFY
     AuthorizationStrategyType.HARDWARE_PROOF_OF_POSSESSION -> bitkey.privilegedactions.AuthorizationStrategyType.HARDWARE_PROOF_OF_POSSESSION
+    AuthorizationStrategyType.OUT_OF_BAND -> bitkey.privilegedactions.AuthorizationStrategyType.OUT_OF_BAND
   }
 }

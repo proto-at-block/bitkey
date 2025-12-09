@@ -81,7 +81,7 @@ class RecoveryChallengeUiStateMachineImpl(
           startOrResumeChallenge(props, setState = { state = it })
         }
         LoadingBodyModel(
-          message = START_SOCIAL_RECOVERY_MESSAGE,
+          title = START_SOCIAL_RECOVERY_MESSAGE,
           id = SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING,
           onBack = props.onExit
         ).asRootScreen()
@@ -209,7 +209,7 @@ class RecoveryChallengeUiStateMachineImpl(
           }
         }
         LoadingBodyModel(
-          message = "Completing Recovery...",
+          title = "Completing Recovery...",
           id = SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_RESTORE_APP_KEY
         ).asRootScreen()
       }

@@ -2,10 +2,8 @@
 
 set -euo pipefail
 
-echo "Hermit clean"
-source bin/activate-hermit
-hermit clean --packages
-hermit update
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+"$SCRIPT_DIR"/EnsureGitLFS
 
 app/ios/Scripts/CI/FetchBuildVariables "$1"
 

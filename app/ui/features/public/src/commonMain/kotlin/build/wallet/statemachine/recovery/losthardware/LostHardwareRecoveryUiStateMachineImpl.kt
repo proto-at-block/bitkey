@@ -8,6 +8,8 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataProps
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.recovery.RecoveryInProgressUiProps
 import build.wallet.statemachine.recovery.RecoveryInProgressUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryProps
@@ -18,9 +20,16 @@ class LostHardwareRecoveryUiStateMachineImpl(
   private val initiatingLostHardwareRecoveryUiStateMachine:
     InitiatingLostHardwareRecoveryUiStateMachine,
   private val recoveryInProgressUiStateMachine: RecoveryInProgressUiStateMachine,
+  private val lostHardwareRecoveryDataStateMachine: LostHardwareRecoveryDataStateMachine,
 ) : LostHardwareRecoveryUiStateMachine {
   @Composable
   override fun model(props: LostHardwareRecoveryProps): ScreenModel {
+    val lostHardwareRecoveryData = lostHardwareRecoveryDataStateMachine.model(
+      props = LostHardwareRecoveryDataProps(
+        account = props.account
+      )
+    )
+
     /**
      * We use this to manually track if this flow was previously in a recovery
      * when it transitions to [InitiatingLostHardwareRecoveryData] because that indicates that the
@@ -37,7 +46,7 @@ class LostHardwareRecoveryUiStateMachineImpl(
      */
     var recoveryWasInProgress by remember { mutableStateOf(false) }
 
-    return when (val lostHardwareRecoveryData = props.lostHardwareRecoveryData) {
+    return when (lostHardwareRecoveryData) {
       LostHardwareRecoveryData.LostHardwareRecoveryNotStarted -> {
         if (recoveryWasInProgress) {
           // Exit since the recovery has been resolved. See documentation on this variable.

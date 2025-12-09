@@ -31,12 +31,11 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.ServerRecovery
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.fwup.semverToInt
 import build.wallet.ktor.result.HttpError
+import build.wallet.logging.logInfo
 import build.wallet.nfc.transaction.*
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.CancelDelayNotifyRecoveryError
@@ -118,7 +117,6 @@ class RecoveryInProgressDataStateMachineImpl(
   private val minimumLoadingDuration: MinimumLoadingDuration,
   private val accountConfigService: AccountConfigService,
   private val descriptorBackupService: DescriptorBackupService,
-  private val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
   private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
   private val minFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
   private val firmwareDataService: FirmwareDataService,
@@ -291,14 +289,15 @@ class RecoveryInProgressDataStateMachineImpl(
         LaunchedEffect("cancelling-recovery") {
           delayNotifyService.cancelDelayNotify(dataState.cancellationRequest)
             .onFailure { error ->
-              state = if (error is CancelDelayNotifyRecoveryError && error.isNeedsCommsVerificationError()) {
-                VerifyingNotificationCommsForCancellationState
-              } else {
-                FailedToCancelRecoveryState(
-                  cause = error,
-                  isNetworkError = error.isNetworkError()
-                )
-              }
+              state =
+                if (error is CancelDelayNotifyRecoveryError && error.isNeedsCommsVerificationError()) {
+                  VerifyingNotificationCommsForCancellationState
+                } else {
+                  FailedToCancelRecoveryState(
+                    cause = error,
+                    isNetworkError = error.isNetworkError()
+                  )
+                }
             }
         }
 
@@ -523,22 +522,21 @@ class RecoveryInProgressDataStateMachineImpl(
             hardwareProofOfPossession = dataState.hardwareProofOfPossession
           )
             .onSuccess { f8eSpendingKeyset ->
-              state =
-                if (encryptedDescriptorBackupsFeatureFlag.isEnabled() && dataState.sealedSsek != null) {
-                  ProcessingDescriptorBackupsState(
-                    sealedCsek = dataState.sealedCsek,
-                    sealedSsek = dataState.sealedSsek,
-                    f8eSpendingKeyset = f8eSpendingKeyset,
-                    hardwareProofOfPossession = dataState.hardwareProofOfPossession
-                  )
-                } else {
-                  ActivatingSpendingKeysetState(
-                    sealedCsek = dataState.sealedCsek,
-                    f8eSpendingKeyset = f8eSpendingKeyset,
-                    hardwareProofOfPossession = dataState.hardwareProofOfPossession,
-                    keysetState = Incomplete
-                  )
-                }
+              state = if (dataState.sealedSsek != null) {
+                ProcessingDescriptorBackupsState(
+                  sealedCsek = dataState.sealedCsek,
+                  sealedSsek = dataState.sealedSsek,
+                  f8eSpendingKeyset = f8eSpendingKeyset,
+                  hardwareProofOfPossession = dataState.hardwareProofOfPossession
+                )
+              } else {
+                ActivatingSpendingKeysetState(
+                  sealedCsek = dataState.sealedCsek,
+                  f8eSpendingKeyset = f8eSpendingKeyset,
+                  hardwareProofOfPossession = dataState.hardwareProofOfPossession,
+                  keysetState = Incomplete
+                )
+              }
             }
             .onFailure { error ->
               state = FailedToCreateSpendingKeysState(
@@ -1072,7 +1070,10 @@ class RecoveryInProgressDataStateMachineImpl(
    */
   private fun calculateInitialState(recovery: StillRecovering): State {
     return when (recovery) {
-      is InitiatedRecovery -> when (val remainingDelayPeriod = recovery.serverRecovery.remainingDelayPeriod()) {
+      is InitiatedRecovery -> when (
+        val remainingDelayPeriod =
+          recovery.serverRecovery.remainingDelayPeriod()
+      ) {
         Duration.ZERO -> ReadyToCompleteRecoveryState
         else -> WaitingForDelayPeriodState(
           remainingDelayPeriod = remainingDelayPeriod,
@@ -1111,16 +1112,19 @@ class RecoveryInProgressDataStateMachineImpl(
         }
       }
 
-      is CreatedSpendingKeys -> if (encryptedDescriptorBackupsFeatureFlag.isEnabled() && recovery.sealedSsek != null) {
+      is CreatedSpendingKeys -> if (recovery.sealedSsek != null) {
         AwaitingHardwareProofOfPossessionForDescriptorBackupsState(
           sealedCsek = recovery.sealedCsek,
           sealedSsek = recovery.sealedSsek!!,
           f8eSpendingKeyset = recovery.f8eSpendingKeyset
         )
       } else {
-        // Feature flag is disabled or sealedSsek is null (app update during recovery)
-        // Since we don't have the hardware proof of possession stored in recovery state,
-        // we need to get it again
+        // The sealedSsek can only be null if the recovery was started before the descriptor
+        // backups feature was enabled. Log this case so we can force cast to non-null eventually.
+        logInfo {
+          "sealedSsek is null for recovery, meaning the recovery started before descriptor " +
+            "backups was released"
+        }
         AwaitingHardwareProofOfPossessionForActivationState(
           sealedCsek = recovery.sealedCsek,
           f8eSpendingKeyset = recovery.f8eSpendingKeyset,

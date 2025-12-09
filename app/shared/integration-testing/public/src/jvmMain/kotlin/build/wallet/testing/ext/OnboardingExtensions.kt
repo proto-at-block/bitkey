@@ -10,7 +10,6 @@ import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment.Staging
-import build.wallet.feature.isEnabled
 import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.testing.AppTester
 import com.github.michaelbull.result.getOrThrow
@@ -26,11 +25,14 @@ import kotlin.time.Duration.Companion.seconds
  *
  * @param shouldSetUpNotifications Whether the account should be set up with
  * notifications as part of onboarding. If true, the F8eEnvironment will be [Staging].
+ * @param shouldUploadDescriptorBackups Whether descriptor backups should be uploaded. Set this to
+ * false to test accounts created prior to descriptor backups being introduced.
  * @param cloudStoreAccountForBackup If provided, the fake cloud store account instance to use
  * for backing up the keybox. If none is provided, the keybox will not be backed up.
  */
 suspend fun AppTester.onboardFullAccountWithFakeHardware(
   shouldSetUpNotifications: Boolean = false,
+  shouldUploadDescriptorBackups: Boolean = true,
   cloudStoreAccountForBackup: CloudStoreAccountFake? = null,
   delayNotifyDuration: Duration = 1.seconds,
 ): FullAccount {
@@ -56,8 +58,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
     hwActivation = hwActivation
   ).getOrThrow()
 
-  // Upload descriptor backups if the feature flag is enabled
-  if (encryptedDescriptorBackupsFeatureFlag.isEnabled()) {
+  if (shouldUploadDescriptorBackups) {
     descriptorBackupService.uploadOnboardingDescriptorBackup(
       accountId = account.accountId,
       sealedSsekForEncryption = hwActivation.sealedSsek,

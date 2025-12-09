@@ -221,7 +221,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             }
           },
           isSecurityHubBadged = securityActionsService.hasRecommendationsRequiringAttention()
-            .collectAsState(false).value
+            .collectAsState(false).value,
+          haptics = haptics
         ),
         bottomSheetModel = MoneyHomeBottomSheetModel(
           props = props

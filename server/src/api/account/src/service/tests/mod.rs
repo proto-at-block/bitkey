@@ -65,6 +65,15 @@ pub fn default_electrum_rpc_uris() -> ElectrumRpcUris {
     }
 }
 
+pub(crate) fn create_keypair() -> (SecretKey, PublicKey) {
+    let secp = Secp256k1::new();
+    secp.generate_keypair(&mut thread_rng())
+}
+pub(crate) fn create_pubkey() -> PublicKey {
+    let (_, pk) = create_keypair();
+    pk
+}
+
 pub fn generate_test_authkeys() -> TestAuthenticationKeys {
     let secp = Secp256k1::new();
     let app_sk = SecretKey::new(&mut thread_rng());
@@ -133,7 +142,7 @@ pub fn create_descriptor_keys(network: Network) -> (DescriptorSecretKey, Descrip
     )
 }
 
-pub fn create_spend_keyset(network: Network) -> (SpendingKeyset, Wallet<AnyDatabase>) {
+pub fn create_legacy_spend_keyset(network: Network) -> (SpendingKeyset, Wallet<AnyDatabase>) {
     let (app_xprv, app_xpub) = create_descriptor_keys(network);
     let (_, hardware_xpub) = create_descriptor_keys(network);
     let (_, server_xpub) = create_descriptor_keys(network);
@@ -151,6 +160,17 @@ pub fn create_spend_keyset(network: Network) -> (SpendingKeyset, Wallet<AnyDatab
         network.into(),
     );
     (keyset, wallet)
+}
+
+pub fn create_private_spend_keyset(network: Network) -> SpendingKeyset {
+    let (app_pub, hardware_pub, server_pub) = (create_pubkey(), create_pubkey(), create_pubkey());
+    SpendingKeyset::new_private_multi_sig(
+        network.to_owned(),
+        app_pub,
+        hardware_pub,
+        server_pub,
+        Default::default(),
+    )
 }
 
 pub fn create_bdk_wallet(
@@ -192,7 +212,33 @@ pub async fn create_full_account_for_test(
     network: Network,
     auth: &FullAccountAuthKeys,
 ) -> FullAccount {
-    let (spend, _) = create_spend_keyset(network);
+    let (spend, _) = create_legacy_spend_keyset(network);
+    account_service
+        .create_account_and_keysets(CreateAccountAndKeysetsInput {
+            account_id: AccountId::gen().unwrap(),
+            network: spend.network(),
+            keyset_id: KeysetId::new(Ulid::default()).unwrap(),
+            auth_key_id: AuthKeysId::new(Ulid::default()).unwrap(),
+            keyset: Keyset {
+                auth: FullAccountAuthKeys {
+                    app_pubkey: auth.app_pubkey,
+                    hardware_pubkey: auth.hardware_pubkey,
+                    recovery_pubkey: auth.recovery_pubkey,
+                },
+                spending: spend,
+            },
+            is_test_account: network != Network::BitcoinMain,
+        })
+        .await
+        .expect("full account should be created")
+}
+
+pub async fn create_full_account_for_test_v2(
+    account_service: &Service,
+    network: Network,
+    auth: &FullAccountAuthKeys,
+) -> FullAccount {
+    let spend = create_private_spend_keyset(network);
     account_service
         .create_account_and_keysets(CreateAccountAndKeysetsInput {
             account_id: AccountId::gen().unwrap(),

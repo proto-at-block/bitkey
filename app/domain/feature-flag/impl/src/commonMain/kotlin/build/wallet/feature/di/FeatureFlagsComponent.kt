@@ -102,16 +102,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun inheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    InheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun encryptedDescriptorBackupsFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    EncryptedDescriptorBackupsFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun encryptedDescriptorUploadFeatureFlag(featureFlagDao: FeatureFlagDao) =
     EncryptedDescriptorSupportUploadFeatureFlag(featureFlagDao)
 
@@ -167,8 +157,17 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun sharedCloudBackupsFeatureFlagFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    SharedCloudBackupsFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun cashAppFeePromotionFeatureFlag(featureFlagDao: FeatureFlagDao) =
     CashAppFeePromotionFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun bdk2FeatureFlag(featureFlagDao: FeatureFlagDao) = Bdk2FeatureFlag(featureFlagDao)
 
   @Provides
   fun featureFlags(
@@ -187,8 +186,6 @@ interface FeatureFlagsComponent {
     fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
     fingerprintResetMinFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
-    inheritanceUseEncryptedDescriptorFeatureFlag: InheritanceUseEncryptedDescriptorFeatureFlag,
-    encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
     encryptedDescriptorSupportUploadFeatureFlag: EncryptedDescriptorSupportUploadFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
     chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
@@ -202,9 +199,12 @@ interface FeatureFlagsComponent {
     privateWalletMigrationBalanceThresholdFeatureFlag:
       PrivateWalletMigrationBalanceThresholdFeatureFlag,
     publicCustomerSupportFeatureFlag: PublicCustomerSupportFeatureFlag,
+    sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag,
+    bdk2FeatureFlag: Bdk2FeatureFlag,
     cashAppFeePromotionFeatureFlag: CashAppFeePromotionFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
+      bdk2FeatureFlag,
       softwareWalletIsEnabledFeatureFlag,
       expectedTransactionsPhase2FeatureFlag,
       mobileRealTimeMetricsFeatureFlag,
@@ -216,8 +216,6 @@ interface FeatureFlagsComponent {
       chaincodeDelegationFeatureFlag,
       onboardingCompletionFailsafeFeatureFlag,
       txVerificationFeatureFlag,
-      inheritanceUseEncryptedDescriptorFeatureFlag,
-      encryptedDescriptorBackupsFeatureFlag,
       encryptedDescriptorSupportUploadFeatureFlag,
       appUpdateModalFeatureFlag,
       privateWalletMigrationFeatureFlag,
@@ -227,6 +225,7 @@ interface FeatureFlagsComponent {
       updateToPrivateWalletOnRecoveryFeatureFlag,
       privateWalletMigrationBalanceThresholdFeatureFlag,
       publicCustomerSupportFeatureFlag,
+      sharedCloudBackupsFeatureFlag,
       cashAppFeePromotionFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom

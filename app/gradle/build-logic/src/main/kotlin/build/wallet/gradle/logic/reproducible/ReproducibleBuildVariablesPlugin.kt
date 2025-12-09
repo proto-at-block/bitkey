@@ -38,6 +38,7 @@ internal class ReproducibleBuildVariablesPlugin : Plugin<Project> {
   @Suppress("UnstableApiUsage")
   private fun createFreshBuildVariables(): ReproducibleBuildVariables {
     return ReproducibleBuildVariables().apply {
+      buildType = ""
       bugsnagId = UUID.randomUUID().toString()
       emergencyApkHash = ""
       emergencyApkVersion = ""

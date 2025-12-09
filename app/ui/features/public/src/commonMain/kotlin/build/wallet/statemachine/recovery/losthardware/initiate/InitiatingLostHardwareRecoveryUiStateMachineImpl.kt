@@ -123,7 +123,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
         }
 
         LoadingBodyModel(
-          message = "Cancelling Existing Recovery",
+          title = "Cancelling Existing Recovery",
           id = LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_LOADING
         ).asScreen(props.screenPresentationStyle)
       }
@@ -234,7 +234,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
         LoadingBodyModel(
           id = HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY,
           // TODO(W-3273)
-          message = "Preparing New Wallet",
+          title = "Preparing New Wallet",
           onBack = {
             state = GeneratingNewAppKeys
           }

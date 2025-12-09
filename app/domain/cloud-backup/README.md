@@ -6,7 +6,8 @@ Cloud Storage access is abstracted away and managed by `:libs:cloud-store` compo
 
 ### Core Principles
 
-1. **Immutable Versions**: Never modify existing backup data classes (`CloudBackupV2`, etc.). Each version is a
+1. **Immutable Versions**: Never modify existing backup data classes (`CloudBackupV2`, `CloudBackupV3`, etc.). Each
+   version is a
    complete, immutable snapshot.
 
 2. **Forward Compatibility**: New app versions must support reading all previous backup versions.
@@ -17,21 +18,26 @@ Cloud Storage access is abstracted away and managed by `:libs:cloud-store` compo
 
 When schema changes are needed:
 
-1. Create a new data class (e.g., `CloudBackupV3`) implementing `CloudBackup`
+1. Create a new data class (e.g., `CloudBackupV4`) implementing `CloudBackup`
 2. Update `CloudBackupRepository`, `CloudBackupDao` to support daisy chain decoding
-3. Create a version-specific restorer (e.g., `CloudBackupV3Restorer`)
+3. Create a version-specific restorer (e.g., `CloudBackupV4Restorer`)
 4. Update the very many exhaustive `when` statements throughout the app
 5. Update cloud backup creators e.g. `FullAccountCloudBackupCreator` to create the new format
-6. Consider whether automatic migration to the newest version is needed
+6. Update the `isLatestVersion` extension function in `CloudBackup.kt` to return `false` for the old version and `true`
+   for the new version
+7. Consider whether automatic migration to the newest version is needed (see `CloudBackupVersionMigrationWorker`)
 
 ### Reading Backups (Daisy Chain Pattern)
 
 Json strings are decoded into CloudBackups in multiple places. See `CloudBackupRepository` and `CloudBackupDao`. 
 
-Implementations should daisy-chain decode, starting with the most recent version.
+Implementations should daisy-chain decode, starting with the most recent version:
 
 ```kotlin
+// V2 was the latest
 return Json.decodeFromStringResult<CloudBackupV2>(backupEncoded)
+
+// After adding V3, try V3 first then fallback to V2
 return Json.decodeFromStringResult<CloudBackupV3>(backupEncoded)
    .orElse { Json.decodeFromStringResult<CloudBackupV2>(backupEncoded) }
    .mapError { ... }
@@ -40,4 +46,13 @@ return Json.decodeFromStringResult<CloudBackupV3>(backupEncoded)
 ### Testing Requirements
 - Test reading each backup version
 - Test migration paths between versions
-- Test restoration from each version. See `CloudBackupV2RestorerImplTests` for an examples. 
+- Test restoration from each version. See `CloudBackupV2RestorerImplTests` and `CloudBackupV3RestorerImplTests` for
+  examples.
+
+### CloudBackupV3 Changes
+
+CloudBackupV3 adds the following fields to CloudBackupV2:
+
+- `deviceNickname: String?` - Optional device identifier/nickname
+- `createdAt: Instant` - Timestamp of when the backup was created
+

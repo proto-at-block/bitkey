@@ -12,13 +12,15 @@ import build.wallet.ui.model.button.ButtonModel
  *
  * @property id: A unique identifier for this screen that will also be used to track screen
  * analytic events.
- * @property message to display while showing loading screen.
+ * @property title to display as the title while showing loading screen.
+ * @property description optional body text to display below the message title.
  * @property onBack callback for back navigation. If `null`, effectively disables navigation back.
  */
 fun LoadingBodyModel(
   id: EventTrackerScreenId?,
   onBack: (() -> Unit)? = null,
-  message: String? = null,
+  title: String? = null,
+  description: String? = null,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
   primaryButton: ButtonModel? = null,
@@ -27,7 +29,8 @@ fun LoadingBodyModel(
   return LoadingSuccessBodyModel(
     onBack = onBack,
     id = id,
-    message = message,
+    message = title,
+    description = description,
     state = LoadingSuccessBodyModel.State.Loading,
     eventTrackerContext = eventTrackerContext,
     eventTrackerShouldTrack = eventTrackerShouldTrack,

@@ -52,81 +52,101 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
     accountService.reset()
   }
 
-  test("success") {
-    restorer
-      .restoreFromBackup(CloudBackupV2WithLiteAccountMock)
-      .shouldBe(Ok(LiteAccountMock))
-    accountAuthenticator.authCalls.awaitItem().shouldBe(
-      CloudBackupV2WithLiteAccountMock.appRecoveryAuthKeypair.publicKey
-    )
-    authTokensService.getTokens(LiteAccountIdMock, Recovery)
-      .shouldBeOk(
-        AccountAuthTokens(
-          accessToken = AccessToken(raw = "access-token-fake"),
-          refreshToken = RefreshToken(raw = "refresh-token-fake"),
-          accessTokenExpiresAt = Instant.DISTANT_FUTURE
-        )
-      )
-    appPrivateKeyDaoFake
-      .asymmetricKeys
-      .shouldBe(
-        mapOf(
-          AppRecoveryAuthPublicKeyMock to AppRecoveryAuthPrivateKeyMock
-        )
-      )
-    accountService.accountState.value.shouldBeEqual(
-      Ok(
-        AccountStatus.OnboardingAccount(
-          LiteAccountMock
-        )
-      )
-    )
-  }
+  context("parameterized tests for all backup versions") {
+    AllLiteAccountBackupMocks.forEach { backup ->
+      val backupVersion = when (backup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
+      }
 
-  test("failure - account authenticator error") {
-    val authError = AuthStorageError()
-    accountAuthenticator.authResults =
-      mutableListOf(
-        Err(AuthStorageError())
-      )
-    restorer
-      .restoreFromBackup(CloudBackupV2WithLiteAccountMock)
-      .shouldBe(Err(AccountBackupRestorationError(authError)))
-    accountAuthenticator.authCalls.awaitItem().shouldBe(
-      CloudBackupV2WithLiteAccountMock.appRecoveryAuthKeypair.publicKey
-    )
-  }
+      context("cloud backup $backupVersion") {
+        beforeTest {
+          accountAuthenticator.reset()
+          authTokensService.reset()
+          appPrivateKeyDaoFake.reset()
+          accountService.reset()
+          cloudBackupDao.reset()
+        }
 
-  test("failure - store app auth keypair failure") {
-    val throwable = Throwable("foo")
-    appPrivateKeyDaoFake.storeAppAuthKeyPairResult = Err(throwable)
-    restorer
-      .restoreFromBackup(CloudBackupV2WithLiteAccountMock)
-      .shouldBe(Err(AccountBackupRestorationError(throwable)))
-  }
+        test("success") {
+          restorer
+            .restoreFromBackup(backup as CloudBackup)
+            .shouldBe(Ok(LiteAccountMock))
+          accountAuthenticator.authCalls.awaitItem().shouldBe(
+            (backup as SocRecV1BackupFeatures).appRecoveryAuthKeypair.publicKey
+          )
+          authTokensService.getTokens(LiteAccountIdMock, Recovery)
+            .shouldBeOk(
+              AccountAuthTokens(
+                accessToken = AccessToken(raw = "access-token-fake"),
+                refreshToken = RefreshToken(raw = "refresh-token-fake"),
+                accessTokenExpiresAt = Instant.DISTANT_FUTURE
+              )
+            )
+          appPrivateKeyDaoFake
+            .asymmetricKeys
+            .shouldBe(
+              mapOf(
+                AppRecoveryAuthPublicKeyMock to AppRecoveryAuthPrivateKeyMock
+              )
+            )
+          accountService.accountState.value.shouldBeEqual(
+            Ok(
+              AccountStatus.OnboardingAccount(
+                LiteAccountMock
+              )
+            )
+          )
+        }
 
-  test("failure - cloud backup dao failure") {
-    cloudBackupDao.returnError = true
-    restorer
-      .restoreFromBackup(CloudBackupV2WithLiteAccountMock)
-      .shouldBe(Err(AccountBackupRestorationError(BackupStorageError())))
-    accountAuthenticator.authCalls.awaitItem().shouldBe(
-      CloudBackupV2WithLiteAccountMock.appRecoveryAuthKeypair.publicKey
-    )
-    authTokensService.getTokens(LiteAccountIdMock, Recovery)
-      .shouldBeOk(
-        AccountAuthTokens(
-          accessToken = AccessToken(raw = "access-token-fake"),
-          refreshToken = RefreshToken(raw = "refresh-token-fake"),
-          accessTokenExpiresAt = Instant.DISTANT_FUTURE
-        )
-      )
-    appPrivateKeyDaoFake
-      .asymmetricKeys
-      .shouldBe(
-        mapOf(
-          AppRecoveryAuthPublicKeyMock to AppRecoveryAuthPrivateKeyMock
-        )
-      )
+        test("failure - account authenticator error") {
+          val authError = AuthStorageError()
+          accountAuthenticator.authResults =
+            mutableListOf(
+              Err(AuthStorageError())
+            )
+          restorer
+            .restoreFromBackup(backup as CloudBackup)
+            .shouldBe(Err(AccountBackupRestorationError(authError)))
+          accountAuthenticator.authCalls.awaitItem().shouldBe(
+            (backup as SocRecV1BackupFeatures).appRecoveryAuthKeypair.publicKey
+          )
+        }
+
+        test("failure - store app auth keypair failure") {
+          val throwable = Throwable("foo")
+          appPrivateKeyDaoFake.storeAppAuthKeyPairResult = Err(throwable)
+          restorer
+            .restoreFromBackup(backup as CloudBackup)
+            .shouldBe(Err(AccountBackupRestorationError(throwable)))
+        }
+
+        test("failure - cloud backup dao failure") {
+          cloudBackupDao.returnError = true
+          restorer
+            .restoreFromBackup(backup as CloudBackup)
+            .shouldBe(Err(AccountBackupRestorationError(BackupStorageError())))
+          accountAuthenticator.authCalls.awaitItem().shouldBe(
+            (backup as SocRecV1BackupFeatures).appRecoveryAuthKeypair.publicKey
+          )
+          authTokensService.getTokens(LiteAccountIdMock, Recovery)
+            .shouldBeOk(
+              AccountAuthTokens(
+                accessToken = AccessToken(raw = "access-token-fake"),
+                refreshToken = RefreshToken(raw = "refresh-token-fake"),
+                accessTokenExpiresAt = Instant.DISTANT_FUTURE
+              )
+            )
+          appPrivateKeyDaoFake
+            .asymmetricKeys
+            .shouldBe(
+              mapOf(
+                AppRecoveryAuthPublicKeyMock to AppRecoveryAuthPrivateKeyMock
+              )
+            )
+        }
+      }
+    }
   }
 })

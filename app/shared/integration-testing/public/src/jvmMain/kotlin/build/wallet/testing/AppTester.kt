@@ -2,10 +2,10 @@
 
 package build.wallet.testing
 
-import build.wallet.bdk.BdkBlockchainFactoryImpl
-import build.wallet.bdk.BdkDescriptorFactoryImpl
-import build.wallet.bdk.BdkDescriptorSecretKeyFactoryImpl
 import build.wallet.bdk.bindings.BdkBlockchainFactory
+import build.wallet.bdk.legacy.BdkBlockchainFactoryImpl
+import build.wallet.bdk.legacy.BdkDescriptorFactoryImpl
+import build.wallet.bdk.legacy.BdkDescriptorSecretKeyFactoryImpl
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.REGTEST
 import build.wallet.bitcoin.blockchain.BlockchainControl
@@ -21,8 +21,6 @@ import build.wallet.di.JvmAppComponentImpl
 import build.wallet.di.create
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Local
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.setFlagValue
 import build.wallet.logging.LogLevel
 import build.wallet.logging.Logger
 import build.wallet.logging.logTesting
@@ -244,10 +242,6 @@ class AppTester(
           .filter { initialized -> initialized }
           .first() // Suspend until first `true` value
       }
-
-      // TODO [W-14961]: Remove override once LD flag is set to true by default.
-      appComponent.chaincodeDelegationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(appMode == AppMode.Private), true)
-      appComponent.encryptedDescriptorBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true), true)
 
       return AppTester(
         testScope = this,

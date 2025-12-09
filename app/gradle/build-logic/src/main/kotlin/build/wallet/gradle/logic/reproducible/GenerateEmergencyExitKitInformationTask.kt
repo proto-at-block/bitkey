@@ -1,6 +1,7 @@
 package build.wallet.gradle.logic.reproducible
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
@@ -11,6 +12,9 @@ import org.gradle.api.tasks.TaskAction
 import org.intellij.lang.annotations.Language
 
 abstract class GenerateEmergencyExitKitInformationTask : DefaultTask() {
+  @get:Input
+  abstract val buildType: Property<String>
+
   @get:Input
   abstract val apkVersion: Property<String>
 
@@ -33,9 +37,19 @@ abstract class GenerateEmergencyExitKitInformationTask : DefaultTask() {
 
   @TaskAction
   fun generateEmergencyExitKitInformation() {
+    val buildType = buildType.get()
     val apkVersion = apkVersion.get()
     val apkHash = apkHash.get()
     val apkUrl = apkUrl.get()
+
+    // For team and customer builds, all EEK values must be present.
+    if (buildType == "team" || buildType == "customer") {
+      if (apkVersion.isBlank() || apkHash.isBlank() || apkUrl.isBlank()) {
+        throw GradleException(
+          "Emergency Exit Kit information is missing for $buildType build."
+        )
+      }
+    }
 
     @Language("kotlin")
     val emergencyExitKitAppInformation = """

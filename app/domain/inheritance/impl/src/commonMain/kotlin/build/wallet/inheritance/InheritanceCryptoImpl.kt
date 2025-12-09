@@ -15,9 +15,6 @@ import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.XCiphertext
-import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
-import build.wallet.feature.isEnabled
-import build.wallet.logging.logInfo
 import build.wallet.relationships.RelationshipsCrypto
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -30,8 +27,6 @@ class InheritanceCryptoImpl(
   private val relationships: InheritanceRelationshipsProvider,
   private val crypto: RelationshipsCrypto,
   private val descriptorBuilder: BitcoinMultiSigDescriptorBuilder,
-  private val inheritanceUseEncryptedDescriptorFeatureFlag:
-    InheritanceUseEncryptedDescriptorFeatureFlag,
 ) : InheritanceCrypto {
   override suspend fun getInheritanceMaterialHashData(
     keybox: Keybox,
@@ -61,30 +56,22 @@ class InheritanceCryptoImpl(
         .flatMap { crypto.encryptPrivateKeyMaterial(it) }
         .bind()
 
-      val sealedDescriptor = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
-        logInfo { "[Privacy] Encrypting descriptor for inheritance package" }
-        val descriptor = descriptorBuilder.watchingDescriptor(
-          appPublicKey = keybox.activeSpendingKeyset.appKey.key,
-          hardwareKey = keybox.activeSpendingKeyset.hardwareKey.key,
-          serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key
-        ).raw.encodeUtf8()
+      val descriptor = descriptorBuilder.watchingDescriptor(
+        appPublicKey = keybox.activeSpendingKeyset.appKey.key,
+        hardwareKey = keybox.activeSpendingKeyset.hardwareKey.key,
+        serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key
+      ).raw.encodeUtf8()
 
-        crypto
-          .encryptData(dek = pkMatOutput.privateKeyEncryptionKey, data = descriptor)
-          .bind()
-      } else {
-        null
-      }
+      val sealedDescriptor = crypto
+        .encryptData(dek = pkMatOutput.privateKeyEncryptionKey, data = descriptor)
+        .bind()
 
       val serverRootXpub = keybox.activeSpendingKeyset.f8eSpendingKeyset.privateWalletRootXpub
-      val sealedServerRootXpub = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled() && serverRootXpub != null) {
-        logInfo { "[Privacy] Encrypting server root xpub for inheritance package" }
+      val sealedServerRootXpub = serverRootXpub?.let {
         crypto.encryptData(
           dek = pkMatOutput.privateKeyEncryptionKey,
           data = serverRootXpub.encodeUtf8()
         ).bind()
-      } else {
-        null
       }
 
       val packages = contacts.map {
@@ -140,22 +127,12 @@ class InheritanceCryptoImpl(
         .decodeFromStringResult<InheritanceKeyset>(privateKeyMaterial.utf8())
         .bind()
 
-      val descriptor = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
-        logInfo { "[Privacy] Decrypting descriptor from inheritance package" }
-        sealedDescriptor?.let {
-          crypto.decryptPrivateKeyMaterial(pkek, it).bind().utf8()
-        }
-      } else {
-        null
+      val descriptor = sealedDescriptor?.let {
+        crypto.decryptPrivateKeyMaterial(pkek, it).bind().utf8()
       }
 
-      val serverRootXpub = if (inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
-        logInfo { "[Privacy] Decrypting server root xpub from inheritance package" }
-        sealedServerRootXpub?.let {
-          crypto.decryptPrivateKeyMaterial(pkek, it).bind().utf8()
-        }
-      } else {
-        null
+      val serverRootXpub = sealedServerRootXpub?.let {
+        crypto.decryptPrivateKeyMaterial(pkek, it).bind().utf8()
       }
 
       DecryptInheritanceMaterialPackageOutput(

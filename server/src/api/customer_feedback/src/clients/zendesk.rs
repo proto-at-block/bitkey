@@ -202,3 +202,61 @@ impl ZendeskClient {
             .unwrap_or_else(|_| "Unknown error".to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clients::entities::{CreateRequestPayload, RequestCommentPayload, RequesterPayload};
+    use errors::{ApiError, ErrorCode};
+    use serde_json::json;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[tokio::test]
+    async fn create_ticket_returns_invalid_email_address() {
+        let mock_server = MockServer::start().await;
+        let endpoint = reqwest::Url::parse(&format!("{}/api/", mock_server.uri())).unwrap();
+
+        let client = ZendeskClient::Real {
+            endpoint,
+            client: reqwest::Client::new(),
+            authorization: "unused".to_string(),
+        };
+
+        Mock::given(method("POST"))
+            .and(path("/api/v2/requests.json"))
+            .respond_with(
+                ResponseTemplate::new(422).set_body_json(json!({"error":"RecordInvalid","description":"Record validation errors","details":{"requester":[{"description":"Requester: Email:  abcd@efghcom is not properly formatted"}]}})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let create_ticket_payload = CreateRequestPayload {
+            requester: RequesterPayload {
+                name: "Name".to_string(),
+                email: "abcd@efghcom".to_string(),
+            },
+            subject: "Subject".to_string(),
+            comment: RequestCommentPayload {
+                body: "Body".to_string(),
+                uploads: vec![],
+            },
+            ticket_form_id: 123,
+            custom_fields: vec![],
+        };
+
+        let err = client
+            .create_ticket(create_ticket_payload)
+            .await
+            .expect_err("request should've failed");
+
+        assert_eq!(
+            ApiError::from(err),
+            ApiError::Specific {
+                code: ErrorCode::InvalidEmailAddress,
+                detail: None,
+                field: None
+            }
+        );
+    }
+}

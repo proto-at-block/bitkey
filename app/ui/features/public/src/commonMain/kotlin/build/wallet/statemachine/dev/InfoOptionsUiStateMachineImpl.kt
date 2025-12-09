@@ -4,6 +4,9 @@ import androidx.compose.runtime.*
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.account.analytics.AppInstallationDao
+import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
+import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
@@ -27,11 +30,36 @@ class InfoOptionsUiStateMachineImpl(
   private val appVersion: AppVersion,
   private val osVersionInfoProvider: OsVersionInfoProvider,
   private val clipboard: Clipboard,
+  private val cloudBackupDao: CloudBackupDao,
 ) : InfoOptionsUiStateMachine {
   @Composable
   override fun model(props: InfoOptionsProps): ListGroupModel {
     var state by remember { mutableStateOf(State()) }
 
+    LoadAccountId(state) { accountId ->
+      state = state.copy(accountId = accountId)
+    }
+
+    LoadAppInstallationId(state) { appInstallationId ->
+      state = state.copy(appInstallationId = appInstallationId)
+    }
+
+    LoadCloudBackupVersion(state) { version ->
+      state = state.copy(cloudBackupVersion = version)
+    }
+
+    return ListGroupModel(
+      style = ListGroupStyle.DIVIDER,
+      header = "Identifiers (tap to copy)",
+      items = buildInfoItems(state, props)
+    )
+  }
+
+  @Composable
+  private fun LoadAccountId(
+    state: State,
+    onAccountIdLoaded: (String) -> Unit,
+  ) {
     if (state.accountId == null) {
       LaunchedEffect("load-account-id") {
         accountService.accountStatus().first()
@@ -43,67 +71,123 @@ class InfoOptionsUiStateMachineImpl(
                 is AccountStatus.LiteAccountUpgradingToFullAccount -> status.onboardingAccount
                 AccountStatus.NoAccount -> null
               }
-            state = state.copy(accountId = account?.accountId?.serverId ?: "N/A")
+            onAccountIdLoaded(account?.accountId?.serverId ?: NO_ACCOUNT)
           }
       }
     }
+  }
 
+  @Composable
+  private fun LoadAppInstallationId(
+    state: State,
+    onAppInstallationIdLoaded: (String) -> Unit,
+  ) {
     if (state.appInstallationId == null) {
       LaunchedEffect("load-app-installation") {
         appInstallationDao.getOrCreateAppInstallation()
           .onSuccess { appInstallation ->
-            state = state.copy(appInstallationId = appInstallation.localId)
+            onAppInstallationIdLoaded(appInstallation.localId)
           }
           .logFailure { "Failed to read app installation ID from db" }
       }
     }
+  }
 
-    return ListGroupModel(
-      style = ListGroupStyle.DIVIDER,
-      header = "Identifiers (tap to copy)",
-      items =
-        listOfNotNull(
-          // Don't show Account ID in Customer build
-          when (appVariant) {
-            AppVariant.Customer -> null
-            else ->
-              ListItemModel(
-                title = "Account ID",
-                sideText = state.accountId ?: "..."
-              )
-          },
-          ListItemModel(
-            title = "App Installation ID",
-            sideText = state.appInstallationId ?: "..."
-          ),
-          ListItemModel(
-            title = "App Version",
-            sideText = appVersion.value
-          ),
-          // Don't show OS Version in Customer build
-          when (appVariant) {
-            AppVariant.Customer -> null
-            else ->
-              ListItemModel(
-                title = "OS Version",
-                sideText = osVersionInfoProvider.getOsVersion()
-              )
+  @Composable
+  private fun LoadCloudBackupVersion(
+    state: State,
+    onVersionLoaded: (String) -> Unit,
+  ) {
+    if (state.cloudBackupVersion == null && state.accountId != null && state.accountId != NO_ACCOUNT) {
+      LaunchedEffect("load-cloud-backup-version") {
+        cloudBackupDao.get(state.accountId!!)
+          .onSuccess { backup ->
+            val version = when (backup) {
+              is CloudBackupV2 -> "v2"
+              is CloudBackupV3 -> "v3"
+              null -> "None"
+            }
+            onVersionLoaded(version)
           }
+          .logFailure { "Failed to read cloud backup from dao" }
+      }
+    }
+  }
+
+  private fun buildInfoItems(
+    state: State,
+    props: InfoOptionsProps,
+  ) = listOfNotNull(
+    buildAccountIdItem(state),
+    buildAppInstallationIdItem(state),
+    buildAppVersionItem(),
+    buildOsVersionItem(),
+    buildCloudBackupVersionItem(state)
+  )
+    .map { item ->
+      item.copy(
+        onClick = {
+          item.sideText?.let { clipboard.setItem(PlainText(data = it)) }
+          props.onPasteboardCopy(item.title)
+        }
+      )
+    }
+    .toImmutableList()
+
+  private fun buildAccountIdItem(state: State): ListItemModel? {
+    return when (appVariant) {
+      AppVariant.Customer -> null
+      else ->
+        ListItemModel(
+          title = "Account ID",
+          sideText = state.accountId ?: "..."
         )
-          .map { item ->
-            item.copy(
-              onClick = {
-                item.sideText?.let { clipboard.setItem(PlainText(data = it)) }
-                props.onPasteboardCopy(item.title)
-              }
-            )
-          }
-          .toImmutableList()
+    }
+  }
+
+  private fun buildAppInstallationIdItem(state: State): ListItemModel {
+    return ListItemModel(
+      title = "App Installation ID",
+      sideText = state.appInstallationId ?: "..."
     )
+  }
+
+  private fun buildAppVersionItem(): ListItemModel {
+    return ListItemModel(
+      title = "App Version",
+      sideText = appVersion.value
+    )
+  }
+
+  private fun buildOsVersionItem(): ListItemModel? {
+    return when (appVariant) {
+      AppVariant.Customer -> null
+      else ->
+        ListItemModel(
+          title = "OS Version",
+          sideText = osVersionInfoProvider.getOsVersion()
+        )
+    }
+  }
+
+  private fun buildCloudBackupVersionItem(state: State): ListItemModel? {
+    return when (appVariant) {
+      AppVariant.Customer -> null
+      else ->
+        ListItemModel(
+          title = "Cloud Backup Version",
+          sideText = state.cloudBackupVersion ?: "..."
+        )
+    }
   }
 
   private data class State(
     val accountId: String? = null,
     val appInstallationId: String? = null,
+    val cloudBackupVersion: String? = null,
   )
+
+  private companion object {
+    private const val NO_ACCOUNT = "N/A"
+  }
 }

@@ -54,3 +54,9 @@ variable "ephemeral_storage_size" {
   description = "Ephemeral storage size in MB (min 512, max 10240)"
   default     = 2048
 }
+
+variable "force_update" {
+  type        = bool
+  description = "Force Lambda to update by pulling the latest image, even if the tag hasn't changed."
+  default     = false
+}

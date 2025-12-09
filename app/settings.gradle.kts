@@ -31,6 +31,13 @@ dependencyResolutionManagement {
   // Enable back when KMP issue is resolved: https://youtrack.jetbrains.com/issue/KT-51379.
   // repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
   repositories {
+    maven {
+      url = uri("$rootDir/third_party/maven")
+      metadataSources {
+        mavenPom()
+        gradleMetadata()
+      }
+    }
     google()
     mavenCentral()
     gradlePluginPortal()

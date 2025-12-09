@@ -14,12 +14,14 @@ import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.relationships.RelationshipsKeysRepository
 import build.wallet.relationships.RelationshipsService
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onFailure
+import kotlinx.datetime.Clock
 
 @BitkeyInject(AppScope::class)
 class FullAccountCloudBackupCreatorImpl(
@@ -27,6 +29,8 @@ class FullAccountCloudBackupCreatorImpl(
   private val fullAccountFieldsCreator: FullAccountFieldsCreator,
   private val relationshipsKeysRepository: RelationshipsKeysRepository,
   private val relationshipsService: RelationshipsService,
+  private val clock: Clock,
+  private val deviceInfoProvider: DeviceInfoProvider,
 ) : FullAccountCloudBackupCreator {
   override suspend fun create(
     keybox: Keybox,
@@ -74,7 +78,9 @@ class FullAccountCloudBackupCreatorImpl(
           .mapError(::AppRecoveryAuthKeypairRetrievalError)
           .bind()
 
-      CloudBackupV2(
+      val deviceInfo = deviceInfoProvider.getDeviceInfo()
+
+      CloudBackupV3(
         accountId = keybox.fullAccountId.serverId,
         f8eEnvironment = keybox.config.f8eEnvironment,
         isTestAccount = keybox.config.isTestAccount,
@@ -82,7 +88,9 @@ class FullAccountCloudBackupCreatorImpl(
         fullAccountFields = fullAccountFields,
         appRecoveryAuthKeypair = appRecoveryAuthKeypair,
         isUsingSocRecFakes = keybox.config.isUsingSocRecFakes,
-        bitcoinNetworkType = keybox.config.bitcoinNetworkType
+        bitcoinNetworkType = keybox.config.bitcoinNetworkType,
+        deviceNickname = deviceInfo.deviceNickname,
+        createdAt = clock.now()
       )
     }
 }

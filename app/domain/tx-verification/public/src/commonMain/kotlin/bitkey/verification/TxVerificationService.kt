@@ -24,14 +24,17 @@ interface TxVerificationService {
   /**
    * Update the transaction limit to the specified threshold.
    *
-   * @param verificationThreshold The new amount to limit transactions without verification to.
+   * @param policy The new amount to limit transactions without verification to.
+   * @param amountBtc A reference amount for how many sats the policy is currently exchanging for,
+   *        as displayed to the user.
    * @return a verification policy, either active or pending depending on whether
    *         the policy required authorization.
    */
   suspend fun updateThreshold(
     policy: TxVerificationPolicy.Active,
+    amountBtc: BitcoinMoney?,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Unit, Error>
+  ): Result<TxVerificationPolicy, Error>
 
   /**
    * Attempts to determine if transaction verification will be necessary to sent the amount given.

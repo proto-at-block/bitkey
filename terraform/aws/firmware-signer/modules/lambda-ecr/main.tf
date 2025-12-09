@@ -46,12 +46,14 @@ resource "aws_iam_role" "lambda_role" {
 }
 
 resource "aws_lambda_function" "function" {
-  function_name    = local.use_prefix ? "${var.resource_prefix}-${var.function_name}" : var.function_name
-  role             = aws_iam_role.lambda_role.arn
-  package_type     = "Image"
-  image_uri        = var.is_localstack ? "${var.ecr_base}/${var.function_name}_ecr:local" : "${aws_ecr_repository.ecr.repository_url}:${var.tag}"
-  architectures    = ["arm64"]
-  source_code_hash = timestamp()
+  function_name = local.use_prefix ? "${var.resource_prefix}-${var.function_name}" : var.function_name
+  role          = aws_iam_role.lambda_role.arn
+  package_type  = "Image"
+  image_uri     = var.is_localstack ? "${var.ecr_base}/${var.function_name}_ecr:local" : "${aws_ecr_repository.ecr.repository_url}:${var.tag}"
+  architectures = ["arm64"]
+  # When force_update is true, use timestamp() to force Lambda to pull the latest image.
+  # Useful when pushing new images to ECR with the same tag (mutable tags).
+  source_code_hash = var.force_update ? timestamp() : null
   timeout          = 900
   memory_size      = 1024
 

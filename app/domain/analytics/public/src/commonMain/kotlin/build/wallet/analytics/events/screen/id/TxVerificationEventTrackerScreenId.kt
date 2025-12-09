@@ -50,4 +50,14 @@ enum class TxVerificationEventTrackerScreenId : EventTrackerScreenId {
    * Screen shown when the user explicitly cancels a verification request before it is completed.
    */
   VERIFICATION_CANCELED,
+
+  /**
+   * Screen shown when the user needs to approve a transaction verification limit change via email.
+   */
+  APPROVE_LIMIT,
+
+  /**
+   * Error screen shown when updating the transaction verification policy fails.
+   */
+  POLICY_UPDATE_FAILURE,
 }

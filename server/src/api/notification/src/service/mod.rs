@@ -2,6 +2,7 @@ use std::{collections::HashSet, env};
 
 use account::service::Service as AccountService;
 use authn_authz::key_claims::KeyClaims;
+use database::ddb::{Connection, Repository as _};
 use queue::sqs::SqsQueue;
 use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
@@ -77,6 +78,10 @@ impl Service {
             consent_repo,
             address_service,
         }
+    }
+
+    pub(crate) fn ddb_connection(&self) -> Connection {
+        self.account_repo.get_connection().clone()
     }
 }
 

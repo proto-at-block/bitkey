@@ -11,9 +11,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.recovery.Recovery
 import build.wallet.router.Route
 import build.wallet.router.Router
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
-import build.wallet.statemachine.data.keybox.AccountData.StartIntent
+import build.wallet.statemachine.data.keybox.NoActiveAccountData.*
 import build.wallet.statemachine.data.keybox.State.*
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryProps

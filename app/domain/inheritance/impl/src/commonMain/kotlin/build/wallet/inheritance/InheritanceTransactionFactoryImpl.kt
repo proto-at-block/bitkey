@@ -20,8 +20,6 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.chaincode.delegation.ChaincodeDelegationTweakService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logInfo
 import build.wallet.relationships.RelationshipsKeysRepository
 import com.github.michaelbull.result.Result
@@ -37,8 +35,6 @@ class InheritanceTransactionFactoryImpl(
   private val spendingWalletProvider: SpendingWalletProvider,
   private val chaincodeDelegationTweakService: ChaincodeDelegationTweakService,
   private val descriptorBackupService: DescriptorBackupService,
-  private val inheritanceUseEncryptedDescriptorFeatureFlag:
-    InheritanceUseEncryptedDescriptorFeatureFlag,
 ) : InheritanceTransactionFactory {
   override suspend fun createFullBalanceTransaction(
     account: FullAccount,
@@ -152,11 +148,6 @@ class InheritanceTransactionFactoryImpl(
     decryptInheritanceMaterialPackage: DecryptInheritanceMaterialPackageOutput,
     claim: BeneficiaryClaim.LockedClaim,
   ): String {
-    // If the feature flag is disabled, fall back to using the benefactor keyset provided by the server.
-    if (!inheritanceUseEncryptedDescriptorFeatureFlag.isEnabled()) {
-      return claim.benefactorKeyset!!.value
-    }
-
     // Otherwise, we try to use the decrypted package descriptor if it is available.
     return if (decryptInheritanceMaterialPackage.descriptor != null) {
       logInfo {

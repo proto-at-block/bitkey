@@ -57,12 +57,8 @@ sealed interface AppState {
   ) : AppState
 
   /**
-   * A state to indicate that the app state cannot be determined by [AppState] and the
-   * [LoadAppService]. The app state should be the [AppDataStateMachine] instead.
-   * This type is temporary while we are migrating app state loading from data state machines to
-   * the [LoadAppService].
-   *
-   * TODO(W-9222): migrate loading app state from the AppDataStateMachine to LoadAppService
+   * A state to indicate that there is no active account so we are either creating a new account or
+   * going through a lost app recovery
    */
-  data object Undetermined : AppState
+  data object NoActiveAccount : AppState
 }

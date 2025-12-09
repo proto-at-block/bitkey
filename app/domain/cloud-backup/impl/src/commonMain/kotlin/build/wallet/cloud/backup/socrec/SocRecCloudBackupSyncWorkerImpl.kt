@@ -14,6 +14,7 @@ import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.local.CloudBackupDao
@@ -142,7 +143,7 @@ class SocRecCloudBackupSyncWorkerImpl(
     endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<StoredBackupState, Error> {
     return when (this) {
-      is CloudBackupV2 -> {
+      is CloudBackupV2, is CloudBackupV3 -> {
         val fields =
           fullAccountFields
             ?: return Err(Error("Lite Account Backups have no trusted contacts to refresh"))

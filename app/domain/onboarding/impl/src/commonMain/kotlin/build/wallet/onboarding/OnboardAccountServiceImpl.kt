@@ -3,8 +3,6 @@ package build.wallet.onboarding
 import bitkey.account.AccountConfigService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
 import build.wallet.onboarding.OnboardAccountStep.*
 import com.github.michaelbull.result.Result
@@ -18,23 +16,20 @@ class OnboardAccountServiceImpl(
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
   private val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao,
   private val onboardingCompletionService: OnboardingCompletionService,
-  private val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
 ) : OnboardAccountService {
   override suspend fun pendingStep(): Result<OnboardAccountStep?, Throwable> =
     coroutineBinding {
       val defaultConfig = accountConfigService.defaultConfig().first()
 
-      // If enabled, descriptor backups MUST happen before cloud backups.
-      if (encryptedDescriptorBackupsFeatureFlag.isEnabled()) {
-        val descriptorStepState =
-          onboardingKeyboxStepStateDao.stateForStep(OnboardingKeyboxStep.DescriptorBackup).first()
+      // Descriptor backups MUST happen before cloud backups.
+      val descriptorStepState =
+        onboardingKeyboxStepStateDao.stateForStep(OnboardingKeyboxStep.DescriptorBackup).first()
 
-        if (descriptorStepState == OnboardingKeyboxStepState.Incomplete) {
-          val sealedSsek = onboardingKeyboxSealedSsekDao.get().bind()
-          return@coroutineBinding DescriptorBackup(
-            sealedSsek = sealedSsek
-          )
-        }
+      if (descriptorStepState == OnboardingKeyboxStepState.Incomplete) {
+        val sealedSsek = onboardingKeyboxSealedSsekDao.get().bind()
+        return@coroutineBinding DescriptorBackup(
+          sealedSsek = sealedSsek
+        )
       }
 
       val cloudBackupStepState =

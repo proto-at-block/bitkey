@@ -55,7 +55,7 @@ class TxVerificationSyncWorkerImpl(
 
     if (currentPolicy != newPolicy && newPolicy is TxVerificationPolicy.Active) {
       logInfo { "Server verification policy does not match local data. Updating." }
-      dao.setActivePolicy(newPolicy)
+      dao.setThreshold(newPolicy.threshold)
     }
   }
 }

@@ -4,7 +4,7 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -68,7 +68,7 @@ class CreateAccountUiStateMachineImpl(
             // instead to replace this full account in order to preserve the protected
             // customers.
             uiState = ActivateAccountState.ReplaceWithLiteAccountRestoreState(
-              cloudBackupV2 = cloudBackup,
+              cloudBackup = cloudBackup,
               account = state.account
             )
           },
@@ -114,7 +114,7 @@ class CreateAccountUiStateMachineImpl(
           .model(
             ReplaceWithLiteAccountRestoreUiProps(
               keyboxToReplace = state.account.keybox,
-              liteAccountCloudBackup = state.cloudBackupV2,
+              liteAccountCloudBackup = state.cloudBackup,
               onAccountUpgraded = { upgradedAccount ->
                 uiState = ActivateAccountState.OnboardKeyboxState(
                   account = upgradedAccount,
@@ -163,7 +163,7 @@ class CreateAccountUiStateMachineImpl(
     ) : ActivateAccountState
 
     data class ReplaceWithLiteAccountRestoreState(
-      val cloudBackupV2: CloudBackupV2,
+      val cloudBackup: CloudBackup,
       val account: FullAccount,
     ) : ActivateAccountState
 

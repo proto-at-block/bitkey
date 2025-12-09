@@ -86,7 +86,7 @@ class FeeSelectionUiStateMachineImpl(
           }
 
           LoadingBodyModel(
-            message = "Processing...",
+            title = "Processing...",
             onBack = props.onBack,
             id = null,
             eventTrackerShouldTrack = false
@@ -165,7 +165,7 @@ class FeeSelectionUiStateMachineImpl(
     LoadingTransactionInfoEffect(props, onFeesLoadFailed, onFeesLoaded)
 
     return LoadingBodyModel(
-      message = "Loading fees...",
+      title = "Loading fees...",
       onBack = props.onBack,
       id = SendEventTrackerScreenId.SEND_LOADING_FEE_OPTIONS,
       eventTrackerShouldTrack = false

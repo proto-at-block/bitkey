@@ -3,7 +3,9 @@ use std::vec;
 use std::{env, str::FromStr};
 
 use account::service::{
-    tests::{create_descriptor_keys, create_spend_keyset, TestAuthenticationKeys, TestKeypair},
+    tests::{
+        create_descriptor_keys, create_legacy_spend_keyset, TestAuthenticationKeys, TestKeypair,
+    },
     FetchAccountInput,
 };
 use authn_authz::routes::{
@@ -1252,7 +1254,7 @@ async fn create_account_key_validation_test(
     let spending_keyset = if key_reuses.contains(&CreateAccountKeyReuse::OtherAccountSpending) {
         other_account.active_spending_keyset().unwrap().clone()
     } else {
-        create_spend_keyset(AccountNetwork::BitcoinSignet).0
+        create_legacy_spend_keyset(AccountNetwork::BitcoinSignet).0
     }
     .optional_legacy_multi_sig()
     .unwrap()
@@ -1482,7 +1484,7 @@ async fn upgrade_account_test(
         hw: account_hardware_keypair.clone(),
         recovery: lite_account_recovery_keypair,
     });
-    let spending_keyset = create_spend_keyset(AccountNetwork::BitcoinSignet)
+    let spending_keyset = create_legacy_spend_keyset(AccountNetwork::BitcoinSignet)
         .0
         .optional_legacy_multi_sig()
         .unwrap()
@@ -1578,7 +1580,7 @@ async fn test_upgrade_account_idempotency() {
         hw: new_keys.hw.clone(),
         recovery: lite_account_keys.recovery,
     });
-    let spending_keyset = create_spend_keyset(AccountNetwork::BitcoinSignet)
+    let spending_keyset = create_legacy_spend_keyset(AccountNetwork::BitcoinSignet)
         .0
         .optional_legacy_multi_sig()
         .unwrap()
@@ -2135,7 +2137,7 @@ async fn software_onboarding_keygen_activation_test() {
 
 #[test]
 fn test_create_bdk_wallet() {
-    let (_, wallet) = create_spend_keyset(types::account::bitcoin::Network::BitcoinRegtest);
+    let (_, wallet) = create_legacy_spend_keyset(types::account::bitcoin::Network::BitcoinRegtest);
     treasury_fund_address(
         &wallet.get_address(AddressIndex::New).unwrap(),
         Amount::from_sat(50_000),

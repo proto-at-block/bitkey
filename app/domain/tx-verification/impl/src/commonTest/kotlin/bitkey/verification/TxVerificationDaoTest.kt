@@ -23,7 +23,7 @@ class TxVerificationDaoTest : FunSpec({
   }
 
   test("Active policy's currency not found returns error") {
-    val active = VerificationThreshold(
+    val active = VerificationThreshold.Enabled(
       amount = FiatMoney(
         currency = FiatCurrency(
           textCode = IsoCurrencyTextCode("FAKE"),
@@ -38,7 +38,7 @@ class TxVerificationDaoTest : FunSpec({
       )
     )
 
-    dao.setActivePolicy(TxVerificationPolicy.Active(active))
+    dao.setEnabledThreshold(active)
 
     val result = dao.getActivePolicy().first()
 

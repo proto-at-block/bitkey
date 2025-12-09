@@ -159,7 +159,8 @@ private fun getExpectedPartners(f8eEnvironment: F8eEnvironment): List<PartnerInf
     )
     F8eEnvironment.Staging -> listOf(
       CASH_APP,
-      MOONPAY
+      MOONPAY,
+      STRIKE
     )
     else -> listOf(
       SIGNET_FAUCET

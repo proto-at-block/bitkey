@@ -23,7 +23,7 @@ import build.wallet.statemachine.account.create.CreateAccountOptionsModel
 import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
+import build.wallet.statemachine.data.keybox.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine

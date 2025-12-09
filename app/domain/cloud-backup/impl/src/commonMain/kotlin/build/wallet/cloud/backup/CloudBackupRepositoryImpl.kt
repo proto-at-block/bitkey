@@ -17,6 +17,7 @@ import build.wallet.logging.logInfo
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.orElse
 import kotlinx.datetime.Clock
 
 @BitkeyInject(AppScope::class)
@@ -43,6 +44,7 @@ class CloudBackupRepositoryImpl(
     coroutineBinding {
       // Encode backup to JSON
       val backupEncoded: String = when (backup) {
+        is CloudBackupV3 -> jsonSerializer.encodeToStringResult<CloudBackupV3>(backup)
         is CloudBackupV2 -> jsonSerializer.encodeToStringResult<CloudBackupV2>(backup)
       }.mapPossibleRectifiableErrors()
         .bind()
@@ -102,6 +104,7 @@ class CloudBackupRepositoryImpl(
   ): Result<Unit, CloudBackupError> =
     coroutineBinding {
       val backupEncoded: String = when (backup) {
+        is CloudBackupV3 -> jsonSerializer.encodeToStringResult<CloudBackupV3>(backup)
         is CloudBackupV2 -> jsonSerializer.encodeToStringResult<CloudBackupV2>(backup)
       }.mapPossibleRectifiableErrors()
         .bind()
@@ -152,9 +155,9 @@ class CloudBackupRepositoryImpl(
         null -> null
         else ->
           // Found encoded app data
-          // Attempt to decode as V2 backup
-          // When V3 is added, try V3 first then fall back to V2. See the cloud backup README.md.
-          jsonSerializer.decodeFromStringResult<CloudBackupV2>(backupEncoded)
+          // Attempt to decode as V3 backup, then fall back to V2. See the cloud backup README.md.
+          jsonSerializer.decodeFromStringResult<CloudBackupV3>(backupEncoded)
+            .orElse { jsonSerializer.decodeFromStringResult<CloudBackupV2>(backupEncoded) }
             .mapError {
               UnrectifiableCloudBackupError(UnknownAppDataFoundError(it))
             }

@@ -115,7 +115,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
       // TODO(W-3273): Drop in proper copy and screen for Authenticating screen
       is AuthenticatingWithF8EViaAppData ->
         LoadingBodyModel(
-          message = "Authenticating with hardware...",
+          title = "Authenticating with hardware...",
           id = LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E,
           onBack = recoveryData.rollback
         ).asRootScreen()
@@ -129,7 +129,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
       // TODO(W-3273): Drop in proper copy and screen for Generating Challenge NFC screen
       is InitiatingAppAuthWithF8eData ->
         LoadingBodyModel(
-          message = "Authenticating with server...",
+          title = "Authenticating with server...",
           id = LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE,
           onBack = recoveryData.rollback
         ).asRootScreen()
@@ -225,7 +225,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
 
       is InitiatingLostAppRecoveryWithF8eData ->
         LoadingBodyModel(
-          message = "Initiating recovery...",
+          title = "Initiating recovery...",
           id = LOST_APP_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY,
           onBack = recoveryData.rollback
         ).asRootScreen()
@@ -257,7 +257,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
 
       CancellingConflictingRecoveryData ->
         LoadingBodyModel(
-          message = "Cancelling Existing Recovery",
+          title = "Cancelling Existing Recovery",
           id = LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_LOADING
         ).asRootScreen()
 

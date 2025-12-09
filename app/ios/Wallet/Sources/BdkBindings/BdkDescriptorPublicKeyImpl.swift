@@ -1,10 +1,10 @@
-import BitcoinDevKit
+import BitcoinDevKitLegacy
 import Shared
 
 class BdkDescriptorPublicKeyImpl: BdkDescriptorPublicKey {
-    private let ffiBdkDescriptorPublicKey: BitcoinDevKit.DescriptorPublicKey
+    private let ffiBdkDescriptorPublicKey: BitcoinDevKitLegacy.DescriptorPublicKey
 
-    init(ffiBdkDescriptorPublicKey: BitcoinDevKit.DescriptorPublicKey) {
+    init(ffiBdkDescriptorPublicKey: BitcoinDevKitLegacy.DescriptorPublicKey) {
         self.ffiBdkDescriptorPublicKey = ffiBdkDescriptorPublicKey
     }
 

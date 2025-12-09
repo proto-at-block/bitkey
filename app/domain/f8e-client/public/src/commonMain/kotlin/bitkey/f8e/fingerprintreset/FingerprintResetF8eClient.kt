@@ -1,7 +1,7 @@
 package bitkey.f8e.fingerprintreset
 
 import bitkey.f8e.privilegedactions.CancelPrivilegedActionRequest
-import bitkey.f8e.privilegedactions.PrivilegedActionsF8eClient
+import bitkey.f8e.privilegedactions.DirectPrivilegedActionsF8eClient
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.EmptyResponseBody
@@ -12,7 +12,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 interface FingerprintResetF8eClient :
-  PrivilegedActionsF8eClient<FingerprintResetRequest, FingerprintResetResponse> {
+  DirectPrivilegedActionsF8eClient<FingerprintResetRequest, FingerprintResetResponse> {
   /**
    * Cancel a fingerprint reset privileged action
    */

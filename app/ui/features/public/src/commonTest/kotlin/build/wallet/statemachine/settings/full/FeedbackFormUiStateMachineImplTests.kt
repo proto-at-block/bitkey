@@ -6,6 +6,7 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.EncryptedDescriptorSupportUploadFeatureFlag
 import build.wallet.platform.web.InAppBrowserNavigatorMock
+import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.root.ActionSuccessDuration
@@ -13,8 +14,12 @@ import build.wallet.statemachine.settings.full.feedback.FeedbackFormUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormUiStateMachineImpl
 import build.wallet.statemachine.settings.full.feedback.FillingFormBodyModel
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.support.*
+import build.wallet.support.SupportTicketError.InvalidEmailAddress
+import build.wallet.support.SupportTicketError.NetworkFailure
 import build.wallet.time.DateTimeFormatterMock
+import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.milliseconds
@@ -25,7 +30,8 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
   val supportTicketFormValidator = SupportTicketFormValidatorFake()
   val dateTimeFormatter = DateTimeFormatterMock()
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
-  val encryptedDescriptorSupportUploadFeatureFlag = EncryptedDescriptorSupportUploadFeatureFlag(FeatureFlagDaoFake())
+  val encryptedDescriptorSupportUploadFeatureFlag =
+    EncryptedDescriptorSupportUploadFeatureFlag(FeatureFlagDaoFake())
 
   val stateMachine = FeedbackFormUiStateMachineImpl(
     supportTicketRepository = supportTicketRepository,
@@ -166,6 +172,42 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
             content.title == "Has Support requested a wallet descriptor?"
         }
         hasSupportRequestedDescriptorPicker.shouldBe(false)
+      }
+    }
+  }
+
+  test("submit error - invalid email shows error screen with correct message") {
+    supportTicketRepository.createTicketResult = Err(InvalidEmailAddress)
+
+    stateMachine.test(props) {
+      awaitBody<FillingFormBodyModel> {
+        // Trigger form submission
+        onSubmitData(formData)
+      }
+
+      awaitUntilBody<FormBodyModel> {
+        header?.headline.shouldBe("The entered email is not valid.")
+        header?.sublineModel?.string.shouldBe("Please provide a different email.")
+        primaryButton?.text.shouldBe("Dismiss")
+      }
+    }
+  }
+
+  test("submit error - network failure shows error screen with correct message") {
+    supportTicketRepository.createTicketResult =
+      Err(NetworkFailure(cause = Error("Connection timeout")))
+
+    stateMachine.test(props) {
+      awaitBody<FillingFormBodyModel> {
+        // Trigger form submission
+        onSubmitData(formData)
+      }
+
+      awaitUntilBody<FormBodyModel> {
+        header?.headline.shouldBe("Couldn't submit your feedback")
+        header?.sublineModel?.string.shouldBe("We couldn't submit your feedback. Please try again later.")
+        primaryButton?.text.shouldBe("Retry")
+        secondaryButton?.text.shouldBe("Dismiss")
       }
     }
   }

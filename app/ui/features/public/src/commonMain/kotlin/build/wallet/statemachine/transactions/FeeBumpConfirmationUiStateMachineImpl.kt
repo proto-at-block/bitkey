@@ -156,7 +156,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
         }
 
         LoadingBodyModel(
-          message = "Initiating transfer...",
+          title = "Initiating transfer...",
           onBack = {
             uiState = State.ConfirmingFeeBump(
               appSignedPsbt = props.psbt,

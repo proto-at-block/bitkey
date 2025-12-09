@@ -1,7 +1,7 @@
 package build.wallet.nfc
 
-import build.wallet.bdk.BdkDescriptorSecretKeyGeneratorImpl
-import build.wallet.bdk.BdkMnemonicGeneratorImpl
+import build.wallet.bdk.legacy.BdkDescriptorSecretKeyGeneratorImpl
+import build.wallet.bdk.legacy.BdkMnemonicGeneratorImpl
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.spending.SpendingKeypair

@@ -1,6 +1,8 @@
 package build.wallet.support
 
 import bitkey.account.AccountConfigService
+import bitkey.f8e.error.F8eError
+import bitkey.f8e.error.code.SupportTicketClientErrorCode
 import build.wallet.account.AccountService
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
@@ -41,7 +43,7 @@ class SupportTicketRepositoryImpl(
   override suspend fun createTicket(
     form: SupportTicketForm,
     data: SupportTicketData,
-  ): Result<Unit, Error> {
+  ): Result<Unit, SupportTicketError> {
     return withContext(Dispatchers.IO) {
       coroutineBinding {
         val logAttachments = logAttachmentsIfEnabled(data)
@@ -114,7 +116,9 @@ class SupportTicketRepositoryImpl(
               .encryptAndUploadDescriptor(
                 sendEncryptedDescriptor.accountId,
                 keysets
-              ).bind()
+              )
+              .mapError { SupportTicketError.NetworkFailure(it) }
+              .bind()
           }
         } else {
           null
@@ -122,8 +126,24 @@ class SupportTicketRepositoryImpl(
 
         supportTicketF8eClient.createTicket(
           f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment,
-          ticket = ticket.copy(debugData = ticket.debugData?.copy(descriptorEncryptedAttachmentId = attachmentId))
-        ).bind()
+          ticket = ticket.copy(
+            debugData = ticket.debugData?.copy(
+              descriptorEncryptedAttachmentId = attachmentId
+            )
+          )
+        )
+          .mapError { f8eError ->
+            when (f8eError) {
+              is F8eError.SpecificClientError ->
+                when (f8eError.errorCode) {
+                  SupportTicketClientErrorCode.INVALID_EMAIL_ADDRESS ->
+                    SupportTicketError.InvalidEmailAddress
+                }
+              else ->
+                SupportTicketError.NetworkFailure(f8eError.error)
+            }
+          }
+          .bind()
       }
     }
   }

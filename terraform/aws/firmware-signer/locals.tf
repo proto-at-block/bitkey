@@ -10,6 +10,10 @@ locals {
   resource_prefix    = var.developer_name != "" ? local.developer_prefix : local.shared_prefix
   is_developer_stack = var.developer_name != ""
 
+  # Display name for user-facing messages (emails, notifications)
+  # For developer stacks: "dev-<name>", for shared stacks: the environment name
+  env_display_name = var.developer_name != "" ? "dev-${var.developer_name}" : var.env
+
   # Datadog integration is disabled for localstack and developer stacks
   enable_datadog = !local.is_developer_stack && !var.is_localstack
 

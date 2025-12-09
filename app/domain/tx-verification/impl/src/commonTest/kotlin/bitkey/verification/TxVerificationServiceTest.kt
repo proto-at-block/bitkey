@@ -70,8 +70,8 @@ class TxVerificationServiceTest : FunSpec({
   }
 
   test("Current Threshold - set") {
-    val threshold = VerificationThreshold(BitcoinMoney(BTC, 1.toBigDecimal()))
-    dao.setActivePolicy(txVerificationPolicy = Active(threshold)).shouldBeOk()
+    val threshold = VerificationThreshold.Enabled(BitcoinMoney(BTC, 1.toBigDecimal()))
+    dao.setEnabledThreshold(threshold = threshold).shouldBeOk()
     service.getCurrentThreshold().first().shouldBeOk(threshold)
   }
 
@@ -80,7 +80,7 @@ class TxVerificationServiceTest : FunSpec({
 
     // Set a current policy to test if these are accidentally conflated:
     val amount = BitcoinMoney(BTC, 1.toBigDecimal())
-    dao.setActivePolicy(Active(VerificationThreshold(amount))).shouldBeOk()
+    dao.setEnabledThreshold(VerificationThreshold.Enabled(amount)).shouldBeOk()
     service.getPendingPolicy().first().shouldBeOk(null)
   }
 
@@ -105,7 +105,11 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Update Policy - no auth") {
     accountService.setActiveAccount(FullAccountMock)
-    service.updateThreshold(Active(VerificationThreshold.Always), HwFactorProofOfPossession("fake"))
+    service.updateThreshold(
+      policy = Active(VerificationThreshold.Always),
+      amountBtc = BitcoinMoney.zero(),
+      hwFactorProofOfPossession = HwFactorProofOfPossession("fake")
+    )
       .shouldBeOk()
   }
 
@@ -120,7 +124,7 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Verification Not Required - Fiat threshold") {
     val amount = FiatMoney(USD, 10.0.toBigDecimal())
-    dao.setActivePolicy(Active(VerificationThreshold(amount))).shouldBeOk()
+    dao.setEnabledThreshold(VerificationThreshold.Enabled(amount)).shouldBeOk()
 
     val result = service.isVerificationRequired(
       amount = BitcoinMoney.btc(1.0),
@@ -134,7 +138,7 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Verification Required - Fiat threshold") {
     val amount = FiatMoney(USD, 10.0.toBigDecimal())
-    dao.setActivePolicy(Active(VerificationThreshold(amount))).shouldBeOk()
+    dao.setEnabledThreshold(VerificationThreshold.Enabled(amount)).shouldBeOk()
     currencyConverter.conversionRate = 0.5
 
     val result = service.isVerificationRequired(
@@ -146,7 +150,7 @@ class TxVerificationServiceTest : FunSpec({
   }
 
   test("Verification Always Required - always policy") {
-    dao.setActivePolicy(Active(VerificationThreshold.Always)).shouldBeOk()
+    dao.setEnabledThreshold(VerificationThreshold.Always).shouldBeOk()
 
     val result = service.isVerificationRequired(
       amount = BitcoinMoney.sats(1),
@@ -158,7 +162,7 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Verification Required - Bitcoin threshold") {
     val amount = BitcoinMoney.btc(1.0)
-    dao.setActivePolicy(Active(VerificationThreshold(amount))).shouldBeOk()
+    dao.setEnabledThreshold(VerificationThreshold.Enabled(amount)).shouldBeOk()
 
     val result = service.isVerificationRequired(
       amount = BitcoinMoney.btc(1.5),
@@ -170,7 +174,7 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Verification Not Required - Bitcoin threshold") {
     val amount = BitcoinMoney.btc(2.0)
-    dao.setActivePolicy(Active(VerificationThreshold(amount))).shouldBeOk()
+    dao.setEnabledThreshold(VerificationThreshold.Enabled(amount)).shouldBeOk()
 
     val result = service.isVerificationRequired(
       amount = BitcoinMoney.btc(1.5),
@@ -182,7 +186,7 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Verification Required - Bitcoin threshold in sats") {
     val amount = BitcoinMoney.sats(100_000)
-    dao.setActivePolicy(Active(VerificationThreshold(amount))).shouldBeOk()
+    dao.setEnabledThreshold(VerificationThreshold.Enabled(amount)).shouldBeOk()
 
     val result = service.isVerificationRequired(
       amount = BitcoinMoney.sats(150_000),
@@ -194,7 +198,7 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Verification at exact threshold - Bitcoin") {
     val amount = BitcoinMoney.btc(1.0)
-    dao.setActivePolicy(Active(VerificationThreshold(amount))).shouldBeOk()
+    dao.setEnabledThreshold(VerificationThreshold.Enabled(amount)).shouldBeOk()
 
     val result = service.isVerificationRequired(
       amount = BitcoinMoney.btc(1.0),
@@ -207,7 +211,7 @@ class TxVerificationServiceTest : FunSpec({
 
   test("Verification Skipped - Fiat threshold with no exchange rate") {
     val amount = FiatMoney(USD, 10.0.toBigDecimal())
-    dao.setActivePolicy(Active(VerificationThreshold(amount))).shouldBeOk()
+    dao.setEnabledThreshold(VerificationThreshold.Enabled(amount)).shouldBeOk()
     currencyConverter.conversionRate = 0.5
 
     val result = service.isVerificationRequired(

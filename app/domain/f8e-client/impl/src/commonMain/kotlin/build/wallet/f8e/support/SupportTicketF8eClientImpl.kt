@@ -1,5 +1,8 @@
 package build.wallet.f8e.support
 
+import bitkey.f8e.error.F8eError
+import bitkey.f8e.error.code.SupportTicketClientErrorCode
+import bitkey.f8e.error.toF8eError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
@@ -12,6 +15,7 @@ import build.wallet.mapUnit
 import build.wallet.platform.data.MimeType
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
+import com.github.michaelbull.result.mapError
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -30,7 +34,7 @@ class SupportTicketF8eClientImpl(
   override suspend fun createTicket(
     f8eEnvironment: F8eEnvironment,
     ticket: CreateTicketDTO,
-  ): Result<Unit, NetworkingError> {
+  ): Result<Unit, F8eError<SupportTicketClientErrorCode>> {
     return f8eHttpClient
       .unauthenticated()
       .bodyResult<CreateTicketResponse> {
@@ -41,6 +45,7 @@ class SupportTicketF8eClientImpl(
         }
       }
       .logNetworkFailure { "Failed to create support ticket." }
+      .mapError { it.toF8eError<SupportTicketClientErrorCode>() }
       .mapUnit()
   }
 

@@ -15,12 +15,15 @@ import build.wallet.ui.model.button.ButtonModel
  *
  * @property id: A unique identifier for this screen that will also be used to track screen
  * analytic events.
+ * @property message: The title/headline text displayed on the screen
+ * @property description: Optional body text displayed below the message
  */
 data class LoadingSuccessBodyModel(
   override val onBack: (() -> Unit)? = null,
   val state: State,
   val id: EventTrackerScreenId?,
   val message: String? = null,
+  val description: String? = null,
   val eventTrackerContext: EventTrackerContext? = null,
   val eventTrackerShouldTrack: Boolean = true,
   val primaryButton: ButtonModel? = null,

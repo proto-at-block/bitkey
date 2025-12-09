@@ -3,7 +3,6 @@ package build.wallet.integration.statemachine.recovery
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
 import build.wallet.statemachine.account.ChooseAccountAccessModel
@@ -39,7 +38,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     initWithTreasuryFunds: BitcoinMoney = BitcoinMoney.zero(),
     delayNotifyDuration: kotlin.time.Duration = 5.seconds,
   ) {
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
     onboardFullAccountWithFakeHardware(delayNotifyDuration = delayNotifyDuration)
     if (initWithTreasuryFunds != BitcoinMoney.zero()) {
       val wallet = getActiveWallet()
@@ -54,7 +52,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     delayNotifyDuration: kotlin.time.Duration = 5.seconds,
   ): AppTester {
     return relaunchApp().also { relaunched ->
-      relaunched.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
       relaunched.defaultAccountConfigService.setDelayNotifyDuration(delayNotifyDuration)
     }
   }
@@ -591,11 +588,13 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("lost app recovery refreshes descriptor backups if enabled") {
+  test("lost app recovery refreshes descriptor backups") {
     var app = launchLegacyWalletApp()
     app.setupForLostApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
-    app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
+    app.onboardFullAccountWithFakeHardware(
+      delayNotifyDuration = 5.seconds,
+      shouldUploadDescriptorBackups = false
+    )
 
     val accountId = app.getActiveFullAccount().accountId
 
@@ -607,7 +606,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     app.deleteBackupsFromFakeCloud()
 
     app = app.relaunchForLostApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
 
     app.performRecovery()
 

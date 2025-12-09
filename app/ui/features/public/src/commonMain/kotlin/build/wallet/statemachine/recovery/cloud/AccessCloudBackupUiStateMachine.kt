@@ -4,7 +4,7 @@ import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.StartIntent
+import build.wallet.statemachine.data.keybox.StartIntent
 
 /**
  * State machine that handles logging into a cloud storage and looking up [CloudBackup] on cloud

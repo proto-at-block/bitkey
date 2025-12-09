@@ -15,9 +15,6 @@ import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.AuthF8eClientMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.*
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError.ServerError
 import build.wallet.ktor.test.HttpResponseMock
@@ -49,9 +46,6 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   val accountConfigService = AccountConfigServiceFake()
   val initiateAccountDelayNotifyF8eClient = InitiateAccountDelayNotifyF8eClientFake()
   val recoveryDao = RecoveryDaoMock(turbines::create)
-  val useEncryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(
-    FeatureFlagDaoFake()
-  )
   val uuidGenerator = UuidGeneratorFake()
   val mockRemoteKeyset =
     LegacyRemoteKeyset(
@@ -73,7 +67,6 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     listKeysetsF8eClient = listKeysetsF8eClient,
     initiateAccountDelayNotifyF8eClient = initiateAccountDelayNotifyF8eClient,
     recoveryDao = recoveryDao,
-    useEncryptedDescriptorBackupsFeatureFlag = useEncryptedDescriptorBackupsFeatureFlag,
     uuidGenerator = uuidGenerator
   )
 
@@ -93,9 +86,6 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     listKeysetsF8eClient.reset()
     appKeysGenerator.reset()
     recoveryDao.reset()
-    useEncryptedDescriptorBackupsFeatureFlag.reset()
-
-    useEncryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
   }
 
   test("success") {

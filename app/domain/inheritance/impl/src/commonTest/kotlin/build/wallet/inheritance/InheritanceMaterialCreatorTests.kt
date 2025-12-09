@@ -13,7 +13,6 @@ import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
 import build.wallet.relationships.RelationshipsCrypto
 import build.wallet.relationships.RelationshipsCryptoError
 import build.wallet.relationships.RelationshipsCryptoFake
@@ -33,13 +32,11 @@ class InheritanceMaterialCreatorTests : FunSpec({
   val inheritanceRelationshipsProvider = InheritanceRelationshipsProviderFake()
   val descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock()
   val featureFlagDao = FeatureFlagDaoFake()
-  val inheritanceUseEncryptedDescriptorFeatureFlag = InheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao = featureFlagDao)
   val creator = InheritanceCryptoImpl(
     appPrivateKeyDao = privateKeyDao,
     relationships = inheritanceRelationshipsProvider,
     crypto = crypto,
-    descriptorBuilder = descriptorBuilder,
-    inheritanceUseEncryptedDescriptorFeatureFlag = inheritanceUseEncryptedDescriptorFeatureFlag
+    descriptorBuilder = descriptorBuilder
   )
 
   test("Changing Spending Key should give a new hash") {
@@ -125,8 +122,7 @@ class InheritanceMaterialCreatorTests : FunSpec({
       appPrivateKeyDao = privateKeyDao,
       relationships = inheritanceRelationshipsProvider,
       crypto = failingCrypto,
-      descriptorBuilder = descriptorBuilder,
-      inheritanceUseEncryptedDescriptorFeatureFlag = inheritanceUseEncryptedDescriptorFeatureFlag
+      descriptorBuilder = descriptorBuilder
     )
 
     val result = testCreator.createInheritanceMaterial(KeyboxMock)

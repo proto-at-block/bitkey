@@ -10,7 +10,6 @@ import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
@@ -44,6 +43,7 @@ import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
+import build.wallet.cloud.backup.CloudBackup as CloudBackupData
 
 class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   val onboardAccountService = OnboardAccountServiceFake()
@@ -70,7 +70,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   )
 
   val onFoundLiteAccountWithDifferentId =
-    turbines.create<CloudBackupV2>("onFoundLiteAccountWithDifferentId")
+    turbines.create<CloudBackupData>("onFoundLiteAccountWithDifferentId")
   val onOverwriteFullAccountCloudBackupWarning =
     turbines.create<Unit>("onOverwriteFullAccountCloudBackupWarning")
   val onOnboardingComplete = turbines.create<Unit>("onOnboardingComplete")

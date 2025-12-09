@@ -5,7 +5,6 @@ import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.feature.setFlagValue
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
@@ -47,15 +46,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class LostHardwareRecoveryFunctionalTests : FunSpec({
   suspend fun AppTester.prepareApp() {
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
     onboardFullAccountWithFakeHardware()
     fakeNfcCommands.wipeDevice()
-  }
-
-  suspend fun AppTester.relaunchAppForLostHardware(): AppTester {
-    return relaunchApp().also { relaunched ->
-      relaunched.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
-    }
   }
 
   testForLegacyAndPrivateWallet("lost hardware recovery - happy path") { app ->
@@ -109,7 +101,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
 
     // Force exit app while on cloud backup step
-    app = app.relaunchAppForLostHardware()
+    app = app.relaunchApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -170,7 +162,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    app = app.relaunchAppForLostHardware()
+    app = app.relaunchApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -222,7 +214,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    app = app.relaunchAppForLostHardware()
+    app = app.relaunchApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -270,7 +262,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
 
     // Force exit app on backup step
-    app = app.relaunchAppForLostHardware()
+    app = app.relaunchApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -324,7 +316,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
 
     // Force exit app on backup step
-    app = app.relaunchAppForLostHardware()
+    app = app.relaunchApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -375,7 +367,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
 
     // Force exit app on sweep step
-    app = app.relaunchAppForLostHardware()
+    app = app.relaunchApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -430,7 +422,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
 
     // Force exit app during wait period
-    app = app.relaunchAppForLostHardware()
+    app = app.relaunchApp()
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -712,10 +704,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("lost hardware recovery refreshes descriptor backups if enabled") {
+  test("lost hardware recovery refreshes descriptor backups") {
     val app = launchLegacyWalletApp()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(false)
-    app.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware(shouldUploadDescriptorBackups = false)
 
     val accountId = app.getActiveFullAccount().accountId
 
@@ -723,7 +714,6 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.verifyCanUseKeyboxKeysets(true)
 
     app.fakeNfcCommands.wipeDevice()
-    app.encryptedDescriptorBackupsFeatureFlag.setFlagValue(true)
 
     app.performLostHardwareRecovery()
 

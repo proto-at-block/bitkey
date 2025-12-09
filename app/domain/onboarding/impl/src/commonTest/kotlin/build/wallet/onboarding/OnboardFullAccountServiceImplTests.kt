@@ -16,8 +16,6 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.onboarding.OnboardingF8eClientMock
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId
 import build.wallet.home.GettingStartedTask.TaskState
@@ -57,7 +55,6 @@ class OnboardFullAccountServiceImplTests : FunSpec({
   val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
   val featureFlagDao = FeatureFlagDaoFake()
-  val encryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(featureFlagDao)
   val onboardingKeyboxStepStateDao = OnboardingKeyboxStepStateDaoFake()
 
   val service = OnboardFullAccountServiceImpl(
@@ -75,8 +72,7 @@ class OnboardFullAccountServiceImplTests : FunSpec({
     onboardingF8eClient = onboardingF8eClient,
     gettingStartedTaskDao = gettingStartedTaskDao,
     eventTracker = eventTracker,
-    onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
-    encryptedDescriptorBackupsFeatureFlag = encryptedDescriptorBackupsFeatureFlag
+    onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao
   )
 
   val hwActivation = FingerprintEnrolled(
@@ -146,7 +142,6 @@ class OnboardFullAccountServiceImplTests : FunSpec({
   }
 
   test("createAccount creates new full account successfully") {
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val appKeys = WithAppKeysMock
 
     val result = service.createAccount(
@@ -241,7 +236,6 @@ class OnboardFullAccountServiceImplTests : FunSpec({
 
   test("createAccount returns error when storing sealed SSEK fails") {
     onboardingKeyboxSealedSsekDao.shouldFailToStore = true
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
 
     val result = service.createAccount(
       context = NewFullAccount,

@@ -51,7 +51,7 @@ class RecoveryRelationshipNotificationUiStateMachineImpl(
           RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> SocialRecoveryEventTrackerScreenId.BENEFACTOR_RECOVERY_RELATIONSHIP_AWAITING_ENDORSEMENT
           RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> SocialRecoveryEventTrackerScreenId.PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_AWAITING_ENDORSEMENT
         },
-        message = "Completing invitation..."
+        title = "Completing invitation..."
       ).asModalScreen()
       is Endorsed -> when (props.action) {
         RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> BenefactorInviteAcceptedNotificationBodyModel(

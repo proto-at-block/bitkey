@@ -4,6 +4,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.isFullAccount
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
@@ -104,6 +105,10 @@ class FullAccountCloudBackupRepairerImpl(
     localBackup: CloudBackup,
   ) {
     val sealedCsek = when (localBackup) {
+      is CloudBackupV3 ->
+        localBackup.fullAccountFields?.sealedHwEncryptionKey
+          // The backup should be for full account, but to be safe.
+          ?: return
       is CloudBackupV2 ->
         localBackup.fullAccountFields?.sealedHwEncryptionKey
           // The backup should be for full account, but to be safe.

@@ -37,7 +37,7 @@ fun generatingPsbtsBodyModel(
   presentationStyle = presentationStyle,
   body =
     LoadingBodyModel(
-      message = "Checking for funds...",
+      title = "Checking for funds...",
       id = id,
       onBack = onBack,
       eventTrackerShouldTrack = false
@@ -303,7 +303,7 @@ fun broadcastingScreenModel(
   presentationStyle = presentationStyle,
   body =
     LoadingBodyModel(
-      message = when (context) {
+      title = when (context) {
         is SweepContext.PrivateWalletMigration -> "Updating wallet..."
         else -> "Recovering funds..."
       },

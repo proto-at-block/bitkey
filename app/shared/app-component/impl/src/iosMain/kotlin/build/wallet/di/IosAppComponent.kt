@@ -33,6 +33,7 @@ import build.wallet.platform.config.DeviceTokenConfigProvider
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.FileManager
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.pdf.PdfAnnotatorFactory
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
 import build.wallet.platform.sensor.Accelerometer
@@ -74,7 +75,6 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val signatureUtils: SignatureUtils,
   @get:Provides val bdkTxBuilderFactory: BdkTxBuilderFactory,
   @get:Provides val bdkWalletFactory: BdkWalletFactory,
-  @get:Provides val biometricPrompter: BiometricPrompter,
   @get:Provides val cloudFileStore: CloudFileStore,
   @get:Provides val cryptoBox: CryptoBox,
   @get:Provides val datadogRumMonitor: DatadogRumMonitor,
@@ -116,6 +116,7 @@ abstract class IosAppComponent internal constructor(
    */
   abstract val appSessionManager: AppSessionManager
   abstract val biometricPreference: BiometricPreference
+  abstract val biometricPrompter: BiometricPrompter
   abstract val bugsnagContext: BugsnagContext
   abstract val deviceTokenManager: DeviceTokenManager
   abstract val eventTracker: EventTracker
@@ -124,6 +125,8 @@ abstract class IosAppComponent internal constructor(
   abstract val pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider
   abstract val deviceInfoProvider: DeviceInfoProvider
   abstract val accelerometer: Accelerometer
+
+  abstract val haptics: Haptics
 }
 
 /**
@@ -142,7 +145,6 @@ expect fun create(
   signatureUtils: SignatureUtils,
   bdkTxBuilderFactory: BdkTxBuilderFactory,
   bdkWalletFactory: BdkWalletFactory,
-  biometricPrompter: BiometricPrompter,
   cloudFileStore: CloudFileStore,
   cryptoBox: CryptoBox,
   datadogRumMonitor: DatadogRumMonitor,

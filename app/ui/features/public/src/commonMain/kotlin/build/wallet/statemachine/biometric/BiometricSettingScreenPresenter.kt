@@ -96,7 +96,7 @@ class BiometricSettingScreenPresenter(
         appSecurityDescriptionText = biometricTextProvider.getAppSecurityDescriptionText(),
         onEnableCheckedChange = {
           if (!isEnabled) {
-            val biometricsAvailability = biometricPrompter.biometricsAvailability().result
+            val biometricsAvailability = biometricPrompter.biometricsAvailability()
             biometricsAvailability
               .onSuccess {
                 sheetModel = nfcPromptSheetModel(
@@ -185,7 +185,6 @@ class BiometricSettingScreenPresenter(
                 // on android this immediately succeeds
                 // on ios, enrollment requires verification of biometric auth
                 biometricPrompter.enrollBiometrics()
-                  .result
                   .onSuccess {
                     biometricPreference.set(enabled = !isEnabled)
                     uiState = State.EnablingBiometricSetting(isEnabled = !isEnabled)

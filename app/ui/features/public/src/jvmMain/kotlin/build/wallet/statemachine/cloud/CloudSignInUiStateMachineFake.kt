@@ -73,7 +73,7 @@ class CloudSignInUiStateMachineFake(
   @Composable
   private fun LoadingModel(props: CloudSignInUiProps): BodyModel =
     LoadingBodyModel(
-      message = null,
+      title = null,
       onBack = null,
       id = CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING,
       eventTrackerContext = props.eventTrackerContext

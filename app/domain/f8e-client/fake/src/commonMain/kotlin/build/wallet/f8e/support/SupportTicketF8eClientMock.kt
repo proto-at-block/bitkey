@@ -1,5 +1,7 @@
 package build.wallet.f8e.support
 
+import bitkey.f8e.error.F8eError
+import bitkey.f8e.error.code.SupportTicketClientErrorCode
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.platform.data.MimeType
@@ -13,7 +15,7 @@ class SupportTicketF8eClientMock(
   override suspend fun createTicket(
     f8eEnvironment: F8eEnvironment,
     ticket: CreateTicketDTO,
-  ): Result<Unit, NetworkingError> {
+  ): Result<Unit, F8eError<SupportTicketClientErrorCode>> {
     return Ok(Unit)
   }
 

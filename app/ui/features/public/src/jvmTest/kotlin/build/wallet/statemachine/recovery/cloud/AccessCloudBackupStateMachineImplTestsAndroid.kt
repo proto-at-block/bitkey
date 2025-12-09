@@ -13,7 +13,7 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.AccountData
+import build.wallet.statemachine.data.keybox.StartIntent
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
@@ -50,7 +50,7 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
     onImportEmergencyExitKit = {
       importEmergencyExitKitCalls += Unit
     },
-    startIntent = AccountData.StartIntent.BeTrustedContact,
+    startIntent = StartIntent.BeTrustedContact,
     inviteCode = "inviteCode",
     onStartCloudRecovery = { _, backup ->
       onStartCloudRecoveryCalls += backup

@@ -17,6 +17,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
+import build.wallet.logging.logWarn
 import build.wallet.mapResult
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -75,36 +76,49 @@ class TxVerificationServiceImpl(
   }
 
   override suspend fun updateThreshold(
-    txVerificationPolicy: TxVerificationPolicy.Active,
+    policy: TxVerificationPolicy.Active,
+    amountBtc: BitcoinMoney?,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Unit, Error> {
+  ): Result<TxVerificationPolicy, Error> {
     return coroutineBinding {
       val account = accountService.getAccount<FullAccount>()
         .logFailure { "Update Threshold cannot be called without full account." }
         .bind()
-      val apiResult = policyClient.setPolicy(
+
+      policyClient.setPolicy(
         fullAccountId = account.accountId,
         f8eEnvironment = account.config.f8eEnvironment,
-        policy = txVerificationPolicy,
+        policy = policy,
+        amountBtc = amountBtc,
         hwFactorProofOfPossession = hwFactorProofOfPossession
-      ).bind()
-
-      when (apiResult) {
-        is TxVerificationPolicy.Active -> {
-          logInfo { "Verification policy updated to ${apiResult.threshold}" }
-          txVerificationDao.setActivePolicy(apiResult).bind()
-        }
-        is TxVerificationPolicy.Pending -> {
-          bitkeyDatabaseProvider.database()
-            .pendingPrivilegedActionsQueries
-            .insertPendingAction(
-              id = apiResult.authorization.id,
-              type = apiResult.authorization.privilegedActionType,
-              strategy = AuthorizationStrategyType.OUT_OF_BAND
-            )
-        }
-        TxVerificationPolicy.Disabled -> {
-          txVerificationDao.deletePolicy().bind()
+      ).bind().also { apiResult ->
+        when (apiResult) {
+          is TxVerificationPolicy.Active -> {
+            logInfo { "Verification policy updated to ${apiResult.threshold}" }
+            txVerificationDao.setThreshold(apiResult.threshold).bind()
+          }
+          is TxVerificationPolicy.Pending -> {
+            bitkeyDatabaseProvider.database()
+              .pendingPrivilegedActionsQueries
+              .getPendingActionByType(apiResult.authorization.privilegedActionType)
+              .executeAsOneOrNull()
+              ?.id
+              ?.run {
+                logWarn {
+                  "Unexpected pending action in database with id: <$this>. Deleting before proceeding with new request."
+                }
+                bitkeyDatabaseProvider.database()
+                  .pendingPrivilegedActionsQueries
+                  .deletePendingActionById(this)
+              }
+            bitkeyDatabaseProvider.database()
+              .pendingPrivilegedActionsQueries
+              .insertPendingAction(
+                id = apiResult.authorization.id,
+                type = apiResult.authorization.privilegedActionType,
+                strategy = AuthorizationStrategyType.OUT_OF_BAND
+              )
+          }
         }
       }
     }
@@ -135,6 +149,7 @@ class TxVerificationServiceImpl(
             toCurrency = BTC,
             rates = exchangeRates ?: return false // If no exchange rate is available, defer to server.
           ) as BitcoinMoney
+          null -> return false
         }
 
         btcThreshold <= amount

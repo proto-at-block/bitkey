@@ -5,7 +5,7 @@ import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
-import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.platform.permissions.PermissionStatus
@@ -167,7 +167,7 @@ private const val PROTECTED_CUSTOMER_NAME = "protected customer"
 private suspend fun createLiteAccountWithInvite(
   protectedCustomerApp: AppTester,
   liteApp: AppTester,
-): Pair<LiteAccount, CloudBackupV2> {
+): Pair<LiteAccount, CloudBackup> {
   protectedCustomerApp.onboardFullAccountWithFakeHardware()
 
   val (inviteCode, _) = protectedCustomerApp.createTcInvite("Recovery Contact")

@@ -23,7 +23,7 @@ import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.data.keybox.AccountData.StartIntent
+import build.wallet.statemachine.data.keybox.StartIntent
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.*
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -153,7 +153,7 @@ class AccessCloudBackupUiStateMachineImpl(
         }
 
         LoadingBodyModel(
-          message = "Looking for your backup...",
+          title = "Looking for your backup...",
           onBack = props.onExit,
           id = CloudEventTrackerScreenId.CHECKING_CLOUD_BACKUP_AVAILABILITY
         ).asRootScreen()

@@ -55,3 +55,4 @@ cli/wallet.db/*
 # Claude
 /CLAUDE.local.md
 **/.claude/settings.local.json
+.swiftpm

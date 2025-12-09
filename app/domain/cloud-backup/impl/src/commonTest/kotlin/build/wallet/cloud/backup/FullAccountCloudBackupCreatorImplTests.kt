@@ -15,6 +15,7 @@ import build.wallet.cloud.backup.v2.FullAccountFieldsMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.relationships.RelationshipsFake
+import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.relationships.*
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.time.ClockFake
@@ -27,6 +28,7 @@ import kotlin.collections.set
 class FullAccountCloudBackupCreatorImplTests : FunSpec({
 
   val clock = ClockFake()
+  val deviceInfoProvider = DeviceInfoProviderMock()
   val keybox = KeyboxMock
   val fullAccountFieldsCreator = FullAccountFieldsCreatorMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
@@ -44,7 +46,9 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
       appPrivateKeyDao = appPrivateKeyDao,
       fullAccountFieldsCreator = fullAccountFieldsCreator,
       relationshipsKeysRepository = relationshipsKeysRepository,
-      relationshipsService = relationshipsService
+      relationshipsService = relationshipsService,
+      clock = clock,
+      deviceInfoProvider = deviceInfoProvider
     )
 
   beforeTest {
@@ -52,9 +56,10 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
     fullAccountFieldsCreator.reset()
     relationshipsCrypto.reset()
     relationshipsService.clear()
+    deviceInfoProvider.reset()
   }
 
-  context("v2") {
+  context("v3") {
     test("success") {
       val recoveryAuthKeypair = AppRecoveryAuthKeypairMock
       appPrivateKeyDao.asymmetricKeys[recoveryAuthKeypair.publicKey] =
@@ -69,7 +74,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
         )
         .shouldBeEqual(
           Ok(
-            CloudBackupV2(
+            CloudBackupV3(
               accountId = FullAccountIdMock.serverId,
               f8eEnvironment = Development,
               isTestAccount = true,
@@ -77,7 +82,9 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
               fullAccountFields = FullAccountFieldsMock,
               appRecoveryAuthKeypair = AppRecoveryAuthKeypairMock,
               isUsingSocRecFakes = false,
-              bitcoinNetworkType = BitcoinNetworkType.SIGNET
+              bitcoinNetworkType = BitcoinNetworkType.SIGNET,
+              deviceNickname = null,
+              createdAt = clock.now()
             )
           )
         )

@@ -77,7 +77,6 @@ private fun AuthenticatingPromptEffect(
 ) {
   LaunchedEffect("prompting-for-auth") {
     biometricPrompter.promptForAuth()
-      .result
       .onSuccess { onAuthenticated() }
       .onFailure { onAuthenticationFailed() }
   }

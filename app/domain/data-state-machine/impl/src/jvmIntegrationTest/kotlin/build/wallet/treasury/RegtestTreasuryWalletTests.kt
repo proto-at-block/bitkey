@@ -1,9 +1,9 @@
 package build.wallet.treasury
 
-import build.wallet.bdk.BdkDescriptorFactoryImpl
-import build.wallet.bdk.BdkDescriptorSecretKeyFactoryImpl
 import build.wallet.bdk.bindings.BdkKeychainKind.EXTERNAL
 import build.wallet.bdk.bindings.BdkKeychainKind.INTERNAL
+import build.wallet.bdk.legacy.BdkDescriptorFactoryImpl
+import build.wallet.bdk.legacy.BdkDescriptorSecretKeyFactoryImpl
 import build.wallet.bitcoin.BitcoinNetworkType.REGTEST
 import build.wallet.bitcoin.bdk.bdkNetwork
 import build.wallet.bitcoin.descriptor.BitcoinDescriptor.Spending

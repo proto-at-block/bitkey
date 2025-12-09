@@ -178,7 +178,7 @@ class TransferConfirmationUiStateMachineImpl(
     return when (val state = uiState) {
       is BroadcastingTransactionUiState, is SigningWithServerUiState ->
         LoadingBodyModel(
-          message = "Initiating transfer...",
+          title = "Initiating transfer...",
           onBack = {
             uiState = CreatingAppSignedPsbtUiState
           },
@@ -222,7 +222,7 @@ class TransferConfirmationUiStateMachineImpl(
         }
       ).asModalScreen()
       is VerifyingTransactionUiState -> LoadingBodyModel(
-        message = "Waiting for verification...",
+        title = "Waiting for verification...",
         onBack = props.onBack,
         id = null,
         eventTrackerShouldTrack = false,
@@ -478,7 +478,7 @@ class TransferConfirmationUiStateMachineImpl(
     }
 
     return LoadingBodyModel(
-      message = "Loading transaction...",
+      title = "Loading transaction...",
       onBack = props.onBack,
       id = SendEventTrackerScreenId.SEND_CREATING_PSBT_LOADING,
       eventTrackerShouldTrack = false

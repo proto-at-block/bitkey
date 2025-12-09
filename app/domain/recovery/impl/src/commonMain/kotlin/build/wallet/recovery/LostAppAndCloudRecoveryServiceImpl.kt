@@ -23,8 +23,6 @@ import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.*
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
@@ -55,7 +53,6 @@ class LostAppAndCloudRecoveryServiceImpl(
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val initiateAccountDelayNotifyF8eClient: InitiateAccountDelayNotifyF8eClient,
   private val recoveryDao: RecoveryDao,
-  private val useEncryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag,
   private val uuidGenerator: UuidGenerator,
 ) : LostAppAndCloudRecoveryService {
   override suspend fun initiateAuth(
@@ -103,7 +100,7 @@ class LostAppAndCloudRecoveryServiceImpl(
         val wrappedSsek = listKeysetsResponse.wrappedSsek
         val keysets = listKeysetsResponse.keysets
 
-        if (descriptorBackups.isNotEmpty() && useEncryptedDescriptorBackupsFeatureFlag.isEnabled()) {
+        if (descriptorBackups.isNotEmpty()) {
           logInfo { "Using descriptor backups to initiate lost app & cloud recovery" }
           WithDescriptorBackups(
             accountId = accountId,

@@ -3,12 +3,12 @@ package build.wallet.statemachine.root
 import androidx.compose.runtime.*
 import bitkey.datadog.DatadogRumMonitor
 import bitkey.ui.framework.NavigatorPresenter
-import bitkey.ui.statemachine.interstitial.InterstitialUiProps
-import bitkey.ui.statemachine.interstitial.InterstitialUiStateMachine
 import build.wallet.account.AccountService
+import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
+import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.SoftwareAccount
@@ -19,8 +19,8 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.AppUpdateModalFeatureFlag
-import build.wallet.inappsecurity.BiometricAuthService
 import build.wallet.logging.logInfo
+import build.wallet.mapResult
 import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
@@ -33,34 +33,33 @@ import build.wallet.statemachine.account.create.full.CreateAccountUiProps
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
-import build.wallet.statemachine.biometric.BiometricPromptProps
-import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
+import build.wallet.statemachine.account.full.FullAccountUiProps
+import build.wallet.statemachine.account.full.FullAccountUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.AccountData.*
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
-import build.wallet.statemachine.data.keybox.AccountDataProps
-import build.wallet.statemachine.data.keybox.AccountDataStateMachine
-import build.wallet.statemachine.data.keybox.OrphanedKeyRecoveryUiState.*
+import build.wallet.statemachine.data.keybox.*
+import build.wallet.statemachine.data.keybox.NoActiveAccountData.*
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.home.full.HomeUiProps
 import build.wallet.statemachine.home.full.HomeUiStateMachine
 import build.wallet.statemachine.home.lite.LiteHomeUiProps
 import build.wallet.statemachine.home.lite.LiteHomeUiStateMachine
-import build.wallet.statemachine.recovery.cloud.*
-import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiProps
-import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiStateMachine
-import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiProps
-import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiStateMachine
+import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiProps
+import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachine
+import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiProps
+import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiStateMachine
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
 import build.wallet.worker.AppWorkerExecutor
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.get
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -72,27 +71,23 @@ class AppUiStateMachineImpl(
   private val lostAppRecoveryUiStateMachine: LostAppRecoveryUiStateMachine,
   private val homeUiStateMachine: HomeUiStateMachine,
   private val liteHomeUiStateMachine: LiteHomeUiStateMachine,
+  private val fullAccountUiStateMachine: FullAccountUiStateMachine,
   private val chooseAccountAccessUiStateMachine: ChooseAccountAccessUiStateMachine,
   private val createAccountUiStateMachine: CreateAccountUiStateMachine,
   private val accountDataStateMachine: AccountDataStateMachine,
+  private val noActiveAccountDataStateMachine: NoActiveAccountDataStateMachine,
   private val loadAppService: LoadAppService,
-  private val noLongerRecoveringUiStateMachine: NoLongerRecoveringUiStateMachine,
-  private val someoneElseIsRecoveringUiStateMachine: SomeoneElseIsRecoveringUiStateMachine,
   private val accessCloudBackupUiStateMachine: AccessCloudBackupUiStateMachine,
   private val createLiteAccountUiStateMachine: CreateLiteAccountUiStateMachine,
   private val liteAccountCloudBackupRestorationUiStateMachine:
     LiteAccountCloudBackupRestorationUiStateMachine,
   private val emergencyExitKitRecoveryUiStateMachine: EmergencyExitKitRecoveryUiStateMachine,
-  private val authKeyRotationUiStateMachine: RotateAuthKeyUIStateMachine,
   private val appWorkerExecutor: AppWorkerExecutor,
-  private val biometricAuthService: BiometricAuthService,
-  private val biometricPromptUiStateMachine: BiometricPromptUiStateMachine,
   private val accountService: AccountService,
   private val datadogRumMonitor: DatadogRumMonitor,
   private val splashScreenDelay: SplashScreenDelay,
   private val welcomeToBitkeyScreenDuration: WelcomeToBitkeyScreenDuration,
   private val deviceInfoProvider: DeviceInfoProvider,
-  private val interstitialUiStateMachine: InterstitialUiStateMachine,
   private val appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
   private val appStoreUrlProvider: AppStoreUrlProvider,
   private val deepLinkHandler: DeepLinkHandler,
@@ -112,7 +107,6 @@ class AppUiStateMachineImpl(
     LaunchedEffect("execute-app-workers") {
       appWorkerExecutor.executeAll()
     }
-    var accountData by remember { mutableStateOf<AccountData?>(null) }
     val deviceInfo = remember { deviceInfoProvider.getDeviceInfo() }
 
     // Track whether user dismissed the update modal in this session
@@ -157,7 +151,7 @@ class AppUiStateMachineImpl(
               onboardingAccount = currentState.onboardingAccount
             )
           )
-          AppState.Undetermined -> mutableStateOf<State>(State.RenderingViaAccountData)
+          AppState.NoActiveAccount -> mutableStateOf<State>(State.NoActiveAccount)
           null -> mutableStateOf<State>(State.LoadingApp)
         }
       }
@@ -183,11 +177,8 @@ class AppUiStateMachineImpl(
           }
         )
       )
-      is State.RenderingViaAccountData -> accountDataStateMachine.model(
-        props = AccountDataProps(
-          onLiteAccountCreated = {
-            uiState = State.ViewingLiteAccount(it)
-          },
+      is State.NoActiveAccount -> noActiveAccountDataStateMachine.model(
+        props = NoActiveAccountDataProps(
           goToLiteAccountCreation = {
             uiState = State.CreatingLiteAccount(
               inviteCode = null,
@@ -196,8 +187,7 @@ class AppUiStateMachineImpl(
           }
         )
       ).let {
-        accountData = it
-        AppLoadedDataScreenModel(
+        NoActiveAccountDataScreenModel(
           accountData = it,
           onSoftwareWalletCreated = { swAccount ->
             uiState = State.ViewingSoftwareAccount(
@@ -214,8 +204,12 @@ class AppUiStateMachineImpl(
           onCreateFullAccount = {
             uiState = State.CreatingFullAccount
           },
-          isNewlyCreatedAccount = false,
-          isRenderingViaAccountData = true
+          onViewFullAccount = { account ->
+            uiState = State.ViewingFullAccount(
+              account = account,
+              isNewlyCreatedAccount = false
+            )
+          }
         )
       }
       is State.ViewingFullAccount -> {
@@ -225,30 +219,17 @@ class AppUiStateMachineImpl(
         } else {
           accountDataStateMachine.model(
             props = AccountDataProps(
-              onLiteAccountCreated = { uiState = State.ViewingLiteAccount(it) },
-              goToLiteAccountCreation = {
-                uiState = State.CreatingLiteAccount(
-                  inviteCode = null,
-                  startIntent = StartIntent.BeTrustedContact
-                )
-              }
+              account = state.account
             )
           ).let {
-            accountData = it
             AppLoadedDataScreenModel(
               accountData = it,
-              onSoftwareWalletCreated = { swAccount ->
-                uiState = State.ViewingSoftwareAccount(swAccount, isNewlyCreatedAccount = true)
-              },
-              onStartLiteAccountRecovery = { cloudBackup ->
-                uiState = State.RecoveringLiteAccount(cloudBackup)
-              },
-              onStartLiteAccountCreation = { inviteCode, startIntent ->
-                uiState = State.CreatingLiteAccount(inviteCode, startIntent)
-              },
-              onCreateFullAccount = { uiState = State.CreatingFullAccount },
+              account = state.account,
               isNewlyCreatedAccount = state.isNewlyCreatedAccount,
-              isRenderingViaAccountData = false
+              isRenderingViaAccountData = false,
+              onViewNoActiveAccount = {
+                uiState = State.NoActiveAccount
+              }
             )
           }
         }
@@ -285,7 +266,7 @@ class AppUiStateMachineImpl(
             }
           },
           onExit = {
-            uiState = State.RenderingViaAccountData
+            uiState = State.NoActiveAccount
           }
         )
       )
@@ -298,13 +279,16 @@ class AppUiStateMachineImpl(
               uiState = when (account) {
                 is FullAccount -> State.ViewingFullAccount(account, isNewlyCreatedAccount = false)
                 is LiteAccount -> State.ViewingLiteAccount(account)
-                is SoftwareAccount -> State.ViewingSoftwareAccount(account, isNewlyCreatedAccount = false)
+                is SoftwareAccount -> State.ViewingSoftwareAccount(
+                  account,
+                  isNewlyCreatedAccount = false
+                )
                 else -> error("Unexpected account type: $account")
               }
             }
           },
           onBack = {
-            uiState = State.RenderingViaAccountData
+            uiState = State.NoActiveAccount
           },
           showBeTrustedContactIntroduction = state.inviteCode != null && state.startIntent == StartIntent.BeTrustedContact
         )
@@ -332,7 +316,7 @@ class AppUiStateMachineImpl(
           context = CreateFullAccountContext.NewFullAccount,
           fullAccount = null,
           rollback = {
-            uiState = State.RenderingViaAccountData
+            uiState = State.NoActiveAccount
           },
           onOnboardingComplete = { account ->
             scope.launch {
@@ -363,12 +347,10 @@ class AppUiStateMachineImpl(
     // Set up an app-wide handler to show the debug menu.
     var isShowingDebugMenu by remember { mutableStateOf(false) }
     if (isShowingDebugMenu) {
-      accountData?.let {
-        return navigatorPresenter.model(
-          initialScreen = DebugMenuScreen,
-          onExit = { isShowingDebugMenu = false }
-        )
-      }
+      return navigatorPresenter.model(
+        initialScreen = DebugMenuScreen,
+        onExit = { isShowingDebugMenu = false }
+      )
     }
 
     val targetModel = when {
@@ -428,6 +410,18 @@ class AppUiStateMachineImpl(
   }
 
   @Composable
+  private fun rememberActiveAccount(account: FullAccount? = null): Result<Account?, Error> {
+    return remember {
+      accountService.accountStatus()
+        .mapResult { (it as? AccountStatus.ActiveAccount)?.account }
+        // Software and lite accounts do not rely on the account DSM; filter them out so that this DSM
+        // does not reset app state when a software account is activated.
+        .filterNot { it.get() is SoftwareAccount || it.get() is LiteAccount }
+        .distinctUntilChanged()
+    }.collectAsState(Ok(account)).value
+  }
+
+  @Composable
   private fun WelcomeScreenModel(onComplete: () -> Unit): ScreenModel {
     LaunchedEffect("show-welcome-screen") {
       delay(welcomeToBitkeyScreenDuration.value)
@@ -443,54 +437,24 @@ class AppUiStateMachineImpl(
   @Composable
   private fun AppLoadedDataScreenModel(
     accountData: AccountData,
-    onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
-    onStartLiteAccountRecovery: (CloudBackup) -> Unit,
-    onStartLiteAccountCreation: (String?, StartIntent) -> Unit,
-    onCreateFullAccount: () -> Unit,
+    account: FullAccount,
     isNewlyCreatedAccount: Boolean,
     isRenderingViaAccountData: Boolean,
+    onViewNoActiveAccount: () -> Unit,
   ): ScreenModel {
-    // Keep track of when to show the "Welcome to Bitkey" screen.
-    // We want to show it when we transition from NoActiveAccount -> HasActiveFullAccount
-    var shouldShowWelcomeScreenWhenTransitionToActive by remember {
-      mutableStateOf(false)
+    // this mimics the legacy behavior of auto switching when going from AccountData to
+    // NoActiveAccountData. This should be removed once DSMs are removed and there is proper routing
+    val account = rememberActiveAccount(account)
+    if (account.get() !is FullAccount) {
+      onViewNoActiveAccount()
     }
-
-    return when (accountData) {
-      is CheckingActiveAccountData ->
-        AppLoadingScreenModel()
-
-      is NoActiveAccountData -> {
-        shouldShowWelcomeScreenWhenTransitionToActive = true
-        NoActiveAccountDataScreenModel(
-          accountData,
-          onSoftwareWalletCreated,
-          onStartLiteAccountRecovery,
-          onStartLiteAccountCreation,
-          onCreateFullAccount
-        )
-      }
-
-      is HasActiveFullAccountData ->
-        HasActiveFullAccountDataScreenModel(
-          accountData = accountData,
-          isNewlyCreatedAccount = isNewlyCreatedAccount,
-          isRenderingViaAccountData = isRenderingViaAccountData
-        )
-
-      is NoLongerRecoveringFullAccountData -> noLongerRecoveringUiStateMachine.model(
-        props = NoLongerRecoveringUiProps(
-          canceledRecoveryLostFactor = accountData.canceledRecoveryLostFactor
-        )
+    return fullAccountUiStateMachine.model(
+      props = FullAccountUiProps(
+        accountData = accountData,
+        isNewlyCreatedAccount = isNewlyCreatedAccount,
+        isRenderingViaAccountData = isRenderingViaAccountData
       )
-
-      is SomeoneElseIsRecoveringFullAccountData -> someoneElseIsRecoveringUiStateMachine.model(
-        props = SomeoneElseIsRecoveringUiProps(
-          data = accountData.data,
-          fullAccountId = accountData.fullAccountId
-        )
-      )
-    }
+    )
   }
 
   @Composable
@@ -500,7 +464,15 @@ class AppUiStateMachineImpl(
     onStartLiteAccountRecovery: (CloudBackup) -> Unit,
     onStartLiteAccountCreation: (String?, StartIntent) -> Unit,
     onCreateFullAccount: () -> Unit,
+    onViewFullAccount: (FullAccount) -> Unit,
   ): ScreenModel {
+    // this mimics the legacy behavior of auto switching when going from NoActiveAccountData to
+    // AccountData. This should be removed once DSMs are removed and there is proper routing
+    val account = rememberActiveAccount()
+    if (account.get() is FullAccount) {
+      onViewFullAccount(account.get() as FullAccount)
+    }
+
     return when (accountData) {
       is CheckingRecovery -> AppLoadingScreenModel()
 
@@ -542,46 +514,6 @@ class AppUiStateMachineImpl(
           }
         )
       )
-    }
-  }
-
-  @Composable
-  private fun HasActiveFullAccountDataScreenModel(
-    accountData: HasActiveFullAccountData,
-    isNewlyCreatedAccount: Boolean,
-    isRenderingViaAccountData: Boolean,
-  ): ScreenModel {
-    val shouldPromptForAuth by remember { biometricAuthService.isBiometricAuthRequired() }
-      .collectAsState()
-
-    return when (accountData) {
-      is ActiveFullAccountLoadedData -> {
-        val homeScreenModel = HomeScreenModel(
-          accountData = accountData
-        )
-
-        biometricPromptUiStateMachine.model(
-          props = BiometricPromptProps(
-            shouldPromptForAuth = shouldPromptForAuth
-          )
-        ) ?: interstitialUiStateMachine.model(
-          props = InterstitialUiProps(
-            account = accountData.account,
-            // if we are rendering via account data, we are coming from onboarding since the
-            // only time we render ActiveFullAccountLoadedData via "RenderingViaAccountData" is
-            // when we are coming from onboarding.
-            isComingFromOnboarding = isNewlyCreatedAccount || isRenderingViaAccountData
-          )
-        ) ?: homeScreenModel
-      }
-
-      is HasActiveFullAccountData.RotatingAuthKeys ->
-        authKeyRotationUiStateMachine.model(
-          RotateAuthKeyUIStateMachineProps(
-            account = accountData.account,
-            origin = RotateAuthKeyUIOrigin.PendingAttempt(accountData.pendingAttempt)
-          )
-        )
     }
   }
 
@@ -632,19 +564,11 @@ class AppUiStateMachineImpl(
     )
 
   @Composable
-  private fun HomeScreenModel(accountData: ActiveFullAccountLoadedData): ScreenModel =
-    homeUiStateMachine.model(
-      props = HomeUiProps(
-        account = accountData.account
-      )
-    )
-
-  @Composable
   private fun RecoveringFromOrphanedKeysScreenModel(
     data: RecoveringFromOrphanedKeysData,
   ): ScreenModel {
     return when (data.uiState) {
-      ShowingPrompt -> ErrorFormBodyModel(
+      OrphanedKeyRecoveryUiState.ShowingPrompt -> ErrorFormBodyModel(
         title = "Recover Your Wallet",
         subline = "We found keys from a previous installation",
         primaryButton = ButtonDataModel(text = "Recover My Wallet", onClick = data.onRecover),
@@ -653,25 +577,25 @@ class AppUiStateMachineImpl(
         eventTrackerScreenId = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_PROMPT
       ).asRootScreen()
 
-      Recovering -> LoadingSuccessBodyModel(
+      OrphanedKeyRecoveryUiState.Recovering -> LoadingSuccessBodyModel(
         id = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_LOADING,
         state = LoadingSuccessBodyModel.State.Loading,
         message = "Recovering your wallet..."
       ).asRootScreen()
 
-      RestoringAccount -> LoadingSuccessBodyModel(
+      OrphanedKeyRecoveryUiState.RestoringAccount -> LoadingSuccessBodyModel(
         id = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_LOADING,
         state = LoadingSuccessBodyModel.State.Loading,
         message = "Restoring Account..."
       ).asRootScreen()
 
-      Success -> LoadingSuccessBodyModel(
+      OrphanedKeyRecoveryUiState.Success -> LoadingSuccessBodyModel(
         id = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_SUCCESS,
         state = LoadingSuccessBodyModel.State.Success,
         message = "Wallet recovered!"
       ).asRootScreen()
 
-      Error -> ErrorFormBodyModel(
+      OrphanedKeyRecoveryUiState.Error -> ErrorFormBodyModel(
         title = "Recovery Failed",
         subline = "Unable to recover your wallet. Please try again or contact support.",
         primaryButton = ButtonDataModel(text = "Try Again", onClick = data.onRetry),
@@ -789,7 +713,7 @@ private sealed interface State {
     val account: LiteAccount,
   ) : State
 
-  data object RenderingViaAccountData : State
+  data object NoActiveAccount : State
 
   data class RecoveringLiteAccount(val cloudBackup: CloudBackup) : State
 

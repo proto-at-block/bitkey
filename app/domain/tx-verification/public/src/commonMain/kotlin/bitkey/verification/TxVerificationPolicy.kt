@@ -24,6 +24,4 @@ sealed interface TxVerificationPolicy {
   data class Pending(
     val authorization: PrivilegedActionInstance,
   ) : TxVerificationPolicy
-
-  data object Disabled : TxVerificationPolicy
 }

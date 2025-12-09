@@ -90,7 +90,7 @@ class SetSpendingLimitUiStateMachineImpl(
 
     return LoadingBodyModel(
       id = MobilePayEventTrackerScreenId.MOBILE_PAY_LIMIT_UPDATE_LOADING,
-      message = "Saving Limit..."
+      title = "Saving Limit..."
     ).asModalScreen()
   }
 

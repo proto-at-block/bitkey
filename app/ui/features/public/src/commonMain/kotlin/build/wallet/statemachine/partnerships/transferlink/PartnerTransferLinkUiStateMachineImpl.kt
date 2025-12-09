@@ -113,7 +113,7 @@ class PartnerTransferLinkUiStateMachineImpl(
 
         LoadingBodyModel(
           id = PARTNER_TRANSFER_LINK_PROCESSING,
-          message = "Linking in progress..."
+          title = "Linking in progress..."
         ).asModalFullScreen()
       }
 

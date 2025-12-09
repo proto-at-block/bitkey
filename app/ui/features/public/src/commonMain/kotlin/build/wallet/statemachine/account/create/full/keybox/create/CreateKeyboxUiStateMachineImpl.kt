@@ -117,7 +117,7 @@ class CreateKeyboxUiStateMachineImpl(
         }
 
         LoadingBodyModel(
-          message = "Creating account...",
+          title = "Creating account...",
           id = NEW_ACCOUNT_SERVER_KEYS_LOADING
         ).asRootScreen()
       }

@@ -4,9 +4,7 @@ import build.wallet.bitkey.account.LiteAccount
 import com.github.michaelbull.result.Result
 
 interface LiteAccountCloudBackupCreator {
-  suspend fun create(
-    account: LiteAccount,
-  ): Result<CloudBackupV2, LiteAccountCloudBackupCreatorError>
+  suspend fun create(account: LiteAccount): Result<CloudBackup, LiteAccountCloudBackupCreatorError>
 
   sealed class LiteAccountCloudBackupCreatorError : Error() {
     /** Error while retrieving socrec keys. */

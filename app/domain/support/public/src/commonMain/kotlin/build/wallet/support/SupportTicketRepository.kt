@@ -13,7 +13,7 @@ interface SupportTicketRepository {
   suspend fun createTicket(
     form: SupportTicketForm,
     data: SupportTicketData,
-  ): Result<Unit, Error>
+  ): Result<Unit, SupportTicketError>
 
   /**
    * Fetches the structure of the ticket form from backend.

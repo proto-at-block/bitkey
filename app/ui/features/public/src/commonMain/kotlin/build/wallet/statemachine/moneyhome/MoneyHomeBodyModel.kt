@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
+import build.wallet.platform.haptics.Haptics
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
@@ -46,6 +47,7 @@ data class MoneyHomeBodyModel(
   ),
   val onSecurityHubTabClick: (() -> Unit),
   val isSecurityHubBadged: Boolean = false,
+  val haptics: Haptics? = null,
 ) : BodyModel(), BaseMoneyHomeBodyModel {
   @Composable
   override fun render(modifier: Modifier) {

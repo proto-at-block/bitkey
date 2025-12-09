@@ -1,7 +1,7 @@
 package build.wallet.integration.statemachine.app
 
-import build.wallet.bdk.BdkBlockchainFactoryImpl
 import build.wallet.bdk.bindings.*
+import build.wallet.bdk.legacy.BdkBlockchainFactoryImpl
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel

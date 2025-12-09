@@ -23,18 +23,14 @@ import kotlinx.coroutines.flow.*
 class TxVerificationDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : TxVerificationDao {
-  override suspend fun setActivePolicy(
-    txVerificationPolicy: TxVerificationPolicy.Active,
-  ): Result<TxVerificationPolicy.Active, Error> {
+  override suspend fun setEnabledThreshold(
+    threshold: VerificationThreshold.Enabled,
+  ): Result<Unit, Error> {
     return databaseProvider.database().awaitTransactionWithResult {
       transactionVerificationQueries.setPolicy(
-        thresholdCurrencyAlphaCode = txVerificationPolicy.threshold.amount.currency.textCode,
-        thresholdAmountFractionalUnitValue = txVerificationPolicy.threshold.amount.fractionalUnitValue.longValue()
+        thresholdCurrencyAlphaCode = threshold.amount.currency.textCode,
+        thresholdAmountFractionalUnitValue = threshold.amount.fractionalUnitValue.longValue()
       )
-    }.flatMap { entity ->
-      binding<TxVerificationPolicy.Active, Error> {
-        txVerificationPolicy
-      }
     }
   }
 
@@ -78,7 +74,7 @@ class TxVerificationDaoImpl(
     fiatCurrencyEntity: FiatCurrencyEntity?,
   ): Result<VerificationThreshold, InvalidPolicyError> {
     return binding {
-      VerificationThreshold(
+      VerificationThreshold.Enabled(
         amount = buildMoney(
           policyCurrencyCode = policyCurrencyCode ?: BTC.textCode,
           threshold = threshold ?: 0L,

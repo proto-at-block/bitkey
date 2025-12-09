@@ -1,4 +1,4 @@
-use errors::ApiError;
+use errors::{ApiError, ErrorCode};
 use reqwest::StatusCode;
 use thiserror::Error;
 
@@ -12,6 +12,23 @@ pub enum CustomerFeedbackClientError {
 
 impl From<CustomerFeedbackClientError> for ApiError {
     fn from(e: CustomerFeedbackClientError) -> Self {
+        if let CustomerFeedbackClientError::ZendeskCreateTicketResponseError(
+            status_code,
+            body_str,
+        ) = &e
+        {
+            if status_code.is_client_error()
+                && body_str.contains("Email:")
+                && body_str.contains("is not properly formatted")
+            {
+                return ApiError::Specific {
+                    code: ErrorCode::InvalidEmailAddress,
+                    detail: None,
+                    field: None,
+                };
+            }
+        }
+
         ApiError::GenericInternalApplicationError(e.to_string())
     }
 }

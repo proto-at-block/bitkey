@@ -136,7 +136,7 @@ class CompleteInheritanceClaimUiStateMachineImpl(
       ).asModalFullScreen()
       is StartingTransfer -> LoadingBodyModel(
         id = InheritanceEventTrackerScreenId.StartingTransfer,
-        message = "Starting Transfer"
+        title = "Starting Transfer"
       ).asModalFullScreen()
       is TransferFailed -> ErrorFormBodyModel(
         title = "Transfer Failed",

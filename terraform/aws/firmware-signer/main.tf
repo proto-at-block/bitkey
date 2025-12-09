@@ -59,7 +59,8 @@ module "approve_docker" {
   environment          = var.env
   is_localstack        = var.is_localstack
   enable_datadog_trace = local.enable_datadog
-  tag                  = var.env != "production" ? "7e5aefbd" : "7e5aefbd"
+  force_update         = var.force_lambda_update
+  tag                  = var.env != "production" ? "6c79021d" : "6c79021d"
   env_variables        = local.common_lambda_env_vars
 }
 
@@ -74,7 +75,8 @@ module "sign_request_docker" {
   environment          = var.env
   is_localstack        = var.is_localstack
   enable_datadog_trace = local.enable_datadog
-  tag                  = var.env != "production" ? "7e5aefbd" : "7e5aefbd"
+  force_update         = var.force_lambda_update
+  tag                  = var.env != "production" ? "6c79021d" : "6c79021d"
   env_variables        = local.common_lambda_env_vars
 }
 
@@ -89,7 +91,8 @@ module "get_signing_request_upload_url_docker" {
   environment          = var.env
   is_localstack        = var.is_localstack
   enable_datadog_trace = local.enable_datadog
-  tag                  = var.env != "production" ? "7e5aefbd" : "7e5aefbd"
+  force_update         = var.force_lambda_update
+  tag                  = var.env != "production" ? "6c79021d" : "6c79021d"
   env_variables = merge(local.common_lambda_env_vars, {
     BUCKET_NAME = aws_s3_bucket.firmware.id
   })
@@ -106,7 +109,8 @@ module "get_signed_artifact_download_url_docker" {
   environment          = var.env
   is_localstack        = var.is_localstack
   enable_datadog_trace = local.enable_datadog
-  tag                  = var.env != "production" ? "7e5aefbd" : "7e5aefbd"
+  force_update         = var.force_lambda_update
+  tag                  = var.env != "production" ? "6c79021d" : "6c79021d"
   env_variables = merge(local.common_lambda_env_vars, {
     BUCKET_NAME = aws_s3_bucket.signed_artifacts.id
   })
@@ -123,8 +127,9 @@ module "kickoff_docker" {
   environment            = var.env
   is_localstack          = var.is_localstack
   enable_datadog_trace   = local.enable_datadog
+  force_update           = var.force_lambda_update
   ephemeral_storage_size = 10240 # Maximum size for kickoff (needs space for signing operations)
-  tag                    = var.env != "production" ? "7e5aefbd" : "7e5aefbd"
+  tag                    = var.env != "production" ? "6c79021d" : "6c79021d"
   env_variables          = local.common_lambda_env_vars
 }
 
@@ -139,7 +144,8 @@ module "revoke_docker" {
   environment          = var.env
   is_localstack        = var.is_localstack
   enable_datadog_trace = local.enable_datadog
-  tag                  = var.env != "production" ? "7e5aefbd" : "7e5aefbd"
+  force_update         = var.force_lambda_update
+  tag                  = var.env != "production" ? "6c79021d" : "6c79021d"
   env_variables        = local.common_lambda_env_vars
 }
 
@@ -154,6 +160,7 @@ module "status_docker" {
   environment          = var.env
   is_localstack        = var.is_localstack
   enable_datadog_trace = local.enable_datadog
-  tag                  = var.env != "production" ? "7e5aefbd" : "7e5aefbd"
+  force_update         = var.force_lambda_update
+  tag                  = var.env != "production" ? "6c79021d" : "6c79021d"
   env_variables        = local.common_lambda_env_vars
 }

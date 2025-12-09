@@ -1,6 +1,10 @@
 package build.wallet.statemachine.fwup
 
+import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
+import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform
@@ -9,8 +13,11 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.nfc.FwupInstructionsBodyModel
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -21,6 +28,11 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
 
   val deviceInfoProvider = DeviceInfoProviderMock()
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+  val featureFlagDao = FeatureFlagDaoFake()
+  val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(
+    featureFlagDao
+  )
+  val keyboxDao = KeyboxDaoMock(turbines::create)
 
   val fwupNfcSessionUiStateMachine =
     object : FwupNfcSessionUiStateMachine,
@@ -28,11 +40,20 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
         id = "fwup-nfc-session"
       ) {}
 
+  val nfcSessionUIStateMachine =
+    object : NfcSessionUIStateMachine,
+      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
+        id = "nfc-session"
+      ) {}
+
   val stateMachine =
     FwupNfcUiStateMachineImpl(
       deviceInfoProvider = deviceInfoProvider,
       fwupNfcSessionUiStateMachine = fwupNfcSessionUiStateMachine,
-      inAppBrowserNavigator = inAppBrowserNavigator
+      nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+      inAppBrowserNavigator = inAppBrowserNavigator,
+      fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
+      keyboxDao = keyboxDao
     )
 
   val onDoneCalls = turbines.create<Unit>("onDone calls")
@@ -43,6 +64,8 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     deviceInfoProvider.reset()
+    featureFlagDao.reset()
+    keyboxDao.reset()
   }
 
   test("back button on demo instructions calls props.onDone") {
@@ -55,14 +78,29 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("happy path") {
+  test("happy path - with active keybox and version above minimum") {
+    // Set up an active keybox
+    keyboxDao.activeKeybox.value = Ok(KeyboxMock)
+
     stateMachine.test(props) {
       awaitBody<FwupInstructionsBodyModel> {
         buttonModel.onClick()
       }
 
       awaitBodyMock<FwupNfcSessionUiProps> {
-        onDone()
+        onDone("1.2.3")
+      }
+
+      // Verification step - should provision app auth key
+      awaitBodyMock<NfcSessionUIStateMachineProps<Unit>> {
+        onSuccess.invoke(Unit)
+      }
+
+      // Success screen
+      awaitBody<SuccessBodyModel> {
+        title.shouldBe("Firmware updated")
+        message.shouldBe("Your Bitkey is now running the latest firmware and ready to use.")
+        primaryButtonModel.shouldNotBeNull().onClick()
       }
 
       onDoneCalls.awaitItem()
@@ -97,6 +135,65 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
 
       inAppBrowserNavigator.onOpenCalls.awaitItem()
         .shouldBe("https://bitkey.world/en-US/releases")
+    }
+  }
+
+  test("verification failure") {
+    stateMachine.test(props) {
+      awaitBody<FwupInstructionsBodyModel> {
+        buttonModel.onClick()
+      }
+
+      awaitBodyMock<FwupNfcSessionUiProps> {
+        onDone("1.0.0")
+      }
+
+      // Verification step fails
+      awaitBodyMock<NfcSessionUIStateMachineProps<Unit>> {
+        onError(NfcException.CommandError())
+      }
+
+      // Error screen
+      awaitBody<FormBodyModel> {
+        with(header.shouldNotBeNull()) {
+          headline.shouldBe("Firmware update failed")
+          sublineModel.shouldNotBeNull().string.shouldBe("Your Bitkey was unable to install the firmware update. Please try again.")
+        }
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      // Back to update instructions
+      awaitItem()
+        .bottomSheetModel.shouldBeNull()
+    }
+  }
+
+  test("verification cancellation") {
+    stateMachine.test(props) {
+      awaitBody<FwupInstructionsBodyModel> {
+        buttonModel.onClick()
+      }
+
+      awaitBodyMock<FwupNfcSessionUiProps> {
+        onDone("1.0.0")
+      }
+
+      // User cancels verification
+      awaitBodyMock<NfcSessionUIStateMachineProps<Unit>> {
+        onCancel()
+      }
+
+      // Error screen
+      awaitBody<FormBodyModel> {
+        with(header.shouldNotBeNull()) {
+          headline.shouldBe("Firmware update failed")
+        }
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      // Back to update instructions
+      awaitItem()
+        .bottomSheetModel.shouldBeNull()
     }
   }
 

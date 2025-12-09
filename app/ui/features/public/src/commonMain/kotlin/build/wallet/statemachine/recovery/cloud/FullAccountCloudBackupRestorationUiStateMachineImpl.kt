@@ -18,6 +18,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.socialRecoveryTrustedContacts
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.cloud.backup.SocRecV1BackupFeatures
@@ -66,6 +67,7 @@ import kotlinx.collections.immutable.toImmutableList
 
 internal const val START_SOCIAL_RECOVERY_MESSAGE = "Starting Recovery..."
 
+@Suppress("LargeClass")
 @BitkeyInject(ActivityScope::class)
 class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val accountAuthenticator: AccountAuthenticator,
@@ -111,242 +113,366 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     // Reusable model for a loading screen while completing multiple restoration steps.
     val loadingRestoringFromBackupModel =
       LoadingBodyModel(
-        message = "Restoring from backup...",
+        title = "Restoring from backup...",
         onBack = { uiState = CloudBackupFoundUiState },
         id = CloudEventTrackerScreenId.LOADING_RESTORING_FROM_CLOUD_BACKUP
       ).asRootScreen()
 
     return when (val state = uiState) {
-      is RecoveryAuthenticationState -> {
-        RecoveryAuthenticationEffect(state, setState = { uiState = it })
-        LoadingBodyModel(
-          message = START_SOCIAL_RECOVERY_MESSAGE,
-          onBack = { uiState = SocialRecoveryExplanationState },
-          id = CloudEventTrackerScreenId.CLOUD_RECOVERY_AUTHENTICATION
-        ).asRootScreen()
-      }
+      is RecoveryAuthenticationState ->
+        recoveryAuthenticationModel(state, setState = { uiState = it })
 
-      is SocRecRestorationState -> {
-        SocRecRestoreEffect(props, state, setState = { uiState = it })
-        loadingRestoringFromBackupModel
-      }
-
-      is SocRecChallengeState -> {
-        recoveryChallengeStateMachine.model(
-          RecoveryChallengeUiProps(
-            accountId = state.accountId,
-            actions =
-              socRecChallengeRepository.toActions(
-                state.accountId,
-                state.isUsingSocRecFakes
-              ),
-            endorsedTrustedContacts = state.contacts,
-            relationshipIdToSocRecPkekMap =
-              state.accountFeatures.socRecSealedDekMap
-                .mapValues { it.value },
-            sealedPrivateKeyMaterial = state.accountFeatures.socRecSealedFullAccountKeys,
-            onExit = { uiState = CloudBackupFoundUiState },
-            onKeyRecovered = {
-              uiState =
-                SocRecRestorationState(
-                  accountId = state.accountId,
-                  it
-                )
-            }
-          )
+      is SocRecRestorationState ->
+        socRecRestorationModel(
+          state,
+          props,
+          loadingRestoringFromBackupModel,
+          setState = { uiState = it }
         )
-      }
+
+      is SocRecChallengeState ->
+        socRecChallengeModel(state, setState = { uiState = it })
 
       is CloudBackupFoundUiState ->
-        CloudBackupFoundModel(
-          devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
-          onBack = props.onExit,
-          onRestore = {
-            uiState = UnsealingCsek
-          },
-          showSocRecButton = props.backup.socRecDataAvailable,
-          onLostBitkeyClick = {
-            uiState = SocialRecoveryExplanationState
-          }
-        ).asRootScreen()
+        cloudBackupFoundModel(props, setState = { uiState = it })
 
-      SocialRecoveryExplanationState -> {
-        SocialRecoveryExplanationModel(
-          onBack = {
-            uiState = CloudBackupFoundUiState
-          },
-          onContinue = {
-            val backup = props.backup as? CloudBackupV2
-            val account = backup?.fullAccountFields as? SocRecV1AccountFeatures
+      is SocialRecoveryExplanationState ->
+        socialRecoveryExplanationModel(props, setState = { uiState = it })
 
-            uiState =
-              if (account == null) {
-                RestoringFromBackupFailureUiState(
-                  errorData = ErrorData(
-                    segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
-                    actionDescription = "Reading full account from backup",
-                    cause = Error("Backup did not contain data for full account")
-                  ),
-                  onBack = { uiState = SocialRecoveryExplanationState },
-                  failure = CloudBackupFailure.CantFindCloudAccount
-                )
-              } else {
-                RecoveryAuthenticationState(
-                  accountFeatures = account,
-                  backupFeatures = backup
-                )
-              }
-          }
-        ).asRootScreen()
-      }
+      is UnsealingCsek ->
+        unsealingCsekModel(props, setState = { uiState = it })
 
-      is UnsealingCsek -> {
-        val sealedCsek = when (val backup = props.backup) {
-          is CloudBackupV2 -> (backup.fullAccountFields as FullAccountFields).sealedHwEncryptionKey
-        }
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
-            session = { session, commands ->
-              val csek = Csek(
-                commands.unsealSymmetricKey(session, sealedCsek)
-              )
-
-              // Unsealing proves we're on the original hardware, so reuse this session to
-              // persist current device info and fingerprint data for security hub.
-              firmwareDeviceInfoDao.setDeviceInfo(commands.getDeviceInfo(session))
-                .logFailure { "Failed to sync firmware device info during cloud recovery" }
-
-              val enrolledFingerprints = commands.getEnrolledFingerprints(session)
-              hardwareUnlockInfoService.replaceAllUnlockInfo(enrolledFingerprints.toUnlockInfoList())
-
-              csek
-            },
-            onSuccess = { unsealedCsek ->
-              csekDao.set(
-                key = sealedCsek,
-                value = unsealedCsek
-              )
-              uiState =
-                RestoringFromBackupUiState
-            },
-            onCancel = { uiState = CloudBackupFoundUiState },
-            onError = { error ->
-              if (error is NfcException.CommandErrorSealCsekResponseUnsealException) {
-                uiState =
-                  RestoringFromBackupFailureUiState(
-                    errorData = ErrorData(
-                      segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
-                      actionDescription = "Unsealing CSEK for full account cloud restoration",
-                      cause = error
-                    ),
-                    onBack = { uiState = SocialRecoveryExplanationState },
-                    failure = CloudBackupFailure.HWCantDecryptCSEK
-                  )
-                true
-              } else {
-                false
-              }
-            },
-            hardwareVerification = NotRequired,
-            screenPresentationStyle = Root,
-            eventTrackerContext = UNSEAL_CLOUD_BACKUP,
-            segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
-            actionDescription = "Unsealing CSEK for full account cloud restoration"
-          )
+      is RestoringFromBackupUiState ->
+        restoringFromBackupModel(
+          props,
+          loadingRestoringFromBackupModel,
+          setState = { uiState = it }
         )
-      }
 
-      is RestoringFromBackupUiState -> {
-        RestoringFromBackupEffect(props, setState = {
+      is CompletingCloudRecoveryUiState ->
+        completingCloudRecoveryModel(props, state, loadingRestoringFromBackupModel, setState = {
           uiState = it
         })
-        loadingRestoringFromBackupModel
-      }
-
-      is CompletingCloudRecoveryUiState -> {
-        CompleteCloudRecoveryEffect(props, state, setState = { uiState = it })
-        loadingRestoringFromBackupModel
-      }
 
       is RestoringFromBackupFailureUiState ->
-        ProblemWithCloudBackupModel(
-          onBack = {
-            uiState = SocialRecoveryExplanationState
-          },
-          onRecoverAppKey = props.onRecoverAppKey,
-          failure = state.failure
-        ).asRootScreen()
+        restoringFromBackupFailureModel(state, props)
 
       is SocRecRestorationFailedState ->
-        ErrorFormBodyModel(
-          title = "We were unable to complete your restoration",
-          secondaryButton = ButtonDataModel(text = "Back", onClick = props.onExit),
-          primaryButton =
-            ButtonDataModel(
-              text = "Retry",
-              onClick = {
-                uiState =
-                  SocRecRestorationState(
-                    accountId = state.accountId,
-                    fullAccountKeys = state.fullAccountKeys
-                  )
-              }
-            ),
-          eventTrackerScreenId = CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_CLOUD_BACKUP,
-          errorData = ErrorData(
-            segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
-            actionDescription = "Restoring full account from backup",
-            cause = state.cause
-          )
-        ).asRootScreen()
+        socRecRestorationFailedModel(state, props, setState = { uiState = it })
 
       is ReplaceWithLiteAccountState ->
-        existingFullAccountUiStateMachine.model(
-          ExistingFullAccountUiProps(
-            cloudBackup = props.backup,
-            devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
-            onBack = props.onExit,
-            onRestore = { uiState = UnsealingCsek },
-            onBackupArchive = props.goToLiteAccountCreation
-          )
-        )
+        replaceWithLiteAccountModel(props, setState = { uiState = it })
 
-      is ProvisioningAppAuthKeyUiState -> {
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
-            transaction = provisionAppAuthKeyTransactionProvider(
-              appGlobalAuthPublicKey = state.accountRestoration.activeAppKeyBundle.authKey,
-              onSuccess = {
-                // Save the keybox as active after successful provisioning
-                uiState = SavingKeyboxUiState(
-                  accountRestoration = state.accountRestoration,
-                  fullAccountId = state.fullAccountId
-                )
-              },
-              onCancel = {
-                uiState = RestoringFromBackupFailureUiState(
-                  errorData = ErrorData(
-                    segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
-                    actionDescription = "Provisioning app auth key to hardware - cancelled",
-                    cause = Error("User cancelled NFC provisioning")
-                  ),
-                  onBack = props.onExit,
-                  failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
-                )
-              }
-            ),
-            screenPresentationStyle = Root,
-            eventTrackerContext = CLOUD_BACKUP_PROVISION_APP_AUTH_KEY,
-            hardwareVerification = NotRequired
-          )
-        )
-      }
+      is ProvisioningAppAuthKeyUiState ->
+        provisioningAppAuthKeyModel(state, props, setState = { uiState = it })
 
-      is SavingKeyboxUiState -> {
-        SavingKeyboxEffect(props, state, setState = { uiState = it })
-        loadingRestoringFromBackupModel
-      }
+      is SavingKeyboxUiState ->
+        savingKeyboxModel(
+          props,
+          state,
+          loadingRestoringFromBackupModel,
+          setState = { uiState = it }
+        )
     }
+  }
+
+  @Composable
+  private fun recoveryAuthenticationModel(
+    state: RecoveryAuthenticationState,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    RecoveryAuthenticationEffect(state, setState = setState)
+    return LoadingBodyModel(
+      title = START_SOCIAL_RECOVERY_MESSAGE,
+      onBack = { setState(SocialRecoveryExplanationState) },
+      id = CloudEventTrackerScreenId.CLOUD_RECOVERY_AUTHENTICATION
+    ).asRootScreen()
+  }
+
+  @Composable
+  private fun socRecRestorationModel(
+    state: SocRecRestorationState,
+    props: FullAccountCloudBackupRestorationUiProps,
+    loadingModel: ScreenModel,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    SocRecRestoreEffect(props, state, setState = setState)
+    return loadingModel
+  }
+
+  @Composable
+  private fun socRecChallengeModel(
+    state: SocRecChallengeState,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    return recoveryChallengeStateMachine.model(
+      RecoveryChallengeUiProps(
+        accountId = state.accountId,
+        actions =
+          socRecChallengeRepository.toActions(
+            state.accountId,
+            state.isUsingSocRecFakes
+          ),
+        endorsedTrustedContacts = state.contacts,
+        relationshipIdToSocRecPkekMap =
+          state.accountFeatures.socRecSealedDekMap
+            .mapValues { it.value },
+        sealedPrivateKeyMaterial = state.accountFeatures.socRecSealedFullAccountKeys,
+        onExit = { setState(CloudBackupFoundUiState) },
+        onKeyRecovered = {
+          setState(
+            SocRecRestorationState(
+              accountId = state.accountId,
+              it
+            )
+          )
+        }
+      )
+    )
+  }
+
+  @Composable
+  private fun cloudBackupFoundModel(
+    props: FullAccountCloudBackupRestorationUiProps,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    return CloudBackupFoundModel(
+      devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
+      onBack = props.onExit,
+      onRestore = {
+        setState(UnsealingCsek)
+      },
+      showSocRecButton = props.backup.socRecDataAvailable,
+      onLostBitkeyClick = {
+        setState(SocialRecoveryExplanationState)
+      }
+    ).asRootScreen()
+  }
+
+  @Composable
+  private fun socialRecoveryExplanationModel(
+    props: FullAccountCloudBackupRestorationUiProps,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    return SocialRecoveryExplanationModel(
+      onBack = {
+        setState(CloudBackupFoundUiState)
+      },
+      onContinue = {
+        val backup = props.backup as? SocRecV1BackupFeatures
+        val account = backup?.fullAccountFields as? SocRecV1AccountFeatures
+
+        setState(
+          if (backup == null || account == null) {
+            RestoringFromBackupFailureUiState(
+              errorData = ErrorData(
+                segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
+                actionDescription = "Reading full account from backup",
+                cause = Error("Backup did not contain data for full account")
+              ),
+              onBack = { setState(SocialRecoveryExplanationState) },
+              failure = CloudBackupFailure.CantFindCloudAccount
+            )
+          } else {
+            RecoveryAuthenticationState(
+              accountFeatures = account,
+              backupFeatures = backup
+            )
+          }
+        )
+      }
+    ).asRootScreen()
+  }
+
+  @Composable
+  private fun unsealingCsekModel(
+    props: FullAccountCloudBackupRestorationUiProps,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    val sealedCsek = when (val backup = props.backup) {
+      is CloudBackupV2, is CloudBackupV3 ->
+        (backup.fullAccountFields as FullAccountFields).sealedHwEncryptionKey
+    }
+    return nfcSessionUIStateMachine.model(
+      NfcSessionUIStateMachineProps(
+        session = { session, commands ->
+          val csek = Csek(
+            commands.unsealSymmetricKey(session, sealedCsek)
+          )
+
+          // Unsealing proves we're on the original hardware, so reuse this session to
+          // persist current device info and fingerprint data for security hub.
+          firmwareDeviceInfoDao.setDeviceInfo(commands.getDeviceInfo(session))
+            .logFailure { "Failed to sync firmware device info during cloud recovery" }
+
+          val enrolledFingerprints = commands.getEnrolledFingerprints(session)
+          hardwareUnlockInfoService.replaceAllUnlockInfo(enrolledFingerprints.toUnlockInfoList())
+
+          csek
+        },
+        onSuccess = { unsealedCsek ->
+          csekDao.set(
+            key = sealedCsek,
+            value = unsealedCsek
+          )
+          setState(RestoringFromBackupUiState)
+        },
+        onCancel = { setState(CloudBackupFoundUiState) },
+        onError = { error ->
+          if (error is NfcException.CommandErrorSealCsekResponseUnsealException) {
+            setState(
+              RestoringFromBackupFailureUiState(
+                errorData = ErrorData(
+                  segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+                  actionDescription = "Unsealing CSEK for full account cloud restoration",
+                  cause = error
+                ),
+                onBack = { setState(SocialRecoveryExplanationState) },
+                failure = CloudBackupFailure.HWCantDecryptCSEK
+              )
+            )
+            true
+          } else {
+            false
+          }
+        },
+        hardwareVerification = NotRequired,
+        screenPresentationStyle = Root,
+        eventTrackerContext = UNSEAL_CLOUD_BACKUP,
+        segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+        actionDescription = "Unsealing CSEK for full account cloud restoration"
+      )
+    )
+  }
+
+  @Composable
+  private fun restoringFromBackupModel(
+    props: FullAccountCloudBackupRestorationUiProps,
+    loadingModel: ScreenModel,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    RestoringFromBackupEffect(props, setState = setState)
+    return loadingModel
+  }
+
+  @Composable
+  private fun completingCloudRecoveryModel(
+    props: FullAccountCloudBackupRestorationUiProps,
+    state: CompletingCloudRecoveryUiState,
+    loadingModel: ScreenModel,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    CompleteCloudRecoveryEffect(props, state, setState = setState)
+    return loadingModel
+  }
+
+  @Composable
+  private fun restoringFromBackupFailureModel(
+    state: RestoringFromBackupFailureUiState,
+    props: FullAccountCloudBackupRestorationUiProps,
+  ): ScreenModel {
+    return ProblemWithCloudBackupModel(
+      onBack = state.onBack,
+      onRecoverAppKey = props.onRecoverAppKey,
+      failure = state.failure
+    ).asRootScreen()
+  }
+
+  @Composable
+  private fun socRecRestorationFailedModel(
+    state: SocRecRestorationFailedState,
+    props: FullAccountCloudBackupRestorationUiProps,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    return ErrorFormBodyModel(
+      title = "We were unable to complete your restoration",
+      secondaryButton = ButtonDataModel(text = "Back", onClick = props.onExit),
+      primaryButton =
+        ButtonDataModel(
+          text = "Retry",
+          onClick = {
+            setState(
+              SocRecRestorationState(
+                accountId = state.accountId,
+                fullAccountKeys = state.fullAccountKeys
+              )
+            )
+          }
+        ),
+      eventTrackerScreenId = CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_CLOUD_BACKUP,
+      errorData = ErrorData(
+        segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
+        actionDescription = "Restoring full account from backup",
+        cause = state.cause
+      )
+    ).asRootScreen()
+  }
+
+  @Composable
+  private fun replaceWithLiteAccountModel(
+    props: FullAccountCloudBackupRestorationUiProps,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    return existingFullAccountUiStateMachine.model(
+      ExistingFullAccountUiProps(
+        cloudBackup = props.backup,
+        devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
+        onBack = props.onExit,
+        onRestore = { setState(UnsealingCsek) },
+        onBackupArchive = props.goToLiteAccountCreation
+      )
+    )
+  }
+
+  @Composable
+  private fun provisioningAppAuthKeyModel(
+    state: ProvisioningAppAuthKeyUiState,
+    props: FullAccountCloudBackupRestorationUiProps,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    return nfcSessionUIStateMachine.model(
+      NfcSessionUIStateMachineProps(
+        transaction = provisionAppAuthKeyTransactionProvider(
+          appGlobalAuthPublicKey = state.accountRestoration.activeAppKeyBundle.authKey,
+          onSuccess = {
+            // Save the keybox as active after successful provisioning
+            setState(
+              SavingKeyboxUiState(
+                accountRestoration = state.accountRestoration,
+                fullAccountId = state.fullAccountId
+              )
+            )
+          },
+          onCancel = {
+            setState(
+              RestoringFromBackupFailureUiState(
+                errorData = ErrorData(
+                  segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+                  actionDescription = "Provisioning app auth key to hardware - cancelled",
+                  cause = Error("User cancelled NFC provisioning")
+                ),
+                onBack = props.onExit,
+                failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
+              )
+            )
+          }
+        ),
+        screenPresentationStyle = Root,
+        eventTrackerContext = CLOUD_BACKUP_PROVISION_APP_AUTH_KEY,
+        hardwareVerification = NotRequired
+      )
+    )
+  }
+
+  @Composable
+  private fun savingKeyboxModel(
+    props: FullAccountCloudBackupRestorationUiProps,
+    state: SavingKeyboxUiState,
+    loadingModel: ScreenModel,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    SavingKeyboxEffect(props, state, setState = setState)
+    return loadingModel
   }
 
   @Composable

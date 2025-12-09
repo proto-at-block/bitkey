@@ -19,8 +19,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2025.22.0
-        PROJECT_BUNDLE_VERSION: 5
+        PROJECT_BUNDLE_SHORT_VERSION: 2025.23.0
+        PROJECT_BUNDLE_VERSION: 2
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -73,6 +73,8 @@ targets:
           GCC_PREPROCESSOR_DEFINITIONS: DEBUG=1 SQLITE_HAS_CODEC=1
 
     dependencies:
+    - package: bdk-swift-legacy
+      product: BitcoinDevKitLegacy
     - package: bdk-swift
       product: BitcoinDevKit
     - package: bugsnag-cocoa
@@ -276,7 +278,9 @@ packages:
     path: ../rust
   bdk-swift:
     url: https://github.com/bitcoindevkit/bdk-swift
-    exactVersion: 0.32.1
+    exactVersion: 2.0.0
+  bdk-swift-legacy:
+    path: ../third_party/spm/bdk-swift-legacy
   bugsnag-cocoa:
     url: https://github.com/bugsnag/bugsnag-cocoa
     exactVersion: 6.28.0
@@ -292,5 +296,4 @@ packages:
   ZIPFoundation:
     url: https://github.com/weichsel/ZIPFoundation
     exactVersion: 0.9.19
-
 

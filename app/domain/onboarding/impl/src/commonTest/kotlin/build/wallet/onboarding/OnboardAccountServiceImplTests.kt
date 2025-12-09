@@ -4,7 +4,6 @@ import bitkey.account.AccountConfigServiceFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.onboarding.OnboardAccountStep.*
 import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
 import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
@@ -20,15 +19,13 @@ class OnboardAccountServiceImplTests : FunSpec({
   val onboardingKeyboxSealedSsekDao = OnboardingKeyboxSealedSsekDaoFake()
   val onboardingCompletionService = OnboardingCompletionServiceFake()
   val featureFlagDao = FeatureFlagDaoFake()
-  val encryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(featureFlagDao)
 
   val service = OnboardAccountServiceImpl(
     accountConfigService = accountConfigService,
     onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
     onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
     onboardingKeyboxSealedSsekDao = onboardingKeyboxSealedSsekDao,
-    onboardingCompletionService = onboardingCompletionService,
-    encryptedDescriptorBackupsFeatureFlag = encryptedDescriptorBackupsFeatureFlag
+    onboardingCompletionService = onboardingCompletionService
   )
 
   beforeTest {

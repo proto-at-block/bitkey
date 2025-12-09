@@ -9,6 +9,7 @@ import build.wallet.ui.model.list.ListGroupModel
  * - app installation ID
  * - app version
  * - OS version
+ * - cloud backup version (v2, v3, or None)
  */
 interface InfoOptionsUiStateMachine : StateMachine<InfoOptionsProps, ListGroupModel>
 

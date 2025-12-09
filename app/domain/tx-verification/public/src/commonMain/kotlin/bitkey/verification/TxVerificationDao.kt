@@ -16,9 +16,7 @@ interface TxVerificationDao {
    *
    * @param threshold The spending threshold the transaction policy applies to.
    */
-  suspend fun setActivePolicy(
-    txVerificationPolicy: TxVerificationPolicy.Active,
-  ): Result<TxVerificationPolicy.Active, Error>
+  suspend fun setEnabledThreshold(threshold: VerificationThreshold.Enabled): Result<Unit, Error>
 
   /**
    * Emits the latest transaction verification policy that is in effect.
@@ -36,4 +34,14 @@ interface TxVerificationDao {
    * it is put into effect.
    */
   suspend fun deletePolicy(): Result<Unit, DbError>
+}
+
+/**
+ * Sets or removes the transaction verification threshold based based on its type.
+ */
+suspend fun TxVerificationDao.setThreshold(threshold: VerificationThreshold): Result<Unit, Error> {
+  return when (threshold) {
+    is VerificationThreshold.Enabled -> setEnabledThreshold(threshold)
+    is VerificationThreshold.Disabled -> deletePolicy()
+  }
 }

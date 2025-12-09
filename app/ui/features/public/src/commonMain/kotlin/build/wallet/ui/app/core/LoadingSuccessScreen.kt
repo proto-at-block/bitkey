@@ -88,7 +88,14 @@ fun LoadingSuccessScreen(
         // Always show the label regardless of if there's a message or not so that
         // the loading and success states line up
         Label(text = model.message ?: " ", type = LabelType.Title1)
+
+        model.description?.let { description ->
+          Spacer(modifier = Modifier.height(16.dp))
+          Label(text = description, type = LabelType.Body2Regular)
+        }
       }
+    },
+    mainContent = {
     },
     footerContent = {
       val buttons = listOfNotNull(

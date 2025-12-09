@@ -27,9 +27,12 @@ class LiteAccountCloudBackupRestorerImpl(
   private val cloudBackupDao: CloudBackupDao,
   private val accountService: AccountService,
 ) : LiteAccountCloudBackupRestorer {
-  override suspend fun restoreFromBackup(liteAccountCloudBackup: CloudBackupV2) =
+  override suspend fun restoreFromBackup(liteAccountCloudBackup: CloudBackup) =
     coroutineBinding {
-      require(liteAccountCloudBackup.fullAccountFields == null)
+      require(!liteAccountCloudBackup.isFullAccount())
+      require(liteAccountCloudBackup is SocRecV1BackupFeatures) {
+        "Lite account cloud backup must implement SocRecV1BackupFeatures"
+      }
 
       // Store auth private keys
       appPrivateKeyDao

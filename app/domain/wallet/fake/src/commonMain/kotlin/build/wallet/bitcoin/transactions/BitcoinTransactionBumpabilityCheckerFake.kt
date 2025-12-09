@@ -10,6 +10,9 @@ data class BitcoinTransactionBumpabilityCheckerFake(
     transaction: BitcoinTransaction,
     walletUnspentOutputs: ImmutableList<BdkUtxo>,
   ): Boolean {
-    return isBumpable
+    return when (transaction.confirmationStatus) {
+      BitcoinTransaction.ConfirmationStatus.Pending -> isBumpable
+      is BitcoinTransaction.ConfirmationStatus.Confirmed -> false
+    }
   }
 }

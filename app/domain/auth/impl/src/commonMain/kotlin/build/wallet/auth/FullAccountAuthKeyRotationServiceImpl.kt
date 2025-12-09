@@ -10,6 +10,7 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccountRepository
@@ -351,7 +352,7 @@ class FullAccountAuthKeyRotationServiceImpl(
         .bind()
 
       val sealedCsek = when (currentCloudBackup) {
-        is CloudBackupV2 ->
+        is CloudBackupV2, is CloudBackupV3 ->
           currentCloudBackup.fullAccountFields
             ?.sealedHwEncryptionKey
             ?.let { Ok(it) }

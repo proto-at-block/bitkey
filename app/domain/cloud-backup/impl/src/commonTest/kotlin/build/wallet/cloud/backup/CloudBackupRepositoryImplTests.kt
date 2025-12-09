@@ -132,10 +132,20 @@ private data class BackupTestData(
   val json: String,
 )
 
-private val backupV2 = CloudBackupV2WithFullAccountMock
-private val backupV2Json = Json.encodeToString(backupV2)
-
-private val backupTestData =
-  listOf(
-    BackupTestData("backup v2", backupV2, backupV2Json)
+private val backupTestData = AllFullAccountBackupMocks.map { backup ->
+  val version = when (backup) {
+    is CloudBackupV2 -> "v2"
+    is CloudBackupV3 -> "v3"
+    else -> "unknown"
+  }
+  val json = when (backup) {
+    is CloudBackupV2 -> Json.encodeToString(backup)
+    is CloudBackupV3 -> Json.encodeToString(backup)
+    else -> throw IllegalStateException("Unknown backup version")
+  }
+  BackupTestData(
+    testName = "backup $version",
+    backup = backup as CloudBackup,
+    json = json
   )
+}

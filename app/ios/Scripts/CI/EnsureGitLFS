@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Always run from the repository root so git-lfs picks up the correct config.
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+if ! git lfs version >/dev/null 2>&1; then
+  echo "error: git-lfs is required but is not available in PATH" >&2
+  exit 1
+fi
+
+echo "Ensuring git-lfs tracked artifacts (e.g. vendored BDK xcframework) are present"
+git lfs install --local
+git lfs pull
+git lfs fsck

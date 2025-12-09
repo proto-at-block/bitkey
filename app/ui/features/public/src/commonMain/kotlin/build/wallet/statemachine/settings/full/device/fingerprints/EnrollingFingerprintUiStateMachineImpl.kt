@@ -212,7 +212,7 @@ class EnrollingFingerprintUiStateMachineImpl(
         }
         return LoadingBodyModel(
           id = FingerprintResetEventTrackerScreenId.LOADING_GRANT,
-          message = "Completing fingerprint enrollment..."
+          title = "Completing fingerprint enrollment..."
         ).asModalScreen()
       }
     }

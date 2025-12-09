@@ -48,7 +48,7 @@ class MobilePayStatusUiStateMachineImpl(
   @Composable
   private fun LoadingMobilePayModel(message: String) =
     LoadingBodyModel(
-      message = message,
+      title = message,
       id = MobilePayEventTrackerScreenId.MOBILE_PAY_LOADING
     )
 

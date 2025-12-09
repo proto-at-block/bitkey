@@ -15,7 +15,7 @@ class LiteAccountCloudBackupRestorerFake(
   var returnError: Result<LiteAccount, AccountBackupRestorationError>? = null
 
   override suspend fun restoreFromBackup(
-    liteAccountCloudBackup: CloudBackupV2,
+    liteAccountCloudBackup: CloudBackup,
   ): Result<LiteAccount, AccountBackupRestorationError> {
     restoreFromBackupCalls += liteAccountCloudBackup
     return returnError ?: Ok(LiteAccountMock)

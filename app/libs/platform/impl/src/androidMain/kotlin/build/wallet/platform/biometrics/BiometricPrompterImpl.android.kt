@@ -7,6 +7,9 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -19,22 +22,21 @@ class BiometricPrompterImpl(private val activity: FragmentActivity) : BiometricP
     BiometricManager.from(activity)
   }
 
-  override fun biometricsAvailability(): BiometricsResult<Boolean> {
-    return when (biometricManager.canAuthenticate(BIOMETRIC_STRONG or BIOMETRIC_WEAK or DEVICE_CREDENTIAL)) {
-      BiometricManager.BIOMETRIC_SUCCESS -> BiometricsResult.Ok(true)
-      BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> BiometricsResult.Err(BiometricError.NoHardware())
-      BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> BiometricsResult.Err(BiometricError.HardwareUnavailable())
-      BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> BiometricsResult.Err(BiometricError.NoBiometricEnrolled())
-      else -> BiometricsResult.Err(BiometricError.HardwareUnavailable())
+  override fun biometricsAvailability(): Result<Boolean, BiometricError> =
+    when (biometricManager.canAuthenticate(BIOMETRIC_STRONG or BIOMETRIC_WEAK or DEVICE_CREDENTIAL)) {
+      BiometricManager.BIOMETRIC_SUCCESS -> Ok(true)
+      BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> Err(BiometricError.NoHardware())
+      BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> Err(BiometricError.HardwareUnavailable())
+      BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> Err(BiometricError.NoBiometricEnrolled())
+      else -> Err(BiometricError.HardwareUnavailable())
     }
-  }
 
-  override suspend fun enrollBiometrics(): BiometricsResult<Unit> {
+  override suspend fun enrollBiometrics(): Result<Unit, BiometricError> {
     // biometrics aren't enrolled on android
-    return BiometricsResult.Ok(Unit)
+    return Ok(Unit)
   }
 
-  override suspend fun promptForAuth(): BiometricsResult<Unit> =
+  override suspend fun promptForAuth(): Result<Unit, BiometricError> =
     suspendCancellableCoroutine { continuation ->
       isPrompting = true
       val executor = ContextCompat.getMainExecutor(activity)
@@ -48,14 +50,14 @@ class BiometricPrompterImpl(private val activity: FragmentActivity) : BiometricP
           ) {
             if (continuation.isActive) {
               isPrompting = false
-              continuation.resume(BiometricsResult.Err(BiometricError.AuthenticationFailed()))
+              continuation.resume(Err(BiometricError.AuthenticationFailed()))
             }
           }
 
           override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
             if (continuation.isActive) {
               isPrompting = false
-              continuation.resume(BiometricsResult.Ok(Unit))
+              continuation.resume(Ok(Unit))
             }
           }
         }

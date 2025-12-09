@@ -3,8 +3,9 @@ package bitkey.f8e.verify
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.f8e.privilegedactions.toPrimitive
 import bitkey.verification.TxVerificationPolicy
-import bitkey.verification.VerificationThreshold
 import bitkey.verification.VerificationThreshold.Companion.Always
+import bitkey.verification.VerificationThreshold.Disabled
+import bitkey.verification.VerificationThreshold.Enabled
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -47,6 +48,7 @@ class TxVerifyPolicyF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     policy: TxVerificationPolicy,
+    amountBtc: BitcoinMoney?,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<TxVerificationPolicy, Error> {
     return f8eHttpClient.authenticated()
@@ -61,18 +63,19 @@ class TxVerifyPolicyF8eClientImpl(
               state = when (policy) {
                 is TxVerificationPolicy.Active -> when (policy.threshold) {
                   Always -> VerificationState.ALWAYS
+                  Disabled -> VerificationState.NEVER
                   else -> VerificationState.THRESHOLD
                 }
-                TxVerificationPolicy.Disabled -> VerificationState.NEVER
                 is TxVerificationPolicy.Pending -> error("Can't set a pending policy directly")
               },
-              threshold = (policy as? TxVerificationPolicy.Active)
-                ?.threshold
-                ?.amount
-                ?.takeIf { policy.threshold != Always }
+              threshold = policy
+                .threshold
+                .amount
+                .takeIf { policy.threshold is Enabled && policy.threshold != Always }
                 ?.let {
-                  MoneyDTO(
-                    amount = it.fractionalUnitValue.ulongValue(exactRequired = true),
+                  CurrencyThreshold(
+                    amountSats = amountBtc?.fractionalUnitValue?.ulongValue(exactRequired = true) ?: error("Reference amount in BTC is required for enabled threshold policy"),
+                    amountFiat = it.fractionalUnitValue.ulongValue(exactRequired = true),
                     currencyCode = it.currency.textCode.code
                   )
                 }
@@ -102,9 +105,11 @@ class TxVerifyPolicyF8eClientImpl(
         }
       }.flatMap { response ->
         when (response.threshold) {
-          null -> TxVerificationPolicy.Disabled
+          null -> TxVerificationPolicy.Active(
+            threshold = Disabled
+          )
           else -> TxVerificationPolicy.Active(
-            threshold = VerificationThreshold(
+            threshold = Enabled(
               amount = response.threshold.let { threshold ->
                 when (threshold.currencyCode) {
                   BTC.textCode.code -> BitcoinMoney(
@@ -129,8 +134,18 @@ class TxVerifyPolicyF8eClientImpl(
 private data class PolicyChangeRequest(
   @Unredacted
   val state: VerificationState,
-  val threshold: MoneyDTO?,
+  val threshold: CurrencyThreshold?,
 ) : RedactedRequestBody
+
+@Serializable
+private data class CurrencyThreshold(
+  @SerialName("amount_sats")
+  val amountSats: ULong,
+  @SerialName("amount_fiat")
+  val amountFiat: ULong,
+  @SerialName("currency_code")
+  val currencyCode: String,
+)
 
 @Serializable
 private data class ThresholdResponse(

@@ -13,6 +13,7 @@ import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVersion
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.notifications.NotificationChannelRepository
 import build.wallet.platform.sensor.Accelerometer
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +45,8 @@ abstract class AndroidAppComponent(
   abstract val strictModeEnabler: StrictModeEnabler
   abstract val deviceInfoProvider: DeviceInfoProvider
   abstract val accelerometer: Accelerometer
+
+  abstract val haptics: Haptics
 
   /**
    * Provide Context from Application for dependency injection.

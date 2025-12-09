@@ -2,6 +2,7 @@ package build.wallet.testing.ext
 
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.csek.Sek
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.store.CloudStoreAccount
@@ -12,7 +13,6 @@ import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.testing.AppTester
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.types.shouldBeInstanceOf
 
 /**
  * Delete real cloud backups from fake, local cloud accounts.
@@ -41,8 +41,12 @@ suspend fun AppTester.readCloudBackup(cloudStoreAccount: CloudStoreAccount? = nu
 suspend fun AppTester.decryptCloudBackupKeys(): FullAccountKeys {
   val cloudBackup = readCloudBackup()
     .shouldNotBeNull()
-    .shouldBeInstanceOf<CloudBackupV2>()
-  val fullAccountFields = cloudBackup.fullAccountFields.shouldNotBeNull()
+
+  val fullAccountFields = when (cloudBackup) {
+    is CloudBackupV2 -> cloudBackup.fullAccountFields
+    is CloudBackupV3 -> cloudBackup.fullAccountFields
+    else -> error("Unsupported cloud backup type: ${cloudBackup::class.simpleName}")
+  }.shouldNotBeNull()
 
   val decryptedSsek = Sek(
     fakeNfcCommands.unsealSymmetricKey(
@@ -51,5 +55,10 @@ suspend fun AppTester.decryptCloudBackupKeys(): FullAccountKeys {
     )
   )
   csekDao.set(fullAccountFields.sealedHwEncryptionKey, decryptedSsek)
-  return cloudBackupV2Restorer.decryptCloudBackup(cloudBackup).getOrThrow()
+
+  return when (cloudBackup) {
+    is CloudBackupV2 -> cloudBackupV2Restorer.decryptCloudBackup(cloudBackup).getOrThrow()
+    is CloudBackupV3 -> cloudBackupV3Restorer.decryptCloudBackup(cloudBackup).getOrThrow()
+    else -> error("Unsupported cloud backup type: ${cloudBackup::class.simpleName}")
+  }
 }

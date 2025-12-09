@@ -1315,7 +1315,7 @@ async fn test_relationships_count_caps() {
     }
 
     let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
-    for i in 0..=10 {
+    for i in 0..=30 {
         let customer_account = create_full_account(
             &mut context,
             &bootstrap.services,
@@ -1347,7 +1347,7 @@ async fn test_relationships_count_caps() {
             &CognitoAuthentication::Recovery,
             &create_body.invitation,
             CodeOverride::None,
-            if i != 10 {
+            if i != 30 {
                 StatusCode::OK
             } else {
                 StatusCode::CONFLICT

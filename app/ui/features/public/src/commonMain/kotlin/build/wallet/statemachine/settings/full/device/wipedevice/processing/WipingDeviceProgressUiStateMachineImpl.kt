@@ -21,7 +21,7 @@ class WipingDeviceProgressUiStateMachineImpl : WipingDeviceProgressUiStateMachin
     return ScreenModel(
       body = LoadingBodyModel(
         id = WipingDeviceEventTrackerScreenId.RESET_DEVICE_IN_PROGRESS,
-        message = "Your Bitkey device is being wiped"
+        title = "Your Bitkey device is being wiped"
       )
     )
   }

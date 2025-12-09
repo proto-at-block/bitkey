@@ -176,6 +176,13 @@ resource "aws_iam_role" "api_gateway_cloudwatch_role" {
 }
 
 resource "aws_api_gateway_account" "account" {
+  # This is a regional singleton - only one per AWS account/region, not per API Gateway.
+  # Developer stacks skip this to avoid conflicts with each other. This is safe because:
+  # 1. The shared development stack has already set a valid CloudWatch role
+  # 2. CloudWatch logging still works - our API Gateway uses whatever role is currently set
+  # 3. The role resource above is still created, just not set as THE account-level role
+  count = local.is_developer_stack ? 0 : 1
+
   cloudwatch_role_arn = aws_iam_role.api_gateway_cloudwatch_role.arn
 }
 

@@ -20,7 +20,8 @@ class SampleActivity : ComponentActivity() {
         model = screenModel,
         deviceInfo = sampleAppComponent.deviceInfoProvider.getDeviceInfo(),
         accelerometer = null,
-        themePreferenceService = null
+        themePreferenceService = null,
+        haptics = null
       )
     }
   }

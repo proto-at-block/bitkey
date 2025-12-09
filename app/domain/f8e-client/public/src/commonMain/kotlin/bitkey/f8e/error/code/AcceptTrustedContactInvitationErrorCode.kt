@@ -21,4 +21,7 @@ enum class AcceptTrustedContactInvitationErrorCode : F8eClientErrorCode {
 
   /** Indicates the account attempting to accept the invite is already a Trusted Contact for the requesting account. **/
   ACCOUNT_ALREADY_TRUSTED_CONTACT,
+
+  /** Account is already a trusted contact for the customer **/
+  CONFLICT,
 }

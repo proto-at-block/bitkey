@@ -8,20 +8,24 @@ import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudB
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.SocRecKeysRetrievalError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.relationships.RelationshipsKeysRepository
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
+import kotlinx.datetime.Clock
 
 @BitkeyInject(AppScope::class)
 class LiteAccountCloudBackupCreatorImpl(
   private val relationshipsKeysRepository: RelationshipsKeysRepository,
   private val appPrivateKeyDao: AppPrivateKeyDao,
+  private val clock: Clock,
+  private val deviceInfoProvider: DeviceInfoProvider,
 ) : LiteAccountCloudBackupCreator {
   override suspend fun create(
     account: LiteAccount,
-  ): Result<CloudBackupV2, LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError> =
+  ): Result<CloudBackup, LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError> =
     coroutineBinding {
       val delegatedDecryptionKeypair =
         relationshipsKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
@@ -43,7 +47,9 @@ class LiteAccountCloudBackupCreatorImpl(
           privateKey = recoveryAuthPrivateKey
         )
 
-      CloudBackupV2(
+      val deviceInfo = deviceInfoProvider.getDeviceInfo()
+
+      CloudBackupV3(
         accountId = account.accountId.serverId,
         f8eEnvironment = account.config.f8eEnvironment,
         isTestAccount = account.config.isTestAccount,
@@ -51,7 +57,9 @@ class LiteAccountCloudBackupCreatorImpl(
         appRecoveryAuthKeypair = appRecoveryAuthKeypair,
         delegatedDecryptionKeypair = delegatedDecryptionKeypair,
         isUsingSocRecFakes = account.config.isUsingSocRecFakes,
-        bitcoinNetworkType = account.config.bitcoinNetworkType
+        bitcoinNetworkType = account.config.bitcoinNetworkType,
+        deviceNickname = deviceInfo.deviceNickname,
+        createdAt = clock.now()
       )
     }
 }

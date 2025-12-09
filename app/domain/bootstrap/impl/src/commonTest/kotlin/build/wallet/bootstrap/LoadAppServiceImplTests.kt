@@ -11,8 +11,11 @@ import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.OnboardingSoftwareAccountMock
 import build.wallet.bitkey.keybox.SoftwareAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.db.DbQueryError
 import build.wallet.feature.FeatureFlagServiceFake
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -53,15 +56,24 @@ class LoadAppServiceImplTests : FunSpec({
 
     // Now that feature flags are initialized, the `loadAppState` should return the app state.
     featureFlagService.flagsInitialized.value = true
-    job.await().shouldBe(AppState.Undetermined)
+    job.await().shouldBe(AppState.NoActiveAccount)
     job.isCompleted.shouldBeTrue()
+  }
+
+  test("throws error when account status cannot be determined") {
+    accountService.accountState.value =
+      Err(DbQueryError(RuntimeException("Failed to load account")))
+
+    shouldThrow<DbQueryError> {
+      service.loadAppState()
+    }
   }
 
   context("has no active or onboarding account") {
     test("undetermined app state") {
       accountService.accountState.value = Ok(AccountStatus.NoAccount)
 
-      service.loadAppState().shouldBe(AppState.Undetermined)
+      service.loadAppState().shouldBe(AppState.NoActiveAccount)
     }
   }
 
@@ -103,7 +115,9 @@ class LoadAppServiceImplTests : FunSpec({
         AccountStatus.OnboardingAccount(LiteAccountMock)
       )
 
-      service.loadAppState().shouldBe(AppState.Undetermined)
+      shouldThrow<IllegalStateException> {
+        service.loadAppState()
+      }
     }
   }
 
@@ -113,7 +127,9 @@ class LoadAppServiceImplTests : FunSpec({
         AccountStatus.OnboardingAccount(OnboardingSoftwareAccountMock)
       )
 
-      service.loadAppState().shouldBe(AppState.Undetermined)
+      shouldThrow<IllegalStateException> {
+        service.loadAppState()
+      }
     }
   }
 

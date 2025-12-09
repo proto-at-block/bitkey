@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -18,6 +19,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import build.wallet.platform.haptics.HapticsEffect
+import kotlinx.coroutines.launch
 
 /**
  * Conditionally animates into and from applying [blur] modifier.
@@ -61,12 +64,15 @@ inline fun <T> Modifier.thenIfNotNull(
  * @param enabled Whether the click is enabled.
  * @param scaleFactor The scale factor when pressed.
  * @param alphaFactor The alpha factor when pressed.
+ * @param haptics Optional haptics service for feedback on press.
+ * @param hapticsEffect The haptic effect to trigger on press.
  * @param onClick The callback when clicked.
  */
 fun Modifier.scalingClickable(
   enabled: Boolean = true,
-  scaleFactor: Float = 0.9f,
-  alphaFactor: Float = 0.7f,
+  scaleFactor: Float = 0.97f,
+  alphaFactor: Float = 0.97f,
+  hapticsEffect: HapticsEffect = HapticsEffect.Selection,
   onClick: () -> Unit,
 ) = composed {
   var isPressed by remember { mutableStateOf(false) }
@@ -80,6 +86,10 @@ fun Modifier.scalingClickable(
     label = "scaling-clickable-opacity-transition"
   )
 
+  val scope = rememberCoroutineScope()
+
+  val haptics = LocalHaptics.current
+
   this.graphicsLayer {
     scaleX = scaleAnimation
     scaleY = scaleAnimation
@@ -89,9 +99,16 @@ fun Modifier.scalingClickable(
       detectTapGestures(
         onPress = {
           isPressed = true
+
           val released = tryAwaitRelease()
           isPressed = false
           if (released) {
+            // Trigger haptic feedback when pressed
+            haptics?.let {
+              scope.launch {
+                it.vibrate(hapticsEffect)
+              }
+            }
             onClick()
           }
         }

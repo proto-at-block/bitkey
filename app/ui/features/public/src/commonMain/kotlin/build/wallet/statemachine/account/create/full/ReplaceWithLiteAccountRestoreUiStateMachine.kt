@@ -2,7 +2,7 @@ package build.wallet.statemachine.account.create.full
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -15,7 +15,7 @@ interface ReplaceWithLiteAccountRestoreUiStateMachine :
 
 data class ReplaceWithLiteAccountRestoreUiProps(
   val keyboxToReplace: Keybox,
-  val liteAccountCloudBackup: CloudBackupV2,
+  val liteAccountCloudBackup: CloudBackup,
   val onAccountUpgraded: (FullAccount) -> Unit,
   val onBack: () -> Unit,
 )

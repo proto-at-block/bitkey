@@ -58,7 +58,8 @@ class MainActivity : FragmentActivity() {
           model = activityComponent.appUiStateMachine.model(Unit),
           deviceInfo = appComponent.deviceInfoProvider.getDeviceInfo(),
           accelerometer = appComponent.accelerometer,
-          themePreferenceService = activityComponent.themePreferenceService
+          themePreferenceService = activityComponent.themePreferenceService,
+          haptics = appComponent.haptics
         )
       }
 

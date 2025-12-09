@@ -18,11 +18,7 @@ import build.wallet.support.*
 import build.wallet.time.DateTimeFormatter
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemAccessory
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemTreatment
+import build.wallet.ui.model.list.*
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.model.switch.SwitchModel
 import com.github.michaelbull.result.onFailure
@@ -31,6 +27,7 @@ import kotlinx.collections.immutable.*
 import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDate
 
+@Suppress("LargeClass")
 @BitkeyInject(ActivityScope::class)
 class FeedbackFormUiStateMachineImpl(
   private val supportTicketRepository: SupportTicketRepository,
@@ -52,7 +49,7 @@ class FeedbackFormUiStateMachineImpl(
         StateMapBackedSupportTicketData(props.initialData)
       }
 
-    return when (uiState) {
+    return when (val state = uiState) {
       is FeedbackFormUiState.FillingForm ->
         FillingForm(
           account = props.account,
@@ -74,13 +71,14 @@ class FeedbackFormUiStateMachineImpl(
           onSuccess = {
             uiState = FeedbackFormUiState.SubmitSuccessful
           },
-          onError = {
-            uiState = FeedbackFormUiState.SubmitFailed
+          onError = { error ->
+            uiState = FeedbackFormUiState.SubmitFailed(error)
           }
         )
 
       is FeedbackFormUiState.SubmitFailed ->
         SubmitFailed(
+          error = state.error,
           onRetry = {
             uiState = FeedbackFormUiState.SubmittingFormData
           },
@@ -454,8 +452,7 @@ class FeedbackFormUiStateMachineImpl(
     structure: SupportTicketForm,
     data: SupportTicketData,
     onSuccess: () -> Unit,
-    // TODO[W-5853]: Provide error
-    onError: () -> Unit,
+    onError: (SupportTicketError) -> Unit,
   ): ScreenModel {
     LaunchedEffect(data) {
       supportTicketRepository.createTicket(
@@ -463,9 +460,8 @@ class FeedbackFormUiStateMachineImpl(
         data = data
       )
         .onSuccess { onSuccess() }
-        .onFailure {
-          // TODO[W-5853]: Pass in error details
-          onError()
+        .onFailure { error ->
+          onError(error)
         }
     }
 
@@ -491,22 +487,43 @@ class FeedbackFormUiStateMachineImpl(
 
   @Composable
   private fun SubmitFailed(
+    error: SupportTicketError,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
   ): ScreenModel {
+    val (title, subline, retryable) = when (error) {
+      SupportTicketError.InvalidEmailAddress ->
+        Triple(
+          "The entered email is not valid.",
+          "Please provide a different email.",
+          false
+        )
+
+      is SupportTicketError.NetworkFailure ->
+        Triple(
+          "Couldn't submit your feedback",
+          "We couldn't submit your feedback. Please try again later.",
+          true
+        )
+    }
+
+    val dismissButton = ButtonDataModel(
+      text = "Dismiss",
+      onClick = onDismiss
+    )
+
     return ErrorFormBodyModel(
-      title = "Couldn't submit your feedback",
-      subline = "We couldn't submit your feedback. Please try again later.",
-      primaryButton =
+      title = title,
+      subline = subline,
+      primaryButton = if (retryable) {
         ButtonDataModel(
           text = "Retry",
           onClick = onRetry
-        ),
-      secondaryButton =
-        ButtonDataModel(
-          text = "Dismiss",
-          onClick = onDismiss
-        ),
+        )
+      } else {
+        dismissButton
+      },
+      secondaryButton = if (retryable) dismissButton else null,
       eventTrackerScreenId = FeedbackEventTrackerScreenId.FEEDBACK_SUBMIT_FAILED
     ).asModalScreen()
   }
@@ -685,7 +702,7 @@ private sealed interface FeedbackFormUiState {
 
   data object SubmitSuccessful : FeedbackFormUiState
 
-  data object SubmitFailed : FeedbackFormUiState
+  data class SubmitFailed(val error: SupportTicketError) : FeedbackFormUiState
 
   data object ShowingPrivacyPolicy : FeedbackFormUiState
 }

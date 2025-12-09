@@ -215,7 +215,7 @@ class DebugMenuScreenPresenter(
         }
 
         LoadingBodyModel(
-          message = when (state) {
+          title = when (state) {
             is DebugMenuState.ClearingOnboardingData.OnboardingTimestamp -> "Clearing onboarding timestamp..."
             is DebugMenuState.ClearingOnboardingData.HasSeenUpsell -> "Clearing has seen upsell state..."
           },

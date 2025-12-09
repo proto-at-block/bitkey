@@ -41,7 +41,7 @@ class CloudSignInUiStateMachineImpl(
     }
 
     return LoadingBodyModel(
-      message = null,
+      title = null,
       onBack = null,
       id = CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING,
       eventTrackerContext = props.eventTrackerContext

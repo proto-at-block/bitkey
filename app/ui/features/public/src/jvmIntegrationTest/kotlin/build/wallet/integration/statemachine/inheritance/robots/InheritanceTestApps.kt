@@ -5,7 +5,6 @@ import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.feature.setFlagValue
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -88,12 +87,10 @@ suspend fun TestScope.setupInheritanceBetween(
   benefactorName: String = "alice",
   beneficiaryName: String = "bob",
 ): InheritanceTestApps {
-  benefactorApp.inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
   benefactorApp.onboardFullAccountWithFakeHardware(
     cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
   )
 
-  beneficiaryApp.inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
   beneficiaryApp.onboardFullAccountWithFakeHardware(
     cloudStoreAccountForBackup = CloudStoreAccountFake.TrustedContactFake
   )

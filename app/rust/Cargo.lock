@@ -587,6 +587,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "chaincode-delegation"
+version = "0.1.1"
+dependencies = [
+ "bitcoin",
+ "crypto",
+ "miniscript",
+]
+
+[[package]]
 name = "cipher"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -674,6 +683,7 @@ name = "core-ffi"
 version = "0.1.1"
 dependencies = [
  "bitcoin",
+ "chaincode-delegation",
  "crypto",
  "frost",
  "lightning-support",

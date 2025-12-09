@@ -27,7 +27,7 @@ kotlin {
 
     val jvmMain by getting {
       dependencies {
-        implementation(libs.jvm.bdk)
+        implementation(libs.jvm.bdk.legacy)
       }
     }
 

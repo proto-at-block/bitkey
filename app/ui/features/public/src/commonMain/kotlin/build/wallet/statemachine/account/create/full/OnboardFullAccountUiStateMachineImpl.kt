@@ -7,7 +7,7 @@ import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_DESCRIPTOR_BACKUP_FAILURE
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
-import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.isFullAccount
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -95,7 +95,7 @@ class OnboardFullAccountUiStateMachineImpl(
                   if (cloudBackup?.accountId == props.fullAccount.keybox.fullAccountId.serverId) {
                     // It's OK to overwrite the backup if it's for the same account
                     proceed()
-                  } else if (cloudBackup !is CloudBackupV2 || cloudBackup.fullAccountFields != null) {
+                  } else if (cloudBackup != null && cloudBackup.isFullAccount()) {
                     if (props.isSkipCloudBackupInstructions) {
                       proceed()
                     } else {
@@ -107,7 +107,7 @@ class OnboardFullAccountUiStateMachineImpl(
                       // lite account to a full account. That means the previous descriptor backup
                       // step is void, and we'll need to do it again.
                       onboardAccountService.markStepIncomplete(DescriptorBackup(null))
-                      props.onFoundLiteAccountWithDifferentId(cloudBackup)
+                      props.onFoundLiteAccountWithDifferentId(cloudBackup!!)
                     }
                   }
                 },

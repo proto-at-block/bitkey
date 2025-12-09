@@ -3,8 +3,8 @@ app_name = "bitkey-fw-signer"
 role_arn = "arn:aws:iam::000000000000:role/atlantis-terraform"
 cognito_users = [
   "donn@block.xyz",
-  "carsonh@block.xyz",
   "bkosciarz@block.xyz",
+  "carsonh@block.xyz",
   "angus@block.xyz",
   "tpaskowski@block.xyz",
   "jm@block.xyz"

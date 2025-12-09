@@ -1,7 +1,7 @@
 package build.wallet.statemachine.account.create.full
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -16,7 +16,7 @@ interface OnboardFullAccountUiStateMachine : StateMachine<OnboardFullAccountUiPr
 data class OnboardFullAccountUiProps(
   val fullAccount: FullAccount,
   val isSkipCloudBackupInstructions: Boolean,
-  val onFoundLiteAccountWithDifferentId: (cloudBackup: CloudBackupV2) -> Unit,
+  val onFoundLiteAccountWithDifferentId: (cloudBackup: CloudBackup) -> Unit,
   val onOverwriteFullAccountCloudBackupWarning: () -> Unit,
   val onOnboardingComplete: () -> Unit,
 )

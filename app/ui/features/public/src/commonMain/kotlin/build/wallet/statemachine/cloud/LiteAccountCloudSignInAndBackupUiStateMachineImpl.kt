@@ -144,7 +144,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
             }
         }
         return LoadingBodyModel(
-          message = "Saving backup...",
+          title = "Saving backup...",
           onBack = {
             props.onBackupFailed(null)
           },

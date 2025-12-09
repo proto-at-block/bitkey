@@ -25,9 +25,9 @@ resource "aws_cognito_user_pool" "bitkey_fw_signer" {
     allow_admin_create_user_only = true
 
     invite_message_template {
-      email_message = "[${var.env} - bitkey-fw-signer] Your username is {username} and temporary password is {####}."
-      email_subject = "[${var.env} - bitkey-fw-signer] Your temporary password"
-      sms_message   = "[${var.env} - bitkey-fw-signer] Your username is {username} and temporary password is {####}."
+      email_message = "[${local.env_display_name} - bitkey-fw-signer] Your username is {username} and temporary password is {####}."
+      email_subject = "[${local.env_display_name} - bitkey-fw-signer] Your temporary password"
+      sms_message   = "[${local.env_display_name} - bitkey-fw-signer] Your username is {username} and temporary password is {####}."
     }
   }
 
@@ -56,8 +56,8 @@ resource "aws_cognito_user_pool" "bitkey_fw_signer" {
   }
   */
 
-  email_verification_subject = "[${var.env} - bitkey-fw-signer] Your verification code"
-  email_verification_message = "[${var.env} - bitkey-fw-signer] Your verification code is {####} and your username is {username}."
+  email_verification_subject = "[${local.env_display_name} - bitkey-fw-signer] Your verification code"
+  email_verification_message = "[${local.env_display_name} - bitkey-fw-signer] Your verification code is {####}."
 
   # Note: schema is immutable after creation, so we ignore changes to it.
   # Normally we could just leave this so that it errors, but localstack has a bug where it tries to update the schema on every apply.

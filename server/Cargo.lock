@@ -2201,9 +2201,11 @@ dependencies = [
  "strum_macros",
  "thiserror 1.0.57",
  "time",
+ "tokio",
  "tracing",
  "types",
  "utoipa",
+ "wiremock",
 ]
 
 [[package]]
@@ -4841,6 +4843,7 @@ dependencies = [
  "aws-sdk-secretsmanager",
  "aws-utils",
  "axum",
+ "base64 0.22.1",
  "bdk",
  "chrono",
  "experimentation",
@@ -4849,6 +4852,8 @@ dependencies = [
  "hex",
  "hmac",
  "isocountry",
+ "moka",
+ "p256 0.13.2",
  "regex",
  "reqwest",
  "rstest",

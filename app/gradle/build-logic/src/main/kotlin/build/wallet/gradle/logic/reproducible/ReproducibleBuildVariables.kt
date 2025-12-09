@@ -3,6 +3,7 @@ package build.wallet.gradle.logic.reproducible
 class ReproducibleBuildVariables(
   val data: MutableMap<String, String> = mutableMapOf(),
 ) {
+  var buildType: String by data
   var bugsnagId: String by data
   var emergencyApkHash: String by data
   var emergencyApkVersion: String by data

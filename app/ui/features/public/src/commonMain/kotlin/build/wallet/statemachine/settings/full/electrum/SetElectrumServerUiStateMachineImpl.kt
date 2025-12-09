@@ -73,7 +73,7 @@ class SetElectrumServerUiStateMachineImpl(
         }
         LoadingBodyModel(
           id = CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_LOADING,
-          message = "Saving Custom Electrum Server..."
+          title = "Saving Custom Electrum Server..."
         ).asModalScreen()
       }
 

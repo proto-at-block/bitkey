@@ -21,7 +21,6 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
   val fullAccount = FullAccountMock
   val cloudAccount = CloudAccountMock(instanceId = "test-instance")
-  val cloudBackup = CloudBackupV2WithFullAccountMock
   val eekData = EmergencyExitKitData(
     pdfData = ByteString.EMPTY
   )
@@ -66,63 +65,115 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     appFunctionalityService.reset()
   }
 
-  context("appKeyBackupStatus") {
-    test("returns state flow with initial null value") {
-      val healthRepository = createHealthRepository()
-      val statusFlow = healthRepository.appKeyBackupStatus()
-      statusFlow.value shouldBe null
-    }
+  context("parameterized tests for all backup versions") {
+    AllFullAccountBackupMocks.forEach { cloudBackup ->
+      val backupVersion = when (cloudBackup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
+      }
 
-    test("emits updated values after sync") {
-      val healthRepository = createHealthRepository()
-      // Setup healthy backup scenario
-      cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-      setCloudBackup(cloudAccount, cloudBackup)
-      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+      context("cloud backup $backupVersion") {
+        context("appKeyBackupStatus") {
+          test("returns state flow with initial null value") {
+            val healthRepository = createHealthRepository()
+            val statusFlow = healthRepository.appKeyBackupStatus()
+            statusFlow.value shouldBe null
+          }
 
-      val status = healthRepository.performSync(fullAccount)
-      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+          test("emits updated values after sync") {
+            val healthRepository = createHealthRepository()
+            // Setup healthy backup scenario
+            cloudStoreAccountRepository.set(cloudAccount)
+            cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+            setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
+            emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-      healthRepository.appKeyBackupStatus().value.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+            val status = healthRepository.performSync(fullAccount)
+            status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+
+            healthRepository.appKeyBackupStatus().value.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+          }
+        }
+
+        context("eekBackupStatus") {
+          test("returns state flow with initial null value") {
+            val healthRepository = createHealthRepository()
+            val statusFlow = healthRepository.eekBackupStatus()
+            statusFlow.value shouldBe null
+          }
+
+          test("emits updated values after sync") {
+            val healthRepository = createHealthRepository()
+            // Setup healthy backup scenario
+            cloudStoreAccountRepository.set(cloudAccount)
+            cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+            setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
+            emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+            val status = healthRepository.performSync(fullAccount)
+            status.eekBackupStatus.shouldBeInstanceOf<EekBackupStatus.Healthy>()
+
+            healthRepository.eekBackupStatus().value.shouldBeInstanceOf<EekBackupStatus.Healthy>()
+          }
+        }
+
+        test("performSync - returns healthy status when everything is ok") {
+          val healthRepository = createHealthRepository()
+          cloudStoreAccountRepository.set(cloudAccount)
+          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+          setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
+          emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+          val status = healthRepository.performSync(fullAccount)
+
+          status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+          status.eekBackupStatus.shouldBeInstanceOf<EekBackupStatus.Healthy>()
+        }
+
+        test("performSync - returns invalid backup when cloud and local backups don't match") {
+          val healthRepository = createHealthRepository()
+          val differentCloudBackup = when (cloudBackup) {
+            is CloudBackupV2 -> cloudBackup.copy(accountId = "different-id")
+            is CloudBackupV3 -> cloudBackup.copy(accountId = "different-id")
+            else -> throw IllegalStateException("Unknown backup version: $cloudBackup")
+          }
+
+          cloudStoreAccountRepository.set(cloudAccount)
+          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+          setCloudBackup(cloudAccount, differentCloudBackup as CloudBackup)
+
+          val status = healthRepository.performSync(fullAccount)
+
+          status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
+          (status.appKeyBackupStatus as AppKeyBackupStatus.ProblemWithBackup.InvalidBackup).cloudBackup shouldBe differentCloudBackup
+        }
+
+        test("attempts repair when backup is unhealthy") {
+          val healthRepository = createHealthRepository()
+          cloudStoreAccountRepository.set(cloudAccount)
+          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+          // No cloud backup - unhealthy scenario
+
+          fullAccountCloudBackupRepairer.onRepairAttempt = {
+            setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
+          }
+
+          val status = healthRepository.performSync(fullAccount)
+          status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+
+          // Verify repair was attempted
+          fullAccountCloudBackupRepairer.attemptRepairCalls.size shouldBe 1
+          val repairCall = fullAccountCloudBackupRepairer.attemptRepairCalls.first()
+          repairCall.account shouldBe fullAccount
+          repairCall.cloudStoreAccount shouldBe cloudAccount
+          repairCall.cloudBackupStatus.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.BackupMissing
+        }
+      }
     }
   }
 
-  context("eekBackupStatus") {
-    test("returns state flow with initial null value") {
-      val healthRepository = createHealthRepository()
-      val statusFlow = healthRepository.eekBackupStatus()
-      statusFlow.value shouldBe null
-    }
-
-    test("emits updated values after sync") {
-      val healthRepository = createHealthRepository()
-      // Setup healthy backup scenario
-      cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-      setCloudBackup(cloudAccount, cloudBackup)
-      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
-
-      val status = healthRepository.performSync(fullAccount)
-      status.eekBackupStatus.shouldBeInstanceOf<EekBackupStatus.Healthy>()
-
-      healthRepository.eekBackupStatus().value.shouldBeInstanceOf<EekBackupStatus.Healthy>()
-    }
-  }
-
-  test("performSync - returns healthy status when everything is ok") {
-    val healthRepository = createHealthRepository()
-    cloudStoreAccountRepository.set(cloudAccount)
-    cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-    setCloudBackup(cloudAccount, cloudBackup)
-    emergencyExitKitRepository.setEekData(cloudAccount, eekData)
-
-    val status = healthRepository.performSync(fullAccount)
-
-    status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
-    status.eekBackupStatus.shouldBeInstanceOf<EekBackupStatus.Healthy>()
-  }
-
+  // Version-independent tests
   test("performSync - returns no cloud access when cloud account is missing") {
     val healthRepository = createHealthRepository()
     // No cloud account set
@@ -134,6 +185,8 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
   }
 
   context("performSync - app key backup errors") {
+    val cloudBackup = CloudBackupV2WithFullAccountMock
+
     test("returns connectivity unavailable when cloud backup health feature is unavailable") {
       val healthRepository = createHealthRepository()
       cloudStoreAccountRepository.set(cloudAccount)
@@ -168,7 +221,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     test("returns backup missing when cloud backup is null") {
       val healthRepository = createHealthRepository()
       cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
+      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
       // No cloud backup set
 
       val status = healthRepository.performSync(fullAccount)
@@ -179,7 +232,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     test("returns no cloud access when cloud backup read fails") {
       val healthRepository = createHealthRepository()
       cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
+      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
       cloudBackupRepository.returnReadError =
         CloudBackupError.UnrectifiableCloudBackupError(CloudError())
 
@@ -187,53 +240,19 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
       status.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
     }
-
-    test("returns invalid backup when cloud and local backups don't match") {
-      val healthRepository = createHealthRepository()
-      val differentCloudBackup = cloudBackup.copy(accountId = "different-id")
-
-      cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-      setCloudBackup(cloudAccount, differentCloudBackup)
-
-      val status = healthRepository.performSync(fullAccount)
-
-      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
-      (status.appKeyBackupStatus as AppKeyBackupStatus.ProblemWithBackup.InvalidBackup).cloudBackup shouldBe differentCloudBackup
-    }
   }
 
   test("returns backup missing when eek read fails") {
     val healthRepository = createHealthRepository()
+    val cloudBackup = CloudBackupV2WithFullAccountMock
     cloudStoreAccountRepository.set(cloudAccount)
-    cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-    setCloudBackup(cloudAccount, cloudBackup)
+    cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+    setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
     emergencyExitKitRepository.readError = Error("EEK read failed")
 
     val status = healthRepository.performSync(fullAccount)
 
     status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
     status.eekBackupStatus shouldBe EekBackupStatus.ProblemWithBackup.BackupMissing
-  }
-
-  test("attempts repair when backup is unhealthy") {
-    val healthRepository = createHealthRepository()
-    cloudStoreAccountRepository.set(cloudAccount)
-    cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-    // No cloud backup - unhealthy scenario
-
-    fullAccountCloudBackupRepairer.onRepairAttempt = {
-      setCloudBackup(cloudAccount, cloudBackup)
-    }
-
-    val status = healthRepository.performSync(fullAccount)
-    status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
-
-    // Verify repair was attempted
-    fullAccountCloudBackupRepairer.attemptRepairCalls.size shouldBe 1
-    val repairCall = fullAccountCloudBackupRepairer.attemptRepairCalls.first()
-    repairCall.account shouldBe fullAccount
-    repairCall.cloudStoreAccount shouldBe cloudAccount
-    repairCall.cloudBackupStatus.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.BackupMissing
   }
 })

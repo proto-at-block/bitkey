@@ -1,3 +1,6 @@
+mod cleanup_old_watch_addresses_prod;
+
+use cleanup_old_watch_addresses_prod::CleanupOldWatchAddressesProd;
 use migration::{MigratableService, Migration};
 
 use crate::service::Service;
@@ -8,6 +11,6 @@ impl MigratableService for Service {
     }
 
     fn list_migrations(&self) -> Vec<Box<dyn Migration + '_>> {
-        vec![]
+        vec![Box::new(CleanupOldWatchAddressesProd::new(self.clone()))]
     }
 }

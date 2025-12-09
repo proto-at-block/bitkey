@@ -39,7 +39,7 @@ class CreateSoftwareWalletUiStateMachineImpl(
         LoadingBodyModel(
           id = null,
           onBack = null,
-          message = "Creating Software Wallet..."
+          title = "Creating Software Wallet..."
         ).asRootScreen()
       }
 

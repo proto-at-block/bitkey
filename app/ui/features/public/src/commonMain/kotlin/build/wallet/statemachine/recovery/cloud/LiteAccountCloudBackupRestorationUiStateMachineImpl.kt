@@ -8,7 +8,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.LOADING_RESTORING_FROM_CLOUD_BACKUP
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.LiteAccountCloudBackupRestorer
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -32,8 +34,8 @@ class LiteAccountCloudBackupRestorationUiStateMachineImpl(
 ) : LiteAccountCloudBackupRestorationUiStateMachine {
   @Composable
   override fun model(props: LiteAccountCloudBackupRestorationUiProps): ScreenModel {
-    require(props.cloudBackup is CloudBackupV2) {
-      "Only CloudBackupV2 is supported for lite account restoration"
+    require(props.cloudBackup is CloudBackupV2 || props.cloudBackup is CloudBackupV3) {
+      "Only CloudBackupV2 and CloudBackupV3 are supported for lite account restoration"
     }
 
     var uiState: LiteAccountCloudBackupRestorationUiState by remember {
@@ -52,7 +54,7 @@ class LiteAccountCloudBackupRestorationUiStateMachineImpl(
             .onSuccess(props.onLiteAccountRestored)
         }
         LoadingBodyModel(
-          message = null,
+          title = null,
           onBack = null,
           id = LOADING_RESTORING_FROM_CLOUD_BACKUP
         ).asRootScreen()

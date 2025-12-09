@@ -46,12 +46,6 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
   val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
 
-  val otherBackup = CloudBackupV2WithFullAccountMock.copy(
-    fullAccountFields = (CloudBackupV2WithFullAccountMock.fullAccountFields as FullAccountFields).copy(
-      socRecSealedDekMap = mapOf()
-    )
-  )
-
   val cloudAccount = CloudAccountMock(cloudInstanceId)
 
   val socRecCloudBackupSyncWorker = SocRecCloudBackupSyncWorkerImpl(
@@ -67,45 +61,69 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
     appSessionManager = AppSessionManagerFake()
   )
 
-  beforeTest {
-    cloudBackupDao.clear()
-    cloudBackupDao.set(fullAccount.accountId.serverId, otherBackup)
-    cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
-    fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
-    cloudBackupRepository.reset()
-    accountService.reset()
-    accountService.setActiveAccount(fullAccount)
-    recoveryStatusService.reset()
-  }
-
   afterTest {
     relationshipsService.relationships.emit(RelationshipsFake)
     cloudStoreAccountRepository.reset()
     fullAccountCloudBackupCreator.reset()
   }
 
-  test("success") {
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
-    }
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 2
-      )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 1
-      )
-    )
-    fullAccountCloudBackupCreator.createCalls.awaitItem()
-    cloudBackupRepository.awaitBackup(cloudAccount)
-      .shouldBe(CloudBackupV2WithFullAccountMock)
-  }
+  context("parameterized tests for all backup versions") {
+    AllFullAccountBackupMocks.forEach { cloudBackup ->
+      val backupVersion = when (cloudBackup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
+      }
+
+      // Create otherBackup with empty socRecSealedDekMap for this version
+      val otherBackup = when (cloudBackup) {
+        is CloudBackupV2 -> cloudBackup.copy(
+          fullAccountFields = (cloudBackup.fullAccountFields as? FullAccountFields)?.copy(
+            socRecSealedDekMap = mapOf()
+          )
+        )
+        is CloudBackupV3 -> cloudBackup.copy(
+          fullAccountFields = (cloudBackup.fullAccountFields as? FullAccountFields)?.copy(
+            socRecSealedDekMap = mapOf()
+          )
+        )
+        else -> throw IllegalStateException("Unknown backup version")
+      }
+
+      context("cloud backup $backupVersion") {
+        beforeTest {
+          cloudBackupDao.clear()
+          cloudBackupDao.set(fullAccount.accountId.serverId, otherBackup as CloudBackup)
+          cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
+          fullAccountCloudBackupCreator.backupResult = Ok(cloudBackup as CloudBackup)
+          cloudBackupRepository.reset()
+          accountService.reset()
+          accountService.setActiveAccount(fullAccount)
+          recoveryStatusService.reset()
+        }
+
+        test("success") {
+          createBackgroundScope().launch {
+            socRecCloudBackupSyncWorker.executeWork()
+          }
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+              count = 2
+            )
+          )
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+              count = 1
+            )
+          )
+          fullAccountCloudBackupCreator.createCalls.awaitItem()
+          cloudBackupRepository.awaitBackup(cloudAccount)
+            .shouldBe(cloudBackup)
+        }
 
         test("skips cloud backup refresh when lost hardware recovery is in progress") {
           // Set up a hardware recovery in progress
@@ -121,247 +139,270 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
           cloudBackupRepository.awaitNoBackups()
         }
 
-  test("success - multiple") {
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
+        test("success - multiple") {
+          createBackgroundScope().launch {
+            socRecCloudBackupSyncWorker.executeWork()
+          }
+
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+              count = 2
+            )
+          )
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+              count = 1
+            )
+          )
+
+          fullAccountCloudBackupCreator.createCalls.awaitItem()
+          cloudBackupRepository.awaitBackup(cloudAccount).shouldBe(cloudBackup)
+          relationshipsService.relationships
+            .emit(
+              RelationshipsFake.copy(
+                endorsedTrustedContacts = listOf(
+                  EndorsedTrustedContactFake1
+                )
+              )
+            )
+
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+              count = 1
+            )
+          )
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+              count = 0
+            )
+          )
+
+          fullAccountCloudBackupCreator.createCalls.awaitItem()
+        }
+
+        test("success - beneficiary only") {
+          relationshipsService.relationships
+            .emit(
+              RelationshipsFake.copy(
+                endorsedTrustedContacts = listOf(
+                  EndorsedBeneficiaryFake
+                )
+              )
+            )
+
+          createBackgroundScope().launch {
+            socRecCloudBackupSyncWorker.executeWork()
+          }
+
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+              count = 0
+            )
+          )
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+              count = 1
+            )
+          )
+          fullAccountCloudBackupCreator.createCalls.awaitItem()
+        }
+
+        test("success - duplicate ignored") {
+          createBackgroundScope().launch {
+            socRecCloudBackupSyncWorker.executeWork()
+          }
+
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+              count = 2
+            )
+          )
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+              count = 1
+            )
+          )
+
+          fullAccountCloudBackupCreator.createCalls.awaitItem()
+          cloudBackupRepository.awaitBackup(cloudAccount).shouldBe(cloudBackup)
+          relationshipsService.relationships.emit(RelationshipsFake)
+        }
+
+        test("success - cloud backup v1 always accepted") {
+          // Setting this to empty to match what would be found in an old backup.
+          // An upload should be triggered even if no trusted contacts are known.
+          relationshipsService.relationships.emit(Relationships.EMPTY)
+          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+          createBackgroundScope().launch {
+            socRecCloudBackupSyncWorker.executeWork()
+          }
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+              count = 0
+            )
+          )
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+              count = 0
+            )
+          )
+          fullAccountCloudBackupCreator.createCalls.awaitItem()
+          cloudBackupRepository.awaitBackup(cloudAccount)
+            .shouldBe(cloudBackup)
+        }
+
+        test("failure - error writing cloud backup") {
+          cloudBackupRepository.returnWriteError =
+            CloudBackupError.UnrectifiableCloudBackupError(Throwable())
+          createBackgroundScope().launch {
+            socRecCloudBackupSyncWorker.executeWork()
+          }
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+              count = 2
+            )
+          )
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+              count = 1
+            )
+          )
+          fullAccountCloudBackupCreator.createCalls.awaitItem()
+          cloudBackupRepository.awaitNoBackups()
+        }
+
+        test("failure - error creating backup") {
+          fullAccountCloudBackupCreator.backupResult =
+            Err(FullAccountFieldsCreationError())
+          createBackgroundScope().launch {
+            socRecCloudBackupSyncWorker.executeWork()
+          }
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+              count = 2
+            )
+          )
+          eventTracker.eventCalls.awaitItem().shouldBe(
+            TrackedAction(
+              action = Action.ACTION_APP_COUNT,
+              counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+              count = 1
+            )
+          )
+          fullAccountCloudBackupCreator.createCalls.awaitItem()
+          cloudBackupRepository.awaitNoBackups()
+        }
+      }
+    }
+  }
+
+  // Version-independent tests
+  context("lite account tests") {
+    val otherBackup = CloudBackupV2WithFullAccountMock.copy(
+      fullAccountFields = (CloudBackupV2WithFullAccountMock.fullAccountFields as FullAccountFields).copy(
+        socRecSealedDekMap = mapOf()
+      )
+    )
+
+    beforeTest {
+      cloudBackupDao.clear()
+      cloudBackupDao.set(fullAccount.accountId.serverId, otherBackup)
+      cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
+      fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
+      cloudBackupRepository.reset()
+      accountService.reset()
+      accountService.setActiveAccount(fullAccount)
+      recoveryStatusService.reset()
     }
 
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 2
-      )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 1
-      )
-    )
+    test("success - equal trusted contacts sets ignored") {
+      cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
 
-    fullAccountCloudBackupCreator.createCalls.awaitItem()
-    cloudBackupRepository.awaitBackup(cloudAccount).shouldBe(CloudBackupV2WithFullAccountMock)
-    relationshipsService.relationships
-      .emit(
-        RelationshipsFake.copy(
-          endorsedTrustedContacts = listOf(
-            EndorsedTrustedContactFake1
-          )
+      createBackgroundScope().launch {
+        socRecCloudBackupSyncWorker.executeWork()
+      }
+    }
+
+    test("failure - equal trusted contacts maps ignored") {
+      cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
+      createBackgroundScope().launch {
+        socRecCloudBackupSyncWorker.executeWork()
+      }
+    }
+
+    test("failure - null cloud backup ignored") {
+      cloudBackupDao.clear()
+      createBackgroundScope().launch {
+        socRecCloudBackupSyncWorker.executeWork()
+      }
+    }
+
+    test("failure - no cloud account") {
+      cloudStoreAccountRepository.currentAccountResult = Ok(null)
+      createBackgroundScope().launch {
+        socRecCloudBackupSyncWorker.executeWork()
+      }
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 2
         )
       )
-
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 1
-      )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 0
-      )
-    )
-
-    fullAccountCloudBackupCreator.createCalls.awaitItem()
-  }
-
-  test("success - beneficiary only") {
-    relationshipsService.relationships
-      .emit(
-        RelationshipsFake.copy(
-          endorsedTrustedContacts = listOf(
-            EndorsedBeneficiaryFake
-          )
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+          count = 1
         )
       )
-
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
     }
 
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 0
+    test("failure - error retrieving cloud account") {
+      cloudStoreAccountRepository.currentAccountResult = Err(CloudStoreAccountError())
+      createBackgroundScope().launch {
+        socRecCloudBackupSyncWorker.executeWork()
+      }
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 2
+        )
       )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 1
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
+          count = 1
+        )
       )
-    )
-    fullAccountCloudBackupCreator.createCalls.awaitItem()
-  }
-
-  test("success - duplicate ignored") {
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
     }
-
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 2
-      )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 1
-      )
-    )
-
-    fullAccountCloudBackupCreator.createCalls.awaitItem()
-    cloudBackupRepository.awaitBackup(cloudAccount).shouldBe(CloudBackupV2WithFullAccountMock)
-    relationshipsService.relationships.emit(RelationshipsFake)
-  }
-
-  test("success - equal trusted contacts sets ignored") {
-    cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
-
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
-    }
-  }
-
-  test("failure - equal trusted contacts maps ignored") {
-    cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
-    }
-  }
-
-  test("success - cloud backup v1 always accepted") {
-    // Setting this to empty to match what would be found in an old backup.
-    // An upload should be triggered even if no trusted contacts are known.
-    relationshipsService.relationships.emit(Relationships.EMPTY)
-    cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
-    }
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 0
-      )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 0
-      )
-    )
-    fullAccountCloudBackupCreator.createCalls.awaitItem()
-    cloudBackupRepository.awaitBackup(cloudAccount)
-      .shouldBe(CloudBackupV2WithFullAccountMock)
-  }
-
-  test("failure - null cloud backup ignored") {
-    cloudBackupDao.clear()
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
-    }
-  }
-
-  test("failure - no cloud account") {
-    cloudStoreAccountRepository.currentAccountResult = Ok(null)
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
-    }
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 2
-      )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 1
-      )
-    )
-  }
-
-  test("failure - error retrieving cloud account") {
-    cloudStoreAccountRepository.currentAccountResult = Err(CloudStoreAccountError())
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
-    }
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 2
-      )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 1
-      )
-    )
-  }
-
-  test("failure - error writing cloud backup") {
-    cloudBackupRepository.returnWriteError =
-      CloudBackupError.UnrectifiableCloudBackupError(Throwable())
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
-    }
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 2
-      )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 1
-      )
-    )
-    fullAccountCloudBackupCreator.createCalls.awaitItem()
-    cloudBackupRepository.awaitNoBackups()
-  }
-
-  test("failure - error creating backup") {
-    fullAccountCloudBackupCreator.backupResult =
-      Err(FullAccountFieldsCreationError())
-    createBackgroundScope().launch {
-      socRecCloudBackupSyncWorker.executeWork()
-    }
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
-        count = 2
-      )
-    )
-    eventTracker.eventCalls.awaitItem().shouldBe(
-      TrackedAction(
-        action = Action.ACTION_APP_COUNT,
-        counterId = InheritanceEventTrackerCounterId.INHERITANCE_COUNT_TOTAL_BENEFICIARIES,
-        count = 1
-      )
-    )
-    fullAccountCloudBackupCreator.createCalls.awaitItem()
-    cloudBackupRepository.awaitNoBackups()
   }
 })

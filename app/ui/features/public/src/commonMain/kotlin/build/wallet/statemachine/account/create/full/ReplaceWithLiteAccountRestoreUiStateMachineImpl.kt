@@ -62,7 +62,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
             .onFailure { uiState = State.Failed(it) }
         }
         LoadingBodyModel(
-          message = SAVING_BACKUP_MESSAGE,
+          title = SAVING_BACKUP_MESSAGE,
           onBack = {},
           id = CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
         ).asRootScreen()

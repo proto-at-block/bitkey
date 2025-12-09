@@ -1,9 +1,13 @@
 package bitkey.verification
 
+import bitkey.privilegedactions.AuthorizationStrategy.OutOfBand
+import bitkey.privilegedactions.AuthorizationStrategyType.OUT_OF_BAND
+import bitkey.privilegedactions.PrivilegedActionType.LOOSEN_TRANSACTION_VERIFICATION_POLICY
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRate
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.*
@@ -18,6 +22,9 @@ class TxVerificationServiceFake : TxVerificationService {
       ConfirmationState.Confirmed(FakeTxVerificationApproval)
     )
   )
+
+  var updateThresholdReturnsPending: Boolean = false
+  var updateThresholdReturnsError: Boolean = false
 
   override suspend fun isVerificationRequired(
     amount: BitcoinMoney,
@@ -45,12 +52,31 @@ class TxVerificationServiceFake : TxVerificationService {
   }
 
   override suspend fun updateThreshold(
-    txVerificationPolicy: TxVerificationPolicy.Active,
+    policy: TxVerificationPolicy.Active,
+    amountBtc: BitcoinMoney?,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Unit, Error> {
-    currentThreshold.update { txVerificationPolicy.threshold }
+  ): Result<TxVerificationPolicy, Error> {
+    if (updateThresholdReturnsError) {
+      return Err(Error("Test error: update failed"))
+    }
 
-    return Ok(Unit)
+    if (updateThresholdReturnsPending) {
+      return Ok(
+        TxVerificationPolicy.Pending(
+          authorization = bitkey.privilegedactions.PrivilegedActionInstance(
+            id = "test-pending-action",
+            privilegedActionType = LOOSEN_TRANSACTION_VERIFICATION_POLICY,
+            authorizationStrategy = OutOfBand(
+              authorizationStrategyType = OUT_OF_BAND
+            )
+          )
+        )
+      )
+    }
+
+    currentThreshold.update { policy.threshold }
+
+    return Ok(policy)
   }
 
   fun reset() {
@@ -62,5 +88,7 @@ class TxVerificationServiceFake : TxVerificationService {
       )
     )
     currentThreshold.value = null
+    updateThresholdReturnsPending = false
+    updateThresholdReturnsError = false
   }
 }

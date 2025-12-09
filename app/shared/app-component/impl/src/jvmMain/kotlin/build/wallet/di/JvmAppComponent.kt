@@ -23,6 +23,7 @@ import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2Restorer
+import build.wallet.cloud.backup.CloudBackupV3Restorer
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
 import build.wallet.cloud.backup.csek.CsekDao
@@ -46,8 +47,6 @@ import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
-import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
 import build.wallet.feature.flags.PrivateWalletMigrationBalanceThresholdFeatureFlag
 import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
@@ -132,6 +131,7 @@ interface JvmAppComponent {
   val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService
   val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator
   val cloudBackupV2Restorer: CloudBackupV2Restorer
+  val cloudBackupV3Restorer: CloudBackupV3Restorer
   val csekDao: CsekDao
   val fundsRiskLossService: FundsLostRiskService
   val gettingStartedTaskDao: GettingStartedTaskDao
@@ -181,8 +181,6 @@ interface JvmAppComponent {
   val writableCloudStoreAccountRepository: WritableCloudStoreAccountRepository
   val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator
   val metricTrackerService: MetricTrackerService
-  val inheritanceUseEncryptedDescriptorFeatureFlag: InheritanceUseEncryptedDescriptorFeatureFlag
-  val encryptedDescriptorBackupsFeatureFlag: EncryptedDescriptorBackupsFeatureFlag
   val descriptorBackupService: DescriptorBackupService
   val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao
   val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag

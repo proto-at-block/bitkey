@@ -6,7 +6,8 @@
 jvmTarget = "17"
 # JDK version for builds
 jvmToolchain = "17"
-bdk = "0.32.1"
+bdk = "2.0.0"
+bdk-legacy = "0.32.1"
 datadog = "2.17.0"
 detekt = "1.23.7"
 kotlin = "2.1.20"
@@ -149,6 +150,7 @@ android-annotations-experimental = { module = "androidx.annotation:annotation-ex
 android-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "android-appcompat" }
 android-appcompat-resources = { module = "androidx.appcompat:appcompat-resources", version.ref = "android-appcompat" }
 android-bdk = { module = "org.bitcoindevkit:bdk-android", version.ref = "bdk" }
+android-bdk-legacy = { module = "org.bitcoindevkit:bdk-android", version.ref = "bdk-legacy" }
 android-browser = { module = "androidx.browser:browser", version = "1.8.0" }
 android-bugsnag = { module = "com.bugsnag:bugsnag-android", version.ref = "android-bugsnag" }
 android-collection = { module = "androidx.collection:collection", version = "1.5.0" }
@@ -242,6 +244,7 @@ android-test-findbugs = { module = "com.google.code.findbugs:jsr305", version = 
 # JVM libraries
 jvm-asm = { module = "org.ow2.asm:asm", version = "9.7.1" }
 jvm-bdk = { module = "org.bitcoindevkit:bdk-jvm", version.ref = "bdk" }
+jvm-bdk-legacy = { module = "org.bitcoindevkit:bdk-jvm", version.ref = "bdk-legacy" }
 jvm-bitcoin-rpc-client = { module = "wf.bitcoin:bitcoin-rpc-client", version = "1.2.4" }
 jvm-di-inject = { module = "javax.inject:javax.inject", version = "1" }
 jvm-google-drive = { module = "com.google.apis:google-api-services-drive", version = "v3-rev20240123-2.0.0" }

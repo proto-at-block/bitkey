@@ -1,5 +1,9 @@
 package build.wallet.platform.biometrics
 
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
+
 class BiometricPrompterMock : BiometricPrompter {
   override var isPrompting: Boolean = false
 
@@ -7,21 +11,19 @@ class BiometricPrompterMock : BiometricPrompter {
   var enrollError: BiometricError? = null
   var promptError: BiometricError? = null
 
-  override fun biometricsAvailability(): BiometricsResult<Boolean> {
-    return availabilityError?.let { BiometricsResult.Err(it) } ?: BiometricsResult.Ok(true)
-  }
+  override fun biometricsAvailability(): Result<Boolean, BiometricError> =
+    availabilityError?.let { Err(it) } ?: Ok(true)
 
-  override suspend fun enrollBiometrics(): BiometricsResult<Unit> {
-    return enrollError?.let { BiometricsResult.Err(it) } ?: BiometricsResult.Ok(Unit)
-  }
+  override suspend fun enrollBiometrics(): Result<Unit, BiometricError> =
+    enrollError?.let { Err(it) } ?: Ok(Unit)
 
-  override suspend fun promptForAuth(): BiometricsResult<Unit> {
+  override suspend fun promptForAuth(): Result<Unit, BiometricError> {
     isPrompting = true
-    return promptError?.let {
-      BiometricsResult.Err<Unit>(it).also {
+    return promptError?.let { error ->
+      Err(error).also {
         isPrompting = false
       }
-    } ?: BiometricsResult.Ok(Unit).also {
+    } ?: Ok(Unit).also {
       isPrompting = false
     }
   }

@@ -12,7 +12,7 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.keybox.PrivateWalletKeyboxMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
+import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.cloud.backup.csek.SsekFake
@@ -119,113 +119,311 @@ class PrivateWalletMigrationServiceImplTests : FunSpec({
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
   }
 
-  test("initiateMigration successfully creates new keyset") {
-    appKeysGenerator.keyBundleResult = Ok(AppKeyBundleMock)
-    // Create a private wallet keyset with non-null privateWalletRootXpub
-    val privateKeysetResult = keysetResult.copy(
-      privateWalletRootXpub = "xpub-test-private-wallet"
-    )
-    createKeysetClient.createKeysetResult = Ok(privateKeysetResult)
-    cloudBackupDao.set(mockAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    accountService.setActiveAccount(mockAccount)
-    privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
-    val updatedKeybox = async {
-      service.initiateMigration(
-        account = mockAccount,
-        proofOfPossession = mockProofOfPossession,
-        newHwKeys = mockNewHwKeys,
-        ssek = SsekFake,
-        sealedSsek = SealedSsekFake
-      ).shouldBeOk()
-    }
-
-    val savedKeybox = keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
-    savedKeybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
-
-    accountService.setActiveAccount(
-      FullAccountMock.copy(
-        keybox = savedKeybox
-      )
-    )
-
-    val keybox = updatedKeybox.await().updatedKeybox
-    keybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
-    keybox.config.bitcoinNetworkType.shouldBe(mockAccount.keybox.config.bitcoinNetworkType)
-    keybox.activeSpendingKeyset.appKey.shouldBe(AppKeyBundleMock.spendingKey)
-    keybox.activeSpendingKeyset.hardwareKey.shouldBe(mockNewHwKeys.spendingKey)
-    keybox.activeSpendingKeyset.f8eSpendingKeyset.shouldBe(privateKeysetResult)
-    keybox.activeSpendingKeyset.f8eSpendingKeyset.privateWalletRootXpub.shouldBe("xpub-test-private-wallet")
-
-    // Verify the keybox contains both old and new keysets for potential sweep
-    keybox.keysets.size.shouldBe(2)
-    keybox.keysets.any { it.localId == "uuid-0" }.shouldBe(true) // New private keyset
-    keybox.keysets.any {
-      it.localId == mockAccount.keybox.activeSpendingKeyset.localId
-    }.shouldBe(true) // Old multisig keyset
-  }
-
-  test("initiateMigration transitions through all expected states") {
-    appKeysGenerator.keyBundleResult = Ok(AppKeyBundleMock)
-    val privateKeysetResult = keysetResult.copy(
-      privateWalletRootXpub = "xpub-test-private-wallet"
-    )
-    createKeysetClient.createKeysetResult = Ok(privateKeysetResult)
-    cloudBackupDao.set(mockAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    accountService.setActiveAccount(mockAccount)
-    privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
-    service.migrationState.distinctUntilChanged().test {
-      awaitItem().shouldBe(PrivateWalletMigrationState.Available)
-
-      val migrationResult = async {
-        service.initiateMigration(
-          account = mockAccount,
-          proofOfPossession = mockProofOfPossession,
-          newHwKeys = mockNewHwKeys,
-          ssek = SsekFake,
-          sealedSsek = SealedSsekFake
-        )
+  context("parameterized tests for all backup versions") {
+    AllFullAccountBackupMocks.forEach { cloudBackup ->
+      val backupVersion = when (cloudBackup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
       }
 
-      val hwKeyCreatedState = awaitItem()
-      hwKeyCreatedState.shouldBeInstanceOf<PrivateWalletMigrationState.InKeysetCreation.HwKeyCreated>()
-      hwKeyCreatedState.newHwKeys.shouldBe(mockNewHwKeys.spendingKey)
+      context("cloud backup $backupVersion") {
+        test("initiateMigration successfully creates new keyset") {
+          appKeysGenerator.keyBundleResult = Ok(AppKeyBundleMock)
+          // Create a private wallet keyset with non-null privateWalletRootXpub
+          val privateKeysetResult = keysetResult.copy(
+            privateWalletRootXpub = "xpub-test-private-wallet"
+          )
+          createKeysetClient.createKeysetResult = Ok(privateKeysetResult)
+          cloudBackupDao.set(mockAccount.accountId.serverId, cloudBackup as CloudBackup)
+          accountService.setActiveAccount(mockAccount)
+          privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
 
-      val appKeyCreatedState = awaitItem()
-      appKeyCreatedState.shouldBeInstanceOf<PrivateWalletMigrationState.InKeysetCreation.AppKeyCreated>()
-      appKeyCreatedState.newHwKeys.shouldBe(mockNewHwKeys.spendingKey)
-      appKeyCreatedState.newAppKeys.shouldBe(AppKeyBundleMock.spendingKey)
+          val updatedKeybox = async {
+            service.initiateMigration(
+              account = mockAccount,
+              proofOfPossession = mockProofOfPossession,
+              newHwKeys = mockNewHwKeys,
+              ssek = SsekFake,
+              sealedSsek = SealedSsekFake
+            ).shouldBeOk()
+          }
 
-      val keyboxActivatedState = awaitItem()
-      keyboxActivatedState.shouldBeInstanceOf<PrivateWalletMigrationState.InKeysetCreation.LocalKeyboxActivated>()
-      keyboxActivatedState.keyset.appKey.shouldBe(AppKeyBundleMock.spendingKey)
-      keyboxActivatedState.keyset.hardwareKey.shouldBe(mockNewHwKeys.spendingKey)
-      keyboxActivatedState.keyset.f8eSpendingKeyset.shouldBe(privateKeysetResult)
+          val savedKeybox =
+            keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
+          savedKeybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
 
-      val savedKeybox = keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
-      accountService.setActiveAccount(FullAccountMock.copy(keybox = savedKeybox))
+          accountService.setActiveAccount(
+            FullAccountMock.copy(
+              keybox = savedKeybox
+            )
+          )
 
-      val descriptorBackupCompletedState = awaitItem()
-      descriptorBackupCompletedState.shouldBeInstanceOf<PrivateWalletMigrationState.DescriptorBackupCompleted>()
-      descriptorBackupCompletedState.newKeyset.localId.shouldBe("uuid-0")
+          val keybox = updatedKeybox.await().updatedKeybox
+          keybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
+          keybox.config.bitcoinNetworkType.shouldBe(mockAccount.keybox.config.bitcoinNetworkType)
+          keybox.activeSpendingKeyset.appKey.shouldBe(AppKeyBundleMock.spendingKey)
+          keybox.activeSpendingKeyset.hardwareKey.shouldBe(mockNewHwKeys.spendingKey)
+          keybox.activeSpendingKeyset.f8eSpendingKeyset.shouldBe(privateKeysetResult)
+          keybox.activeSpendingKeyset.f8eSpendingKeyset.privateWalletRootXpub.shouldBe("xpub-test-private-wallet")
 
-      val serverKeysetActivatedState = awaitItem()
-      serverKeysetActivatedState.shouldBeInstanceOf<PrivateWalletMigrationState.ServerKeysetActivated>()
-      serverKeysetActivatedState.newKeyset.localId.shouldBe("uuid-0")
+          // Verify the keybox contains both old and new keysets for potential sweep
+          keybox.keysets.size.shouldBe(2)
+          keybox.keysets.any { it.localId == "uuid-0" }.shouldBe(true) // New private keyset
+          keybox.keysets.any {
+            it.localId == mockAccount.keybox.activeSpendingKeyset.localId
+          }.shouldBe(true) // Old multisig keyset
+        }
 
-      migrationResult.await().shouldBeOk()
+        test("initiateMigration transitions through all expected states") {
+          appKeysGenerator.keyBundleResult = Ok(AppKeyBundleMock)
+          val privateKeysetResult = keysetResult.copy(
+            privateWalletRootXpub = "xpub-test-private-wallet"
+          )
+          createKeysetClient.createKeysetResult = Ok(privateKeysetResult)
+          cloudBackupDao.set(mockAccount.accountId.serverId, cloudBackup as CloudBackup)
+          accountService.setActiveAccount(mockAccount)
+          privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
 
-      // Complete cloud backup is invoked by an external state machine completion:
-      service.completeCloudBackup()
+          service.migrationState.distinctUntilChanged().test {
+            awaitItem().shouldBe(PrivateWalletMigrationState.Available)
 
-      awaitItem().shouldBeInstanceOf<PrivateWalletMigrationState.CloudBackupCompleted>()
-        .newKeyset
-        .localId
-        .shouldBe("uuid-0")
+            val migrationResult = async {
+              service.initiateMigration(
+                account = mockAccount,
+                proofOfPossession = mockProofOfPossession,
+                newHwKeys = mockNewHwKeys,
+                ssek = SsekFake,
+                sealedSsek = SealedSsekFake
+              )
+            }
+
+            val hwKeyCreatedState = awaitItem()
+            hwKeyCreatedState.shouldBeInstanceOf<PrivateWalletMigrationState.InKeysetCreation.HwKeyCreated>()
+            hwKeyCreatedState.newHwKeys.shouldBe(mockNewHwKeys.spendingKey)
+
+            val appKeyCreatedState = awaitItem()
+            appKeyCreatedState.shouldBeInstanceOf<PrivateWalletMigrationState.InKeysetCreation.AppKeyCreated>()
+            appKeyCreatedState.newHwKeys.shouldBe(mockNewHwKeys.spendingKey)
+            appKeyCreatedState.newAppKeys.shouldBe(AppKeyBundleMock.spendingKey)
+
+            val keyboxActivatedState = awaitItem()
+            keyboxActivatedState.shouldBeInstanceOf<PrivateWalletMigrationState.InKeysetCreation.LocalKeyboxActivated>()
+            keyboxActivatedState.keyset.appKey.shouldBe(AppKeyBundleMock.spendingKey)
+            keyboxActivatedState.keyset.hardwareKey.shouldBe(mockNewHwKeys.spendingKey)
+            keyboxActivatedState.keyset.f8eSpendingKeyset.shouldBe(privateKeysetResult)
+
+            val savedKeybox =
+              keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
+            accountService.setActiveAccount(FullAccountMock.copy(keybox = savedKeybox))
+
+            val descriptorBackupCompletedState = awaitItem()
+            descriptorBackupCompletedState.shouldBeInstanceOf<PrivateWalletMigrationState.DescriptorBackupCompleted>()
+            descriptorBackupCompletedState.newKeyset.localId.shouldBe("uuid-0")
+
+            val serverKeysetActivatedState = awaitItem()
+            serverKeysetActivatedState.shouldBeInstanceOf<PrivateWalletMigrationState.ServerKeysetActivated>()
+            serverKeysetActivatedState.newKeyset.localId.shouldBe("uuid-0")
+
+            migrationResult.await().shouldBeOk()
+
+            // Complete cloud backup is invoked by an external state machine completion:
+            service.completeCloudBackup()
+
+            awaitItem().shouldBeInstanceOf<PrivateWalletMigrationState.CloudBackupCompleted>()
+              .newKeyset
+              .localId
+              .shouldBe("uuid-0")
+          }
+        }
+
+        test("initiateMigration resumes from AppKeyCreated state without recreating keys") {
+          privateWalletMigrationDao.saveHardwareKey(mockNewHwKeys.spendingKey).shouldBeOk()
+          privateWalletMigrationDao.saveAppKey(AppKeyBundleMock.spendingKey).shouldBeOk()
+          createKeysetClient.createKeysetResult = Ok(keysetResult)
+          cloudBackupDao.set(mockAccount.accountId.serverId, cloudBackup as CloudBackup)
+          accountService.setActiveAccount(mockAccount)
+          privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+          appKeysGenerator.keyBundleResult = Err(RuntimeException("Should not generate new keys!"))
+
+          val result = async {
+            service.initiateMigration(
+              account = mockAccount,
+              proofOfPossession = mockProofOfPossession,
+              newHwKeys = mockNewHwKeys,
+              ssek = SsekFake,
+              sealedSsek = SealedSsekFake
+            ).shouldBeOk()
+          }
+
+          val savedKeybox =
+            keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
+          savedKeybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
+
+          savedKeybox.activeSpendingKeyset.appKey.shouldBe(AppKeyBundleMock.spendingKey)
+          savedKeybox.activeSpendingKeyset.hardwareKey.shouldBe(mockNewHwKeys.spendingKey)
+
+          accountService.setActiveAccount(
+            FullAccountMock.copy(
+              keybox = savedKeybox
+            )
+          )
+
+          val finalKeyset = result.await().newKeyset
+
+          finalKeyset.localId.shouldBe("uuid-0")
+          finalKeyset.appKey.shouldBe(AppKeyBundleMock.spendingKey)
+          finalKeyset.hardwareKey.shouldBe(mockNewHwKeys.spendingKey)
+          finalKeyset.f8eSpendingKeyset.shouldBe(keysetResult)
+        }
+
+        test("returned keybox supports post-migration sweep") {
+          // Setup for successful migration
+          appKeysGenerator.keyBundleResult = Ok(AppKeyBundleMock)
+          createKeysetClient.createKeysetResult = Ok(
+            keysetResult.copy(
+              privateWalletRootXpub = "xpub-private-wallet"
+            )
+          )
+          cloudBackupDao.set(mockAccount.accountId.serverId, cloudBackup as CloudBackup)
+          accountService.setActiveAccount(mockAccount)
+          privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+          val keybox = async {
+            service.initiateMigration(
+              account = mockAccount,
+              proofOfPossession = mockProofOfPossession,
+              newHwKeys = mockNewHwKeys,
+              ssek = SsekFake,
+              sealedSsek = SealedSsekFake
+            ).shouldBeOk()
+          }
+
+          // Update account service with saved keybox to simulate real flow
+          val savedKeybox =
+            keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
+          accountService.setActiveAccount(FullAccountMock.copy(keybox = savedKeybox))
+
+          val resultKeybox = keybox.await().updatedKeybox
+
+          // Verify the keybox is properly configured for post-migration sweep
+          resultKeybox.activeSpendingKeyset.f8eSpendingKeyset.privateWalletRootXpub.shouldBe("xpub-private-wallet")
+          resultKeybox.activeSpendingKeyset.isPrivateWallet.shouldBe(true)
+
+          // Verify old keyset is still present to sweep from
+          resultKeybox.keysets.size.shouldBe(2)
+          val oldKeyset = resultKeybox.keysets.find {
+            it.localId == mockAccount.keybox.activeSpendingKeyset.localId
+          }
+          oldKeyset.shouldNotBeNull()
+          oldKeyset.isPrivateWallet.shouldBe(false)
+          oldKeyset.isLegacyWallet.shouldBe(true)
+
+          // Verify new private keyset is active
+          resultKeybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
+          resultKeybox.keysets.any { it.localId == "uuid-0" && it.isPrivateWallet }.shouldBe(true)
+        }
+
+        test("keysets from listKeysets F8e call are saved into keybox dao") {
+          appKeysGenerator.keyBundleResult = Ok(AppKeyBundleMock)
+          val privateKeysetResult = keysetResult.copy(
+            privateWalletRootXpub = "xpub-test-private-wallet"
+          )
+          listKeysetsClient.numKeysets = 2
+          createKeysetClient.createKeysetResult = Ok(privateKeysetResult)
+          cloudBackupDao.set(mockAccount.accountId.serverId, cloudBackup as CloudBackup)
+          accountService.setActiveAccount(mockAccount)
+          privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+          val result = async {
+            service.initiateMigration(
+              account = mockAccount,
+              proofOfPossession = mockProofOfPossession,
+              newHwKeys = mockNewHwKeys,
+              ssek = SsekFake,
+              sealedSsek = SealedSsekFake
+            ).shouldBeOk()
+          }
+
+          val initialKeybox =
+            keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
+          accountService.setActiveAccount(FullAccountMock.copy(keybox = initialKeybox))
+
+          // Wait for keybox to update:
+          val keyboxWithF8eKeysets = keyboxDao.activeKeybox
+            .first { keyboxResult ->
+              val kb = keyboxResult.get()
+              kb != null && kb.keysets.size > 2
+            }
+            .shouldBeOk()
+            .shouldNotBeNull()
+
+          val savedKeysetIds = keyboxWithF8eKeysets.keysets.map { it.f8eSpendingKeyset.keysetId }
+
+          savedKeysetIds.size.shouldBe(4)
+          savedKeysetIds.shouldContain(mockAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId)
+          savedKeysetIds.shouldContain(privateKeysetResult.keysetId)
+          savedKeysetIds.shouldContain("spending-public-keyset-fake-server-id-0")
+          savedKeysetIds.shouldContain("spending-public-keyset-fake-server-id-1")
+
+          accountService.setActiveAccount(FullAccountMock.copy(keybox = keyboxWithF8eKeysets))
+
+          result.await()
+        }
+
+        test("initiateMigration completes successfully when cloud backup is already done") {
+          privateWalletMigrationDao.saveHardwareKey(mockNewHwKeys.spendingKey).shouldBeOk()
+          privateWalletMigrationDao.saveAppKey(AppKeyBundleMock.spendingKey).shouldBeOk()
+
+          val privateKeysetResult = keysetResult.copy(
+            privateWalletRootXpub = "xpub-test-private-wallet"
+          )
+          privateWalletMigrationDao.saveServerKey(privateKeysetResult).shouldBeOk()
+          privateWalletMigrationDao.saveKeysetLocalId("uuid-0").shouldBeOk()
+          privateWalletMigrationDao.setDescriptorBackupComplete().shouldBeOk()
+          privateWalletMigrationDao.setServerKeysetActive().shouldBeOk()
+          privateWalletMigrationDao.setCloudBackupComplete().shouldBeOk()
+
+          val newKeyset = SpendingKeysetMock.copy(
+            localId = "uuid-0",
+            appKey = AppKeyBundleMock.spendingKey,
+            hardwareKey = mockNewHwKeys.spendingKey,
+            f8eSpendingKeyset = privateKeysetResult
+          )
+          val updatedKeybox = mockAccount.keybox.copy(
+            activeSpendingKeyset = newKeyset,
+            keysets = mockAccount.keybox.keysets + newKeyset
+          )
+          val updatedAccount = mockAccount.copy(keybox = updatedKeybox)
+
+          cloudBackupDao.set(updatedAccount.accountId.serverId, cloudBackup as CloudBackup)
+          accountService.setActiveAccount(updatedAccount)
+          privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+          service.migrationState.test {
+            val state = awaitItem()
+            state.shouldBeInstanceOf<PrivateWalletMigrationState.CloudBackupCompleted>()
+          }
+
+          val result = service.initiateMigration(
+            account = updatedAccount,
+            proofOfPossession = mockProofOfPossession,
+            newHwKeys = mockNewHwKeys,
+            ssek = SsekFake,
+            sealedSsek = SealedSsekFake
+          )
+
+          result.shouldBeOk()
+          val completedState = result.get().shouldNotBeNull()
+          completedState.shouldBeInstanceOf<PrivateWalletMigrationState.CloudBackupCompleted>()
+          completedState.newKeyset.localId.shouldBe("uuid-0")
+          completedState.updatedKeybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
+        }
+      }
     }
   }
 
+  // Version-independent tests
   test("initiateMigration fails when app key generation fails") {
     val keyGenerationError = RuntimeException("Key generation failed")
     privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
@@ -265,45 +463,6 @@ class PrivateWalletMigrationServiceImplTests : FunSpec({
       .shouldBe(networkError)
   }
 
-  test("initiateMigration resumes from AppKeyCreated state without recreating keys") {
-    privateWalletMigrationDao.saveHardwareKey(mockNewHwKeys.spendingKey).shouldBeOk()
-    privateWalletMigrationDao.saveAppKey(AppKeyBundleMock.spendingKey).shouldBeOk()
-    createKeysetClient.createKeysetResult = Ok(keysetResult)
-    cloudBackupDao.set(mockAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    accountService.setActiveAccount(mockAccount)
-    privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-    appKeysGenerator.keyBundleResult = Err(RuntimeException("Should not generate new keys!"))
-
-    val result = async {
-      service.initiateMigration(
-        account = mockAccount,
-        proofOfPossession = mockProofOfPossession,
-        newHwKeys = mockNewHwKeys,
-        ssek = SsekFake,
-        sealedSsek = SealedSsekFake
-      ).shouldBeOk()
-    }
-
-    val savedKeybox = keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
-    savedKeybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
-
-    savedKeybox.activeSpendingKeyset.appKey.shouldBe(AppKeyBundleMock.spendingKey)
-    savedKeybox.activeSpendingKeyset.hardwareKey.shouldBe(mockNewHwKeys.spendingKey)
-
-    accountService.setActiveAccount(
-      FullAccountMock.copy(
-        keybox = savedKeybox
-      )
-    )
-
-    val finalKeyset = result.await().newKeyset
-
-    finalKeyset.localId.shouldBe("uuid-0")
-    finalKeyset.appKey.shouldBe(AppKeyBundleMock.spendingKey)
-    finalKeyset.hardwareKey.shouldBe(mockNewHwKeys.spendingKey)
-    finalKeyset.f8eSpendingKeyset.shouldBe(keysetResult)
-  }
-
   test("isPrivateWalletMigrationAvailable returns true when feature flag is enabled") {
     accountService.setActiveAccount(
       FullAccountMock
@@ -339,52 +498,6 @@ class PrivateWalletMigrationServiceImplTests : FunSpec({
     service.migrationState.test {
       awaitItem().shouldBe(PrivateWalletMigrationState.NotAvailable)
     }
-  }
-
-  test("returned keybox supports post-migration sweep") {
-    // Setup for successful migration
-    appKeysGenerator.keyBundleResult = Ok(AppKeyBundleMock)
-    createKeysetClient.createKeysetResult = Ok(
-      keysetResult.copy(
-        privateWalletRootXpub = "xpub-private-wallet"
-      )
-    )
-    cloudBackupDao.set(mockAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    accountService.setActiveAccount(mockAccount)
-    privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
-    val keybox = async {
-      service.initiateMigration(
-        account = mockAccount,
-        proofOfPossession = mockProofOfPossession,
-        newHwKeys = mockNewHwKeys,
-        ssek = SsekFake,
-        sealedSsek = SealedSsekFake
-      ).shouldBeOk()
-    }
-
-    // Update account service with saved keybox to simulate real flow
-    val savedKeybox = keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
-    accountService.setActiveAccount(FullAccountMock.copy(keybox = savedKeybox))
-
-    val resultKeybox = keybox.await().updatedKeybox
-
-    // Verify the keybox is properly configured for post-migration sweep
-    resultKeybox.activeSpendingKeyset.f8eSpendingKeyset.privateWalletRootXpub.shouldBe("xpub-private-wallet")
-    resultKeybox.activeSpendingKeyset.isPrivateWallet.shouldBe(true)
-
-    // Verify old keyset is still present to sweep from
-    resultKeybox.keysets.size.shouldBe(2)
-    val oldKeyset = resultKeybox.keysets.find {
-      it.localId == mockAccount.keybox.activeSpendingKeyset.localId
-    }
-    oldKeyset.shouldNotBeNull()
-    oldKeyset.isPrivateWallet.shouldBe(false)
-    oldKeyset.isLegacyWallet.shouldBe(true)
-
-    // Verify new private keyset is active
-    resultKeybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
-    resultKeybox.keysets.any { it.localId == "uuid-0" && it.isPrivateWallet }.shouldBe(true)
   }
 
   test("estimateMigrationFees returns sweep total fees") {
@@ -463,52 +576,6 @@ class PrivateWalletMigrationServiceImplTests : FunSpec({
     }
   }
 
-  test("keysets from listKeysets F8e call are saved into keybox dao") {
-    appKeysGenerator.keyBundleResult = Ok(AppKeyBundleMock)
-    val privateKeysetResult = keysetResult.copy(
-      privateWalletRootXpub = "xpub-test-private-wallet"
-    )
-    listKeysetsClient.numKeysets = 2
-    createKeysetClient.createKeysetResult = Ok(privateKeysetResult)
-    cloudBackupDao.set(mockAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    accountService.setActiveAccount(mockAccount)
-    privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
-    val result = async {
-      service.initiateMigration(
-        account = mockAccount,
-        proofOfPossession = mockProofOfPossession,
-        newHwKeys = mockNewHwKeys,
-        ssek = SsekFake,
-        sealedSsek = SealedSsekFake
-      ).shouldBeOk()
-    }
-
-    val initialKeybox = keyboxDao.activeKeybox.first { it.get() != null }.shouldBeOk().shouldNotBeNull()
-    accountService.setActiveAccount(FullAccountMock.copy(keybox = initialKeybox))
-
-    // Wait for keybox to update:
-    val keyboxWithF8eKeysets = keyboxDao.activeKeybox
-      .first { keyboxResult ->
-        val kb = keyboxResult.get()
-        kb != null && kb.keysets.size > 2
-      }
-      .shouldBeOk()
-      .shouldNotBeNull()
-
-    val savedKeysetIds = keyboxWithF8eKeysets.keysets.map { it.f8eSpendingKeyset.keysetId }
-
-    savedKeysetIds.size.shouldBe(4)
-    savedKeysetIds.shouldContain(mockAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId)
-    savedKeysetIds.shouldContain(privateKeysetResult.keysetId)
-    savedKeysetIds.shouldContain("spending-public-keyset-fake-server-id-0")
-    savedKeysetIds.shouldContain("spending-public-keyset-fake-server-id-1")
-
-    accountService.setActiveAccount(FullAccountMock.copy(keybox = keyboxWithF8eKeysets))
-
-    result.await()
-  }
-
   test("negative balance threshold returns Available regardless of balance") {
     privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     privateWalletMigrationBalanceThresholdFeatureFlag.setFlagValue(DoubleFlag(-10.0))
@@ -560,54 +627,5 @@ class PrivateWalletMigrationServiceImplTests : FunSpec({
     service.migrationState.test {
       awaitItem().shouldBe(PrivateWalletMigrationState.NotAvailable)
     }
-  }
-
-  test("initiateMigration completes successfully when cloud backup is already done") {
-    privateWalletMigrationDao.saveHardwareKey(mockNewHwKeys.spendingKey).shouldBeOk()
-    privateWalletMigrationDao.saveAppKey(AppKeyBundleMock.spendingKey).shouldBeOk()
-
-    val privateKeysetResult = keysetResult.copy(
-      privateWalletRootXpub = "xpub-test-private-wallet"
-    )
-    privateWalletMigrationDao.saveServerKey(privateKeysetResult).shouldBeOk()
-    privateWalletMigrationDao.saveKeysetLocalId("uuid-0").shouldBeOk()
-    privateWalletMigrationDao.setDescriptorBackupComplete().shouldBeOk()
-    privateWalletMigrationDao.setServerKeysetActive().shouldBeOk()
-    privateWalletMigrationDao.setCloudBackupComplete().shouldBeOk()
-
-    val newKeyset = SpendingKeysetMock.copy(
-      localId = "uuid-0",
-      appKey = AppKeyBundleMock.spendingKey,
-      hardwareKey = mockNewHwKeys.spendingKey,
-      f8eSpendingKeyset = privateKeysetResult
-    )
-    val updatedKeybox = mockAccount.keybox.copy(
-      activeSpendingKeyset = newKeyset,
-      keysets = mockAccount.keybox.keysets + newKeyset
-    )
-    val updatedAccount = mockAccount.copy(keybox = updatedKeybox)
-
-    cloudBackupDao.set(updatedAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    accountService.setActiveAccount(updatedAccount)
-    privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
-    service.migrationState.test {
-      val state = awaitItem()
-      state.shouldBeInstanceOf<PrivateWalletMigrationState.CloudBackupCompleted>()
-    }
-
-    val result = service.initiateMigration(
-      account = updatedAccount,
-      proofOfPossession = mockProofOfPossession,
-      newHwKeys = mockNewHwKeys,
-      ssek = SsekFake,
-      sealedSsek = SealedSsekFake
-    )
-
-    result.shouldBeOk()
-    val completedState = result.get().shouldNotBeNull()
-    completedState.shouldBeInstanceOf<PrivateWalletMigrationState.CloudBackupCompleted>()
-    completedState.newKeyset.localId.shouldBe("uuid-0")
-    completedState.updatedKeybox.activeSpendingKeyset.localId.shouldBe("uuid-0")
   }
 })

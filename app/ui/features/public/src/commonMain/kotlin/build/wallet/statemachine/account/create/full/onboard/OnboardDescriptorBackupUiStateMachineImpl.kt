@@ -100,7 +100,7 @@ class OnboardDescriptorBackupUiStateMachineImpl(
 
         LoadingBodyModel(
           id = NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING,
-          message = SAVING_BACKUP_MESSAGE
+          title = SAVING_BACKUP_MESSAGE
         ).asRootScreen()
       }
     }

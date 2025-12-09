@@ -250,7 +250,8 @@ class SecurityHubPresenter(
               haptics.vibrate(effect = HapticsEffect.LightClick)
               navigator.exit()
             }
-          }
+          },
+          haptics = haptics
         ).asRootScreen(statusBannerModel = homeStatusBannerModel)
       }
 

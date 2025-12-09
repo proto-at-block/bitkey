@@ -14,6 +14,7 @@ import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.platform.device.DeviceInfo
+import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.sensor.Accelerometer
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.core.*
@@ -22,6 +23,7 @@ import build.wallet.statemachine.fwup.FwupNfcBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.ui.components.screen.*
+import build.wallet.ui.compose.LocalHaptics
 import build.wallet.ui.model.UiModelContentScreen
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.ThemePreferenceService
@@ -41,6 +43,7 @@ fun App(
   deviceInfo: DeviceInfo,
   accelerometer: Accelerometer?,
   themePreferenceService: ThemePreferenceService?,
+  haptics: Haptics?,
 ) {
   var previousPresentationStyle by remember {
     mutableStateOf(model.presentationStyle)
@@ -64,15 +67,22 @@ fun App(
   CompositionLocalProvider(
     LocalDeviceInfo provides deviceInfo,
     LocalAccelerometer provides accelerometer,
-    LocalTheme provides theme
+    LocalTheme provides theme,
+    LocalHaptics provides haptics
   ) {
     WalletTheme {
       Box(modifier = Modifier.background(WalletTheme.colors.background)) {
         Navigator(
           screen = UiModelContentScreen(model = model),
           onBackPressed = { screen ->
-            // Let the BodyModel handle the back action explicitly
-            (screen as UiModelContentScreen).model.body.onBack?.invoke()
+            val bodyModel = (screen as UiModelContentScreen).model.body
+            // Special case: Security Hub uses onHomeTabClick instead of onBack
+            if (bodyModel is SecurityHubBodyModel) {
+              bodyModel.onHomeTabClick()
+            } else {
+              // Let the BodyModel handle the back action explicitly
+              bodyModel.onBack?.invoke()
+            }
             // Never let the Navigator handle the back press
             false
           }
@@ -164,20 +174,29 @@ private fun BitkeyTransition(
   val density = LocalDensity.current
 
   val transitionSpec: AnimatedContentTransitionScope<VoyagerScreen>.() -> ContentTransform = {
-    when (navigator.lastEvent) {
-      Replace, Idle -> NoAnimation
-      Pop ->
+    // Check if we're transitioning between Money Home and Security Hub
+    val fromBody = (initialState as UiModelContentScreen).model.body
+    val toBody = (targetState as UiModelContentScreen).model.body
+    val isHomeSecurityHubTransition =
+      (fromBody is MoneyHomeBodyModel && toBody is SecurityHubBodyModel) ||
+        (fromBody is SecurityHubBodyModel && toBody is MoneyHomeBodyModel)
+
+    when {
+      navigator.lastEvent == Replace || navigator.lastEvent == Idle -> NoAnimation
+      isHomeSecurityHubTransition -> NoAnimation
+      navigator.lastEvent == Pop ->
         navigator.popContentTransform(
           previousPresentationStyle,
           currentPresentationStyle,
           density
         )
-      Push ->
+      navigator.lastEvent == Push ->
         navigator.pushContentTransform(
           previousPresentationStyle,
           currentPresentationStyle,
           density
         )
+      else -> NoAnimation
     }
   }
 
@@ -303,8 +322,7 @@ private fun Navigator.shouldReplaceModel(model: ScreenModel): Boolean {
     isTransitioningFromPairHwToPairHw(model) ||
     isTransitioningFromNfcToNfc(model) ||
     isTransitioningFromFwupToFwup(model) ||
-    isTransitioningBetweenSplashBiometricAndSplashLock() ||
-    isTransitioningBetweenHomeAndSecurityHub(model)
+    isTransitioningBetweenSplashBiometricAndSplashLock()
 }
 
 private fun Navigator.isTransitioningFromSplashScreen(): Boolean {
@@ -333,11 +351,6 @@ private fun Navigator.isTransitioningBetweenSplashBiometricAndSplashLock(): Bool
 private fun Navigator.isTransitioningFromNfcToNfc(newModel: ScreenModel): Boolean {
   return currentModel().body is NfcBodyModel &&
     newModel.body is NfcBodyModel
-}
-
-private fun Navigator.isTransitioningBetweenHomeAndSecurityHub(newModel: ScreenModel): Boolean {
-  return (currentModel().body is SecurityHubBodyModel && newModel.body is MoneyHomeBodyModel) ||
-    (currentModel().body is MoneyHomeBodyModel && newModel.body is SecurityHubBodyModel)
 }
 
 private fun Navigator.previousModel(): ScreenModel? {

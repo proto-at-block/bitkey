@@ -102,14 +102,14 @@ object RotateAuthKeyScreens {
 
   fun RotatingKeys(context: AuthKeyRotationEventTrackerScreenIdContext) =
     LoadingBodyModel(
-      message = "Removing all other devices...",
+      title = "Removing all other devices...",
       id = InactiveAppEventTrackerScreenId.ROTATING_AUTH,
       eventTrackerContext = context
     )
 
   fun DismissingProposal(context: AuthKeyRotationEventTrackerScreenIdContext) =
     LoadingBodyModel(
-      message = "",
+      title = "",
       id = InactiveAppEventTrackerScreenId.DISMISS_ROTATION_PROPOSAL,
       eventTrackerContext = context
     )

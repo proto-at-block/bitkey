@@ -6,6 +6,7 @@ import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudB
 import build.wallet.relationships.DelegatedDecryptionKeyFake
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import kotlinx.datetime.Instant
 
 class LiteAccountCloudBackupCreatorMock : LiteAccountCloudBackupCreator {
   init {
@@ -13,13 +14,13 @@ class LiteAccountCloudBackupCreatorMock : LiteAccountCloudBackupCreator {
   }
 
   lateinit var createResultCreator:
-    (CloudBackupV2) -> Result<CloudBackupV2, LiteAccountCloudBackupCreatorError>
+    (CloudBackup) -> Result<CloudBackup, LiteAccountCloudBackupCreatorError>
 
   override suspend fun create(
     account: LiteAccount,
-  ): Result<CloudBackupV2, LiteAccountCloudBackupCreatorError> {
-    val cloudBackupV2 =
-      CloudBackupV2(
+  ): Result<CloudBackup, LiteAccountCloudBackupCreatorError> {
+    val cloudBackupV3 =
+      CloudBackupV3(
         accountId = account.accountId.serverId,
         f8eEnvironment = account.config.f8eEnvironment,
         isTestAccount = account.config.isTestAccount,
@@ -27,9 +28,11 @@ class LiteAccountCloudBackupCreatorMock : LiteAccountCloudBackupCreator {
         appRecoveryAuthKeypair = AppRecoveryAuthKeypairMock,
         delegatedDecryptionKeypair = DelegatedDecryptionKeyFake,
         isUsingSocRecFakes = account.config.isUsingSocRecFakes,
-        bitcoinNetworkType = account.config.bitcoinNetworkType
+        bitcoinNetworkType = account.config.bitcoinNetworkType,
+        deviceNickname = "Fake Device",
+        createdAt = Instant.parse("2025-01-01T00:00:00Z")
       )
-    return createResultCreator(cloudBackupV2)
+    return createResultCreator(cloudBackupV3)
   }
 
   fun reset() {

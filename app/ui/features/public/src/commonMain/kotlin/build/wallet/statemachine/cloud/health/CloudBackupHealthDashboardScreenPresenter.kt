@@ -7,6 +7,7 @@ import bitkey.ui.framework.ScreenPresenter
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.EekBackupStatus
@@ -184,6 +185,7 @@ class CloudBackupHealthDashboardScreenPresenter(
 
     val sealedCsek: SealedCsek? = when (appKeyBackup) {
       is CloudBackupV2 -> appKeyBackup.fullAccountFields?.sealedHwEncryptionKey
+      is CloudBackupV3 -> appKeyBackup.fullAccountFields?.sealedHwEncryptionKey
     }
 
     if (sealedCsek == null) {

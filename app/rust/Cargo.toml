@@ -2,6 +2,7 @@
 members = [
   "apdu",
   "bdk-android-ffi",
+  "chaincode-delegation",
   "core-ffi",
   "firmware-ffi",
   "frost",

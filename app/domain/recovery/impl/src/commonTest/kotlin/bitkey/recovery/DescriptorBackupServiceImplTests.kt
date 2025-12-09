@@ -32,7 +32,6 @@ import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.flags.DescriptorBackupFailsafeFeatureFlag
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.DescriptorBackupVerificationDaoFake
@@ -62,7 +61,6 @@ class DescriptorBackupServiceImplTests : FunSpec({
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val accountService = AccountServiceFake()
   val featureFlagDao = FeatureFlagDaoFake()
-  val encryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(featureFlagDao)
   val descriptorBackupFailsafeFeatureFlag = DescriptorBackupFailsafeFeatureFlag(featureFlagDao)
   val descriptorBackupVerificationDao = DescriptorBackupVerificationDaoFake()
   val bitcoinWalletService = BitcoinWalletServiceFake()
@@ -76,7 +74,6 @@ class DescriptorBackupServiceImplTests : FunSpec({
     listKeysetsF8eClient = listKeysetsF8eClient,
     updateDescriptorBackupsF8eClient = UpdateDescriptorBackupsF8eClientFake(),
     accountService = accountService,
-    encryptedDescriptorBackupsFeatureFlag = encryptedDescriptorBackupsFeatureFlag,
     descriptorBackupFailsafeFeatureFlag = descriptorBackupFailsafeFeatureFlag,
     descriptorBackupVerificationDao = descriptorBackupVerificationDao,
     bitcoinWalletService = bitcoinWalletService
@@ -921,7 +918,6 @@ class DescriptorBackupServiceImplTests : FunSpec({
     val keyset = privateAccount.keybox.activeSpendingKeyset
     val activeKeysetId = keyset.f8eSpendingKeyset.keysetId
 
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(true))
     accountService.accountState.value = Ok(ActiveAccount(privateAccount))
     ssekDao.set(SealedSsekFake, SsekFake)
 
@@ -956,7 +952,6 @@ class DescriptorBackupServiceImplTests : FunSpec({
   test("executeWork does not call f8e when cache hits") {
     val activeKeysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
 
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(true))
     accountService.accountState.value = Ok(ActiveAccount(privateAccount))
 
     // Pre-populate cache
@@ -978,7 +973,6 @@ class DescriptorBackupServiceImplTests : FunSpec({
   test("executeWork does not add to cache when F8e call fails and no cache exists") {
     val activeKeysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
 
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(true))
     accountService.accountState.value = Ok(ActiveAccount(privateAccount))
 
     // No cached verification
@@ -996,7 +990,6 @@ class DescriptorBackupServiceImplTests : FunSpec({
   }
 
   test("executeWork skips verification when active keyset is not private") {
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(true))
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
 
     // Set up F8e client to fail - it should not be called

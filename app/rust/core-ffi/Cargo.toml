@@ -13,6 +13,7 @@ name = "core"
 
 [dependencies]
 bitcoin = { workspace = true, features = ["base64"] }
+chaincode-delegation = { path = "../chaincode-delegation" }
 crypto = { workspace = true, features = [
   "chaincode_delegation",
   "noise",

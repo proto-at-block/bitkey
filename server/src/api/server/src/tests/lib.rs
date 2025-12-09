@@ -3,7 +3,8 @@ use std::sync::RwLock;
 
 use account::service::tests::{
     create_bdk_wallet, create_descriptor_keys, create_full_account_for_test,
-    default_electrum_rpc_uris, generate_test_authkeys, TestAuthenticationKeys,
+    create_full_account_for_test_v2, default_electrum_rpc_uris, generate_test_authkeys,
+    TestAuthenticationKeys,
 };
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CreateLiteAccountInput,
@@ -417,6 +418,38 @@ pub(crate) async fn create_full_account(
     };
 
     let account = create_full_account_for_test(&services.account_service, network, &auth).await;
+    services
+        .userpool_service
+        .create_or_update_account_users_if_necessary(
+            &account.id,
+            Some(auth.app_pubkey),
+            Some(auth.hardware_pubkey),
+            auth.recovery_pubkey,
+        )
+        .await
+        .unwrap();
+    context.associate_with_account(
+        &account.id,
+        account
+            .application_auth_pubkey
+            .expect("App pubkey not present"),
+    );
+    account
+}
+
+pub(crate) async fn create_full_account_v2(
+    context: &mut TestContext,
+    services: &Services,
+    network: Network,
+    override_auth_keys: Option<FullAccountAuthKeys>,
+) -> FullAccount {
+    let auth = if let Some(auth) = override_auth_keys {
+        auth
+    } else {
+        create_auth_keyset_model(context)
+    };
+
+    let account = create_full_account_for_test_v2(&services.account_service, network, &auth).await;
     services
         .userpool_service
         .create_or_update_account_users_if_necessary(

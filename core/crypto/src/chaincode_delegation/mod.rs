@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, error::Error, fmt::Display};
 pub mod common;
 
 use bitcoin::{
-    bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint},
+    bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint},
     psbt::{raw::ProprietaryKey, Psbt},
     secp256k1::{All, PublicKey, Scalar, Secp256k1},
     Network,
@@ -11,55 +11,8 @@ use miniscript::{
     descriptor::{DescriptorPublicKey, DescriptorXKey, Wildcard},
     Descriptor,
 };
-use rand::RngCore;
 
 use common::{tweak_from_path, PROPRIETARY_KEY_PREFIX, PROPRIETARY_KEY_SUBTYPE};
-
-// Generates server account descriptor public key given network and server root xpub
-// This is used by the app during the onboarding of a private account
-pub fn server_account_dpub(
-    network: Network,
-    server_root_xpub: ExtendedPubKey,
-) -> DescriptorPublicKey {
-    let account_path = get_account_path(network);
-
-    let server_account_xpub = server_root_xpub
-        .derive_pub(&Secp256k1::new(), &account_path)
-        .expect("derived server xpub");
-    let origin = (server_root_xpub.fingerprint(), account_path);
-
-    DescriptorPublicKey::XPub(DescriptorXKey {
-        origin: Some(origin),
-        xkey: server_account_xpub,
-        derivation_path: DerivationPath::default(),
-        wildcard: Wildcard::Unhardened,
-    })
-}
-
-// Generates server root xpub given network and server root public key
-pub fn server_root_xpub(network: Network, server_root_pubkey: PublicKey) -> ExtendedPubKey {
-    ExtendedPubKey {
-        network,
-        depth: 0,
-        parent_fingerprint: Default::default(),
-        child_number: ChildNumber::from_normal_idx(0).expect("root child number"),
-        public_key: server_root_pubkey,
-        chain_code: generate_server_chaincode(),
-    }
-}
-
-// Generates server chaincode
-fn generate_server_chaincode() -> ChainCode {
-    // We piggy-back off of the code written by rust-bitcoin instead of generating the chain_code
-    // as-per bip32 ourselves. We do this by using the ExtendedPrivKey generation API, but discard
-    // everything else other than the chain code.
-    let mut chaincode_seed = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut chaincode_seed);
-    let ExtendedPrivKey { chain_code, .. } =
-        ExtendedPrivKey::new_master(Network::Bitcoin, &chaincode_seed)
-            .expect("server chaincode seed");
-    chain_code
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChaincodeDelegationError {
@@ -838,70 +791,6 @@ mod tests {
             UntweakedPsbt::new(psbt).with_source_wallet_tweaks(&keyset),
             Err(ChaincodeDelegationError::UnknownKey { .. })
         ));
-    }
-
-    #[test]
-    fn test_server_account_dpub() {
-        let secp = Secp256k1::new();
-        let server_root_xprv = ExtendedPrivKey::new_master(Network::Bitcoin, &[42; 32]).unwrap();
-        let server_root_xpub = ExtendedPubKey::from_priv(&secp, &server_root_xprv);
-
-        let dpub = server_account_dpub(Network::Bitcoin, server_root_xpub);
-
-        // Verify it's a valid descriptor public key with expected structure
-        match dpub {
-            DescriptorPublicKey::XPub(xkey) => {
-                let expected_path = DerivationPath::from_str("m/84/0/0").unwrap();
-                assert_eq!(xkey.origin.as_ref().unwrap().1, expected_path);
-                assert_eq!(xkey.wildcard, Wildcard::Unhardened);
-                assert_eq!(xkey.derivation_path, DerivationPath::default());
-
-                // Verify the xpub network matches
-                assert_eq!(xkey.xkey.network, Network::Bitcoin);
-            }
-            _ => panic!("Expected XPub descriptor key"),
-        }
-    }
-
-    #[test]
-    fn test_server_account_dpub_deterministic_chaincode() {
-        // Test that server_account_dpub generates different chaincodes each time
-        // since it uses random generation
-        let secp = Secp256k1::new();
-        let server_root_xprv = ExtendedPrivKey::new_master(Network::Bitcoin, &[44; 32]).unwrap();
-        let server_root_pubkey = server_root_xprv.to_priv().public_key(&secp);
-
-        let server_root_xpub1 = server_root_xpub(Network::Bitcoin, server_root_pubkey.inner);
-        let server_root_xpub2 = server_root_xpub(Network::Bitcoin, server_root_pubkey.inner);
-
-        let dpub1 = server_account_dpub(Network::Bitcoin, server_root_xpub1);
-        let dpub2 = server_account_dpub(Network::Bitcoin, server_root_xpub2);
-
-        // Extract chaincodes and verify they're different (due to random generation)
-        match (dpub1, dpub2) {
-            (DescriptorPublicKey::XPub(xkey1), DescriptorPublicKey::XPub(xkey2)) => {
-                assert_ne!(xkey1.xkey.chain_code, xkey2.xkey.chain_code);
-                // Since chaincodes are different, the derived public keys will also be different
-                assert_ne!(xkey1.xkey.public_key, xkey2.xkey.public_key);
-            }
-            _ => panic!("Expected XPub descriptor keys"),
-        }
-    }
-
-    #[test]
-    fn test_server_root_xpub_properties() {
-        let secp = Secp256k1::new();
-        let server_root_xprv = ExtendedPrivKey::new_master(Network::Bitcoin, &[45; 32]).unwrap();
-        let server_root_pubkey = server_root_xprv.to_priv().public_key(&secp);
-
-        let xpub = server_root_xpub(Network::Bitcoin, server_root_pubkey.inner);
-
-        // Verify root xpub properties
-        assert_eq!(xpub.network, Network::Bitcoin);
-        assert_eq!(xpub.depth, 0);
-        assert_eq!(xpub.parent_fingerprint, Fingerprint::default());
-        assert_eq!(xpub.child_number, ChildNumber::from_normal_idx(0).unwrap());
-        assert_eq!(xpub.public_key, server_root_pubkey.inner);
     }
 
     #[test]

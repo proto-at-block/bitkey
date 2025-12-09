@@ -16,9 +16,6 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.withNewSpendingKeyset
 import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.chaincode.delegation.ChaincodeDelegationTweakServiceFake
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.InheritanceUseEncryptedDescriptorFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.recovery.DescriptorBackupServiceFake
 import build.wallet.relationships.RelationshipsCryptoFake
 import build.wallet.relationships.RelationshipsKeysDaoFake
@@ -50,8 +47,6 @@ class InheritanceTransactionFactoryTests : FunSpec({
   val spendingWalletProvider = SpendingWalletProviderMock()
   val chaincodeDelegationTweakService = ChaincodeDelegationTweakServiceFake()
   val descriptorBackupService = DescriptorBackupServiceFake()
-  val inheritanceUseEncryptedDescriptorFeatureFlag =
-    InheritanceUseEncryptedDescriptorFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
   val inheritanceCryptoFake = InheritanceCryptoFake(
     inheritanceMaterial = Ok(InheritanceMaterial(emptyList()))
   )
@@ -63,12 +58,10 @@ class InheritanceTransactionFactoryTests : FunSpec({
     inheritanceCrypto = inheritanceCryptoFake,
     spendingWalletProvider = spendingWalletProvider,
     chaincodeDelegationTweakService = chaincodeDelegationTweakService,
-    descriptorBackupService = descriptorBackupService,
-    inheritanceUseEncryptedDescriptorFeatureFlag = inheritanceUseEncryptedDescriptorFeatureFlag
+    descriptorBackupService = descriptorBackupService
   )
 
   beforeTest {
-    inheritanceUseEncryptedDescriptorFeatureFlag.reset()
     chaincodeDelegationTweakService.reset()
     descriptorBackupService.reset()
 
@@ -81,7 +74,7 @@ class InheritanceTransactionFactoryTests : FunSpec({
     )
   }
 
-  test("Create full balance transaction w/ no sealed descriptor & ff off") {
+  test("Create full balance transaction w/ no sealed descriptor") {
     addressService.result = Ok(someBitcoinAddress)
     spendingWallet.psbtResult = Ok(PsbtMock)
     spendingWalletProvider.walletResult = Ok(spendingWallet)
@@ -108,36 +101,7 @@ class InheritanceTransactionFactoryTests : FunSpec({
     }
   }
 
-  test("Create full balance transaction w/ no sealed descriptor & ff on") {
-    inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
-
-    addressService.result = Ok(someBitcoinAddress)
-    spendingWallet.psbtResult = Ok(PsbtMock)
-    spendingWalletProvider.walletResult = Ok(spendingWallet)
-
-    inheritanceCryptoFake.inheritanceMaterialPackageResult = Ok(
-      DecryptInheritanceMaterialPackageOutput(
-        inheritanceKeyset = InheritanceKeysetFake,
-        descriptor = null,
-        serverRootXpub = null
-      )
-    )
-
-    val result = factory.createFullBalanceTransaction(
-      account = FullAccountMock,
-      claim = BeneficiaryLockedClaimNoSealedDescriptorFake
-    )
-
-    result.isOk.shouldBeTrue()
-    result.getOrThrow().run {
-      claim.shouldBe(BeneficiaryLockedClaimNoSealedDescriptorFake)
-      psbt.shouldBe(PsbtMock)
-      inheritanceWallet.shouldBe(spendingWallet)
-      recipientAddress.shouldBe(someBitcoinAddress)
-    }
-  }
-
-  test("Create full balance transaction w/ both descriptors & ff off") {
+  test("Create full balance transaction w/ both descriptors") {
     addressService.result = Ok(someBitcoinAddress)
     spendingWallet.psbtResult = Ok(PsbtMock)
     spendingWalletProvider.walletResult = Ok(spendingWallet)
@@ -150,8 +114,8 @@ class InheritanceTransactionFactoryTests : FunSpec({
     inheritanceCryptoFake.inheritanceMaterialPackageResult = Ok(
       DecryptInheritanceMaterialPackageOutput(
         inheritanceKeyset = InheritanceKeysetFake,
-        descriptor = null,
-        serverRootXpub = null
+        descriptor = "fake-descriptor",
+        serverRootXpub = "fake-sealed-server-root-xpub"
       )
     )
 
@@ -164,9 +128,7 @@ class InheritanceTransactionFactoryTests : FunSpec({
     }
   }
 
-  test("Create full balance transaction w/ no plaintext descriptor & ff on") {
-    inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
-
+  test("Create full balance transaction w/ no plaintext descriptor") {
     addressService.result = Ok(someBitcoinAddress)
     spendingWallet.psbtResult = Ok(PsbtMock)
     spendingWalletProvider.walletResult = Ok(spendingWallet)
@@ -214,8 +176,6 @@ class InheritanceTransactionFactoryTests : FunSpec({
   }
 
   test("applies sweep tweaks when inheriting from private wallet to private wallet") {
-    inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
-
     addressService.result = Ok(someBitcoinAddress)
     spendingWallet.psbtResult = Ok(PsbtMock)
     spendingWalletProvider.walletResult = Ok(spendingWallet)
@@ -242,8 +202,6 @@ class InheritanceTransactionFactoryTests : FunSpec({
   }
 
   test("applies migration tweaks when inheriting from legacy wallet to private wallet") {
-    inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
-
     addressService.result = Ok(someBitcoinAddress)
     spendingWallet.psbtResult = Ok(PsbtMock)
     spendingWalletProvider.walletResult = Ok(spendingWallet)
@@ -270,8 +228,6 @@ class InheritanceTransactionFactoryTests : FunSpec({
   }
 
   test("applies standard tweaks when inheriting from private wallet to legacy wallet") {
-    inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
-
     addressService.result = Ok(someBitcoinAddress)
     spendingWallet.psbtResult = Ok(PsbtMock)
     spendingWalletProvider.walletResult = Ok(spendingWallet)
@@ -294,8 +250,6 @@ class InheritanceTransactionFactoryTests : FunSpec({
   }
 
   test("applies no tweaks when inheriting from legacy wallet to legacy wallet") {
-    inheritanceUseEncryptedDescriptorFeatureFlag.setFlagValue(true)
-
     addressService.result = Ok(someBitcoinAddress)
     spendingWallet.psbtResult = Ok(PsbtMock)
     spendingWalletProvider.walletResult = Ok(spendingWallet)

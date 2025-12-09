@@ -137,7 +137,7 @@ data class CashAppInfoBodyModel(
   val cashAppLogoUrl: String?,
   val onDismiss: () -> Unit,
 ) : FormBodyModel(
-    id = PARTNER_QUOTES_LIST,
+    id = PARTNER_QUOTE_PROMOTION_INFO_SHEET,
     onBack = onDismiss,
     toolbar = null,
     header = FormHeaderModel(

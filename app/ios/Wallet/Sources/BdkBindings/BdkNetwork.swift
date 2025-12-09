@@ -1,4 +1,4 @@
-import BitcoinDevKit
+import BitcoinDevKitLegacy
 import Shared
 
 extension Network {

@@ -3,7 +3,7 @@ package build.wallet.statemachine.account
 import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
+import build.wallet.statemachine.data.keybox.NoActiveAccountData
 
 /**
  * A state machine when there is no existing active account and no existing

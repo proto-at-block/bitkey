@@ -27,6 +27,8 @@ import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFing
 import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiStateMachine
 import build.wallet.statemachine.settings.full.device.fingerprints.EnrollmentContext
 import build.wallet.statemachine.settings.full.device.fingerprints.FingerprintResetGrantNfcHandler
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachineImpl.FingerprintResetUiState.*
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachineImpl.FingerprintResetUiState.DelayAndNotifyComplete.*
 import build.wallet.statemachine.settings.full.device.fingerprints.metrics.FingerprintResetCompleteMetricDefinition
 import build.wallet.statemachine.settings.full.device.fingerprints.metrics.FingerprintResetInitiateMetricDefinition
 import build.wallet.time.DurationFormatter
@@ -118,13 +120,14 @@ class FingerprintResetUiStateMachineImpl(
             )
             when (val authStrategy = resetState.action.authorizationStrategy) {
               is AuthorizationStrategy.DelayAndNotify -> updateState(
-                FingerprintResetUiState.DelayAndNotifyComplete.DelayComplete(
+                DelayComplete(
                   actionId = resetState.action.id,
                   completionToken = authStrategy.completionToken,
                   cancellationToken = authStrategy.cancellationToken,
                   hasStartedCompleteMetric = true
                 )
               )
+              is AuthorizationStrategy.OutOfBand -> error("OutOfBand verification not supported for fingerprint reset")
             }
           }
           is FingerprintResetState.DelayInProgress -> {
@@ -227,7 +230,7 @@ class FingerprintResetUiStateMachineImpl(
                     is AuthorizationStrategy.DelayAndNotify -> {
                       completeResetInitiateMetric(MetricOutcome.Succeeded)
                       updateState(
-                        FingerprintResetUiState.ShowingDelayAndNotifyProgress(
+                        ShowingDelayAndNotifyProgress(
                           actionId = actionInstance.id,
                           startTime = authStrategy.delayStartTime,
                           endTime = authStrategy.delayEndTime,
@@ -236,6 +239,7 @@ class FingerprintResetUiStateMachineImpl(
                         )
                       )
                     }
+                    is AuthorizationStrategy.OutOfBand -> error("OutOfBand verification not supported for fingerprint reset")
                   }
                 }
                 .onFailure { error ->
@@ -364,7 +368,7 @@ class FingerprintResetUiStateMachineImpl(
 
     return LoadingBodyModel(
       id = FingerprintResetEventTrackerScreenId.LOADING_GRANT,
-      message = "Completing fingerprint reset..."
+      title = "Completing fingerprint reset..."
     ).asModalScreen()
   }
 
@@ -591,7 +595,7 @@ class FingerprintResetUiStateMachineImpl(
 
     return LoadingBodyModel(
       id = FingerprintResetEventTrackerScreenId.CANCEL_FINGERPRINT_RESET_LOADING,
-      message = "Cancelling fingerprint reset..."
+      title = "Cancelling fingerprint reset..."
     ).asModalScreen()
   }
 

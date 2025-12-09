@@ -609,16 +609,15 @@ class TransactionDetailsUiStateMachineImpl(
     val transactionsData by remember { bitcoinWalletService.transactionsData() }.collectAsState()
 
     val allUtxos = remember(transactionsData) { transactionsData?.utxos?.all.orEmpty() }
-
-    val feeBumpEnabled by remember {
-      val onchainDetails = transaction.onChainDetails()
-      mutableStateOf(
-        onchainDetails != null && bitcoinTransactionBumpabilityChecker.isBumpable(
-          transaction = onchainDetails,
-          walletUnspentOutputs = allUtxos.toImmutableList()
+    val walletUnspentOutputs = remember(allUtxos) { allUtxos.toImmutableList() }
+    val onchainDetails = transaction.onChainDetails()
+    val feeBumpEnabled =
+      onchainDetails?.let {
+        bitcoinTransactionBumpabilityChecker.isBumpable(
+          transaction = it,
+          walletUnspentOutputs = walletUnspentOutputs
         )
-      )
-    }
+      } ?: false
     return TransactionDetailModel(
       feeBumpEnabled = feeBumpEnabled,
       formHeaderModel = when (transaction.onChainDetails()?.confirmationStatus ?: Pending) {

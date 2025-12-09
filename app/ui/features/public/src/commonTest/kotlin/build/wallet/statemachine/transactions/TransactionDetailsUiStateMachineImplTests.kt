@@ -788,6 +788,33 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           .shouldBe(TrackedAction(Action.ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION))
       }
     }
+
+    test("speed up button hides once transaction confirms") {
+      stateMachine.test(pendingSentProps) {
+        awaitBody<TransactionDetailModel> {
+          feeBumpEnabled.shouldBeTrue()
+          secondaryButton.shouldNotBeNull()
+            .text.shouldBe("Speed Up")
+        }
+
+        awaitBody<TransactionDetailModel> {
+          feeBumpEnabled.shouldBeTrue()
+          secondaryButton.shouldNotBeNull()
+        }
+
+        transactionActivityService.transactions.value = listOf(sentProps.transaction)
+
+        awaitUntilBody<TransactionDetailModel>(
+          matching = {
+            it.formHeaderModel == confirmedFormHeaderModel(sentProps.transaction) &&
+              !it.feeBumpEnabled
+          }
+        ) {
+          feeBumpEnabled.shouldBeFalse()
+          secondaryButton.shouldBeNull()
+        }
+      }
+    }
   }
 
   context("utxo consolidation") {

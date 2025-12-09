@@ -32,6 +32,7 @@ bugsnag_uuid = uuid.UUID(bytes=commit_hash_bytes(commit_hash) + flavor_byte(flav
 
 print(
     "{\n"
+    f'  "buildType": "{flavor}",\n'
     f'  "bugsnagId": "{bugsnag_uuid}",\n'
     f'  "emergencyApkHash": "{emergency_apk_hash}",\n'
     f'  "emergencyApkVersion": "{emergency_apk_version}",\n'

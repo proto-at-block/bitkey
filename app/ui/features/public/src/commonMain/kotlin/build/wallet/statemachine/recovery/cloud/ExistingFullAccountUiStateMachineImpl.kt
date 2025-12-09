@@ -81,7 +81,7 @@ class ExistingFullAccountUiStateMachineImpl(
         }
 
         LoadingBodyModel(
-          message = "Archiving backup...",
+          title = "Archiving backup...",
           primaryButton = null,
           id = null
         ).asRootScreen()

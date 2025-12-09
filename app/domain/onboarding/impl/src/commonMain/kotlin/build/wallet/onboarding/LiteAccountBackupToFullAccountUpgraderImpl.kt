@@ -7,6 +7,7 @@ import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.LiteAccountCloudBackupRestorer
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -32,7 +33,9 @@ class LiteAccountBackupToFullAccountUpgraderImpl(
     onboardingKeybox: Keybox,
   ): Result<FullAccount, UpgradeError> =
     coroutineBinding {
-      require(cloudBackup is CloudBackupV2) { "Unsupported cloud backup version" }
+      require(cloudBackup is CloudBackupV2 || cloudBackup is CloudBackupV3) {
+        "Unsupported cloud backup version"
+      }
 
       val liteAccount =
         liteAccountCloudBackupRestorer.restoreFromBackup(cloudBackup)

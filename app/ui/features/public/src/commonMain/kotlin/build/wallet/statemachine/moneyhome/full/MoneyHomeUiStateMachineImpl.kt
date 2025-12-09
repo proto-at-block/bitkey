@@ -1,16 +1,17 @@
 package build.wallet.statemachine.moneyhome.full
 
 import androidx.compose.runtime.*
+import bitkey.recovery.RecoveryStatusService
 import bitkey.ui.framework.NavigatorPresenter
 import build.wallet.activity.Transaction
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME_ALL_TRANSACTIONS
 import build.wallet.bitcoin.invoice.ParsedPaymentData
 import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.inheritance.InheritanceClaimId
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContact
-import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
@@ -26,29 +27,24 @@ import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.*
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.pricechart.ChartType
+import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
+import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.socrec.SocRecService
-import build.wallet.statemachine.cloud.health.RepairAppKeyBackupProps
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.list.ListFormBodyModel
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataProps
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.fwup.FwupScreen
-import build.wallet.statemachine.inheritance.*
+import build.wallet.statemachine.inheritance.DeclineInheritanceClaimUiProps
+import build.wallet.statemachine.inheritance.DeclineInheritanceClaimUiStateMachine
 import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachine
 import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachineProps
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.PromptingForFwUpUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.ACTIVITY
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
@@ -66,27 +62,26 @@ import build.wallet.statemachine.receive.AddressQrCodeUiProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
-import build.wallet.statemachine.recovery.socrec.inviteflow.InviteTrustedContactFlowUiProps
-import build.wallet.statemachine.recovery.socrec.inviteflow.InviteTrustedContactFlowUiStateMachine
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.send.SendUiProps
 import build.wallet.statemachine.send.SendUiStateMachine
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.transactions.*
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.All
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiProps
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiStateMachine
+import build.wallet.time.nonNegativeDurationBetween
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.wallet.migration.PrivateWalletMigrationService
 import build.wallet.wallet.migration.PrivateWalletMigrationState
 import build.wallet.wallet.migration.PrivateWalletMigrationState.NotAvailable
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlin.time.Duration
 import build.wallet.statemachine.receive.AddressQrCodeUiStateMachine as AddressQrCodeUiStateMachineV2
-import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint as FingerprintManagementEntryPoint
 
 @BitkeyInject(ActivityScope::class)
 class MoneyHomeUiStateMachineImpl(
@@ -96,14 +91,12 @@ class MoneyHomeUiStateMachineImpl(
   private val transactionsActivityUiStateMachine: TransactionsActivityUiStateMachine,
   private val lostHardwareUiStateMachine: LostHardwareRecoveryUiStateMachine,
   private val setSpendingLimitUiStateMachine: SetSpendingLimitUiStateMachine,
-  private val inviteTrustedContactFlowUiStateMachine: InviteTrustedContactFlowUiStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val clipboard: Clipboard,
   private val paymentDataParser: PaymentDataParser,
   private val recoveryIncompleteRepository: PostSocRecTaskRepository,
   private val moneyHomeViewingBalanceUiStateMachine: MoneyHomeViewingBalanceUiStateMachine,
   private val customAmountEntryUiStateMachine: CustomAmountEntryUiStateMachine,
-  private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val bitcoinPriceChartUiStateMachine: BitcoinPriceChartUiStateMachine,
@@ -111,14 +104,14 @@ class MoneyHomeUiStateMachineImpl(
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val partnershipsSellUiStateMachine: PartnershipsSellUiStateMachine,
   private val failedPartnerTransactionUiStateMachine: FailedPartnerTransactionUiStateMachine,
-  private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
   private val completeClaimUiStateMachine: CompleteInheritanceClaimUiStateMachine,
   private val declineInheritanceClaimUiStateMachine: DeclineInheritanceClaimUiStateMachine,
   private val onboardingCompletionService: OnboardingCompletionService,
   private val navigatorPresenter: NavigatorPresenter,
   private val privateWalletMigrationService: PrivateWalletMigrationService,
   private val privateWalletMigrationUiStateMachine: PrivateWalletMigrationUiStateMachine,
-  private val lostHardwareRecoveryDataStateMachine: LostHardwareRecoveryDataStateMachine,
+  private val recoveryStatusService: RecoveryStatusService,
+  private val clock: Clock,
   private val partnershipsPurchaseQuotesUiStateMachine: PartnershipsPurchaseQuotesUiStateMachine,
   private val deepLinkHandler: DeepLinkHandler,
 ) : MoneyHomeUiStateMachine {
@@ -132,11 +125,21 @@ class MoneyHomeUiStateMachineImpl(
 
     var hasAutoShownSocialRecoveryScreen by remember { mutableStateOf(false) }
 
-    val lostHardwareRecoveryData = lostHardwareRecoveryDataStateMachine.model(
-      props = LostHardwareRecoveryDataProps(
-        account = props.account as FullAccount
-      )
-    )
+    val isCompletingRecovery by remember {
+      derivedStateOf {
+        when (val recovery = recoveryStatusService.status.value) {
+          is InitiatedRecovery -> {
+            val remainingDelayPeriod = nonNegativeDurationBetween(
+              startTime = clock.now(),
+              endTime = recovery.serverRecovery.delayEndTime
+            )
+            remainingDelayPeriod == Duration.ZERO && recovery.factorToRecover == PhysicalFactor.Hardware
+          }
+          is ServerIndependentRecovery -> recovery.factorToRecover == PhysicalFactor.Hardware
+          else -> false
+        }
+      }
+    }
 
     LaunchedEffect("mark-onboarding-completed") {
       // Ensure onboarding is recorded for users who completed it before
@@ -147,26 +150,21 @@ class MoneyHomeUiStateMachineImpl(
     var uiState: MoneyHomeUiState by remember(
       props.origin,
       justCompletingSocialRecovery,
-      migrationState
+      migrationState,
+      isCompletingRecovery
     ) {
       val initialState = when (val origin = props.origin) {
         MoneyHomeUiProps.Origin.Launch -> {
           // Navigate directly to hardware recovery when completing hardware recovery
-          val lostHardwareRecoveryData = lostHardwareRecoveryData
-
           when {
-            migrationState is PrivateWalletMigrationState.InProgress -> PrivateWalletMigrationUiState(inProgress = true)
+            migrationState is PrivateWalletMigrationState.InProgress -> PrivateWalletMigrationUiState(
+              inProgress = true
+            )
             justCompletingSocialRecovery && !hasAutoShownSocialRecoveryScreen -> {
               hasAutoShownSocialRecoveryScreen = true
               ViewHardwareRecoveryStatusUiState(InstructionsStyle.ContinuingRecovery)
             }
-            lostHardwareRecoveryData is LostHardwareRecoveryInProgressData ->
-              when (lostHardwareRecoveryData.recoveryInProgressData) {
-                is CompletingRecoveryData -> ViewHardwareRecoveryStatusUiState(
-                  InstructionsStyle.Independent
-                )
-                else -> ViewingBalanceUiState()
-              }
+            isCompletingRecovery -> ViewHardwareRecoveryStatusUiState(InstructionsStyle.Independent)
             else -> ViewingBalanceUiState()
           }
         }
@@ -180,8 +178,7 @@ class MoneyHomeUiStateMachineImpl(
         is MoneyHomeUiProps.Origin.LostHardwareRecovery -> {
           ViewHardwareRecoveryStatusUiState(
             instructionsStyle = when {
-              lostHardwareRecoveryData is CompletingRecoveryData ||
-                !origin.isContinuingRecovery -> InstructionsStyle.Independent
+              isCompletingRecovery || !origin.isContinuingRecovery -> InstructionsStyle.Independent
               else -> InstructionsStyle.ResumedRecoveryAttempt
             }
           )
@@ -196,19 +193,7 @@ class MoneyHomeUiStateMachineImpl(
       mutableStateOf(initialState)
     }
 
-    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
-
     return when (val state = uiState) {
-      is FixingCloudBackupState -> repairCloudBackupStateMachine.model(
-        RepairAppKeyBackupProps(
-          account = props.account as FullAccount,
-          presentationStyle = Modal,
-          appKeyBackupStatus = state.status,
-          onExit = { props.onDismissOrigin() },
-          onRepaired = { props.onDismissOrigin() }
-        )
-      )
-
       is ViewingBalanceUiState -> moneyHomeViewingBalanceUiStateMachine.model(
         props = MoneyHomeViewingBalanceUiProps(
           account = props.account,
@@ -282,7 +267,6 @@ class MoneyHomeUiStateMachineImpl(
 
       is ViewHardwareRecoveryStatusUiState -> HardwareRecoveryModel(
         account = props.account as FullAccount,
-        lostHardwareRecoveryData = lostHardwareRecoveryData,
         instructionsStyle = state.instructionsStyle,
         onExit = {
           uiState = ViewingBalanceUiState()
@@ -342,48 +326,29 @@ class MoneyHomeUiStateMachineImpl(
         }
       ).asModalScreen()
 
-      is InviteTrustedContactFlow -> inviteTrustedContactFlowUiStateMachine.model(
-        props = InviteTrustedContactFlowUiProps(
-          account = props.account as FullAccount,
-          onExit = { uiState = ViewingBalanceUiState() }
-        )
-      )
-
-      is SelectCustomPartnerPurchaseAmountState -> customAmountEntryUiStateMachine.model(
-        props = CustomAmountEntryUiProps(
-          minimumAmount = state.minimumAmount,
-          maximumAmount = state.maximumAmount,
-          onBack = {
-            uiState =
-              ViewingBalanceUiState(
-                bottomSheetDisplayState =
-                  Partners(
-                    initialState = AddBitcoinBottomSheetDisplayState.PurchasingUiState(
-                      selectedAmount = FiatMoney.zero(fiatCurrency)
-                    )
+      is SelectCustomPartnerPurchaseAmountState -> {
+        val fiatCurrency = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value
+        customAmountEntryUiStateMachine.model(
+          props = CustomAmountEntryUiProps(
+            minimumAmount = state.minimumAmount,
+            maximumAmount = state.maximumAmount,
+            onBack = {
+              uiState = ViewingBalanceUiState(
+                bottomSheetDisplayState = Partners(
+                  initialState = AddBitcoinBottomSheetDisplayState.PurchasingUiState(
+                    selectedAmount = FiatMoney.zero(fiatCurrency)
                   )
+                )
               )
-          },
-          onNext = { selectedAmount ->
-            // Go directly to quotes flow with the custom amount
-            uiState = ViewingPartnerPurchaseQuotesUiState(purchaseAmount = selectedAmount)
-          }
+            },
+            onNext = { selectedAmount ->
+              // Go directly to quotes flow with the custom amount
+              uiState = ViewingPartnerPurchaseQuotesUiState(purchaseAmount = selectedAmount)
+            }
+          )
         )
-      )
+      }
 
-      AddAdditionalFingerprintUiState -> navigatorPresenter.model(
-        ManagingFingerprintsScreen(
-          account = props.account as FullAccount,
-          onFwUpRequired = {
-            uiState = ViewingBalanceUiState(bottomSheetDisplayState = PromptingForFwUpUiState)
-          },
-          entryPoint = FingerprintManagementEntryPoint.MONEY_HOME,
-          origin = null
-        ),
-        onExit = {
-          uiState = ViewingBalanceUiState()
-        }
-      )
       is ShowingPriceChartUiState -> bitcoinPriceChartUiStateMachine.model(
         BitcoinPriceChartUiProps(
           initialType = state.type,
@@ -446,17 +411,6 @@ class MoneyHomeUiStateMachineImpl(
           inProgress = state.inProgress
         )
       )
-
-      is InheritanceManagementUiState -> {
-        inheritanceManagementUiStateMachine.model(
-          props = InheritanceManagementUiProps(
-            account = props.account as FullAccount,
-            selectedTab = state.selectedTab,
-            onBack = { uiState = ViewingBalanceUiState() },
-            onGoToUtxoConsolidation = { uiState = ConsolidatingUtxosUiState }
-          )
-        )
-      }
 
       is ViewingPartnerPurchaseQuotesUiState -> ViewingPartnerPurchaseQuotesModel(
         props = props,
@@ -548,15 +502,13 @@ class MoneyHomeUiStateMachineImpl(
     onExit: () -> Unit,
     onSuccess: () -> Unit,
   ): ScreenModel {
-    val keybox = account.keybox
-
     return sweepUiStateMachine.model(
       SweepUiProps(
         hasAttemptedSweep = false,
         presentationStyle = ScreenPresentationStyle.ModalFullScreen,
         onExit = onExit,
         onSuccess = onSuccess,
-        keybox = keybox,
+        keybox = account.keybox,
         // This callback is used to update the RecoveryStatusService in the
         // recovery flow, and is not necessary in this context.
         onAttemptSweep = {}
@@ -567,7 +519,6 @@ class MoneyHomeUiStateMachineImpl(
   @Composable
   private fun HardwareRecoveryModel(
     account: FullAccount,
-    lostHardwareRecoveryData: LostHardwareRecoveryData,
     instructionsStyle: InstructionsStyle,
     onExit: () -> Unit,
   ): ScreenModel {
@@ -575,7 +526,6 @@ class MoneyHomeUiStateMachineImpl(
     return lostHardwareUiStateMachine.model(
       props = LostHardwareRecoveryProps(
         account = account,
-        lostHardwareRecoveryData = lostHardwareRecoveryData,
         onExit = onExit,
         onFoundHardware = {
           scope.launch {
@@ -699,7 +649,6 @@ sealed interface MoneyHomeUiState {
   data class ViewingBalanceUiState(
     val isRefreshing: Boolean = false,
     val bottomSheetDisplayState: BottomSheetDisplayState? = null,
-    val urlStringForInAppBrowser: Boolean = false,
     val selectedContact: TrustedContact? = null,
     val partnerTransferLinkRequest: PartnerTransferLinkRequest? = null,
   ) : MoneyHomeUiState {
@@ -760,13 +709,6 @@ sealed interface MoneyHomeUiState {
   ) : MoneyHomeUiState
 
   /**
-   * Indicates that we are in the process of fixing cloud backup state.
-   */
-  data class FixingCloudBackupState(
-    val status: AppKeyBackupStatus.ProblemWithBackup,
-  ) : MoneyHomeUiState
-
-  /**
    * Indicates that we are viewing details for the given transaction.
    */
   data class ViewingTransactionUiState(
@@ -791,11 +733,6 @@ sealed interface MoneyHomeUiState {
   data object SetSpendingLimitFlowUiState : MoneyHomeUiState
 
   /**
-   * Indicates that we are in the enrolling additional fingerprint flow
-   */
-  data object AddAdditionalFingerprintUiState : MoneyHomeUiState
-
-  /**
    * Indicates that we are displaying an in-app browser on top of Money Home
    *
    * @param urlString - url to kick off the in-app browser with.
@@ -805,8 +742,6 @@ sealed interface MoneyHomeUiState {
     val urlString: String,
     val onClose: () -> Unit,
   ) : MoneyHomeUiState
-
-  data object InviteTrustedContactFlow : MoneyHomeUiState
 
   /**
    * Indicates that we are in the process of selecting a custom partner purchase amount
@@ -839,15 +774,6 @@ sealed interface MoneyHomeUiState {
     val partner: PartnerId?,
     val event: PartnershipEvent?,
     val partnerTransactionId: PartnershipTransactionId?,
-  ) : MoneyHomeUiState
-
-  /**
-   * Inheritance management flow presented after the upsell modal
-   *
-   * @property selectedTab - the tab to display
-   */
-  data class InheritanceManagementUiState(
-    val selectedTab: ManagingInheritanceTab,
   ) : MoneyHomeUiState
 
   /**

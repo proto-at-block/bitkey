@@ -69,7 +69,7 @@ class FirmwareMetadataUiStateMachineImpl(
         }
 
         LoadingBodyModel(
-          message = "Loading metadata...",
+          title = "Loading metadata...",
           onBack = null,
           // This is in the debug menu
           id = null

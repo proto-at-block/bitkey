@@ -13,41 +13,19 @@ interface BiometricPrompter {
    * Determines the availability of enabling biometric auth on the platform. Returns [Ok] when it is
    * available - otherwise a descriptive [BiometricError] is returned
    */
-  fun biometricsAvailability(): BiometricsResult<Boolean>
+  fun biometricsAvailability(): Result<Boolean, BiometricError>
 
   /**
    * Invoked once the caller wants to enroll Bitkey application to use biometric auth.
    *
    * *Note* This is only necessary on iOS
    */
-  suspend fun enrollBiometrics(): BiometricsResult<Unit>
+  suspend fun enrollBiometrics(): Result<Unit, BiometricError>
 
   /**
    * Prompts the caller to authenticate via biometric login once the setting is enabled
    */
-  suspend fun promptForAuth(): BiometricsResult<Unit>
-}
-
-/**
- * A custom Result type to wrap [com.github.michaelbull.result.Result] for better iOS compat in
- * Swift
- */
-sealed class BiometricsResult<out V : Any> {
-  abstract val result: Result<V, BiometricError>
-
-  /**
-   * Wraps [Ok] with [BiometricError] as an error type.
-   */
-  data class Ok<V : Any>(val value: V) : BiometricsResult<V>() {
-    override val result: Result<V, BiometricError> = com.github.michaelbull.result.Ok(value)
-  }
-
-  /**
-   * Wraps [Err] with [BiometricError] as an error type.
-   */
-  data class Err<out V : Any>(val error: BiometricError) : BiometricsResult<V>() {
-    override val result: Result<V, BiometricError> = com.github.michaelbull.result.Err(error)
-  }
+  suspend fun promptForAuth(): Result<Unit, BiometricError>
 }
 
 /**

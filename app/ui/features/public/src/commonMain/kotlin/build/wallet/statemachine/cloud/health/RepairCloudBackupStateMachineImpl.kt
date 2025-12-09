@@ -386,7 +386,7 @@ class RepairCloudBackupStateMachineImpl(
 
   private fun preparingBackupModel(props: RepairAppKeyBackupProps): ScreenModel {
     return LoadingBodyModel(
-      message = "Preparing backup",
+      title = "Preparing backup",
       onBack = props.onExit,
       id = PREPARING_CLOUD_BACKUP
     ).asScreen(props.presentationStyle)
@@ -394,7 +394,7 @@ class RepairCloudBackupStateMachineImpl(
 
   private fun creatingBackupModel(props: RepairAppKeyBackupProps): ScreenModel {
     return LoadingBodyModel(
-      message = "Creating backup",
+      title = "Creating backup",
       onBack = props.onExit,
       id = CREATING_CLOUD_BACKUP
     ).asScreen(props.presentationStyle)
@@ -402,7 +402,7 @@ class RepairCloudBackupStateMachineImpl(
 
   private fun uploadingBackupToCloudModel(props: RepairAppKeyBackupProps): ScreenModel {
     return LoadingBodyModel(
-      message = "Uploading backup to ${cloudServiceProvider().name}",
+      title = "Uploading backup to ${cloudServiceProvider().name}",
       onBack = props.onExit,
       id = UPLOADING_CLOUD_BACKUP
     ).asScreen(props.presentationStyle)
@@ -467,7 +467,7 @@ class RepairCloudBackupStateMachineImpl(
             logDebug { "No local cloud backup found, creating new backup." }
             return GeneratingCsekState(cloudAccount)
           }
-          is CloudBackupV2 -> {
+          is CloudBackupV2, is CloudBackupV3 -> {
             if (foundLocalBackup.isFullAccount()) {
               return CreatingEekBackupState(
                 cloudAccount = cloudAccount,
@@ -509,7 +509,7 @@ class RepairCloudBackupStateMachineImpl(
           return UploadingBackupState(cloudAccount, appKeyBackup, eekBackup)
         } else {
           when (foundAppKeyBackup) {
-            is CloudBackupV2 -> {
+            is CloudBackupV2, is CloudBackupV3 -> {
               val sameAccount = foundAppKeyBackup.accountId == props.account.accountId.serverId
               return if (sameAccount) {
                 // Found a backup for the current account, okay to go ahead and overwrite it.

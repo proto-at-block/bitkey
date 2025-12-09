@@ -13,6 +13,7 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.withNewSpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.cloud.backup.csek.Sek
 import build.wallet.cloud.backup.csek.SsekDao
@@ -142,9 +143,7 @@ class PrivateWalletMigrationServiceImpl(
           .get()
           .let {
             when (it) {
-              is CloudBackupV2 ->
-                it.fullAccountFields
-                  ?.sealedHwEncryptionKey
+              is CloudBackupV2, is CloudBackupV3 -> it.fullAccountFields?.sealedHwEncryptionKey
               null -> null
             }
           },

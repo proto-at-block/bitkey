@@ -13,7 +13,7 @@ use types::recovery::trusted_contacts::TrustedContactRole;
 
 use super::{error::ServiceError, Service};
 
-const MAX_PROTECTED_CUSTOMERS: usize = 10;
+const MAX_PROTECTED_CUSTOMERS: usize = 30;
 
 /// The input for the `accept_recovery_relationship_invitation` function
 ///

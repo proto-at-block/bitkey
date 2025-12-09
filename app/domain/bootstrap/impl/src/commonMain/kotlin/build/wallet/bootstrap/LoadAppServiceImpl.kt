@@ -6,12 +6,13 @@ import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
+import build.wallet.bitkey.account.OnboardingSoftwareAccount
 import build.wallet.bitkey.account.SoftwareAccount
-import build.wallet.bootstrap.AppState.HasActiveSoftwareAccount
+import build.wallet.bootstrap.AppState.*
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.FeatureFlagService
-import com.github.michaelbull.result.get
+import com.github.michaelbull.result.getOrThrow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
@@ -26,17 +27,14 @@ class LoadAppServiceImpl(
     // Feature flags are initialized by an app worker on app launch.
     suspendUntilFeatureFlagsInitialized()
 
-    val accountStatus = accountService.accountStatus().first().get()
-      ?: return AppState.Undetermined
-
-    return when (accountStatus) {
+    return when (val accountStatus = accountService.accountStatus().first().getOrThrow()) {
       is ActiveAccount -> {
         when (val account = accountStatus.account) {
           is FullAccount -> {
             val pendingAuthKeyRotation = fullAccountAuthKeyRotationService
               .observePendingKeyRotationAttemptUntilNull()
               .first()
-            AppState.HasActiveFullAccount(
+            HasActiveFullAccount(
               account = account,
               pendingAuthKeyRotation = pendingAuthKeyRotation
             )
@@ -46,20 +44,21 @@ class LoadAppServiceImpl(
               account = account
             )
           }
-          is LiteAccount -> AppState.HasActiveLiteAccount(account = account)
-          else -> AppState.Undetermined
+          is LiteAccount -> HasActiveLiteAccount(account = account)
+          is OnboardingSoftwareAccount -> error("Onboarding software account is currently not handled")
         }
       }
       is AccountStatus.OnboardingAccount -> when (val account = accountStatus.account) {
-        is FullAccount -> AppState.OnboardingFullAccount(account = account)
-        else -> AppState.Undetermined
+        is FullAccount -> OnboardingFullAccount(account = account)
+        is LiteAccount -> error("Onboarding lite account is currently not handled")
+        is OnboardingSoftwareAccount -> error("Onboarding software account is currently not handled")
+        is SoftwareAccount -> error("Onboarding software account is currently not handled")
       }
-      is AccountStatus.LiteAccountUpgradingToFullAccount ->
-        AppState.LiteAccountOnboardingToFullAccount(
-          activeAccount = accountStatus.liteAccount,
-          onboardingAccount = accountStatus.onboardingAccount
-        )
-      else -> AppState.Undetermined
+      is AccountStatus.LiteAccountUpgradingToFullAccount -> LiteAccountOnboardingToFullAccount(
+        activeAccount = accountStatus.liteAccount,
+        onboardingAccount = accountStatus.onboardingAccount
+      )
+      AccountStatus.NoAccount -> NoActiveAccount
     }
   }
 

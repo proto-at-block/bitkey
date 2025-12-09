@@ -25,8 +25,6 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.relationships.RelationshipsFake
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
-import build.wallet.feature.flags.EncryptedDescriptorBackupsFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareMetadata
@@ -83,9 +81,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val accountConfigService = AccountConfigServiceFake()
   val descriptorBackupService = DescriptorBackupServiceFake()
   val featureFlagDao = FeatureFlagDaoFake()
-  val encryptedDescriptorBackupsFeatureFlag = EncryptedDescriptorBackupsFeatureFlag(
-    featureFlagDao = FeatureFlagDaoFake()
-  )
   val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(
     featureFlagDao = FeatureFlagDaoFake()
   )
@@ -118,7 +113,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     minimumLoadingDuration = MinimumLoadingDuration(0.seconds),
     accountConfigService = accountConfigService,
     descriptorBackupService = descriptorBackupService,
-    encryptedDescriptorBackupsFeatureFlag = encryptedDescriptorBackupsFeatureFlag,
     provisionAppAuthKeyTransactionProvider = ProvisionAppAuthKeyTransactionProviderFake(),
     firmwareDataService = firmwareDataService,
     minFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag
@@ -132,11 +126,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     delayNotifyService.reset()
     descriptorBackupService.reset()
     featureFlagDao.reset()
-    encryptedDescriptorBackupsFeatureFlag.reset()
     fingerprintResetMinFirmwareVersionFeatureFlag.reset()
     firmwareDataService.reset()
-
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(true))
   }
 
   val delayDuration = 100.milliseconds
@@ -408,83 +399,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeTypeOf<FailedToRotateAuthData>()
-    }
-  }
-
-  test("complete recovery with socrec - descriptor backups disabled") {
-    val recovery = recovery()
-
-    // Explicitly disable descriptor backups feature flag to test fallback behavior
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(false))
-
-    // Move clock ahead of delay period
-    delay(delayDuration)
-
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      // Rotate auth keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndSeks(
-            signedChallenge = fakeChallenge,
-            csek = CsekFake,
-            ssek = SsekFake,
-            sealedCsek = SealedCsekFake,
-            sealedSsek = SealedSsekFake
-          )
-        )
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
-        it.nfcTransaction.onSuccess(Unit)
-      }
-
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
-
-      awaitItem().let {
-        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
-        it.nfcTransaction.onSuccess(
-          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
-        )
-      }
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-
-      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
-
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-
-      // Backing up new keybox
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-        it.sealedCsek.shouldBe(SealedCsekFake)
-        it.onBackupFinished()
-      }
-
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.BackedUpToCloud>()
-
-      awaitItem().shouldBeTypeOf<PerformingSweepData>()
     }
   }
 
@@ -1064,91 +978,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<FailedToProcessDescriptorBackupsData>()
         it.physicalFactor.shouldBe(App)
       }
-    }
-  }
-
-  test("descriptor backup processing - feature flag disabled - skips descriptor backup flow") {
-    val recovery = CreatedSpendingKeys(
-      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
-      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
-      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
-      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
-      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
-      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
-      factorToRecover = App,
-      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
-      f8eSpendingKeyset = F8eSpendingKeysetMock,
-      sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
-    )
-
-    // Explicitly disable feature flag for this test
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(false))
-
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionForActivationData>()
-        it.physicalFactor.shouldBe(App)
-        it.addHardwareProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
-
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-        it.onBackupFinished()
-      }
-
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-
-      awaitItem().shouldBeTypeOf<PerformingSweepData>()
-    }
-  }
-
-  test("descriptor backup processing - feature flag disabled during recovery rollback") {
-    val recovery = UploadedDescriptorBackups(
-      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
-      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
-      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
-      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
-      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
-      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
-      factorToRecover = App,
-      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
-      f8eSpendingKeyset = F8eSpendingKeysetMock,
-      sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake,
-      keysets = listOf(SpendingKeysetMock)
-    )
-
-    // Explicitly disable feature flag to simulate it being disabled after descriptor backups were uploaded
-    encryptedDescriptorBackupsFeatureFlag.setFlagValue(BooleanFlag(false))
-
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionForActivationData>()
-        it.physicalFactor.shouldBe(App)
-        it.addHardwareProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingDdkBackupData>()
-        it.physicalFactor.shouldBe(App)
-      }
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
-
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-
-      cancelAndIgnoreRemainingEvents()
     }
   }
 

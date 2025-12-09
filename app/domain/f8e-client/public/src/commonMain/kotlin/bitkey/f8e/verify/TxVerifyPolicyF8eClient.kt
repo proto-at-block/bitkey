@@ -4,6 +4,7 @@ import bitkey.verification.TxVerificationPolicy
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Result
 
 /**
@@ -17,6 +18,7 @@ interface TxVerifyPolicyF8eClient {
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     policy: TxVerificationPolicy,
+    amountBtc: BitcoinMoney?,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<TxVerificationPolicy, Error>
 

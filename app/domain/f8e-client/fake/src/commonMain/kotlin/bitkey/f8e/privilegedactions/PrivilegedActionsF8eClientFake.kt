@@ -10,7 +10,7 @@ import com.github.michaelbull.result.Result
 
 open class PrivilegedActionsF8eClientFake<Req, Res>(
   turbine: (name: String) -> Turbine<Any>,
-) : PrivilegedActionsF8eClient<Req, Res> {
+) : DirectPrivilegedActionsF8eClient<Req, Res> {
   override val f8eHttpClient: F8eHttpClient = F8eHttpClientMock(WsmVerifierMock())
 
   val getPrivilegedActionInstancesCalls = turbine("getPrivilegedActionInstances calls")
