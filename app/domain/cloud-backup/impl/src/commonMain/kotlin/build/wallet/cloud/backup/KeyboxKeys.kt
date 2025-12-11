@@ -41,9 +41,11 @@ internal suspend fun Keybox.appKeys(
   appPrivateKeyDao: AppPrivateKeyDao,
 ): Result<Map<AppSpendingPublicKey, AppSpendingPrivateKey>, Throwable> =
   coroutineBinding {
-    // Retrieve each spending private key
+    // Retrieve each spending private key, sorted by dpub for deterministic ordering.
+    // This ensures consistent map iteration order for backup serialization/comparison.
     val resultMap = appPrivateKeyDao.getAllAppSpendingKeyPairs()
       .bind()
+      .sortedBy { it.publicKey.key.dpub }
       .associate { it.publicKey to it.privateKey }
 
     // We MUST have the active keyset private key; inactive private keys may have been lost and

@@ -55,6 +55,18 @@ resource "aws_s3_bucket_policy" "signed_artifacts_bucket_policy" {
         Resource = "${aws_s3_bucket.signed_artifacts.arn}/*"
       },
       {
+        Effect = "Allow"
+        Principal = {
+          AWS = [
+            module.get_signed_artifact_download_url_docker.lambda_role_arn,
+          ]
+        }
+        Action = [
+          "s3:ListBucket",
+        ]
+        Resource = aws_s3_bucket.signed_artifacts.arn
+      },
+      {
         Effect = "Allow",
         Principal = {
           AWS = [
@@ -124,6 +136,15 @@ resource "aws_iam_policy" "signed_artifacts_bucket_get_access_policy" {
         ]
         Resource = [
           "${aws_s3_bucket.signed_artifacts.arn}/*",
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+        ]
+        Resource = [
+          aws_s3_bucket.signed_artifacts.arn,
         ]
       },
       {

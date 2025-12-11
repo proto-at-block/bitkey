@@ -54,4 +54,40 @@ class KeyboxKeysTests : FunSpec({
 
     result.shouldBeErrOfType<IllegalStateException>()
   }
+
+  test("appKeys returns keys in deterministic order regardless of insertion order") {
+    // The active key must be present for appKeys to succeed
+    val activePublicKey = SpendingKeysetMock.appKey
+    val activePrivateKey = AppSpendingPrivateKey(
+      ExtendedPrivateKey(xprv = "xprv-active", mnemonic = "active mnemonic")
+    )
+
+    // Create additional keys with dpubs that sort differently than insertion order
+    val keyZ = AppSpendingKeypair(
+      publicKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "zzz-dpub")),
+      privateKey = AppSpendingPrivateKey(ExtendedPrivateKey(xprv = "xprv-z", mnemonic = "z mnemonic"))
+    )
+    val keyA = AppSpendingKeypair(
+      publicKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "aaa-dpub")),
+      privateKey = AppSpendingPrivateKey(ExtendedPrivateKey(xprv = "xprv-a", mnemonic = "a mnemonic"))
+    )
+    val keyM = AppSpendingKeypair(
+      publicKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "mmm-dpub")),
+      privateKey = AppSpendingPrivateKey(ExtendedPrivateKey(xprv = "xprv-m", mnemonic = "m mnemonic"))
+    )
+
+    // Insert in non-alphabetical order: Z, active, A, M
+    appPrivateKeyDao.storeAppSpendingKeyPair(keyZ)
+    appPrivateKeyDao.storeAppSpendingKeyPair(
+      AppSpendingKeypair(publicKey = activePublicKey, privateKey = activePrivateKey)
+    )
+    appPrivateKeyDao.storeAppSpendingKeyPair(keyA)
+    appPrivateKeyDao.storeAppSpendingKeyPair(keyM)
+
+    val result = KeyboxMock.appKeys(appPrivateKeyDao).getOrThrow()
+
+    // Keys should be sorted alphabetically by dpub
+    val dpubs = result.keys.map { it.key.dpub }
+    dpubs.shouldBe(dpubs.sorted())
+  }
 })
