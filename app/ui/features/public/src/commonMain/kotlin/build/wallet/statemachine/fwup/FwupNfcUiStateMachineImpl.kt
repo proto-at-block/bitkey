@@ -5,9 +5,6 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
-import build.wallet.fwup.semverToInt
-import build.wallet.keybox.KeyboxDao
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
@@ -19,10 +16,7 @@ import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUi
 import build.wallet.statemachine.fwup.FwupTransactionType.StartFromBeginning
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import com.github.michaelbull.result.getOrThrow
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import okio.ByteString.Companion.decodeHex
 
 @BitkeyInject(ActivityScope::class)
 class FwupNfcUiStateMachineImpl(
@@ -30,9 +24,6 @@ class FwupNfcUiStateMachineImpl(
   private val fwupNfcSessionUiStateMachine: FwupNfcSessionUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
-  private val fingerprintResetMinFirmwareVersionFeatureFlag:
-    FingerprintResetMinFirmwareVersionFeatureFlag,
-  private val keyboxDao: KeyboxDao,
 ) : FwupNfcUiStateMachine {
   @Composable
   override fun model(props: FwupNfcUiProps): ScreenModel {
@@ -83,16 +74,6 @@ class FwupNfcUiStateMachineImpl(
               val deviceInfo = commands.getDeviceInfo(session)
               if (deviceInfo.version != state.expectedVersion) {
                 throw NfcException.CommandError("Version mismatch: expected ${state.expectedVersion}, got ${deviceInfo.version}")
-              }
-
-              val minFirmwareVersion = fingerprintResetMinFirmwareVersionFeatureFlag.flagValue().value.value
-              val targetVersionInt = semverToInt(deviceInfo.version)
-              val minVersionInt = semverToInt(minFirmwareVersion)
-              val keybox = keyboxDao.activeKeybox().first().getOrThrow()
-
-              // check if we need to provision app auth key after fwup
-              if (targetVersionInt >= minVersionInt && keybox != null) {
-                commands.provisionAppAuthKey(session, keybox.activeAppKeyBundle.authKey.value.decodeHex())
               }
             },
             onSuccess = {

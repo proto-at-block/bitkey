@@ -1,10 +1,6 @@
 package build.wallet.statemachine.fwup
 
-import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
-import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform
@@ -17,7 +13,6 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
-import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -28,11 +23,6 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
 
   val deviceInfoProvider = DeviceInfoProviderMock()
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
-  val featureFlagDao = FeatureFlagDaoFake()
-  val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(
-    featureFlagDao
-  )
-  val keyboxDao = KeyboxDaoMock(turbines::create)
 
   val fwupNfcSessionUiStateMachine =
     object : FwupNfcSessionUiStateMachine,
@@ -51,9 +41,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
       deviceInfoProvider = deviceInfoProvider,
       fwupNfcSessionUiStateMachine = fwupNfcSessionUiStateMachine,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-      inAppBrowserNavigator = inAppBrowserNavigator,
-      fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
-      keyboxDao = keyboxDao
+      inAppBrowserNavigator = inAppBrowserNavigator
     )
 
   val onDoneCalls = turbines.create<Unit>("onDone calls")
@@ -64,8 +52,6 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     deviceInfoProvider.reset()
-    featureFlagDao.reset()
-    keyboxDao.reset()
   }
 
   test("back button on demo instructions calls props.onDone") {
@@ -78,10 +64,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("happy path - with active keybox and version above minimum") {
-    // Set up an active keybox
-    keyboxDao.activeKeybox.value = Ok(KeyboxMock)
-
+  test("happy path") {
     stateMachine.test(props) {
       awaitBody<FwupInstructionsBodyModel> {
         buttonModel.onClick()
@@ -91,7 +74,6 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
         onDone("1.2.3")
       }
 
-      // Verification step - should provision app auth key
       awaitBodyMock<NfcSessionUIStateMachineProps<Unit>> {
         onSuccess.invoke(Unit)
       }
