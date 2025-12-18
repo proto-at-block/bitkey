@@ -17,6 +17,12 @@ kotlin {
       }
     }
 
+    commonTest {
+      dependencies {
+        implementation(projects.libs.loggingTesting)
+      }
+    }
+
     val iosMain by getting {
       dependencies {
         implementation(

@@ -44,6 +44,7 @@ kotlin {
         implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.walletFake)
         implementation(projects.libs.encryptionFake)
+        implementation(projects.libs.loggingTesting)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.keyValueStoreFake)
         implementation(projects.libs.testingPublic)

@@ -170,6 +170,11 @@ interface FeatureFlagsComponent {
   fun bdk2FeatureFlag(featureFlagDao: FeatureFlagDao) = Bdk2FeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun cloudBackupHealthLoggingFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    CloudBackupHealthLoggingFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
     coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
@@ -202,6 +207,7 @@ interface FeatureFlagsComponent {
     sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag,
     bdk2FeatureFlag: Bdk2FeatureFlag,
     cashAppFeePromotionFeatureFlag: CashAppFeePromotionFeatureFlag,
+    cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       bdk2FeatureFlag,
@@ -235,7 +241,8 @@ interface FeatureFlagsComponent {
       coachmarksGlobalFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       firmwareCommsLoggingFeatureFlag,
-      asyncNfcSigningFeatureFlag
+      asyncNfcSigningFeatureFlag,
+      cloudBackupHealthLoggingFeatureFlag
     )
   }
 }

@@ -10,6 +10,7 @@ import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
 import build.wallet.cloud.backup.isLatestVersion
+import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
@@ -34,6 +35,7 @@ class CloudBackupVersionMigrationWorkerImpl(
   private val cloudBackupRepository: CloudBackupRepository,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val liteAccountCloudBackupCreator: LiteAccountCloudBackupCreator,
+  private val cloudBackupDao: CloudBackupDao,
   appSessionManager: AppSessionManager,
 ) : CloudBackupVersionMigrationWorker {
   override val runStrategy: Set<RunStrategy> = setOf(
@@ -57,17 +59,11 @@ class CloudBackupVersionMigrationWorkerImpl(
   }
 
   private suspend fun checkAndMigrateBackup(account: Account) {
-    // Get cloud store account first
-    val cloudStoreAccount = cloudStoreAccountRepository
-      .currentAccount(cloudServiceProvider())
-      .get()
-      ?: return // No cloud store account available
-
-    // Read the active backup from cloud storage
-    val localBackup = cloudBackupRepository
-      .readActiveBackup(cloudStoreAccount)
-      .get()
-      ?: return // No backup to migrate
+    // Read the active backup from local storage
+    val localBackup = cloudBackupDao
+      .get(account.accountId.serverId)
+      .logFailure { "Error finding local backup" }
+      .get() ?: return // No backup to migrate
 
     // Check if backup is already on latest version
     if (localBackup.isLatestVersion) {
@@ -77,6 +73,12 @@ class CloudBackupVersionMigrationWorkerImpl(
     logInfo {
       "Detected outdated backup schema (${localBackup::class.simpleName}), initiating migration to latest version"
     }
+
+    // Get cloud store account first
+    val cloudStoreAccount = cloudStoreAccountRepository
+      .currentAccount(cloudServiceProvider())
+      .get()
+      ?: return // No cloud store account available
 
     // Migrate based on account type
     when (account) {

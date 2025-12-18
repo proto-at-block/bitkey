@@ -7,6 +7,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.CloudBackupHealthLoggingFeatureFlag
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.app.AppSessionState
 import build.wallet.worker.BackgroundStrategy
@@ -19,12 +20,9 @@ class CloudBackupHealthSyncWorkerImpl(
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val appFunctionalityService: AppFunctionalityService,
   appSessionManager: AppSessionManager,
+  cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
 ) : CloudBackupHealthSyncWorker {
   override val runStrategy: Set<RunStrategy> = setOf(
-    RunStrategy.Startup(
-      // Skip if backgrounded. We'll start a new attempt when foregrounded.
-      backgroundStrategy = BackgroundStrategy.Skip
-    ),
     RunStrategy.OnEvent(
       observer = appSessionManager.appSessionState
         .filter { it == AppSessionState.FOREGROUND },
@@ -32,6 +30,10 @@ class CloudBackupHealthSyncWorkerImpl(
     ),
     RunStrategy.OnEvent(
       observer = accountService.activeAccount().distinctUntilChanged(),
+      backgroundStrategy = BackgroundStrategy.Skip
+    ),
+    RunStrategy.OnEvent(
+      observer = cloudBackupHealthLoggingFeatureFlag.flagValue(),
       backgroundStrategy = BackgroundStrategy.Skip
     )
   )

@@ -3,10 +3,20 @@ package build.wallet.cloud.store
 import build.wallet.catchingResult
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.logging.logError
+import build.wallet.logging.logInfo
+import build.wallet.logging.logWarn
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import kotlinx.datetime.Clock
+import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSUbiquitousKeyValueStore
+import platform.Foundation.NSUbiquitousKeyValueStoreAccountChange
+import platform.Foundation.NSUbiquitousKeyValueStoreChangeReasonKey
+import platform.Foundation.NSUbiquitousKeyValueStoreDidChangeExternallyNotification
+import platform.Foundation.NSUbiquitousKeyValueStoreInitialSyncChange
+import platform.Foundation.NSUbiquitousKeyValueStoreQuotaViolationChange
+import platform.Foundation.NSUbiquitousKeyValueStoreServerChange
 
 @Suppress("ClassName")
 interface iCloudKeyValueStore {
@@ -37,6 +47,25 @@ class iCloudKeyValueStoreImpl(
   init {
     // Initial sync.
     requestSync()
+    // Observe iCloud KVS change notifications
+    observeICloudChanges()
+  }
+
+  private fun observeICloudChanges() {
+    NSNotificationCenter.defaultCenter.addObserverForName(
+      name = NSUbiquitousKeyValueStoreDidChangeExternallyNotification,
+      `object` = null,
+      queue = null
+    ) { notification ->
+      val reason = notification?.userInfo?.get(NSUbiquitousKeyValueStoreChangeReasonKey) as? Long
+      when (reason) {
+        NSUbiquitousKeyValueStoreServerChange -> logInfo { "iCloud KVS sync from server" }
+        NSUbiquitousKeyValueStoreInitialSyncChange -> logInfo { "iCloud KVS initial sync" }
+        NSUbiquitousKeyValueStoreQuotaViolationChange -> logError { "iCloud KVS quota exceeded" }
+        NSUbiquitousKeyValueStoreAccountChange -> logWarn { "iCloud KVS account changed" }
+        else -> logWarn { "iCloud KVS change reason=$reason" }
+      }
+    }
   }
 
   /**

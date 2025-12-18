@@ -7,6 +7,8 @@ import build.wallet.availability.InactiveApp
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.CloudBackupHealthLoggingFeatureFlag
 import build.wallet.platform.app.AppSessionManagerFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -19,12 +21,15 @@ class CloudBackupHealthSyncWorkerImplTests : FunSpec({
   val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
   val appSessionManager = AppSessionManagerFake()
   val appFunctionalityService = AppFunctionalityServiceFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val cloudBackupHealthLoggingFeatureFlag = CloudBackupHealthLoggingFeatureFlag(featureFlagDao)
 
   val worker = CloudBackupHealthSyncWorkerImpl(
     accountService = accountService,
     cloudBackupHealthRepository = cloudBackupHealthRepository,
     appSessionManager = appSessionManager,
-    appFunctionalityService = appFunctionalityService
+    appFunctionalityService = appFunctionalityService,
+    cloudBackupHealthLoggingFeatureFlag = cloudBackupHealthLoggingFeatureFlag
   )
 
   beforeTest {
@@ -32,6 +37,7 @@ class CloudBackupHealthSyncWorkerImplTests : FunSpec({
     accountService.reset()
     cloudBackupHealthRepository.reset()
     appSessionManager.reset()
+    featureFlagDao.reset()
   }
 
   test("does not perform sync when app is inactive") {

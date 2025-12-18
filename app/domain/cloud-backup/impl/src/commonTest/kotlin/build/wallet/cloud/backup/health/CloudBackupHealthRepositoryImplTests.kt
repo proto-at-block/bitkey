@@ -6,19 +6,32 @@ import build.wallet.availability.F8eUnreachable
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
+import build.wallet.cloud.backup.v2.FullAccountFieldsMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.cloud.store.CloudError
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.emergencyexitkit.EmergencyExitKitData
 import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryFake
+import build.wallet.encrypt.XCiphertext
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.CloudBackupHealthLoggingFeatureFlag
+import build.wallet.logging.LogLevel
+import build.wallet.logging.LogWriterMock
+import build.wallet.logging.Logger
+import co.touchlab.kermit.Severity
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import okio.ByteString
 
 class CloudBackupHealthRepositoryImplTests : FunSpec({
 
+  val logWriter = LogWriterMock()
   val fullAccount = FullAccountMock
   val cloudAccount = CloudAccountMock(instanceId = "test-instance")
   val eekData = EmergencyExitKitData(
@@ -31,6 +44,9 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
   val emergencyExitKitRepository = EmergencyExitKitRepositoryFake()
   val fullAccountCloudBackupRepairer = FullAccountCloudBackupRepairerFake()
   val appFunctionalityService = AppFunctionalityServiceFake()
+  val jsonSerializer = JsonSerializer()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val cloudBackupHealthLoggingFeatureFlag = CloudBackupHealthLoggingFeatureFlag(featureFlagDao)
 
   fun createHealthRepository() =
     CloudBackupHealthRepositoryImpl(
@@ -39,7 +55,9 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       cloudBackupDao = cloudBackupDao,
       emergencyExitKitRepository = emergencyExitKitRepository,
       fullAccountCloudBackupRepairer = fullAccountCloudBackupRepairer,
-      appFunctionalityService = appFunctionalityService
+      appFunctionalityService = appFunctionalityService,
+      jsonSerializer = jsonSerializer,
+      cloudBackupHealthLoggingFeatureFlag = cloudBackupHealthLoggingFeatureFlag
     )
 
   // Helper function to set cloud backup and ensure it is available from the repository
@@ -56,6 +74,37 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     cloudBackupRepository.awaitBackup(account)
   }
 
+  // Helper function to set up a backup mismatch scenario
+  suspend fun setupBackupMismatch(
+    localBackup: CloudBackup,
+    cloudBackup: CloudBackup,
+  ) {
+    cloudStoreAccountRepository.set(cloudAccount)
+    cloudBackupDao.set(fullAccount.accountId.serverId, localBackup)
+    setCloudBackup(cloudAccount, cloudBackup)
+  }
+
+  // Helper function to filter mismatch warning logs
+  fun LogWriterMock.mismatchLogs() =
+    logs.filter {
+      it.severity == Severity.Warn && it.message.contains("Backup mismatch")
+    }
+
+  // Helper function to filter size warning logs
+  fun LogWriterMock.sizeWarningLogs() =
+    logs.filter {
+      it.severity == Severity.Warn && it.message.contains("Backup approaching 1MB")
+    }
+
+  // Helper function to create a large backup that exceeds the size warning threshold (900KB)
+  fun createLargeBackup(): CloudBackupV3 {
+    val largeDekMap = (1..10000).associate {
+      "relationship-id-$it" to XCiphertext("cipher-text-$it-${"x".repeat(80)}.nonce-$it")
+    }
+    val largeFields = FullAccountFieldsMock.copy(socRecSealedDekMap = largeDekMap)
+    return CloudBackupV3WithFullAccountMock.copy(fullAccountFields = largeFields)
+  }
+
   beforeTest {
     cloudStoreAccountRepository.reset()
     cloudBackupRepository.reset()
@@ -63,6 +112,13 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     emergencyExitKitRepository.reset()
     fullAccountCloudBackupRepairer.reset()
     appFunctionalityService.reset()
+    featureFlagDao.reset()
+    logWriter.clear()
+    Logger.configure(
+      tag = "Test",
+      minimumLogLevel = LogLevel.Verbose,
+      logWriters = listOf(logWriter)
+    )
   }
 
   context("parameterized tests for all backup versions") {
@@ -86,7 +142,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
             // Setup healthy backup scenario
             cloudStoreAccountRepository.set(cloudAccount)
             cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
-            setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
+            setCloudBackup(cloudAccount, cloudBackup)
             emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
             val status = healthRepository.performSync(fullAccount)
@@ -108,7 +164,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
             // Setup healthy backup scenario
             cloudStoreAccountRepository.set(cloudAccount)
             cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
-            setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
+            setCloudBackup(cloudAccount, cloudBackup)
             emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
             val status = healthRepository.performSync(fullAccount)
@@ -122,7 +178,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
           val healthRepository = createHealthRepository()
           cloudStoreAccountRepository.set(cloudAccount)
           cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
-          setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
+          setCloudBackup(cloudAccount, cloudBackup)
           emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
           val status = healthRepository.performSync(fullAccount)
@@ -140,8 +196,8 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
           }
 
           cloudStoreAccountRepository.set(cloudAccount)
-          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
-          setCloudBackup(cloudAccount, differentCloudBackup as CloudBackup)
+          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
+          setCloudBackup(cloudAccount, differentCloudBackup)
 
           val status = healthRepository.performSync(fullAccount)
 
@@ -156,7 +212,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
           // No cloud backup - unhealthy scenario
 
           fullAccountCloudBackupRepairer.onRepairAttempt = {
-            setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
+            setCloudBackup(cloudAccount, cloudBackup)
           }
 
           val status = healthRepository.performSync(fullAccount)
@@ -221,7 +277,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     test("returns backup missing when cloud backup is null") {
       val healthRepository = createHealthRepository()
       cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
       // No cloud backup set
 
       val status = healthRepository.performSync(fullAccount)
@@ -232,7 +288,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     test("returns no cloud access when cloud backup read fails") {
       val healthRepository = createHealthRepository()
       cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+      cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
       cloudBackupRepository.returnReadError =
         CloudBackupError.UnrectifiableCloudBackupError(CloudError())
 
@@ -246,13 +302,91 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     val healthRepository = createHealthRepository()
     val cloudBackup = CloudBackupV2WithFullAccountMock
     cloudStoreAccountRepository.set(cloudAccount)
-    cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
-    setCloudBackup(cloudAccount, cloudBackup as CloudBackup)
+    cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
+    setCloudBackup(cloudAccount, cloudBackup)
     emergencyExitKitRepository.readError = Error("EEK read failed")
 
     val status = healthRepository.performSync(fullAccount)
 
     status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
     status.eekBackupStatus shouldBe EekBackupStatus.ProblemWithBackup.BackupMissing
+  }
+
+  context("backup mismatch logging") {
+    val localBackup = CloudBackupV3WithFullAccountMock
+
+    test("logs backup mismatch when feature flag is enabled") {
+      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+      val healthRepository = createHealthRepository()
+      val cloudBackup = localBackup.copy(accountId = "different-account-id")
+      setupBackupMismatch(localBackup, cloudBackup)
+
+      val status = healthRepository.performSync(fullAccount)
+
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
+      logWriter.mismatchLogs().shouldNotBeEmpty()
+      logWriter.mismatchLogs().first().message shouldContain "accountId"
+    }
+
+    test("does not log backup mismatch when feature flag is disabled") {
+      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
+      val healthRepository = createHealthRepository()
+      val cloudBackup = localBackup.copy(accountId = "different-account-id")
+      setupBackupMismatch(localBackup, cloudBackup)
+
+      val status = healthRepository.performSync(fullAccount)
+
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
+      logWriter.mismatchLogs().shouldBeEmpty()
+    }
+
+    test("logs diff summary with changed fields") {
+      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+      val healthRepository = createHealthRepository()
+      val cloudBackup = localBackup.copy(
+        accountId = "different-account-id",
+        deviceNickname = "different-device"
+      )
+      setupBackupMismatch(localBackup, cloudBackup)
+
+      healthRepository.performSync(fullAccount)
+
+      val mismatchLog = logWriter.mismatchLogs().first()
+      mismatchLog.message shouldContain "accountId"
+      mismatchLog.message shouldContain "deviceNickname"
+    }
+  }
+
+  context("backup size warning logging") {
+    test("logs size warning when backup exceeds threshold and feature flag is enabled") {
+      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+      val healthRepository = createHealthRepository()
+      val largeBackup = createLargeBackup()
+
+      cloudStoreAccountRepository.set(cloudAccount)
+      cloudBackupDao.set(fullAccount.accountId.serverId, largeBackup)
+      setCloudBackup(cloudAccount, largeBackup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      healthRepository.performSync(fullAccount)
+
+      logWriter.sizeWarningLogs().shouldNotBeEmpty()
+      logWriter.sizeWarningLogs().first().message shouldContain "dek="
+    }
+
+    test("does not log size warning when feature flag is disabled") {
+      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
+      val healthRepository = createHealthRepository()
+      val largeBackup = createLargeBackup()
+
+      cloudStoreAccountRepository.set(cloudAccount)
+      cloudBackupDao.set(fullAccount.accountId.serverId, largeBackup)
+      setCloudBackup(cloudAccount, largeBackup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      healthRepository.performSync(fullAccount)
+
+      logWriter.sizeWarningLogs().shouldBeEmpty()
+    }
   }
 })
