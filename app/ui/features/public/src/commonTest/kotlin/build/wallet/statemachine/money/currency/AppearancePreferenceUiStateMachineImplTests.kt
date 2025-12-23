@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import app.cash.turbine.plusAssign
 import bitkey.ui.framework.StringResourceProvider
 import build.wallet.analytics.events.EventTrackerMock
+import build.wallet.analytics.v1.Action.ACTION_APP_BITCOIN_DISPLAY_PREFERENCE_CHANGE
 import build.wallet.analytics.v1.Action.ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.coroutines.turbine.turbines
@@ -12,6 +13,7 @@ import build.wallet.money.currency.FiatCurrenciesServiceFake
 import build.wallet.money.currency.GBP
 import build.wallet.money.currency.USD
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryFake
+import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -24,6 +26,8 @@ import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilSheet
 import build.wallet.ui.theme.ThemePreferenceServiceFake
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.Bip177FeatureFlag
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.collections.shouldContainExactly
@@ -43,6 +47,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
   val bitcoinWalletService = BitcoinWalletServiceFake()
   val themePreferenceService = ThemePreferenceServiceFake()
   val chartTimeScalePreference = ChartRangePreferenceFake()
+  val bip177FeatureFlag = Bip177FeatureFlag(FeatureFlagDaoFake())
   val stringResourceProvider = object : StringResourceProvider {
     @Composable
     override fun getString(resourceId: StringResource): String {
@@ -61,7 +66,8 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
     bitcoinWalletService = bitcoinWalletService,
     themePreferenceService = themePreferenceService,
     chartRangePreference = chartTimeScalePreference,
-    stringResourceProvider = stringResourceProvider
+    stringResourceProvider = stringResourceProvider,
+    bip177FeatureFlag = bip177FeatureFlag
   )
 
   val onBackCalls = turbines.create<Unit>("onBack calls")
@@ -85,6 +91,11 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
       awaitBody<AppearancePreferenceBodyModel>()
 
       awaitBody<AppearancePreferenceBodyModel> {
+        onSectionSelected(AppearanceSection.CURRENCY)
+      }
+
+      awaitBody<AppearancePreferenceBodyModel> {
+        selectedSection.shouldBe(AppearanceSection.CURRENCY)
         moneyHomeHero.isHidden.shouldBeFalse()
         moneyHomeHero.primaryAmount.shouldBe("$0.00")
         moneyHomeHero.secondaryAmount.shouldBe("0 sats")
@@ -111,6 +122,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
         moneyHomeHero.primaryAmount.shouldBe("£0.00")
         moneyHomeHero.secondaryAmount.shouldBe("0 sats")
         fiatCurrencyPreferenceString.shouldBe("GBP")
+        selectedSection.shouldBe(AppearanceSection.CURRENCY)
       }
     }
   }
@@ -152,6 +164,90 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
 
       // Verify we're back to main appearance preference screen without bottom sheet
       awaitItem().bottomSheetModel.shouldBe(null)
+    }
+  }
+
+  test("dismissing fiat currency sheet preserves selected section") {
+    fiatCurrenciesService.allFiatCurrencies.value = listOf(USD, GBP)
+
+    stateMachine.test(props) {
+      // loading theme
+      awaitBody<AppearancePreferenceBodyModel>()
+
+      awaitBody<AppearancePreferenceBodyModel> {
+        selectedSection.shouldBe(AppearanceSection.DISPLAY)
+        onSectionSelected(AppearanceSection.CURRENCY)
+      }
+
+      awaitBody<AppearancePreferenceBodyModel> {
+        selectedSection.shouldBe(AppearanceSection.CURRENCY)
+        onFiatCurrencyPreferenceClick()
+      }
+
+      awaitBody<FiatCurrencyListFormModel> {
+        onClose()
+      }
+
+      awaitBody<AppearancePreferenceBodyModel> {
+        selectedSection.shouldBe(AppearanceSection.CURRENCY)
+      }
+    }
+  }
+
+  test("dismissing bitcoin display unit sheet preserves selected section") {
+    stateMachine.test(props) {
+      // loading theme
+      awaitBody<AppearancePreferenceBodyModel>()
+
+      awaitBody<AppearancePreferenceBodyModel> {
+        selectedSection.shouldBe(AppearanceSection.DISPLAY)
+        onSectionSelected(AppearanceSection.CURRENCY)
+      }
+
+      awaitBody<AppearancePreferenceBodyModel> {
+        selectedSection.shouldBe(AppearanceSection.CURRENCY)
+        onBitcoinDisplayPreferenceClick()
+      }
+
+      awaitItem().also { screenModel ->
+        screenModel.bottomSheetModel.shouldNotBeNull().onClosed()
+      }
+
+      awaitUntilBody<AppearancePreferenceBodyModel>(
+        matching = { it.selectedSection == AppearanceSection.CURRENCY }
+      ) {
+        selectedSection.shouldBe(AppearanceSection.CURRENCY)
+      }
+    }
+  }
+
+  test("selecting bitcoin display unit closes sheet and updates preference") {
+    stateMachine.test(props) {
+      // loading theme
+      awaitBody<AppearancePreferenceBodyModel>()
+
+      awaitBody<AppearancePreferenceBodyModel> {
+        onSectionSelected(AppearanceSection.CURRENCY)
+      }
+
+      awaitBody<AppearancePreferenceBodyModel> {
+        selectedSection.shouldBe(AppearanceSection.CURRENCY)
+        onBitcoinDisplayPreferenceClick()
+      }
+
+      awaitUntilSheet<BitcoinDisplayUnitSelectionBodyModel> {
+        selectedUnit.shouldBe(BitcoinDisplayUnit.Satoshi)
+        onSelectUnit(BitcoinDisplayUnit.Bitcoin)
+      }
+
+      eventTracker.eventCalls.awaitItem().action.shouldBe(ACTION_APP_BITCOIN_DISPLAY_PREFERENCE_CHANGE)
+
+      awaitUntilBody<AppearancePreferenceBodyModel>(
+        matching = { it.bitcoinDisplayPreferenceString == "BTC" }
+      ) {
+        bitcoinDisplayPreferenceString.shouldBe("BTC")
+        selectedSection.shouldBe(AppearanceSection.CURRENCY)
+      }
     }
   }
 })

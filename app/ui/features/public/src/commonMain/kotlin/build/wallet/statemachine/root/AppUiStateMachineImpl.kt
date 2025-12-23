@@ -20,6 +20,7 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.AppUpdateModalFeatureFlag
 import build.wallet.logging.logInfo
+import build.wallet.logging.logWarn
 import build.wallet.mapResult
 import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.platform.config.AppVariant
@@ -35,6 +36,8 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
 import build.wallet.statemachine.account.full.FullAccountUiProps
 import build.wallet.statemachine.account.full.FullAccountUiStateMachine
+import build.wallet.availability.AgeRangeVerificationResult
+import build.wallet.availability.AgeRangeVerificationService
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.data.keybox.*
@@ -91,6 +94,7 @@ class AppUiStateMachineImpl(
   private val appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
   private val appStoreUrlProvider: AppStoreUrlProvider,
   private val deepLinkHandler: DeepLinkHandler,
+  private val ageRangeVerificationService: AgeRangeVerificationService,
 ) : AppUiStateMachine {
   /**
    * The last screen model emitted, if any.
@@ -476,12 +480,25 @@ class AppUiStateMachineImpl(
     return when (accountData) {
       is CheckingRecovery -> AppLoadingScreenModel()
 
-      is GettingStartedData ->
-        ChooseAccountAccessScreenModel(
-          chooseAccountAccessData = accountData,
-          onSoftwareWalletCreated = onSoftwareWalletCreated,
-          onCreateFullAccount = onCreateFullAccount
-        )
+      is GettingStartedData -> {
+        // Age range verification for App Store Accountability Act compliance (Texas SB2420).
+        // Checks platform age signals before allowing account creation.
+        val result by produceState<AgeRangeVerificationResult?>(initialValue = null) {
+          value = ageRangeVerificationService.verifyAgeRange()
+        }
+        when (result) {
+          null -> AppLoadingScreenModel()
+          AgeRangeVerificationResult.Denied ->
+            AgeRestrictedBodyModel(deviceInfoProvider.getDeviceInfo().devicePlatform)
+              .asRootScreen()
+          AgeRangeVerificationResult.Allowed ->
+            ChooseAccountAccessScreenModel(
+              chooseAccountAccessData = accountData,
+              onSoftwareWalletCreated = onSoftwareWalletCreated,
+              onCreateFullAccount = onCreateFullAccount
+            )
+        }
+      }
 
       is RecoveringAccountData -> lostAppRecoveryUiStateMachine.model(
         LostAppRecoveryUiProps(

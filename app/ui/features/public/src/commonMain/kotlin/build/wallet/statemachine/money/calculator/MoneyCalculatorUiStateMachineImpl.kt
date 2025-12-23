@@ -86,7 +86,7 @@ class MoneyCalculatorUiStateMachineImpl(
           }
 
           is WholeNumber -> {
-            // Only Bitcoin amounts can be entered in whole number amounts (Satoshis) currently.
+            // Only Bitcoin amounts can be entered in whole number amounts (satoshis) currently.
             require(props.inputAmountCurrency == BTC)
             BitcoinMoney.sats(amount.number.toBigInteger())
           }
@@ -165,8 +165,8 @@ class MoneyCalculatorUiStateMachineImpl(
       // Use the [BitcoinDisplayUnit] to determine how we should enter Bitcoin amounts.
       is CryptoCurrency ->
         when (bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.value) {
-          BitcoinDisplayUnit.Satoshi -> FRACTIONAL_UNIT
           BitcoinDisplayUnit.Bitcoin -> UNIT
+          BitcoinDisplayUnit.Satoshi -> FRACTIONAL_UNIT
         }
     }
 }

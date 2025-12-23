@@ -1,0 +1,4 @@
+-- Remove deprecated coachmarks
+DELETE FROM coachmarkEntity WHERE id IN ('InheritanceCoachmark', 'BalanceGraphCoachmark', 'SecurityHubHomeCoachmark');
+
+PRAGMA foreign_key_check;

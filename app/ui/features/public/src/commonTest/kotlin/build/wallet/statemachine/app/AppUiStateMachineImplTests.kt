@@ -8,6 +8,8 @@ import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADING_APP
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
+import build.wallet.availability.AgeRangeVerificationResult
+import build.wallet.availability.AgeRangeVerificationServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.SoftwareAccountMock
@@ -15,6 +17,7 @@ import build.wallet.bootstrap.AppState
 import build.wallet.bootstrap.AppState.HasActiveSoftwareAccount
 import build.wallet.bootstrap.LoadAppServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
+import build.wallet.coroutines.turbine.awaitItemMaybe
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
@@ -33,6 +36,7 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
 import build.wallet.statemachine.account.full.FullAccountUiProps
 import build.wallet.statemachine.account.full.FullAccountUiStateMachine
+import build.wallet.statemachine.core.AgeRestrictedBodyModel
 import build.wallet.statemachine.core.AppUpdateModalBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.SplashBodyModel
@@ -59,9 +63,13 @@ import build.wallet.statemachine.root.SplashScreenDelay
 import build.wallet.statemachine.root.WelcomeToBitkeyScreenDuration
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilBodyMock
 import build.wallet.worker.AppWorkerExecutorMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -124,6 +132,8 @@ class AppUiStateMachineImplTests : FunSpec({
 
   val appUpdateModalFeatureFlag = AppUpdateModalFeatureFlag(FeatureFlagDaoFake())
 
+  val ageRangeVerificationService = AgeRangeVerificationServiceFake()
+
   // Fakes are stateful, need to reinitialize before each test to reset the state.
   beforeTest {
     loadAppService.reset()
@@ -132,6 +142,7 @@ class AppUiStateMachineImplTests : FunSpec({
     noActiveAccountDataStateMachine.reset()
     deepLinkHandler.reset()
     appStoreUrlProvider.reset()
+    ageRangeVerificationService.reset()
     stateMachine =
       AppUiStateMachineImpl(
         appVariant = AppVariant.Development,
@@ -162,7 +173,8 @@ class AppUiStateMachineImplTests : FunSpec({
         deviceInfoProvider = DeviceInfoProviderMock(),
         appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
         appStoreUrlProvider = appStoreUrlProvider,
-        deepLinkHandler = deepLinkHandler
+        deepLinkHandler = deepLinkHandler,
+        ageRangeVerificationService = ageRangeVerificationService
       )
   }
 
@@ -178,6 +190,22 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       appWorkerExecutor.executeAllCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("Age range verification denied shows AgeRestrictedBodyModel") {
+    ageRangeVerificationService.result = AgeRangeVerificationResult.Denied
+    noActiveAccountDataStateMachine.emitModel(gettingStartedData)
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      awaitBody<AgeRestrictedBodyModel>()
+      appWorkerExecutor.executeAllCalls.awaitItem()
+      eventTracker.eventCalls.awaitItem()
+        .shouldBe(TrackedAction(ACTION_APP_SCREEN_IMPRESSION, GeneralEventTrackerScreenId.AGE_RESTRICTED))
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -331,6 +359,7 @@ class AppUiStateMachineImplTests : FunSpec({
       account = FullAccountMock
     )
 
+    accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
     stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
@@ -338,8 +367,6 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitBodyMock<CreateAccountUiProps> {
         onOnboardingComplete(FullAccountMock)
       }
-
-      accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
 
       awaitBody<LoadingSuccessBodyModel> {
         message.shouldBe("Welcome to Bitkey")
@@ -429,6 +456,7 @@ class AppUiStateMachineImplTests : FunSpec({
   test("creating a full account") {
     loadAppService.appState.value = null
     noActiveAccountDataStateMachine.emitModel(gettingStartedData)
+    accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
 
     stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
@@ -445,8 +473,6 @@ class AppUiStateMachineImplTests : FunSpec({
         onOnboardingComplete(FullAccountMock)
       }
 
-      accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
-
       awaitBody<LoadingSuccessBodyModel> {
         message.shouldBe("Welcome to Bitkey")
       }
@@ -455,6 +481,17 @@ class AppUiStateMachineImplTests : FunSpec({
         accountData.shouldBe(ActiveKeyboxLoadedDataMock)
       }
       appWorkerExecutor.executeAllCalls.awaitItem()
+
+      // Age verification calls a suspend function inside produceState. There's a race
+      // condition between the suspend function completing and Compose recomposition:
+      // the LOADING_APP screen may or may not render (and emit its analytics event)
+      // depending on whether recomposition happens before or after the result arrives.
+      // Note: LOADING_APP screen is visually identical to the splash screen - it shows
+      // the same UI but indicates background work (like age verification) is in progress.
+      @OptIn(DelicateCoroutinesApi::class)
+      eventTracker.eventCalls.awaitItemMaybe()
+        ?.shouldBe(TrackedAction(ACTION_APP_SCREEN_IMPRESSION, LOADING_APP))
+
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -570,9 +607,11 @@ class AppUiStateMachineImplTests : FunSpec({
       deviceInfoProvider = DeviceInfoProviderMock(),
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
-      deepLinkHandler = deepLinkHandler
+      deepLinkHandler = deepLinkHandler,
+      ageRangeVerificationService = ageRangeVerificationService
     )
 
+    accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
     stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
@@ -582,7 +621,6 @@ class AppUiStateMachineImplTests : FunSpec({
 
       // Simulate account becoming active
       accountService.setActiveAccount(FullAccountMock)
-      accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
 
       // Should transition to FullAccountUiProps
       awaitBodyMock<FullAccountUiProps> {
@@ -631,29 +669,33 @@ class AppUiStateMachineImplTests : FunSpec({
       deviceInfoProvider = DeviceInfoProviderMock(),
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
-      deepLinkHandler = deepLinkHandler
+      deepLinkHandler = deepLinkHandler,
+      ageRangeVerificationService = ageRangeVerificationService
     )
 
     // Set initial account
     accountService.setActiveAccount(FullAccountMock)
 
+    noActiveAccountDataStateMachine.emitModel(gettingStartedData)
     stateMachine.test(Unit) {
-      awaitBody<SplashBodyModel>()
+      awaitUntilBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
 
       // Should show FullAccountUiProps initially
-      awaitBodyMock<FullAccountUiProps> {
+      awaitUntilBodyMock<FullAccountUiProps> {
         accountData.shouldBe(ActiveKeyboxLoadedDataMock)
       }
 
       // Simulate account being cleared
       accountService.clear()
-      noActiveAccountDataStateMachine.emitModel(gettingStartedData)
 
       // Should transition to ChooseAccountAccessScreen
-      awaitBodyMock<ChooseAccountAccessUiProps>()
+      awaitUntilBodyMock<ChooseAccountAccessUiProps> {
+        chooseAccountAccessData.shouldBeInstanceOf<GettingStartedData>()
+      }
 
       appWorkerExecutor.executeAllCalls.awaitItem()
+      eventTracker.eventCalls.cancelAndIgnoreRemainingEvents()
       cancelAndIgnoreRemainingEvents()
     }
   }

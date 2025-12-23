@@ -16,8 +16,8 @@ buildLogic {
     version(
       yyyy = 2025,
       version = 23,
-      patch = 2,
-      build = 2
+      patch = 3,
+      build = 3
     )
   }
   compose {
@@ -127,6 +127,7 @@ licensee {
   allowUrl("https://www.zetetic.net/sqlcipher/license/")
   allowUrl("https://golang.org/LICENSE")
   allowUrl("https://opensource.org/licenses/MIT")
+  allowUrl("https://developer.android.com/guide/playcore/license")
 }
 
 dependencies {

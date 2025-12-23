@@ -160,7 +160,7 @@ class AppDataDeleterImplTests : FunSpec({
     appPrivateKeyDao.reset()
     cloudBackupDao.reset()
     securityRecommendationInteractionDao.clear()
-    coachmarkService.defaultCoachmarks = listOf(CoachmarkIdentifier.InheritanceCoachmark)
+    coachmarkService.defaultCoachmarks = listOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
   }
 
   test("not allowed to delete app data in Customer builds") {

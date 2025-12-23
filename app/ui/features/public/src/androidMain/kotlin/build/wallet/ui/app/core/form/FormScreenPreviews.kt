@@ -37,7 +37,6 @@ import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -406,14 +405,6 @@ internal fun CurrencyListPreview() {
   )
 }
 
-val CurrencyPreferenceListItemPickerMenu =
-  ListItemPickerMenu(
-    isShowing = false,
-    selectedOption = "Sats",
-    options = listOf("Sats", "Bitcoin"),
-    onOptionSelected = {},
-    onDismiss = {}
-  )
 
 @Preview
 @Composable

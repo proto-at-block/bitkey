@@ -10,6 +10,7 @@ import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.SignatureVerifierMock
 import build.wallet.encrypt.SignatureVerifierMock.VerifyEcdsaCall
+import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.fwup.*
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.keybox.KeyboxDaoMock
@@ -92,6 +93,13 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       }
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
+      firmwareDataService.firmwareData.value.shouldBe(
+        FirmwareDataUpToDateMock.copy(
+          firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(
+            version = FwupDataMock.version
+          )
+        )
+      )
       onDoneCalls.awaitItem()
     }
   }

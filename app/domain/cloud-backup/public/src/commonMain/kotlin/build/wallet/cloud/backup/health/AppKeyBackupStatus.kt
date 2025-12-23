@@ -42,6 +42,12 @@ sealed interface AppKeyBackupStatus {
      * - does not belong to the customer's account
      */
     data class InvalidBackup(val cloudBackup: CloudBackup) : ProblemWithBackup
+
+    /**
+     * The local backup wasn't up to date and was replaced with a modern backup; it should be
+     * uploaded.
+     */
+    data object StaleBackup : ProblemWithBackup
   }
 }
 

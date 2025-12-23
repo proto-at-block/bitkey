@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+echo "Activate Hermit"
+source bin/activate-hermit
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 "$SCRIPT_DIR"/EnsureGitLFS
 

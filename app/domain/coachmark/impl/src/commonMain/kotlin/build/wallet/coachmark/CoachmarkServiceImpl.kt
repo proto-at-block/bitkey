@@ -10,7 +10,6 @@ import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
 import build.wallet.feature.isEnabled
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
 import kotlin.time.Duration.Companion.days
@@ -50,23 +49,23 @@ class CoachmarkServiceImpl(
         .getAllCoachmarks()
         .bind()
 
-      // If we've never seen a coachmark identifier before, create it.
-      coachmarkIds
-        .filter { id -> existingCoachmarks.none { it.id == id } }
-        .forEach { createCoachmark(it) }
+      // If we've never seen a coachmark identifier before, create it if criteria are met.
+      val newCoachmarkIds = coachmarkIds.filter { id -> existingCoachmarks.none { it.id == id } }
+      for (id in newCoachmarkIds) {
+        if (coachmarkVisibilityDecider.shouldCreate(id)) {
+          createCoachmark(id)
+        }
+      }
 
       // Get all coachmarks from the DB again now that we've created the new ones
-      coachmarkDao
-        .getAllCoachmarks()
-        .map { coachmarks ->
-          coachmarks
-            .filter { coachmark ->
-              // filter out all but the coachmarks we want to show based on the logic in the decider
-              coachmarkVisibilityDecider.shouldShow(coachmark)
-            }.map { coachmark ->
-              coachmark.id
-            }
-        }.bind()
+      val allCoachmarks = coachmarkDao.getAllCoachmarks().bind()
+      val visibleCoachmarkIds = mutableListOf<CoachmarkIdentifier>()
+      for (coachmark in allCoachmarks) {
+        if (coachmarkVisibilityDecider.shouldShow(coachmark)) {
+          visibleCoachmarkIds.add(coachmark.id)
+        }
+      }
+      visibleCoachmarkIds
     }
 
   override suspend fun markCoachmarkAsDisplayed(

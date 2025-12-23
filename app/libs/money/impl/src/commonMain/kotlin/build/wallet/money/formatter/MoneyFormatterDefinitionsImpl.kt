@@ -55,7 +55,13 @@ class MoneyFormatterDefinitionsImpl(
 
   override val bitcoinFractionalNameOnly =
     BitcoinMoneyFormatter(
-      denominationOption = BitcoinMoneyFormatter.DenominationOption.Satoshi,
+      denominationOption = BitcoinMoneyFormatter.DenominationOption.Satoshi(useBip177Format = false),
+      doubleFormatter = doubleFormatter
+    )
+
+  override val bitcoinFractionalBip177 =
+    BitcoinMoneyFormatter(
+      denominationOption = BitcoinMoneyFormatter.DenominationOption.Satoshi(useBip177Format = true),
       doubleFormatter = doubleFormatter
     )
 }

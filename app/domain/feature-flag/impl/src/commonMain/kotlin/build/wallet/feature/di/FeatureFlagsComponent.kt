@@ -6,6 +6,7 @@ import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagDao
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.*
+import build.wallet.platform.config.AppVariant
 import me.tatarka.inject.annotations.Provides
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
 
@@ -171,6 +172,18 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun bip177FeatureFlag(featureFlagDao: FeatureFlagDao) = Bip177FeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun ageRangeVerificationFeatureFlag(
+    featureFlagDao: FeatureFlagDao,
+    appVariant: AppVariant,
+  ) = AgeRangeVerificationFeatureFlag(featureFlagDao, appVariant)
+
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun cloudBackupHealthLoggingFeatureFlag(featureFlagDao: FeatureFlagDao) =
     CloudBackupHealthLoggingFeatureFlag(featureFlagDao)
 
@@ -207,7 +220,9 @@ interface FeatureFlagsComponent {
     sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag,
     bdk2FeatureFlag: Bdk2FeatureFlag,
     cashAppFeePromotionFeatureFlag: CashAppFeePromotionFeatureFlag,
+    bip177FeatureFlag: Bip177FeatureFlag,
     cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
+    ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       bdk2FeatureFlag,
@@ -233,6 +248,7 @@ interface FeatureFlagsComponent {
       publicCustomerSupportFeatureFlag,
       sharedCloudBackupsFeatureFlag,
       cashAppFeePromotionFeatureFlag,
+      ageRangeVerificationFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
       utxoMaxConsolidationCountFeatureFlag,
@@ -242,7 +258,8 @@ interface FeatureFlagsComponent {
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       firmwareCommsLoggingFeatureFlag,
       asyncNfcSigningFeatureFlag,
-      cloudBackupHealthLoggingFeatureFlag
+      bip177FeatureFlag,
+      cloudBackupHealthLoggingFeatureFlag,
     )
   }
 }

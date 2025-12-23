@@ -8,6 +8,8 @@ import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.Bip177FeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.inappsecurity.HideBalancePreference
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -16,6 +18,7 @@ import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.money.display.appearanceLabel
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.pricechart.BitcoinPriceCardPreference
@@ -24,9 +27,8 @@ import build.wallet.pricechart.ChartRangePreference
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.money.currency.CurrencyPreferenceUiState.*
+import build.wallet.statemachine.money.currency.AppearancePreferenceUiState.*
 import build.wallet.statemachine.pricechart.TimeScaleListFormModel
-import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
 import build.wallet.ui.theme.ThemePreferenceService
@@ -49,12 +51,13 @@ class AppearancePreferenceUiStateMachineImpl(
   private val themePreferenceService: ThemePreferenceService,
   private val chartRangePreference: ChartRangePreference,
   private val stringResourceProvider: StringResourceProvider,
+  private val bip177FeatureFlag: Bip177FeatureFlag,
 ) : AppearancePreferenceUiStateMachine {
   @Composable
   override fun model(props: AppearancePreferenceProps): ScreenModel {
-    var state: CurrencyPreferenceUiState by remember {
+    var state: AppearancePreferenceUiState by remember {
       mutableStateOf(
-        ShowingCurrencyPreferenceUiState(
+        ShowingPreferencesUiState(
           isHideBalanceEnabled = false,
           selectedSection = AppearanceSection.DISPLAY
         )
@@ -71,7 +74,7 @@ class AppearancePreferenceUiStateMachineImpl(
       hideBalancePreference.isEnabled
     }.onEach {
       when (val s = state) {
-        is ShowingCurrencyPreferenceUiState -> state = s.copy(isHideBalanceEnabled = it)
+        is ShowingPreferencesUiState -> state = s.copy(isHideBalanceEnabled = it)
         else -> {
           // no-op
         }
@@ -79,8 +82,8 @@ class AppearancePreferenceUiStateMachineImpl(
     }.collectAsState(false)
 
     return when (val uiState = state) {
-      is ShowingCurrencyPreferenceUiState -> {
-        CurrencyPreferenceFormModel(
+      is ShowingPreferencesUiState -> {
+        AppearancePreferenceFormModel(
           props = props,
           selectedFiatCurrency = selectedFiatCurrency,
           isHideBalanceEnabled = isHideBalanceEnabled,
@@ -95,12 +98,18 @@ class AppearancePreferenceUiStateMachineImpl(
               selectedTheme = selectedThemePreference
             )
           },
-          onFiatCurrencyPreferenceClick = { state = ShowingCurrencyFiatSelectionUiState },
-          onDefaultTimeScalePreferenceClick = { state = ShowingDefaultTimeScaleSelectionUiState }
+          onFiatCurrencyPreferenceClick = { state = ShowingFiatSelectionUiState },
+          onDefaultTimeScalePreferenceClick = { state = ShowingDefaultTimeScaleSelectionUiState },
+          onBitcoinDisplayPreferenceClick = {
+            state = ShowingBitcoinDisplayUnitSelectionUiState(
+              isHideBalanceEnabled = isHideBalanceEnabled,
+              selectedUnit = bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.value
+            )
+          }
         )
       }
 
-      is ShowingCurrencyFiatSelectionUiState -> {
+      is ShowingFiatSelectionUiState -> {
         val scope = rememberStableCoroutineScope()
         val onCurrencySelection: (FiatCurrency) -> Unit = remember(scope, isHideBalanceEnabled) {
           { selectedCurrency ->
@@ -109,7 +118,7 @@ class AppearancePreferenceUiStateMachineImpl(
                 .onSuccess {
                   eventTracker.track(Action.ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE)
                 }
-              state = ShowingCurrencyPreferenceUiState(
+              state = ShowingPreferencesUiState(
                 isHideBalanceEnabled = isHideBalanceEnabled,
                 selectedSection = AppearanceSection.CURRENCY
               )
@@ -118,7 +127,7 @@ class AppearancePreferenceUiStateMachineImpl(
         }
         FiatCurrencyListFormModel(
           onClose = {
-            state = ShowingCurrencyPreferenceUiState(
+            state = ShowingPreferencesUiState(
               isHideBalanceEnabled = isHideBalanceEnabled,
               selectedSection = AppearanceSection.CURRENCY
             )
@@ -128,13 +137,67 @@ class AppearancePreferenceUiStateMachineImpl(
           onCurrencySelection = onCurrencySelection
         ).asModalScreen()
       }
+
+      is ShowingBitcoinDisplayUnitSelectionUiState -> {
+        val scope = rememberStableCoroutineScope()
+        var selectedUnit by remember { mutableStateOf(uiState.selectedUnit) }
+        val isBip177Enabled by remember {
+          bip177FeatureFlag.flagValue().map { it.isEnabled() }
+        }.collectAsState(initial = bip177FeatureFlag.isEnabled())
+
+        // Get the current balance
+        val transactionsData by remember {
+          bitcoinWalletService.transactionsData()
+        }.collectAsState()
+
+        val balance = transactionsData?.balance?.total ?: BitcoinMoney.zero()
+
+        AppearancePreferenceFormModel(
+          props = props,
+          selectedFiatCurrency = selectedFiatCurrency,
+          isHideBalanceEnabled = isHideBalanceEnabled,
+          selectedSection = AppearanceSection.CURRENCY,
+          themePreferenceString = selectedThemePreference.displayText,
+          onThemePreferenceClick = {},
+          onFiatCurrencyPreferenceClick = {},
+          bottomSheetModel = bitcoinDisplayUnitSelectionSheetModel(
+            selectedUnit = selectedUnit,
+            balance = balance,
+            isBip177Enabled = isBip177Enabled,
+            moneyDisplayFormatter = moneyDisplayFormatter,
+            onSelectUnit = { unit ->
+              selectedUnit = unit
+              scope.launch {
+                bitcoinDisplayPreferenceRepository
+                  .setBitcoinDisplayUnit(unit)
+                  .onSuccess {
+                    eventTracker.track(Action.ACTION_APP_BITCOIN_DISPLAY_PREFERENCE_CHANGE)
+                  }
+                state = ShowingPreferencesUiState(
+                  isHideBalanceEnabled = uiState.isHideBalanceEnabled,
+                  selectedSection = AppearanceSection.CURRENCY
+                )
+              }
+            },
+            onExit = {
+              state = ShowingPreferencesUiState(
+                isHideBalanceEnabled = uiState.isHideBalanceEnabled,
+                selectedSection = AppearanceSection.CURRENCY
+              )
+            }
+          ),
+          onDefaultTimeScalePreferenceClick = {},
+          onBitcoinDisplayPreferenceClick = {}
+        )
+      }
+
       is ShowingThemeSelectionUiState -> {
         val scope = rememberStableCoroutineScope()
         var selectedTheme by remember {
           mutableStateOf(uiState.selectedTheme)
         }
 
-        CurrencyPreferenceFormModel(
+        AppearancePreferenceFormModel(
           props = props,
           selectedFiatCurrency = selectedFiatCurrency,
           isHideBalanceEnabled = isHideBalanceEnabled,
@@ -155,13 +218,14 @@ class AppearancePreferenceUiStateMachineImpl(
               }
             },
             onExit = {
-              state = ShowingCurrencyPreferenceUiState(
+              state = ShowingPreferencesUiState(
                 isHideBalanceEnabled = uiState.isHideBalanceEnabled,
                 selectedSection = AppearanceSection.DISPLAY // Since theme is in Display section
               )
             }
           ),
-          onDefaultTimeScalePreferenceClick = {}
+          onDefaultTimeScalePreferenceClick = {},
+          onBitcoinDisplayPreferenceClick = {}
         )
       }
 
@@ -171,7 +235,7 @@ class AppearancePreferenceUiStateMachineImpl(
           { selectedTimeScale ->
             scope.launch {
               chartRangePreference.set(selectedTimeScale)
-              state = ShowingCurrencyPreferenceUiState(
+              state = ShowingPreferencesUiState(
                 isHideBalanceEnabled = isHideBalanceEnabled,
                 selectedSection = AppearanceSection.CURRENCY // Since time scale is in Currency section
               )
@@ -180,7 +244,7 @@ class AppearancePreferenceUiStateMachineImpl(
         }
         TimeScaleListFormModel(
           onClose = {
-            state = ShowingCurrencyPreferenceUiState(
+            state = ShowingPreferencesUiState(
               isHideBalanceEnabled = isHideBalanceEnabled,
               selectedSection = AppearanceSection.CURRENCY
             )
@@ -195,17 +259,18 @@ class AppearancePreferenceUiStateMachineImpl(
   }
 
   @Composable
-  private fun CurrencyPreferenceFormModel(
+  private fun AppearancePreferenceFormModel(
     props: AppearancePreferenceProps,
     selectedFiatCurrency: FiatCurrency,
     isHideBalanceEnabled: Boolean,
     selectedSection: AppearanceSection,
-    onSectionSelected: (AppearanceSection) -> Unit,
+    onSectionSelected: (AppearanceSection) -> Unit = {},
     themePreferenceString: String,
     onThemePreferenceClick: () -> Unit,
     onFiatCurrencyPreferenceClick: () -> Unit,
     bottomSheetModel: SheetModel? = null,
     onDefaultTimeScalePreferenceClick: () -> Unit,
+    onBitcoinDisplayPreferenceClick: () -> Unit,
   ): ScreenModel {
     val transactionsData = remember { bitcoinWalletService.transactionsData() }
       .collectAsState().value
@@ -218,6 +283,10 @@ class AppearancePreferenceUiStateMachineImpl(
     val isBitcoinPriceCardEnabled by bitcoinPriceCardPreference.isEnabled.collectAsState()
     val selectedBitcoinUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
     val chartTimeScalePreference by chartRangePreference.selectedRange.collectAsState()
+    val scope = rememberStableCoroutineScope()
+    val isBip177Enabled by remember {
+      bip177FeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = bip177FeatureFlag.isEnabled())
 
     // Primary amount: fiat
     val convertedFiatAmount by remember(btcDisplayAmount) {
@@ -234,37 +303,10 @@ class AppearancePreferenceUiStateMachineImpl(
 
     // Secondary amount: bitcoin
     val moneyHomeHeroSecondaryAmountString =
-      remember(btcDisplayAmount, selectedBitcoinUnit) {
+      remember(btcDisplayAmount, selectedBitcoinUnit, isBip177Enabled) {
         moneyDisplayFormatter
           .format(btcDisplayAmount)
       }
-
-    var isShowingBitcoinUnitPicker by remember { mutableStateOf(false) }
-
-    val scope = rememberStableCoroutineScope()
-    val bitcoinDisplayPreferencePickerModel = remember(isShowingBitcoinUnitPicker, selectedBitcoinUnit) {
-      ListItemPickerMenu(
-        isShowing = isShowingBitcoinUnitPicker,
-        selectedOption = selectedBitcoinUnit.displayText,
-        options = BitcoinDisplayUnit.entries.map { it.displayText },
-        onOptionSelected = { option ->
-          scope.launch {
-            val displayUnit = BitcoinDisplayUnit.entries
-              .first { option == it.displayText }
-
-            bitcoinDisplayPreferenceRepository
-              .setBitcoinDisplayUnit(displayUnit)
-              .onSuccess {
-                eventTracker.track(Action.ACTION_APP_BITCOIN_DISPLAY_PREFERENCE_CHANGE)
-              }
-            isShowingBitcoinUnitPicker = false
-          }
-        },
-        onDismiss = {
-          isShowingBitcoinUnitPicker = false
-        }
-      )
-    }
 
     val onEnableHideBalanceChanged: (Boolean) -> Unit = remember(scope) {
       { isEnabled ->
@@ -293,16 +335,13 @@ class AppearancePreferenceUiStateMachineImpl(
         onThemePreferenceClick = onThemePreferenceClick,
         fiatCurrencyPreferenceString = selectedFiatCurrency.textCode.code,
         onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
-        bitcoinDisplayPreferenceString = selectedBitcoinUnit.displayText,
-        bitcoinDisplayPreferencePickerModel = bitcoinDisplayPreferencePickerModel,
+        bitcoinDisplayPreferenceString = selectedBitcoinUnit.appearanceLabel(isBip177Enabled),
         defaultTimeScalePreferenceString = stringResourceProvider.getString(chartTimeScalePreference.label),
         onDefaultTimeScalePreferenceClick = onDefaultTimeScalePreferenceClick,
         isHideBalanceEnabled = isHideBalanceEnabled,
         isBitcoinPriceCardEnabled = isBitcoinPriceCardEnabled,
         onEnableHideBalanceChanged = onEnableHideBalanceChanged,
-        onBitcoinDisplayPreferenceClick = {
-          isShowingBitcoinUnitPicker = true
-        },
+        onBitcoinDisplayPreferenceClick = onBitcoinDisplayPreferenceClick,
         onBitcoinPriceCardPreferenceClick = onBitcoinPriceCardPreferenceClick
       ),
       bottomSheetModel = bottomSheetModel
@@ -310,20 +349,25 @@ class AppearancePreferenceUiStateMachineImpl(
   }
 }
 
-sealed interface CurrencyPreferenceUiState {
-  data class ShowingCurrencyPreferenceUiState(
+sealed interface AppearancePreferenceUiState {
+  data class ShowingPreferencesUiState(
     val isHideBalanceEnabled: Boolean = false,
-    val selectedSection: AppearanceSection = AppearanceSection.DISPLAY,
-  ) : CurrencyPreferenceUiState
+    val selectedSection: AppearanceSection,
+  ) : AppearancePreferenceUiState
 
-  data object ShowingCurrencyFiatSelectionUiState : CurrencyPreferenceUiState
+  data object ShowingFiatSelectionUiState : AppearancePreferenceUiState
 
   data class ShowingThemeSelectionUiState(
     val isHideBalanceEnabled: Boolean = false,
     val selectedTheme: ThemePreference,
-  ) : CurrencyPreferenceUiState
+  ) : AppearancePreferenceUiState
 
-  data object ShowingDefaultTimeScaleSelectionUiState : CurrencyPreferenceUiState
+  data object ShowingDefaultTimeScaleSelectionUiState : AppearancePreferenceUiState
+
+  data class ShowingBitcoinDisplayUnitSelectionUiState(
+    val isHideBalanceEnabled: Boolean,
+    val selectedUnit: BitcoinDisplayUnit,
+  ) : AppearancePreferenceUiState
 }
 
 private val ThemePreference.analyticsAction: Action

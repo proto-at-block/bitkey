@@ -203,7 +203,7 @@ class AccountDaoImpl(
 
   private suspend fun FullAccountView.keybox(): Result<Keybox, DbError> =
     coroutineBinding {
-      val keysets = databaseProvider.database().spendingKeysetQueries.allKeysets()
+      val keysets = databaseProvider.database().spendingKeysetQueries.allKeysetsForKeybox(keyboxId)
         .awaitAsListResult()
         .bind()
         .map {

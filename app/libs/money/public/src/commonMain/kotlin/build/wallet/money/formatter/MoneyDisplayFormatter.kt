@@ -3,6 +3,7 @@ package build.wallet.money.formatter
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
+import build.wallet.money.display.BitcoinDisplayUnit
 
 interface MoneyDisplayFormatter {
   /**
@@ -15,6 +16,15 @@ interface MoneyDisplayFormatter {
    * for use when setting the spending limit or choosing a purchase amount.
    */
   fun formatCompact(amount: FiatMoney): String
+
+  /**
+   * Formats a Bitcoin amount using the specified display unit, ignoring user preference.
+   * Useful for showing previews of different display formats.
+   */
+  fun formatWithUnit(
+    amount: BitcoinMoney,
+    unit: BitcoinDisplayUnit,
+  ): String
 }
 
 /**

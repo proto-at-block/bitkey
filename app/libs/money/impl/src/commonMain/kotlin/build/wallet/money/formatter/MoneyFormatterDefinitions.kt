@@ -29,7 +29,12 @@ interface MoneyFormatterDefinitions {
   val bitcoinCode: BitcoinMoneyFormatter
 
   /**
-   * Used only for rendering BTC as satoshis, e.g. "1 sats", or "100,000,000 sats"
+   * Used only for rendering BTC as satoshis, e.g. "100,000 sats"
    */
   val bitcoinFractionalNameOnly: BitcoinMoneyFormatter
+
+  /**
+   * BIP 177 format for rendering BTC as satoshis with ₿ symbol prefix, e.g. "₿100,000"
+   */
+  val bitcoinFractionalBip177: BitcoinMoneyFormatter
 }

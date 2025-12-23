@@ -20,19 +20,19 @@ class CoachmarkDaoImplTests :
     }
 
     suspend fun createCoachmark() {
-      dao.insertCoachmark(CoachmarkIdentifier.InheritanceCoachmark, Instant.DISTANT_FUTURE)
+      dao.insertCoachmark(CoachmarkIdentifier.PrivateWalletHomeCoachmark, Instant.DISTANT_FUTURE)
     }
 
     test("setViewed") {
       createCoachmark()
       dao
-        .getCoachmark(CoachmarkIdentifier.InheritanceCoachmark)
+        .getCoachmark(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
         .value
         ?.viewed
         .shouldBe(false)
-      dao.setViewed(CoachmarkIdentifier.InheritanceCoachmark)
+      dao.setViewed(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
       dao
-        .getCoachmark(CoachmarkIdentifier.InheritanceCoachmark)
+        .getCoachmark(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
         .value
         ?.viewed
         .shouldBe(true)
@@ -47,10 +47,10 @@ class CoachmarkDaoImplTests :
       createCoachmark()
       val list = dao.getAllCoachmarks()
       list.value.isNotEmpty().shouldBe(true)
-      val inheritance = list.value[0]
-      inheritance.id.shouldBe(CoachmarkIdentifier.InheritanceCoachmark)
-      inheritance.viewed.shouldBe(false)
-      inheritance.expiration.shouldBe(Instant.DISTANT_FUTURE)
+      val privateWallet = list.value[0]
+      privateWallet.id.shouldBe(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
+      privateWallet.viewed.shouldBe(false)
+      privateWallet.expiration.shouldBe(Instant.DISTANT_FUTURE)
     }
 
     test("resetCoachmarks") {

@@ -13,7 +13,7 @@ data class BitcoinMoney(
   /** The amount of Bitcoin. */
   override val value: BigDecimal,
 ) : Money {
-  /** Creates a [BitcoinMoney] object by specifying the amount in the fractional unit, Satoshis. */
+  /** Creates a [BitcoinMoney] object by specifying the amount in the fractional unit, satoshis. */
   constructor(fractionalUnitAmount: BigInteger) : this(
     value = BTC.unitValueFromFractionalUnitValue(fractionalUnitAmount)
   )

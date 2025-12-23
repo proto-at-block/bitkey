@@ -3,7 +3,6 @@ package build.wallet.codegen
 import bitkey.ui.Snapshot
 import bitkey.ui.SnapshotHost
 import com.google.devtools.ksp.getAllSuperTypes
-import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
 import com.squareup.kotlinpoet.asTypeName
@@ -115,8 +114,9 @@ class SnapshotGenerator(
       .getAllSuperTypes()
       .any { it.declaration.qualifiedName?.asString() == COMPOSE_MODEL }
     val composable = if (isComposableRendered) {
-      modelClass.getDeclaredFunctions()
-        .singleOrNull { it.simpleName.asString() == "render" }
+      // Use getAllFunctions() to find inherited render methods (e.g., from FormBodyModel)
+      modelClass.getAllFunctions()
+        .firstOrNull { it.simpleName.asString() == "render" }
     } else {
       composables.firstOrNull { composable ->
         composable.parameters.any { it.type.resolve() == modelType }

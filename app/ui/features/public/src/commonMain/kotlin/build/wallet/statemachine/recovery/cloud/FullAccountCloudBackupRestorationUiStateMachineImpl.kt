@@ -17,6 +17,8 @@ import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.socialRecoveryTrustedContacts
+import build.wallet.catchingResult
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer
@@ -305,8 +307,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           firmwareDeviceInfoDao.setDeviceInfo(commands.getDeviceInfo(session))
             .logFailure { "Failed to sync firmware device info during cloud recovery" }
 
-          val enrolledFingerprints = commands.getEnrolledFingerprints(session)
-          hardwareUnlockInfoService.replaceAllUnlockInfo(enrolledFingerprints.toUnlockInfoList())
+          // This will fail on firmware versions that don't support the command (W1 <=1.0.67).
+          catchingResult {
+            val enrolledFingerprints = commands.getEnrolledFingerprints(session)
+            hardwareUnlockInfoService.replaceAllUnlockInfo(enrolledFingerprints.toUnlockInfoList())
+          }.logFailure { "Failed to sync fingerprint data during cloud recovery" }
 
           csek
         },

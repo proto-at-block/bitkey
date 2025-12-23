@@ -54,7 +54,7 @@ impl PartiallySignedTransaction {
         }))
     }
 
-    /// The total transaction fee amount, sum of input amounts minus sum of output amounts, in Sats.
+    /// The total transaction fee amount, sum of input amounts minus sum of output amounts, in sats.
     /// If the PSBT is missing a TxOut for an input returns None.
     pub(crate) fn fee_amount(&self) -> Option<u64> {
         self.inner.lock().unwrap().fee_amount()

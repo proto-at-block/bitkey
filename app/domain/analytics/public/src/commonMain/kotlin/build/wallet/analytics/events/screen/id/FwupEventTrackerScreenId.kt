@@ -18,10 +18,4 @@ enum class FwupEventTrackerScreenId : EventTrackerScreenId {
 
   /** Screen shown when the firmware update was in progress but lost connection. Specific to FWUP. */
   NFC_DEVICE_LOST_CONNECTION_FWUP,
-
-  /** Screen shown when firmware verification succeeds after update */
-  FWUP_VERIFICATION_SUCCESS,
-
-  /** Screen shown when firmware verification fails after update */
-  FWUP_VERIFICATION_FAILURE,
 }

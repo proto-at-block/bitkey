@@ -7,6 +7,8 @@ import build.wallet.amount.DoubleFormatter
 import build.wallet.amount.decimalSeparator
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.Bip177FeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -14,7 +16,7 @@ import build.wallet.money.currency.BTC
 import build.wallet.money.currency.CryptoCurrency
 import build.wallet.money.currency.Currency
 import build.wallet.money.currency.FiatCurrency
-import build.wallet.money.formatter.MoneyFormatterDefinitionsImpl
+import build.wallet.money.formatter.MoneyFormatterDefinitions
 import build.wallet.money.input.MoneyInputDisplayText.Substring
 import build.wallet.platform.settings.LocaleProvider
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
@@ -24,7 +26,8 @@ import kotlin.ranges.IntRange.Companion.EMPTY
 class MoneyInputFormatterImpl(
   private val localeProvider: LocaleProvider,
   private val doubleFormatter: DoubleFormatter,
-  private val moneyFormatterDefinitions: MoneyFormatterDefinitionsImpl,
+  private val moneyFormatterDefinitions: MoneyFormatterDefinitions,
+  private val bip177FeatureFlag: Bip177FeatureFlag,
 ) : MoneyInputFormatter {
   override fun displayText(
     inputAmount: Amount,
@@ -32,14 +35,18 @@ class MoneyInputFormatterImpl(
   ): MoneyInputDisplayText {
     return when (inputAmount) {
       is WholeNumber -> {
-        // Only Bitcoin amounts can be entered in whole number amounts (Satoshis) currently.
+        // Only Bitcoin amounts can be entered in whole number amounts (satoshis) currently.
         require(inputAmountCurrency == BTC)
         val moneyAmount = BitcoinMoney.sats(inputAmount.number)
+        val formatter =
+          if (bip177FeatureFlag.isEnabled()) {
+            moneyFormatterDefinitions.bitcoinFractionalBip177
+          } else {
+            moneyFormatterDefinitions.bitcoinFractionalNameOnly
+          }
         return MoneyInputDisplayText(
           displayText =
-            moneyFormatterDefinitions.bitcoinFractionalNameOnly.stringValue(
-              moneyAmount
-            )
+            formatter.stringValue(moneyAmount)
         )
       }
 

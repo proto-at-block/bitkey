@@ -24,7 +24,11 @@ import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.tab.CircularTabRow
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.list.*
+import build.wallet.ui.model.list.ListGroupModel
+import build.wallet.ui.model.list.ListGroupStyle
+import build.wallet.ui.model.list.ListItemAccessory
+import build.wallet.ui.model.list.ListItemModel
+import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -44,7 +48,6 @@ class AppearancePreferenceBodyModel(
   val fiatCurrencyPreferenceString: String,
   val onFiatCurrencyPreferenceClick: () -> Unit,
   val bitcoinDisplayPreferenceString: String,
-  val bitcoinDisplayPreferencePickerModel: ListItemPickerMenu<*>,
   val isBitcoinPriceCardEnabled: Boolean = false,
   val defaultTimeScalePreferenceString: String,
   val onDefaultTimeScalePreferenceClick: () -> Unit,
@@ -134,7 +137,6 @@ class AppearancePreferenceBodyModel(
                 onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
                 bitcoinDisplayPreferenceString = bitcoinDisplayPreferenceString,
                 onBitcoinDisplayPreferenceClick = onBitcoinDisplayPreferenceClick,
-                bitcoinDisplayPreferencePickerModel = bitcoinDisplayPreferencePickerModel,
                 isBitcoinPriceCardEnabled = isBitcoinPriceCardEnabled,
                 onBitcoinPriceCardPreferenceClick = onBitcoinPriceCardPreferenceClick,
                 defaultTimeScalePreferenceString = defaultTimeScalePreferenceString,
@@ -190,7 +192,6 @@ private fun currencySectionContent(
   onFiatCurrencyPreferenceClick: () -> Unit,
   bitcoinDisplayPreferenceString: String,
   onBitcoinDisplayPreferenceClick: () -> Unit,
-  bitcoinDisplayPreferencePickerModel: ListItemPickerMenu<*>,
   isBitcoinPriceCardEnabled: Boolean,
   onBitcoinPriceCardPreferenceClick: (Boolean) -> Unit,
   defaultTimeScalePreferenceString: String,
@@ -212,8 +213,7 @@ private fun currencySectionContent(
             sideText = bitcoinDisplayPreferenceString,
             sideTextTint = ListItemSideTextTint.SECONDARY,
             trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
-            onClick = onBitcoinDisplayPreferenceClick,
-            pickerMenu = bitcoinDisplayPreferencePickerModel
+            onClick = onBitcoinDisplayPreferenceClick
           )
         ),
         style = ListGroupStyle.CARD_GROUP_DIVIDER

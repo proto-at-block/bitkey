@@ -1,0 +1,8 @@
+import kotlin.Boolean;
+
+CREATE TABLE IF NOT EXISTS bip177CoachmarkEligibilityEntity(
+  rowId    INTEGER NOT NULL PRIMARY KEY,
+  eligible INTEGER AS Boolean NOT NULL
+);
+
+PRAGMA foreign_key_check;

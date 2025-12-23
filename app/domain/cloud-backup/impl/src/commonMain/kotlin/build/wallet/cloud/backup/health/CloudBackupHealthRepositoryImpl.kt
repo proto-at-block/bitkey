@@ -3,14 +3,15 @@ package build.wallet.cloud.backup.health
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.CloudBackup
-import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.JsonSerializer
 import build.wallet.cloud.backup.local.CloudBackupDao
+import build.wallet.cloud.backup.v2.FullAccountFields
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
@@ -42,10 +43,12 @@ class CloudBackupHealthRepositoryImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val jsonSerializer: JsonSerializer,
   private val cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
+  private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
 ) : CloudBackupHealthRepository {
   companion object {
     // Cloud storage (e.g., iCloud NSUbiquitousKeyValueStore) typically has a 1MB limit
     private const val CLOUD_BACKUP_SIZE_WARNING_BYTES = 900_000
+    private const val CLOUD_BACKUP_SIZE_LIMIT_BYTES = 1_000_000
   }
 
   private val appKeyBackupStatus = MutableStateFlow<AppKeyBackupStatus?>(null)
@@ -138,6 +141,23 @@ class CloudBackupHealthRepositoryImpl(
 
     if (localBackupSize >= CLOUD_BACKUP_SIZE_WARNING_BYTES && cloudBackupHealthLoggingFeatureFlag.isEnabled()) {
       logWarn { "Backup approaching 1MB: ${localBackupSize}b. ${getFieldSizeSummary(localCloudBackup)}" }
+      if (localBackupSize >= CLOUD_BACKUP_SIZE_LIMIT_BYTES && localCloudBackup.isFullAccount()) {
+        // We've exceeded the limit due to INC-7289; overwrite the local cache with the correct backup
+        // and report a mismatch
+        val sealedCsek = when (localCloudBackup) {
+          is CloudBackupV2 -> localCloudBackup.fullAccountFields!!.sealedHwEncryptionKey
+          is CloudBackupV3 -> localCloudBackup.fullAccountFields!!.sealedHwEncryptionKey
+        }
+        val fixedBackup = fullAccountCloudBackupCreator.create(
+          keybox = account.keybox,
+          sealedCsek = sealedCsek
+        ).logFailure { "Failed to create fixed cloud backup" }
+          .get()
+        if (fixedBackup != null) {
+          cloudBackupDao.set(account.accountId.serverId, fixedBackup)
+          return AppKeyBackupStatus.ProblemWithBackup.StaleBackup
+        }
+      }
     }
 
     return cloudBackupRepository
@@ -151,7 +171,12 @@ class CloudBackupHealthRepositoryImpl(
                 if (cloudBackupHealthLoggingFeatureFlag.isEnabled()) {
                   val cloudBackupSize = getBackupSizeBytes(cloudBackup)
                   logWarn {
-                    "Backup mismatch. Local: ${localBackupSize}b (${localCloudBackup.hashCode()}), Cloud: ${cloudBackupSize}b (${cloudBackup.hashCode()}). ${getDiffSummary(localCloudBackup, cloudBackup)}"
+                    "Backup mismatch. Local: ${localBackupSize}b (${localCloudBackup.hashCode()}), Cloud: ${cloudBackupSize}b (${cloudBackup.hashCode()}). ${
+                      getDiffSummary(
+                        localCloudBackup,
+                        cloudBackup
+                      )
+                    }"
                   }
                 }
                 AppKeyBackupStatus.ProblemWithBackup.InvalidBackup(cloudBackup)
@@ -217,20 +242,17 @@ class CloudBackupHealthRepositoryImpl(
       is CloudBackupV2 -> backup.fullAccountFields
     }
     val dekSize = fields?.socRecSealedDekMap?.let {
-      jsonSerializer.encodeToStringResult(it).map {
-          json ->
+      jsonSerializer.encodeToStringResult(it).map { json ->
         json.encodeToByteArray().size
       }.getOrElse { 0 }
     } ?: 0
     val hwSize = fields?.hwFullAccountKeysCiphertext?.let {
-      jsonSerializer.encodeToStringResult(it).map {
-          json ->
+      jsonSerializer.encodeToStringResult(it).map { json ->
         json.encodeToByteArray().size
       }.getOrElse { 0 }
     } ?: 0
     val socRecSize = fields?.socRecSealedFullAccountKeys?.let {
-      jsonSerializer.encodeToStringResult(it).map {
-          json ->
+      jsonSerializer.encodeToStringResult(it).map { json ->
         json.encodeToByteArray().size
       }.getOrElse { 0 }
     } ?: 0
@@ -267,8 +289,8 @@ class CloudBackupHealthRepositoryImpl(
   }
 
   private fun getFullAccountFieldsDiff(
-    local: build.wallet.cloud.backup.v2.FullAccountFields?,
-    cloud: build.wallet.cloud.backup.v2.FullAccountFields?,
+    local: FullAccountFields?,
+    cloud: FullAccountFields?,
   ): List<String> {
     if (local == null && cloud == null) return emptyList()
     if (local == null || cloud == null) return listOf("fullAcct")

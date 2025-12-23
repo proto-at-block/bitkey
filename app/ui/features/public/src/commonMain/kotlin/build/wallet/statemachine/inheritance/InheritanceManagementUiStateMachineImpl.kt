@@ -5,8 +5,6 @@ import build.wallet.analytics.events.screen.id.InheritanceEventTrackerScreenId
 import build.wallet.bitkey.inheritance.BenefactorClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.relationships.*
-import build.wallet.coachmark.CoachmarkIdentifier.InheritanceCoachmark
-import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -53,7 +51,6 @@ class InheritanceManagementUiStateMachineImpl(
   private val declineInheritanceClaimUiStateMachine: DeclineInheritanceClaimUiStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val inheritanceCardUiStateMachine: InheritanceCardUiStateMachine,
-  private val coachmarkService: CoachmarkService,
   private val sendUiStateMachine: SendUiStateMachine,
 ) : InheritanceManagementUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
@@ -61,9 +58,6 @@ class InheritanceManagementUiStateMachineImpl(
   override fun model(props: InheritanceManagementUiProps): ScreenModel {
     var uiState: UiState by remember { mutableStateOf(UiState.ManagingInheritance()) }
     var selectedTab by remember { mutableStateOf(props.selectedTab) }
-
-    // Mark the inheritance coachmark as viewed, if necessary.
-    MarkInheritanceCoachmarkAsDisplayedEffect()
 
     val benefactorStates =
       inheritanceService.benefactorClaimState.collectAsState(emptyImmutableList())
@@ -384,19 +378,6 @@ class InheritanceManagementUiStateMachineImpl(
           }
         )
       )
-    }
-  }
-
-  @Composable
-  private fun MarkInheritanceCoachmarkAsDisplayedEffect() {
-    LaunchedEffect("view-inheritance-coachmark") {
-      coachmarkService
-        .coachmarksToDisplay(setOf(InheritanceCoachmark))
-        .onSuccess {
-          if (it.contains(InheritanceCoachmark)) {
-            coachmarkService.markCoachmarkAsDisplayed(InheritanceCoachmark)
-          }
-        }
     }
   }
 }

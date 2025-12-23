@@ -1,0 +1,14 @@
+import kotlin.Boolean;
+
+CREATE TABLE bip177CoachmarkEligibilityEntity(
+  rowId   INTEGER NOT NULL PRIMARY KEY,
+  eligible INTEGER AS Boolean NOT NULL
+);
+
+setBip177CoachmarkEligibility:
+INSERT OR REPLACE INTO bip177CoachmarkEligibilityEntity(rowId, eligible)
+VALUES(0, ?);
+
+getBip177CoachmarkEligibility:
+SELECT eligible FROM bip177CoachmarkEligibilityEntity
+WHERE rowId = 0;

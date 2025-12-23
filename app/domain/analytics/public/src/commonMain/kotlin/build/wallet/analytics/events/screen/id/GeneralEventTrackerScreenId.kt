@@ -54,4 +54,9 @@ enum class GeneralEventTrackerScreenId : EventTrackerScreenId {
    * Error screen when orphaned keys recovery failed.
    */
   EMERGENCY_RECOVERY_ORPHANED_KEYS_ERROR,
+
+  /**
+   * Age restriction blocking screen shown to minors.
+   */
+  AGE_RESTRICTED,
 }

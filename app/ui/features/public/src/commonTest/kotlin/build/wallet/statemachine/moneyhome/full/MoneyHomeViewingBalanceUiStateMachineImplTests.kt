@@ -6,14 +6,18 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.TransactionsActivityServiceFake
+import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoMock
+import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.inappsecurity.MoneyHomeHiddenStatusProviderFake
+import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.platform.haptics.HapticsMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
@@ -61,6 +65,9 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
   val securityActionsService = SecurityActionsServiceFake()
   val firmwareDataService = FirmwareDataServiceFake()
   val privateWalletMigrationService = PrivateWalletMigrationServiceFake()
+  val featureFlagDao = FeatureFlagDaoMock()
+  val bip177FeatureFlag = Bip177FeatureFlag(featureFlagDao)
+  val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake()
 
   val setStateCalls = turbines.create<MoneyHomeUiState>("setState calls")
   val onSettingsCalls = turbines.create<Unit>("onSettings calls")
@@ -107,7 +114,9 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     },
     partnerTransferLinkUiStateMachine = object : PartnerTransferLinkUiStateMachine,
       ScreenStateMachineMock<PartnerTransferLinkProps>("partner-transfer-link") {},
-    privateWalletMigrationService = privateWalletMigrationService
+    privateWalletMigrationService = privateWalletMigrationService,
+    bip177FeatureFlag = bip177FeatureFlag,
+    bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository
   )
 
   beforeTest {
@@ -116,42 +125,18 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     privateWalletMigrationService.reset()
   }
 
-  test("displays coachmarks in priority order") {
-    // Set all coachmarks as displayable
+  test("displays PrivateWalletHomeCoachmark when available") {
     coachmarkService.defaultCoachmarks = listOf(
-      CoachmarkIdentifier.BalanceGraphCoachmark,
-      CoachmarkIdentifier.SecurityHubHomeCoachmark,
       CoachmarkIdentifier.PrivateWalletHomeCoachmark
     )
     privateWalletMigrationService.migrationState.value = PrivateWalletMigrationState.Available
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
     stateMachine.test(props) {
       // initial screen while fetching coachmarks
       awaitBody<MoneyHomeBodyModel>()
 
-      // First should be BalanceGraphCoachmark
-      awaitBody<MoneyHomeBodyModel> {
-        coachmark.shouldNotBeNull()
-        coachmark.identifier.shouldBe(CoachmarkIdentifier.BalanceGraphCoachmark)
-        coachmark.dismiss()
-      }
-
-      coachmarkService.markDisplayedTurbine.awaitItem().shouldBe(
-        CoachmarkIdentifier.BalanceGraphCoachmark
-      )
-
-      // Next should be SecurityHubHomeCoachmark
-      awaitBody<MoneyHomeBodyModel> {
-        coachmark.shouldNotBeNull()
-        coachmark.identifier.shouldBe(CoachmarkIdentifier.SecurityHubHomeCoachmark)
-        coachmark.dismiss()
-      }
-
-      coachmarkService.markDisplayedTurbine.awaitItem().shouldBe(
-        CoachmarkIdentifier.SecurityHubHomeCoachmark
-      )
-
-      // Finally PrivateWalletHomeCoachmark
+      // Should show PrivateWalletHomeCoachmark
       awaitBody<MoneyHomeBodyModel> {
         coachmark.shouldNotBeNull()
         coachmark.identifier.shouldBe(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
@@ -165,6 +150,30 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
       // No more coachmarks
       awaitBody<MoneyHomeBodyModel> {
         coachmark.shouldBeNull()
+      }
+    }
+  }
+
+  test("coachmarks are not shown until balance is loaded") {
+    coachmarkService.defaultCoachmarks = listOf(
+      CoachmarkIdentifier.Bip177Coachmark,
+      CoachmarkIdentifier.PrivateWalletHomeCoachmark
+    )
+    privateWalletMigrationService.migrationState.value = PrivateWalletMigrationState.Available
+
+    stateMachine.test(props) {
+      // Coachmark should be null while balance is loading
+      awaitBody<MoneyHomeBodyModel> {
+        coachmark.shouldBeNull()
+      }
+
+      // Simulate balance loading complete
+      bitcoinWalletService.transactionsData.value = TransactionsDataMock
+
+      // Coachmark should now appear
+      awaitBody<MoneyHomeBodyModel> {
+        coachmark.shouldNotBeNull()
+        coachmark.identifier.shouldBe(CoachmarkIdentifier.Bip177Coachmark)
       }
     }
   }

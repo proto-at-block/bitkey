@@ -12,8 +12,9 @@ steps:
         - exit_status: 255 # Forced agent shutdown
           limit: 2
     agents:
-      xcode: 16.4.0
-      ios: 18.5
+      xcode: 26.2.0
+    env:
+      SKIP_BUILDKITE_AGENT_CHECKOUT: "true"
     plugins:
       - squareup/ios-builder#v1.0.0:
           build_action: team-alpha

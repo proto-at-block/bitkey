@@ -4,13 +4,17 @@ import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.F8eUnreachable
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.*
+import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.CsekMissing
+import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.cloud.backup.v2.FullAccountFieldsMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.cloud.store.CloudError
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyexitkit.EmergencyExitKitData
 import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryFake
 import build.wallet.encrypt.XCiphertext
@@ -20,7 +24,10 @@ import build.wallet.feature.flags.CloudBackupHealthLoggingFeatureFlag
 import build.wallet.logging.LogLevel
 import build.wallet.logging.LogWriterMock
 import build.wallet.logging.Logger
+import build.wallet.testing.shouldBeOk
 import co.touchlab.kermit.Severity
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -47,6 +54,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
   val jsonSerializer = JsonSerializer()
   val featureFlagDao = FeatureFlagDaoFake()
   val cloudBackupHealthLoggingFeatureFlag = CloudBackupHealthLoggingFeatureFlag(featureFlagDao)
+  val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
 
   fun createHealthRepository() =
     CloudBackupHealthRepositoryImpl(
@@ -57,7 +65,8 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       fullAccountCloudBackupRepairer = fullAccountCloudBackupRepairer,
       appFunctionalityService = appFunctionalityService,
       jsonSerializer = jsonSerializer,
-      cloudBackupHealthLoggingFeatureFlag = cloudBackupHealthLoggingFeatureFlag
+      cloudBackupHealthLoggingFeatureFlag = cloudBackupHealthLoggingFeatureFlag,
+      fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
     )
 
   // Helper function to set cloud backup and ensure it is available from the repository
@@ -96,9 +105,10 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       it.severity == Severity.Warn && it.message.contains("Backup approaching 1MB")
     }
 
-  // Helper function to create a large backup that exceeds the size warning threshold (900KB)
+  // Helper function to create a large backup that exceeds the size warning threshold (900KB) but not the
+  // size limit (1MB)
   fun createLargeBackup(): CloudBackupV3 {
-    val largeDekMap = (1..10000).associate {
+    val largeDekMap = (1..7400).associate {
       "relationship-id-$it" to XCiphertext("cipher-text-$it-${"x".repeat(80)}.nonce-$it")
     }
     val largeFields = FullAccountFieldsMock.copy(socRecSealedDekMap = largeDekMap)
@@ -113,6 +123,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     fullAccountCloudBackupRepairer.reset()
     appFunctionalityService.reset()
     featureFlagDao.reset()
+    fullAccountCloudBackupCreator.reset()
     logWriter.clear()
     Logger.configure(
       tag = "Test",
@@ -387,6 +398,117 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       healthRepository.performSync(fullAccount)
 
       logWriter.sizeWarningLogs().shouldBeEmpty()
+    }
+  }
+
+  context("backup size limit exceeded for full accounts") {
+    // Helper to create an extremely large backup that exceeds 1MB limit
+    fun createExtraLargeFullAccountBackup(isV2: Boolean = false): CloudBackup {
+      // Create a backup over 1MB by adding a large socRecSealedDekMap
+      val extraLargeDekMap = (1..15000).associate {
+        "relationship-id-$it" to XCiphertext("cipher-text-$it-${"x".repeat(100)}.nonce-$it")
+      }
+      val largeFields = FullAccountFieldsMock.copy(socRecSealedDekMap = extraLargeDekMap)
+      return if (isV2) {
+        CloudBackupV2WithFullAccountMock.copy(fullAccountFields = largeFields)
+      } else {
+        CloudBackupV3WithFullAccountMock.copy(fullAccountFields = largeFields)
+      }
+    }
+
+    test("creates fixed backup when backup size exceeds limit for V3 full account") {
+      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+      val healthRepository = createHealthRepository()
+      val oversizedBackup = createExtraLargeFullAccountBackup(isV2 = false) as CloudBackupV3
+
+      // Setup the fixed backup that will be created
+      val fixedBackup = CloudBackupV3WithFullAccountMock
+      fullAccountCloudBackupCreator.backupResult = Ok(fixedBackup)
+
+      cloudStoreAccountRepository.set(cloudAccount)
+      setCloudBackup(cloudAccount, fixedBackup)
+      cloudBackupDao.set(fullAccount.accountId.serverId, oversizedBackup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      val status = healthRepository.performSync(fullAccount)
+
+      // Should return Health status since the fixed backup will be used to silently repair
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+
+      // Should have called the creator with the correct sealed CSEK and keybox
+      val createCall =
+        fullAccountCloudBackupCreator.createCalls.awaitItem() as Pair<SealedCsek, Keybox>
+      val (actualSealedCsek, actualKeybox) = createCall
+      actualSealedCsek shouldBe oversizedBackup.fullAccountFields!!.sealedHwEncryptionKey
+      actualKeybox shouldBe fullAccount.keybox
+
+      // Should have updated the DAO with the fixed backup
+      val updatedBackup = cloudBackupDao.get(fullAccount.accountId.serverId)
+      updatedBackup.shouldBeOk(fixedBackup)
+
+      // Should log the size warning
+      logWriter.sizeWarningLogs().shouldNotBeEmpty()
+    }
+
+    test("creates fixed backup when backup size exceeds limit for V2 full account") {
+      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+      val healthRepository = createHealthRepository()
+      val oversizedBackup = createExtraLargeFullAccountBackup(isV2 = true) as CloudBackupV2
+
+      // Setup the fixed backup that will be created
+      val fixedBackup = CloudBackupV2WithFullAccountMock
+      fullAccountCloudBackupCreator.backupResult = Ok(fixedBackup)
+
+      cloudStoreAccountRepository.set(cloudAccount)
+      setCloudBackup(cloudAccount, fixedBackup)
+      cloudBackupDao.set(fullAccount.accountId.serverId, oversizedBackup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      val status = healthRepository.performSync(fullAccount)
+
+      // Should return Health status since the fixed backup will be used to silently repair
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+
+      // Should have called the creator with the correct sealed CSEK and keybox
+      val createCall =
+        fullAccountCloudBackupCreator.createCalls.awaitItem() as Pair<SealedCsek, Keybox>
+      val (actualSealedCsek, actualKeybox) = createCall
+      actualSealedCsek shouldBe oversizedBackup.fullAccountFields!!.sealedHwEncryptionKey
+      actualKeybox shouldBe fullAccount.keybox
+
+      // Should have updated the DAO with the fixed backup
+      val updatedBackup = cloudBackupDao.get(fullAccount.accountId.serverId)
+      updatedBackup.shouldBeOk(fixedBackup)
+
+      // Should log the size warning
+      logWriter.sizeWarningLogs().shouldNotBeEmpty()
+    }
+
+    test("handles fixed backup creation failure gracefully") {
+      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+      val healthRepository = createHealthRepository()
+      val oversizedBackup = createExtraLargeFullAccountBackup() as CloudBackupV3
+
+      // Setup the creator to fail
+      fullAccountCloudBackupCreator.backupResult = Err(CsekMissing)
+
+      cloudStoreAccountRepository.set(cloudAccount)
+      cloudBackupDao.set(fullAccount.accountId.serverId, oversizedBackup)
+      setCloudBackup(cloudAccount, oversizedBackup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      val status = healthRepository.performSync(fullAccount)
+
+      // Should have called the creator
+      fullAccountCloudBackupCreator.createCalls.awaitItem()
+
+      // Should NOT crash, should continue with normal flow
+      // Since the fix failed and backups match, should report as healthy
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+
+      // DAO should still have the original oversized backup (not updated)
+      val unchangedBackup = cloudBackupDao.get(fullAccount.accountId.serverId)
+      unchangedBackup.shouldBeOk(oversizedBackup)
     }
   }
 })

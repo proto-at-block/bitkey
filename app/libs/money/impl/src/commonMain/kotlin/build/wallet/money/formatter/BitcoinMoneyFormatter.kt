@@ -3,13 +3,13 @@ package build.wallet.money.formatter
 import build.wallet.amount.DoubleFormatter
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.Money
-import com.ionspin.kotlin.bignum.integer.toBigInteger
+import com.ionspin.kotlin.bignum.integer.BigInteger
 
 /**
  * A formatter for Bitcoin amounts.
  */
 data class BitcoinMoneyFormatter(
-  /** Whether the value is formatted as Bitcoin or Satoshis */
+  /** Whether the value is formatted as Bitcoin or satoshis */
   private val denominationOption: DenominationOption,
   /** A platform-specific formatter for [Double] values */
   private val doubleFormatter: DoubleFormatter,
@@ -18,8 +18,11 @@ data class BitcoinMoneyFormatter(
     /** Format in Bitcoin unit amount */
     data class Bitcoin(val shouldOmitTrailingZeros: Boolean) : DenominationOption
 
-    /** Format in Satoshi unit amount */
-    data object Satoshi : DenominationOption
+    /**
+     * Format in satoshi unit amount.
+     * @param useBip177Format If true, uses "₿" prefix (BIP 177), otherwise uses "sats" suffix.
+     */
+    data class Satoshi(val useBip177Format: Boolean) : DenominationOption
   }
 
   override fun stringValue(amount: Money): String {
@@ -30,7 +33,7 @@ data class BitcoinMoneyFormatter(
     var formattedString =
       when (denominationOption) {
         is DenominationOption.Bitcoin -> bitcoinStringValue(amount, denominationOption)
-        is DenominationOption.Satoshi -> satoshiStringValue(amount)
+        is DenominationOption.Satoshi -> satoshiStringValue(amount, denominationOption)
       }
 
     // Add the sign for negative numbers //
@@ -73,11 +76,12 @@ data class BitcoinMoneyFormatter(
     return formattedString
   }
 
-  private fun satoshiStringValue(amount: BitcoinMoney): String {
-    var formattedString = ""
-
+  private fun satoshiStringValue(
+    amount: BitcoinMoney,
+    option: DenominationOption.Satoshi,
+  ): String {
     // Format the numeric value //
-    formattedString +=
+    val formattedNumber =
       doubleFormatter.format(
         // Use the absolute value and add in signs later.
         double =
@@ -89,15 +93,22 @@ data class BitcoinMoneyFormatter(
         isGroupingUsed = true
       )
 
-    // Add the fractional unit name //
-    val config = amount.currency.fractionalUnitConfiguration
-    formattedString =
-      if (amount.currency.fractionalUnitValueFromUnitValue(amount.value) == 1.toBigInteger()) {
-        "$formattedString ${config.name}"
-      } else {
-        "$formattedString ${config.namePlural}"
-      }
-
-    return formattedString
+    // Add currency indicator based on format option
+    return if (option.useBip177Format) {
+      // BIP 177 format: "₿100,000"
+      "₿$formattedNumber"
+    } else {
+      // Legacy format: "100,000 sats"
+      val config = amount.currency.fractionalUnitConfiguration
+      val fractionalAmount =
+        amount.currency.fractionalUnitValueFromUnitValue(amount.value).abs()
+      val unitLabel =
+        if (fractionalAmount == BigInteger.ONE) {
+          config.name
+        } else {
+          config.namePlural ?: config.name
+        }
+      "$formattedNumber $unitLabel"
+    }
   }
 }

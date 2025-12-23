@@ -26,6 +26,7 @@ import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.NfcSessionProvider
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
+import build.wallet.platform.age.IosAgeRangeService
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.platform.config.AppVariant
@@ -110,6 +111,7 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val p256Box: P256Box,
   @get:Provides val chaincodeDelegationServerKeyGenerator: ChaincodeDelegationServerKeyGenerator,
   @get:Provides val publicKeyUtils: PublicKeyUtils,
+  @get:Provides val ageRangeService: IosAgeRangeService,
 ) : IosActivityComponent.Factory {
   /**
    * Expose dependencies that we want to access at runtime from Swift code.
@@ -180,4 +182,5 @@ expect fun create(
   p256Box: P256Box,
   chaincodeDelegationServerKeyGenerator: ChaincodeDelegationServerKeyGenerator,
   publicKeyUtils: PublicKeyUtils,
+  ageRangeService: IosAgeRangeService,
 ): IosAppComponent

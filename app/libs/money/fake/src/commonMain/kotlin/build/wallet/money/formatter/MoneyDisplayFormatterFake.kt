@@ -1,6 +1,8 @@
 package build.wallet.money.formatter
 
 import build.wallet.amount.DoubleFormatterImpl
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryFake
 import build.wallet.platform.settings.LocaleProviderFake
 
@@ -15,5 +17,8 @@ val MoneyDisplayFormatterFake: MoneyDisplayFormatter = MoneyDisplayFormatterImpl
     doubleFormatter = DoubleFormatterImpl(
       localeProvider = LocaleProviderFake()
     )
+  ),
+  bip177FeatureFlag = Bip177FeatureFlag(
+    featureFlagDao = FeatureFlagDaoFake()
   )
 )

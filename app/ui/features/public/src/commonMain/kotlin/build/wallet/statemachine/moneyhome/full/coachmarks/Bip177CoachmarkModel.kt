@@ -5,13 +5,13 @@ import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.ui.model.coachmark.CoachmarkModel
 
 @Composable
-fun SecurityHubHomeCoachmarkModel(onDismiss: () -> Unit): CoachmarkModel {
+fun Bip177CoachmarkModel(onDismiss: () -> Unit): CoachmarkModel {
   return CoachmarkModel(
-    identifier = CoachmarkIdentifier.SecurityHubHomeCoachmark,
-    title = "Bitkey Security, Simplified",
-    description = "The new Security Hub gives you a clear view of your setup and lets you know if anything needs your attention.",
+    identifier = CoachmarkIdentifier.Bip177Coachmark,
+    title = "Sats are now ₿!",
+    description = "The amount formerly known as sats is now ₿ in your app.",
     arrowPosition = CoachmarkModel.ArrowPosition(
-      vertical = CoachmarkModel.ArrowPosition.Vertical.Bottom,
+      vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
       horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered
     ),
     button = null,

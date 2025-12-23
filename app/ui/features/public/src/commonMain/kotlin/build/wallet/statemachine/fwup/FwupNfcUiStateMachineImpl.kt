@@ -1,28 +1,24 @@
 package build.wallet.statemachine.fwup
 
 import androidx.compose.runtime.*
-import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
-import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.InAppBrowserModel
+import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.fwup.FwupNfcUiState.*
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState.UpdateErrorBottomSheetState
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState.UpdateErrorBottomSheetState.Hidden
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState.UpdateErrorBottomSheetState.Showing
 import build.wallet.statemachine.fwup.FwupTransactionType.StartFromBeginning
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import kotlinx.coroutines.delay
 
 @BitkeyInject(ActivityScope::class)
 class FwupNfcUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val fwupNfcSessionUiStateMachine: FwupNfcSessionUiStateMachine,
-  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : FwupNfcUiStateMachine {
   @Composable
@@ -53,9 +49,7 @@ class FwupNfcUiStateMachineImpl(
               onBack = {
                 uiState = ShowingUpdateInstructionsUiState()
               },
-              onDone = { expectedVersion ->
-                uiState = VerifyingUpdateUiState(expectedVersion)
-              },
+              onDone = props.onDone,
               onError = { error, updateWasInProgress, transactionType ->
                 uiState =
                   ShowingUpdateInstructionsUiState(
@@ -65,59 +59,6 @@ class FwupNfcUiStateMachineImpl(
               }
             )
         )
-      }
-
-      is VerifyingUpdateUiState -> {
-        nfcSessionUIStateMachine.model(
-          props = NfcSessionUIStateMachineProps(
-            session = { session, commands ->
-              val deviceInfo = commands.getDeviceInfo(session)
-              if (deviceInfo.version != state.expectedVersion) {
-                throw NfcException.CommandError("Version mismatch: expected ${state.expectedVersion}, got ${deviceInfo.version}")
-              }
-            },
-            onSuccess = {
-              uiState = VerificationSuccessUiState
-            },
-            onCancel = {
-              uiState = VerificationErrorUiState
-            },
-            onError = { error ->
-              uiState = VerificationErrorUiState
-              true // We handled the error
-            },
-            needsAuthentication = false,
-            hardwareVerification = NfcSessionUIStateMachineProps.HardwareVerification.Required(),
-            screenPresentationStyle = ScreenPresentationStyle.ModalFullScreen,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.FWUP
-          )
-        )
-      }
-
-      is VerificationSuccessUiState -> {
-        SuccessBodyModel(
-          title = "Firmware updated",
-          message = "Your Bitkey is now running the latest firmware and ready to use.",
-          primaryButtonModel = ButtonDataModel(
-            text = "Done",
-            onClick = props.onDone
-          ),
-          id = FwupEventTrackerScreenId.FWUP_VERIFICATION_SUCCESS
-        ).asModalScreen()
-      }
-
-      is VerificationErrorUiState -> {
-        ErrorFormBodyModel(
-          title = "Firmware update failed",
-          subline = "Your Bitkey was unable to install the firmware update. Please try again.",
-          primaryButton = ButtonDataModel(
-            text = "Try again",
-            onClick = {
-              uiState = ShowingUpdateInstructionsUiState()
-            }
-          ),
-          eventTrackerScreenId = FwupEventTrackerScreenId.FWUP_VERIFICATION_FAILURE
-        ).asModalScreen()
       }
 
       is ReleaseNotesUiState -> {
@@ -205,19 +146,6 @@ private sealed interface FwupNfcUiState {
   }
 
   data class InNfcSessionUiState(override val transactionType: FwupTransactionType) : FwupNfcUiState
-
-  data class VerifyingUpdateUiState(
-    val expectedVersion: String,
-    override val transactionType: FwupTransactionType = StartFromBeginning,
-  ) : FwupNfcUiState
-
-  data object VerificationSuccessUiState : FwupNfcUiState {
-    override val transactionType: FwupTransactionType = StartFromBeginning
-  }
-
-  data object VerificationErrorUiState : FwupNfcUiState {
-    override val transactionType: FwupTransactionType = StartFromBeginning
-  }
 
   data class ReleaseNotesUiState(
     override val transactionType: FwupTransactionType = StartFromBeginning,

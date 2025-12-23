@@ -89,7 +89,8 @@ class AppContext {
             noiseInitiator: noiseInitiator,
             p256Box: P256BoxImpl(),
             chaincodeDelegationServerKeyGenerator: ChaincodeDelegationServerKeyGeneratorImpl(),
-            publicKeyUtils: PublicKeyUtilsImpl()
+            publicKeyUtils: PublicKeyUtilsImpl(),
+            ageRangeService: IosAgeRangeServiceImpl(window: window)
         )
 
         // Create IosActivityComponent

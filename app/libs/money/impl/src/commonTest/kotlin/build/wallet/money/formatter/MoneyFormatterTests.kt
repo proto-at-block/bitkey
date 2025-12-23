@@ -269,6 +269,52 @@ class MoneyFormatterTests : FunSpec({
     ).shouldBe("- 110 000 000 sats")
   }
 
+  test("Formatting single satoshi uses singular unit name") {
+    locale = Locale.EN_US
+
+    definitions.bitcoinFractionalNameOnly.stringValue(
+      BitcoinMoney.sats(1)
+    ).shouldBe("1 sat")
+  }
+
+  test("Formatting satoshis with BIP 177 uses symbol prefix") {
+    locale = Locale.EN_US
+
+    definitions.bitcoinFractionalBip177.stringValue(
+      BitcoinMoney.btc(1.1.toBigDecimal())
+    ).shouldBe("₿110,000,000")
+
+    definitions.bitcoinFractionalBip177.stringValue(
+      BitcoinMoney.btc(1.1.toBigDecimal().negate())
+    ).shouldBe("- ₿110,000,000")
+
+    definitions.bitcoinFractionalBip177.stringValue(
+      BitcoinMoney.sats(1)
+    ).shouldBe("₿1")
+
+    definitions.bitcoinFractionalBip177.stringValue(
+      BitcoinMoney.sats(-1)
+    ).shouldBe("- ₿1")
+
+    locale = Locale.FR_FR
+
+    definitions.bitcoinFractionalBip177.stringValue(
+      BitcoinMoney.btc(1.1.toBigDecimal())
+    ).shouldBe("₿110 000 000")
+
+    definitions.bitcoinFractionalBip177.stringValue(
+      BitcoinMoney.btc(1.1.toBigDecimal().negate())
+    ).shouldBe("- ₿110 000 000")
+
+    definitions.bitcoinFractionalBip177.stringValue(
+      BitcoinMoney.sats(1)
+    ).shouldBe("₿1")
+
+    definitions.bitcoinFractionalBip177.stringValue(
+      BitcoinMoney.sats(-1)
+    ).shouldBe("- ₿1")
+  }
+
   test("Formatting whole positive number with currency with 8 fractional digits (BTC)") {
     val btc = 5.toBigDecimal()
 

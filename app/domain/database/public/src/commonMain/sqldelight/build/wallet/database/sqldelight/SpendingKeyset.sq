@@ -17,9 +17,6 @@ CREATE UNIQUE INDEX idx_spendingKeyset_unique_active
 ON spendingKeysetEntity (keyboxId)
 WHERE isActive = 1;
 
-allKeysets:
-SELECT * FROM spendingKeysetEntity;
-
 allKeysetsForKeybox:
 SELECT * FROM spendingKeysetEntity WHERE keyboxId = ?;
 

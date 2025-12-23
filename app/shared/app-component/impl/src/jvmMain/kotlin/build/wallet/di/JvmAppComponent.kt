@@ -46,6 +46,7 @@ import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
+import build.wallet.feature.flags.AgeRangeVerificationFeatureFlag
 import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
 import build.wallet.feature.flags.PrivateWalletMigrationBalanceThresholdFeatureFlag
 import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
@@ -188,4 +189,5 @@ interface JvmAppComponent {
   val balanceThresholdFeatureFlag: PrivateWalletMigrationBalanceThresholdFeatureFlag
   val privateWalletMigrationDao: PrivateWalletMigrationDao
   val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag
+  val ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag
 }

@@ -2,8 +2,13 @@
 
 set -euo pipefail
 
+echo "Activate Hermit"
+source bin/activate-hermit
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 "$SCRIPT_DIR"/EnsureGitLFS
 
 echo "Building Xcode Project"
-just app/xcodegen
+# Default to simulator-only builds for faster CI (unit tests, snapshots).
+# Archive builds (team-alpha, etc.) should set IOS_SIMULATOR_ONLY=false in their pipeline env.
+IOS_SIMULATOR_ONLY="${IOS_SIMULATOR_ONLY:-true}" just app/xcodegen

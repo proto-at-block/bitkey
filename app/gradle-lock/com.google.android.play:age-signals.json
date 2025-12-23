@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.play:age-signals",
+    "components": [
+        {
+            "version": "0.0.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "age-signals-0.0.2.aar": "b1f91364c0fdcf0455e226f4941294a73f5d9d93d6f7d14ddd51e6983e0341f2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

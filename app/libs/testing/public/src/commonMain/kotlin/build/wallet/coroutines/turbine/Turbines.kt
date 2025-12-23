@@ -5,6 +5,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 /**
  * Assert that one of the next events received was an item matching [predicate], effectively
@@ -62,4 +63,72 @@ suspend inline fun <reified R> ReceiveTurbine<out Any>.awaitUntil(): R =
 suspend inline fun <T> ReceiveTurbine<out T>.awaitNoEvents(timeout: Duration = 50.milliseconds) {
   delay(timeout)
   expectNoEvents()
+}
+
+/**
+ * Suspends briefly to receive an item if one is emitted within [timeout], returning null otherwise.
+ *
+ * **IMPORTANT: This is a non-deterministic API.** It introduces timing-based behavior that goes
+ * against our coroutine testing practices which emphasize determinism. Only use this when you
+ * have no other option.
+ *
+ * ## When to use
+ *
+ * Use this ONLY when there's a genuine race condition in the implementation that cannot be
+ * controlled in tests. The most common case is Compose's `produceState` pattern:
+ *
+ * ```kotlin
+ * val state by produceState(initialValue = Loading) {
+ *   value = suspendFunction() // Race between this completing and recomposition
+ * }
+ * ```
+ *
+ * In this pattern, there's a race between:
+ * 1. The suspend function completing and updating state
+ * 2. Compose recomposing and rendering the initial `Loading` state
+ *
+ * If the suspend function completes before recomposition, the `Loading` state (and any
+ * associated analytics events) may never be rendered. This is inherent to Compose's
+ * timing and cannot be controlled in tests.
+ *
+ * ## When NOT to use
+ *
+ * - For events that should ALWAYS be emitted - use [awaitItem] instead
+ * - For events that should NEVER be emitted - don't call this at all
+ * - When you can restructure the test to be deterministic
+ *
+ * ## Best practices
+ *
+ * - Always document WHY the non-determinism exists at the call site
+ * - Keep [timeout] small to avoid slowing down tests
+ * - If you find yourself using this frequently, consider if the implementation can be improved
+ *
+ * @param timeout How long to wait for an item before returning null. Default is very short
+ *   to minimize test slowdown.
+ * @return The received item, or null if no item was emitted within [timeout].
+ */
+@DelicateCoroutinesApi
+suspend fun <T> ReceiveTurbine<out T>.awaitItemMaybe(
+  timeout: Duration = 10.milliseconds,
+): T? {
+  val pollInterval = 2.milliseconds
+  val mark = TimeSource.Monotonic.markNow()
+
+  // Poll for items until timeout
+  while (mark.elapsedNow() < timeout) {
+    try {
+      // expectMostRecentItem is non-blocking - returns immediately if items available
+      return expectMostRecentItem()
+    } catch (_: AssertionError) {
+      // No items yet, wait briefly and try again
+      delay(pollInterval)
+    }
+  }
+
+  // Final check after timeout
+  return try {
+    expectMostRecentItem()
+  } catch (_: AssertionError) {
+    null
+  }
 }

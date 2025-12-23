@@ -15,4 +15,7 @@ enum class AppearanceEventTrackerScreenId : EventTrackerScreenId {
 
   /** Screen show a list of time scales to choose from for charts */
   APPEARANCE_TIME_SCALE_LIST_SELECTION,
+
+  /** Bottom sheet showing bitcoin display unit options (BTC, ₿) */
+  BITCOIN_DISPLAY_UNIT_SELECTION,
 }

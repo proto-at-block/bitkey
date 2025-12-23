@@ -54,7 +54,7 @@ class FullAccountCloudBackupRepairerImpl(
 
     // Attempt to fix App Key Backup
     when (appKeyBackupStatus) {
-      AppKeyBackupStatus.ProblemWithBackup.BackupMissing ->
+      AppKeyBackupStatus.ProblemWithBackup.BackupMissing, AppKeyBackupStatus.ProblemWithBackup.StaleBackup ->
         uploadAppKeyBackup(account, cloudStoreAccount, localBackup)
       is AppKeyBackupStatus.ProblemWithBackup.InvalidBackup -> {
         if (localBackup.accountId != appKeyBackupStatus.cloudBackup.accountId) {

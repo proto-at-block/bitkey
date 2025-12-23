@@ -297,7 +297,10 @@ enum Action {
     /** [App] Private keyset automatically created through recovery sweep */
     ACTION_APP_PRIVATE_WALLET_RECOVERY_SWEEP_UPGRADE = 83;
 
-    // Next tag is 84
+    /** [App] Customer has seen the BIP-177 sats symbol coachmark */
+    ACTION_APP_COACHMARK_VIEWED_BIP_177 = 84;
+
+    // Next tag is 85
 }
 
 message PlatformInfo {

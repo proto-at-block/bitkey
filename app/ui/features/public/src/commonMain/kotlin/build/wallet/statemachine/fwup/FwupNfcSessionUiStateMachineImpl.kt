@@ -159,6 +159,7 @@ class FwupNfcSessionUiStateMachineImpl(
 
       is SuccessUiState -> {
         LaunchedEffect("fwup-success") {
+          firmwareDataService.updateFirmwareVersion(state.fwupData)
           eventTracker.track(Action.ACTION_APP_FWUP_COMPLETE)
           delay(
             NfcSuccessScreenDuration(
@@ -166,7 +167,7 @@ class FwupNfcSessionUiStateMachineImpl(
               isHardwareFake = isHardwareFake
             )
           )
-          props.onDone(state.fwupData.version)
+          props.onDone()
         }
 
         FwupNfcBodyModel(

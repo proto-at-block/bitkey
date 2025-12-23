@@ -19,12 +19,15 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.Bip177FeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.inappsecurity.MoneyHomeHiddenStatus
 import build.wallet.inappsecurity.MoneyHomeHiddenStatusProvider
+import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.haptics.HapticsEffect
@@ -47,9 +50,8 @@ import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
-import build.wallet.statemachine.moneyhome.full.coachmarks.BalanceGraphCoachmarkModel
+import build.wallet.statemachine.moneyhome.full.coachmarks.Bip177CoachmarkModel
 import build.wallet.statemachine.moneyhome.full.coachmarks.PrivateWalletHomeCoachmarkModel
-import build.wallet.statemachine.moneyhome.full.coachmarks.SecurityHubHomeCoachmarkModel
 import build.wallet.statemachine.partnerships.AddBitcoinBottomSheetDisplayState
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
@@ -79,6 +81,7 @@ import build.wallet.worker.RefreshExecutor
 import build.wallet.worker.runRefreshOperations
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @Suppress("LargeClass")
@@ -104,6 +107,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val refreshExecutor: RefreshExecutor,
   private val partnerTransferLinkUiStateMachine: PartnerTransferLinkUiStateMachine,
   private val privateWalletMigrationService: PrivateWalletMigrationService,
+  private val bip177FeatureFlag: Bip177FeatureFlag,
+  private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -130,17 +135,23 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       PrivateWalletMigrationState.NotAvailable
     )
 
+    val isBip177Enabled by remember {
+      bip177FeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = bip177FeatureFlag.isEnabled())
+    val bitcoinDisplayUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
+
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
     var coachmarkDisplayed by remember { mutableStateOf(0) }
-    LaunchedEffect("coachmarks", coachmarkDisplayed) {
+
+    LaunchedEffect("coachmarks", coachmarkDisplayed, isBip177Enabled, bitcoinDisplayUnit) {
       coachmarkService
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.BalanceGraphCoachmark,
-            CoachmarkIdentifier.SecurityHubHomeCoachmark,
+            CoachmarkIdentifier.Bip177Coachmark,
             CoachmarkIdentifier.PrivateWalletHomeCoachmark
           )
-        ).onSuccess {
+        )
+        .onSuccess {
           coachmarksToDisplay = it
         }
     }
@@ -190,13 +201,15 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             transactionsModel = transactionsModel
           ),
           seeAllButtonModel = createSeeAllButtonModel(transactionsModel, props),
-          coachmark = createCoachmarkModel(
-            coachmarksToDisplay = coachmarksToDisplay.toImmutableList(),
-            privateWalletMigrationState = privateWalletMigrationState,
-            scope = scope,
-            props = props,
-            onCoachmarkDisplayed = { coachmarkDisplayed++ }
-          ),
+          coachmark = transactionsData?.let {
+            createCoachmarkModel(
+              coachmarksToDisplay = coachmarksToDisplay.toImmutableList(),
+              privateWalletMigrationState = privateWalletMigrationState,
+              scope = scope,
+              props = props,
+              onCoachmarkDisplayed = { coachmarkDisplayed++ }
+            )
+          },
           onRefresh = {
             props.setState(props.state.copy(isRefreshing = true))
           },
@@ -217,7 +230,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             props.onGoToSecurityHub()
             scope.launch {
               haptics.vibrate(effect = HapticsEffect.LightClick)
-              coachmarkService.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubHomeCoachmark)
             }
           },
           isSecurityHubBadged = securityActionsService.hasRecommendationsRequiringAttention()
@@ -301,25 +313,12 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     onCoachmarkDisplayed: () -> Unit,
   ): CoachmarkModel? {
     return when {
-      coachmarksToDisplay.contains(CoachmarkIdentifier.BalanceGraphCoachmark) -> {
-        BalanceGraphCoachmarkModel(
+      coachmarksToDisplay.contains(CoachmarkIdentifier.Bip177Coachmark) -> {
+        Bip177CoachmarkModel(
           onDismiss = {
             scope.launch {
               coachmarkService.markCoachmarkAsDisplayed(
-                coachmarkId = CoachmarkIdentifier.BalanceGraphCoachmark
-              )
-              onCoachmarkDisplayed()
-            }
-          }
-        )
-      }
-
-      coachmarksToDisplay.contains(CoachmarkIdentifier.SecurityHubHomeCoachmark) -> {
-        SecurityHubHomeCoachmarkModel(
-          onDismiss = {
-            scope.launch {
-              coachmarkService.markCoachmarkAsDisplayed(
-                coachmarkId = CoachmarkIdentifier.SecurityHubHomeCoachmark
+                coachmarkId = CoachmarkIdentifier.Bip177Coachmark
               )
               onCoachmarkDisplayed()
             }

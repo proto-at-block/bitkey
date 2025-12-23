@@ -11,9 +11,25 @@ import kotlinx.datetime.Clock
 @BitkeyInject(AppScope::class)
 class CoachmarkVisibilityDecider(
   val clock: Clock,
+  private val bip177CoachmarkPolicy: Bip177CoachmarkPolicy,
 ) {
-  fun shouldShow(coachmark: Coachmark): Boolean {
+  /**
+   * Returns whether a coachmark is eligible to be created based on feature flags.
+   * Used before inserting so we don't start expiration timers prematurely.
+   */
+  suspend fun shouldCreate(coachmarkId: CoachmarkIdentifier): Boolean =
+    when (coachmarkId) {
+      CoachmarkIdentifier.Bip177Coachmark -> bip177CoachmarkPolicy.shouldCreate()
+      else -> true
+    }
+
+  /**
+   * Determines if an existing coachmark should be visible: must be eligible by flags,
+   * not viewed, and not expired relative to the current clock.
+   */
+  suspend fun shouldShow(coachmark: Coachmark): Boolean {
     val featureFlagged = when (coachmark.id) {
+      CoachmarkIdentifier.Bip177Coachmark -> bip177CoachmarkPolicy.shouldShow()
       else -> {
         // Not all coachmarks have associated feature flags
         true

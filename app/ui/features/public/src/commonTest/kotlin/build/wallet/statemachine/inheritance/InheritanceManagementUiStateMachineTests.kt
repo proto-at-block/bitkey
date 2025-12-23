@@ -5,8 +5,6 @@ import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimBothDescriptorsFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.bitkey.relationships.ProtectedCustomerFake
-import build.wallet.coachmark.CoachmarkIdentifier.InheritanceCoachmark
-import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.inheritance.ContactClaimState
 import build.wallet.inheritance.InheritanceServiceMock
@@ -40,7 +38,6 @@ import kotlinx.datetime.Instant
 class InheritanceManagementUiStateMachineTests : FunSpec({
 
   val inheritanceService = InheritanceServiceMock(turbines.create("sync-calls"))
-  val coachmarkService = CoachmarkServiceMock(emptyList(), turbines::create)
 
   val stateMachine = InheritanceManagementUiStateMachineImpl(
     inviteBeneficiaryUiStateMachine = object : InviteBeneficiaryUiStateMachine,
@@ -65,7 +62,6 @@ class InheritanceManagementUiStateMachineTests : FunSpec({
       StateMachineMock<InheritanceCardUiProps, List<CardModel>>(
         initialModel = emptyList()
       ) {},
-    coachmarkService = coachmarkService,
     sendUiStateMachine = object : SendUiStateMachine,
       ScreenStateMachineMock<SendUiProps>("send") {}
   )
@@ -78,16 +74,7 @@ class InheritanceManagementUiStateMachineTests : FunSpec({
   )
 
   beforeTest {
-    coachmarkService.resetCoachmarks()
     inheritanceService.reset()
-  }
-
-  test("marks coachmark as displayed") {
-    coachmarkService.defaultCoachmarks = listOf(InheritanceCoachmark)
-    stateMachine.test(props) {
-      awaitBody<ManagingInheritanceBodyModel> {}
-      coachmarkService.markDisplayedTurbine.awaitItem().shouldBe(InheritanceCoachmark)
-    }
   }
 
   test("removing a benefactor w/ an approved claim") {

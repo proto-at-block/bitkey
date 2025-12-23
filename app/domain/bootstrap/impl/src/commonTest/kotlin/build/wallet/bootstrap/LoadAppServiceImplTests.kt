@@ -69,12 +69,10 @@ class LoadAppServiceImplTests : FunSpec({
     }
   }
 
-  context("has no active or onboarding account") {
-    test("undetermined app state") {
-      accountService.accountState.value = Ok(AccountStatus.NoAccount)
+  test("has no active or onboarding account") {
+    accountService.accountState.value = Ok(AccountStatus.NoAccount)
 
-      service.loadAppState().shouldBe(AppState.NoActiveAccount)
-    }
+    service.loadAppState().shouldBe(AppState.NoActiveAccount)
   }
 
   context("has active lite account") {

@@ -19,6 +19,7 @@ import { RecoveryMonitors } from "./monitors/recovery";
 import { MoneyMovementMonitors } from "./monitors/moneyMovement";
 import { NotificationsMonitors } from "./monitors/notifications";
 import { SecurityAlertMonitors } from "./monitors/securityAlerts";
+import { AgeRestrictionMonitors } from "./monitors/ageRestriction";
 import { WorkerMonitors } from "./monitors/worker";
 import { ShopApiStuckOrdersJobMonitors } from "./monitors/web/shop-api-stuck-orders-job";
 
@@ -78,6 +79,9 @@ class MonitorsStack extends TerraformStack {
 
     new SecurityAlertMonitors(this, Environment.STAGING)
     new SecurityAlertMonitors(this, Environment.PRODUCTION)
+
+    new AgeRestrictionMonitors(this, Environment.STAGING)
+    new AgeRestrictionMonitors(this, Environment.PRODUCTION)
 
     new WorkerMonitors(this, Environment.STAGING)
     new WorkerMonitors(this, Environment.PRODUCTION)

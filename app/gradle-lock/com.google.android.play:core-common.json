@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.play:core-common",
+    "components": [
+        {
+            "version": "2.0.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-common-2.0.4.aar": "36400824014fc61d9379b13dd1ab13f6514847fb04347c0fdfe618bace78f3ed"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

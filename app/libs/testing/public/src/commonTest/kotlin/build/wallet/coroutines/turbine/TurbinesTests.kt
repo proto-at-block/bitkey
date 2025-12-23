@@ -232,4 +232,61 @@ class TurbineAwaitTests : FunSpec({
       }
     }
   }
+
+  context("awaitItemMaybe") {
+    test("returns item when emitted before timeout") {
+      val turbine = Turbine<String>()
+      turbine.add("foo")
+
+      turbine.awaitItemMaybe(timeout = 100.milliseconds).shouldBe("foo")
+      turbine.expectNoEvents()
+    }
+
+    test("returns null when no item emitted within timeout") {
+      val turbine = Turbine<String>()
+
+      turbine.awaitItemMaybe(timeout = 10.milliseconds).shouldBe(null)
+    }
+
+    test("returns null when item emitted after timeout") {
+      val turbine = Turbine<String>()
+
+      launch {
+        delay(50.milliseconds)
+        turbine.add("foo")
+      }
+
+      turbine.awaitItemMaybe(timeout = 10.milliseconds).shouldBe(null)
+    }
+
+    test("consumes item from turbine when present") {
+      val turbine = Turbine<String>()
+      turbine.add("first")
+
+      turbine.awaitItemMaybe(timeout = 100.milliseconds).shouldBe("first")
+      turbine.expectNoEvents()
+    }
+
+    test("returns most recent item when multiple present") {
+      val turbine = Turbine<String>()
+      turbine.add("first")
+      turbine.add("second")
+
+      // Returns most recent and consumes all items - appropriate for race condition handling
+      // where we just need to know if any event was emitted
+      turbine.awaitItemMaybe(timeout = 100.milliseconds).shouldBe("second")
+      turbine.expectNoEvents()
+    }
+
+    test("does not affect turbine when no item present") {
+      val turbine = Turbine<String>()
+
+      turbine.awaitItemMaybe(timeout = 10.milliseconds).shouldBe(null)
+
+      // Turbine should still work normally after
+      turbine.add("foo")
+      turbine.awaitItem().shouldBe("foo")
+      turbine.expectNoEvents()
+    }
+  }
 })

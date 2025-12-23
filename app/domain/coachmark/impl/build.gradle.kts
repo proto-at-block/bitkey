@@ -24,7 +24,9 @@ kotlin {
         implementation(projects.libs.timeFake)
         implementation(projects.domain.analyticsFake)
         implementation(projects.domain.coachmarkFake)
+        implementation(projects.domain.onboardingFake)
         implementation(projects.libs.testingPublic)
+        implementation(projects.libs.moneyFake)
       }
     }
   }

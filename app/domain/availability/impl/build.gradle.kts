@@ -15,6 +15,8 @@ kotlin {
         implementation(projects.domain.databasePublic)
         implementation(projects.domain.debugPublic)
         implementation(projects.domain.f8eClientPublic)
+        implementation(projects.domain.featureFlagPublic)
+        implementation(projects.libs.platformPublic)
         // TODO: break impl dependency.
         implementation(projects.domain.f8eClientImpl)
       }
@@ -24,6 +26,8 @@ kotlin {
       dependencies {
         implementation(projects.domain.accountFake)
         implementation(projects.domain.debugFake)
+        implementation(projects.domain.featureFlagFake)
+        implementation(projects.libs.platformFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)
         implementation(projects.libs.timeFake)

@@ -21,7 +21,6 @@ import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.home.full.HomeTab
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
-import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
 import build.wallet.ui.components.amount.HeroAmount
@@ -67,7 +66,6 @@ fun MoneyHomeScreen(
 
   // Coachmarks that appear above the tab bar and need positioning
   val tabBarCoachmarkIds = setOf(
-    CoachmarkIdentifier.SecurityHubHomeCoachmark,
     CoachmarkIdentifier.PrivateWalletHomeCoachmark
   )
 
@@ -114,15 +112,29 @@ fun MoneyHomeScreen(
 
       // Balance + buttons
       item {
+        val hasBip177Coachmark = remember(model.coachmark) {
+          model.coachmark?.identifier == CoachmarkIdentifier.Bip177Coachmark
+        }
         with(model.balanceModel) {
           HeroAmount(
-            modifier = Modifier.clickable(
-              interactionSource = MutableInteractionSource(),
-              indication = null,
-              onClick = {
-                model.onHideBalance()
-              }
-            ),
+            modifier = Modifier
+              .clickable(
+                interactionSource = MutableInteractionSource(),
+                indication = null,
+                onClick = {
+                  model.onHideBalance()
+                }
+              )
+              .thenIf(hasBip177Coachmark) {
+                Modifier.onGloballyPositioned { layoutCoordinates ->
+                  val positionInParent = layoutCoordinates.positionInParent()
+                  val size = layoutCoordinates.size
+                  coachmarkOffset = Offset(
+                    0f,
+                    positionInParent.y + size.height
+                  )
+                }
+              },
             primaryAmount = AnnotatedString(primaryAmount),
             contextLine = secondaryAmount,
             hideBalance = model.hideBalance,
@@ -147,32 +159,10 @@ fun MoneyHomeScreen(
 
       // Cards
       items(model.cardsModel.cards) { cardModel ->
-        val hasCoachmark = remember(model.coachmark, cardModel.content) {
-          model.coachmark?.identifier == CoachmarkIdentifier.BalanceGraphCoachmark &&
-            cardModel.content is CardModel.CardContent.BitcoinPrice
-        }
         MoneyHomeCard(
           modifier = Modifier
-            .padding(horizontal = 20.dp)
-            .thenIf(hasCoachmark) {
-              Modifier
-                .onGloballyPositioned { layoutCoordinates ->
-                  val positionInParent = layoutCoordinates.positionInParent()
-                  val size = layoutCoordinates.size
-                  coachmarkOffset = Offset(
-                    0f,
-                    positionInParent.y + size.height
-                  )
-                }
-            },
-          model = if (hasCoachmark) {
-            cardModel.copy(onClick = {
-              cardModel.onClick?.invoke()
-              model.coachmark?.dismiss?.invoke()
-            })
-          } else {
-            cardModel
-          }
+            .padding(horizontal = 20.dp),
+          model = cardModel
         )
         Spacer(modifier = Modifier.height(24.dp))
       }
