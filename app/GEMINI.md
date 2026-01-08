@@ -1,8 +1,11 @@
 @ai-rules/.generated-ai-rules/ai-rules-generated-testing-overview.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-gradle-build-system.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-hermit-environment.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-ai-rule-writing.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-dao-pattern.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-basics.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-mcp-setup.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-datadog-mcp-usage.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-testing-basics.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-kmp-code-structure.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-goosehints.md
@@ -13,12 +16,12 @@
 @ai-rules/.generated-ai-rules/ai-rules-generated-factory-pattern.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-bitkey-mobile.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-testing-integration.md
+@ai-rules/.generated-ai-rules/ai-rules-generated-slack-mcp-usage.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-testing-state-machines.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-domain-service-pattern.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-testing-services.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-strong-typing.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-models.md
-@ai-rules/.generated-ai-rules/ai-rules-generated-rule-writing.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-testing-fakes-mocks.md
 @ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-patterns.md

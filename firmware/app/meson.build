@@ -3,5 +3,6 @@ invoke = find_program('inv')
 signer = find_program(meson.project_source_root()/'python/bitkey/firmware_signer.py')
 
 subdir('tasks')
-
 subdir('w1')
+subdir('w3-core')
+subdir('w3-uxc')

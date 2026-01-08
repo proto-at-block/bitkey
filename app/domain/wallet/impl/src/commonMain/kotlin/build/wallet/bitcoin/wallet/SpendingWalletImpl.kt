@@ -1,12 +1,12 @@
 package build.wallet.bitcoin.wallet
 
 import build.wallet.bdk.bindings.*
-import build.wallet.bdk.bindings.BdkAddressIndex
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.bdk.*
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.*
@@ -365,7 +365,7 @@ private suspend fun BdkPartiallySignedTransaction.toPsbt(
           Psbt(
             id = txid(),
             base64 = serialize(),
-            fee = BitcoinMoney.sats(feeSats),
+            fee = Fee(amount = BitcoinMoney.sats(feeSats)),
             baseSize = extractTx().size().toLong(),
             numOfInputs = extractTx().input().size,
             amountSats = amountSats,

@@ -45,5 +45,6 @@ dependencies {
   implementation(libs.jvm.zxing)
 
   testImplementation(projects.domain.bitkeyPrimitivesFake)
+  testImplementation(projects.domain.cloudBackupFake)
   testImplementation(projects.domain.inheritancePublic)
 }

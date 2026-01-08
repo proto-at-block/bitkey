@@ -7,6 +7,9 @@
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 bool crypto_hash(const uint8_t* message, uint32_t message_size, uint8_t* digest,
                  uint32_t digest_size, hash_alg_t alg) {
   ASSERT(message && digest);
@@ -71,3 +74,5 @@ bool crypto_sha256_stream_final(void* ctx, uint8_t* digest_out) {
   SHA256_Final(digest_out, (SHA256_CTX*)ctx);
   return true;
 }
+
+#pragma GCC diagnostic pop

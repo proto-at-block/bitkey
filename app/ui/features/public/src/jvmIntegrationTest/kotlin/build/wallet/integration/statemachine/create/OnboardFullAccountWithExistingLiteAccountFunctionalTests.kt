@@ -6,7 +6,9 @@ import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.store.CloudStoreAccountFake
+import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.statemachine.cloud.CloudSignInModelFake
@@ -21,6 +23,7 @@ import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
 import build.wallet.testing.ext.testWithTwoApps
+import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -40,11 +43,18 @@ class OnboardFullAccountWithExistingLiteAccountFunctionalTests : FunSpec({
     )
 
     // Verify the lite account backup is present in cloud
-    onboardApp.cloudBackupRepository
-      .readActiveBackup(CloudStoreAccountFake.CloudStoreAccount1Fake)
+    onboardApp.cloudKeyValueStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
       .getOrThrow()
-      .shouldNotBeNull()
-      .shouldBe(liteBackup)
+      .first()
+      .let { key ->
+        onboardApp.cloudKeyValueStore.getString(CloudStoreAccountFake.CloudStoreAccount1Fake, key)
+          .shouldBeOk()
+          .shouldNotBeNull()
+          .shouldBe(
+            onboardApp.jsonSerializer.encodeToStringResult<CloudBackupV3>(liteBackup as CloudBackupV3)
+              .getOrThrow()
+          )
+      }
 
     // Set push notifications to authorized to enable us to successfully advance through
     // the notifications step in onboarding.

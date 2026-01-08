@@ -12,6 +12,7 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.EndorsedBeneficiaryFake
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.cloud.backup.*
+import build.wallet.cloud.backup.CloudBackupOperationLockImpl
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.FullAccountFieldsCreationError
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.cloud.backup.v2.FullAccountFields
@@ -58,7 +59,8 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
     fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
     eventTracker = eventTracker,
     clock = ClockFake(),
-    appSessionManager = AppSessionManagerFake()
+    appSessionManager = AppSessionManagerFake(),
+    cloudBackupOperationLock = CloudBackupOperationLockImpl()
   )
 
   afterTest {
@@ -240,7 +242,9 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
           )
 
           fullAccountCloudBackupCreator.createCalls.awaitItem()
-          cloudBackupRepository.awaitBackup(cloudAccount).shouldBe(cloudBackup)
+          cloudBackupRepository
+            .awaitBackup(cloudAccount)
+            .shouldBe(cloudBackup)
           relationshipsService.relationships.emit(RelationshipsFake)
         }
 

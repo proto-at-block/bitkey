@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::env;
 use std::str::FromStr;
 
-use crate::sanctions_screener::{SanctionedAddresses, Screener};
+use crate::sanctions::Sanctions;
+use crate::screening::{SanctionsScreener, SanctionsScreenerError};
 use crate::{Config, ScreenerMode};
 use csv::ReaderBuilder;
-use errors::ApiError;
 use repository::screener::ScreenerRepository;
 use s3_utils::{read_file_to_memory, ObjectPath};
 use tokio::runtime::Handle;
@@ -14,17 +14,9 @@ use tracing::error;
 use types::account::entities::Account;
 use types::screener::ScreenerRow;
 
-pub trait SanctionsScreener {
-    fn should_block_transaction(
-        &self,
-        account: &Account,
-        addresses: &[String],
-    ) -> Result<bool, ApiError>;
-}
-
 #[derive(Clone)]
 pub struct Service {
-    screener: Screener,
+    sanctions: Sanctions,
     repo: ScreenerRepository,
 }
 
@@ -34,16 +26,16 @@ impl Service {
         screener_repo: ScreenerRepository,
         config: Config,
     ) -> Self {
-        let mut screener = Screener::new();
+        let mut sanctions = Sanctions::new();
 
         match config.screener {
             ScreenerMode::Test => {
                 if let Some(overrides) = with_overrides {
-                    screener.set_sanctioned_addresses(SanctionedAddresses(overrides));
+                    sanctions.set_addresses(overrides);
                 }
 
                 Self {
-                    screener,
+                    sanctions,
                     repo: screener_repo,
                 }
             }
@@ -65,10 +57,10 @@ impl Service {
                     sanctioned_addresses.extend(overrides);
                 }
 
-                screener.set_sanctioned_addresses(SanctionedAddresses(sanctioned_addresses));
+                sanctions.set_addresses(sanctioned_addresses);
 
                 Self {
-                    screener,
+                    sanctions,
                     repo: screener_repo,
                 }
             }
@@ -82,10 +74,8 @@ impl SanctionsScreener for Service {
         &self,
         account: &Account,
         destination_addresses: &[String],
-    ) -> Result<bool, ApiError> {
-        let sanctioned_addresses = self
-            .screener
-            .find_sanctioned_addresses(destination_addresses);
+    ) -> Result<bool, SanctionsScreenerError> {
+        let sanctioned_addresses = self.sanctions.find_addresses(destination_addresses);
 
         if sanctioned_addresses.is_empty() {
             return Ok(false);
@@ -110,8 +100,10 @@ impl SanctionsScreener for Service {
             email_address,
             phone_number,
             sanctioned_addresses,
-        )?;
-        block_in_place(|| Handle::current().block_on(self.repo.persist(&hit)))?;
+        )
+        .map_err(SanctionsScreenerError::ScreenerError)?;
+        block_in_place(|| Handle::current().block_on(self.repo.persist(&hit)))
+            .map_err(|e| SanctionsScreenerError::ScreenerError(e.into()))?;
 
         Ok(true)
     }
@@ -214,9 +206,7 @@ mod tests {
             },
         )
         .await;
-        let blocked_addresses = service
-            .screener
-            .find_sanctioned_addresses(&["addr1".to_string()]);
+        let blocked_addresses = service.sanctions.find_addresses(&["addr1".to_string()]);
 
         assert!(!blocked_addresses.is_empty());
     }

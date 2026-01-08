@@ -88,6 +88,8 @@ abstract class BaseF8eHttpClientFactory(
       }
 
       install(HttpTimeout) {
+        connectTimeoutMillis = 15.seconds.inWholeMilliseconds
+        requestTimeoutMillis = 60.seconds.inWholeMilliseconds
         socketTimeoutMillis = 60.seconds.inWholeMilliseconds
       }
 

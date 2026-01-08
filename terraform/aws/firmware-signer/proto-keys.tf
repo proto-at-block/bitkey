@@ -1,4 +1,33 @@
 ##################################################################
+# B3/Hashboard FWUP signing key (looked up by alias, created externally)
+# Alias format:
+#   Developer stacks: <resource-prefix>-b3-fwup-signing-key
+#   Shared environments: <env>-<region>-b3-fwup-signing-key
+##################################################################
+locals {
+  b3_key_alias = local.is_developer_stack ? "${local.resource_prefix}-b3-fwup-signing-key" : "${var.env}-${var.region}-b3-fwup-signing-key"
+}
+
+module "b3_fwup_signing_key" {
+  source = "./modules/app_signing_keys"
+
+  account_id      = data.aws_caller_identity.current.account_id
+  resource_prefix = local.resource_prefix
+  product_name    = "b3"
+
+  public_access_lambda_role_names = [
+    module.kickoff_docker.lambda_role_name
+  ]
+
+  signing_access_lambda_role_names = [
+    module.kickoff_docker.lambda_role_name
+  ]
+
+  # Import by alias (key created externally, already has alias)
+  imported_key_alias = local.b3_key_alias
+}
+
+##################################################################
 # Create KMS keys key wrapping (used by Lambda to unwrap app signing keys)
 # at signing time
 ##################################################################

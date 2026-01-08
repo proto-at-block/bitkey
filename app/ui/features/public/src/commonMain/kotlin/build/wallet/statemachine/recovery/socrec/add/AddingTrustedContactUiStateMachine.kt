@@ -5,6 +5,7 @@ import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.relationships.CreateInvitationError
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import com.github.michaelbull.result.Result
@@ -20,7 +21,7 @@ data class AddingTrustedContactUiProps(
   val onAddTc: suspend (
     trustedContactAlias: TrustedContactAlias,
     hardwareProofOfPossession: HwFactorProofOfPossession,
-  ) -> Result<OutgoingInvitation, Error>,
+  ) -> Result<OutgoingInvitation, CreateInvitationError>,
   val onInvitationShared: () -> Unit,
   val onExit: () -> Unit,
 )

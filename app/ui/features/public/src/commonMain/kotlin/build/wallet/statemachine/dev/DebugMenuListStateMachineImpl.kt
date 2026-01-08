@@ -119,6 +119,7 @@ class DebugMenuListStateMachineImpl(
             }
           ),
           KeyboxDeleterOptionsListGroupModel(
+            account = account,
             onActionConfirmationRequest = { actionConfirmation = it },
             onDeleteKeybox = { deleteAppDataRequest = it }
           ),
@@ -171,10 +172,13 @@ class DebugMenuListStateMachineImpl(
     }
     LaunchedEffect("delete-app-data-$request)") {
       if (request.deleteAppKeyBackup) {
-        cloudBackupDeleter.delete()
+        cloudBackupDeleter.delete(account?.accountId)
       }
       if (request.deleteAppKey) {
         appDataDeleter.deleteAll()
+      }
+      if (request.deleteAllBackup) {
+        cloudBackupDeleter.deleteAll()
       }
       onDone()
     }
@@ -256,6 +260,7 @@ class DebugMenuListStateMachineImpl(
 
   @Composable
   private fun KeyboxDeleterOptionsListGroupModel(
+    account: Account?,
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
     onDeleteKeybox: (DeleteAppDataRequest) -> Unit,
   ): ListGroupModel? {
@@ -270,7 +275,8 @@ class DebugMenuListStateMachineImpl(
                   onDeleteKeybox(
                     DeleteAppDataRequest(
                       deleteAppKey = true,
-                      deleteAppKeyBackup = false
+                      deleteAppKeyBackup = false,
+                      deleteAllBackup = false
                     )
                   )
                 }
@@ -285,7 +291,8 @@ class DebugMenuListStateMachineImpl(
                   onDeleteKeybox(
                     DeleteAppDataRequest(
                       deleteAppKey = false,
-                      deleteAppKeyBackup = true
+                      deleteAppKeyBackup = true,
+                      deleteAllBackup = false
                     )
                   )
                 }
@@ -300,13 +307,31 @@ class DebugMenuListStateMachineImpl(
                   onDeleteKeybox(
                     DeleteAppDataRequest(
                       deleteAppKey = true,
-                      deleteAppKeyBackup = true
+                      deleteAppKeyBackup = true,
+                      deleteAllBackup = false
                     )
                   )
                 }
               )
             )
-          }
+          },
+          onDeleteAllBackupRequest = {
+            onActionConfirmationRequest(
+              ActionConfirmationRequest(
+                gatedActionTitle = "Delete All App Key Backups",
+                gatedAction = {
+                  onDeleteKeybox(
+                    DeleteAppDataRequest(
+                      deleteAppKey = false,
+                      deleteAppKeyBackup = false,
+                      deleteAllBackup = true
+                    )
+                  )
+                }
+              )
+            )
+          },
+          showDeleteAppKey = account != null
         )
     )
   }
@@ -447,10 +472,12 @@ class DebugMenuListStateMachineImpl(
  *
  * @property deleteAppKey - determines if we should delete local app key.
  * @property deleteAppKeyBackup - determines if we should delete app key cloud backup.
+ * @property deleteAllBackup - determines if we should delete app key in all cloud backup.
  */
 private data class DeleteAppDataRequest(
   val deleteAppKey: Boolean,
   val deleteAppKeyBackup: Boolean,
+  val deleteAllBackup: Boolean,
 )
 
 private data class ActionConfirmationRequest(

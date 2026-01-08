@@ -14,6 +14,9 @@ import build.wallet.logging.logFailure
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.notifications.RegisterWatchAddressProcessor
 import build.wallet.queueprocessor.process
+import build.wallet.recovery.keyset.SpendingKeysetRepairService
+import build.wallet.recovery.keyset.SpendingKeysetSyncStatus
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.fold
@@ -28,6 +31,7 @@ class BitcoinAddressServiceImpl(
   private val accountService: AccountService,
   private val notificationsPreferencesCachedProvider: NotificationsPreferencesCachedProvider,
   private val descriptorBackupService: DescriptorBackupService,
+  private val spendingKeysetRepairService: SpendingKeysetRepairService,
 ) : BitcoinAddressService, BitcoinRegisterWatchAddressWorker {
   private val addressCache = MutableStateFlow<AccountWithAddress?>(null)
 
@@ -68,7 +72,21 @@ class BitcoinAddressServiceImpl(
     return coroutineBinding {
       val account = accountService.getAccount<FullAccount>().bind()
 
-      // Check descriptor backup health first
+      // Check keyset sync status first - block address generation if mismatch detected
+      when (val syncStatus = spendingKeysetRepairService.syncStatus.value) {
+        is SpendingKeysetSyncStatus.Mismatch -> {
+          Err(
+            KeysetMismatchError(
+              message = "Cannot generate address: local keyset doesn't match server",
+              localKeysetId = syncStatus.localActiveKeysetId,
+              serverKeysetId = syncStatus.serverActiveKeysetId
+            )
+          ).bind()
+        }
+        else -> {} // Continue with address generation
+      }
+
+      // Check descriptor backup health
       val activeSpendingKeyset = account.keybox.activeSpendingKeyset
       if (activeSpendingKeyset.isPrivateWallet) {
         descriptorBackupService

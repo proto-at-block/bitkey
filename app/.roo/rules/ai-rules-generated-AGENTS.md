@@ -38,7 +38,7 @@ Configuration for the Bitkey mobile app. **Read actual rule content - don't assu
 @ai-rules/testing-integration.md
 
 ## Meta
-@ai-rules/rule-writing.md
+@ai-rules/ai-rule-writing.md
 
 ## AI Rules Index Reference
 

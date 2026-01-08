@@ -1,6 +1,7 @@
 package build.wallet.chaincode.delegation
 
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
 import build.wallet.bitcoin.transactions.Psbt
@@ -26,7 +27,7 @@ class ChaincodeDelegationTweakServiceImplTest : FunSpec({
   val originalPsbt = Psbt(
     id = "psbt-id",
     base64 = "original-psbt",
-    fee = BitcoinMoney.sats(0),
+    fee = Fee(BitcoinMoney.sats(0)),
     baseSize = 0,
     numOfInputs = 0,
     amountSats = 0u

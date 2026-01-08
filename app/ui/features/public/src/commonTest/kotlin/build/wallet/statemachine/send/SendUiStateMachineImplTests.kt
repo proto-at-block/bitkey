@@ -3,7 +3,6 @@ package build.wallet.statemachine.send
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.fees.Fee
-import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
@@ -100,9 +99,9 @@ class SendUiStateMachineImplTests : FunSpec({
 
   val feeMap =
     persistentMapOf(
-      FASTEST to Fee(BitcoinMoney.sats(1000), oneSatPerVbyteFeeRate),
-      THIRTY_MINUTES to Fee(BitcoinMoney.sats(300), oneSatPerVbyteFeeRate),
-      SIXTY_MINUTES to Fee(BitcoinMoney.sats(150), oneSatPerVbyteFeeRate)
+      FASTEST to Fee(BitcoinMoney.sats(1000)),
+      THIRTY_MINUTES to Fee(BitcoinMoney.sats(300)),
+      SIXTY_MINUTES to Fee(BitcoinMoney.sats(150))
     )
   context("User is sending exact amount") {
     val amountToSend = 60_000UL
@@ -133,7 +132,7 @@ class SendUiStateMachineImplTests : FunSpec({
           val psbtToBroadcast =
             PsbtMock.copy(
               amountSats = amountToSend,
-              fee = feeMap[FASTEST]!!.amount
+              fee = feeMap[FASTEST]!!
             )
           onTransferInitiated(psbtToBroadcast, FASTEST)
         }
@@ -245,7 +244,7 @@ class SendUiStateMachineImplTests : FunSpec({
           val psbtToBroadcast =
             PsbtMock.copy(
               amountSats = 60_000UL,
-              fee = feeMap[FASTEST]!!.amount
+              fee = feeMap[FASTEST]!!
             )
           onTransferInitiated(psbtToBroadcast, FASTEST)
         }

@@ -1,0 +1,2 @@
+recursive-include . configure* Makefile.am Makefile.am.include Makefile.in *.c *.h *.inl *.pc.in
+include tools/autogen.sh tools/cleanup.sh tools/msvc/*.bat ./tools/build-aux/* ./tools/build-aux/m4/* src/wallycore.pc.in ./src/secp256k1/build-aux/* ./src/secp256k1/build-aux/m4/* src/secp256k1/autogen.sh ./src/swig_python/swig.i ./src/swig_python/python_extra.py_in

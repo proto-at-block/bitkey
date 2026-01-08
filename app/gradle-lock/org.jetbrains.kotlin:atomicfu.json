@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:atomicfu",
+    "components": [
+        {
+            "version": "2.1.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "atomicfu-2.1.20-gradle85.jar": "0b4b6380be5b1a48c36b48a7283c5b9e0d15a74071237fbe25d8a6a88c0e4658"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]"
+            ]
+        }
+    ]
+}

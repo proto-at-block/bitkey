@@ -1,15 +1,6 @@
 {
   "pins" : [
     {
-      "identity" : "bdk-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/bitcoindevkit/bdk-swift",
-      "state" : {
-        "revision" : "370f3947d4fd87377f645927d4a86597f1591cc0",
-        "version" : "2.0.0"
-      }
-    },
-    {
       "identity" : "bugsnag-cocoa",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/bugsnag/bugsnag-cocoa",

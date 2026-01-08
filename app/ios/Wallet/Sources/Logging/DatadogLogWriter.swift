@@ -1,21 +1,24 @@
 import DatadogCore
 import DatadogLogs
-import Foundation
 import Shared
 
 public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
 
+    private let logger: DatadogLoggerProtocol
     private var logWriterContextStore: LogWriterContextStore
     private var minSeverity: Kermit_coreSeverity
 
-    private lazy var logger: DatadogLoggerProtocol = {
-        let logWriterContext = self.logWriterContextStore.get()
+    public init(logWriterContextStore: LogWriterContextStore, minSeverity: Kermit_coreSeverity) {
+        self.logWriterContextStore = logWriterContextStore
+        self.minSeverity = minSeverity
+
+        let logWriterContext = logWriterContextStore.get()
         Datadog.addUserExtraInfo([
             "app_installation_id": logWriterContext.appInstallationId,
             "hardware_serial_number": logWriterContext.hardwareSerialNumber,
             "firmware_version": logWriterContext.firmwareVersion,
         ])
-        return DatadogLogger.create(
+        self.logger = DatadogLogger.create(
             with: .init(
                 name: "Default",
                 networkInfoEnabled: false,
@@ -23,11 +26,6 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
                 bundleWithTraceEnabled: true
             )
         )
-    }()
-
-    public init(logWriterContextStore: LogWriterContextStore, minSeverity: Kermit_coreSeverity) {
-        self.logWriterContextStore = logWriterContextStore
-        self.minSeverity = minSeverity
     }
 
     override public func isLoggable(tag _: String, severity: Kermit_coreSeverity) -> Bool {

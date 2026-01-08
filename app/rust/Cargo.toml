@@ -2,6 +2,7 @@
 members = [
   "apdu",
   "bdk-android-ffi",
+  "bdk-ffi",
   "chaincode-delegation",
   "core-ffi",
   "firmware-ffi",
@@ -43,3 +44,11 @@ wsm-integrity = { path = "../../core/wsm-integrity" }
 [profile.release]
 lto = true
 opt-level = "z"
+
+[profile.release-smaller]
+codegen-units = 1    # Reduce number of codegen units to increase optimizations.
+inherits = "release"
+lto = true           # Enable Link Time Optimization
+opt-level = 'z'      # Optimize for size.
+panic = "abort"      # Abort on panic
+strip = "debuginfo"  # Partially strip symbols from binary

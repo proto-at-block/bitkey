@@ -8,17 +8,13 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.explorer.BitcoinExplorer
 import build.wallet.bitcoin.explorer.BitcoinExplorerType.Mempool
-import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.BumpFee
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.collections.immutableListOf
@@ -26,7 +22,6 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -48,7 +43,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.data.money.convertedOrNull
 import build.wallet.statemachine.data.money.convertedOrZero
 import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
-import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.FeeLoadingError.TransactionMissingRecipientAddress
+import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.FeeLoadingError.GenericSpeedUpError
 import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.UiState.*
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorContext
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiError
@@ -60,7 +55,8 @@ import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.toast.ToastModel
-import com.github.michaelbull.result.getOrElse
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.filterNotNull
@@ -83,7 +79,7 @@ class TransactionDetailsUiStateMachineImpl(
   private val bitcoinTransactionBumpabilityChecker: BitcoinTransactionBumpabilityChecker,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val feeBumpConfirmationUiStateMachine: FeeBumpConfirmationUiStateMachine,
-  private val feeRateEstimator: BitcoinFeeRateEstimator,
+  private val speedUpTransactionService: SpeedUpTransactionService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val bitcoinWalletService: BitcoinWalletService,
   private val transactionsActivityService: TransactionsActivityService,
@@ -150,20 +146,12 @@ class TransactionDetailsUiStateMachineImpl(
                     cause = error
                   )
                 },
-                onSuccessBumpingFee = { psbt, newFeeRate ->
-                  uiState = when (val details = bitcoinTransaction.toSpeedUpTransactionDetails()) {
-                    null -> FeeEstimationErrorUiState(
-                      error = FeeEstimationErrorUiError.Generic,
-                      cause = TransactionMissingRecipientAddress
-                    )
-                    else -> {
-                      SpeedingUpTransactionUiState(
-                        psbt = psbt,
-                        newFeeRate = newFeeRate,
-                        speedUpTransactionDetails = details
-                      )
-                    }
-                  }
+                onSuccessBumpingFee = { psbt, newFeeRate, details ->
+                  uiState = SpeedingUpTransactionUiState(
+                    psbt = psbt,
+                    newFeeRate = newFeeRate,
+                    speedUpTransactionDetails = details
+                  )
                 }
               )
             }
@@ -172,20 +160,8 @@ class TransactionDetailsUiStateMachineImpl(
 
         val onSpeedUpTransaction: () -> Unit = remember {
           {
-            val speedUpTransactionDetails = when (val tx = transaction) {
-              is Transaction.BitcoinWalletTransaction -> tx.details.toSpeedUpTransactionDetails()
-              is Transaction.PartnershipTransaction -> tx.bitcoinTransaction?.toSpeedUpTransactionDetails()
-            }
             eventTracker.track(ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION)
-            when (speedUpTransactionDetails) {
-              null -> uiState = FeeEstimationErrorUiState(
-                error = FeeEstimationErrorUiError.Generic,
-                cause = TransactionMissingRecipientAddress
-              )
-              else -> {
-                isPreparingSpeedUp = true
-              }
-            }
+            isPreparingSpeedUp = true
           }
         }
 
@@ -295,48 +271,31 @@ class TransactionDetailsUiStateMachineImpl(
       }
     }
 
-  // TODO: extract into a domain service, for example `SpeedUpBitcoinTransactionService`
   private suspend fun prepareTransactionSpeedUp(
     account: Account,
     transaction: BitcoinTransaction,
     onFailedToPrepareData: (Throwable) -> Unit,
     onInsufficientFunds: (Throwable) -> Unit,
     onFeeRateTooLow: (Throwable) -> Unit,
-    onSuccessBumpingFee: (psbt: Psbt, newFeeRate: FeeRate) -> Unit,
+    onSuccessBumpingFee: (
+      psbt: Psbt,
+      newFeeRate: FeeRate,
+      details: SpeedUpTransactionDetails,
+    ) -> Unit,
   ) {
-    feeRateEstimator.estimatedFeeRateForTransaction(
-      networkType = account.config.bitcoinNetworkType,
-      estimatedTransactionPriority = FASTEST
-    )
-      .also { feeRate ->
-        // For test accounts on Signet, we manually choose a fee rate that is 5 times the previous
-        // one. This is particularly useful for QA when testing.
-        val newFeeRate =
-          if (account.config.isTestAccount && account.config.bitcoinNetworkType == SIGNET) {
-            FeeRate(satsPerVByte = feeRate.satsPerVByte * 5)
-          } else {
-            feeRate
-          }
-        val constructionMethod = BumpFee(txid = transaction.id, feeRate = newFeeRate)
-
-        val wallet = bitcoinWalletService.spendingWallet().value
-        if (wallet == null) {
-          onFailedToPrepareData(TransactionMissingRecipientAddress)
-          return
+    speedUpTransactionService
+      .prepareTransactionSpeedUp(account, transaction)
+      .onSuccess { result ->
+        onSuccessBumpingFee(result.psbt, result.newFeeRate, result.details)
+      }
+      .onFailure { error ->
+        when (error) {
+          SpeedUpTransactionError.InsufficientFunds -> onInsufficientFunds(BdkError.InsufficientFunds(null, null))
+          SpeedUpTransactionError.FeeRateTooLow -> onFeeRateTooLow(BdkError.FeeRateTooLow(null, null))
+          SpeedUpTransactionError.FailedToPrepareData,
+          SpeedUpTransactionError.TransactionNotReplaceable,
+          -> onFailedToPrepareData(GenericSpeedUpError)
         }
-        val psbt = wallet
-          .createSignedPsbt(constructionMethod)
-          .logFailure { "Unable to build fee bump psbt" }
-          .getOrElse {
-            when (it) {
-              is BdkError.InsufficientFunds -> onInsufficientFunds(it)
-              is BdkError.FeeRateTooLow -> onFeeRateTooLow(it)
-              else -> onFailedToPrepareData(it)
-            }
-            return
-          }
-
-        onSuccessBumpingFee(psbt, newFeeRate)
       }
   }
 
@@ -682,7 +641,7 @@ class TransactionDetailsUiStateMachineImpl(
     ) : UiState
 
     /**
-     * Represents any fee estimation error while preparing a speed up.
+     * Represents any fee estimation error while preparing a speed-up.
      */
     data class FeeEstimationErrorUiState(
       val error: FeeEstimationErrorUiError,
@@ -695,10 +654,11 @@ class TransactionDetailsUiStateMachineImpl(
    */
   sealed class FeeLoadingError : Error() {
     /**
-     * The transaction that was loaded to props was missing a recipient address.
+     * Generic error when preparing transaction speed-up data fails.
      *
-     * We do not expect this to happen, but handle it just in case.
+     * This can occur when required transaction data is missing or when the transaction
+     * cannot be replaced (e.g., does not support RBF).
      */
-    data object TransactionMissingRecipientAddress : FeeLoadingError()
+    data object GenericSpeedUpError : FeeLoadingError()
   }
 }

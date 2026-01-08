@@ -17,9 +17,10 @@ interface LostAppRecoveryHaveNotStartedDataStateMachine :
 
 data class LostAppRecoveryHaveNotStartedProps(
   /**
-   * Cloud backup data, if any, used to determine recovery options.
+   * List of cloud backups to try during recovery. The restoration flow will
+   * attempt to decrypt each backup with the hardware key until one succeeds.
    */
-  val cloudBackup: CloudBackup?,
+  val cloudBackups: List<CloudBackup>,
   /**
    * Action to perform if recovery is rolled back.
    */
@@ -37,10 +38,10 @@ class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
   ): LostAppRecoveryHaveNotStartedData {
     var dataState: State by remember {
       mutableStateOf(
-        if (props.cloudBackup == null) {
+        if (props.cloudBackups.isEmpty()) {
           InitiatingLostAppRecoveryState
         } else {
-          AttemptingCloudBackupRecoveryState(props.cloudBackup)
+          AttemptingCloudBackupRecoveryState(props.cloudBackups)
         }
       )
     }
@@ -49,7 +50,7 @@ class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
       when (state) {
         is AttemptingCloudBackupRecoveryState ->
           AttemptingCloudRecoveryLostAppRecoveryDataData(
-            cloudBackup = state.cloudBackup,
+            cloudBackups = state.cloudBackups,
             rollback = props.onRollback,
             onRecoverAppKey = {
               dataState = InitiatingLostAppRecoveryState
@@ -69,7 +70,7 @@ class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
 
   private sealed interface State {
     data class AttemptingCloudBackupRecoveryState(
-      val cloudBackup: CloudBackup,
+      val cloudBackups: List<CloudBackup>,
     ) : State
 
     /**

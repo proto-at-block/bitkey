@@ -10,7 +10,7 @@
 #include <stdio.h>
 #endif
 
-static inline void dumphex(uint8_t* buf, uint32_t size) {
+static inline void dumphex(uint8_t const* buf, uint32_t size) {
   for (uint32_t i = 0; i < size; i++) {
     printf("%02x", buf[i]);
   }

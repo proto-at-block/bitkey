@@ -70,7 +70,9 @@ NO_OPTIMIZE void nfc_isr_thread(void* UNUSED(args)) {
 
 NO_OPTIMIZE void nfc_thread(void* UNUSED(args)) {
   sysevent_wait(SYSEVENT_POWER_READY, true);
-  hal_nfc_init(&timer_callback);
+
+  // Start the NFC controller in listener mode only (passive).
+  hal_nfc_init(HAL_NFC_MODE_LISTENER, &timer_callback);
 
   nfc_priv.isr_thead_handle = rtos_thread_create(nfc_isr_thread, NULL, RTOS_THREAD_PRIORITY_HIGHEST,
                                                  RTOS_STATIC_STACK_DEPTH_DEFAULT);

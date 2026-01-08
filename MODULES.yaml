@@ -2,7 +2,7 @@
 ---
 name: bitkey-firmware
 core_reviewers: [bitkey-firmware-eng, hwsec]
-message: "Someone working on Bitkey Firmware OR HWSEC must approve this pull request."
+message: "Someone working on Bitkey Firmware or HWSEC must approve this pull request."
 slack: "#bitkey-firmware"
 minimum_core_approvals: 1
 autounapprove: true

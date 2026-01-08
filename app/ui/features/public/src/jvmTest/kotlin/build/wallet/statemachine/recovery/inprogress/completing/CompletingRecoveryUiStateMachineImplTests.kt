@@ -36,6 +36,7 @@ import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
@@ -211,6 +212,9 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
 
       // Verify cancel callback was invoked
       cancelCalls.awaitItem()
+
+      // Since the cancellation doesn't change the state of the parent composable function.
+      awaitUntilBody<DelayAndNotifyNewKeyReady>()
     }
   }
 

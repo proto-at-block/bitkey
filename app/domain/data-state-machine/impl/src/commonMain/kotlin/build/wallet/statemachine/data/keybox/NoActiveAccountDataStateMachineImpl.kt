@@ -6,6 +6,7 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.store.CloudStoreAccount
+import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.recovery.Recovery
@@ -15,6 +16,8 @@ import build.wallet.statemachine.data.keybox.NoActiveAccountData.*
 import build.wallet.statemachine.data.keybox.State.*
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryProps
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 
 @BitkeyInject(AppScope::class)
 class NoActiveAccountDataStateMachineImpl(
@@ -34,7 +37,7 @@ class NoActiveAccountDataStateMachineImpl(
 
     return when (val currentRecovery = recovery) {
       is Recovery.StillRecovering -> Recovery(
-        cloudBackup = null,
+        cloudBackups = emptyImmutableList(),
         recovery = currentRecovery,
         onRollback = {
           // Data change handles this navigation.
@@ -110,19 +113,22 @@ class NoActiveAccountDataStateMachineImpl(
         CheckingCloudBackupData(
           intent = dataState.startIntent,
           inviteCode = dataState.inviteCode,
-          onStartCloudRecovery = {
-              cloudStoreAccount,
-              backup,
-            ->
-            state = FullAccountRecoveryState(cloudStoreAccount, backup)
+          onStartCloudRecovery = { cloudStoreAccount, backups ->
+            // Pass all backups - recovery flow will try decrypting each until one succeeds
+            state = FullAccountRecoveryState(cloudStoreAccount, backups.toImmutableList())
           },
-          onStartLostAppRecovery = { state = FullAccountRecoveryState(null, null) },
+          onStartLostAppRecovery = {
+            state = FullAccountRecoveryState(
+              cloudStoreAccount = null,
+              backups = emptyImmutableList()
+            )
+          },
           onImportEmergencyExitKit = { state = EmergencyExitAccountRecoveryState },
           onExit = { state = GettingStartedState }
         )
 
       is FullAccountRecoveryState -> Recovery(
-        cloudBackup = dataState.backup,
+        cloudBackups = dataState.backups,
         recovery = null,
         onRollback = {
           state = GettingStartedState
@@ -139,14 +145,14 @@ class NoActiveAccountDataStateMachineImpl(
 
   @Composable
   private fun Recovery(
-    cloudBackup: CloudBackup?,
+    cloudBackups: ImmutableList<CloudBackup>,
     recovery: Recovery.StillRecovering?,
     onRollback: () -> Unit,
     goToLiteAccountCreation: () -> Unit,
   ) = RecoveringAccountData(
     lostAppRecoveryData = lostAppRecoveryDataStateMachine.model(
       LostAppRecoveryProps(
-        cloudBackup = cloudBackup,
+        cloudBackups = cloudBackups,
         activeRecovery = recovery,
         onRollback = onRollback,
         goToLiteAccountCreation = goToLiteAccountCreation
@@ -163,10 +169,12 @@ private sealed interface State {
 
   /**
    * Application is in the process of full account recovery using cloud backup.
+   * @property backups List of backups to try during recovery. The restoration flow will
+   * attempt to decrypt each backup with the hardware key until one succeeds.
    */
   data class FullAccountRecoveryState(
     val cloudStoreAccount: CloudStoreAccount?,
-    val backup: CloudBackup?,
+    val backups: ImmutableList<CloudBackup>,
   ) : State
 
   /**

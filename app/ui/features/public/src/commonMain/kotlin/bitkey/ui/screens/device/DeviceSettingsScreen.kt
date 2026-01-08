@@ -151,7 +151,8 @@ class DeviceSettingsScreenPresenter(
                 modelName = "Bitkey",
                 modelNumber = firmwareDeviceInfo.hwRevision,
                 serialNumber = firmwareDeviceInfo.serial,
-                currentVersion = firmwareDeviceInfo.version,
+                currentVersion = firmwareDeviceInfo.mcuInfo.takeIf { it.isNotEmpty() }
+                  ?.joinToString("/") { it.firmwareVersion } ?: firmwareDeviceInfo.version,
                 deviceCharge = "${firmwareDeviceInfo.batteryChargeForUninitializedModelGauge()}%",
                 lastSyncDate = dateTimeFormatter.fullShortDateWithTime(
                   localDateTime = Instant.fromEpochSeconds(firmwareDeviceInfo.timeRetrieved)

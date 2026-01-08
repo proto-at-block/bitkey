@@ -1,6 +1,5 @@
-#include "hal_nfc_timer.h"
-
 #include "assert.h"
+#include "hal_nfc_timer_impl.h"
 #include "log.h"
 #include "rtos.h"
 
@@ -83,5 +82,13 @@ void nfc_timer_stop(uint32_t index) {
 void nfc_timer_init(rtos_timer_callback_t callback) {
   for (uint32_t i = 0; i < MAX_NFC_TIMERS; i++) {
     rtos_timer_create_static(&timers[i], callback);
+  }
+}
+
+void nfc_timer_stop_all(void) {
+  for (uint32_t i = 0; i < MAX_NFC_TIMERS; i++) {
+    if (timers[i].active) {
+      rtos_timer_stop(&timers[i]);
+    }
   }
 }

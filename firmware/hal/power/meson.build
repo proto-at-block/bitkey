@@ -1,14 +1,15 @@
 srcs = [
   'src/power.c',
+  'power_mpu.c',
   'src/battery.c',
   'src/max77734.c',
   'src/max17262.c',
   'src/battery_configs.c',
 ]
-power_includes = include_directories('inc')
+power_includes = [include_directories('inc'), mpu_regions_includes]
 
 deps = [
-  mcu_efr32xg24_dep,
+  mcu_dep,
   log_dep,
   rtos_dep,
   assert_dep,
@@ -17,7 +18,7 @@ deps = [
   bitlog_dep,
   sysevent_dep,
   ipc_dep,
-  animation_dep,
+  ui_messaging_dep,
 ]
 
 power_lib = library('power',

@@ -9,6 +9,7 @@ import build.wallet.bitkey.relationships.*
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.relationships.CreateInvitationError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.collections.immutable.ImmutableList
@@ -46,7 +47,7 @@ class InheritanceServiceMock(
   override suspend fun createInheritanceInvitation(
     hardwareProofOfPossession: HwFactorProofOfPossession,
     trustedContactAlias: TrustedContactAlias,
-  ): Result<OutgoingInvitation, Error> {
+  ): Result<OutgoingInvitation, CreateInvitationError> {
     return Ok(
       OutgoingInvitation(
         invitation = invitation,

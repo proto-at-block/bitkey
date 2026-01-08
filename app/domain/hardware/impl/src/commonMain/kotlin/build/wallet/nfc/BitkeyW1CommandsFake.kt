@@ -21,7 +21,10 @@ import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.*
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.transaction.TransactionError
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
 import kotlinx.datetime.Instant
@@ -38,6 +41,7 @@ class BitkeyW1CommandsFake(
   private val signatureUtils: SignatureUtils,
   val fakeHardwareKeyStore: FakeHardwareKeyStore,
   private val fakeHardwareSpendingWalletProvider: FakeHardwareSpendingWalletProvider,
+  private val fakeHardwareStatesDao: FakeHardwareStatesDao,
 ) : NfcCommands {
   private var fingerprintEnrollmentResult = FingerprintEnrollmentResult(
     status = NOT_IN_PROGRESS,
@@ -46,7 +50,14 @@ class BitkeyW1CommandsFake(
     diagnostics = null
   )
   private var enrolledFingerprints =
-    EnrolledFingerprints(fingerprintHandles = listOf(FingerprintHandle(index = FIRST_FINGERPRINT_INDEX, label = "")))
+    EnrolledFingerprints(
+      fingerprintHandles = listOf(
+        FingerprintHandle(
+          index = FIRST_FINGERPRINT_INDEX,
+          label = ""
+        )
+      )
+    )
 
   override suspend fun fwupStart(
     session: NfcSession,
@@ -202,8 +213,11 @@ class BitkeyW1CommandsFake(
     // Simulate the sealing process by checking if the private key is the same as the one.
     // If hw auth private keys don't match, effectively means that the data was not sealed with
     // this fake hardware's auth private key.
-    require(hwAuthPrivateKeyPart == fakeHardwareKeyStore.getAuthKeypair().privateKey.key.bytes.hex()) {
-      "Appropriate fake hw auth private key missing"
+    //
+    // In production, this scenario surfaces as an NFC unseal failure (e.g. wrong Bitkey), so we
+    // model it as such to ensure recovery flows handle this error path consistently.
+    if (hwAuthPrivateKeyPart != fakeHardwareKeyStore.getAuthKeypair().privateKey.key.bytes.hex()) {
+      throw NfcException.CommandErrorSealCsekResponseUnsealException()
     }
     return sealedSekRaw.decodeHex()
   }
@@ -221,11 +235,16 @@ class BitkeyW1CommandsFake(
     session: NfcSession,
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
-  ): Psbt {
-    return fakeHardwareSpendingWalletProvider.get(spendingKeyset)
-      .signPsbt(psbt)
-      .mapError { NfcException.CommandError(cause = it) }
-      .getOrThrow()
+  ): HardwareInteraction<Psbt> {
+    if (fakeHardwareStatesDao.getTransactionVerificationEnabled().get() == true) {
+      throw TransactionError.VerificationRequired()
+    }
+    return HardwareInteraction.Completed(
+      fakeHardwareSpendingWalletProvider.get(spendingKeyset)
+        .signPsbt(psbt)
+        .mapError { NfcException.CommandError(cause = it) }
+        .getOrThrow()
+    )
   }
 
   override suspend fun startFingerprintEnrollment(
@@ -339,5 +358,6 @@ val FakeFirmwareDeviceInfo = FirmwareDeviceInfo(
   batteryCycles = 1234,
   secureBootConfig = SecureBootConfig.PROD,
   timeRetrieved = 1691787589,
-  bioMatchStats = null
+  bioMatchStats = null,
+  mcuInfo = emptyList()
 )

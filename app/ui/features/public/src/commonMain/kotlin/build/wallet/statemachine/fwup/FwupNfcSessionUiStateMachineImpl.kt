@@ -21,6 +21,7 @@ import build.wallet.fwup.*
 import build.wallet.fwup.FwupFinishResponseStatus.*
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logFailure
+import build.wallet.logging.logWarn
 import build.wallet.nfc.*
 import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
@@ -360,6 +361,14 @@ class FwupNfcSessionUiStateMachineImpl(
     updateSequenceId: suspend (sequenceId: UInt) -> Unit,
   ) {
     if (!fwupInProgress) {
+      // FWUP can succeed on device but fail during app confirmation,
+      // causing users to retry an already-completed update. Skip if already at target.
+      val currentDeviceInfo = commands.getDeviceInfo(session)
+      if (currentDeviceInfo.version == fwupData.version) {
+        logWarn { "Firmware already at target version ${fwupData.version}, skipping update" }
+        return
+      }
+
       // We have to maintain `fwupInProgress` and reset the sequence ID due to some unfortunate
       // side effects with the `fwup_start` command in delta mode. In short: the app can't tell
       // if the firmware update has started on the firmware or not, because there is no NFC command

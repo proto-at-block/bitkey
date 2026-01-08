@@ -16,7 +16,10 @@ class NfcReaderCapabilityImpl : NfcReaderCapability {
     }
     return when {
       NFCReaderSession.readingAvailable -> NfcAvailability.Available.Enabled
-      else -> NfcAvailability.Available.Disabled
+      // iOS devices either have NFC hardware or they don't - there's no way to
+      // disable NFC like on Android. When readingAvailable is false, the device
+      // doesn't support NFC (e.g., iPod Touch, iPads running the app in compatibility mode).
+      else -> NfcAvailability.NotAvailable
     }
   }
 }

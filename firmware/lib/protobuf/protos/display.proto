@@ -1,0 +1,375 @@
+syntax = "proto3";
+
+package fwpb;
+
+import "nanopb.proto";
+
+// Display transitions
+enum display_transition {
+  DISPLAY_TRANSITION_NONE = 0;
+  DISPLAY_TRANSITION_SLIDE_LEFT = 1;
+  DISPLAY_TRANSITION_SLIDE_RIGHT = 2;
+  DISPLAY_TRANSITION_SLIDE_UP = 3;
+  DISPLAY_TRANSITION_SLIDE_DOWN = 4;
+  DISPLAY_TRANSITION_FADE = 5;
+}
+
+// Menu items
+enum display_menu_item {
+  DISPLAY_MENU_ITEM_BACK = 0;
+  DISPLAY_MENU_ITEM_FINGERPRINTS = 1;
+  DISPLAY_MENU_ITEM_BRIGHTNESS = 2;
+  DISPLAY_MENU_ITEM_ABOUT = 3;
+  DISPLAY_MENU_ITEM_REGULATORY = 4;
+  DISPLAY_MENU_ITEM_LOCK_DEVICE = 5;
+  DISPLAY_MENU_ITEM_POWER_OFF = 6;
+  DISPLAY_MENU_ITEM_TOUCH_TEST = 7;
+}
+
+// Display result codes
+enum display_result {
+  DISPLAY_RESULT_SUCCESS = 0;
+  DISPLAY_RESULT_ERROR = 1;
+  DISPLAY_RESULT_NOT_INITIALIZED = 2;
+  DISPLAY_RESULT_INVALID_PARAM = 3;
+}
+
+// Screen parameter messages
+message display_params_menu {
+  display_menu_item selected_item = 1;
+  bool hit_top = 2;
+  bool hit_bottom = 3;
+}
+
+message display_params_about {
+  string firmware_version = 1 [(nanopb).max_size = 32];
+  string hardware_version = 2 [(nanopb).max_size = 32];
+  string serial_number = 3 [(nanopb).max_size = 32];
+}
+
+message display_params_brightness {
+}
+
+message display_params_regulatory {
+  int32 page = 1;
+}
+
+enum display_mfg_test_mode {
+  DISPLAY_MFG_TEST_MODE_ANIMATION = 0;
+  DISPLAY_MFG_TEST_MODE_NFC_TEST = 1;
+  DISPLAY_MFG_TEST_MODE_START_SCREEN = 2;
+  DISPLAY_MFG_TEST_MODE_TOUCH_PROMPT = 3;
+  DISPLAY_MFG_TEST_MODE_COUNTDOWN = 4;
+  DISPLAY_MFG_TEST_MODE_STATUS = 5;
+  DISPLAY_MFG_TEST_MODE_BURNIN_GRID = 6;
+  DISPLAY_MFG_TEST_MODE_BUTTON_BYPASS_WARNING = 7;
+  DISPLAY_MFG_TEST_MODE_COLOR_BARS = 8;
+  DISPLAY_MFG_TEST_MODE_SCROLLING_H = 9;
+  DISPLAY_MFG_TEST_MODE_CUSTOM_COLOR = 10;
+  DISPLAY_MFG_TEST_MODE_TOUCH_TEST_BOXES = 11;
+}
+
+message display_params_mfg {
+  display_mfg_test_mode test_mode = 1;
+  uint32 initial_soc = 2;
+  uint32 battery_percent = 3;
+  bool is_charging = 4;
+  uint32 loop_count = 5;
+  uint32 elapsed_ms = 6;
+  bool plugged_in = 7;
+  uint32 button_events = 8;
+  uint32 captouch_events = 9;
+  uint32 display_touch_events = 10;
+  uint32 fingerprint_events = 11;
+  uint32 countdown_value = 12;
+  uint32 power_phase = 13;           // 0=charge1, 1=discharge, 2=charge2, 3=complete
+  bool has_failures = 14;
+  bool test_complete = 15;
+  uint32 custom_rgb = 16;            // RGB color as 0xRRGGBB for CUSTOM_COLOR mode
+  uint32 brightness_percent = 17;    // Brightness (0 = don't change, 1-100 = set percent)
+  uint32 phase_time_remaining_ms = 18;  // Time remaining in current power phase
+  bool target_reached = 19;          // True if SOC target reached (holding)
+}
+
+message display_params_money_movement {
+  // Current step in the money movement flow.
+  enum display_params_money_movement_step {
+    // Unused.
+    NONE = 0;
+
+    // Displaying the address.
+    ADDRESS = 1;
+
+    // Displaying the amount.
+    AMOUNT = 2;
+
+    // Confirming the amount.
+    CONFIRM = 3;
+
+    // RFU.
+    reserved 4 to 9;
+  }
+
+  string amount_sats = 1 [(nanopb).max_size = 32];
+  string amount_usd = 2 [(nanopb).max_size = 32];
+  string fee_sats = 3 [(nanopb).max_size = 32];
+  string fee_usd = 4 [(nanopb).max_size = 32];
+  string address = 5 [(nanopb).max_size = 256];
+
+  // Current step in the money movement flow.
+  display_params_money_movement_step step = 6;
+
+  uint32 button_selection = 7;
+  uint32 current_page_index = 8;
+  uint32 total_pages = 9;
+  bool is_receive_flow = 10;
+
+  // Current address page.
+  uint32 current_address_page = 11;
+}
+
+message display_params_onboarding {
+  uint32 current_page = 1;
+}
+
+message display_params_success {
+  enum display_params_success_status {
+    // Unused.
+    NONE = 0;
+
+    // Firmware update successfully.
+    FIRMWARE_UPDATED = 1;
+
+    // RFU.
+    reserved 2 to 9;
+  }
+
+  // Operation status code.
+  display_params_success_status status = 1;
+}
+
+message display_params_error {
+  enum display_params_error_status {
+    // Unused.
+    NONE = 0;
+
+    // Firmware update failed.
+    FIRMWARE_UPDATE_FAILED = 1;
+
+    // RFU.
+    reserved 2 to 9;
+  }
+
+  // Operation status code.
+  display_params_error_status status = 1;
+}
+
+message display_params_scan {
+  // Possible actions to take on scanning.
+  enum display_params_scan_action {
+    // No action.
+    NONE = 0;
+
+    // Scan to sign transaction.
+    SIGN = 1;
+
+    // Scan to get information in order to verify.
+    VERIFY = 2;
+
+    // Confirm action by scanning.
+    CONFIRM = 3;
+
+    // Tap phone to device.
+    TAP = 4;
+
+    // RFU.
+    reserved 5 to 9;
+  }
+
+  // Action to take on scanning.
+  display_params_scan_action action = 1;
+}
+
+message display_params_fingerprint {
+  // Status code of the enrollment action.
+  enum display_params_fingerprint_status {
+    // No enrollment in progress.
+    NONE = 0;
+
+    // Enrollment started.
+    ENROLL_FIRST = 1;
+
+    // Repeat lifting and placing finger.
+    ENROLL_REPEAT = 2;
+
+    // Try to lift and place again.
+    ENROLL_TRY_AGAIN = 3;
+
+    // Enrollment failed.
+    ENROLL_FAILED = 4;
+
+    // RFU.
+    reserved 5 to 9;
+  }
+
+  // Current fingerprint enrollment page.
+  uint32 current_page = 1;
+
+  // Fingerprint enrollment percentage (0 .. 100).
+  uint32 progress_percent = 2;
+
+  // Current operation status.
+  display_params_fingerprint_status status = 3;
+
+  // Remaining samples for the enrollment.
+  uint32 samples_remaining = 4;
+}
+
+message display_params_locked {
+  uint32 battery_percent = 1;
+  bool is_charging = 2;
+}
+
+message display_params_menu_fingerprints {
+  uint32 selected_item = 1;
+  repeated bool enrolled = 2 [(nanopb).max_count = 3];
+  repeated string labels = 3 [(nanopb).max_count = 3, (nanopb).max_size = 32];
+  bool hit_top = 4;
+  bool hit_bottom = 5;
+  uint32 authenticated_index = 6;  // Which fingerprint was authenticated (0-2)
+  bool show_authenticated = 7;     // Trigger authentication animation (one-shot, like bounce)
+}
+
+message display_params_fingerprint_remove {
+  uint32 fingerprint_index = 1;
+  uint32 page = 2;
+  uint32 selected_button = 3;
+}
+
+message display_params_firmware_update {
+  string hash = 1 [(nanopb).max_size = 65];
+  string version = 2 [(nanopb).max_size = 32];
+  uint32 current_page = 3;
+  uint32 button_selection = 4;
+}
+
+message display_params_test_gesture {
+  // No parameters needed for test gesture screen
+}
+
+message display_params_test_scroll {
+  // No parameters needed for test scroll screen
+}
+
+message display_params_test_pin_pad {
+  // No parameters needed for test pin pad screen
+}
+
+message display_params_test_carousel {
+  // No parameters needed for test carousel screen
+}
+
+message display_params_test_slider {
+  // No parameters needed for test slider screen
+}
+
+message display_params_test_progress {
+  // No parameters needed for test progress screen
+}
+
+// Display show screen command
+message display_show_screen {
+  display_transition transition = 1;
+  uint32 duration_ms = 2;
+  uint32 brightness_percent = 3;  // Display brightness (0-100)
+
+  oneof params {
+    display_params_menu menu = 4;
+    display_params_about about = 5;
+    display_params_brightness brightness = 6;
+    display_params_regulatory regulatory = 7;
+    display_params_mfg mfg = 8;
+    display_params_money_movement money_movement = 9;
+    display_params_onboarding onboarding = 10;
+    display_params_success success = 11;
+    display_params_error error = 12;
+    display_params_scan scan = 13;
+    display_params_fingerprint fingerprint = 14;
+    display_params_locked locked = 15;
+    display_params_menu_fingerprints menu_fingerprints = 16;
+    display_params_fingerprint_remove fingerprint_remove = 17;
+    display_params_firmware_update firmware_update = 18;
+    display_params_test_gesture test_gesture = 19;
+    display_params_test_scroll test_scroll = 20;
+    display_params_test_pin_pad test_pin_pad = 21;
+    display_params_test_carousel test_carousel = 22;
+    display_params_test_slider test_slider = 23;
+    display_params_test_progress test_progress = 24;
+  }
+}
+
+// Main display command message
+message display_command {
+  oneof command {
+    display_show_screen show_screen = 1;
+  }
+}
+
+// Display response message
+message display_response {
+  oneof response {
+    bool ready = 1;  // Display subsystem ready to receive commands
+  }
+}
+
+// Touch screen event.
+message display_touch {
+
+  // Type of touch event or gesture.
+  enum display_touch_event {
+    // Single tap touch event.
+    DISPLAY_TOUCH_EVENT_TOUCH = 0;
+
+    // Swipe left gesture.
+    DISPLAY_TOUCH_EVENT_GESTURE_SWIPE_LEFT = 1;
+
+    // Swipe right gesture.
+    DISPLAY_TOUCH_EVENT_GESTURE_SWIPE_RIGHT = 2;
+
+    // Swipe up gesture.
+    DISPLAY_TOUCH_EVENT_GESTURE_SWIPE_UP = 3;
+
+    // Swipe down gesture.
+    DISPLAY_TOUCH_EVENT_GESTURE_SWIPE_DOWN = 4;
+
+    // Double tap gesture.
+    DISPLAY_TOUCH_EVENT_GESTURE_DOUBLE_TAP = 5;
+
+    // Triple tap gesture.
+    DISPLAY_TOUCH_EVENT_GESTURE_TRIPLE_TAP = 6;
+
+    // Long press gesture.
+    DISPLAY_TOUCH_EVENT_GESTURE_LONG_PRESS = 7;
+  };
+
+  // Touch coordinates.
+  message display_touch_coord {
+    // X coordinate of the touch event or gesture.
+    uint32 x = 1;
+
+    // Y coordinate of the touch event or gesture.
+    uint32 y = 2;
+  };
+
+  // Type of touch event or gesture.
+  display_touch_event event = 1;
+
+  // Touch event or gesture coordinates.
+  display_touch_coord coord = 2;
+}
+
+// Touch test box status update (sent when boxes are cleared).
+message display_mfg_touch_test_status {
+  // Number of boxes remaining in the touch test.
+  uint32 boxes_remaining = 1;
+}

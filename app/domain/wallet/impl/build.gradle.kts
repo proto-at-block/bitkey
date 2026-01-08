@@ -22,6 +22,7 @@ kotlin {
         implementation(projects.libs.encryptionPublic)
         implementation(projects.domain.accountPublic)
         implementation(projects.libs.bdkBindingsPublic)
+        implementation(projects.rust.bdkFfi)
         implementation(projects.domain.cloudBackupPublic)
         implementation(projects.domain.debugPublic)
         implementation(projects.libs.keyValueStorePublic)
@@ -83,6 +84,13 @@ kotlin {
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.libs.moneyTesting)
         implementation(projects.domain.walletFake)
+      }
+    }
+
+    val androidUnitTest by getting {
+      dependencies {
+        // Add JVM native library for Android unit tests running on host
+        runtimeOnly(project(":rust:bdk-ffi", configuration = "jvmRuntimeElements"))
       }
     }
   }

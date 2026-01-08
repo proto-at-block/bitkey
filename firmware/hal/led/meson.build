@@ -3,7 +3,7 @@ srcs = [
 ]
 led_includes = include_directories('inc')
 
-deps = [mcu_efr32xg24_dep]
+deps = [assert_dep, mcu_dep, helpers_dep]
 
 led_lib = library('led',
   srcs,

@@ -9,6 +9,7 @@ import build.wallet.analytics.v1.Action
 import build.wallet.availability.*
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.statemachine.status.BannerType.*
 import build.wallet.statemachine.status.BannerType.OfflineStatus
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
@@ -41,14 +42,16 @@ class HomeStatusBannerUiStateMachineImpl(
           AtRiskCause.MissingHardware -> "Add a Bitkey device to avoid losing funds →"
           is AtRiskCause.MissingCloudBackup -> "Add a cloud backup to protect your funds →"
           AtRiskCause.MissingContactMethod -> "Add a contact method to protect your funds →"
+          AtRiskCause.ActiveSpendingKeysetMismatch -> "Fix your local data to protect your funds →"
         }
 
         val bannerType = when (val cause = (fundsLostRisk as FundsLostRiskLevel.AtRisk).cause) {
-          AtRiskCause.MissingHardware -> BannerType.MissingHardware
-          AtRiskCause.MissingContactMethod -> BannerType.MissingCommunication
-          is AtRiskCause.MissingCloudBackup -> BannerType.MissingCloudBackup(
+          AtRiskCause.MissingHardware -> MissingHardware
+          AtRiskCause.MissingContactMethod -> MissingCommunication
+          is AtRiskCause.MissingCloudBackup -> MissingCloudBackup(
             problemWithBackup = cause.problem
           )
+          AtRiskCause.ActiveSpendingKeysetMismatch -> SpendingKeysetMismatch
         }
 
         StatusBannerModel(

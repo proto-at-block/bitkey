@@ -13,7 +13,8 @@ use types::recovery::trusted_contacts::TrustedContactRole;
 
 use super::{error::ServiceError, Service};
 
-const MAX_PROTECTED_CUSTOMERS: usize = 30;
+const MAX_SOCREC_CUSTOMERS: usize = 20;
+const MAX_INHERITANCE_CUSTOMERS: usize = 20;
 
 /// The input for the `accept_recovery_relationship_invitation` function
 ///
@@ -139,7 +140,32 @@ impl Service {
             .repository
             .fetch_recovery_relationships_for_account(input.trusted_contact_account_id)
             .await?;
-        if relationships.customers.len() >= MAX_PROTECTED_CUSTOMERS {
+
+        let (socrec_customers, inheritance_customers) =
+            relationships
+                .customers
+                .iter()
+                .fold((0, 0), |(mut s, mut i), relationship| {
+                    if relationship.has_role(&TrustedContactRole::SocialRecoveryContact) {
+                        s += 1;
+                    }
+                    if relationship.has_role(&TrustedContactRole::Beneficiary) {
+                        i += 1;
+                    }
+                    (s, i)
+                });
+
+        if prev_relationship.has_role(&TrustedContactRole::SocialRecoveryContact)
+            && socrec_customers >= MAX_SOCREC_CUSTOMERS
+        {
+            tracing::warn!("Customer has maximum protected social recovery customers");
+            return Err(ServiceError::MaxProtectedCustomersReached);
+        }
+
+        if prev_relationship.has_role(&TrustedContactRole::Beneficiary)
+            && inheritance_customers >= MAX_INHERITANCE_CUSTOMERS
+        {
+            tracing::warn!("Customer has maximum protected inheritance customers");
             return Err(ServiceError::MaxProtectedCustomersReached);
         }
 

@@ -25,6 +25,7 @@ class SecurityActionsServiceImpl(
   private val fingerprintsActionFactory: FingerprintsActionFactory,
   private val hardwareDeviceActionFactory: HardwareDeviceActionFactory,
   private val txVerificationActionFactory: TxVerificationActionFactory,
+  private val keysetSyncActionFactory: KeysetSyncActionFactory,
   private val eventTracker: EventTracker,
   private val metricTrackerService: MetricTrackerService,
   private val securityRecommendationInteractionDao: SecurityRecommendationInteractionDao,
@@ -42,7 +43,8 @@ class SecurityActionsServiceImpl(
     SecurityActionType.EEK_BACKUP to eekBackupHealthActionFactory::create,
     SecurityActionType.FINGERPRINTS to fingerprintsActionFactory::create,
     SecurityActionType.BIOMETRIC to biometricActionFactory::create,
-    SecurityActionType.TRANSACTION_VERIFICATION to txVerificationActionFactory::create
+    SecurityActionType.TRANSACTION_VERIFICATION to txVerificationActionFactory::create,
+    SecurityActionType.KEYSET_SYNC to keysetSyncActionFactory::create
   )
 
   override suspend fun executeWork() {
@@ -65,10 +67,12 @@ class SecurityActionsServiceImpl(
       it.filterNotNull()
     }.distinctUntilChanged()
       .onEach { actions ->
-        val securityActions = actions.filter { action ->
+        // KEYSET_SYNC is recommendation-only, not displayed as a tile
+        val tileActions = actions.filter { it.type() != SecurityActionType.KEYSET_SYNC }
+        val securityActions = tileActions.filter { action ->
           action.category() == SecurityActionCategory.SECURITY
         }
-        val recoveryActions = actions.filter { action ->
+        val recoveryActions = tileActions.filter { action ->
           action.category() == SecurityActionCategory.RECOVERY
         }
 
@@ -96,7 +100,8 @@ class SecurityActionsServiceImpl(
         val atRiskRecommendations = recommendations.filter {
           it == SecurityActionRecommendation.PAIR_HARDWARE_DEVICE ||
             it == SecurityActionRecommendation.BACKUP_MOBILE_KEY ||
-            it == SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS
+            it == SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS ||
+            it == SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH
         }
 
         securityActionsWithRecommendations.update {

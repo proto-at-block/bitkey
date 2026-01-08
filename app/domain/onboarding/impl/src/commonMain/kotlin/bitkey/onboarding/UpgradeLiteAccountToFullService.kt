@@ -1,6 +1,10 @@
 package bitkey.onboarding
 
 import bitkey.auth.AuthTokenScope
+import bitkey.onboarding.FullAccountCreationError.BackupError.ArchiveBackupError
+import bitkey.onboarding.FullAccountCreationError.BackupError.ClearBackupError
+import bitkey.onboarding.FullAccountCreationError.BackupError.CloudStoreError
+import bitkey.onboarding.FullAccountCreationError.BackupError.ReadingBackupError
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthTokensService
 import build.wallet.bitkey.account.FullAccount
@@ -8,17 +12,25 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.store.CloudStoreAccountRepository
+import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.onboarding.UpgradeAccountF8eClient
 import build.wallet.f8e.onboarding.UpgradeAccountV2F8eClient
 import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
+import build.wallet.feature.flags.SharedCloudBackupsFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.random.UuidGenerator
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.andThen
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 
@@ -43,12 +55,18 @@ class UpgradeLiteToFullAccountServiceImpl(
   private val upgradeAccountV2F8eClient: UpgradeAccountV2F8eClient,
   private val uuidGenerator: UuidGenerator,
   private val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
+  private val sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag,
+  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudStoreAccountRepository: CloudStoreAccountRepository,
 ) : UpgradeLiteAccountToFullService {
   override suspend fun upgradeAccount(
     liteAccount: LiteAccount,
     keyCrossDraft: KeyCrossDraft.WithAppKeysAndHardwareKeys,
   ): Result<FullAccount, FullAccountCreationError> =
     coroutineBinding {
+      // Try to archive the lite account's backup first
+      archiveLiteAccountBackup(liteAccount).bind()
+
       val fullAccountConfig = keyCrossDraft.config
       // Upgrade the account on the server and get a server key back.
       val (f8eSpendingKeyset, accountId) =
@@ -126,5 +144,38 @@ class UpgradeLiteToFullAccountServiceImpl(
         .bind()
 
       FullAccount(accountId, keybox.config, keybox)
+    }
+
+  suspend fun archiveLiteAccountBackup(
+    liteAccount: LiteAccount,
+  ): Result<Unit, FullAccountCreationError> =
+    coroutineBinding {
+      if (!sharedCloudBackupsFeatureFlag.isEnabled()) return@coroutineBinding
+      val cloudStoreAccount = cloudStoreAccountRepository
+        .currentAccount(cloudServiceProvider())
+        .mapError(::CloudStoreError)
+        .andThen {
+          if (it != null) {
+            Ok(it)
+          } else {
+            Err(CloudStoreError(IllegalStateException("account is not logged in to cloud store")))
+          }
+        }
+        .bind()
+
+      val cloudBackup = cloudBackupRepository.readAllBackups(cloudStoreAccount)
+        .mapError(::ReadingBackupError)
+        .bind()
+        .firstOrNull { backup -> backup.accountId == liteAccount.accountId.serverId }
+        ?: return@coroutineBinding
+
+      cloudBackupRepository.archiveBackup(cloudStoreAccount, cloudBackup)
+        .mapError(::ArchiveBackupError)
+        .bind()
+
+      cloudBackupRepository
+        .clear(liteAccount.accountId, cloudStoreAccount, clearRemoteOnly = true)
+        .mapError(::ClearBackupError)
+        .bind()
     }
 }

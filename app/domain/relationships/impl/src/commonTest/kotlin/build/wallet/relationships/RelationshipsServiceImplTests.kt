@@ -4,6 +4,8 @@ package build.wallet.relationships
 
 import app.cash.turbine.test
 import bitkey.account.AccountConfigServiceFake
+import bitkey.f8e.error.F8eError
+import bitkey.f8e.error.code.CreateTrustedContactInvitationErrorCode
 import bitkey.relationships.Relationships
 import build.wallet.account.AccountServiceFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
@@ -14,17 +16,24 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.relationships.RelationshipsF8eClient
 import build.wallet.f8e.relationships.RelationshipsF8eClientFake
 import build.wallet.f8e.relationships.isEmpty
 import build.wallet.f8e.relationships.shouldBeEmpty
 import build.wallet.f8e.relationships.shouldOnlyHaveEndorsed
+import build.wallet.ktor.result.HttpError
+import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.sqldelight.InMemorySqlDriverFactory
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.time.ClockFake
+import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filterNotNull
@@ -42,6 +51,7 @@ class RelationshipsServiceImplTests : FunSpec({
   val authDao = RelationshipsEnrollmentAuthenticationDaoImpl(appKeyDao, databaseProvider)
 
   lateinit var relationshipsF8eFake: RelationshipsF8eClientFake
+  lateinit var relationshipsF8eClient: RelationshipsF8eClient
 
   val relationshipsCrypto = RelationshipsCryptoFake()
 
@@ -75,8 +85,9 @@ class RelationshipsServiceImplTests : FunSpec({
       backgroundScope = backgroundScope,
       clock = clock
     )
+    relationshipsF8eClient = relationshipsF8eFake
     return RelationshipsServiceImpl(
-      relationshipsF8eClientProvider = { relationshipsF8eFake },
+      relationshipsF8eClientProvider = { relationshipsF8eClient },
       relationshipsDao = dao,
       relationshipsEnrollmentAuthenticationDao = authDao,
       relationshipsCrypto = relationshipsCrypto,
@@ -233,6 +244,30 @@ class RelationshipsServiceImplTests : FunSpec({
         .shouldNotBeNull()
         .shouldOnlyHaveEndorsed(tcAliceTampered, tcBobVerified)
     }
+  }
+
+  test("createInvitation propagates specific F8e errors") {
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
+
+    relationshipsF8eFake.createInvitationOverride =
+      Err(
+        F8eError.SpecificClientError(
+          error = HttpError.ClientError(HttpResponseMock(HttpStatusCode.BadRequest)),
+          errorCode = CreateTrustedContactInvitationErrorCode.MAX_TRUSTED_CONTACTS_REACHED
+        )
+      )
+
+    val result =
+      service.createInvitation(
+        account = FullAccountMock,
+        trustedContactAlias = TrustedContactAlias("Alice"),
+        hardwareProofOfPossession = HwFactorProofOfPossession("proof"),
+        roles = setOf(TrustedContactRole.SocialRecoveryContact)
+      )
+    val error = result.shouldBeErrOfType<CreateInvitationError.F8ePropagatedError>()
+    (error.error as F8eError.SpecificClientError).errorCode
+      .shouldBe(CreateTrustedContactInvitationErrorCode.MAX_TRUSTED_CONTACTS_REACHED)
   }
 
   test("retrieveInvitation returns ExpiredInvitationCode when invitation is expired") {

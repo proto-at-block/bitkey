@@ -1,5 +1,6 @@
 package build.wallet.testing.ext
 
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
@@ -17,9 +18,9 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 /**
  * Delete real cloud backups from fake, local cloud accounts.
  */
-suspend fun AppTester.deleteBackupsFromFakeCloud() {
+suspend fun AppTester.deleteBackupsFromFakeCloud(accountId: AccountId) {
   CloudStoreAccountFake.cloudStoreAccountFakes.forEach { fakeCloudAccount ->
-    cloudBackupRepository.clear(fakeCloudAccount, clearRemoteOnly = true)
+    cloudBackupRepository.clear(accountId, fakeCloudAccount, clearRemoteOnly = true)
   }
 }
 
@@ -56,9 +57,5 @@ suspend fun AppTester.decryptCloudBackupKeys(): FullAccountKeys {
   )
   csekDao.set(fullAccountFields.sealedHwEncryptionKey, decryptedSsek)
 
-  return when (cloudBackup) {
-    is CloudBackupV2 -> cloudBackupV2Restorer.decryptCloudBackup(cloudBackup).getOrThrow()
-    is CloudBackupV3 -> cloudBackupV3Restorer.decryptCloudBackup(cloudBackup).getOrThrow()
-    else -> error("Unsupported cloud backup type: ${cloudBackup::class.simpleName}")
-  }
+  return cloudBackupRestorer.decryptCloudBackup(cloudBackup).getOrThrow()
 }

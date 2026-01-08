@@ -1,4 +1,6 @@
 import sys
+from pathlib import Path
+from typing import Tuple, NamedTuple
 import allure
 from python.automation.commander import CommanderHelper
 from bitkey.comms import NFCTransaction, WalletComms
@@ -7,18 +9,32 @@ from python.automation.inv_commands import Inv
 import logging
 import pytest
 from tasks.lib.paths import ROOT_DIR
-from python.automation.conftest import PRODUCT, HARDWARE_REVISION, IMAGE_TYPE
-
-APP_B_FIRMWARE = ROOT_DIR.joinpath(
-    f"build/fwup-bundle/{PRODUCT}-{HARDWARE_REVISION}-app-b-{IMAGE_TYPE}.signed.bin")
-APP_B_SIG = ROOT_DIR.joinpath(
-    f"build/fwup-bundle/{PRODUCT}-{HARDWARE_REVISION}-app-b-{IMAGE_TYPE}.detached_signature")
+from ..conftest import PlatformConfig
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 Inv_task = Inv()
 Commander = CommanderHelper()
+
+
+class FwupImage(NamedTuple):
+    firmware: Path
+    signature: Path
+
+
+@pytest.fixture
+def images(platform_config: PlatformConfig) -> FwupImage:
+    """Yields the path to the alternative slot firmware update image and signature.
+
+    :param platform_config: target platform specific configuration.
+    :returns: firmware update image instance.
+    """
+    app_b_firmware = ROOT_DIR.joinpath(
+        f"build/fwup-bundle/{platform_config.product}-{platform_config.revision}-app-b-{platform_config.type}.signed.bin")
+    app_b_sig = ROOT_DIR.joinpath(
+        f"build/fwup-bundle/{platform_config.product}-{platform_config.revision}-app-b-{platform_config.type}.detached_signature")
+    yield FwupImage(app_b_firmware, app_b_sig)
 
 
 @pytest.fixture
@@ -37,15 +53,15 @@ def setup():
     Inv_task.flash_with_filesystem_recovery()
     Commander.reset()
 
-def test_corrupted_firmware(setup):
+def test_corrupted_firmware(setup: None, platform_config: PlatformConfig, fwup_image: FwupImage) -> None:
     """This test verifies that FWUP is rejected for corrupted firmware"""
     initial_version, active_slot = get_active_version()
     Inv_task.bump()
     Inv_task.clean()
     Inv_task.build_platforms()
-    Inv_task.fwup_bundle()
+    Inv_task.fwup_bundle(platform_config)
 
-    corrupt_file(APP_B_FIRMWARE)
+    corrupt_file(fwup_image.firmware)
     auth_with_pin()
     output = Inv_task.fwup_fwup()
     new_version, new_slot = get_active_version()
@@ -53,16 +69,16 @@ def test_corrupted_firmware(setup):
     assert active_slot == new_slot, "Slot changed when it shouldn't have"
     assert "rsp_status: SIGNATURE_INVALID" in output, "Expected SIGNATURE_INVALID to be in response output"
 
-def test_corrupted_signature():
+def test_corrupted_signature(platform_config: PlatformConfig, fwup_image: FwupImage) -> None:
     """This test verifies that FWUP is rejected for corrupted signatures"""
     Commander.reset()
     initial_version, active_slot = get_active_version()
     Inv_task.bump()
     Inv_task.clean()
     Inv_task.build_platforms()
-    Inv_task.fwup_bundle()
+    Inv_task.fwup_bundle(platform_config)
 
-    corrupt_file(APP_B_SIG)
+    corrupt_file(fwup_image.signature)
     auth_with_pin()
     output = Inv_task.fwup_fwup()
     new_version, new_slot = get_active_version()
@@ -133,14 +149,14 @@ def auth_with_pin():
     logger.info(wallet.unlock_secret("foobar"))
 
 @allure.step("Bump version, build apps, and fwup")
-def fwup_new():
+def fwup_new(platform_config: PlatformConfig) -> None:
     logger.info("Bump, and build A & B slot")
     Inv_task.bump()
     Inv_task.clean()
     Inv_task.build_platforms()
 
     logger.info("Bundle and FWUP")
-    Inv_task.fwup_bundle()
+    Inv_task.fwup_bundle(platform_config)
     auth_with_pin()
     Inv_task.fwup_fwup()
 
@@ -154,10 +170,10 @@ def fwup_new():
 
 
 @allure.step("Build apps, and fwup")
-def fwup_current_version():
+def fwup_current_version(platform_config: PlatformConfig) -> None:
     Inv_task.build_platforms()
     logger.info("Bundle and FWUP")
-    Inv_task.fwup_bundle()
+    Inv_task.fwup_bundle(platform_config)
     auth_with_pin()
     Inv_task.fwup_fwup()
 

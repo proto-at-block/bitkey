@@ -15,5 +15,6 @@ val FirmwareDeviceInfoMock =
     batteryCycles = 91,
     secureBootConfig = SecureBootConfig.PROD,
     timeRetrieved = 1691787589,
-    bioMatchStats = null
+    bioMatchStats = null,
+    mcuInfo = emptyList()
   )

@@ -12,6 +12,9 @@ export class SecurityAlertMonitors extends Construct {
     // Alert the default channels, plus a security-specific mailing list
     const recipients = getCriticalRecipients(environment).concat(["@bitkey-security-robots"]);
 
+    // These are app logs so they aren't tagged with env. Limit production env alerts to world.bitkey.app, preprod to others
+    const querySuffix = environment === Environment.PRODUCTION ? ' service:world.bitkey.app' : ' !service:world.bitkey.app';
+
     const logAlertConfig = {
       recipients: recipients,
       type: "log alert",
@@ -23,7 +26,7 @@ export class SecurityAlertMonitors extends Construct {
 
     new Monitor(this, "hardware_attestation_failure", {
       query: log_count_query(
-        `hardware_attestation_failure env:${environment}`,
+        `hardware_attestation_failure${querySuffix}`,
         "10m",  // Window
         logAlertConfig.monitorThresholds.critical
       ),
@@ -35,7 +38,7 @@ export class SecurityAlertMonitors extends Construct {
 
     new Monitor(this, "wsm_integrity_failure", {
       query: log_count_query(
-        `wsm_integrity_failure env:${environment}`,
+        `wsm_integrity_failure${querySuffix}`,
         "10m", // Window
         logAlertConfig.monitorThresholds.critical
       ),
@@ -47,7 +50,7 @@ export class SecurityAlertMonitors extends Construct {
 
     new Monitor(this, "socrec_key_certificate_verification_failure", {
       query: log_count_query(
-        `socrec_key_certificate_verification_failure env:${environment}`,
+        `socrec_key_certificate_verification_failure${querySuffix}`,
         "10m", // Window
         logAlertConfig.monitorThresholds.critical
       ),
@@ -59,7 +62,7 @@ export class SecurityAlertMonitors extends Construct {
 
     new Monitor(this, "socrec_enrollment_pake_failure", {
       query: log_count_query(
-        `socrec_enrollment_pake_failure env:${environment}`,
+        `socrec_enrollment_pake_failure${querySuffix}`,
         "10m", // Window
         logAlertConfig.monitorThresholds.critical
       ),

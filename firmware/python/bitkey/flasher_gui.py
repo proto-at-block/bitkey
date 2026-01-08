@@ -22,6 +22,10 @@ def main():
     parser.add_argument('--application-b', widget="FileChooser",
                         help="Example: 'w1a-evt-app-b-dev.signed.elf.' Optional.",
                         required=False)
+    parser.add_argument('--chip', widget='Dropdown',
+                        choices=['EFR32MG24BXXXF1536'], default='EFR32MG24BXXXF1536',
+                        help="Example: 'EFR32MG24BXXXF1536' Optional.",
+                        required=False)
     args = parser.parse_args()
 
     temp = tempfile.NamedTemporaryFile()
@@ -31,7 +35,7 @@ def main():
     print("Flashing begin.")
 
     # The hardcoded paths are the default install locations on MacOS.
-    with JLinkGdbServer("EFR32MG24BXXXF1536", temp.name,
+    with JLinkGdbServer(args.chip, temp.name,
                         "/usr/local/bin/JLinkGDBServer",
                         "/Applications/ARM/bin/arm-none-eabi-gdb") as gdb:
         if not gdb.flash(Path(args.bootloader)):

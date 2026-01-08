@@ -42,11 +42,12 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 class LostHardwareRecoveryFunctionalTests : FunSpec({
-  suspend fun AppTester.prepareApp() {
-    onboardFullAccountWithFakeHardware()
+  suspend fun AppTester.prepareApp(delayNotifyDuration: Duration = 1.seconds) {
+    onboardFullAccountWithFakeHardware(delayNotifyDuration = delayNotifyDuration)
     fakeNfcCommands.wipeDevice()
   }
 
@@ -389,7 +390,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
   testForLegacyAndPrivateWallet("recovery lost hardware - force exiting during D&N wait") { initialApp ->
     var app = initialApp
-    app.prepareApp()
+    // Use longer D&N duration to prevent race condition during app relaunch
+    app.prepareApp(delayNotifyDuration = 5.seconds)
 
     app.appUiStateMachine.test(
       props = Unit,

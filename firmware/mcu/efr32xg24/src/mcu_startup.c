@@ -44,7 +44,7 @@ void sl_app_properties(void) __attribute__((weak));
 void SMU_SECURE_IRQHandler(void) { while(true){} }
 void SMU_PRIVILEGED_IRQHandler(void) __attribute__((weak, alias("mcu_default_handler")));
 void SMU_NS_PRIVILEGED_IRQHandler(void) { while(true){} }
-void EMU_IRQHandler(void) { while(true){} }
+void EMU_IRQHandler(void) __attribute__((weak, alias("mcu_default_handler")));
 void TIMER0_IRQHandler(void) { while(true){} }
 void TIMER1_IRQHandler(void) { while(true){} }
 void TIMER2_IRQHandler(void) { while(true){} }
@@ -52,9 +52,9 @@ void TIMER3_IRQHandler(void) { while(true){} }
 void TIMER4_IRQHandler(void) { while(true){} }
 void USART0_RX_IRQHandler(void) __attribute__((weak, alias("mcu_default_handler")));
 void USART0_TX_IRQHandler(void) { while(true){} }
-void EUSART0_RX_IRQHandler(void) { while(true){} }
+void EUSART0_RX_IRQHandler(void) __attribute__((weak, alias("mcu_default_handler")));
 void EUSART0_TX_IRQHandler(void) { while(true){} }
-void EUSART1_RX_IRQHandler(void) { while(true){} }
+void EUSART1_RX_IRQHandler(void) __attribute__((weak, alias("mcu_default_handler")));
 void EUSART1_TX_IRQHandler(void) { while(true){} }
 void MVP_IRQHandler(void) { while(true){} }
 void ICACHE0_IRQHandler(void) { while(true){} }

@@ -17,6 +17,10 @@ void log_set_level(log_level_t level) {
   g_level = level;
 }
 
+log_level_t log_get_level(void) {
+  return g_level;
+}
+
 void _log(log_level_t level, const char* colour, const char* file, int line, const char* format,
           ...) {
   if (level < g_level) {

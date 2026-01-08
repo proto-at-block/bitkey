@@ -34,6 +34,12 @@ case "$release_type" in
         ;;
 esac
 
+# Upload to App Store before renaming, since fastlane expects the original filename
+if [[ "$release_type" == "customer" ]]; then
+  echo "Uploading to App Store"
+  bundle exec fastlane upload_wallet_customer_build_to_app_store
+fi
+
 artifact_ipa_file="app-$release_type-$release_version.ipa"
 artifact_hash_file="$artifact_ipa_file.sha256"
 

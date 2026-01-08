@@ -29,37 +29,39 @@ class AppStateDeleterOptionsUiStateMachineImpl(
         buildImmutableList {
           when (appVariant) {
             Development, Team -> {
-              ListItemModel(
-                title = "Delete App Key",
-                secondaryText = "Only use this if instructed to by a Bitkey team member. You may lose access to your money.",
-                trailingAccessory =
-                  ButtonAccessory(
-                    model =
-                      ButtonModel(
-                        text = "Delete",
-                        treatment = TertiaryDestructive,
-                        size = Compact,
-                        onClick = StandardClick(props.onDeleteAppKeyRequest),
-                        testTag = "delete-app-key"
-                      )
-                  )
-              ).run(::add)
+              if (props.showDeleteAppKey) {
+                ListItemModel(
+                  title = "Delete App Key",
+                  secondaryText = "Only use this if instructed to by a Bitkey team member. You may lose access to your money.",
+                  trailingAccessory =
+                    ButtonAccessory(
+                      model =
+                        ButtonModel(
+                          text = "Delete",
+                          treatment = TertiaryDestructive,
+                          size = Compact,
+                          onClick = StandardClick(props.onDeleteAppKeyRequest),
+                          testTag = "delete-app-key"
+                        )
+                    )
+                ).run(::add)
 
-              ListItemModel(
-                title = "Delete App Key Backup",
-                secondaryText = "Only use this if instructed to by a Bitkey team member. You may lose access to your money.",
-                trailingAccessory =
-                  ButtonAccessory(
-                    model =
-                      ButtonModel(
-                        text = "Delete",
-                        treatment = TertiaryDestructive,
-                        size = Compact,
-                        onClick = StandardClick(props.onDeleteAppKeyBackupRequest),
-                        testTag = "delete-mobile-key-backup"
-                      )
-                  )
-              ).run(::add)
+                ListItemModel(
+                  title = "Delete App Key Backup",
+                  secondaryText = "Only use this if instructed to by a Bitkey team member. You may lose access to your money.",
+                  trailingAccessory =
+                    ButtonAccessory(
+                      model =
+                        ButtonModel(
+                          text = "Delete",
+                          treatment = TertiaryDestructive,
+                          size = Compact,
+                          onClick = StandardClick(props.onDeleteAppKeyBackupRequest),
+                          testTag = "delete-mobile-key-backup"
+                        )
+                    )
+                ).run(::add)
+              }
             }
 
             else -> Unit
@@ -76,6 +78,22 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                     size = Compact,
                     onClick = StandardClick { props.onDeleteAppKeyAndBackupRequest() },
                     testTag = "delete-app-key-and-backup"
+                  )
+              )
+          ).run(::add)
+
+          ListItemModel(
+            title = "Delete All App Key Backups",
+            secondaryText = "Only use this if instructed to by a Bitkey team member. You may lose access to your money.",
+            trailingAccessory =
+              ButtonAccessory(
+                model =
+                  ButtonModel(
+                    text = "Delete",
+                    treatment = TertiaryDestructive,
+                    size = Compact,
+                    onClick = StandardClick { props.onDeleteAllBackupRequest() },
+                    testTag = "delete-all-backup"
                   )
               )
           ).run(::add)

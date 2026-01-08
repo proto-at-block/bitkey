@@ -278,7 +278,8 @@ class DelayNotifyServiceImplTests : FunSpec({
           )
         ),
         wrappedSsek = null,
-        descriptorBackups = emptyList()
+        descriptorBackups = emptyList(),
+        activeKeysetId = "private-keyset-id"
       )
     )
 

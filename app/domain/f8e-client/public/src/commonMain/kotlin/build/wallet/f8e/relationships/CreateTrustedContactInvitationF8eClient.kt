@@ -1,5 +1,7 @@
 package build.wallet.f8e.relationships
 
+import bitkey.f8e.error.F8eError
+import bitkey.f8e.error.code.CreateTrustedContactInvitationErrorCode
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.ProtectedCustomerEnrollmentPakeKey
@@ -7,7 +9,6 @@ import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
 
 interface CreateTrustedContactInvitationF8eClient {
@@ -27,5 +28,5 @@ interface CreateTrustedContactInvitationF8eClient {
     trustedContactAlias: TrustedContactAlias,
     protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
     roles: Set<TrustedContactRole>,
-  ): Result<Invitation, NetworkingError>
+  ): Result<Invitation, F8eError<CreateTrustedContactInvitationErrorCode>>
 }

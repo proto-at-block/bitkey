@@ -50,6 +50,7 @@ kotlin {
         implementation(projects.domain.securityCenterFake)
         implementation(projects.domain.coachmarkFake)
         implementation(projects.domain.walletmigrationFake)
+        implementation(projects.domain.featureFlagFake)
       }
     }
 

@@ -16,6 +16,7 @@ import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -91,9 +92,9 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       }
 
       // Nfc signing
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>> {
         shouldShowLongRunningOperation.shouldBeTrue()
-        onSuccess(PsbtMock) // NB: Psbt doesn't match the consolidation params
+        onSuccess(HardwareInteraction.Completed(PsbtMock)) // NB: Psbt doesn't match the consolidation params
       }
 
       // Broadcasting the psbt
@@ -193,9 +194,9 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       }
 
       // Nfc signing
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>> {
         shouldShowLongRunningOperation.shouldBeTrue()
-        onSuccess(PsbtMock)
+        onSuccess(HardwareInteraction.Completed(PsbtMock))
       }
 
       // Broadcasting the psbt

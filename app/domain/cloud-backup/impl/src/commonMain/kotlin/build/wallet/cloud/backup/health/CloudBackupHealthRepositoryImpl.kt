@@ -5,7 +5,9 @@ import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavail
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupHealthRepository
+import build.wallet.cloud.backup.CloudBackupOperationLock
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
@@ -28,8 +30,8 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.toErrorIfNull
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 
@@ -44,6 +46,7 @@ class CloudBackupHealthRepositoryImpl(
   private val jsonSerializer: JsonSerializer,
   private val cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
+  private val cloudBackupOperationLock: CloudBackupOperationLock,
 ) : CloudBackupHealthRepository {
   companion object {
     // Cloud storage (e.g., iCloud NSUbiquitousKeyValueStore) typically has a 1MB limit
@@ -64,18 +67,15 @@ class CloudBackupHealthRepositoryImpl(
   }
 
   /**
-   * A lock to ensure that only one sync is performed at a time.
-   */
-  private val syncLock = Mutex()
-
-  /**
    * Cache for backup size calculation to avoid re-serializing on every health check.
    * Maps backup hashCode to calculated size.
    */
   private val backupSizeCache = mutableMapOf<Int, Int>()
 
   override suspend fun performSync(account: FullAccount): CloudBackupStatus {
-    return syncLock.withLock {
+    // CRITICAL: Do NOT call CloudBackupVersionMigrationWorker.executeWork() or
+    // SocRecCloudBackupSyncWorker.refreshCloudBackup() within this block - it would cause a deadlock.
+    return cloudBackupOperationLock.withLock {
       getCurrentCloudAccount()
         .fold(
           success = { cloudAccount ->
@@ -191,9 +191,17 @@ class CloudBackupHealthRepositoryImpl(
           }
         },
         failure = {
-          // TODO(BKR-1156): handle unknown loading errors
-          logWarn { "Failed to read cloud backup during sync: $it" }
-          AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
+          when (it) {
+            is CloudBackupError.AccountIdMismatched -> {
+              logWarn { "Cloud backup account ID does not match local backup account ID" }
+              AppKeyBackupStatus.ProblemWithBackup.InvalidBackup(it.backup)
+            }
+            else -> {
+              // TODO(BKR-1156): handle unknown loading errors
+              logWarn { "Failed to read cloud backup during sync: $it" }
+              AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
+            }
+          }
         }
       )
   }

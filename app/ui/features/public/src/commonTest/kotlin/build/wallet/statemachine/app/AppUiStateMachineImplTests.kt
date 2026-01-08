@@ -16,7 +16,8 @@ import build.wallet.bitkey.keybox.SoftwareAccountMock
 import build.wallet.bootstrap.AppState
 import build.wallet.bootstrap.AppState.HasActiveSoftwareAccount
 import build.wallet.bootstrap.LoadAppServiceFake
-import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
+import build.wallet.cloud.backup.AllLiteAccountBackupMocks
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.coroutines.turbine.awaitItemMaybe
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
@@ -440,7 +441,7 @@ class AppUiStateMachineImplTests : FunSpec({
       loadAppService.appState.value = AppState.NoActiveAccount
 
       awaitBodyMock<AccessCloudBackupUiProps> {
-        onStartLiteAccountRecovery(CloudBackupV2WithLiteAccountMock)
+        onStartLiteAccountRecovery(AllLiteAccountBackupMocks[0] as CloudBackup)
       }
 
       awaitBodyMock<LiteAccountCloudBackupRestorationUiProps> {

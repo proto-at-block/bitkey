@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "bitkey-config"
+version = "0.0.1"
+description = "Configuration data files for Bitkey firmware."
+authors = ["Bitkey firmware team <team@bitkey.build>"]
+packages = [
+  { include = "partitions", to = "bitkey_config/" }
+]
+
+# Ensure all YAMLs are included in the sdist and wheel
+include = [
+  { path = "partitions/**/*.yml", format = "sdist" },
+  { path = "partitions/**/*.yaml", format = "sdist" },
+  { path = "partitions/**/*.yml", format = "wheel" },
+  { path = "partitions/**/*.yaml", format = "wheel" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+style = "semver"
+pattern = "^fw-(?P<base>[^+]+)"
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"

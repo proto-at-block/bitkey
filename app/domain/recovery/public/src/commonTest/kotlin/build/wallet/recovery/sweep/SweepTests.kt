@@ -49,7 +49,7 @@ class SweepTests : FunSpec({
       )
       val sweep = Sweep(unsignedPsbts = setOf(sweepPsbt1, sweepPsbt2))
 
-      val expectedFee = sweepPsbt1.psbt.fee + sweepPsbt2.psbt.fee
+      val expectedFee = sweepPsbt1.psbt.fee.amount + sweepPsbt2.psbt.fee.amount
       sweep.totalFeeAmount.shouldBe(expectedFee)
     }
 

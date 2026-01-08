@@ -2,6 +2,7 @@ package build.wallet.nfc
 
 import app.cash.turbine.Turbine
 import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
@@ -15,6 +16,7 @@ import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.money.BitcoinMoney
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
 import okio.ByteString
 import okio.ByteString.Companion.decodeHex
@@ -179,14 +181,16 @@ class NfcCommandsMock(
     session: NfcSession,
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
-  ) = Psbt(
-    id = "psbt-id",
-    base64 = "some-base-64",
-    fee = BitcoinMoney.sats(10_000),
-    baseSize = 10000,
-    numOfInputs = 1,
-    amountSats = 10000UL
-  ).also { signTransactionCalls.add(psbt) }
+  ) = HardwareInteraction.Completed(
+    Psbt(
+      id = "psbt-id",
+      base64 = "some-base-64",
+      fee = Fee(amount = BitcoinMoney.sats(10_000)),
+      baseSize = 10000,
+      numOfInputs = 1,
+      amountSats = 10000UL
+    ).also { signTransactionCalls.add(psbt) }
+  )
 
   override suspend fun startFingerprintEnrollment(
     session: NfcSession,
@@ -220,7 +224,8 @@ class NfcCommandsMock(
           deviceId = ByteArray(8) { 0x01 },
           challenge = ByteArray(16) { 0x02 },
           action = action,
-          signature = "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498".decodeHex().toByteArray()
+          signature = "21a1aa12efc8512727856a9ccc428a511cf08b211f26551781ae0a37661de8060c566ded9486500f6927e9c9df620c65653c68316e61930a49ecab31b3bec498".decodeHex()
+            .toByteArray()
         ).also { getGrantRequestCalls.add(action) }
       }
       else -> {

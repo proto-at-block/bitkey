@@ -37,7 +37,7 @@ interface SignTransaction {
 interface WipeState {
   constructor();
   [Throws=CommandError]
-  BooleanState next(sequence<u8> response);
+  WipeStateResultState next(sequence<u8> response);
 };
 
 interface SealKey {
@@ -227,6 +227,12 @@ interface ProvisionAppAuthKey {
   BooleanState next(sequence<u8> response);
 };
 
+interface GetConfirmationResult {
+  constructor(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+  [Throws=CommandError]
+  ConfirmedCommandResultState next(sequence<u8> response);
+};
+
 [Enum]
 interface BooleanState {
   Data(sequence<u8> response);
@@ -347,6 +353,29 @@ interface UnlockInfoState {
   Result(UnlockInfo value);
 };
 
+[Enum]
+interface ConfirmedCommandResultState {
+  Data(sequence<u8> response);
+  Result(ConfirmedCommandResult value);
+};
+
+[Enum]
+interface ConfirmedCommandResult {
+  WipeState(boolean success);
+};
+
+[Enum]
+interface WipeStateResultState {
+  Data(sequence<u8> response);
+  Result(WipeStateResult value);
+};
+
+[Enum]
+interface WipeStateResult {
+  Success(boolean value);
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
 enum FingerprintEnrollmentStatus {
   "StatusUnspecified",
   "Incomplete",
@@ -439,6 +468,16 @@ enum SecureBootConfig {
   "Prod",
 };
 
+enum McuName {
+  "Efr32",
+  "Stm32u5",
+};
+
+enum McuRole {
+  "Core",
+  "Uxc",
+};
+
 dictionary TemplateMatchStats {
   u32 pass_count;
   string firmware_version;
@@ -447,6 +486,16 @@ dictionary TemplateMatchStats {
 dictionary BioMatchStats {
   sequence<TemplateMatchStats> pass_counts;
   u32 fail_count;
+};
+
+dictionary McuInfo {
+  McuName name;
+  McuRole role;
+  string firmware_version;
+};
+
+dictionary DeviceInfoMcu {
+  sequence<McuInfo> mcus;
 };
 
 dictionary FirmwareMetadata {
@@ -458,6 +507,8 @@ dictionary FirmwareMetadata {
   u64 timestamp;
   sequence<u8> hash;
   string hw_revision;
+  McuName? mcu_name;
+  McuRole? mcu_role;
 };
 
 dictionary DeviceIdentifiers {
@@ -494,6 +545,7 @@ dictionary DeviceInfo {
   u32 battery_cycles;
   SecureBootConfig? secure_boot_config;
   BioMatchStats? bio_match_stats;
+  DeviceInfoMcu? device_info_mcus;
 };
 
 dictionary CoredumpFragment {

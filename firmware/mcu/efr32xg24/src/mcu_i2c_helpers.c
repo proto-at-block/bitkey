@@ -10,7 +10,7 @@ void _mcu_i2c_init(void) {
   for (mcu_i2c_t i = 0; i < I2C_COUNT; i++) {
     rtos_mutex_create(&state[i].init_access);
     rtos_mutex_create(&state[i].transfer_access);
-    rtos_mutex_create(&state[i].ctitical_access);
+    rtos_mutex_create(&state[i].critical_access);
   }
 }
 
@@ -97,14 +97,14 @@ bool _mcu_i2c_bus_init_unlock(const mcu_i2c_t peripheral) {
   return rtos_mutex_unlock(&state[peripheral].init_access);
 }
 
-bool _mcu_i2c_bus_ctitical_lock(const mcu_i2c_t peripheral) {
+bool _mcu_i2c_bus_critical_lock(const mcu_i2c_t peripheral) {
   ASSERT(peripheral < I2C_COUNT);
-  return rtos_mutex_lock(&state[peripheral].ctitical_access);
+  return rtos_mutex_lock(&state[peripheral].critical_access);
 }
 
 bool _mcu_i2c_bus_critical_unlock(const mcu_i2c_t peripheral) {
   ASSERT(peripheral < I2C_COUNT);
-  return rtos_mutex_unlock(&state[peripheral].ctitical_access);
+  return rtos_mutex_unlock(&state[peripheral].critical_access);
 }
 
 static void flush_rx(mcu_i2c_bus_t* bus) {

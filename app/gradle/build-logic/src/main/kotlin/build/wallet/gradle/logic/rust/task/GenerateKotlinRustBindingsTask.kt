@@ -49,6 +49,9 @@ internal abstract class GenerateKotlinRustBindingsTask : DefaultTask() {
         args("--verbose")
       }
 
+      // Explicitly target the shared uniffi-bindgen package to avoid collisions
+      // with any other workspace members exposing a similarly named binary.
+      args("-p", "uniffi-bindgen")
       args("--bin", "uniffi-bindgen")
 
       args("generate")

@@ -20,6 +20,6 @@ policy_dep = declare_dependency(
 policy_test = executable('policy-test',
   'policy_test.c',
   include_directories : ['.'],
-  dependencies : [policy_dep, test_deps],
+  dependencies : [crypto_deps['posix'], policy_dep, test_deps],
 )
 test('policy test', policy_test)

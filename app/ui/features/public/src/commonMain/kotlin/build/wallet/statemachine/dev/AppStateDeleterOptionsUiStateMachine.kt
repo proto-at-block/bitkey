@@ -18,4 +18,6 @@ data class AppStateDeleterOptionsUiProps(
   val onDeleteAppKeyRequest: () -> Unit,
   val onDeleteAppKeyBackupRequest: () -> Unit,
   val onDeleteAppKeyAndBackupRequest: () -> Unit,
+  val onDeleteAllBackupRequest: () -> Unit,
+  val showDeleteAppKey: Boolean,
 )

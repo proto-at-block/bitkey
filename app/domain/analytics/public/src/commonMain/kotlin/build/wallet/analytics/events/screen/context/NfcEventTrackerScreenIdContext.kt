@@ -98,4 +98,7 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
 
   /** NFC flow to encrypt the delegated decryption key when accepting a beneficiary invite */
   SEAL_DELEGATED_DECRYPTION_KEY,
+
+  /** NFC flow to generate a replacement spending key during keyset repair */
+  KEYSET_REPAIR_GENERATE_HW_KEY,
 }

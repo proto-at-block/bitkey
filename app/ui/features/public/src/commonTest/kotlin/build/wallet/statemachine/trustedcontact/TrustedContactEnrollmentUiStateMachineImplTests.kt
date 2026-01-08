@@ -4,6 +4,7 @@ import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.RELATIONSHIP_ALREADY_ESTABLISHED
 import bitkey.f8e.error.code.F8eClientErrorCode
 import bitkey.f8e.error.code.RetrieveTrustedContactInvitationErrorCode.NOT_FOUND
+import bitkey.relationships.Relationships
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.*
@@ -11,7 +12,9 @@ import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
+import build.wallet.bitkey.relationships.ProtectedBeneficiaryCustomerFake
 import build.wallet.bitkey.relationships.ProtectedCustomerFake
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.SealedData
 import build.wallet.ktor.result.HttpError
@@ -43,7 +46,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import okio.ByteString.Companion.encodeUtf8
 import kotlin.time.Duration.Companion.hours
 
@@ -404,6 +407,151 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
         awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
           clickPrimaryButton() // Back button
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+      }
+    }
+
+    test("max protected customers reached - recovery contact") {
+      relationshipsService.relationshipsFlow.value = Relationships(
+        invitations = emptyList(),
+        endorsedTrustedContacts = emptyList(),
+        unendorsedTrustedContacts = emptyList(),
+        protectedCustomers = immutableListOf(ProtectedCustomerFake)
+      )
+      relationshipsService.acceptInvitationResult = Err(
+        AcceptInvitationCodeError.F8ePropagatedError(
+          SpecificClientErrorMock(
+            bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.MAX_PROTECTED_CUSTOMERS_REACHED
+          )
+        )
+      )
+      stateMachine.test(props) {
+        progressToAcceptingInvite()
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
+          header?.headline?.shouldBe("Maximum limit reached")
+          header?.sublineModel?.string?.shouldBe(
+            "You’re already a Recovery Contact for 20 people. To accept this invite, remove yourself as a Recovery Contact for someone first."
+          )
+          primaryButton?.text?.shouldBe("Got it")
+          secondaryButton.shouldBeNull()
+          clickPrimaryButton()
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+      }
+    }
+
+    test("max protected customers reached - beneficiary") {
+      relationshipsService.relationshipsFlow.value = Relationships(
+        invitations = emptyList(),
+        endorsedTrustedContacts = emptyList(),
+        unendorsedTrustedContacts = emptyList(),
+        protectedCustomers = immutableListOf(ProtectedBeneficiaryCustomerFake)
+      )
+      relationshipsService.retrieveInvitationResult = Ok(IncomingBeneficiaryInvitationFake)
+      relationshipsService.acceptInvitationResult = Err(
+        AcceptInvitationCodeError.F8ePropagatedError(
+          SpecificClientErrorMock(
+            bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.MAX_PROTECTED_CUSTOMERS_REACHED
+          )
+        )
+      )
+
+      stateMachine.test(props) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+          mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
+            .onValueChange("code", 0..0)
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+          clickPrimaryButton()
+        }
+        awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitBody<BeneficiaryOnboardingBodyModel> {
+          onContinue()
+        }
+        awaitBody<EnteringBenefactorNameBodyModel> {
+          onValueChange("Some Name")
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_BENEFACTOR_NAME) {
+          clickPrimaryButton()
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ASKING_IF_HAS_HARDWARE) {
+          (mainContentList[0] as FormMainContentModel.ListGroup)
+            .listGroupModel
+            .items
+            .first()
+            .onClick
+            .shouldNotBeNull()
+            .invoke()
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ASKING_IF_HAS_HARDWARE) {
+          clickPrimaryButton()
+        }
+
+        eventTracker.eventCalls.awaitItem().shouldBe(
+          TrackedAction(action = Action.ACTION_APP_SOCREC_BENEFICIARY_HAS_HARDWARE)
+        )
+
+        awaitBodyMock<CreateAccountUiProps> {
+          onOnboardingComplete(FullAccountMock)
+        }
+
+        propsOnAccountUpgradedCalls.awaitItem().shouldBe(FullAccountMock)
+
+        awaitBody<LoadingSuccessBodyModel>(TC_BENEFICIARY_ENROLLMENT_LOAD_KEY) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitBody<LoadingSuccessBodyModel>(TC_BENEFICIARY_ENROLLMENT_UPLOAD_DELEGATED_DECRYPTION_KEY) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitBodyMock<NfcSessionUIStateMachineProps<SealedData>> {
+          onSuccess("deadbeef".encodeUtf8())
+        }
+        awaitBody<LoadingSuccessBodyModel>(TC_BENEFICIARY_ENROLLMENT_ACCEPT_INVITE_WITH_F8E) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
+          header?.headline?.shouldBe("Maximum limit reached")
+          header?.sublineModel?.string?.shouldBe(
+            "You’re already a Beneficiary for 20 people. To accept this invite, remove a Benefactor first."
+          )
+          primaryButton?.text?.shouldBe("Got it")
+          secondaryButton.shouldBeNull()
+          clickPrimaryButton()
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_BENEFACTOR_NAME)
+      }
+    }
+
+    test("max protected customers reached - mixed roles") {
+      relationshipsService.relationshipsFlow.value = Relationships(
+        invitations = emptyList(),
+        endorsedTrustedContacts = emptyList(),
+        unendorsedTrustedContacts = emptyList(),
+        protectedCustomers = immutableListOf(
+          ProtectedCustomerFake,
+          ProtectedBeneficiaryCustomerFake
+        )
+      )
+      relationshipsService.acceptInvitationResult = Err(
+        AcceptInvitationCodeError.F8ePropagatedError(
+          SpecificClientErrorMock(
+            bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.MAX_PROTECTED_CUSTOMERS_REACHED
+          )
+        )
+      )
+      stateMachine.test(props) {
+        progressToAcceptingInvite()
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
+          header?.headline?.shouldBe("Maximum limit reached")
+          header?.sublineModel?.string?.shouldBe(
+            "You’re already a Recovery Contact and/or Beneficiary for 20 people. To accept this invite, remove yourself as a Recovery Contact or remove a Benefactor first."
+          )
+          primaryButton?.text?.shouldBe("Got it")
+          secondaryButton.shouldBeNull()
+          clickPrimaryButton()
         }
         awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
       }

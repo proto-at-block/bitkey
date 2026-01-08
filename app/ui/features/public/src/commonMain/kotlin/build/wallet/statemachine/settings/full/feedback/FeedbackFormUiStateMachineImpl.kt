@@ -8,8 +8,6 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.email.Email
-import build.wallet.feature.flags.EncryptedDescriptorSupportUploadFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -35,8 +33,6 @@ class FeedbackFormUiStateMachineImpl(
   private val dateTimeFormatter: DateTimeFormatter,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val actionSuccessDuration: ActionSuccessDuration,
-  private val encryptedDescriptorSupportUploadFeatureFlag:
-    EncryptedDescriptorSupportUploadFeatureFlag,
 ) : FeedbackFormUiStateMachine {
   @Composable
   override fun model(props: FeedbackFormUiProps): ScreenModel {
@@ -148,7 +144,7 @@ class FeedbackFormUiStateMachineImpl(
           )
         }
       )
-      if (encryptedDescriptorSupportUploadFeatureFlag.isEnabled() && account is FullAccount) {
+      if (account is FullAccount) {
         add(
           SupportRequestedDescriptorPickerModel(
             title = "Has Support requested a wallet descriptor?",

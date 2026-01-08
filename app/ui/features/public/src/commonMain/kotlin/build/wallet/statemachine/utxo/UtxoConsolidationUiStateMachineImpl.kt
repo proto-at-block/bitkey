@@ -20,6 +20,7 @@ import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.AmountDisplayText
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.money.formatter.amountDisplayText
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Loading
 import build.wallet.statemachine.data.money.convertedOrNull
@@ -53,6 +54,7 @@ class UtxoConsolidationUiStateMachineImpl(
     "The number of UTXOs being consolidated and the current network fees determine the total cost. Bitkey never charges or receives fees for transfers."
 
   @Composable
+  @Suppress("CyclomaticComplexMethod")
   override fun model(props: UtxoConsolidationProps): ScreenModel {
     var state: State by remember { mutableStateOf(PreparingUtxoConsolidation) }
     var preparationCount by remember { mutableIntStateOf(0) }
@@ -168,13 +170,17 @@ class UtxoConsolidationUiStateMachineImpl(
                 spendingKeyset = currentState.account.keybox.activeSpendingKeyset
               )
             },
-            onSuccess = { appAndHardwareSignedPsbt ->
-              state = BroadcastingConsolidationTransaction(
-                account = currentState.account,
-                consolidationParams = currentState.consolidationParams,
-                appAndHardwareSignedPsbt = appAndHardwareSignedPsbt,
-                consolidationCostDisplayText = currentState.consolidationCostDisplayText
-              )
+            onSuccess = { result ->
+              if (result is HardwareInteraction.Completed<Psbt>) {
+                state = BroadcastingConsolidationTransaction(
+                  account = currentState.account,
+                  consolidationParams = currentState.consolidationParams,
+                  appAndHardwareSignedPsbt = result.result,
+                  consolidationCostDisplayText = currentState.consolidationCostDisplayText
+                )
+              } else {
+                error("An error occurred.")
+              }
             },
             onCancel = {
               state = ViewingConfirmation(currentState.account, currentState.consolidationParams)

@@ -15,6 +15,19 @@
             ]
         },
         {
+            "version": "1.9.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk8-1.9.0.jar": "a59fa24fdf1ffb594baecdbf0fd10010f977cea10236d487fe3464977a7377fa"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]"
+            ]
+        },
+        {
             "version": "2.1.0",
             "variants": [
                 {

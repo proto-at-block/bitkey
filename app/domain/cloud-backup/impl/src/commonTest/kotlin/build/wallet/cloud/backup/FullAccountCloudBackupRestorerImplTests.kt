@@ -1,8 +1,7 @@
 package build.wallet.cloud.backup
 
 import bitkey.serialization.json.decodeFromStringResult
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.PkekMissingError
-import build.wallet.cloud.backup.CloudBackupV3Restorer.CloudBackupV3RestorerError
+import build.wallet.cloud.backup.CloudBackupRestorer.CloudBackupRestorerError
 import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupDecodingError
 import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestorationError
 import build.wallet.cloud.backup.RestoreFromBackupError.CsekMissing
@@ -16,18 +15,15 @@ import kotlinx.serialization.json.Json
 
 class FullAccountCloudBackupRestorerImplTests : FunSpec({
 
-  val cloudBackupV2Restorer = CloudBackupV2RestorerMock()
-  val cloudBackupV3Restorer = CloudBackupV3RestorerMock()
+  val cloudBackupRestorer = CloudBackupRestorerMock()
 
   val backupRestorer =
     FullAccountCloudBackupRestorerImpl(
-      cloudBackupV2Restorer = cloudBackupV2Restorer,
-      cloudBackupV3Restorer = cloudBackupV3Restorer
+      cloudBackupRestorer = cloudBackupRestorer
     )
 
   afterTest {
-    cloudBackupV2Restorer.reset()
-    cloudBackupV3Restorer.reset()
+    cloudBackupRestorer.reset()
   }
 
   context("parameterized tests for all backup versions") {
@@ -35,16 +31,11 @@ class FullAccountCloudBackupRestorerImplTests : FunSpec({
       val backupVersion = when (backup) {
         is CloudBackupV2 -> "v2"
         is CloudBackupV3 -> "v3"
-        else -> "unknown"
       }
 
       context("cloud backup $backupVersion") {
         test("success") {
-          when (backup) {
-            is CloudBackupV2 -> cloudBackupV2Restorer.result = Ok(AccountRestorationMock)
-            is CloudBackupV3 -> cloudBackupV3Restorer.result = Ok(AccountRestorationMock)
-            else -> error("Unknown backup version: $backup")
-          }
+          cloudBackupRestorer.result = Ok(AccountRestorationMock)
 
           backupRestorer
             .restoreFromBackup(cloudBackup = backup)
@@ -52,13 +43,7 @@ class FullAccountCloudBackupRestorerImplTests : FunSpec({
         }
 
         test("failure - CsekMissing") {
-          when (backup) {
-            is CloudBackupV2 -> cloudBackupV2Restorer.result = Err(PkekMissingError)
-            is CloudBackupV3 ->
-              cloudBackupV3Restorer.result =
-                Err(CloudBackupV3RestorerError.PkekMissingError)
-            else -> error("Unknown backup version: $backup")
-          }
+          cloudBackupRestorer.result = Err(CloudBackupRestorerError.PkekMissingError)
 
           backupRestorer
             .restoreFromBackup(cloudBackup = backup)
@@ -66,23 +51,8 @@ class FullAccountCloudBackupRestorerImplTests : FunSpec({
         }
 
         test("failure - AccountBackupDecodingError") {
-          when (backup) {
-            is CloudBackupV2 ->
-              cloudBackupV2Restorer.result =
-                Err(
-                  CloudBackupV2Restorer.CloudBackupV2RestorerError.AccountBackupDecodingError(
-                    cause = Throwable()
-                  )
-                )
-            is CloudBackupV3 ->
-              cloudBackupV3Restorer.result =
-                Err(
-                  CloudBackupV3RestorerError.AccountBackupDecodingError(
-                    cause = Throwable()
-                  )
-                )
-            else -> error("Unknown backup version: $backup")
-          }
+          cloudBackupRestorer.result =
+            Err(CloudBackupRestorerError.AccountBackupDecodingError(cause = Throwable()))
 
           backupRestorer
             .restoreFromBackup(cloudBackup = backup)
@@ -90,23 +60,8 @@ class FullAccountCloudBackupRestorerImplTests : FunSpec({
         }
 
         test("failure - AccountBackupRestorationError via AppAuthKeypairStorageError") {
-          when (backup) {
-            is CloudBackupV2 ->
-              cloudBackupV2Restorer.result =
-                Err(
-                  CloudBackupV2Restorer.CloudBackupV2RestorerError.AppAuthKeypairStorageError(
-                    cause = Throwable()
-                  )
-                )
-            is CloudBackupV3 ->
-              cloudBackupV3Restorer.result =
-                Err(
-                  CloudBackupV3RestorerError.AppAuthKeypairStorageError(
-                    cause = Throwable()
-                  )
-                )
-            else -> error("Unknown backup version: $backup")
-          }
+          cloudBackupRestorer.result =
+            Err(CloudBackupRestorerError.AppAuthKeypairStorageError(cause = Throwable()))
 
           backupRestorer
             .restoreFromBackup(cloudBackup = backup)
@@ -114,23 +69,8 @@ class FullAccountCloudBackupRestorerImplTests : FunSpec({
         }
 
         test("failure - AccountBackupRestorationError via AppSpendingKeypairStorageError") {
-          when (backup) {
-            is CloudBackupV2 ->
-              cloudBackupV2Restorer.result =
-                Err(
-                  CloudBackupV2Restorer.CloudBackupV2RestorerError.AppSpendingKeypairStorageError(
-                    cause = Throwable()
-                  )
-                )
-            is CloudBackupV3 ->
-              cloudBackupV3Restorer.result =
-                Err(
-                  CloudBackupV3RestorerError.AppSpendingKeypairStorageError(
-                    cause = Throwable()
-                  )
-                )
-            else -> error("Unknown backup version: $backup")
-          }
+          cloudBackupRestorer.result =
+            Err(CloudBackupRestorerError.AppSpendingKeypairStorageError(cause = Throwable()))
 
           backupRestorer
             .restoreFromBackup(cloudBackup = backup)
@@ -142,7 +82,7 @@ class FullAccountCloudBackupRestorerImplTests : FunSpec({
 
   context("cloud backup v2 - specific tests") {
     test("success - from json") {
-      cloudBackupV2Restorer.result = Ok(AccountRestorationMock)
+      cloudBackupRestorer.result = Ok(AccountRestorationMock)
       val backup =
         Json.decodeFromStringResult<CloudBackupV2>(
           CLOUD_BACKUP_V2_WITH_FULL_ACCOUNT_FIELDS_JSON
@@ -156,7 +96,7 @@ class FullAccountCloudBackupRestorerImplTests : FunSpec({
 
   context("cloud backup v3 - specific tests") {
     test("success - from json") {
-      cloudBackupV3Restorer.result = Ok(AccountRestorationMock)
+      cloudBackupRestorer.result = Ok(AccountRestorationMock)
       val backup =
         Json.decodeFromStringResult<CloudBackupV3>(
           CLOUD_BACKUP_V3_WITH_FULL_ACCOUNT_FIELDS_JSON

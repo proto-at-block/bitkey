@@ -11,6 +11,7 @@ gen = generator(protoc,
 )
 
 proto_srcs = [
+  'protos/display.proto',
   'protos/mfgtest.proto',
   'protos/ops-keybundle.proto',
   'protos/ops-keys.proto',
@@ -18,6 +19,7 @@ proto_srcs = [
   'protos/secure-channel.proto',
   'protos/test.proto',
   'protos/wallet.proto',
+  'protos/uxc.proto',
 ]
 
 generated = []

@@ -3,6 +3,7 @@ package build.wallet.f8e.relationships
 import bitkey.auth.AuthTokenScope
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode
+import bitkey.f8e.error.code.CreateTrustedContactInvitationErrorCode
 import bitkey.f8e.error.code.F8eClientErrorCode
 import bitkey.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import bitkey.f8e.error.toF8eError
@@ -76,7 +77,7 @@ class RelationshipsF8eClientImpl(
     trustedContactAlias: TrustedContactAlias,
     protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
     roles: Set<TrustedContactRole>,
-  ): Result<Invitation, NetworkingError> {
+  ): Result<Invitation, F8eError<CreateTrustedContactInvitationErrorCode>> {
     return f8eHttpClient.authenticated()
       .bodyResult<CreateRelationshipInvitationResponseBody> {
         post("/api/accounts/${account.accountId.serverId}/relationships") {
@@ -92,9 +93,9 @@ class RelationshipsF8eClientImpl(
             )
           )
         }
-      }.map {
-        it.invitation.toInvitation()
       }
+      .map { it.invitation.toInvitation() }
+      .mapError { it.toF8eError<CreateTrustedContactInvitationErrorCode>() }
   }
 
   override suspend fun refreshInvitation(

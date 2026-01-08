@@ -1,5 +1,7 @@
 package build.wallet.nfc.platform
 
+import build.wallet.nfc.NfcSession
+
 /**
  * Represents the state and flow of hardware interactions in the wallet application.
  *
@@ -24,7 +26,7 @@ sealed interface HardwareInteraction<R> {
     /**
      * Callable to invoke when the app is ready to scan the next command.
      */
-    val tryContinue: suspend () -> HardwareInteraction<R>,
+    val tryContinue: suspend (NfcSession) -> HardwareInteraction<R>,
   ) : HardwareInteraction<R>
 
   /**

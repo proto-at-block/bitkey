@@ -87,13 +87,13 @@ export class FromagerieMonitors extends Construct {
            .last("1h")
          > 0`,
       name: `Sanctions screener cosign hit on env:${environment}`,
-      message: `Sanctions screener cosign hit on env:${environment}`,
+      message: `Sanctions screener cosign hit on env:${environment}. Please use DDB read-only access to gather data from sanctions_screener table and collaborate with sanctions in #bitkey-sanctions-alerts to hand off the data.`,
       monitorThresholds: {
         critical: "0",
       },
       type: "log alert",
       tags: [],
-      recipients: criticalDaytimeRecipients,
+      recipients: [...criticalDaytimeRecipients, ...(environment === Environment.PRODUCTION ? ["@slack-Block-bitkey-sanctions-alerts"] : [])]
     });
 
     for (const service of ["fromagerie-api", "fromagerie-job-blockchain-polling", "fromagerie-job-email", "fromagerie-job-metrics", "fromagerie-job-push", "fromagerie-job-scheduled-notification", "fromagerie-job-sms"]) {

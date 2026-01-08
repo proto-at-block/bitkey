@@ -243,10 +243,10 @@ class CoachmarkServiceTests :
               Coachmark(
                 id = CoachmarkIdentifier.Bip177Coachmark,
                 viewed = false,
-              expiration = expectedExpiration
+                expiration = expectedExpiration
+              )
             )
           )
-        )
       }
 
       test("switching BTC -> sats does not trigger creation when flag was already on") {

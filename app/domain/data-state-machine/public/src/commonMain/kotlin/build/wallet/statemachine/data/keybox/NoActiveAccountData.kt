@@ -52,7 +52,7 @@ sealed interface NoActiveAccountData {
    * @property intent Indicator for the user's intended action when starting onboarding or recovery. Note that this
    *   may not determine the final destination of the experience, depending on the type of cloud backup data found.
    * @property onStartCloudRecovery Invoked when the application should start recovery for an existing full account
-   * from the backup provided.
+   * from the backups provided. The restoration flow will try decrypting each backup with the hardware key until one succeeds.
    * @property onStartLostAppRecovery Invoked when the application should start recovery for an existing account
    * using hardware recovery.
    * @property onExit Invoked to return back to the previous screen.
@@ -60,7 +60,7 @@ sealed interface NoActiveAccountData {
   data class CheckingCloudBackupData(
     val intent: StartIntent,
     val inviteCode: String? = null,
-    val onStartCloudRecovery: (CloudStoreAccount, CloudBackup) -> Unit,
+    val onStartCloudRecovery: (CloudStoreAccount, List<CloudBackup>) -> Unit,
     val onStartLostAppRecovery: () -> Unit,
     val onImportEmergencyExitKit: () -> Unit,
     val onExit: () -> Unit,

@@ -30,4 +30,22 @@ sealed class FullAccountCreationError : Error() {
   ) : FullAccountCreationError() {
     override val cause: Throwable? = authError.cause
   }
+
+  sealed class BackupError : FullAccountCreationError() {
+    data class CloudStoreError(
+      override val cause: Throwable,
+    ) : BackupError()
+
+    data class ReadingBackupError(
+      override val cause: Throwable,
+    ) : BackupError()
+
+    data class ArchiveBackupError(
+      override val cause: Throwable,
+    ) : BackupError()
+
+    data class ClearBackupError(
+      override val cause: Throwable,
+    ) : BackupError()
+  }
 }

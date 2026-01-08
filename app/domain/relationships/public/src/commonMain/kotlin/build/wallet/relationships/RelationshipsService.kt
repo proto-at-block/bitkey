@@ -3,6 +3,7 @@ package build.wallet.relationships
 import bitkey.auth.AuthTokenScope
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode
+import bitkey.f8e.error.code.CreateTrustedContactInvitationErrorCode
 import bitkey.f8e.error.code.F8eClientErrorCode
 import bitkey.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import bitkey.relationships.Relationships
@@ -74,7 +75,7 @@ interface RelationshipsService {
     trustedContactAlias: TrustedContactAlias,
     hardwareProofOfPossession: HwFactorProofOfPossession,
     roles: Set<TrustedContactRole>,
-  ): Result<OutgoingInvitation, Error>
+  ): Result<OutgoingInvitation, CreateInvitationError>
 
   /**
    * Update an invitation for an existing Trusted Contact.
@@ -159,6 +160,42 @@ sealed interface AcceptInvitationCodeError {
 
   data class F8ePropagatedError(val error: F8eError<AcceptTrustedContactInvitationErrorCode>) :
     AcceptInvitationCodeError
+}
+
+/**
+ * Errors that can occur when creating a Trusted Contact invitation.
+ */
+sealed interface CreateInvitationError {
+  val cause: Error
+
+  /**
+   * Error from F8e server when creating the invitation.
+   */
+  data class F8ePropagatedError(val error: F8eError<CreateTrustedContactInvitationErrorCode>) :
+    CreateInvitationError {
+    override val cause: Error = error.error
+  }
+
+  /**
+   * Error generating the Protected Customer Enrollment PAKE Key from the enrollment code.
+   */
+  data class LocalCryptoError(override val cause: Error) : CreateInvitationError
+
+  /**
+   * Error persisting enrollment authentication data to the local database for later use
+   * during invitation acceptance.
+   */
+  data class DatabaseError(override val cause: Error) : CreateInvitationError
+
+  /**
+   * Error building the shareable invitation code by combining the server part and PAKE part.
+   */
+  data class InviteCodeBuildError(override val cause: Error) : CreateInvitationError
+
+  /**
+   * Error retrieving the active [FullAccount] needed for the invitation.
+   */
+  data class AccountRetrievalError(override val cause: Error) : CreateInvitationError
 }
 
 sealed interface RetrieveInvitationPromotionCodeError {

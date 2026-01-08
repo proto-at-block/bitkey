@@ -1,0 +1,3 @@
+[submodule "third-party/libwally"]
+	path = third-party/libwally
+	url = https://github.com/jmecom/libwally-core.git

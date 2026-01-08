@@ -26,4 +26,6 @@ When you identify a relevant rule based on its description, immediately read the
 
 Gather context before code or docs to align with established architecture and patterns: ai-rules/.generated-ai-rules/ai-rules-generated-context-gathering.md
 
+Source code documentation patterns for interfaces, implementations, and schemas: ai-rules/.generated-ai-rules/ai-rules-generated-documentation.md
+
 

@@ -8,7 +8,48 @@ source bin/activate-hermit
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 "$SCRIPT_DIR"/EnsureGitLFS
 
-source bin/activate-hermit
+# Trigger Hermit to lazily install Java (corretto) if not yet downloaded
+java --version
+
+# Android SDK setup
+export ANDROID_HOME="$HOME/android-sdk"
+export ANDROID_BUILD_TOOLS_VERSION="35.0.0"
+export ANDROID_NDK_VERSION="25.2.9519653"
+ANDROID_CMDLINE_TOOLS_VERSION="11076708"
+
+# Install Android SDK if not present
+if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
+  echo "--- Installing Android SDK..."
+  mkdir -p "$ANDROID_HOME/cmdline-tools"
+
+  # Detect architecture for macOS
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    arm64|aarch64) PLATFORM="mac" ;;
+    x86_64) PLATFORM="mac" ;;
+    *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
+  esac
+
+  CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-${PLATFORM}-${ANDROID_CMDLINE_TOOLS_VERSION}_latest.zip"
+  curl -sSL "$CMDLINE_TOOLS_URL" -o /tmp/cmdline-tools.zip
+  unzip -q /tmp/cmdline-tools.zip -d /tmp/
+  mv /tmp/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+  rm -f /tmp/cmdline-tools.zip
+fi
+
+export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+
+# Install SDK components if needed
+if [ ! -d "$ANDROID_HOME/platform-tools" ]; then
+  echo "--- Installing Android SDK components..."
+  yes | sdkmanager --licenses > /dev/null 2>&1 || true
+  sdkmanager "platform-tools" "build-tools;$ANDROID_BUILD_TOOLS_VERSION" "platforms;android-35" "ndk;$ANDROID_NDK_VERSION"
+fi
+
+export ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION"
+
+repo_root=$(git rev-parse --show-toplevel)
+source "$repo_root/script/setup-sccache.sh" rust/app
 
 echo "Run KMP iOS Tests... "
-gradle --project-dir=app detektIosArm64Main detektIosArm64Test
+gradle --project-dir=app --continue --no-daemon iosTest

@@ -7,7 +7,6 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.fees.Fee
-import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
@@ -32,12 +31,9 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcContinuationSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcContinuationSessionUiStateMachine
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
-import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
-import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
-import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -83,22 +79,9 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
       initialModel = initialModel
     ) {}
 
-  // Define the initial HardwareConfirmationScreenModel
-  val hardwareConfirmationInitialModel = HardwareConfirmationScreenModel(
-    onBack = {},
-    onSend = {},
-    onLearnMore = {}
-  )
-
-  // Initialize the HardwareConfirmationUiStateMachine
-  val hardwareConfirmationUiStateMachine = object : HardwareConfirmationUiStateMachine,
-    StateMachineMock<HardwareConfirmationUiProps, HardwareConfirmationScreenModel>(
-      initialModel = hardwareConfirmationInitialModel
-    ) {}
-
   // Initialize the NfcSessionUIStateMachine
-  val nfcSessionUIStateMachine = object : NfcSessionUIStateMachine,
-    ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc-sell") {}
+  val nfcSessionUIStateMachine = object : NfcContinuationSessionUiStateMachine,
+    ScreenStateMachineMock<NfcContinuationSessionUIStateMachineProps<*>>("nfc-sell") {}
 
   // Define the TransferConfirmationUiProps with callbacks connected to the turbine instances
   @Suppress("DEPRECATION")
@@ -108,9 +91,9 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     recipientAddress = someBitcoinAddress,
     sendAmount = ExactAmount(BitcoinMoney.sats(123_456)),
     fees = immutableMapOf(
-      FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
-      THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
-      SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
+      FASTEST to Fee(BitcoinMoney.btc(10.0)),
+      THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0)),
+      SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0))
     ),
     exchangeRates = emptyImmutableList(),
     onTransferInitiated = { psbt, _ -> onTransferInitiatedCalls.add(psbt) },
@@ -142,7 +125,6 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     accountService = accountService,
     txVerificationService = txVerificationService,
     txVerificationFeatureFlag = verificationFlag,
-    hardwareConfirmationUiStateMachine = hardwareConfirmationUiStateMachine,
     accountConfigService = accountConfigService
   )
 
@@ -246,7 +228,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachine.id
       ) {
         shouldShowLongRunningOperation.shouldBeTrue()

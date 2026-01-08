@@ -16,6 +16,8 @@ import build.wallet.feature.flags.AtRiskNotificationsFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.logging.logFailure
+import build.wallet.recovery.keyset.SpendingKeysetRepairService
+import build.wallet.recovery.keyset.SpendingKeysetSyncStatus
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.*
 
@@ -27,6 +29,7 @@ class FundsLostRiskServiceImpl(
   private val accountService: AccountService,
   private val notificationTriggerF8eClient: NotificationTriggerF8eClient,
   private val atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
+  private val spendingKeysetRepairService: SpendingKeysetRepairService,
 ) : FundsLostRiskService, FundsLostRiskSyncWorker {
   // default to fully protected until we check the risk level
   private val riskLevelFlow = MutableStateFlow<FundsLostRiskLevel>(
@@ -42,14 +45,19 @@ class FundsLostRiskServiceImpl(
       accountService.activeAccount(),
       cloudBackupHealthRepository.appKeyBackupStatus(),
       firmwareDataService.firmwareData(),
-      notificationsService.getCriticalNotificationStatus()
-    ) { account, appKeyStatus, firmwareData, notificationStatus ->
+      notificationsService.getCriticalNotificationStatus(),
+      spendingKeysetRepairService.syncStatus
+    ) { account, appKeyStatus, firmwareData, notificationStatus, keysetSyncStatus ->
       // short circuit if we are not a full account
       if (account !is FullAccount) {
         return@combine FundsLostRiskLevel.Protected
       }
 
-      if (firmwareData.firmwareDeviceInfo == null) {
+      if (keysetSyncStatus is SpendingKeysetSyncStatus.Mismatch) {
+        FundsLostRiskLevel.AtRisk(
+          AtRiskCause.ActiveSpendingKeysetMismatch
+        )
+      } else if (firmwareData.firmwareDeviceInfo == null) {
         FundsLostRiskLevel.AtRisk(
           AtRiskCause.MissingHardware
         )

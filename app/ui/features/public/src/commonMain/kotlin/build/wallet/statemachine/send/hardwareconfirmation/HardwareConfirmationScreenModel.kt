@@ -10,8 +10,7 @@ import build.wallet.ui.model.button.ButtonModel
 
 data class HardwareConfirmationScreenModel(
   override val onBack: () -> Unit,
-  val onSend: () -> Unit,
-  val onLearnMore: () -> Unit,
+  val onConfirm: () -> Unit,
 ) : FormBodyModel(
     id = SendEventTrackerScreenId.SEND_HARDWARE_CONFIRMATION,
     onBack = onBack,
@@ -24,15 +23,7 @@ data class HardwareConfirmationScreenModel(
           icon = Icon.BitkeyDevice3D
         ),
         title = "Are the details on your Bitkey device correct?",
-        body = LabelModel.LinkSubstringModel.from(
-          substringToOnClick = mapOf(
-            "Learn more" to onLearnMore
-          ),
-          string = "Confirm or cancel the signing of the transaction on your Bitkey.\n\nLearn more",
-          underline = true,
-          bold = true,
-          color = LabelModel.Color.ON60
-        )
+        body = LabelModel.StringModel("Confirm or cancel the signing of the transaction on your Bitkey.")
       )
     ),
     primaryButton = ButtonModel(
@@ -40,7 +31,7 @@ data class HardwareConfirmationScreenModel(
       requiresBitkeyInteraction = true,
       treatment = ButtonModel.Treatment.BitkeyInteraction,
       size = ButtonModel.Size.Footer,
-      onClick = onSend
+      onClick = onConfirm
     ),
     secondaryButton = ButtonModel(
       text = "No, cancel transaction",

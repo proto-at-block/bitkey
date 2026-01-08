@@ -1,57 +1,110 @@
+srcs = files(
+  'src/memfault_platform_port.c',
+  'src/memfault_coredump_storage.c',
+)
+srcs += memfault_sdk_srcs
+
+deps = [
+  helpers_dep,
+  log_dep,
+  mcu_dep,
+  memfault_log_dep,
+  printf_dep,
+  rtos_dep,
+  sysinfo_dep,
+  telemetry_storage_dep,
+]
+
 memfault_includes = [
   memfault_sdk_includes,
   include_directories('inc'),
   memfault_event_defs,
 ]
 
-if not embedded_build
+memfault_system_configs = {
+  'efr32mg24': {
+    'embedded'         : true,
+    'dependencies'     : deps,
+    'cmd_dependencies' : [shell_dep],
+  },
+  'stm32u5xx': {
+    'embedded'         : true,
+    'dependencies'     : deps,
+    'cmd_dependencies' : [shell_dep],
+  },
+  'darwin': {
+    'embedded'         : false,
+    'dependencies'     : [],
+    'cmd_dependencies' : [],
+  },
+  'linux': {
+    'embedded'         : false,
+    'dependencies'     : [],
+    'cmd_dependencies' : [],
+  },
+}
+
+# We define a header-only dependency that can be leveraged outside of the
+# main application.
 memfault_dep = declare_dependency(
-  include_directories : memfault_includes,
-  dependencies : [],
-)
-memfault_cmd_dep = declare_dependency(
-  dependencies : [memfault_dep],
-)
-else
-
-srcs = files(
-  'memfault_platform_port.c',
-  'memfault_coredump_storage.c',
+  include_directories : memfault_includes
 )
 
-deps = [
-  mcu_efr32xg24_dep,
-  printf_dep,
-  memfault_log_dep,
-  helpers_dep,
-  freertos_dep,
-  sysinfo_dep,
-  log_dep,
-  telemetry_storage_dep,
-]
+memfault_deps = {}
+memfault_libs = {}
+memfault_cmd_deps = {}
+memfault_cmd_libs = {}
 
-srcs += memfault_sdk_srcs
+foreach memfault_system : memfault_system_configs.keys()
+  memfault_config = memfault_system_configs[memfault_system]
 
-memfault_lib = library('memfault',
-  srcs,
-  include_directories : memfault_includes,
-  dependencies : deps,
-)
+  if memfault_config['embedded']
+    memfault_libs += {
+      memfault_system: library('memfault_lib_' + memfault_system,
+        srcs + [
+          memfault_system + '/memfault_platform_translate.c',
+        ],
+        include_directories : memfault_includes + include_directories('inc-private'),
+        dependencies: memfault_config['dependencies'],
+      ),
+    }
 
-memfault_dep = declare_dependency(
-  link_with : memfault_lib,
-  include_directories : memfault_includes,
-  dependencies : deps,
-)
+    memfault_cmd_libs += {
+      memfault_system: library('memfault_lib_cmd_' + memfault_system,
+        'src/memfault_cmd.c',
+        include_directories : memfault_includes,
+        dependencies : memfault_config['dependencies'] + [shell_dep],
+      ),
+    }
+  else
+    lib_name = 'memfault_lib_' + memfault_system
+    memfault_libs += {
+      memfault_system : library(lib_name,
+        'posix/memfault_platform_translate.c',
+        include_directories : memfault_includes,
+      ),
+    }
 
-memfault_cmd_lib = library('memfault-cmd',
-  'memfault_cmd.c',
-  include_directories : memfault_includes,
-  dependencies : [memfault_dep, shell_dep],
-)
-memfault_cmd_dep = declare_dependency(
-  link_whole : memfault_cmd_lib,
-  dependencies : [memfault_dep, shell_dep],
-)
+    cmd_lib_name = 'memfault_lib_cmd_' + memfault_system
+    memfault_cmd_libs += {
+      memfault_system: library(cmd_lib_name,
+        'posix/memfault_platform_translate.c',
+        include_directories : memfault_includes,
+      )
+    }
+  endif
 
-endif
+  memfault_deps += {
+    memfault_system : declare_dependency(
+      link_with : memfault_libs[memfault_system],
+      dependencies : memfault_config['dependencies'],
+    ),
+  }
+
+  memfault_cmd_deps += {
+    memfault_system : declare_dependency(
+      link_whole : memfault_cmd_libs[memfault_system],
+      dependencies : memfault_config['cmd_dependencies'] + [memfault_dep],
+    ),
+  }
+endforeach

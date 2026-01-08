@@ -3,6 +3,26 @@ import firmware
 import Shared
 
 /**
+ * Helper class to wrap Swift async closures as Kotlin suspend functions
+ */
+private final class NfcSessionSuspendFunction: Shared.KotlinSuspendFunction1 {
+    private let closure: (Shared.NfcSession) async throws -> Shared.HardwareInteraction
+
+    init(_ closure: @escaping (Shared.NfcSession) async throws -> Shared.HardwareInteraction) {
+        self.closure = closure
+    }
+
+    func invoke(p1: Any?) async throws -> Any? {
+        guard let session = p1 as? Shared.NfcSession else {
+            throw NSError(domain: "BitkeyW3Commands", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "Invalid session parameter",
+            ])
+        }
+        return try await closure(session)
+    }
+}
+
+/**
  * Provides overrides for W3 implementation of NFC Commands and delegates
  * to an existing implementation otherwise.
  */
@@ -172,12 +192,16 @@ public final class BitkeyW3Commands: NfcCommands {
         session: NfcSession,
         psbt: Psbt,
         spendingKeyset: SpendingKeyset
-    ) async throws -> Psbt {
-        return try await delegate.signTransaction(
-            session: session,
-            psbt: psbt,
-            spendingKeyset: spendingKeyset
-        )
+    ) async throws -> Shared.HardwareInteraction {
+        let suspendFunction = NfcSessionSuspendFunction { newSession in
+            try await self.delegate.signTransaction(
+                session: newSession,
+                psbt: psbt,
+                spendingKeyset: spendingKeyset
+            )
+        }
+        return Shared.HardwareInteractionContinuation<Psbt>(tryContinue: suspendFunction) as Shared
+            .HardwareInteraction
     }
 
     public func startFingerprintEnrollment(

@@ -5,6 +5,7 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.backup.CloudBackupOperationLock
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
@@ -27,6 +28,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.withLock
 
 @BitkeyInject(AppScope::class)
 class CloudBackupVersionMigrationWorkerImpl(
@@ -36,6 +38,7 @@ class CloudBackupVersionMigrationWorkerImpl(
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val liteAccountCloudBackupCreator: LiteAccountCloudBackupCreator,
   private val cloudBackupDao: CloudBackupDao,
+  private val cloudBackupOperationLock: CloudBackupOperationLock,
   appSessionManager: AppSessionManager,
 ) : CloudBackupVersionMigrationWorker {
   override val runStrategy: Set<RunStrategy> = setOf(
@@ -51,10 +54,14 @@ class CloudBackupVersionMigrationWorkerImpl(
   )
 
   override suspend fun executeWork() {
-    val account = accountService.activeAccount().first()
+    // CRITICAL: Do NOT call CloudBackupHealthRepository.performSync() or
+    // SocRecCloudBackupSyncWorker.refreshCloudBackup() within this block - it would cause a deadlock.
+    cloudBackupOperationLock.withLock {
+      val account = accountService.activeAccount().first()
 
-    if (account != null) {
-      checkAndMigrateBackup(account)
+      if (account != null) {
+        checkAndMigrateBackup(account)
+      }
     }
   }
 

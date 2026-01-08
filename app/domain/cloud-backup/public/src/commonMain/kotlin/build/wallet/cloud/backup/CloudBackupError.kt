@@ -16,4 +16,6 @@ sealed class CloudBackupError : Error() {
      */
     val data: Any,
   ) : CloudBackupError()
+
+  data class AccountIdMismatched(val expectedId: String, val actualId: String, val backup: CloudBackup) : CloudBackupError()
 }

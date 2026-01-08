@@ -1,0 +1,13 @@
+import build.wallet.firmware.McuName;
+import build.wallet.firmware.McuRole;
+
+CREATE TABLE IF NOT EXISTS mcuInfoDeviceEntity(
+  id                     INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  mcuRole                TEXT AS McuRole NOT NULL,
+  mcuName                TEXT AS McuName NOT NULL,
+  firmwareVersion        TEXT NOT NULL,
+  firmwareDeviceInfoId   INTEGER NOT NULL,
+  FOREIGN KEY (firmwareDeviceInfoId) REFERENCES firmwareDeviceInfoEntity(rowId) ON DELETE CASCADE
+);
+
+PRAGMA foreign_key_check;

@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+void crypto_random_init(void);
+
 bool crypto_random(uint8_t* data, uint32_t num_bytes);
 
 // Gets a random number with the specified number of bits up to 16 bits.

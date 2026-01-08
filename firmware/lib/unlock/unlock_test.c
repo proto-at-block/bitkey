@@ -29,7 +29,7 @@ uint16_t crypto_rand_short(void) {
 uint32_t clock_get_freq(void) {
   return 1;
 }
-void set_authenticated_with_animation(secure_bool_t auth) {
+void set_authenticated(secure_bool_t auth, bool UNUSED(show_animation)) {
   authed = auth;
 }
 
@@ -76,14 +76,6 @@ static void advance_time_ms(uint32_t time_ms) {
         timer->callback(timer->handle);
       }
     }
-  }
-}
-
-static void check_power_timeout(uint32_t delay_time_ms) {
-  if (delay_time_ms < DEFAULT_POWER_TIMEOUT_MS) {
-    cr_assert_eq(sleep_get_power_timeout(), DEFAULT_POWER_TIMEOUT_MS);
-  } else {
-    cr_assert_eq(sleep_get_power_timeout(), DEFAULT_POWER_TIMEOUT_MS + delay_time_ms);
   }
 }
 
@@ -167,8 +159,8 @@ static void init(void) {
   });
 
   sleep_init(sleep_power_down_callback);
+  sleep_start_power_timer();
   unlock_init_and_begin_delay();
-  sleep_refresh_power_timer();
 }
 
 static void provision_default(void) {
@@ -224,7 +216,6 @@ Test(unlock_test, enforces_delay, .init = init) {
                  UNLOCK_WRONG_SECRET);
     cr_assert_eq(retry_counter, i + 1);
     cr_assert_eq(remaining_duration, delay_table[retry_counter]);
-    check_power_timeout(remaining_duration);
   }
 
   // Try again without waiting. Shouldn't work.
@@ -232,7 +223,6 @@ Test(unlock_test, enforces_delay, .init = init) {
                UNLOCK_WAITING_ON_DELAY);
   cr_assert_eq(retry_counter, 4);
   cr_assert_eq(remaining_duration, delay_table[retry_counter]);
-  check_power_timeout(remaining_duration);
 
   uint32_t time_step = 1000;
   advance_time_ms(time_step);
@@ -241,7 +231,6 @@ Test(unlock_test, enforces_delay, .init = init) {
                UNLOCK_WAITING_ON_DELAY);
   cr_assert_eq(retry_counter, 4);  // Shouldn't advance due to delay
   cr_assert_eq(remaining_duration, delay_table[retry_counter] - time_step);
-  check_power_timeout(remaining_duration);
 
   time_step = 9000;  // Advance time exactly equal to delay
   advance_time_ms(time_step);
@@ -251,7 +240,6 @@ Test(unlock_test, enforces_delay, .init = init) {
   cr_assert_eq(retry_counter, 5);     // Should bump by one
   cr_assert_eq(remaining_duration,
                0);  // Delay period has been waited out, so remaining_duration should be 0
-  check_power_timeout(remaining_duration);
 
   // Now we'll wait longer than the delay
   time_step = delay_table[retry_counter] + 1000;
@@ -261,7 +249,6 @@ Test(unlock_test, enforces_delay, .init = init) {
                UNLOCK_WRONG_SECRET);
   cr_assert_eq(retry_counter, 6);
   cr_assert_eq(remaining_duration, 0);
-  check_power_timeout(remaining_duration);
 
   // Finish out each wrong attempt / delay period
   // Go past the attempt limit to check the delay on the default limit response
@@ -276,9 +263,7 @@ Test(unlock_test, enforces_delay, .init = init) {
     cr_assert_eq(unlock_check_secret(&g_secret, &remaining_duration, &retry_counter),
                  expected_response);
     cr_assert_eq(retry_counter, (i + 7));
-    table_idx = BLK_MIN(ATTEMPT_LIMIT, retry_counter);
     cr_assert_eq(remaining_duration, 0);
-    check_power_timeout(remaining_duration);
   }
 }
 
@@ -327,7 +312,6 @@ Test(unlock_test, preserves_delay_period, .init = init) {
                UNLOCK_WAITING_ON_DELAY);
   cr_assert_eq(retry_counter, 4);
   cr_assert_eq(remaining_duration, delay_table[retry_counter]);
-  check_power_timeout(remaining_duration);
 
   cr_assert_eq(DELAY_INCOMPLETE, delay_status);
 

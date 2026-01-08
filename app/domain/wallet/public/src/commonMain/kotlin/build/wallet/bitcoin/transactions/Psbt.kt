@@ -2,8 +2,8 @@ package build.wallet.bitcoin.transactions
 
 import build.wallet.bdk.bindings.BdkTxIn
 import build.wallet.bdk.bindings.BdkTxOut
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.Money
 import build.wallet.money.currency.BTC
 import dev.zacsweers.redacted.annotations.Redacted
 
@@ -16,8 +16,8 @@ data class Psbt(
   val id: String,
   /** The encoded representation of the transaction */
   val base64: String,
-  /** The fee associated with the transaction in [Money], which must have currency in [BTC] */
-  val fee: BitcoinMoney,
+  /** The [fee] associated with the transaction represented as [Fee], which must have currency in [BTC] */
+  val fee: Fee,
   /** The size of the transaction in bytes, without witnesses */
   val baseSize: Long,
   /** The number of inputs associated with the transaction */

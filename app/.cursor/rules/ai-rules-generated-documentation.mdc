@@ -1,0 +1,193 @@
+---
+description: Source code documentation patterns for interfaces, implementations, and schemas
+alwaysApply: false
+---
+
+# Source Code Documentation
+
+## Goals
+1. Developer comprehension of complex systems
+2. Context for debugging and future maintainers
+3. AI-friendly self-contained sections
+
+## When to Document
+
+**Document:**
+- Cryptographic/security code
+- Business logic with domain knowledge
+- Non-obvious algorithms (bit manipulation, state machines, parsing)
+- Hidden side effects or external dependencies
+- Magic numbers and constants
+- Public interfaces, classes, methods
+
+**Skip:**
+- Self-explanatory signatures (`fun getId(): String`)
+- Docs that repeat the method name
+
+## Format
+
+**Layered: summary first, details if needed.**
+
+### Interfaces - WHAT/WHY
+
+```kotlin
+/**
+ * [One-line responsibility]
+ *
+ * ## Responsibility
+ * [What this owns, what it doesn't]
+ *
+ * ## Behavior Contract
+ * [Guarantees, invariants, errors]
+ *
+ * @see [Related]
+ */
+interface Service {
+  /** [Caller perspective]. @return [null/error semantics] */
+  suspend fun method(param: Type): Result<Output?, Error>
+}
+```
+
+### Implementations - HOW
+
+```kotlin
+/**
+ * [Brief - don't repeat interface]
+ *
+ * ## Implementation Details
+ * [How, why these choices]
+ *
+ * @see Service for contract
+ */
+class ServiceImpl(...) : Service
+```
+
+**Document in implementations:**
+- Performance optimizations
+- Workarounds for bugs/library quirks
+- Algorithm/library choice rationale
+- Non-obvious side effects
+- Assumptions (thread safety, input constraints)
+
+### SQLDelight
+
+```sql
+-- [Purpose]
+-- [Key fields, relationships]
+CREATE TABLE t (
+  id TEXT PRIMARY KEY,
+  field TEXT NOT NULL  -- [if non-obvious]
+);
+```
+
+### Rust
+
+```rust
+/// [Summary]
+///
+/// # Errors
+/// `Error::X` when [condition]
+pub fn f() -> Result<T, Error>
+```
+
+### Visual Aids
+
+Use for complex flows, bit layouts, or method mappings:
+
+```
+Step 1 → Step 2 → Step 3
+
+[version:1][data:23][crc:6]
+    MSB ──────────────> LSB
+
+| Method | Caller | Purpose |
+|--------|--------|---------|
+```
+
+### DTOs and Data Models
+
+**DTOs (request/response bodies):** Document structure and field meanings, not business logic.
+**Data models:** Document what it represents and property semantics, not how services use it.
+
+Both should use `@see` to reference the service that owns the business logic.
+
+### Sealed Hierarchies
+
+Document the sealed parent with overall purpose and when each subtype applies.
+Document subtypes only if not self-descriptive - skip if the name conveys the meaning.
+
+### Fakes
+
+Only document if the fake has unique or interesting behavior worth noting.
+Most fakes are self-explanatory.
+
+### Tests
+
+Use descriptive test names as primary documentation.
+Add brief KDoc only for complex or long test flows where the name alone isn't sufficient.
+
+## Domain Terminology
+
+Use domain terms freely - don't over-explain established vocabulary.
+
+When encountering unfamiliar terms:
+1. Search codebase for existing definitions (type docs, service docs)
+2. Never guess at meanings
+3. If no definition exists, add one at the type definition or relevant service
+
+## Accuracy
+
+**Source code is truth.** Always verify documentation against implementation.
+
+- Check that documented algorithms, types, and constants match the code
+- If docs and code disagree, fix docs or flag the discrepancy
+- Outdated docs are worse than no docs
+
+## Single Source of Truth
+
+Every piece of information should have exactly one authoritative location.
+
+**Before documenting, ask:**
+1. Is this already documented elsewhere?
+2. Is this the right place for this information?
+3. Would `@see` suffice instead of duplicating?
+
+**Ownership:**
+- Business flows → Service interfaces
+- Implementation details → Impl classes
+- Field/property meanings → The type that defines them
+
+**Signs of duplication:**
+- Same numbered steps in multiple files
+- Flow diagrams repeated across interface and implementation
+- Behavioral docs in data classes that describe service behavior
+
+## Context Gathering
+
+Before documenting unfamiliar code:
+1. Git blame/history
+2. GitHub PR descriptions and review comments
+3. Related tests
+4. Nearby `.md` files and design docs/ADRs
+5. Slack (see @ai-rules/slack-mcp-usage.md)
+6. External specs/docs (BIPs, RFCs, library GitHub repos)
+
+Link to Slack threads or PRs for design decisions.
+
+## Maintenance
+
+Update docs when modifying code. Remove stale docs.
+
+## Anti-Patterns
+
+- Duplicating information across multiple locations
+- Wrong layer: implementation details in interfaces, business logic in DTOs
+- Docs that repeat the method name or signature
+- Unverified claims that don't match source code
+- Vague language: "handles stuff", "does processing"
+- Missing docs on complex/security code
+- Verbose docs on obvious code
+
+## Related Rules
+- @ai-rules/context-gathering.md
+- @ai-rules/slack-mcp-usage.md

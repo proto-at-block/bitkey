@@ -6,12 +6,18 @@
             "variants": [
                 {
                     "artifacts": {
+                        "kotlin-gradle-plugin-api-2.1.20-gradle85.jar": "7e3619966fe389df48579f43b18f2c0b073696559915377c9442eba8cfbbfbf6"
+                    }
+                },
+                {
+                    "artifacts": {
                         "kotlin-gradle-plugin-api-2.1.20-gradle85.jar": "7e3619966fe389df48579f43b18f2c0b073696559915377c9442eba8cfbbfbf6",
                         "kotlin-gradle-plugin-api-2.1.20.jar": "7e3619966fe389df48579f43b18f2c0b073696559915377c9442eba8cfbbfbf6"
                     }
                 }
             ],
             "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]",
                 "gradle-plugins[bitkey]"
             ]
         }

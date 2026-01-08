@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsBodyModel
+import build.wallet.ui.components.forms.TextField
 import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.StandardClick
@@ -50,6 +51,10 @@ fun FeatureFlagsScreen(
     }
     item {
       Spacer(Modifier.height(24.dp))
+    }
+
+    item {
+      TextField(model = model.filterModel)
     }
 
     item {

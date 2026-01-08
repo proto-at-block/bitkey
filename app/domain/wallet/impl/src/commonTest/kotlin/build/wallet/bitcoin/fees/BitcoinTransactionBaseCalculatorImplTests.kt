@@ -3,9 +3,7 @@ package build.wallet.bitcoin.fees
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.money.BitcoinMoney
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -15,9 +13,9 @@ class BitcoinTransactionBaseCalculatorImplTests : FunSpec({
   val calculator = BitcoinTransactionBaseCalculatorImpl()
   val feeMap =
     persistentMapOf(
-      FASTEST to Fee(BitcoinMoney.sats(1000), oneSatPerVbyteFeeRate),
-      THIRTY_MINUTES to Fee(BitcoinMoney.sats(300), oneSatPerVbyteFeeRate),
-      SIXTY_MINUTES to Fee(BitcoinMoney.sats(150), oneSatPerVbyteFeeRate)
+      FASTEST to Fee(BitcoinMoney.sats(1000)),
+      THIRTY_MINUTES to Fee(BitcoinMoney.sats(300)),
+      SIXTY_MINUTES to Fee(BitcoinMoney.sats(150))
     )
 
   context("Exact Amount") {

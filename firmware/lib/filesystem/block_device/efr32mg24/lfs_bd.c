@@ -1,6 +1,7 @@
 #include "lfs_bd.h"
 
 #include "assert.h"
+#include "filesystem.h"
 #include "lfs.h"
 #include "log.h"
 #include "mcu_flash.h"
@@ -14,9 +15,13 @@ void* __attribute__((section(".flash_fs_section"))) fs_section;
 #define FS_BLOCK_CYCLES   (500) /* Wear leveling cycles */
 #define FS_LOOKAHEAD_SIZE (128) /* Must be a multiple of 8 */
 
+#define LFS_READ_SIZE  FS_LFS_READ_SIZE
+#define LFS_PROG_SIZE  FS_LFS_PROG_SIZE
+#define LFS_CACHE_SIZE FS_FILE_CACHE_SIZE
+
 static lfs_t SHARED_TASK_BSS lfs_handle;
-static uint8_t SHARED_TASK_BSS lfs_read_buf[FLASH_PAGE_SIZE];
-static uint8_t SHARED_TASK_BSS lfs_prog_buf[FLASH_PAGE_SIZE];
+static uint8_t SHARED_TASK_BSS lfs_read_buf[LFS_CACHE_SIZE];
+static uint8_t SHARED_TASK_BSS lfs_prog_buf[LFS_CACHE_SIZE];
 static uint8_t SHARED_TASK_BSS lfs_lookahead_buf[FS_LOOKAHEAD_SIZE];
 
 static struct {
@@ -42,11 +47,11 @@ static struct lfs_config SHARED_TASK_DATA config = {
   .sync = bd_sync,
 
   // Block device configuration
-  .read_size = FLASH_PAGE_SIZE,
-  .prog_size = FLASH_PAGE_SIZE,
+  .read_size = LFS_READ_SIZE,
+  .prog_size = LFS_PROG_SIZE,
   .block_size = FLASH_PAGE_SIZE,
   .block_count = 0, /* Updated at runtime */
-  .cache_size = FLASH_PAGE_SIZE,
+  .cache_size = LFS_CACHE_SIZE,
   .lookahead_size = FS_LOOKAHEAD_SIZE,
   .block_cycles = FS_BLOCK_CYCLES,
 
@@ -128,8 +133,8 @@ static int bd_read(const struct lfs_config* cfg, lfs_block_t block, lfs_off_t of
                    lfs_size_t size) {
   ASSERT(off % cfg->read_size == 0);
   ASSERT(size % cfg->read_size == 0);
-  ASSERT(block <= cfg->block_count);
-  if ((off % cfg->read_size != 0) || (size % cfg->read_size != 0) || (block > cfg->block_count)) {
+  ASSERT(block < cfg->block_count);
+  if ((off % cfg->read_size != 0) || (size % cfg->read_size != 0) || (block >= cfg->block_count)) {
     LOGE("bd_read invalid args");
     return -1;
   }
@@ -148,9 +153,9 @@ static int bd_write(const struct lfs_config* cfg, lfs_block_t block, lfs_off_t o
                     const void* buffer, lfs_size_t size) {
   ASSERT(off % cfg->prog_size == 0);
   ASSERT(size % cfg->prog_size == 0);
-  ASSERT(block <= cfg->block_count);
+  ASSERT(block < cfg->block_count);
 
-  if ((off % cfg->prog_size != 0) || (size % cfg->prog_size != 0) || (block > cfg->block_count)) {
+  if ((off % cfg->prog_size != 0) || (size % cfg->prog_size != 0) || (block >= cfg->block_count)) {
     LOGE("bd_write invalid args");
     return -1;
   }
@@ -166,7 +171,7 @@ static int bd_write(const struct lfs_config* cfg, lfs_block_t block, lfs_off_t o
 }
 
 static int bd_erase(const struct lfs_config* cfg, lfs_block_t block) {
-  if (block > cfg->block_count) {
+  if (block >= cfg->block_count) {
     LOGE("bd_erase invalid args");
     return -1;
   }

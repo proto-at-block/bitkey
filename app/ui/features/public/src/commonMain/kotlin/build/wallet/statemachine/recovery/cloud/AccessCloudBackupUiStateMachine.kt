@@ -22,12 +22,17 @@ interface AccessCloudBackupUiStateMachine : StateMachine<AccessCloudBackupUiProp
  * or we are not able to find backup on the cloud storage.
  * @property showErrorOnBackupMissing Whether to display a screen if no backup can be loaded
  * or to immediately invoke [onCannotAccessCloudBackup] instead.
+ * @property onStartCloudRecovery handler for when full account backups are found. Receives a list
+ * of backups that should be tried with the hardware key until one successfully decrypts.
  */
 data class AccessCloudBackupUiProps(
   val startIntent: StartIntent,
   val inviteCode: String?,
   val onExit: () -> Unit,
-  val onStartCloudRecovery: (cloudStoreAccount: CloudStoreAccount, backup: CloudBackup) -> Unit,
+  val onStartCloudRecovery: (
+    cloudStoreAccount: CloudStoreAccount,
+    backups: List<CloudBackup>,
+  ) -> Unit,
   val onStartLiteAccountRecovery: (backup: CloudBackup) -> Unit,
   val onStartLostAppRecovery: () -> Unit,
   val onStartLiteAccountCreation: (String?, StartIntent) -> Unit,

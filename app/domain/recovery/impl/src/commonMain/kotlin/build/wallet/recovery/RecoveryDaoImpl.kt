@@ -233,6 +233,13 @@ class RecoveryDaoImpl(
         saveKeyboxAsActive(keyboxToActivate)
       }
   }
+
+  override suspend fun isLocalRecoveryPresent(): Result<Boolean, DbTransactionError> {
+    return databaseProvider.database()
+      .awaitTransactionWithResult {
+        return@awaitTransactionWithResult recoveryQueries.getLocalRecovery().executeAsOneOrNull() != null
+      }
+  }
 }
 
 private fun ActiveServerRecoveryEntity.toServerRecovery(): ServerRecovery {

@@ -1,6 +1,6 @@
 package build.wallet.bitcoin.explorer
 
 enum class BitcoinExplorerType {
-  /** https://mempool.space/testnet/ */
+  /** https://bitkey.mempool.space/testnet/ */
   Mempool,
 }

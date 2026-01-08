@@ -91,10 +91,20 @@ class RecoveryStatusServiceImpl(
             .mapError { CouldNotFetchServerRecovery(it) }
             .bind()
 
-        recoveryDao
-          .setActiveServerRecovery(serverRecovery)
-          .mapError { SyncDbError(it) }
-          .bind()
+        val localRecoveryPresents = recoveryDao.isLocalRecoveryPresent()
+          .mapError { SyncDbError(it) }.bind()
+        /**
+         * We need to check for the presence of localRecovery,
+         * otherwise the [RecoveryDaoImpl.activeRecovery] function will wrongly conclude [build.wallet.recovery.Recovery.SomeoneElseIsRecovering]!
+         * Notice in this worker we didn't call [RecoveryDaoImpl.setLocalRecoveryProgress] function to initiate a local recovery,
+         * so the localRecovery could be null.
+         */
+        if (localRecoveryPresents) {
+          recoveryDao
+            .setActiveServerRecovery(serverRecovery)
+            .mapError { SyncDbError(it) }
+            .bind()
+        }
       }
     }
 

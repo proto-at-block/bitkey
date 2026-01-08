@@ -6,9 +6,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.model.icon.IconImage
-import build.wallet.ui.model.icon.IconImage.LocalImage
-import build.wallet.ui.model.icon.IconImage.MarketIconImage
-import build.wallet.ui.model.icon.IconImage.UrlImage
+import build.wallet.ui.model.icon.IconImage.*
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
@@ -81,7 +79,6 @@ private fun Icon.canApplyTint(): Boolean {
   return when (this) {
     // Assets that don't support tint.
     Icon.LargeIconNetworkError,
-    Icon.LargeIconSpeedometer,
     Icon.MediumIconTrustedContact,
     Icon.MoneyHomeHero,
     Icon.Bitcoin,

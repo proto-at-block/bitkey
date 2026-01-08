@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsBodyModel
+import build.wallet.ui.model.input.TextFieldModel
+import build.wallet.ui.model.input.TextFieldModel.KeyboardType
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
@@ -38,7 +40,14 @@ internal fun FeatureFlagsScreenPreview() {
               )
           ),
         onBack = {},
-        onReset = {}
+        onReset = {},
+        filterModel = TextFieldModel(
+          value = "",
+          placeholderText = "Search",
+          onValueChange = { _, _ -> },
+          keyboardType = KeyboardType.Default,
+          focusByDefault = false
+        )
       )
     )
   }

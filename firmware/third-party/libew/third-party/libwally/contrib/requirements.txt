@@ -1,0 +1,7 @@
+build
+sphinx
+sphinx-rtd-theme
+readthedocs-sphinx-ext
+docutils
+mkdocs
+jinja2

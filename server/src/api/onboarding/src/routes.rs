@@ -1496,6 +1496,7 @@ pub struct PrivateMultiSigAccountKeyset {
 #[serde_as]
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GetAccountKeysetsResponse {
+    pub active_keyset_id: KeysetId,
     pub keysets: Vec<AccountKeyset>,
     #[serde_as(as = "Option<Base64>")]
     pub wrapped_ssek: Option<Vec<u8>>,
@@ -1555,6 +1556,7 @@ pub async fn account_keysets(
     let descriptor_backups_set = account.descriptor_backups_set.as_ref();
 
     Ok(Json(GetAccountKeysetsResponse {
+        active_keyset_id: account.active_keyset_id,
         keysets,
         wrapped_ssek: descriptor_backups_set.map(|d| d.wrapped_ssek.clone()),
         descriptor_backups: descriptor_backups_set

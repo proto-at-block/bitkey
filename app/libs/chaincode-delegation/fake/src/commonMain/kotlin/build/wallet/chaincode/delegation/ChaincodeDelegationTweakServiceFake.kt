@@ -1,5 +1,6 @@
 package build.wallet.chaincode.delegation
 
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.spending.SpendingKeyset
@@ -11,7 +12,7 @@ class ChaincodeDelegationTweakServiceFake : ChaincodeDelegationTweakService {
   val psbtMock = Psbt(
     id = "psbt-id",
     base64 = "delegated-base-64",
-    fee = BitcoinMoney.sats(10_000),
+    fee = Fee(amount = BitcoinMoney.sats(10_000)),
     baseSize = 10000,
     numOfInputs = 1,
     amountSats = 10000UL

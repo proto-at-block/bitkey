@@ -2,12 +2,15 @@ import sys
 import json
 import glob
 import click
+import os
 import serial
 import shutil
 import semver
+import yaml
 import invoke as inv
+from typing import Optional
 
-from tasks.lib.paths import (CONFIG_FILE, CONFIG_FILE_TASKS)
+from tasks.lib.paths import (CONFIG_FILE, CONFIG_FILE_TASKS, PLATFORM_FILE)
 
 # This hack is needed for pyinvoke version >=2.1.1
 # fmt: off
@@ -18,12 +21,18 @@ from bitkey.meson import Target
 # fmt: on
 
 
-DEFAULTS = {
-    "PLATFORM": "w1",
-    "TARGET": "w1a-evt-app-a-dev",
-}
-
 BAD_INVOKE_VERSIONS = ["2.1.1", "2.1.2"]
+
+
+def get_defaults() -> dict:
+    with open(PLATFORM_FILE, "r") as config_file:
+        _defaults = yaml.safe_load(config_file)
+    return _defaults
+
+
+def get_default_platform() -> Optional[str]:
+    defaults = get_defaults()
+    return next((p for (p, o) in defaults.items() if o.get("default", False)), None)
 
 
 def write_config(config):
@@ -121,10 +130,15 @@ def check_config() -> bool:
     if prompt('No invoke.json found, would you like to create one? [Yn]') == 'n':
         return False
 
-    target = Target(DEFAULTS["TARGET"]).elf
+    platform = get_default_platform()
+    defaults = get_defaults()
+    if defaults is None or platform not in defaults:
+        raise RuntimeError(f"No default settings for: {platform}")
+
+    target = Target(defaults[platform].get("target")).elf
 
     click.echo(click.style('Configuring using these defaults:', fg='green'))
-    click.echo('\tPlatform: ' + click.style(DEFAULTS["PLATFORM"], fg='blue'))
+    click.echo('\tPlatform: ' + click.style(platform, fg='blue'))
     click.echo('\tTarget:   ' + click.style(target, fg='blue'))
 
     if sys.platform.startswith('darwin'):
@@ -152,7 +166,7 @@ def check_config() -> bool:
             'Port \'{port_idx}\' is not valid, exiting.', fg='red'))
 
     config = {
-        "platform": DEFAULTS["PLATFORM"],
+        "platform": platform,
         "target": str(target),
         "monitor_port": availble_ports[port_idx],
     }

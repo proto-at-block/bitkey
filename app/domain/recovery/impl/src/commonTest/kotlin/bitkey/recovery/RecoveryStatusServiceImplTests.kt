@@ -13,6 +13,7 @@ import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusF8eClientMock
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.recovery.*
+import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
@@ -42,6 +43,7 @@ class RecoveryStatusServiceImplTests : FunSpec({
     getRecoveryStatusF8eClient.reset()
     sessionProvider.reset()
     accountConfigService.reset()
+    recoveryDao.setLocalRecoveryPresent = Ok(true)
   }
 
   test("server polling sync recovery is retrieved (non-null) and cached in dao.") {

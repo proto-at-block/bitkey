@@ -31,13 +31,13 @@ static const uint32_t CHG_CV_JEITA_MAX = 24u; /* 4.2V = 3.6V + (24 * 25mV) */
     printf(#addr " = 0x%02X\n", value); \
   }
 
-static void configure(void);
+static void configure(const power_ldo_config_t* ldo_config);
 static bool read_register(const max77734_reg_t address, uint8_t* result);
 static bool write_register(const max77734_reg_t address, const uint8_t* data);
 
-void max77734_init(void) {
+void max77734_init(const power_ldo_config_t* ldo_config) {
   mcu_i2c_bus_init(&power_i2c_config, &max77734_i2c_config, true);
-  configure();
+  configure(ldo_config);
 }
 
 bool max77734_validate(void) {
@@ -91,6 +91,13 @@ void max77734_charge_enable(const bool enabled) {
   write_register(MAX77734_REG_CNFG_CHG_B, b_reg.bytes);
 }
 
+void max77734_usb_suspend(const bool enabled) {
+  max77734_reg_cnfg_chg_g_t g_reg = {0};
+  read_register(MAX77734_REG_CNFG_CHG_G, g_reg.bytes);
+  g_reg.values.USBS = enabled;
+  write_register(MAX77734_REG_CNFG_CHG_G, g_reg.bytes);
+}
+
 void max77734_set_max_charge_cv(const bool max) {
   max77734_reg_cnfg_chg_d_t d_reg = {0};
   max77734_reg_cnfg_chg_g_t g_reg = {0};
@@ -139,7 +146,9 @@ void max77734_charging_status(bool* charging, bool* chgin_valid) {
   *chgin_valid = (stat_chg_b.values.CHGIN_DTLS == 0b11);
 }
 
-static void configure(void) {
+static void configure(const power_ldo_config_t* ldo_config) {
+  ASSERT(ldo_config != NULL);
+
   const max77734_reg_cnfg_chg_a_t a = {
     .values =
       {
@@ -219,11 +228,23 @@ static void configure(void) {
   const max77734_reg_cnfg_ldo_b_t ldo_b = {
     .values =
       {
-        .LDO_EN = 0b00, /* LDO enables when nENLDO asserts or when CHGIN is valid */
-        .LDO_PM = 0,    /* Forced low-power mode */
+        .LDO_EN = ldo_config->ldo_en & 0b11,
+        .LDO_PM = ldo_config->ldo_pm & 0b11,
       },
   };
   write_register(MAX77734_REG_CNFG_LDO_B, ldo_b.bytes);
+}
+
+void max77734_set_ldo_low_power_mode(void) {
+  max77734_reg_cnfg_ldo_b_t ldo_b = {0};
+  if (!read_register(MAX77734_REG_CNFG_LDO_B, ldo_b.bytes)) {
+    LOGE("Failed to read LDO_B register");
+    return;
+  }
+  ldo_b.values.LDO_PM = MAX77734_LDO_PM_LOW_POWER;
+  if (!write_register(MAX77734_REG_CNFG_LDO_B, ldo_b.bytes)) {
+    LOGE("Failed to write LDO_B register");
+  }
 }
 
 void max77734_print_registers(void) {
@@ -287,47 +308,305 @@ void max77734_print_mode(void) {
 
   LOGD("Charger Mode:");
   switch (stat_chg_b.values.CHG_DTLS) {
-    case 0:
+    case MAX77734_CHG_DTLS_OFF:
       LOGD("Charger off");
       break;
-    case 1:
+    case MAX77734_CHG_DTLS_PREQUALIFICATION:
       LOGD("Prequalification mode");
       break;
-    case 2:
+    case MAX77734_CHG_DTLS_CC:
       LOGD("Fast-charge constant-current (CC) mode");
       break;
-    case 3:
+    case MAX77734_CHG_DTLS_JEITA_CC:
       LOGD("JEITA-modified fast-charge constant-current mode");
       break;
-    case 4:
+    case MAX77734_CHG_DTLS_CV:
       LOGD("Fast-charge constant-voltage (CV) mode");
       break;
-    case 5:
+    case MAX77734_CHG_DTLS_JEITA_CV:
       LOGD("JEITA-modified fast-charge constant-voltage mode");
       break;
-    case 6:
+    case MAX77734_CHG_DTLS_TOP_OFF:
       LOGD("Top-off mode");
       break;
-    case 7:
+    case MAX77734_CHG_DTLS_JEITA_TOP_OFF:
       LOGD("JEITA-modified top-off mode");
       break;
-    case 8:
+    case MAX77734_CHG_DTLS_DONE:
       LOGD("Done");
       break;
-    case 9:
+    case MAX77734_CHG_DTLS_JEITA_DONE:
       LOGD("JEITA-modified done");
       break;
-    case 10:
+    case MAX77734_CHG_DTLS_PREQUALIFICATION_TIMER_FAULT:
       LOGD("Prequalification timer fault");
       break;
-    case 11:
+    case MAX77734_CHG_DTLS_FAST_CHARGE_TIMER_FAULT:
       LOGD("Fast-charge timer fault");
       break;
-    case 12:
+    case MAX77734_CHG_DTLS_BATTERY_TEMP_FAULT:
       LOGD("Battery temperature fault");
       break;
     default:
       LOGD("Charger state is invalid");
+      break;
+  }
+}
+
+power_charger_mode_t max77734_get_mode(void) {
+  max77734_reg_stat_chg_b_t stat_chg_b = {0};
+  read_register(MAX77734_REG_STAT_CHG_B, stat_chg_b.bytes);
+
+  switch (stat_chg_b.values.CHG_DTLS) {
+    case MAX77734_CHG_DTLS_OFF:
+      return POWER_CHARGER_MODE_OFF;
+    case MAX77734_CHG_DTLS_PREQUALIFICATION:
+      return POWER_CHARGER_MODE_PREQUAL;
+    case MAX77734_CHG_DTLS_CC:
+      return POWER_CHARGER_MODE_CC;
+    case MAX77734_CHG_DTLS_JEITA_CC:
+      return POWER_CHARGER_MODE_JEITA_CC;
+    case MAX77734_CHG_DTLS_CV:
+      return POWER_CHARGER_MODE_CV;
+    case MAX77734_CHG_DTLS_JEITA_CV:
+      return POWER_CHARGER_MODE_JEITA_CV;
+    case MAX77734_CHG_DTLS_TOP_OFF:
+      return POWER_CHARGER_MODE_TOP_OFF;
+    case MAX77734_CHG_DTLS_JEITA_TOP_OFF:
+      return POWER_CHARGER_MODE_JEITA_TOP_OFF;
+    case MAX77734_CHG_DTLS_DONE:
+      return POWER_CHARGER_MODE_DONE;
+    case MAX77734_CHG_DTLS_JEITA_DONE:
+      return POWER_CHARGER_MODE_JEITA_DONE;
+    case MAX77734_CHG_DTLS_PREQUALIFICATION_TIMER_FAULT:
+      return POWER_CHARGER_MODE_PREQUAL_TIMEOUT;
+    case MAX77734_CHG_DTLS_FAST_CHARGE_TIMER_FAULT:
+      return POWER_CHARGER_MODE_FAST_CHARGE_TIMEOUT;
+    case MAX77734_CHG_DTLS_BATTERY_TEMP_FAULT:
+      return POWER_CHARGER_MODE_TEMP_FAULT;
+    default:
+      break;
+  }
+  return POWER_CHARGER_MODE_INVALID;
+}
+
+void max77734_enable_thermal_interrupts(void) {
+  // Read current interrupt masks
+  max77734_reg_intm_glbl_t intm_glbl = {.bytes[0] = 0xff};
+  if (!read_register(MAX77734_REG_INTM_GLBL, intm_glbl.bytes)) {
+    LOGE("Failed to read global interrupt mask register");
+    return;
+  }
+
+  max77734_reg_int_m_chg_t int_m_chg = {.bytes[0] = 0xff};
+  if (!read_register(MAX77734_REG_INT_M_CHG, int_m_chg.bytes)) {
+    LOGE("Failed to read charge interrupt mask register");
+    return;
+  }
+
+  // Unmask thermal alarm interrupts in global interrupt mask
+  intm_glbl.values.TJAL1_RM = 0;  // Enable TJAL1 interrupt
+  intm_glbl.values.TJAL2_RM = 0;  // Enable TJAL2 interrupt
+  if (!write_register(MAX77734_REG_INTM_GLBL, intm_glbl.bytes)) {
+    LOGE("Failed to enable thermal alarm interrupts (INTM_GLBL)");
+    return;
+  }
+
+  // Unmask junction temperature regulation interrupt in charge interrupt mask
+  int_m_chg.values.TJ_REG_M = 0;  // Enable TJ_REG interrupt
+  if (!write_register(MAX77734_REG_INT_M_CHG, int_m_chg.bytes)) {
+    LOGE("Failed to enable TJ_REG interrupt (INT_M_CHG)");
+    return;
+  }
+
+  // Clear any pending thermal interrupts (read to clear)
+  max77734_reg_int_glbl_t int_glbl = {0};
+  read_register(MAX77734_REG_INT_GLBL, int_glbl.bytes);
+
+  max77734_reg_int_chg_t int_chg = {0};
+  read_register(MAX77734_REG_INT_CHG, int_chg.bytes);
+}
+
+bool max77734_check_thermal_status(bool* tjal1, bool* tjal2, bool* tj_reg) {
+  if (!tjal1 || !tjal2 || !tj_reg) {
+    return false;
+  }
+
+  *tjal1 = false;
+  *tjal2 = false;
+  *tj_reg = false;
+
+  // Read interrupt registers
+  max77734_reg_int_glbl_t int_glbl = {0};
+  if (!read_register(MAX77734_REG_INT_GLBL, int_glbl.bytes)) {
+    LOGE("Failed to read INT_GLBL");
+    return false;
+  }
+
+  max77734_reg_int_chg_t int_chg = {0};
+  if (!read_register(MAX77734_REG_INT_CHG, int_chg.bytes)) {
+    LOGE("Failed to read INT_CHG");
+    return false;
+  }
+
+  // Check thermal alarm rising edge interrupts
+  *tjal1 = int_glbl.values.TJAL1_R;
+  *tjal2 = int_glbl.values.TJAL2_R;
+
+  // Check junction temperature regulation interrupt
+  *tj_reg = int_chg.values.TJ_REG_I;
+
+  // Return true if any thermal event occurred
+  return (*tjal1 || *tjal2 || *tj_reg);
+}
+
+uint8_t max77734_get_register_count(void) {
+  return 27;
+}
+
+void max77734_read_register(uint8_t index, uint8_t* offset_out, uint8_t* value_out) {
+  ASSERT(offset_out != NULL);
+  ASSERT(value_out != NULL);
+
+  switch (index) {
+    case 0:
+      *offset_out = MAX77734_REG_INT_GLBL;
+      read_register(MAX77734_REG_INT_GLBL, value_out);
+      break;
+
+    case 1:
+      *offset_out = MAX77734_REG_INT_CHG;
+      read_register(MAX77734_REG_INT_CHG, value_out);
+      break;
+
+    case 2:
+      *offset_out = MAX77734_REG_STAT_CHG_A;
+      read_register(MAX77734_REG_STAT_CHG_A, value_out);
+      break;
+
+    case 3:
+      *offset_out = MAX77734_REG_STAT_CHG_B;
+      read_register(MAX77734_REG_STAT_CHG_B, value_out);
+      break;
+
+    case 4:
+      *offset_out = MAX77734_REG_ERCFLAG;
+      read_register(MAX77734_REG_ERCFLAG, value_out);
+      break;
+
+    case 5:
+      *offset_out = MAX77734_REG_STAT_GLBL;
+      read_register(MAX77734_REG_STAT_GLBL, value_out);
+      break;
+
+    case 6:
+      *offset_out = MAX77734_REG_INTM_GLBL;
+      read_register(MAX77734_REG_INTM_GLBL, value_out);
+      break;
+
+    case 7:
+      *offset_out = MAX77734_REG_INT_M_CHG;
+      read_register(MAX77734_REG_INT_M_CHG, value_out);
+      break;
+
+    case 8:
+      *offset_out = MAX77734_REG_CNFG_GLBL;
+      read_register(MAX77734_REG_CNFG_GLBL, value_out);
+      break;
+
+    case 9:
+      *offset_out = MAX77734_REG_CID;
+      read_register(MAX77734_REG_CID, value_out);
+      break;
+
+    case 10:
+      *offset_out = MAX77734_REG_CNFG_WDT;
+      read_register(MAX77734_REG_CNFG_WDT, value_out);
+      break;
+
+    case 11:
+      *offset_out = MAX77734_REG_CNFG_CHG_A;
+      read_register(MAX77734_REG_CNFG_CHG_A, value_out);
+      break;
+
+    case 12:
+      *offset_out = MAX77734_REG_CNFG_CHG_B;
+      read_register(MAX77734_REG_CNFG_CHG_B, value_out);
+      break;
+
+    case 13:
+      *offset_out = MAX77734_REG_CNFG_CHG_C;
+      read_register(MAX77734_REG_CNFG_CHG_C, value_out);
+      break;
+
+    case 14:
+      *offset_out = MAX77734_REG_CNFG_CHG_D;
+      read_register(MAX77734_REG_CNFG_CHG_D, value_out);
+      break;
+
+    case 15:
+      *offset_out = MAX77734_REG_CNFG_CHG_E;
+      read_register(MAX77734_REG_CNFG_CHG_E, value_out);
+      break;
+
+    case 16:
+      *offset_out = MAX77734_REG_CNFG_CHG_F;
+      read_register(MAX77734_REG_CNFG_CHG_F, value_out);
+      break;
+
+    case 17:
+      *offset_out = MAX77734_REG_CNFG_CHG_G;
+      read_register(MAX77734_REG_CNFG_CHG_G, value_out);
+      break;
+
+    case 18:
+      *offset_out = MAX77734_REG_CNFG_CHG_H;
+      read_register(MAX77734_REG_CNFG_CHG_H, value_out);
+      break;
+
+    case 19:
+      *offset_out = MAX77734_REG_CNFG_CHG_I;
+      read_register(MAX77734_REG_CNFG_CHG_I, value_out);
+      break;
+
+    case 20:
+      *offset_out = MAX77734_REG_CNFG_LDO_A;
+      read_register(MAX77734_REG_CNFG_LDO_A, value_out);
+      break;
+
+    case 21:
+      *offset_out = MAX77734_REG_CNFG_LDO_B;
+      read_register(MAX77734_REG_CNFG_LDO_B, value_out);
+      break;
+
+    case 22:
+      *offset_out = MAX77734_REG_CNFG_SNK1_A;
+      read_register(MAX77734_REG_CNFG_SNK1_A, value_out);
+      break;
+
+    case 23:
+      *offset_out = MAX77734_REG_CNFG_SNK1_B;
+      read_register(MAX77734_REG_CNFG_SNK1_B, value_out);
+      break;
+
+    case 24:
+      *offset_out = MAX77734_REG_CNFG_SNK2_A;
+      read_register(MAX77734_REG_CNFG_SNK2_A, value_out);
+      break;
+
+    case 25:
+      *offset_out = MAX77734_REG_CNFG_SNK2_B;
+      read_register(MAX77734_REG_CNFG_SNK2_B, value_out);
+      break;
+
+    case 26:
+      *offset_out = MAX77734_REG_CNFG_SNK_TOP;
+      read_register(MAX77734_REG_CNFG_SNK_TOP, value_out);
+      break;
+
+    default:
+      *offset_out = 0;
+      *value_out = 0;
       break;
   }
 }

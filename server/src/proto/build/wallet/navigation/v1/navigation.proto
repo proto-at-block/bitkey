@@ -70,5 +70,8 @@ enum NavigationScreenId {
     /** Transaction Verification Policy management screen. **/
     NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY = 20;
 
-    /** The next tag is 21 **/
+    /** Screen for repairing local keysets if there is an issue */
+    NAVIGATION_SCREEN_ID_KEYSET_REPAIR = 21;
+
+    /** The next tag is 22 **/
 }

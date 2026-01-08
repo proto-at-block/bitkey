@@ -22,6 +22,7 @@ kotlin {
         api(projects.libs.moneyPublic)
         api(projects.domain.partnershipsPublic)
         api(projects.libs.platformPublic)
+        api(projects.rust.bdkFfi)
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
       }

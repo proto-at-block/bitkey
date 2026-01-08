@@ -20,6 +20,7 @@ import build.wallet.f8e.inheritance.*
 import build.wallet.logging.logDebug
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.relationships.CreateInvitationError
 import build.wallet.relationships.RelationshipsService
 import build.wallet.worker.BackgroundStrategy
 import build.wallet.worker.RunStrategy
@@ -116,9 +117,11 @@ class InheritanceServiceImpl(
   override suspend fun createInheritanceInvitation(
     hardwareProofOfPossession: HwFactorProofOfPossession,
     trustedContactAlias: TrustedContactAlias,
-  ): Result<OutgoingInvitation, Error> =
-    coroutineBinding {
-      val account = accountService.getAccount<FullAccount>().bind()
+  ): Result<OutgoingInvitation, CreateInvitationError> {
+    return coroutineBinding {
+      val account = accountService.getAccount<FullAccount>().mapError { error ->
+        CreateInvitationError.AccountRetrievalError(error)
+      }.bind()
 
       relationshipsService.createInvitation(
         account = account,
@@ -127,6 +130,7 @@ class InheritanceServiceImpl(
         roles = setOf(TrustedContactRole.Beneficiary)
       ).bind()
     }
+  }
 
   override suspend fun syncInheritanceMaterial(keybox: Keybox): Result<Unit, Error> =
     coroutineBinding {

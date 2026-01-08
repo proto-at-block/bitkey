@@ -6,6 +6,15 @@ void rtos_event_group_create(rtos_event_group_t* event_group) {
   ASSERT(event_group->handle != NULL);
 }
 
+void rtos_event_group_destroy(rtos_event_group_t* event_group) {
+  ASSERT(event_group != NULL);
+
+  if (event_group->handle != NULL) {
+    vEventGroupDelete(event_group->handle);
+    event_group->handle = NULL;
+  }
+}
+
 uint32_t rtos_event_group_get_bits(rtos_event_group_t* event_group) {
   ASSERT(event_group->handle != NULL);
   return (uint32_t)xEventGroupGetBits((EventGroupHandle_t)event_group->handle);

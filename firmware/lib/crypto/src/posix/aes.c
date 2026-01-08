@@ -5,8 +5,8 @@
 #include <openssl/evp.h>
 
 bool aes_gcm_encrypt(const uint8_t* plaintext, uint8_t* ciphertext, uint32_t length,
-                     uint8_t iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH], uint8_t* aad,
-                     uint32_t aad_length, key_handle_t* key) {
+                     uint8_t const iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH],
+                     uint8_t const* aad, uint32_t aad_length, key_handle_t* key) {
   EVP_CIPHER_CTX* ctx;
 
   int len;
@@ -45,8 +45,8 @@ out:
 }
 
 bool aes_gcm_decrypt(const uint8_t* ciphertext, uint8_t* plaintext, uint32_t length,
-                     uint8_t iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH], uint8_t* aad,
-                     uint32_t aad_length, key_handle_t* key) {
+                     uint8_t const iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH],
+                     uint8_t const* aad, uint32_t aad_length, key_handle_t* key) {
   EVP_CIPHER_CTX* ctx;
   int len;
 

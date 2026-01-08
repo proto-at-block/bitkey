@@ -126,14 +126,14 @@ class RelationshipsServiceImpl(
     trustedContactAlias: TrustedContactAlias,
     hardwareProofOfPossession: HwFactorProofOfPossession,
     roles: Set<TrustedContactRole>,
-  ): Result<OutgoingInvitation, Error> =
+  ): Result<OutgoingInvitation, CreateInvitationError> =
     coroutineBinding {
       // TODO: Use RelationshipsCrypto to generate.
       val enrollmentPakeCode =
         InviteCodeParts.Schema.maskPakeData(Random.nextBytes(InviteCodeParts.Schema.pakeByteArraySize()))
       val protectedCustomerEnrollmentPakeKey =
         relationshipsCrypto.generateProtectedCustomerEnrollmentPakeKey(enrollmentPakeCode)
-          .mapError { Error("Error creating pake key: ${it.message}", it) }
+          .mapError { CreateInvitationError.LocalCryptoError(it) }
           .bind()
       relationshipsF8eClient()
         .createInvitation(
@@ -143,6 +143,7 @@ class RelationshipsServiceImpl(
           protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey.publicKey,
           roles = roles
         )
+        .mapError { CreateInvitationError.F8ePropagatedError(it) }
         .flatMap { invitation ->
           relationshipsEnrollmentAuthenticationDao
             .insert(
@@ -151,9 +152,11 @@ class RelationshipsServiceImpl(
               enrollmentPakeCode
             )
             .mapError {
-              Error(
-                "Failed to insert into relationshipsEnrollmentAuthenticationDao",
-                it
+              CreateInvitationError.DatabaseError(
+                Error(
+                  "Failed to insert into relationshipsEnrollmentAuthenticationDao",
+                  it
+                )
               )
             }
             .flatMap {
@@ -161,9 +164,10 @@ class RelationshipsServiceImpl(
                 invitation.code,
                 invitation.codeBitLength,
                 enrollmentPakeCode
-              )
+              ).mapError { buildError ->
+                CreateInvitationError.InviteCodeBuildError(buildError)
+              }
             }
-            .mapError { Error("Failed to build invite code", it) }
             .map { OutgoingInvitation(invitation, it) }
         }.bind()
         .also { syncAndVerifyRelationships(account) }

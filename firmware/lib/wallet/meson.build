@@ -34,7 +34,7 @@ seed_test = executable('seed-test',
   'src/seed_test.c',
   srcs,
   include_directories : [includes, private_includes],
-  dependencies : [wallet_dep, deps, test_deps],
+  dependencies : [wallet_dep, crypto_deps['posix'], deps, test_deps],
 )
 test('seed test', seed_test)
 
@@ -42,6 +42,6 @@ derived_key_cache_test = executable('derived-key-cache-test',
   'src/derived_key_cache_test.c',
   srcs,
   include_directories : [includes, private_includes],
-  dependencies : [wallet_dep, deps, test_deps],
+  dependencies : [wallet_dep, crypto_deps['posix'], deps, test_deps],
 )
 test('derived key cache test', derived_key_cache_test)

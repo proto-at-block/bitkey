@@ -94,11 +94,6 @@ void sysinfo_chip_id_read(uint8_t* chip_id_out, uint32_t* length_out) {
   mcu_devinfo_chipid(chip_id_out);
 }
 
-void sysinfo_devinfo_read(uint8_t* buffer, uint32_t size) {
-  ASSERT(size == MCU_DEVINFO_SIZE);
-  mcu_devinfo_read((mcu_devinfo_t*)buffer);
-}
-
 bool sysinfo_load(void) {
   uint32_t length = 0;
   bool use_placeholder_serial = false;

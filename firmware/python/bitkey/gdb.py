@@ -7,14 +7,13 @@ import psutil
 import certifi
 import pathlib
 import subprocess
+from typing import List
 
-from tasks.lib.paths import BUILD_FW_APPS_DIR, CONFIG_FILE
+from tasks.lib.paths import BUILD_FW_DIR, CONFIG_FILE
 from pygdbmi import gdbmiparser
 from pprint import pprint
 
 cli = click.Group()
-
-DEVICE_CHIP = "EFR32MG24BXXXF1536"
 
 gdb_flash_txt = """target extended-remote localhost:2331
 monitor reset
@@ -28,18 +27,23 @@ quit
 
 
 class JLinkGdbServer:
-    def __init__(self, chip: str, gdb_config: str = None, gdb_server_path: str = None, gdb_client_path: str = None):
+    def __init__(self, chip: str, gdb_config: str = None, gdb_server_path: str = None, gdb_client_path: str = None, jlink_serial: str = None):
         self.chip = chip
         self.gdb_config = gdb_config
         self.gdb_server = gdb_server_path or "JLinkGDBServer"
         self.gdb_client = gdb_client_path or "arm-none-eabi-gdb"
+        self.jlink_serial = jlink_serial
 
     def __enter__(self):
         # Kill dangling JLink processes. They can cause flashing to fail.
         self._kill_jlink_processes()
 
-        server_command = shlex.split(
-            f"{self.gdb_server} -nogui -device {self.chip} -if SWD")
+        # Build command with optional J-Link selection
+        base_command = f"{self.gdb_server} -nogui -device {self.chip} -if SWD"
+        if self.jlink_serial:
+            base_command += f" -select usb={self.jlink_serial}"
+
+        server_command = shlex.split(base_command)
         self.server_process = subprocess.Popen(server_command, start_new_session=True,
                                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         return self
@@ -150,12 +154,15 @@ kill""".encode())[0]
 class GdbCapture:
     gdb_process = None
 
-    def __init__(self, breakpoints):
+    def __init__(self, breakpoints: List[str], platform: str) -> None:
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
             target = config.get('target')
+
+        build_dir = BUILD_FW_DIR.joinpath(platform)
+        target_dir = build_dir.joinpath("app", platform, "application", target)
         self.gdb_process = subprocess.Popen(['arm-none-eabi-gdb-py3', '--interpreter=mi2',
-                                             BUILD_FW_APPS_DIR.joinpath(target)], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                                             target_dir], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
         # Connect to remote GDB server
         self.gdb_process.stdin.write(

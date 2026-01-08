@@ -29,3 +29,18 @@ messages:
       fields:
         - uint32_t timestamp
     - name: auth_present_grant_for_fingerprint_enrollment_t
+    # Internal fingerprint operations
+    - name: auth_start_fingerprint_enrollment_internal_t
+      fields:
+        - uint8_t index             # Fingerprint slot (0-2)
+        - char label[32]            # Label for the fingerprint
+    - name: auth_get_enrolled_fingerprints_internal_t
+      # No fields needed - just a request
+    - name: auth_enrolled_fingerprints_response_t
+      fields:
+        - uint8_t count              # Number of enrolled fingerprints
+        - uint8_t indices[3]         # Indices of enrolled fingerprints
+        - char labels[3][32]         # Labels for enrolled fingerprints
+    - name: auth_delete_fingerprint_internal_t
+      fields:
+        - uint8_t index             # Fingerprint slot to delete (0-2)

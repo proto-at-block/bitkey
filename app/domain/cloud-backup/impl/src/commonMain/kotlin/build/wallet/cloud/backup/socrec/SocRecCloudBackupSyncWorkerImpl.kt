@@ -12,6 +12,7 @@ import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.backup.CloudBackupOperationLock
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
@@ -34,6 +35,7 @@ import build.wallet.relationships.RelationshipsService
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
@@ -50,6 +52,7 @@ class SocRecCloudBackupSyncWorkerImpl(
   private val eventTracker: EventTracker,
   private val clock: Clock,
   private val appSessionManager: AppSessionManager,
+  private val cloudBackupOperationLock: CloudBackupOperationLock,
 ) : SocRecCloudBackupSyncWorker {
   private val lastCheckState: MutableStateFlow<Instant> = MutableStateFlow(Instant.DISTANT_PAST)
 
@@ -197,29 +200,33 @@ class SocRecCloudBackupSyncWorkerImpl(
     fullAccount: FullAccount,
     hwekEncryptedPkek: SealedCsek,
   ): Result<Unit, Error> =
-    coroutineBinding {
-      // Get the customer's cloud store account.
-      val cloudStoreAccount =
-        cloudStoreAccountRepository
-          .currentAccount(cloudServiceProvider())
-          .toErrorIfNull {
-            // If the account is null we'll want to alert the customer, but for now
-            // this is just treated like an error and logged.
-            Error("Cloud store account not found")
-          }
+    // CRITICAL: Do NOT call CloudBackupHealthRepository.performSync() or
+    // CloudBackupVersionMigrationWorker.executeWork() within this block - it would cause a deadlock.
+    cloudBackupOperationLock.withLock {
+      coroutineBinding {
+        // Get the customer's cloud store account.
+        val cloudStoreAccount =
+          cloudStoreAccountRepository
+            .currentAccount(cloudServiceProvider())
+            .toErrorIfNull {
+              // If the account is null we'll want to alert the customer, but for now
+              // this is just treated like an error and logged.
+              Error("Cloud store account not found")
+            }
+            .bind()
+
+        // Create a new cloud backup.
+        val cloudBackup = fullAccountCloudBackupCreator
+          .create(keybox = fullAccount.keybox, sealedCsek = hwekEncryptedPkek)
           .bind()
 
-      // Create a new cloud backup.
-      val cloudBackup = fullAccountCloudBackupCreator
-        .create(keybox = fullAccount.keybox, sealedCsek = hwekEncryptedPkek)
-        .bind()
-
-      // Upload new cloud backup to the cloud.
-      cloudBackupRepository.writeBackup(
-        accountId = fullAccount.accountId,
-        cloudStoreAccount = cloudStoreAccount,
-        backup = cloudBackup,
-        requireAuthRefresh = true
-      ).bind()
+        // Upload new cloud backup to the cloud.
+        cloudBackupRepository.writeBackup(
+          accountId = fullAccount.accountId,
+          cloudStoreAccount = cloudStoreAccount,
+          backup = cloudBackup,
+          requireAuthRefresh = true
+        ).bind()
+      }
     }
 }

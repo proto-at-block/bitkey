@@ -1,0 +1,18 @@
+{
+    "module-identifier": "dev.gobley.gradle:gobley-gradle-uniffi",
+    "components": [
+        {
+            "version": "0.3.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gobley-gradle-uniffi-0.3.7.jar": "0f3eefc73f7a10148b10fac4c35c9e3b56fb787785289ce2fc9d493aa025bf3f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]"
+            ]
+        }
+    ]
+}

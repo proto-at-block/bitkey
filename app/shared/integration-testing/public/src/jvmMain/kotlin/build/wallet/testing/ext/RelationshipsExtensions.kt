@@ -54,7 +54,9 @@ suspend fun AppTester.createTcInvite(tcName: String): TrustedContactFullInvite {
       hardwareProofOfPossession = hwPop,
       roles = setOf(TrustedContactRole.SocialRecoveryContact)
     )
-    .getOrThrow()
+    .getOrThrow { error ->
+      IllegalStateException("Failed to create invitation: $error", error.cause)
+    }
   awaitRelationships { relationships ->
     relationships.invitations.any { it.relationshipId == invitation.invitation.relationshipId }
   }

@@ -102,7 +102,7 @@ class BitcoinTransactionFeeEstimatorImpl(
 
         feeRate?.let { rate ->
           val feeAmount = (rate.satsPerVByte * vsize).toInt().toBigInteger()
-          Fee(amount = BitcoinMoney.sats(feeAmount), feeRate = feeRate)
+          Fee(amount = BitcoinMoney.sats(feeAmount))
         }
       }.filterNotNull()
     }

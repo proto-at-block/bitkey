@@ -1,6 +1,8 @@
 package build.wallet.inheritance
 
 import app.cash.turbine.test
+import bitkey.f8e.error.F8eError
+import bitkey.f8e.error.code.CreateTrustedContactInvitationErrorCode
 import bitkey.relationships.Relationships
 import build.wallet.account.AccountServiceFake
 import build.wallet.auth.AppAuthKeyMessageSignerMock
@@ -20,9 +22,13 @@ import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.inheritance.*
 import build.wallet.isOk
+import build.wallet.ktor.result.HttpError
+import build.wallet.ktor.test.HttpResponseMock
+import build.wallet.relationships.CreateInvitationError
 import build.wallet.relationships.OutgoingInvitationFake
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.testing.shouldBeErr
+import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
@@ -31,6 +37,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.TestScope
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.seconds
@@ -119,6 +126,24 @@ class InheritanceServiceImplTests : FunSpec({
     relationshipsService.createInvitationCalls.awaitItem()
     result.isOk.shouldBeTrue()
     result.value.shouldBe(OutgoingInvitationFake)
+  }
+
+  test("creating inheritance invitation surfaces CreateInvitationError") {
+    val propagatedError = CreateInvitationError.F8ePropagatedError(
+      F8eError.SpecificClientError(
+        error = HttpError.ClientError(HttpResponseMock(HttpStatusCode.BadRequest)),
+        errorCode = CreateTrustedContactInvitationErrorCode.MAX_TRUSTED_CONTACTS_REACHED
+      )
+    )
+    relationshipsService.createInvitationResult = Err(propagatedError)
+
+    val result = inheritanceService.createInheritanceInvitation(
+      hardwareProofOfPossession = HwFactorProofOfPossession("signed-token"),
+      trustedContactAlias = TrustedContactAlias("trusted-contact-alias")
+    )
+
+    relationshipsService.createInvitationCalls.awaitItem()
+    result.shouldBeErrOfType<CreateInvitationError.F8ePropagatedError>().shouldBe(propagatedError)
   }
 
   test("Sync Inheritance data when hash out-of-date") {

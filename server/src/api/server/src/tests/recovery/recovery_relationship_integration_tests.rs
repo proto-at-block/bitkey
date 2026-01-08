@@ -1315,7 +1315,7 @@ async fn test_relationships_count_caps() {
     }
 
     let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
-    for i in 0..=30 {
+    for i in 0..=20 {
         let customer_account = create_full_account(
             &mut context,
             &bootstrap.services,
@@ -1347,12 +1347,55 @@ async fn test_relationships_count_caps() {
             &CognitoAuthentication::Recovery,
             &create_body.invitation,
             CodeOverride::None,
-            if i != 30 {
+            if i != 20 {
                 StatusCode::OK
             } else {
                 StatusCode::CONFLICT
             },
             i + 1,
+        )
+        .await;
+    }
+
+    for i in 0..=20 {
+        let customer_account = create_full_account(
+            &mut context,
+            &bootstrap.services,
+            Network::BitcoinSignet,
+            None,
+        )
+        .await;
+        let create_body = try_create_relationship(
+            &context,
+            &client,
+            &customer_account.id,
+            &TrustedContactRole::Beneficiary,
+            &CognitoAuthentication::Wallet {
+                is_app_signed: true,
+                is_hardware_signed: true,
+            },
+            StatusCode::OK,
+            1,
+            0,
+        )
+        .await
+        .unwrap();
+
+        try_accept_recovery_relationship_invitation(
+            &context,
+            &client,
+            &customer_account.id,
+            &tc_account.id,
+            &TrustedContactRole::Beneficiary,
+            &CognitoAuthentication::Recovery,
+            &create_body.invitation,
+            CodeOverride::None,
+            if i != 20 {
+                StatusCode::OK
+            } else {
+                StatusCode::CONFLICT
+            },
+            i + 21,
         )
         .await;
     }

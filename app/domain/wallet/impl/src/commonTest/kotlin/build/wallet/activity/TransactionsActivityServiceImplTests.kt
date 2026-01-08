@@ -10,14 +10,19 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outg
 import build.wallet.bitcoin.transactions.BitcoinTransactionMock
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
+import build.wallet.bitcoin.wallet.WalletV2ProviderMock
 import build.wallet.bitcoin.wallet.WatchingWalletMock
 import build.wallet.bitcoin.wallet.WatchingWalletProviderMock
+import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.awaitUntilNotNull
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
@@ -51,7 +56,10 @@ class TransactionsActivityServiceImplTests : FunSpec({
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val uuidGenerator = UuidGeneratorFake()
 
-  val featureFlag = ExpectedTransactionsPhase2FeatureFlag(FeatureFlagDaoFake())
+  val featureFlagDao = FeatureFlagDaoFake()
+  val featureFlag = ExpectedTransactionsPhase2FeatureFlag(featureFlagDao)
+  val bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao)
+  val walletV2Provider = WalletV2ProviderMock()
   lateinit var service: TransactionsActivityServiceImpl
 
   val wallet = SpendingWalletMock(turbines::create)
@@ -120,6 +128,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
     bitcoinWalletService.reset()
     featureFlag.reset()
     watchingWalletProvider.reset()
+    walletV2Provider.reset()
 
     bitcoinWalletService.spendingWallet.value = wallet
     bitcoinWalletService.setTransactions(
@@ -132,10 +141,12 @@ class TransactionsActivityServiceImplTests : FunSpec({
 
     service = TransactionsActivityServiceImpl(
       expectedTransactionsPhase2FeatureFlag = featureFlag,
+      bdk2FeatureFlag = bdk2FeatureFlag,
       partnershipTransactionsService = partnershipTransactionsService,
       bitcoinWalletService = bitcoinWalletService,
       accountService = accountService,
       watchingWalletProvider = watchingWalletProvider,
+      walletV2Provider = walletV2Provider,
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       listKeysetsF8eClient = listKeysetsF8eClient,
       appScope = TestScope(),
@@ -212,5 +223,73 @@ class TransactionsActivityServiceImplTests : FunSpec({
     service.transactionById("not-found").test {
       awaitItem().shouldBe(null)
     }
+  }
+
+  test("inactive wallets use legacy provider when BDK2 flag disabled") {
+    val activeKeyset = FullAccountMock.keybox.activeSpendingKeyset
+    val inactiveKeyset =
+      SpendingKeysetMock.copy(
+        localId = "inactive-keyset-id",
+        f8eSpendingKeyset =
+          SpendingKeysetMock.f8eSpendingKeyset.copy(
+            keysetId = "inactive-keyset-server-id"
+          )
+      )
+
+    val accountWithInactiveKeyset =
+      FullAccountMock.copy(
+        keybox =
+          KeyboxMock.copy(
+            canUseKeyboxKeysets = true,
+            activeSpendingKeyset = activeKeyset,
+            keysets = listOf(activeKeyset, inactiveKeyset)
+          )
+      )
+
+    accountService.setActiveAccount(accountWithInactiveKeyset)
+    bdk2FeatureFlag.setFlagValue(false)
+
+    createBackgroundScope().launch { service.executeWork() }
+
+    watchingWalletProvider.requestedDescriptors.test {
+      val requestedDescriptors = awaitUntil { it.size == 1 }
+      requestedDescriptors.first().identifier.shouldBe("WatchingWallet inactive-keyset-id")
+    }
+
+    walletV2Provider.requestedDescriptors.value.shouldBe(emptyList())
+  }
+
+  test("inactive wallets use V2 provider when BDK2 flag enabled") {
+    val activeKeyset = FullAccountMock.keybox.activeSpendingKeyset
+    val inactiveKeyset =
+      SpendingKeysetMock.copy(
+        localId = "inactive-keyset-id",
+        f8eSpendingKeyset =
+          SpendingKeysetMock.f8eSpendingKeyset.copy(
+            keysetId = "inactive-keyset-server-id"
+          )
+      )
+
+    val accountWithInactiveKeyset =
+      FullAccountMock.copy(
+        keybox =
+          KeyboxMock.copy(
+            canUseKeyboxKeysets = true,
+            activeSpendingKeyset = activeKeyset,
+            keysets = listOf(activeKeyset, inactiveKeyset)
+          )
+      )
+
+    accountService.setActiveAccount(accountWithInactiveKeyset)
+    bdk2FeatureFlag.setFlagValue(true)
+
+    createBackgroundScope().launch { service.executeWork() }
+
+    walletV2Provider.requestedDescriptors.test {
+      val requestedDescriptors = awaitUntil { it.size == 1 }
+      requestedDescriptors.first().identifier.shouldBe("WatchingWallet inactive-keyset-id")
+    }
+
+    watchingWalletProvider.requestedDescriptors.value.shouldBe(emptyList())
   }
 })

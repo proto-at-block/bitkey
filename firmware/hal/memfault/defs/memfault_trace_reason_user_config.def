@@ -46,3 +46,9 @@ MEMFAULT_TRACE_REASON_DEFINE(tamper_error)
 
 // Sysinfo
 MEMFAULT_TRACE_REASON_DEFINE(kv_init)
+
+// UC Comms
+MEMFAULT_TRACE_REASON_DEFINE(uc_err)
+
+// Display
+MEMFAULT_TRACE_REASON_DEFINE(display_send_dropped)

@@ -71,6 +71,10 @@ sl_se_key_descriptor_t se_key_descriptor_for_key_handle(key_handle_t* handle) {
       descriptor.type = SL_SE_KEY_TYPE_ECC_ED25519;
       descriptor.size = handle->key.size;
       break;
+    case ALG_ECC_X25519:
+      descriptor.type = SL_SE_KEY_TYPE_ECC_X25519;
+      descriptor.size = handle->key.size;
+      break;
     case ALG_ECC_SECP256K1:
       descriptor.type = SL_SE_KEY_TYPE_ECC_WEIERSTRASS_PRIME_CUSTOM;
       descriptor.size = handle->key.size;
@@ -218,4 +222,10 @@ uint32_t key_management_custom_domain_prepare(key_algorithm_t alg, uint8_t* buff
   ASSERT(off == needed_size);
 
   return off;
+}
+
+bool crypto_sign_with_device_identity(uint8_t* data, uint32_t data_size, uint8_t* signature,
+                                      uint32_t signature_size) {
+  return (se_sign_with_device_identity_key(data, data_size, signature, signature_size) ==
+          SL_STATUS_OK);
 }

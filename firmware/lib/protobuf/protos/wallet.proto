@@ -16,6 +16,25 @@ enum secure_boot_config {
   SECURE_BOOT_CONFIG_PROD = 2;
 }
 
+enum mcu_role {
+  // Default role. The core MCU implements the core functionality of the
+  // product. We make this the default as Wallet commands were originally
+  // designed for a single MCU architecture.
+  MCU_ROLE_CORE = 0;
+
+  // User experience chip.
+  MCU_ROLE_UXC = 1;
+}
+
+enum mcu_name {
+  // Default chip. We make the EFR32 the default as Wallet commands and
+  // responses were originally designed for a single MCU architecture.
+  MCU_NAME_EFR32 = 0;
+
+  // STM32U5
+  MCU_NAME_STM32U5 = 1;
+}
+
 message fingerprint_handle {
   uint32 index = 1;
   string label = 2 [(nanopb).max_size = 33];
@@ -67,7 +86,10 @@ message event_fragment {
   int32 remaining_size = 2; // Size of events still remaining
 }
 
+// Requests the metadata of a target MCU.
 message meta_cmd {
+  // Target MCU to request the metadata of.
+  mcu_role mcu_role = 1;
 }
 
 message semver {
@@ -123,19 +145,43 @@ message bio_match_stats {
   uint32 fail_count = 2;
 }
 
+// Response to a metadata command.
 message meta_rsp {
+  // Command response status codes.
   enum meta_rsp_status {
+    // Unused.
     UNSPECIFIED = 0;
+
+    // Command was successful.
     SUCCESS = 1;
+
+    // Command failed.
     ERROR = 2;
+
+    // RFU.
     reserved 3 to 9;
   }
 
+  // Command response status code.
   meta_rsp_status rsp_status = 1;
+
+  // Bootloader metadata.
   firmware_metadata meta_bl = 2;
+
+  // Firmware metadata for the application in slot A.
   firmware_metadata meta_slot_a = 3;
+
+  // Firmware metadata for the application in slot B.
   firmware_metadata meta_slot_b = 4;
+
+  // Active firmware slot identifier.
   firmware_slot active_slot = 5;
+
+  // Chip the metadata belongs to.
+  mcu_name mcu_name = 6;
+
+  // Role of the MCU this metadata belongs to.
+  mcu_role mcu_role = 7;
 }
 
 // A command used by the mobile client to ask the hw device to start the fingerprint enrollment process.
@@ -263,67 +309,147 @@ enum fwup_mode {
   FWUP_MODE_DELTA_ONESHOT = 2;
 }
 
-// A command used to initiate an NFC transfer of a device firmware update
+// A command used to initiate an NFC transfer of a device firmware update.
 message fwup_start_cmd {
+  // Type of firmware update being performed.
   fwup_mode mode = 1;
-  uint32 patch_size = 2;  // Only used if doing a delta update
+
+  // Only used if doing a delta update.
+  uint32 patch_size = 2;
+
+  // Target MCU to send the message to.
+  mcu_role mcu_role = 3;
 }
 
-// The response for `fwup_start_cmd`
+// Response to the firmware update start command (`fwup_start_cmd`).
 message fwup_start_rsp {
+  // Command status response codes.
   enum fwup_start_rsp_status {
+    // Unused.
     UNSPECIFIED = 0;
+
+    // Firmware update was started successfully.
     SUCCESS = 1;
+
+    // Error in starting firmware update.
     ERROR = 2;
+
+    // Operation failed as device has not been unlocked.
     UNAUTHENTICATED = 3;
+
+    // RFU
     reserved 4 to 9;
   }
 
+  // Status code in response to the FWUP start command.
   fwup_start_rsp_status rsp_status = 1;
+
+  // Maximum flash write chunk size for the target.
+  uint32 max_chunk_size = 2;
 }
 
-// TODO Consider changing this API; possible attack since these offsets can be controlled?
+// Message sent from the host to finalize a firmware update.
+//
+// TODO: Consider changing this API; possible attack since these offsets can be
+// controlled?
 message fwup_finish_cmd {
+  // Offset (in bytes) in the upgrade image to find the application properties.
   uint32 app_properties_offset = 1;
+
+  // Offset (in bytes) in the update image to find the signature.
   uint32 signature_offset = 2;
+
+  // Set to `true` if a bootloader upgrade should be performed.
+  // Note that this may be denied if bootloader updates are disabled.
   bool bl_upgrade = 3;
+
+  // Type of firmware update being performed.
   fwup_mode mode = 4;
+
+  // Target MCU to send the message to.
+  mcu_role mcu_role = 5;
 }
 
+// Response to a FWUP finish command (`fwup_finish_cmd`).
 message fwup_finish_rsp {
+  // Command status response codes.
   enum fwup_finish_rsp_status {
+    // Unused.
     UNSPECIFIED = 0;
+
+    // Operation was successful, device may reboot to apply the firmware
+    // update.
     SUCCESS = 1;
+
+    // Update failed, signature is invalid.
     SIGNATURE_INVALID = 2;
+
+    // Update failed, downdating is not allowed.
     VERSION_INVALID = 3;
-    ERROR = 4;  // Generic error, shouldn't happen.
+
+    // Generic error (shouldn't happen).
+    ERROR = 4;
+
+    // Operation was successful, device will now patch the firmware update.
     WILL_APPLY_PATCH = 5;
+
+    // Operation failed as device has not been unlocked.
     UNAUTHENTICATED = 6;
+
+    // RFU.
     reserved 7 to 9;
   }
 
+  // Status code in response to the FWUP finish command.
   fwup_finish_rsp_status rsp_status = 1;
 }
 
 
-// A command used to send chunked firmware update binary data
+// A command used to send chunked firmware update binary data.
 message fwup_transfer_cmd {
+  // Monotonically increasing sequence ID. Offset to write in flash is
+  // computed by multiplying this value with the maximum chunk size for the
+  // target MCU.
   uint32 sequence_id = 1;
-  bytes fwup_data = 2 [(nanopb).max_size = 452];  // Must be divisible by 4 for flash write alignment
+
+  // FWUP data bytes. Must be divisible by the minimum flash write size for
+  // the target:
+  //   - EFR32: must be divisible by 4 (max: 452).
+  //   - STM32U5: must be divisible by 8 (max: 448).
+  bytes fwup_data = 2 [(nanopb).max_size = 452];
+
+  // For delta updates, indicates the offset in flash to write the FWUP data
+  // to.
   uint32 offset = 3;
+
+  // Type of firmware update.
   fwup_mode mode = 4;
+
+  // Target MCU to send the message to.
+  mcu_role mcu_role = 5;
 }
 
-// The response for `fwup_transfer_cmd`
+// Response to the FWUP transfer command (`fwup_transfer_cmd`).
 message fwup_transfer_rsp {
+  // Command status response codes.
   enum fwup_transfer_rsp_status {
+    // Unused.
     UNSPECIFIED = 0;
+
+    // Firmware data was successfully written to flash.
     SUCCESS = 1;
+
+    // Error writing firmware data to flash.
     ERROR = 2;
+
+    // Operation failed as device has not been unlocked.
     UNAUTHENTICATED = 4;
+
+    // RFU.
     reserved 5 to 9;
   }
 
+  // Status code in response to the FWUP transfer command.
   fwup_transfer_rsp_status rsp_status = 1;
 }
 
@@ -576,34 +702,85 @@ message empty_rsp {}
 message device_info_cmd {
 }
 
+// Response to the device information command (`device_info_cmd`).
 message device_info_rsp {
+  // Enumeration of command status response codes.
   enum device_info_rsp_status {
+    // Unused.
     UNSPECIFIED = 0;
+
+    // Command was successful.
     SUCCESS = 1;
+
+    // Generic error.
     ERROR = 2;
+
+    // Error retrieving firmware metadata.
     METADATA_ERROR = 3;
+
+    // Error reading serial number from flash.
     SERIAL_ERROR = 4;
+
+    // Error reading charge information from the fuel gauge.
     BATTERY_ERROR = 5;
+
+    // RFU
     reserved 6 to 9;
   }
 
+  // MCU information.
+  message device_info_mcu {
+    // MCU role within the device.
+    mcu_role mcu_role = 1;
+
+    // Microcontroller chip name.
+    mcu_name mcu_name = 2;
+
+    // Semantic version of the application image on the MCU.
+    semver version = 3;
+  }
+
+  // Command status code.
   device_info_rsp_status rsp_status = 1;
 
+  // Semantic version of the active (Core) MCU application image.
   semver version = 2;
 
-  string serial = 3 [(nanopb).max_size = 17];  // Top-level (assy) serial
-  string sw_type = 4 [(nanopb).max_size = 33];  // e.g. app-a-dev
-  string hw_revision = 5 [(nanopb).max_size = 33]; // e.g. evt
+  // Top-level assembly (assy) serial number.
+  string serial = 3 [(nanopb).max_size = 17];
+
+  // Application image variant (e.g. `app-a-dev`).
+  string sw_type = 4 [(nanopb).max_size = 33];
+
+  // Hardware revision (e.g. `evt`, `dvt`).
+  string hw_revision = 5 [(nanopb).max_size = 33];
+
+  // Active firmware slot on the main (Core) MCU.
   firmware_slot active_slot = 6;
 
-  // Frequently changing hardware information
+  // Information about the MCUs within the device.
+  repeated device_info_mcu device_info_mcus = 13 [(nanopb).max_count = 2];
+
+  // -----------------------------------------------------------------------------
+  // Frequently changing information.
+  // -----------------------------------------------------------------------------
+
+  // Current battery state-of-charge (SOC) as a percent: [0..100].
   uint32 battery_charge = 7;
+
+  // Battery voltage in mV.
   uint32 vcell = 8;
+
+  // Average current in milliamps. Negative implies discharging.
   int32 avg_current_ma = 9;
+
+  // Unused.
   uint32 battery_cycles = 10;
 
+  // Secure boot configuration.
   secure_boot_config secure_boot_config = 11;
 
+  // Fingerprint unlock statistics.
   bio_match_stats bio_match_stats = 12;
 }
 
@@ -707,6 +884,18 @@ enum status {
   VERIFICATION_FAILED = 18;
   REQUEST_MISMATCH = 19;
   VERSION_MISMATCH = 20;
+  CONFIRMATION_PENDING = 21;
+}
+
+message get_confirmation_result_cmd {
+  bytes response_handle = 1 [(nanopb).max_size = 32];
+  bytes confirmation_handle = 2 [(nanopb).max_size = 32];
+}
+
+message get_confirmation_result_rsp {
+  oneof result {
+    wipe_state_rsp wipe_state_result = 1;
+  }
 }
 
 message wallet_cmd {
@@ -768,6 +957,15 @@ message wallet_cmd {
     fingerprint_reset_request_cmd fingerprint_reset_request_cmd = 57;
     fingerprint_reset_finalize_cmd fingerprint_reset_finalize_cmd = 58;
     provision_app_auth_pubkey_cmd provision_app_auth_pubkey_cmd = 59;
+    mfgtest_runin_get_data_cmd mfgtest_runin_get_data_cmd = 60;
+    mfgtest_button_cmd mfgtest_button_cmd = 61;
+    mfgtest_show_screen_cmd mfgtest_show_screen_cmd = 62;
+    mfgtest_spi_loopback_cmd mfgtest_spi_loopback_cmd = 63;
+    mfgtest_nfc_loopback_cmd mfgtest_nfc_loopback_cmd = 64;
+    mfgtest_board_id_cmd mfgtest_board_id_cmd = 65;
+    mfgtest_touch_test_cmd mfgtest_touch_test_cmd = 66;
+    mfgtest_charger_cmd mfgtest_charger_cmd = 67;
+    get_confirmation_result_cmd get_confirmation_result_cmd = 68;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
@@ -834,9 +1032,21 @@ message wallet_rsp {
     fingerprint_reset_request_rsp fingerprint_reset_request_rsp = 57;
     fingerprint_reset_finalize_rsp fingerprint_reset_finalize_rsp = 58;
     provision_app_auth_pubkey_rsp provision_app_auth_pubkey_rsp = 59;
+    mfgtest_runin_get_data_rsp mfgtest_runin_get_data_rsp = 60;
+    mfgtest_button_rsp mfgtest_button_rsp = 61;
+    mfgtest_show_screen_rsp mfgtest_show_screen_rsp = 62;
+    mfgtest_spi_loopback_rsp mfgtest_spi_loopback_rsp = 63;
+    mfgtest_nfc_loopback_rsp mfgtest_nfc_loopback_rsp = 64;
+    mfgtest_board_id_rsp mfgtest_board_id_rsp = 65;
+    mfgtest_touch_test_rsp mfgtest_touch_test_rsp = 66;
+    mfgtest_charger_rsp mfgtest_charger_rsp = 67;
+    get_confirmation_result_rsp get_confirmation_result_rsp = 68;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
+
+  bytes response_handle = 9996 [(nanopb).max_size = 32];
+  bytes confirmation_handle = 9997 [(nanopb).max_size = 32];
 
   // Global status code.
   status status = 9998;

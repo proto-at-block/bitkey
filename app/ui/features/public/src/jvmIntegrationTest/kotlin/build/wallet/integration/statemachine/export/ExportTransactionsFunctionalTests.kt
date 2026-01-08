@@ -3,6 +3,7 @@ package build.wallet.integration.statemachine.export
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.bitcoin.export.ExportTransactionRow.ExportTransactionType.*
 import build.wallet.bitcoin.export.ExportTransactionsAsCsvSerializerImpl
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.money.BitcoinMoney.Companion.btc
 import build.wallet.money.BitcoinMoney.Companion.sats
@@ -81,7 +82,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
     receiveTransaction1.should {
       it.txid.value.shouldBeEqual(fundingTransaction2.tx.id)
       it.transactionType.shouldBe(Incoming)
-      it.fees?.shouldBeEqual(fundingTransaction2.tx.fee)
+      it.fees?.shouldBeEqual(fundingTransaction2.tx.fee.amount)
       it.amount.shouldBeEqual(fundingTransaction2.tx.amountBtc)
     }
 
@@ -89,7 +90,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
     receiveTransaction2.should {
       it.txid.value.shouldBeEqual(fundingTransaction1.tx.id)
       it.transactionType.shouldBe(Incoming)
-      it.fees?.shouldBeEqual(fundingTransaction1.tx.fee)
+      it.fees?.shouldBeEqual(fundingTransaction1.tx.fee.amount)
       it.amount.shouldBeEqual(fundingTransaction1.tx.amountBtc)
     }
   }
@@ -108,8 +109,9 @@ class ExportTransactionsFunctionalTests : FunSpec({
 
     // We do a Lost App + Cloud recovery
     app.appDataDeleter.deleteAll().getOrThrow()
-    app.cloudBackupDeleter.delete()
-    app.deleteBackupsFromFakeCloud()
+    val accountId = FullAccountIdMock
+    app.cloudBackupDeleter.delete(accountId)
+    app.deleteBackupsFromFakeCloud(accountId)
 
     // Perform Lost App + Cloud recovery to produce inactive keyset
     app.appUiStateMachine.test(
@@ -186,7 +188,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
     newWalletReceiveTransaction.should {
       it.txid.value.shouldBe(newWalletTransaction.tx.id)
       it.amount.shouldBe(newWalletTransaction.tx.amountBtc)
-      it.fees.shouldBe(newWalletTransaction.tx.fee)
+      it.fees.shouldBe(newWalletTransaction.tx.fee.amount)
       it.transactionType.shouldBe(Incoming)
     }
 
@@ -209,7 +211,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
     oldWalletReceiveTransaction2.should {
       it.txid.value.shouldBeEqual(fundingTransaction2.tx.id)
       it.transactionType.shouldBe(Incoming)
-      it.fees?.shouldBeEqual(fundingTransaction2.tx.fee)
+      it.fees?.shouldBeEqual(fundingTransaction2.tx.fee.amount)
       it.amount.shouldBeEqual(fundingTransaction2.tx.amountBtc)
     }
 
@@ -217,7 +219,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
     oldWalletReceiveTransaction1.should {
       it.txid.value.shouldBeEqual(fundingTransaction1.tx.id)
       it.transactionType.shouldBe(Incoming)
-      it.fees?.shouldBeEqual(fundingTransaction1.tx.fee)
+      it.fees?.shouldBeEqual(fundingTransaction1.tx.fee.amount)
       it.amount.shouldBeEqual(fundingTransaction1.tx.amountBtc)
     }
 

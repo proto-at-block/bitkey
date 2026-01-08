@@ -2,8 +2,7 @@
 
 #include "attributes.h"
 #include "mcu_reset.h"
-#include "secure_engine.h"
-#include "secutils.h"
+#include "secure_rng.h"
 
 #include <stdint.h>
 
@@ -17,12 +16,9 @@ extern uintptr_t __stack_chk_guard;
 NO_RETURN void __wrap___stack_chk_fail(void);
 
 inline __attribute__((always_inline)) NO_STACK_CANARY void canary_init(void) {
-  sl_se_command_context_t cmd_ctx = {0};
-  sl_status_t status = sl_se_init_command_context(&cmd_ctx);
   uintptr_t stack_guard = 0u;
 
-  if (status == SL_STATUS_OK &&
-      sl_se_get_random(&cmd_ctx, &stack_guard, sizeof(uintptr_t)) == SL_STATUS_OK) {
+  if (crypto_random((uint8_t*)&stack_guard, sizeof(stack_guard))) {
     // force terminator canary over a null canary
     if (stack_guard == 0u) {
       stack_guard = STACK_CANARY_FALLBACK_VALUE;

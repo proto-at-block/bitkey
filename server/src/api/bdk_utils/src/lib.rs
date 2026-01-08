@@ -661,6 +661,13 @@ impl ChaincodeDelegationCollaboratorWallet {
 }
 
 impl ChaincodeDelegationCollaboratorWallet {
+    pub fn chaincode_delegation_psbt(
+        &self,
+        psbt: &Psbt,
+    ) -> anyhow::Result<ChaincodeDelegationPsbt> {
+        ChaincodeDelegationPsbt::new(psbt, self.participant_public_keys().to_vec())
+    }
+
     pub fn get_outflow_for_psbt(&self, ccd_psbt: &ChaincodeDelegationPsbt) -> anyhow::Result<u64> {
         let mut outflow = 0u64;
 
@@ -733,6 +740,14 @@ impl ChaincodeDelegationCollaboratorWallet {
         }
 
         Descriptor::new_wsh_sortedmulti(2, tweaked).ok()
+    }
+
+    fn participant_public_keys(&self) -> [SecpPublicKey; 3] {
+        [
+            self.server_public_key,
+            self.app_public_key,
+            self.hardware_public_key,
+        ]
     }
 
     fn generate_proprietary_keys(&self) -> [ProprietaryKey; 3] {

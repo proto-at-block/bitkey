@@ -163,4 +163,14 @@ object RecoverySegment : AppSegment {
      */
     object Sweep : AppSegment by AdditionalSweep.childSegment("Sweep")
   }
+
+  /**
+   * Keyset repair flows for fixing keyset mismatches after stale cloud backup recovery.
+   */
+  object KeysetRepair : AppSegment by RecoverySegment.childSegment("KeysetRepair") {
+    /**
+     * The repair process itself.
+     */
+    object Repair : AppSegment by KeysetRepair.childSegment("Repair")
+  }
 }

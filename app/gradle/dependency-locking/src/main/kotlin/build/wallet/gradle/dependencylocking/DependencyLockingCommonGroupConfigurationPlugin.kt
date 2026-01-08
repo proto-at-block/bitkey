@@ -104,6 +104,19 @@ class DependencyLockingCommonGroupConfigurationPlugin : Plugin<Project> {
       } then {
         isLocked.set(false)
       }
+
+      // Gobley creates internal configurations for managing Rust build artifacts
+      // (e.g., "linuxArm64RustRuntimeAndroidUnitTestDebug", "uniFfiConfiguration").
+      // These contain no actual Maven/Gradle dependencies - Rust deps are locked via Cargo.lock.
+      // Scoped to :rust:bdk-ffi to avoid accidentally excluding unrelated configurations.
+      if (project.path == ":rust:bdk-ffi") {
+        ifMatches {
+          nameContains("Rust")
+          nameContains("uniFfi")
+        } then {
+          isLocked.set(false)
+        }
+      }
     }
   }
 }

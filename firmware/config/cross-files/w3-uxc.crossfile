@@ -1,0 +1,61 @@
+[binaries]
+c       = 'arm-none-eabi-gcc'
+cpp     = 'arm-none-eabi-g++'
+ld      = 'arm-none-eabi-ld'
+ar      = 'arm-none-eabi-ar'
+as      = 'arm-none-eabi-as'
+size    = 'arm-none-eabi-size'
+objdump = 'arm-none-eabi-objdump'
+objcopy = 'arm-none-eabi-objcopy'
+strip   = 'arm-none-eabi-strip'
+gdb     = 'arm-none-eabi-gdb'
+
+[properties]
+system = 'stm32u5xx'
+embedded_build = true
+platform = 'w3-uxc'
+
+[built-in options]
+c_args = [
+  '-mcpu=cortex-m33',
+  '-mthumb',
+  '-mfpu=fpv5-sp-d16',
+  '-mfloat-abi=hard',
+  '-mno-unaligned-access',
+  '-fdata-sections',
+  '-ffunction-sections',
+  '-fstack-protector-strong',
+  '-O2',
+  '-g3',
+  '-Wall',
+  '-Wextra',
+  '-Werror',
+  '-fno-builtin',
+  # For Memfault compact logging.
+  '-std=gnu11',
+  '-DEMBEDDED_BUILD=1',
+  # STM32U5 specific defines
+  '-DSTM32U585xx',
+  '-DSTM32U5xx']
+
+c_link_args = [
+  '-mcpu=cortex-m33',
+  '-mthumb',
+  '-mfpu=fpv5-sp-d16',
+  '-mfloat-abi=hard',
+  '-mno-unaligned-access',
+  '--specs=nano.specs',
+  '--specs=rdimon.specs',
+  '--specs=nosys.specs',
+  '-nostartfiles',
+  '-lc',
+  '-lm',
+  '-Wl,--gc-sections',
+  # For custom stack canary implementation
+  '-Wl,--wrap=__stack_chk_fail']
+
+[host_machine]
+system = 'none'
+cpu_family = 'arm'
+cpu = 'cortex-m33'
+endian = 'little'

@@ -3,6 +3,7 @@ syntax = "proto3";
 package fwpb;
 
 import "nanopb.proto";
+import "display.proto";
 
 message mfgtest_fingerprint_cmd {
   enum mfgtest_fingerprint_image_analysis_mode {
@@ -139,14 +140,28 @@ message mfgtest_gpio_cmd {
     PORT_B = 1;
     PORT_C = 2;
     PORT_D = 3;
+    PORT_E = 4;
+    PORT_F = 5;
+    PORT_G = 6;
   }
 
+  // Action to perform on the specified GPIO.
   mfgtest_gpio_action action = 1;
+
+  // Numeric identifier of the GPIO port to read / set / clear.
   mfgtest_gpio_port port = 2;
+
+  // Numeric identifier of the GPIO on the port.
   uint32 pin = 3;
+
+  // Target MCU to interface with. Note that this is un-typed (actual type is
+  // mcu_role) to prevent a circular dependency.
+  uint32 mcu_role = 4;
 }
 
+// Response to the `mfgtest_gpio_cmd`.
 message mfgtest_gpio_rsp {
+  // Output value of the GPIO after the action was performed.
   uint32 output = 1;
 }
 
@@ -169,4 +184,466 @@ message mfgtest_battery_variant_rsp {
   }
 
   mfgtest_battery_variant_status status = 1;
+}
+
+// Request run-in test data.
+message mfgtest_runin_get_data_cmd {
+}
+
+// Response to the request for run-in test data.
+message mfgtest_runin_get_data_rsp {
+  // Status codes for the result of the request.
+  enum mfgtest_runin_get_data_rsp_status {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // No valid data recorded.
+    NO_DATA = 1;
+
+    // Run-in test passed.
+    SUCCESS = 2;
+
+    // Run-in test failed.
+    FAILED = 3;
+
+    reserved 4 to 9;
+  }
+
+  // Status code in response to the request.
+  mfgtest_runin_get_data_rsp_status rsp_status = 1;
+
+  // True if USB was un-plugged during the test, otherwise False.
+  bool discharging = 2;
+
+  // Total number of loop iterations that was performed.
+  uint32 loop_count = 3;
+
+  // Initial SOC recorded at the start of the test.
+  uint32 initial_soc = 4;
+
+  // Final SOC recorded at the end of the test.
+  uint32 final_soc = 5;
+
+  // Total duration of the test in milliseconds.
+  uint32 duration_ms = 6;
+
+  // Number of phantom button press events.
+  uint32 phantom_button_events = 7;
+
+  // Number of phantom touch events.
+  uint32 phantom_touch_events = 8;
+
+  // Number of phantom fingerprint events.
+  uint32 phantom_fingerprint_events = 9;
+
+  // Number of phantom capacitive touch events.
+  uint32 phantom_captouch_events = 10;
+
+  // Minimum SOC reached during the test.
+  uint32 min_soc = 11;
+}
+
+// Button event data for manufacturing tests
+message mfgtest_button_event {
+  enum button_id {
+    LEFT = 0;
+    RIGHT = 1;
+    BOTH = 2;
+  }
+
+  enum event_type {
+    SHORT_PRESS = 0;
+    LONG_PRESS_START = 1;
+    LONG_PRESS_STOP = 2;
+  }
+
+  button_id button = 1;
+  event_type type = 2;
+  uint32 timestamp_ms = 3;
+  uint32 duration_ms = 4;
+}
+
+// Command to interact with tactile buttons during manufacturing tests
+message mfgtest_button_cmd {
+  enum mfgtest_button_action {
+    UNSPECIFIED = 0;
+    GET_EVENTS = 1;       // Get buffered button events
+    CLEAR_EVENTS = 2;     // Clear event buffer
+    SET_UI_BYPASS = 3;    // Enable/disable button event bypass mode
+  }
+
+  mfgtest_button_action action = 1;
+
+  // Only used when action = SET_UI_BYPASS
+  bool bypass_enabled = 2;
+}
+
+// Response to mfgtest_button_cmd
+message mfgtest_button_rsp {
+  enum mfgtest_button_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+  }
+
+  mfgtest_button_rsp_status rsp_status = 1;
+
+  // Button events (returned for GET_EVENTS action)
+  repeated mfgtest_button_event events = 2 [(nanopb).max_count = 16];
+
+  // Current bypass mode state
+  bool bypass_enabled = 3;
+}
+
+// Command to show manufacturing test screens
+message mfgtest_show_screen_cmd {
+  enum mfgtest_screen_mode {
+    EXIT = 0;           // Exit/close the mfg screen
+    ANIMATION = 1;      // Starfield FPS test
+    reserved 2 to 6;    // Previously RED, GREEN, BLUE, WHITE, BLACK - now use CUSTOM_COLOR
+    BURNIN_GRID = 7;    // R/G/B/Black grid pattern
+    COLOR_BARS = 8;     // EBU standard color bars for ESD testing
+    SCROLLING_H = 9;    // Scrolling 'H' characters for ESD testing
+    CUSTOM_COLOR = 10;  // Solid color screen (RGB as 0xRRGGBB in custom_rgb field)
+  }
+
+  mfgtest_screen_mode screen_mode = 1;
+  uint32 custom_rgb = 2;  // RGB color as 0xRRGGBB for CUSTOM_COLOR mode
+  uint32 brightness = 3;  // Brightness percent (0 = don't change, 1-100 = set percent)
+}
+
+// Response to mfgtest_show_screen_cmd
+message mfgtest_show_screen_rsp {
+  enum mfgtest_show_screen_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+  }
+
+  mfgtest_show_screen_rsp_status rsp_status = 1;
+}
+
+// SPI loopback command.
+message mfgtest_spi_loopback_cmd {
+  // SPI instance identifiers.
+  enum mfgtest_spi_loopback_cmd_instance {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Fingerprint sensor.
+    FINGERPRINT = 1;
+
+    // RFU.
+    reserved 2 to 9;
+  }
+
+  // SPI instance to send the data to.
+  mfgtest_spi_loopback_cmd_instance instance = 1;
+
+  // Data to send to the SPI instance.
+  bytes data = 2 [(nanopb).max_size = 64];
+}
+
+// SPI loopback response.
+message mfgtest_spi_loopback_rsp {
+  // Command response codes.
+  enum mfgtest_spi_loopback_rsp_status {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Invalid SPI instance specified.
+    INVALID_INSTANCE = 1;
+
+    // Error in executing command.
+    ERROR = 2;
+
+    // Loopback data mismatch.
+    FAIL = 3;
+
+    // Loopback test successful.
+    SUCCESS = 4;
+
+    // RFU.
+    reserved 5 to 9;
+  }
+
+  // Response status to the command.
+  mfgtest_spi_loopback_rsp_status rsp_status = 1;
+
+  // Received data from the SPI instance.
+  bytes data = 2 [(nanopb).max_size = 64];
+}
+
+// NFC loopback test types.
+enum mfgtest_nfc_loopback_test_type {
+  // NFC Type A
+  NFC_LOOPBACK_TEST_A = 0;
+
+  // NFC Type B
+  NFC_LOOPBACK_TEST_B = 1;
+}
+
+// Request that an NFC loopback test be performed.
+message mfgtest_nfc_loopback_cmd {
+  // Enumeration of different NFC loopback commands.
+  enum mfgtest_nfc_loopback_cmd_type {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Start an NFC loopback test.
+    START = 1;
+
+    // Request the data from the last NFC loopback test.
+    REQUEST_DATA = 2;
+
+    // RFU.
+    reserved 3 to 9;
+  }
+
+  // Command type.
+  mfgtest_nfc_loopback_cmd_type cmd = 1;
+
+  // NFC test to perform.
+  mfgtest_nfc_loopback_test_type test = 2;
+
+  // Amount of milliseconds to wait before starting the NFC loopback test.
+  uint32 delay_ms = 3;
+
+  // Timeout (in milliseconds) for the NFC test.
+  uint32 timeout_ms = 4;
+}
+
+// Response to an NFC loopback command (`mfgtest_nfc_loopback_cmd`).
+message mfgtest_nfc_loopback_rsp {
+  // Response code to the loopback command.
+  enum mfgtest_nfc_loopback_rsp_status {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Operation was successful.
+    SUCCESS = 1;
+
+    // Operation failed.
+    FAILED = 2;
+
+    // Error in handling the command.
+    ERROR = 3;
+
+    // RFU.
+    reserved 4 to 9;
+  }
+
+  // Response to the command.
+  mfgtest_nfc_loopback_rsp_status rsp_status = 1;
+}
+
+// Requests the board ID of the device.
+message mfgtest_board_id_cmd {
+}
+
+// Response to the board ID command.
+message mfgtest_board_id_rsp {
+  // Response code to the board ID command.
+  enum mfgtest_board_id_rsp_status {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Successfully retrieved board ID.
+    SUCCESS = 1;
+
+    // Failed to read board ID.
+    FAILED = 2;
+
+    // RFU.
+    reserved 3 to 9;
+  }
+
+  // Response code to the operation.
+  mfgtest_board_id_rsp_status rsp_status = 1;
+
+  // Board ID.
+  uint32 board_id = 2;
+}
+
+// Touch test command.
+message mfgtest_touch_test_cmd {
+  // Enumeration of the different touch test requests.
+  enum mfgtest_touch_test_cmd_id {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Start a touch test.
+    START = 1;
+
+    // Request the data from the last touch test.
+    REQUEST_DATA = 2;
+
+    // RFU.
+    reserved 3 to 9;
+  }
+
+  // Command identifier.
+  mfgtest_touch_test_cmd_id cmd_id = 1;
+
+  // Touch test timeout (seconds).
+  uint32 timeout = 2;
+}
+
+// Touch test command response.
+message mfgtest_touch_test_rsp {
+  // Response to the touch test command.
+  enum mfgtest_touch_test_rsp_status {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Operation was successful.
+    SUCCESS = 1;
+
+    // Operation failed.
+    FAILED = 2;
+
+    // Error in handling the command.
+    ERROR = 3;
+
+    // Test timed out before completion.
+    TIMED_OUT = 4;
+
+    // RFU.
+    reserved 5 to 9;
+  }
+
+  // Response to the command.
+  mfgtest_touch_test_rsp_status rsp_status = 1;
+
+  // Touch event.
+  display_touch touch_event = 2;
+
+  // Number of touch test boxes remaining (0 = all cleared, test passed).
+  uint32 boxes_remaining = 3;
+
+  // True if the test timed out before completion.
+  bool timeout = 4;
+}
+
+// Command to probe the charger for information.
+message mfgtest_charger_cmd {
+  // Charger interface commands.
+  enum mfgtest_charger_cmd_id {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Get charger information.
+    GET_INFO = 1;
+
+    // Reads the registers from the charger.
+    READ_REGISTERS = 2;
+
+    // RFU.
+    reserved 3 to 9;
+  }
+
+  // Charger related command to execute.
+  mfgtest_charger_cmd_id cmd_id = 1;
+}
+
+// Response to the charger command.
+message mfgtest_charger_rsp {
+  // Possible chargers.
+  enum mfgtest_charger_id {
+    // Unused.
+    UNKNOWN_CHARGER = 0;
+
+    // Analog Devices MAX77734.
+    MAX77734 = 1;
+  }
+
+  // Possible command response codes.
+  enum mfgtest_charger_rsp_status {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Command was successful.
+    SUCCESS = 1;
+
+    // Command failed.
+    FAILED = 2;
+
+    // Hardware error.
+    ERROR = 3;
+
+    // RFU.
+    reserved 4 to 9;
+  }
+
+  // Enumeration of possible charger modes.
+  enum mfgtest_charger_mode {
+    // Failed to read mode.
+    UNKNOWN = 0;
+
+    // Charger is off.
+    OFF = 1;
+
+    // Prequalification mode.
+    PREQUALIFICATION = 2;
+
+    // Fast charging constant current (CC).
+    FAST_CHARGE_CONSTANT_CURRENT = 3;
+
+    // JEITA compliant version of CC.
+    JEITA_MODIFIED_FAST_CHARGE_CONSTANT_CURRENT = 4;
+
+    // Fast charging constant voltage (CV).
+    FAST_CHARGE_CONSTANT_VOLTAGE = 5;
+
+    // JEITA compliant version of CV.
+    JEITA_MODIFIED_FAST_CHARGE_CONSTANT_VOLTAGE = 6;
+
+    // Top off mode.
+    TOP_OFF = 7;
+
+    // JEITA compliant version of Top Off.
+    JEITA_MODIFIED_TOP_OFF = 8;
+
+    // Charging complete.
+    DONE = 9;
+
+    // JEITA compliant version of Charging Complete.
+    JEITA_MODIFIED_DONE = 10;
+
+    // Timeout during prequalification.
+    PREQUALIFICATION_TIMEOUT_FAULT = 11;
+
+    // Timeout during fast charging.
+    FAST_CHARGE_TIMEOUT_FAULT = 12;
+
+    // Battery fault due to temperature overage.
+    BATTERY_TEMP_FAULT = 13;
+
+    // RFU.
+    reserved 14 to 64;
+  }
+
+  // Charger register definition.
+  message mfgtest_charger_reg {
+    // Register offset.
+    uint32 offset = 1;
+
+    // Register value.
+    uint32 value = 2;
+  }
+
+  // Command response code.
+  mfgtest_charger_rsp_status rsp_status = 1;
+
+  // Identifier of the charger in the device.
+  mfgtest_charger_id charger_id = 2;
+
+  // Charging status: True (charging), False (Discharging).
+  bool charging = 3;
+
+  // Current charger mode.
+  mfgtest_charger_mode mode = 4;
+
+  // Read registers.
+  repeated mfgtest_charger_reg registers = 5 [(nanopb).max_count = 27];
 }

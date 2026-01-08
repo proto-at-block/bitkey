@@ -6,6 +6,7 @@ import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
 import build.wallet.bitcoin.transactions.PsbtMock
@@ -51,7 +52,7 @@ import io.kotest.matchers.shouldBe
 
 class SweepGeneratorImplTests : FunSpec({
   val destinationAddress = "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs"
-  val psbtMock = PsbtMock.copy(fee = BitcoinMoney.btc(BigDecimal.TEN))
+  val psbtMock = PsbtMock.copy(fee = Fee(BitcoinMoney.btc(BigDecimal.TEN)))
   val activeKeyset =
     SpendingKeyset(
       localId = "active",
@@ -496,7 +497,8 @@ class SweepGeneratorImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = remoteKeysets,
         wrappedSsek = null,
-        descriptorBackups = emptyList()
+        descriptorBackups = emptyList(),
+        activeKeysetId = activeKeyset.f8eSpendingKeyset.keysetId
       )
     )
 

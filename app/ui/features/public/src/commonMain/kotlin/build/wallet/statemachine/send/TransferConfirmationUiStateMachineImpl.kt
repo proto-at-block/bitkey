@@ -46,15 +46,13 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcContinuationSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcContinuationSessionUiStateMachine
 import build.wallet.statemachine.send.TransferConfirmationUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.*
 import build.wallet.statemachine.send.fee.FeeOptionListProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachine
-import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
-import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetails
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -70,7 +68,7 @@ import kotlinx.collections.immutable.toImmutableMap
 @BitkeyInject(ActivityScope::class)
 class TransferConfirmationUiStateMachineImpl(
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
-  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val nfcSessionUIStateMachine: NfcContinuationSessionUiStateMachine,
   private val transactionPriorityPreference: TransactionPriorityPreference,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val bitcoinWalletService: BitcoinWalletService,
@@ -80,7 +78,6 @@ class TransferConfirmationUiStateMachineImpl(
   private val accountConfigService: bitkey.account.AccountConfigService,
   private val txVerificationService: TxVerificationService,
   private val txVerificationFeatureFlag: TxVerificationFeatureFlag,
-  private val hardwareConfirmationUiStateMachine: HardwareConfirmationUiStateMachine,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
@@ -288,7 +285,7 @@ class TransferConfirmationUiStateMachineImpl(
         ).asModalScreen()
       is SigningWithHardwareUiState ->
         nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
+          NfcContinuationSessionUIStateMachineProps(
             session = { session, commands ->
               // TODO: refactor NFC APIs to use Result
               val account = accountService.getAccount<FullAccount>().getOrThrow()
@@ -299,32 +296,19 @@ class TransferConfirmationUiStateMachineImpl(
               )
             },
             onCancel = {
-              uiState =
-                ViewingTransferConfirmationUiState(
-                  appSignedPsbt = state.appSignedPsbt
-                )
+              uiState = ViewingTransferConfirmationUiState(
+                appSignedPsbt = state.appSignedPsbt
+              )
             },
-            onSuccess = { appAndHwSignedPsbt ->
+            onSuccess = { psbt ->
               uiState =
                 BroadcastingTransactionUiState(
-                  twoOfThreeSignedPsbt = appAndHwSignedPsbt
+                  twoOfThreeSignedPsbt = psbt
                 )
             },
             screenPresentationStyle = Modal,
             eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION,
             shouldShowLongRunningOperation = true
-          )
-        )
-      is ShowingHardwareConfirmationUiState ->
-        hardwareConfirmationUiStateMachine.model(
-          props = HardwareConfirmationUiProps(
-            onBack = props.onExit,
-            onConfirm = {
-              uiState = SigningWithHardwareUiState(
-                appSignedPsbt = state.appSignedPsbt,
-                grant = state.grant
-              )
-            }
           )
         )
       is ViewingTransferConfirmationUiState ->
@@ -338,11 +322,6 @@ class TransferConfirmationUiStateMachineImpl(
             uiState =
               if (requiredSigner == F8e && spendingLimit != null) {
                 SigningWithServerUiState(
-                  appSignedPsbt = state.appSignedPsbt,
-                  grant = state.grant
-                )
-              } else if (isW3 && requiredSigner == Hardware) {
-                ShowingHardwareConfirmationUiState(
                   appSignedPsbt = state.appSignedPsbt,
                   grant = state.grant
                 )
@@ -619,7 +598,7 @@ class TransferConfirmationUiStateMachineImpl(
 
     val transactionDetails = TransactionDetails.Regular(
       transferAmount = transferBitcoinAmount,
-      feeAmount = feeBitcoinAmount,
+      feeAmount = feeBitcoinAmount.amount,
       estimatedTransactionPriority = selectedPriority
     )
 
@@ -761,16 +740,6 @@ private sealed interface TransferConfirmationUiState {
       data object FeeSelectionSheet : SheetState
     }
   }
-
-  /**
-   * Showing hardware confirmation screen (W3 devices only)
-   *
-   * @property appSignedPsbt - the app-signed psbt associated with the transfer
-   */
-  data class ShowingHardwareConfirmationUiState(
-    val appSignedPsbt: Psbt,
-    val grant: TxVerificationApproval?,
-  ) : TransferConfirmationUiState
 
   /**
    * Signing the psbt via hardware

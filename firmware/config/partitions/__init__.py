@@ -119,6 +119,25 @@ class LinkerGenerator:
             memories.append(m)
             origin_cursor += p['size']
 
+        # Handle SRAM4 if present (for STM32U5)
+        if 'sram4' in cfg:
+            sram4_size = self._parse_size(cfg['sram4']['size'])
+            
+            # Parse SRAM4 partition sizes
+            for p in cfg['sram4']['partitions']:
+                if 'size' in p:
+                    p['size'] = self._parse_size(p['size'])
+            
+            self._check_memory_usage(
+                'SRAM4', cfg['sram4']['partitions'], sram4_size)
+            
+            origin_cursor = cfg['sram4']['origin']
+            for p in cfg['sram4']['partitions']:
+                m = self.Memory(
+                    p['name'], p['permissions'], origin_cursor, p['size'])
+                memories.append(m)
+                origin_cursor += p['size']
+
         slot = ''
         if 'APP' in program_section:
             slot = program_section.split('APPLICATION_')[1][0].lower()
@@ -186,7 +205,7 @@ class LinkerGenerator:
 
         def __str__(self) -> str:
             prefix = ''
-            if not self.name.startswith('ram'):
+            if not self.name.startswith('ram') and not self.name.startswith('sram'):
                 prefix = 'FLASH_'
             s = [
                 f"{prefix}{str(self.name).upper().ljust(self.MAX_NAME_LEN - len(prefix))}",

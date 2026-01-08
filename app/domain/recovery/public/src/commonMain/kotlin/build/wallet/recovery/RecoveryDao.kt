@@ -1,5 +1,6 @@
 package build.wallet.recovery
 
+import build.wallet.db.DbTransactionError
 import build.wallet.f8e.recovery.ServerRecovery
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -29,4 +30,9 @@ interface RecoveryDao {
    * the output of `getActiveRecovery()` by moving the recovery along to the next state.
    */
   suspend fun setLocalRecoveryProgress(progress: LocalRecoveryAttemptProgress): Result<Unit, Error>
+
+  /**
+   * Check if the localRecovery initiated, thus it presents.
+   */
+  suspend fun isLocalRecoveryPresent(): Result<Boolean, DbTransactionError>
 }

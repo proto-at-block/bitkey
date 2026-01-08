@@ -10,8 +10,12 @@ import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.cloud.backup.AllFullAccountBackupMocks
+import build.wallet.cloud.backup.AllLiteAccountBackupMocks
+import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.coroutines.turbine.turbines
@@ -515,6 +519,167 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       // Onboarding is complete
       onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
+    }
+  }
+
+  context("parameterized cloud backup tests for full account backups") {
+    AllFullAccountBackupMocks.forEach { fullAccountBackup ->
+      val backupVersion = when (fullAccountBackup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
+      }
+
+      context("full account backup $backupVersion") {
+        test("cloud backup step - overwrite existing account if for the same account ID") {
+          onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
+
+          stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+
+            // Loading initial onboarding state
+            awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+            // Complete cloud backup
+            awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
+              sealedCsek.shouldBe(SealedCsekFake)
+              keybox.shouldBe(KeyboxMock)
+              isSkipCloudBackupInstructions.shouldBeFalse()
+              // Found existing cloud backup with same account ID
+              val backupToUse = when (fullAccountBackup) {
+                is CloudBackupV2 -> fullAccountBackup.copy(accountId = KeyboxMock.fullAccountId.serverId)
+                is CloudBackupV3 -> fullAccountBackup.copy(accountId = KeyboxMock.fullAccountId.serverId)
+                else -> error("Unknown backup version")
+              }
+              onExistingAppDataFound.shouldNotBeNull().invoke(backupToUse as CloudBackupData) {
+                launch {
+                  // proceed callback: save backup to mimic cloud backup SM implementation.
+                  onBackupSaved()
+                }
+              }
+            }
+
+            awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+
+            // Onboarding is complete
+            onboardAccountService.awaitPendingStep(null)
+            onOnboardingComplete.awaitItem()
+          }
+        }
+
+        test("cloud backup step - found existing full account backup different account ID, show warning") {
+          onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
+
+          stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+
+            // Loading initial onboarding state
+            awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+            // Complete cloud backup
+            awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
+              sealedCsek.shouldBe(SealedCsekFake)
+              keybox.shouldBe(KeyboxMock)
+              isSkipCloudBackupInstructions.shouldBeFalse()
+              // Found existing full account cloud backup with different account ID
+              val backupToUse = when (fullAccountBackup) {
+                is CloudBackupV2 -> fullAccountBackup.copy(accountId = "different-account-id")
+                is CloudBackupV3 -> fullAccountBackup.copy(accountId = "different-account-id")
+                else -> error("Unknown backup version")
+              }
+              onExistingAppDataFound.shouldNotBeNull().invoke(backupToUse as CloudBackupData) {
+                launch {
+                  // proceed callback: save backup to mimic cloud backup SM implementation.
+                  onBackupSaved()
+                }
+              }
+            }
+
+            onOverwriteFullAccountCloudBackupWarning.awaitItem()
+          }
+        }
+
+        test("cloud backup step - found existing full account backup different account ID, skip showing warning") {
+          onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
+
+          stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
+
+            // Loading initial onboarding state
+            awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+            // Complete cloud backup
+            awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
+              sealedCsek.shouldBe(SealedCsekFake)
+              keybox.shouldBe(KeyboxMock)
+              isSkipCloudBackupInstructions.shouldBeTrue()
+              // Found existing full account cloud backup with different account ID
+              val backupToUse = when (fullAccountBackup) {
+                is CloudBackupV2 -> fullAccountBackup.copy(accountId = "different-account-id")
+                is CloudBackupV3 -> fullAccountBackup.copy(accountId = "different-account-id")
+                else -> error("Unknown backup version")
+              }
+              onExistingAppDataFound.shouldNotBeNull().invoke(backupToUse as CloudBackupData) {
+                launch {
+                  // proceed callback: save backup to mimic cloud backup SM implementation.
+                  onBackupSaved()
+                }
+              }
+            }
+
+            onOverwriteFullAccountCloudBackupWarning.expectNoEvents()
+
+            awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+
+            // Onboarding is complete
+            onboardAccountService.awaitPendingStep(null)
+            onOnboardingComplete.awaitItem()
+          }
+        }
+      }
+    }
+  }
+
+  context("parameterized cloud backup tests for lite account backups") {
+    AllLiteAccountBackupMocks.forEach { liteAccountBackup ->
+      val backupVersion = when (liteAccountBackup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
+      }
+
+      context("lite account backup $backupVersion") {
+        test("cloud backup step - found existing lite account cloud backup") {
+          onboardAccountService.setPendingSteps(CloudBackup(SealedCsekFake))
+
+          stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+
+            // Loading initial onboarding state
+            awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+            val liteAccountBackupToUse = when (liteAccountBackup) {
+              is CloudBackupV2 -> liteAccountBackup.copy(accountId = "lite-account-id")
+              is CloudBackupV3 -> liteAccountBackup.copy(accountId = "lite-account-id")
+              else -> error("Unknown backup version")
+            }
+
+            // Complete cloud backup
+            awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
+              sealedCsek.shouldBe(SealedCsekFake)
+              keybox.shouldBe(KeyboxMock)
+              isSkipCloudBackupInstructions.shouldBeFalse()
+              // Found existing lite account cloud backup
+              onExistingAppDataFound.shouldNotBeNull()
+                .invoke(liteAccountBackupToUse as CloudBackupData) {
+                  launch {
+                    // proceed callback: save backup to mimic cloud backup SM implementation.
+                    onBackupSaved()
+                  }
+                }
+            }
+
+            onFoundLiteAccountWithDifferentId.awaitItem().shouldBe(liteAccountBackupToUse)
+            onboardAccountService.awaitPendingStep(DescriptorBackup(null))
+          }
+        }
+      }
     }
   }
 })

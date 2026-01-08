@@ -2,7 +2,6 @@ package build.wallet.gradle.logic
 
 import build.wallet.gradle.logic.extensions.systemProperty
 import build.wallet.gradle.logic.gradle.apply
-import build.wallet.gradle.logic.gradle.implementation
 import build.wallet.gradle.logic.gradle.kotlin
 import build.wallet.gradle.logic.gradle.libs
 import build.wallet.gradle.logic.gradle.sourceSets

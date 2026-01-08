@@ -24,6 +24,9 @@ sealed interface NetworkConnection {
 
     @Serializable
     data object Mempool : HttpClientNetworkConnection
+
+    @Serializable
+    data object AugurFees : HttpClientNetworkConnection
   }
 
   /**

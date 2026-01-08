@@ -35,7 +35,7 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
           object : LostAppRecoveryDataStateMachine,
             StateMachineMock<LostAppRecoveryProps, LostAppRecoveryData>(
               AttemptingCloudRecoveryLostAppRecoveryDataData(
-                cloudBackup = backup as CloudBackup,
+                cloudBackups = listOf(backup as CloudBackup),
                 rollback = {},
                 onRecoverAppKey = {},
                 goToLiteAccountCreation = {}

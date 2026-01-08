@@ -14,8 +14,7 @@ fun HardwareConfirmationScreenPreview() {
     FormScreen(
       model = HardwareConfirmationScreenModel(
         onBack = {},
-        onLearnMore = {},
-        onSend = {}
+        onConfirm = {}
       )
     )
   }

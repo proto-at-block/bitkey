@@ -3,6 +3,7 @@ package build.wallet.f8e.relationships
 import bitkey.auth.AuthTokenScope
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode
+import bitkey.f8e.error.code.CreateTrustedContactInvitationErrorCode
 import bitkey.f8e.error.code.F8eClientErrorCode
 import bitkey.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import bitkey.relationships.Relationships
@@ -64,6 +65,7 @@ class RelationshipsF8eClientFake(
 
   var acceptInvitationDelay: Duration = 10.seconds
   var invitationExpirationOverride: Instant? = null
+  var createInvitationOverride: Result<Invitation, F8eError<CreateTrustedContactInvitationErrorCode>>? = null
 
   private data class InvitationPair(
     val outgoing: Invitation,
@@ -82,10 +84,11 @@ class RelationshipsF8eClientFake(
     trustedContactAlias: TrustedContactAlias,
     protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
     roles: Set<TrustedContactRole>,
-  ): Result<Invitation, NetworkingError> {
+  ): Result<Invitation, F8eError<CreateTrustedContactInvitationErrorCode>> {
+    createInvitationOverride?.let { return it }
     if (invitations.any { it.outgoing.trustedContactAlias == trustedContactAlias }) {
       return Err(
-        UnhandledException(Exception("Invitation for alias $trustedContactAlias already exists."))
+        F8eError.UnhandledError(UnhandledException(Exception("Invitation for alias $trustedContactAlias already exists.")))
       )
     }
     val outgoing = Invitation(
@@ -127,7 +130,7 @@ class RelationshipsF8eClientFake(
       }
     }
 
-    return fakeNetworkingError?.let(::Err) ?: Ok(invitation.outgoing)
+    return fakeNetworkingError?.let { Err(F8eError.UnhandledError(it)) } ?: Ok(invitation.outgoing)
   }
 
   override suspend fun refreshInvitation(
@@ -280,6 +283,7 @@ class RelationshipsF8eClientFake(
     keyCertificates.clear()
     fakeNetworkingError = null
     invitationExpirationOverride = null
+    createInvitationOverride = null
   }
 
   fun ddkReturnData(

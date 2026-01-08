@@ -22,12 +22,15 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
+import build.wallet.feature.flags.KeysetRepairFeatureFlag
 import build.wallet.firmware.*
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.fwup.FwupDataMock
 import build.wallet.inappsecurity.BiometricAuthServiceFake
 import build.wallet.nfc.HardwareProvisionedAppKeyStatusDaoFake
+import build.wallet.recovery.keyset.SpendingKeysetRepairServiceFake
+import build.wallet.recovery.keyset.SpendingKeysetSyncStatus
 import build.wallet.recovery.socrec.SocRecServiceFake
 import io.kotest.assertions.fail
 import io.kotest.core.spec.style.FunSpec
@@ -120,6 +123,14 @@ class SecurityActionsFunctionalTest : FunSpec({
 
   val securityRecommendationInteractionDao = SecurityRecommendationInteractionDaoMock()
 
+  val spendingKeysetRepairService = SpendingKeysetRepairServiceFake()
+  val keysetRepairFeatureFlag = KeysetRepairFeatureFlag(featureFlagDao)
+  val keysetSyncActionFactory = KeysetSyncActionFactoryImpl(
+    spendingKeysetRepairService = spendingKeysetRepairService,
+    accountService = accountService,
+    keysetRepairFeatureFlag = keysetRepairFeatureFlag
+  )
+
   val securityActionsService = SecurityActionsServiceImpl(
     appKeyBackupHealthActionFactory,
     eekBackupHealthActionFactory,
@@ -129,6 +140,7 @@ class SecurityActionsFunctionalTest : FunSpec({
     fingerprintsActionFactory,
     hardwareDeviceActionFactory,
     txVerificationActionFactory,
+    keysetSyncActionFactory,
     eventTracker,
     metricTrackerService,
     securityRecommendationInteractionDao,
@@ -148,9 +160,11 @@ class SecurityActionsFunctionalTest : FunSpec({
     // Set default feature flag values
     fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    keysetRepairFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     // Set activeAccountKeys but don't record provisioned key - simulates not provisioned state
     hardwareProvisionedAppKeyStatusDao.activeAccountKeys =
       FullAccountMock.keybox.activeHwKeyBundle.authKey to FullAccountMock.keybox.activeAppKeyBundle.authKey
+    spendingKeysetRepairService.setStatus(SpendingKeysetSyncStatus.Mismatch("a", "b"))
   }
 
   test("getRecommendations updates when individual action sources change") {
@@ -162,6 +176,13 @@ class SecurityActionsFunctionalTest : FunSpec({
             AppKeyBackupStatus.Healthy(lastUploaded = Clock.System.now())
         },
         SecurityActionRecommendation.BACKUP_MOBILE_KEY
+      ),
+      Triple(
+        "Keyset repair",
+        {
+          spendingKeysetRepairService.setStatus(SpendingKeysetSyncStatus.Synced)
+        },
+        SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH
       )
     )
 
@@ -253,7 +274,8 @@ class SecurityActionsFunctionalTest : FunSpec({
     )
 
     var expectedAtRiskRecommendations = listOf(
-      SecurityActionRecommendation.BACKUP_MOBILE_KEY
+      SecurityActionRecommendation.BACKUP_MOBILE_KEY,
+      SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH
     )
 
     var expectedRecommendations = listOf(
@@ -290,10 +312,17 @@ class SecurityActionsFunctionalTest : FunSpec({
 
         testScope.advanceUntilIdle()
 
+        // Recommendations is only populated when atRiskRecommendations is empty
+        val expectedRecsForThisStep = if (expectedAtRiskRecommendations.isEmpty()) {
+          expectedRecommendations
+        } else {
+          emptyList()
+        }
+
         runCatching {
           awaitItem().apply {
-            atRiskRecommendations.shouldBeEmpty()
-            recommendations shouldBe expectedRecommendations
+            atRiskRecommendations.shouldBe(expectedAtRiskRecommendations)
+            recommendations shouldBe expectedRecsForThisStep
           }
         }.onFailure { e ->
           fail("Scenario: $scenario failed with exception: $e")

@@ -39,7 +39,8 @@ class ListKeysetsF8eClientImpl(
         ListKeysetsResponse(
           keysets = body.keysets,
           wrappedSsek = body.wrappedSsek,
-          descriptorBackups = body.descriptorBackups
+          descriptorBackups = body.descriptorBackups,
+          activeKeysetId = body.activeKeysetId
         )
       }
   }
@@ -52,5 +53,7 @@ class ListKeysetsF8eClientImpl(
     val wrappedSsek: SealedSsek?,
     @SerialName("descriptor_backups")
     val descriptorBackups: List<DescriptorBackup>,
+    @SerialName("active_keyset_id")
+    val activeKeysetId: String,
   ) : RedactedResponseBody
 }

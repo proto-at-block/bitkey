@@ -3,6 +3,7 @@
 #include "bitlog.h"
 #include "perf.h"
 #include "ringbuf.h"
+#include "rtos.h"
 
 #define BITLOG_MAX_EVENTS   512
 #define BITLOG_STORAGE_SIZE (BITLOG_MAX_EVENTS * sizeof(bitlog_event_t))

@@ -10,6 +10,7 @@ extern "C" {
 #include "hex.h"
 #include "key_management.h"
 #include "lfs.h"
+#include "secure_rng.h"
 #include "secutils.h"
 #include "wkek_impl.h"
 
@@ -144,10 +145,6 @@ static uint32_t timestamp(void) {
 }
 
 void detect_glitch(void) {}
-
-uint16_t crypto_rand_short(void) {
-  return 1;
-}
 
 uint32_t clock_get_freq(void) {
   return 1;

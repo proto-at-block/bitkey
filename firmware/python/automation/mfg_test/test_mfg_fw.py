@@ -1,6 +1,5 @@
 import allure
 from bitkey.walletfs import WalletFS
-from python.automation.conftest import PRODUCT, HARDWARE_REVISION, IMAGE_TYPE
 from python.automation.commander import CommanderHelper
 from bitkey.comms import NFCTransaction, WalletComms
 from bitkey.gdb import JLinkGdbServer
@@ -9,11 +8,11 @@ from bitkey_proto import mfgtest_pb2 as mfgtest_pb
 from python.automation.inv_commands import Inv
 from google.protobuf.json_format import MessageToJson
 import logging
+import pathlib
 import pytest
 import time
 from tasks.lib.paths import ROOT_DIR
-
-MFG_TEST_TARGET = f'{PRODUCT}-{HARDWARE_REVISION}-app-a-mfgtest-{IMAGE_TYPE}'
+from ..conftest import PlatformConfig
 
 CAP_TOUCH_PORT = "PORT_B"
 CAP_TOUCH_PIN = 1
@@ -26,8 +25,12 @@ Commander = CommanderHelper()
 
 
 class TestClassMfgFW:
+    @pytest.fixture(scope="class")
+    def test_target(self, platform_config: PlatformConfig) -> pathlib.Path:
+        yield pathlib.Path(f'{platform_config.product}-{platform_config.revision}-app-a-mfgtest-{platform_config.type}')
+
     @pytest.fixture(scope="class", autouse=True)
-    def mfg_test_fw_fixture(self):
+    def mfg_test_fw_fixture(self, test_target: pathlib.Path) -> None:
         """Each test starts with a fresh build of the mfgtest fw flashed into App A Slot"""
         metadata = get_metadata()
         Inv_task.set_version("%s.%s.%s" % (metadata.meta_rsp.meta_slot_a.version.major,
@@ -37,7 +40,7 @@ class TestClassMfgFW:
         logger.info("Clean, build, and flash A slot")
         Inv_task.clean()
         Inv_task.build_platforms()
-        Inv_task.flash_with_filesystem_recovery(target=MFG_TEST_TARGET)
+        Inv_task.flash_with_filesystem_recovery(target=test_target)
         Commander.reset()
         metadata = get_metadata()
 
@@ -189,14 +192,14 @@ def get_metadata():
 
 
 @allure.step("Bump version, build apps, and fwup")
-def fwup_new():
+def fwup_new(platform_config: PlatformConfig) -> None:
     logger.info("Bump, and build A & B slot")
     Inv_task.bump()
     Inv_task.clean()
     Inv_task.build_platforms()
 
     logger.info("Bundle and FWUP")
-    Inv_task.fwup_bundle()
+    Inv_task.fwup_bundle(platform_config)
     Inv_task.fwup_fwup()
 
     logger.info("Resetting Wallet")
@@ -209,10 +212,10 @@ def fwup_new():
 
 
 @allure.step("Build apps, and fwup")
-def fwup_current_version():
+def fwup_current_version(platform_config: PlatformConfig) -> None:
     Inv_task.build_platforms()
     logger.info("Bundle and FWUP")
-    Inv_task.fwup_bundle()
+    Inv_task.fwup_bundle(platform_config)
     Inv_task.fwup_fwup()
 
     logger.info("Resetting Wallet")

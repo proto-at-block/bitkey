@@ -26,14 +26,14 @@ typedef struct {
   {.entry_size = _size, .count = _count, .total_size = _size * _count},
 
 // TODO(W-4581)
-#define _MEMPOOL_DECLARE_REGION_BUFFER(_pool_name, _region_name, _size, _count)                 \
-  static uint8_t SHARED_TASK_BSS _##_pool_name##_##_region_name##_buffer[_size * _count] = {0}; \
-  static bool SHARED_TASK_BSS _##_pool_name##_##_region_name##_freelist[_count] = {false};      \
-  for (int i = 0; i < _count; i++) _##_pool_name##_##_region_name##_freelist[i] = true;         \
-  _##_pool_name##_mempool.regions[_region_idx].buffer =                                         \
-    &_##_pool_name##_##_region_name##_buffer[0];                                                \
-  _##_pool_name##_mempool.regions[_region_idx].freelist =                                       \
-    &_##_pool_name##_##_region_name##_freelist[0];                                              \
+#define _MEMPOOL_DECLARE_REGION_BUFFER(_pool_name, _region_name, _size, _count)                  \
+  static uint8_t SHARED_TASK_BSS _##_pool_name##_##_region_name##_buffer[_size * _count] = {0};  \
+  static bool SHARED_TASK_BSS _##_pool_name##_##_region_name##_freelist[_count] = {false};       \
+  for (unsigned int i = 0; i < _count; i++) _##_pool_name##_##_region_name##_freelist[i] = true; \
+  _##_pool_name##_mempool.regions[_region_idx].buffer =                                          \
+    &_##_pool_name##_##_region_name##_buffer[0];                                                 \
+  _##_pool_name##_mempool.regions[_region_idx].freelist =                                        \
+    &_##_pool_name##_##_region_name##_freelist[0];                                               \
   _region_idx++;
 
 /**

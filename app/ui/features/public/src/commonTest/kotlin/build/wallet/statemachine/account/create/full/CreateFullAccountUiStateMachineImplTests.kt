@@ -2,7 +2,10 @@ package build.wallet.statemachine.account.create.full
 
 import app.cash.turbine.plusAssign
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
+import build.wallet.cloud.backup.AllLiteAccountBackupMocks
+import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.onboarding.CreateFullAccountContext.NewFullAccount
 import build.wallet.onboarding.OnboardFullAccountServiceFake
@@ -84,23 +87,67 @@ class CreateFullAccountUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("start with existing lite account backup") {
-    stateMachine.test(props) {
-      awaitBodyMock<OnboardFullAccountUiProps> {
-        onFoundLiteAccountWithDifferentId(CloudBackupV2WithLiteAccountMock)
+  context("onboarding failure - found lite account with different ID") {
+    AllLiteAccountBackupMocks.forEach { backup ->
+      val backupVersion = when (backup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
       }
 
-      awaitBodyMock<ReplaceWithLiteAccountRestoreUiProps> {
-        onAccountUpgraded(FullAccountMock)
+      context("backup $backupVersion") {
+        test("replaces different lite account and upgrades to full account") {
+          stateMachine.test(props) {
+            awaitBodyMock<OnboardFullAccountUiProps> {
+              onFoundLiteAccountWithDifferentId(backup as CloudBackup)
+            }
+
+            awaitBodyMock<ReplaceWithLiteAccountRestoreUiProps> {
+              onAccountUpgraded(FullAccountMock)
+            }
+
+            awaitBodyMock<OnboardFullAccountUiProps> {
+              onOnboardingComplete()
+            }
+
+            onboardingCompleteCalls.awaitItem()
+
+            awaitBody<LoadingSuccessBodyModel>()
+          }
+        }
+      }
+    }
+  }
+
+  context("start with existing lite account backup") {
+    AllLiteAccountBackupMocks.forEach { backup ->
+      val backupVersion = when (backup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
       }
 
-      awaitBodyMock<OnboardFullAccountUiProps> {
-        onOnboardingComplete()
+      context("backup $backupVersion") {
+        test("upgrades existing lite account backup to full account") {
+          stateMachine.test(props) {
+            awaitBodyMock<OnboardFullAccountUiProps> {
+              onFoundLiteAccountWithDifferentId(backup as CloudBackup)
+            }
+
+            awaitBodyMock<ReplaceWithLiteAccountRestoreUiProps> {
+              onAccountUpgraded(FullAccountMock)
+            }
+
+            awaitBodyMock<OnboardFullAccountUiProps> {
+              onOnboardingComplete()
+            }
+
+            onboardingCompleteCalls.awaitItem()
+
+            awaitBody<LoadingSuccessBodyModel>()
+          }
+        }
       }
-
-      onboardingCompleteCalls.awaitItem()
-
-      awaitBody<LoadingSuccessBodyModel>()
     }
   }
 

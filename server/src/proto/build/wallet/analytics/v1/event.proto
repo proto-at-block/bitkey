@@ -349,14 +349,14 @@ message FingerprintScanStats {
 
 message ServerEvent {
     string                event_time        = 1;
-    ServerAction          action            = 2;
+    ActionServer          action            = 2;
     string                account_id        = 3;
 
     /** Optional information for the ACTION_SERVER_INHERITANCE_* event */
     ServerInheritanceInfo inheritance_info  = 4;
 }
 
-enum ServerAction {
+enum ActionServer {
     ACTION_SERVER_UNSPECIFIED                     = 0;
 
     /** [Server] Submitted an inheritance claim */

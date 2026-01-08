@@ -36,6 +36,9 @@ sealed interface BannerType {
 
   /** Shown when the customer is at risk of losing funds from lack of primary touchpoint */
   data object MissingCommunication : BannerType
+
+  /** Shown when there's a keyset mismatch between local and server state that needs repair. */
+  data object SpendingKeysetMismatch : BannerType
 }
 
 enum class BannerContext {

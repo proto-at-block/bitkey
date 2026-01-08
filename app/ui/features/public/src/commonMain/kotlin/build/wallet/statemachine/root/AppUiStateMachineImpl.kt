@@ -8,6 +8,8 @@ import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
+import build.wallet.availability.AgeRangeVerificationResult
+import build.wallet.availability.AgeRangeVerificationService
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
@@ -20,7 +22,6 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.AppUpdateModalFeatureFlag
 import build.wallet.logging.logInfo
-import build.wallet.logging.logWarn
 import build.wallet.mapResult
 import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.platform.config.AppVariant
@@ -36,8 +37,6 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
 import build.wallet.statemachine.account.full.FullAccountUiProps
 import build.wallet.statemachine.account.full.FullAccountUiStateMachine
-import build.wallet.availability.AgeRangeVerificationResult
-import build.wallet.availability.AgeRangeVerificationService
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.data.keybox.*

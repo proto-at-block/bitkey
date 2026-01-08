@@ -41,6 +41,11 @@ sealed interface FundsLostRiskLevel {
  */
 sealed interface AtRiskCause {
   /**
+   * The local active spending keyset doesn't match the server's active keyset.
+   */
+  data object ActiveSpendingKeysetMismatch : AtRiskCause
+
+  /**
    * The customer is missing a hardware device from their account.
    */
   data object MissingHardware : AtRiskCause

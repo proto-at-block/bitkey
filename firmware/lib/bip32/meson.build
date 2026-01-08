@@ -33,6 +33,6 @@ bip32_fuzz = executable('bip32-fuzz',
 bip32_test = executable('bip32-test',
   'bip32_test.c',
   include_directories : bip32_includes,
-  dependencies : [bip32_dep, libbase58_dep, test_deps],
+  dependencies : [bip32_dep, crypto_deps['posix'], libbase58_dep, test_deps],
 )
 test('bip32 test', bip32_test)

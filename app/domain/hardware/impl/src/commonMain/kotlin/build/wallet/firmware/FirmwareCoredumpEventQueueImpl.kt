@@ -20,7 +20,8 @@ class FirmwareCoredumpEventQueueImpl(
         serial = item.identifiers.serial,
         swType = item.identifiers.swType,
         swVersion = item.identifiers.version,
-        hwVersion = item.identifiers.hwRevision
+        hwVersion = item.identifiers.hwRevision,
+        mcuInfo = item.identifiers.mcuInfo
       )
     }
   }
@@ -38,7 +39,8 @@ class FirmwareCoredumpEventQueueImpl(
               serial = item.serial,
               version = item.swVersion,
               swType = item.swType,
-              hwRevision = item.hwVersion
+              hwRevision = item.hwVersion,
+              mcuInfo = item.mcuInfo
             )
           )
         }

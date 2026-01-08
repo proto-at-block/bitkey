@@ -164,3 +164,4 @@ module "status_docker" {
   tag                  = var.env != "production" ? "6c79021d" : "6c79021d"
   env_variables        = local.common_lambda_env_vars
 }
+

@@ -24,6 +24,7 @@ typedef enum {
   ALG_ECC_SECP256K1 = 4,
   ALG_ECC_ED25519 = 5,
   ALG_KEY_DERIVATION = 6,
+  ALG_ECC_X25519 = 7,
 } key_algorithm_t;
 
 typedef enum {
@@ -63,3 +64,17 @@ void zeroize_key(key_handle_t* const key);
 // For the EFR32, the domain parameters must be placed at the start of a buffer, followed
 // immediately by the private key.
 uint32_t key_management_custom_domain_prepare(key_algorithm_t alg, uint8_t* buffer, uint32_t size);
+
+/**
+ * @brief Sign data using the device's identity key
+ *
+ * @param[in] data Pointer to the data to sign
+ * @param[in] data_size Size of the data in bytes
+ * @param[out] signature Buffer to store the resulting signature
+ * @param[in] signature_size Size of the signature buffer in bytes
+ *
+ * @return true if the data was successfully signed
+ * @return false if signing failed
+ */
+bool crypto_sign_with_device_identity(uint8_t* data, uint32_t data_size, uint8_t* signature,
+                                      uint32_t signature_size);

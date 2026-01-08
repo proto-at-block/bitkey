@@ -17,7 +17,7 @@ abstract class StateMachineMock<PropsT : Any, ModelT : Any?>(
   lateinit var props: PropsT
 
   /**
-   * Makes this state machine to emit [model].
+   * Keeps this [model] to emit later.
    */
   fun emitModel(model: ModelT) {
     this.model.value = model

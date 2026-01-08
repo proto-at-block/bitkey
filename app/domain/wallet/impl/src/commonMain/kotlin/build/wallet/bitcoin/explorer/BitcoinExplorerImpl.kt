@@ -23,7 +23,7 @@ class BitcoinExplorerImpl : BitcoinExplorer {
             BitcoinNetworkType.REGTEST -> "regtest/"
           }
 
-        URLBuilder("https://mempool.space/${networkTypePath}tx/$txId")
+        URLBuilder("https://bitkey.mempool.space/${networkTypePath}tx/$txId")
           .apply {
             if (vout != null) {
               // Add output index as a URL anchor to highlight the output in the Mempool explorer.

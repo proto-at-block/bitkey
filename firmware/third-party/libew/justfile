@@ -1,0 +1,51 @@
+#!/usr/bin/env just --justfile
+
+# Default recipe - show available commands
+default:
+    @just --list
+
+# Setup build directory
+setup:
+    meson setup build
+
+install:
+    rustup default stable
+    cargo install hal
+
+# Apply patches to third-party libraries
+patch-libwally:
+    @echo "Applying libwally patches..."
+    @cd third-party/libwally && git apply --check ../../patches/libwally-no-elements.patch 2>/dev/null || true
+    @cd third-party/libwally && git apply ../../patches/libwally-no-elements.patch 2>/dev/null || echo "Patch already applied or failed"
+
+# Build the project
+build: setup patch-libwally
+    meson compile -C build
+
+# Clean build artifacts
+clean:
+    rm -rf build
+
+# Rebuild from scratch
+rebuild: clean build
+
+# Run tests (if any)
+test: build
+    meson test -C build
+
+# Build and run the Rust demo
+demo: build
+    cargo build --release
+    ./target/release/demo
+
+# Configure for debug build
+debug:
+    meson setup build --buildtype=debug --reconfigure || meson setup build --buildtype=debug
+
+# Configure for release build
+release:
+    meson setup build --buildtype=release --reconfigure || meson setup build --buildtype=release
+
+# Show build configuration
+info:
+    meson configure build || echo "Build directory not configured. Run 'just setup' first."

@@ -1,0 +1,5 @@
+-- adding one column
+-- set the default to empty string otherwise this will fail if there are existing rows in the table
+ALTER TABLE firmwareCoredumpsEntity ADD COLUMN mcuInfo TEXT NOT NULL DEFAULT "";
+
+PRAGMA foreign_key_check;

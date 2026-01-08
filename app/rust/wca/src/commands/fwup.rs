@@ -33,6 +33,7 @@ fn fwup_start(patch_size: Option<u32>, fwup_mode: FwupMode) -> Result<bool, Comm
     let apdu: apdu::Command = FwupStartCmd {
         mode: m as i32,
         patch_size: patch_size.unwrap_or(0),
+        mcu_role: fwpb::McuRole::Core.into(),
     }
     .try_into()?;
 
@@ -68,6 +69,7 @@ fn fwup_transfer(
         sequence_id,
         fwup_data,
         offset,
+        mcu_role: fwpb::McuRole::Core.into(),
     }
     .try_into()?;
 
@@ -102,6 +104,7 @@ fn fwup_finish(
         app_properties_offset,
         signature_offset,
         bl_upgrade: false,
+        mcu_role: fwpb::McuRole::Core.into(),
     }
     .try_into()?;
 

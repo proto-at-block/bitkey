@@ -2,8 +2,9 @@
 
 #include "assert.h"
 #include "hal_nfc.h"
-#include "hal_nfc_timer.h"
+#include "hal_nfc_timer_impl.h"
 #include "mcu.h"
+#include "platform.h"
 #include "printf.h"
 #include "rfal_utils.h"
 #include "rtos.h"
@@ -108,43 +109,53 @@ extern uint8_t globalCommProtectCnt; /* Global Protection Counter provided per p
 */
 
 #define RFAL_FEATURE_LISTEN_MODE \
-  true /* Enable/Disable RFAL support for Listen Mode                               */
+  true /* Enable/Disable RFAL support for Listen Mode                                 */
 
 // TODO turn this off
 #define RFAL_FEATURE_WAKEUP_MODE \
-  true /* Enable/Disable RFAL support for the Wake-Up mode                          */
+  true /* Enable/Disable RFAL support for the Wake-Up mode                            */
 #define RFAL_FEATURE_LOWPOWER_MODE \
-  false /* Enable/Disable RFAL support for the Low Power mode                        */
+  false /* Enable/Disable RFAL support for the Low Power mode                         */
+#if defined(PLATFORM_CFG_NFC_TYPE_A_SUPPORT) && (PLATFORM_CFG_NFC_TYPE_A_SUPPORT)
 #define RFAL_FEATURE_NFCA \
-  true /* Enable/Disable RFAL support for NFC-A (ISO14443A)                         */
+  true /* Enable/Disable RFAL support for NFC-A (ISO14443A)                           */
+#else
+#define RFAL_FEATURE_NFCA \
+  false /* Enable/Disable RFAL support for NFC-A (ISO14443A)                          */
+#endif
+#if defined(PLATFORM_CFG_NFC_TYPE_B_SUPPORT) && (PLATFORM_CFG_NFC_TYPE_B_SUPPORT)
 #define RFAL_FEATURE_NFCB \
-  false /* Enable/Disable RFAL support for NFC-B (ISO14443B)                         */
+  true /* Enable/Disable RFAL support for NFC-B (ISO14443B)                           */
+#else
+#define RFAL_FEATURE_NFCB \
+  false /* Enable/Disable RFAL support for NFC-B (ISO14443B)                          */
+#endif
 #define RFAL_FEATURE_NFCF \
-  false /* Enable/Disable RFAL support for NFC-F (FeliCa)                            */
+  false /* Enable/Disable RFAL support for NFC-F (FeliCa)                             */
 #define RFAL_FEATURE_NFCV \
-  false /* Enable/Disable RFAL support for NFC-V (ISO15693)                          */
+  false /* Enable/Disable RFAL support for NFC-V (ISO15693)                           */
 #define RFAL_FEATURE_T1T \
-  false /* Enable/Disable RFAL support for T1T (Topaz)                               */
+  false /* Enable/Disable RFAL support for T1T (Topaz)                                */
 #define RFAL_FEATURE_T2T \
-  false /* Enable/Disable RFAL support for T2T                                       */
+  false /* Enable/Disable RFAL support for T2T                                        */
 #define RFAL_FEATURE_T4T \
-  true /* Enable/Disable RFAL support for T4T                                       */
+  true /* Enable/Disable RFAL support for T4T                                         */
 #define RFAL_FEATURE_ST25TB \
-  false /* Enable/Disable RFAL support for ST25TB                                    */
+  false /* Enable/Disable RFAL support for ST25TB                                     */
 #define RFAL_FEATURE_ST25xV \
-  false /* Enable/Disable RFAL support for  ST25TV/ST25DV                            */
+  false /* Enable/Disable RFAL support for  ST25TV/ST25DV                             */
 #define RFAL_FEATURE_DYNAMIC_ANALOG_CONFIG \
-  false /* Enable/Disable Analog Configs to be dynamically updated (RAM)             */
+  false /* Enable/Disable Analog Configs to be dynamically updated (RAM)              */
 #define RFAL_FEATURE_DPO \
-  false /* Enable/Disable RFAL Dynamic Power Output support                          */
+  false /* Enable/Disable RFAL Dynamic Power Output support                           */
 #define RFAL_FEATURE_ISO_DEP \
-  true /* Enable/Disable RFAL support for ISO-DEP (ISO14443-4)                      */
+  true /* Enable/Disable RFAL support for ISO-DEP (ISO14443-4)                        */
 #define RFAL_FEATURE_ISO_DEP_POLL \
-  false /* Enable/Disable RFAL support for Poller mode (PCD) ISO-DEP (ISO14443-4)    */
+  false /* Enable/Disable RFAL support for Poller mode (PCD) ISO-DEP (ISO14443-4)     */
 #define RFAL_FEATURE_ISO_DEP_LISTEN \
-  true /* Enable/Disable RFAL support for Listen mode (PICC) ISO-DEP (ISO14443-4)   */
+  true /* Enable/Disable RFAL support for Listen mode (PICC) ISO-DEP (ISO14443-4)     */
 #define RFAL_FEATURE_NFC_DEP \
-  false /* Enable/Disable RFAL support for NFC-DEP (NFCIP1/P2P)                      */
+  false /* Enable/Disable RFAL support for NFC-DEP (NFCIP1/P2P)                       */
 
 #define RFAL_FEATURE_ISO_DEP_IBLOCK_MAX_LEN \
   256U /*!< ISO-DEP I-Block max length. Please use values as defined by rfalIsoDepFSx */

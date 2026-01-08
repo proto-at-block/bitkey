@@ -476,7 +476,7 @@ async fn test_fetch_account_keysets() {
 
     let expected_keysets = vec![
         AccountKeyset::LegacyMultiSig(LegacyMultiSigAccountKeyset {
-            keyset_id: active_keyset_id,
+            keyset_id: active_keyset_id.clone(),
             network: network.into(),
             app_dpub: active_spend_app,
             hardware_dpub: active_spend_hw,
@@ -499,6 +499,7 @@ async fn test_fetch_account_keysets() {
         response.body_string
     );
     let account_keysets_response = response.body.unwrap();
+    assert_eq!(account_keysets_response.active_keyset_id, active_keyset_id);
     assert_eq!(account_keysets_response.keysets, expected_keysets);
 }
 #[rstest]

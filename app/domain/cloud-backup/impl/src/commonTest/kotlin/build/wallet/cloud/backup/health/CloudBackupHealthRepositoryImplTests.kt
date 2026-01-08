@@ -6,6 +6,7 @@ import build.wallet.availability.F8eUnreachable
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.*
+import build.wallet.cloud.backup.CloudBackupOperationLockImpl
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.CsekMissing
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
@@ -67,6 +68,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       jsonSerializer = jsonSerializer,
       cloudBackupHealthLoggingFeatureFlag = cloudBackupHealthLoggingFeatureFlag,
       fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
+      cloudBackupOperationLock = CloudBackupOperationLockImpl()
     )
 
   // Helper function to set cloud backup and ensure it is available from the repository
@@ -152,7 +154,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
             val healthRepository = createHealthRepository()
             // Setup healthy backup scenario
             cloudStoreAccountRepository.set(cloudAccount)
-            cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+            cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
             setCloudBackup(cloudAccount, cloudBackup)
             emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
@@ -174,7 +176,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
             val healthRepository = createHealthRepository()
             // Setup healthy backup scenario
             cloudStoreAccountRepository.set(cloudAccount)
-            cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+            cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
             setCloudBackup(cloudAccount, cloudBackup)
             emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
@@ -188,7 +190,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
         test("performSync - returns healthy status when everything is ok") {
           val healthRepository = createHealthRepository()
           cloudStoreAccountRepository.set(cloudAccount)
-          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
           setCloudBackup(cloudAccount, cloudBackup)
           emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
@@ -219,7 +221,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
         test("attempts repair when backup is unhealthy") {
           val healthRepository = createHealthRepository()
           cloudStoreAccountRepository.set(cloudAccount)
-          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup as CloudBackup)
+          cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
           // No cloud backup - unhealthy scenario
 
           fullAccountCloudBackupRepairer.onRepairAttempt = {

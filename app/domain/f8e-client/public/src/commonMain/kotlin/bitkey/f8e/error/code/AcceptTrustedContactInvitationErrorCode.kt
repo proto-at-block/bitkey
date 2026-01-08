@@ -14,7 +14,7 @@ enum class AcceptTrustedContactInvitationErrorCode : F8eClientErrorCode {
   INVITATION_EXPIRED,
 
   /** Indicates the invitation attempting to be accepted corresponds to an invalid code. **/
-  INVITATION_CODE_MISMATCH,
+  CODE_MISMATCH,
 
   /** Indicates the account attempting to accept the invite is the same account that send the invite. **/
   CUSTOMER_IS_TRUSTED_CONTACT,
@@ -24,4 +24,7 @@ enum class AcceptTrustedContactInvitationErrorCode : F8eClientErrorCode {
 
   /** Account is already a trusted contact for the customer **/
   CONFLICT,
+
+  /** Indicates the account has reached the maximum number of protected customers (20). **/
+  MAX_PROTECTED_CUSTOMERS_REACHED,
 }

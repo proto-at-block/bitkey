@@ -1,11 +1,8 @@
 package build.wallet.statemachine.send.fee
 
 import build.wallet.bitcoin.fees.Fee
-import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -30,9 +27,9 @@ class FeeOptionListUiStateMachineImplTests : FunSpec({
   val props = FeeOptionListProps(
     transactionBaseAmount = BitcoinMoney.btc(1.0),
     fees = persistentMapOf(
-      FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
-      THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
-      SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
+      FASTEST to Fee(BitcoinMoney.btc(10.0)),
+      THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0)),
+      SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0))
     ),
     defaultPriority = THIRTY_MINUTES,
     exchangeRates = immutableListOf(),

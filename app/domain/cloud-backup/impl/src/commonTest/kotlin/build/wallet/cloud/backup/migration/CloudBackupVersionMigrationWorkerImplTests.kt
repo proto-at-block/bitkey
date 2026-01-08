@@ -4,6 +4,7 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.cloud.backup.CloudBackupError
+import build.wallet.cloud.backup.CloudBackupOperationLockImpl
 import build.wallet.cloud.backup.CloudBackupRepositoryFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
@@ -48,6 +49,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
     liteAccountCloudBackupCreator = liteAccountCloudBackupCreator,
     cloudBackupDao = cloudBackupDao,
+    cloudBackupOperationLock = CloudBackupOperationLockImpl(),
     appSessionManager = appSessionManager
   )
 

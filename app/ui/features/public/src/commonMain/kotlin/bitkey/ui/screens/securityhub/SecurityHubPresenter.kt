@@ -11,6 +11,7 @@ import bitkey.ui.framework.Navigator
 import bitkey.ui.framework.Screen
 import bitkey.ui.framework.ScreenPresenter
 import bitkey.ui.screens.device.DeviceSettingsScreen
+import bitkey.ui.screens.recovery.KeysetRepairScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
 import bitkey.ui.sheets.ViewInvitationSheet
@@ -368,6 +369,12 @@ fun Navigator.navigateToScreen(
         originScreen = originScreen
       )
     )
+    NavigationScreenId.NAVIGATION_SCREEN_ID_KEYSET_REPAIR -> goTo(
+      screen = KeysetRepairScreen(
+        account = originScreen.account,
+        origin = originScreen
+      )
+    )
     else -> Router.route = Route.NavigationDeeplink(screen = id)
   }
 }
@@ -432,6 +439,7 @@ fun SecurityAction.navigationScreenId(): NavigationScreenId =
     SOCIAL_RECOVERY -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS
     HARDWARE_DEVICE -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE
     TRANSACTION_VERIFICATION -> NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY
+    KEYSET_SYNC -> NavigationScreenId.NAVIGATION_SCREEN_ID_KEYSET_REPAIR
   }
 
 fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =
@@ -450,6 +458,7 @@ fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =
     PAIR_HARDWARE_DEVICE -> NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
     UPDATE_FIRMWARE -> NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE
     ENABLE_TRANSACTION_VERIFICATION -> NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY
+    REPAIR_KEYSET_MISMATCH -> NavigationScreenId.NAVIGATION_SCREEN_ID_KEYSET_REPAIR
   }
 
 sealed interface SecurityHubUiState {

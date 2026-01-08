@@ -1,6 +1,5 @@
 #pragma once
 
-#include "aes.h"
 #include "key_management.h"
 
 #define KEY_CONFIRMATION_TAG_LEN        (16)
@@ -11,17 +10,17 @@ typedef struct {
   uint8_t* pk_peer;      // [in]
   uint32_t pk_peer_len;  // [in]
 
-  // Our public key.
-  uint8_t* pk_us;      // [out]
-  uint32_t pk_us_len;  // [in]
+  // Our private key
+  key_handle_t* sk_us;  // [in]
+
+  // Our public key
+  key_handle_t* pk_us;  // [in]
 
   // Signature over a label, our public key, and the peer's public key.
   uint8_t* exchange_sig;      // [out]
   uint32_t exchange_sig_len;  // [in]
 
-  // Key confirmation tag.
-  uint8_t* key_confirmation_tag;      // [out]
-  uint32_t key_confirmation_tag_len;  // [in]
+  bool use_sn;  // [in] If true use the device SN as an input to key derivation
 } crypto_key_exchange_ctx_t;
 
 // Both keys must point to a 32-byte buffer.

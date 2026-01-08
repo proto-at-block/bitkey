@@ -99,7 +99,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     )
   }
 
-  afterTest {
+  beforeTest {
     moneyCalculatorUiStateMachine.emitModel(defaultMoneyCalculatorModel)
   }
 
@@ -203,12 +203,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     }
 
     test("Should show approval required") {
-      stateMachine.test(props) {
-        awaitBody<TransferAmountBodyModel> {
-          toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
-        }
-      }
-
       val primaryAmountBelowBalance = balancePrimaryAmount - FiatMoney.usd(0.1)
       val secondaryAmountBelowBalance = BitcoinMoney(
         currency = BTC,
@@ -223,6 +217,12 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
           secondaryAmount = secondaryAmountBelowBalance
         )
       )
+
+      stateMachine.test(props) {
+        awaitBody<TransferAmountBodyModel> {
+          toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
+        }
+      }
 
       stateMachine.test(props) {
         awaitBody<TransferAmountBodyModel> {

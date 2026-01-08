@@ -9,52 +9,93 @@ srcs = [
 ]
 
 deps = [
-  mcu_efr32xg24_dep,
+  assert_dep,
+  freertos_dep,
+  mcu_dep,
 ]
+
 includes = [
   rtos_includes,
-  freertos_includes,
   printf_includes,
   assert_includes,
   helpers_includes,
+  memfault_sdk_includes,
 ]
 
+rtos_hardware_configs = {
+  'efr32mg24': {
+    'embedded': true,
+  },
+  'stm32u5xx': {
+    'embedded': true,
+  },
+  'linux': {
+    'embedded': false,
+  },
+  'darwin': {
+    'embedded': false,
+  }
+}
 
-if system == 'efr32mg24'
-rtos_lib = library('rtos',
-  srcs,
-  include_directories : ['inc', 'src'],
+rtos_cmd_libs = {}
+rtos_libs = {}
+rtos_cmd_deps = {}
+rtos_deps = {}
+
+foreach hardware : rtos_hardware_configs.keys()
+  rtos_config = rtos_hardware_configs[hardware]
+
+  rtos_libs += {
+    hardware: library('rtos_' + hardware,
+      srcs,
+      include_directories : ['inc', 'src', memfault_sdk_includes],
+      dependencies : deps,
+    ),
+  }
+
+  if rtos_config['embedded']
+    # We split out RTOS shell commands from the RTOS core so that we
+    # can link only the shell commands with whole-archive (which is needed so the
+    # initcall-style registrations don't get removed due to non-use during linking .o's).
+    # Otherwise, we'd run into multiple definition errors for libraries which link
+    # against librtos.
+    rtos_cmd_libs += {
+      hardware: library('rtos_cmd_' + hardware,
+        'src/rtos_cmd.c',
+        include_directories : ['inc', 'src', memfault_sdk_includes],
+        dependencies : [deps, shell_dep],
+      )
+    }
+
+    rtos_cmd_deps += {
+      hardware: declare_dependency(
+        link_whole : rtos_cmd_libs[hardware],
+        dependencies : [deps, shell_dep]
+      )
+    }
+
+    rtos_deps += {
+      hardware: declare_dependency(
+        link_with : rtos_libs[hardware],
+        dependencies : [deps, shell_dep]
+      )
+    }
+  else
+    rtos_deps += {
+      hardware: declare_dependency(
+        link_with : rtos_libs[hardware],
+        dependencies : [deps, shell_dep]
+      )
+    }
+  endif
+endforeach
+
+# Header-only dependencies.
+rtos_dep = declare_dependency(
+  include_directories : includes,
   dependencies : deps,
 )
 
-# We split out RTOS shell commands from the RTOS core so that we
-# can link only the shell commands with whole-archive (which is needed so the
-# initcall-style registrations don't get removed due to non-use during linking .o's).
-# Otherwise, we'd run into multiple definition errors for libraries which link
-# against librtos.
-rtos_cmd_lib = library('rtos-cmd',
-  'src/rtos_cmd.c',
-  include_directories : ['inc', 'src'],
-  dependencies : [deps, shell_dep]
-)
-# The main application image must depend on this.
-rtos_cmd_dep = declare_dependency(
-  link_whole : rtos_cmd_lib,
-  dependencies : [deps, shell_dep]
-)
-
-rtos_dep = declare_dependency(
-  link_with : rtos_lib,
-  include_directories : includes,
-  dependencies : deps,
-)
-endif
-
-if not embedded_build
-rtos_dep = declare_dependency(
-  include_directories : includes,
-)
 rtos_cmd_dep = declare_dependency(
   include_directories : includes,
 )
-endif

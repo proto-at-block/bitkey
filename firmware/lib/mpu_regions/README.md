@@ -98,7 +98,6 @@ The table here may become stale, so it is a good idea to double-check with [mpu_
 | power | yes | privileged tasks can access all peripherals|shared task protected bss<br />inactive slot (RW)<br /> bootloader <br /> ramfuncs (RX) <br /> active slot(metadata, properties, signature) (RO)|
 | tamper | yes | privileged tasks can access all peripherals|shared task protected bss<br />inactive slot (RW)<br /> bootloader <br /> ramfuncs (RX) <br /> active slot(metadata, properties, signature) (RO)|
 | fs_mount | yes | privileged tasks can access all peripherals|shared task protected bss<br />inactive slot (RW)<br /> bootloader <br /> ramfuncs (RX) <br /> active slot(metadata, properties, signature) (RO)|
-| led_mfgtest | yes (only exists in dev) | privileged tasks can access all peripherals|shared task protected bss<br />inactive slot (RW)<br /> bootloader <br /> ramfuncs (RX) <br /> active slot(metadata, properties, signature) (RO)|
 | mfgtest | yes (only exists in dev) | privileged tasks can access all peripherals|shared task protected bss<br />inactive slot (RW)<br /> bootloader <br /> ramfuncs (RX) <br /> active slot(metadata, properties, signature) (RO)|
 | shell | yes (only exists in dev) | privileged tasks can access all peripherals| shared task protected bss<br />inactive slot (RW)<br /> bootloader <br /> ramfuncs (RX) <br /> active slot(metadata, properties, signature) (RO)|
 

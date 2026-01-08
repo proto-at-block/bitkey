@@ -1,4 +1,5 @@
 #include "bl_secureboot.h"
+#include "bl_secureboot_impl.h"
 #include "criterion_test_utils.h"
 #include "ecc.h"
 #include "fff.h"
@@ -79,8 +80,8 @@ typedef enum {
 // Mock verification function.
 // We could use fff's return sequences, but it's a bit easier to reason about the
 // unit tests this way.
-secure_bool_t crypto_ecc_verify_hash(key_handle_t* key, uint8_t* hash, uint32_t hash_size,
-                                     uint8_t signature[ECC_SIG_SIZE]) {
+secure_bool_t crypto_ecc_verify_hash(key_handle_t* key, const uint8_t* hash, uint32_t hash_size,
+                                     const uint8_t signature[ECC_SIG_SIZE]) {
   return (signature[0] == SIG_VALID) ? SECURE_TRUE : SECURE_FALSE;
 }
 

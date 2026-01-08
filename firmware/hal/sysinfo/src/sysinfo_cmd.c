@@ -115,7 +115,7 @@ static void cmd_device_id_run(int argc, char** argv) {
   printf("\n");
 
   uint8_t board_id = 0;
-  board_id_read(&board_id);
+  (void)board_id_read(&board_id);
   printf("board id: %02x\n", board_id);
 
   uint8_t chipid[8] = {0};
@@ -166,10 +166,11 @@ static void cmd_power_run(int argc, char** argv) {
     return;
   }
 
-  if (power_cmd_args.timeout->header.found)
-    sleep_set_power_timeout(power_cmd_args.timeout->value);
-  else if (power_cmd_args.forever->header.found)
-    sleep_set_power_timeout(UINT32_MAX);
+  if (power_cmd_args.timeout->header.found) {
+    sleep_inhibit(power_cmd_args.timeout->value);
+  } else if (power_cmd_args.forever->header.found) {
+    sleep_inhibit(UINT32_MAX);
+  }
 }
 
 static void cmd_power_register(void) {

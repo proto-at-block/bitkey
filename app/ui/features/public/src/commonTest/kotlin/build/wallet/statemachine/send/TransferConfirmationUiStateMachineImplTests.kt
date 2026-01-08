@@ -24,7 +24,7 @@ import build.wallet.limit.MobilePayServiceMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcContinuationSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -156,7 +156,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
@@ -385,7 +385,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
@@ -479,7 +479,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
@@ -698,7 +698,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachineId
       )
     }

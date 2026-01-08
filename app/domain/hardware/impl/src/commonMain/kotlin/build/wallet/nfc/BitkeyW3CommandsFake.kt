@@ -1,11 +1,15 @@
 package build.wallet.nfc
 
+import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.SecureBootConfig
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.PromptOption
 import kotlinx.datetime.Instant
 import okio.ByteString
 
@@ -19,6 +23,35 @@ import okio.ByteString
 class BitkeyW3CommandsFake(
   private val w1CommandsFake: BitkeyW1CommandsFake,
 ) : NfcCommands by w1CommandsFake {
+  override suspend fun signTransaction(
+    session: NfcSession,
+    psbt: Psbt,
+    spendingKeyset: SpendingKeyset,
+  ): HardwareInteraction<Psbt> {
+    return HardwareInteraction.Continuation(
+      tryContinue = { newSession ->
+        HardwareInteraction.EmulatePrompt(
+          options = listOf(
+            PromptOption(
+              name = "Confirm"
+            ) { confirmSession ->
+              w1CommandsFake.signTransaction(
+                confirmSession,
+                psbt,
+                spendingKeyset
+              )
+            },
+            PromptOption(
+              name = "Deny"
+            ) {
+              throw NfcException.CommandError(cause = Error("Denied by user."))
+            }
+          )
+        )
+      }
+    )
+  }
+
   /**
    * Override to return W3-specific device info with W3 hardware revision.
    */
@@ -56,5 +89,6 @@ val FakeW3FirmwareDeviceInfo = FirmwareDeviceInfo(
   batteryCycles = 1234,
   secureBootConfig = SecureBootConfig.PROD,
   timeRetrieved = 1691787589,
-  bioMatchStats = null
+  bioMatchStats = null,
+  mcuInfo = emptyList()
 )

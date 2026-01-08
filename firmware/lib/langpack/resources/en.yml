@@ -1,0 +1,85 @@
+# Test string to validate the langpack module.
+TestString: "Hello World"
+
+# About page.
+AboutTitle: "ABOUT"
+AboutFirmwareLabel: "FIRMWARE"
+AboutHardwareLabel: "HARDWARE"
+AboutSerialLabel: "SERIAL"
+
+# Brightness page.
+BrightnessTitle: "BRIGHTNESS"
+
+# Fingerprint page.
+FingerprintTitle: "FINGERPRINT"
+FingerprintFinishTitle: "FINISH"
+FingerprintIntro: "Let's set up your\nfingerprint."
+FingerprintButton: "Get started"
+FingerprintSuccess: "Success"
+FingerprintFinish: "Scan Bitkey with your\nphone to finish saving."
+FingerprintAppDownload: "Now let's download\nthe Bitkey app."
+FingerprintQR: "Get QR code"
+
+# Fingerprint enrollment page.
+FingerprintEnrollFirst: "Tap the sensor\non the back."
+FingerprintEnrollError: "Try again"
+FingerprintEnrollSuccess: "Enrollment complete!"
+FingerprintEnrollFail: "Enrollment failed - please try again"
+FingerprintEnrollRepeat: "Lift and repeat\n%lu more times."
+
+# Fingerprint removal page.
+FingerprintRemoveTitle: "CONFIRM"
+FingerprintRemoveConfirm: "Yes, remove"
+FingerprintRemoveBack: "Back"
+FingerprintRemoveRemoved: "Removed"
+FingerprintRemoveId: "Fingerprint %d"
+
+# Scan page.
+ScanTitle: "Scan to start"
+ScanTap: "Tap to phone"
+ScanSign: "Scan to sign"
+ScanVerify: "Scan to verify"
+ScanConfirm: "Scan to confirm"
+
+# Fingerprint menu page.
+FingerprintMenuFmt: "Fingerprint %d"
+FingerprintMenuAdd: "Add Fingerprint %d"
+
+# Onboarding page.
+OnboardingTitle: "HELLO"
+OnboardingPage2: "Let's set up your\nBitkey. Press the\nright button."
+OnboardingPage3: "You can move\naround using the left\nand right buttons."
+OnboardingPage4: "To make a selection,\npress both buttons."
+OnboardingPage5: "You're a pro. Let's set\nup your fingerprint."
+OnboardingButton4: "Got it"
+OnboardingButton5: "Get started"
+
+# Regulatory page.
+RegulatoryTitle: "REGULATORY"
+RegulatoryFCCId: "FCC ID: 2ASAL1209"
+RegulatoryFCCNotesFMT: "FCC Notes (%d/2)"
+RegulatoryNote1: "(1) this device may not cause\nharmful interference, and (2)\nthis device must accept any..."
+RegulatoryNote2: "...interference received,\nincluding interference that may\ncause undesired operation."
+
+# Money movement page.
+MoneyMovementAddress: "ADDRESS"
+MoneyMovementAmount: "AMOUNT"
+MoneyMovementConfirm: "FINISH"
+MoneyMovementBTCSuffix: " BTC"
+MoneyMovementBTCFeeSuffix: " BTC Fee"
+MoneyMovementVerify: "Verify & Sign"
+MoneyMovementCancel: "Cancel"
+
+# Firmware Update
+FirmwareUpdateSuccess: "Updated"
+FirmwareUpdateFailed: "Update failed"
+
+# Menu Items
+MenuBack: ""
+MenuFingerprints: "Fingerprints"
+MenuBrightness: "Brightness"
+MenuAbout: "About"
+MenuRegulatory: "Regulatory"
+MenuLock: "Lock Device"
+MenuOff: "Power Off"
+MenuTouchTest: "Touch Test"

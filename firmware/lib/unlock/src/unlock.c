@@ -11,9 +11,9 @@
 #include "wallet.h"
 
 // This isn't clean from a code organization perspective, but it's best
-// to call set_authenticated_with_animation() from here, rather than auth_task.c, because
+// to call set_authenticated() from here, rather than auth_task.c, because
 // otherwise unlock_check_secret() could be glitched past completely.
-extern NO_OPTIMIZE void set_authenticated_with_animation(secure_bool_t state);
+extern NO_OPTIMIZE void set_authenticated(secure_bool_t state, bool show_animation);
 
 unlock_ctx_t unlock_ctx = {
   .limit_response = RESPONSE_DELAY,
@@ -87,15 +87,9 @@ static void begin_delay(uint32_t current_count) {
     return;
   }
 
-  // If delay timer is greater than default power timeout, update power timeout to time we need to
-  // delay + a bit of slack.
-  if (delay_ms >= DEFAULT_POWER_TIMEOUT_MS) {
-    LOGI("Delay is >= than default power timeout (%ld vs %d); updating power timeout", delay_ms,
-         DEFAULT_POWER_TIMEOUT_MS);
-    uint32_t new_power_timeout = delay_ms + DEFAULT_POWER_TIMEOUT_MS;
-    sleep_set_power_timeout(new_power_timeout);
-    LOGD("New power timeout: %ld", new_power_timeout);
-  }
+  // Inhibit sleep for the delay duration to ensure device stays on
+  LOGD("Inhibiting sleep for %ld ms delay", delay_ms);
+  sleep_inhibit(delay_ms);
 
   LOGD("Delaying for %ld ms", delay_ms);
   rtos_timer_start(&unlock_ctx.delay_timer, delay_ms);
@@ -217,14 +211,13 @@ success:
     return UNLOCK_STORAGE_ERR;
   }
 
-  // Reset power timeout, so the device doesn't unnecessarily stay awake.
-  sleep_set_power_timeout(DEFAULT_POWER_TIMEOUT_MS);
+  sleep_clear_inhibit();
 
   rtos_timer_stop(&unlock_ctx.delay_timer);
   *remaining_delay_ms = 0;
   *retry_counter = 0;
 
-  set_authenticated_with_animation(SECURE_TRUE);
+  set_authenticated(SECURE_TRUE, true);
 
   return UNLOCK_OK;
 }

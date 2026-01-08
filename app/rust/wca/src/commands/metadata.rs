@@ -15,6 +15,18 @@ pub enum FirmwareSlot {
 }
 
 #[derive(Debug)]
+pub enum McuName {
+    Efr32,
+    Stm32u5,
+}
+
+#[derive(Debug)]
+pub enum McuRole {
+    Core,
+    Uxc,
+}
+
+#[derive(Debug)]
 pub struct FirmwareMetadata {
     pub active_slot: FirmwareSlot,
     pub git_id: String,
@@ -24,11 +36,16 @@ pub struct FirmwareMetadata {
     pub timestamp: u64,
     pub hash: Vec<u8>,
     pub hw_revision: String,
+    pub mcu_name: Option<McuName>,
+    pub mcu_role: Option<McuRole>,
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn metadata() -> Result<FirmwareMetadata, CommandError> {
-    let apdu: apdu::Command = MetaCmd {}.try_into()?;
+    let apdu: apdu::Command = MetaCmd {
+        mcu_role: fwpb::McuRole::Core.into(),
+    }
+    .try_into()?;
 
     let data = yield_!(apdu.into());
     let response = apdu::Response::from(data);
@@ -42,6 +59,8 @@ fn metadata() -> Result<FirmwareMetadata, CommandError> {
         meta_slot_a,
         meta_slot_b,
         active_slot,
+        mcu_name,
+        mcu_role,
     }) = message
     {
         match MetaRspStatus::try_from(rsp_status) {
@@ -79,6 +98,18 @@ fn metadata() -> Result<FirmwareMetadata, CommandError> {
             _ => return Err(CommandError::InvalidResponse),
         };
 
+        let mcu_name = match fwpb::McuName::try_from(mcu_name) {
+            Ok(fwpb::McuName::Efr32) => Some(McuName::Efr32),
+            Ok(fwpb::McuName::Stm32u5) => Some(McuName::Stm32u5),
+            _ => None,
+        };
+
+        let mcu_role = match fwpb::McuRole::try_from(mcu_role) {
+            Ok(fwpb::McuRole::Core) => Some(McuRole::Core),
+            Ok(fwpb::McuRole::Uxc) => Some(McuRole::Uxc),
+            _ => None,
+        };
+
         Ok(FirmwareMetadata {
             active_slot: output_slot,
             git_id: meta.git_id,
@@ -88,6 +119,8 @@ fn metadata() -> Result<FirmwareMetadata, CommandError> {
             timestamp: meta.timestamp,
             hash: meta.hash,
             hw_revision: meta.hw_revision,
+            mcu_name,
+            mcu_role,
         })
     } else {
         Err(CommandError::MissingMessage)

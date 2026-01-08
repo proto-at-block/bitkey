@@ -4,8 +4,8 @@
 #include "crypto_impl.h"
 #include "secure_engine.h"
 
-bool crypto_hkdf(key_handle_t* key_in, hash_alg_t hash, uint8_t* salt, size_t salt_len,
-                 uint8_t* info, size_t info_len, key_handle_t* key_out) {
+bool crypto_hkdf(key_handle_t* key_in, hash_alg_t hash, uint8_t const* salt, size_t salt_len,
+                 uint8_t const* info, size_t info_len, key_handle_t* key_out) {
   ASSERT(key_in && key_out);
 
   sl_se_command_context_t cmd_ctx = {0};

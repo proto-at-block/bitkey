@@ -8,10 +8,11 @@
 
 SECTION(".noinit.reset_reason") USED static volatile mcu_reset_info_t info;
 
-void __mcu_reset_with_reason(mcu_reset_reason_t reason) {
+NO_RETURN void __mcu_reset_with_reason(mcu_reset_reason_t reason) {
   mcu_reset_set_reason(reason);
   NVIC_SystemReset();
   FATAL();  // Should not be reached. If it somehow is, crash so that execution may not resume.
+  __builtin_unreachable();
 }
 
 void mcu_reset_set_reason(mcu_reset_reason_t reason) {

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ai-rules-generated-slack": {
+      "args": [
+        "mcp_slack"
+      ],
+      "command": "uvx",
+      "env": {
+        "SLACK_DEFAULT_WORKSPACE_ID": "T05HJ0CKWG5",
+        "SLACK_TOKEN": "${SLACK_TOKEN}"
+      }
+    }
+  }
+}

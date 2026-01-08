@@ -12,9 +12,9 @@ extern char bl_slot_size[];
 
 NO_OPTIMIZE void* fwup_target_slot_address(void) {
   // Slot address is the opposite of the currently running slot
-  if ((uint32_t)&active_slot == (uint32_t)fwpb_firmware_slot_SLOT_A) {
+  if ((uintptr_t)&active_slot == (uintptr_t)fwpb_firmware_slot_SLOT_A) {
     return (void*)app_b_slot_page;
-  } else if ((uint32_t)&active_slot == (uint32_t)fwpb_firmware_slot_SLOT_B) {
+  } else if ((uintptr_t)&active_slot == (uintptr_t)fwpb_firmware_slot_SLOT_B) {
     return (void*)app_a_slot_page;
   }
   ASSERT(false);
@@ -23,9 +23,9 @@ NO_OPTIMIZE void* fwup_target_slot_address(void) {
 
 NO_OPTIMIZE void* fwup_target_slot_signature_address(void) {
   /* Slot address is the opposite of the currently running slot */
-  if ((uint32_t)&active_slot == (uint32_t)fwpb_firmware_slot_SLOT_A) {
+  if ((uintptr_t)&active_slot == (uintptr_t)fwpb_firmware_slot_SLOT_A) {
     return (void*)app_b_signature;
-  } else if ((uint32_t)&active_slot == (uint32_t)fwpb_firmware_slot_SLOT_B) {
+  } else if ((uintptr_t)&active_slot == (uintptr_t)fwpb_firmware_slot_SLOT_B) {
     return (void*)app_a_signature;
   }
   ASSERT(false);
@@ -33,23 +33,23 @@ NO_OPTIMIZE void* fwup_target_slot_signature_address(void) {
 }
 
 NO_OPTIMIZE void* fwup_current_slot_address(void) {
-  if ((uint32_t)&active_slot == (uint32_t)fwpb_firmware_slot_SLOT_A) {
+  if ((uintptr_t)&active_slot == (uintptr_t)fwpb_firmware_slot_SLOT_A) {
     return (void*)app_a_slot_page;
-  } else if ((uint32_t)&active_slot == (uint32_t)fwpb_firmware_slot_SLOT_B) {
+  } else if ((uintptr_t)&active_slot == (uintptr_t)fwpb_firmware_slot_SLOT_B) {
     return (void*)app_b_slot_page;
   }
   ASSERT(false);
   return NULL;
 }
 
-NO_OPTIMIZE uint32_t fwup_slot_size(void) {
-  return (uint32_t)app_slot_size;
+NO_OPTIMIZE size_t fwup_slot_size(void) {
+  return (size_t)app_slot_size;
 }
 
 NO_OPTIMIZE void* fwup_bl_address(void) {
   return (void*)bl_base_addr;
 }
 
-NO_OPTIMIZE uint32_t fwup_bl_size(void) {
-  return (uint32_t)bl_slot_size;
+NO_OPTIMIZE size_t fwup_bl_size(void) {
+  return (size_t)bl_slot_size;
 }

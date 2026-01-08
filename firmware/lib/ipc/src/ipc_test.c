@@ -31,6 +31,14 @@ secure_bool_t is_allowing_fingerprint_enrollment(void) {
 static ringbuf_t ringbuf;
 static uint8_t backing_buf[4096];
 
+static bool ipc_test_lock(void) {
+  return true;  // No actual locking needed in test
+}
+
+static bool ipc_test_unlock(void) {
+  return true;  // No actual unlocking needed in test
+}
+
 static ipc_port_t foo_port = 0;
 
 static uint8_t fake_rtos_queue[8];
@@ -48,16 +56,17 @@ void init(void) {
 #undef REGIONS
 
   ipc_register_port(
-    foo_port, &fake_rtos_queue);  // RTOS queue not actually used in testing, but can't be NULL
+    foo_port,
+    (rtos_queue_t*)&fake_rtos_queue);  // RTOS queue not actually used in testing, but can't be NULL
 
   ipc_proto_register_api(pool, NULL, NULL);
 
-  ringbuf.buf = backing_buf;
-  ringbuf.max_size = sizeof(backing_buf);
-  ringbuf.head = 0;
-  ringbuf.tail = 0;
-  ringbuf.lock = NULL;
-  ringbuf.full = false;
+  ringbuf_api_t api = {
+    .lock = ipc_test_lock,
+    .unlock = ipc_test_unlock,
+  };
+  ringbuf.api = api;
+  ringbuf_init(&ringbuf, backing_buf, sizeof(backing_buf));
 }
 
 bool rtos_queue_send(rtos_queue_t* queue, void* object, uint32_t timeout_ms) {

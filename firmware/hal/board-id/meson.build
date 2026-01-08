@@ -3,7 +3,7 @@ srcs = [
 ]
 board_id_includes = include_directories('.')
 
-deps = [mcu_efr32xg24_dep]
+deps = [assert_dep, helpers_dep, mcu_dep]
 
 board_id_lib = library('board-id',
   srcs,

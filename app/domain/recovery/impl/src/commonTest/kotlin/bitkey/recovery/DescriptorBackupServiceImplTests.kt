@@ -256,7 +256,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = remoteKeysets,
         descriptorBackups = emptyList(),
-        wrappedSsek = null
+        wrappedSsek = null,
+        activeKeysetId = newKeyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -324,7 +325,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = remoteKeysets,
         descriptorBackups = existingDescriptors,
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = newKeyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -381,7 +383,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = remoteKeysets,
         descriptorBackups = existingDescriptors,
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = newKeyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -425,7 +428,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = remoteKeysets,
         descriptorBackups = emptyList(), // No existing descriptor backups
-        wrappedSsek = null // No wrapped SSEK
+        wrappedSsek = null, // No wrapped SSEK
+        activeKeysetId = newKeyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -479,7 +483,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
           )
         },
         descriptorBackups = allDescriptors,
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = newKeyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -537,7 +542,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = remoteKeysets,
         descriptorBackups = existingDescriptors,
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = keyset3.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -578,7 +584,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
           )
         ),
         descriptorBackups = listOf(encryptedBackup),
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = keyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -611,7 +618,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
           )
         ),
         descriptorBackups = emptyList(),
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = keyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -648,7 +656,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
           )
         ),
         descriptorBackups = listOf(encryptedBackup1, encryptedBackup2),
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = keyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -683,7 +692,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
           )
         ),
         descriptorBackups = listOf(wrongBackup),
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = keyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -720,7 +730,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
           )
         ),
         descriptorBackups = listOf(encryptedBackup),
-        wrappedSsek = differentSsek
+        wrappedSsek = differentSsek,
+        activeKeysetId = keyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -756,7 +767,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
           )
         ),
         descriptorBackups = listOf(encryptedBackup),
-        wrappedSsek = null
+        wrappedSsek = null,
+        activeKeysetId = keyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -800,7 +812,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
           )
         },
         descriptorBackups = allDescriptors,
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = newKeyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -846,7 +859,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
           )
         ),
         descriptorBackups = listOf(tamperedDescriptor),
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = tamperedKeyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -889,7 +903,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = listOf(remoteKeyset),
         descriptorBackups = listOf(encryptedBackup),
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = keyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -938,7 +953,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = listOf(remoteKeyset),
         descriptorBackups = listOf(encryptedBackup),
-        wrappedSsek = SealedSsekFake
+        wrappedSsek = SealedSsekFake,
+        activeKeysetId = keyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -1129,7 +1145,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = remoteKeysets,
         descriptorBackups = emptyList(),
-        wrappedSsek = null
+        wrappedSsek = null,
+        activeKeysetId = newKeyset.f8eSpendingKeyset.keysetId
       )
     )
 
@@ -1179,7 +1196,8 @@ class DescriptorBackupServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = remoteKeysets,
         descriptorBackups = emptyList(),
-        wrappedSsek = null
+        wrappedSsek = null,
+        activeKeysetId = newKeyset.f8eSpendingKeyset.keysetId
       )
     )
 

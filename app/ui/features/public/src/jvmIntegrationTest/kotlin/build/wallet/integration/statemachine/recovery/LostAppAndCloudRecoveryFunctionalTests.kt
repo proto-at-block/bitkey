@@ -2,6 +2,7 @@ package build.wallet.integration.statemachine.recovery
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
@@ -44,8 +45,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       treasuryWallet.fund(wallet, initWithTreasuryFunds)
     }
     appDataDeleter.deleteAll().getOrThrow()
-    cloudBackupDeleter.delete()
-    deleteBackupsFromFakeCloud()
+    val accountId = FullAccountIdMock
+    cloudBackupDeleter.delete(accountId)
+    deleteBackupsFromFakeCloud(accountId)
   }
 
   suspend fun AppTester.relaunchForLostApp(
@@ -602,8 +604,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     app.verifyCanUseKeyboxKeysets(true)
 
     app.appDataDeleter.deleteAll().getOrThrow()
-    app.cloudBackupDeleter.delete()
-    app.deleteBackupsFromFakeCloud()
+    app.cloudBackupDeleter.delete(accountId)
+    app.deleteBackupsFromFakeCloud(accountId)
 
     app = app.relaunchForLostApp()
 

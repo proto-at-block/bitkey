@@ -17,9 +17,9 @@ class BitcoinTransactionFeeEstimatorMock(
   var feesResult: Result<Map<EstimatedTransactionPriority, Fee>, FeeEstimationError> =
     Ok(
       mapOf(
-        FASTEST to Fee(BitcoinMoney.btc(BigDecimal.TEN), oneSatPerVbyteFeeRate),
-        THIRTY_MINUTES to Fee(BitcoinMoney.btc(BigDecimal.TWO), oneSatPerVbyteFeeRate),
-        SIXTY_MINUTES to Fee(BitcoinMoney.btc(BigDecimal.ONE), oneSatPerVbyteFeeRate)
+        FASTEST to Fee(BitcoinMoney.btc(BigDecimal.TEN)),
+        THIRTY_MINUTES to Fee(BitcoinMoney.btc(BigDecimal.TWO)),
+        SIXTY_MINUTES to Fee(BitcoinMoney.btc(BigDecimal.ONE))
       )
     ),
 ) : BitcoinTransactionFeeEstimator {

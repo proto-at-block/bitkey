@@ -7,11 +7,13 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
 class BitcoinFeeRateEstimatorMock : BitcoinFeeRateEstimator {
+  var estimatedFeeRateResult: FeeRate = FeeRate.Fallback
+
   override suspend fun estimatedFeeRateForTransaction(
     networkType: BitcoinNetworkType,
     estimatedTransactionPriority: EstimatedTransactionPriority,
   ): FeeRate {
-    return FeeRate.Fallback
+    return estimatedFeeRateResult
   }
 
   var getEstimatedFeeRateResult: Result<FeeRatesByPriority, NetworkingError> =
@@ -25,4 +27,15 @@ class BitcoinFeeRateEstimatorMock : BitcoinFeeRateEstimator {
 
   override suspend fun getEstimatedFeeRates(networkType: BitcoinNetworkType) =
     getEstimatedFeeRateResult
+
+  fun reset() {
+    estimatedFeeRateResult = FeeRate.Fallback
+    getEstimatedFeeRateResult = Ok(
+      FeeRatesByPriority(
+        fastestFeeRate = FeeRate(3.0f),
+        halfHourFeeRate = FeeRate(2.0f),
+        hourFeeRate = FeeRate(1.0f)
+      )
+    )
+  }
 }

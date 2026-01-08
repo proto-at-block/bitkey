@@ -1,7 +1,9 @@
 package build.wallet.debug.cloud
 
-import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupRepositoryKeys
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.store.CloudKeyValueStore
+import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.AppScope
@@ -18,10 +20,8 @@ class CloudBackupCorrupterImpl(
   private val appVariant: AppVariant,
   private val cloudKeyValueStore: CloudKeyValueStore,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
+  private val cloudBackupRepositoryKeys: CloudBackupRepositoryKeys,
 ) : CloudBackupCorrupter {
-  // Key used to store backups in cloud key-value store
-  private val cloudBackupKey = "cloud-backup"
-
   val sealedDataMock =
     SealedData(
       ciphertext = "deadbeef".decodeHex(),
@@ -37,27 +37,46 @@ class CloudBackupCorrupterImpl(
     cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
       .onSuccess { cloudAccount ->
         cloudAccount?.let {
-          // Read the existing backup
-          cloudKeyValueStore.getString(cloudAccount, cloudBackupKey)
-            .onSuccess { backupJson ->
-              if (backupJson != null) {
-                // Deserialize the existing backup
-                val existingBackup = Json.decodeFromString<CloudBackupV2>(backupJson)
-
-                // Create a copy with fullAccountFields set to null
-                val corruptedBackup = existingBackup.copy(fullAccountFields = existingBackup.fullAccountFields?.copy(hwFullAccountKeysCiphertext = sealedDataMock))
-
-                // Serialize the corrupted backup
-                val corruptedBackupJson = Json.encodeToString(CloudBackupV2.serializer(), corruptedBackup)
-
-                // Write the corrupted backup back to cloud storage
-                cloudKeyValueStore.setString(
-                  cloudAccount,
-                  cloudBackupKey,
-                  corruptedBackupJson
-                )
-              }
+          cloudKeyValueStore.keys(cloudAccount)
+            .onSuccess {
+              it.asSequence()
+                .filter { key -> cloudBackupRepositoryKeys.isValidBackupKey(key) }
+                .forEach { key -> readBackupThenCorrupt(cloudAccount, key) }
             }
+        }
+      }
+  }
+
+  /**
+   * Read the existing backup then save the corrupted version.
+   */
+  private suspend fun readBackupThenCorrupt(
+    cloudAccount: CloudStoreAccount,
+    key: String,
+  ) {
+    cloudKeyValueStore.getString(cloudAccount, key)
+      .onSuccess { backupJson ->
+        if (backupJson != null) {
+          // Deserialize the existing backup
+          val existingBackup = Json.decodeFromString<CloudBackupV3>(backupJson)
+
+          // Create a copy with fullAccountFields set to null
+          val corruptedBackup = existingBackup.copy(
+            fullAccountFields = existingBackup.fullAccountFields?.copy(
+              hwFullAccountKeysCiphertext = sealedDataMock
+            )
+          )
+
+          // Serialize the corrupted backup
+          val corruptedBackupJson =
+            Json.encodeToString(CloudBackupV3.serializer(), corruptedBackup)
+
+          // Write the corrupted backup back to cloud storage
+          cloudKeyValueStore.setString(
+            cloudAccount,
+            key,
+            corruptedBackupJson
+          )
         }
       }
   }

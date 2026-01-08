@@ -1,5 +1,6 @@
 package build.wallet.emergencyexitkit
 
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -12,11 +13,13 @@ import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.EmergencyExitP
 import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.EmergencyExitPayloadRestorerError.InvalidBackup
 import build.wallet.encrypt.SealedData
 import build.wallet.encrypt.SymmetricKeyEncryptorFake
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.testing.shouldBeErr
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import okio.ByteString
 
 class EmergencyExitPayloadRestorerImplTests : FunSpec({
@@ -151,5 +154,35 @@ class EmergencyExitPayloadRestorerImplTests : FunSpec({
 
     keybox.activeAppKeyBundle.spendingKey
       .shouldBeEqual(AppSpendingPublicKeyMock)
+  }
+
+  test("Restored account config retains expected flags") {
+    csekDao.set(SealedCsekFake, CsekFake)
+    appPrivateKeyDao.storeAppSpendingKeyPair(
+      AppSpendingKeypair(
+        publicKey = AppSpendingPublicKeyMock,
+        privateKey = AppSpendingPrivateKeyMock
+      )
+    )
+
+    val payload =
+      creator.create(
+        keybox = KeyboxMock,
+        sealedCsek = SealedCsekFake
+      )
+        .get()
+        .shouldNotBeNull()
+
+    val config = restorer.restoreFromPayload(payload)
+      .get()
+      .shouldNotBeNull()
+      .fullAccountConfig
+
+    config.bitcoinNetworkType.shouldBe(KeyboxMock.activeSpendingKeyset.networkType)
+    config.f8eEnvironment.shouldBe(F8eEnvironment.ForceOffline)
+    config.isHardwareFake.shouldBe(false)
+    config.isUsingSocRecFakes.shouldBe(false)
+    config.isTestAccount.shouldBe(false)
+    config.hardwareType.shouldBe(HardwareType.W1)
   }
 })

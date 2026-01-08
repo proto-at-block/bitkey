@@ -6,6 +6,14 @@ target/
 _build/
 .build/
 
+# Allow checked-in UniFFI bindings for bdk-ffi (generated via `just`)
+!bdk-ffi/_build/
+bdk-ffi/_build/*
+!bdk-ffi/_build/generated/
+bdk-ffi/_build/generated/*
+!bdk-ffi/_build/generated/uniffi/
+!bdk-ffi/_build/generated/uniffi/**
+
 # IDE
 .idea/
 *.code-workspace

@@ -13,10 +13,12 @@ import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.feature.FlagFinderFactory
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.InputAlertModel
+import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -29,6 +31,7 @@ class FeatureFlagsStateMachineImpl(
   private val doubleFlagItemUiStateMachine: DoubleFlagItemUiStateMachine,
   private val stringFlagItemUiStateMachine: StringFlagItemUiStateMachine,
   private val featureFlagService: FeatureFlagService,
+  private val flagFinderFactory: FlagFinderFactory,
 ) : FeatureFlagsStateMachine {
   @Composable
   override fun model(props: FeatureFlagsProps): ScreenModel {
@@ -44,12 +47,16 @@ class FeatureFlagsStateMachineImpl(
     }
 
     val featureFlags = featureFlagService.getFeatureFlags()
+    val featureFlagsFinder = remember(featureFlags) { flagFinderFactory.index(featureFlags) }
+
+    var filter: String by remember { mutableStateOf("") }
+    val filteredFlags = remember(filter) { featureFlagsFinder.find(filter) }
 
     return FeatureFlagsBodyModel(
       flagsModel =
         ListGroupModel(
           style = ListGroupStyle.DIVIDER,
-          items = featureFlags.mapNotNull { flag ->
+          items = filteredFlags.mapNotNull { flag ->
             when (flag.defaultFlagValue) {
               is BooleanFlag -> booleanFlagItemUiStateMachine.model(
                 props =
@@ -128,7 +135,26 @@ class FeatureFlagsStateMachineImpl(
             .toImmutableList()
         ),
       onBack = props.onBack,
-      onReset = { resettingFlags = true }
+      onReset = { resettingFlags = true },
+      filterModel = FilterFieldModel(
+        value = filter,
+        onValueChange = { filter = it }
+      )
     ).asModalScreen(alertModel = alert)
   }
 }
+
+@Composable
+private fun FilterFieldModel(
+  value: String,
+  onValueChange: (String) -> Unit,
+) = TextFieldModel(
+  value = value,
+  placeholderText = "Search",
+  onValueChange = { newValue, _ ->
+    onValueChange(newValue)
+  },
+  keyboardType = KeyboardType.Default,
+  onDone = {},
+  focusByDefault = false
+)

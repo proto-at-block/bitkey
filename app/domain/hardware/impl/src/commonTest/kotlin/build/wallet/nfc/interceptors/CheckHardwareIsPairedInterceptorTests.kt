@@ -3,16 +3,19 @@ package build.wallet.nfc.interceptors
 import bitkey.account.HardwareType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
+import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.encrypt.MessageSignerFake
 import build.wallet.encrypt.SignatureUtilsMock
 import build.wallet.nfc.BitkeyW1CommandsFake
 import build.wallet.nfc.FakeHardwareKeyStoreFake
 import build.wallet.nfc.FakeHardwareSpendingWalletProvider
+import build.wallet.nfc.FakeHardwareStatesDaoImpl
 import build.wallet.nfc.NfcException.UnpairedHardwareError
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
 import build.wallet.nfc.NfcSession.RequirePairedHardware.Required
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.sqldelight.inMemorySqlDriver
 import com.github.michaelbull.result.Ok
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -20,6 +23,9 @@ import io.kotest.matchers.shouldBe
 import okio.ByteString.Companion.encodeUtf8
 
 class CheckHardwareIsPairedInterceptorTests : FunSpec({
+  val sqlDriver = inMemorySqlDriver()
+  val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
+  val fakeHardwareStatesDao = FakeHardwareStatesDaoImpl(databaseProvider)
   val messageSigner = MessageSignerFake()
   val signatureUtils = SignatureUtilsMock()
   val fakeHardwareKeyStore = FakeHardwareKeyStoreFake()
@@ -32,7 +38,8 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
     messageSigner,
     signatureUtils,
     fakeHardwareKeyStore,
-    fakeHardwareSpendingWalletProvider
+    fakeHardwareSpendingWalletProvider,
+    fakeHardwareStatesDao
   )
 
   test("does nothing when hardware validation not required") {

@@ -2,8 +2,7 @@ srcs = [
   'ringbuf.c',
 ]
 
-deps = [rtos_dep]
-
+deps = []
 includes = ['.']
 
 ringbuf_lib = library('ringbuf',
@@ -11,6 +10,7 @@ ringbuf_lib = library('ringbuf',
   include_directories : [includes],
   dependencies : deps,
 )
+
 ringbuf_dep = declare_dependency(
   link_with : ringbuf_lib,
   include_directories : includes,

@@ -1,0 +1,48 @@
+{
+     "mcu_flags": {
+          "SECURE_BOOT_ENABLE": true,
+          "SECURE_BOOT_VERIFY_CERTIFICATE": true,
+          "SECURE_BOOT_ANTI_ROLLBACK": true,
+          "SECURE_BOOT_PAGE_LOCK_NARROW": false,
+          "SECURE_BOOT_PAGE_LOCK_FULL": false
+     },
+     "tamper_levels": {
+          "FILTER_COUNTER": 0,
+          "WATCHDOG": 4,
+          "SE_RAM_CRC": 4,
+          "SE_HARDFAULT": 4,
+          "SOFTWARE_ASSERTION": 4,
+          "SE_CODE_AUTH": 4,
+          "USER_CODE_AUTH": 4,
+          "MAILBOX_AUTH": 1,
+          "DCI_AUTH": 1,
+          "OTP_READ": 4,
+          "SELF_TEST": 4,
+          "TRNG_MONITOR": 1,
+          "SECURE_LOCK": 4,
+          "DGLITCH": 1,
+          "VGLITCH": 1,
+          "SE_ICACHE": 4,
+          "SE_RAM": 1,
+          "DECOUPLE_BOD": 4,
+          "TEMP_SENSOR": 1,
+          "DPLL_FALL": 1,
+          "DPLL_RISE": 1,
+          "PRS0": 0,
+          "PRS1": 0,
+          "PRS2": 0,
+          "PRS3": 0,
+          "PRS4": 0,
+          "PRS5": 0,
+          "PRS6": 0
+     },
+     "tamper_filter": {
+          "FILTER_PERIOD": 0,
+          "FILTER_THRESHOLD": 0,
+          "RESET_THRESHOLD": 0
+     },
+     "tamper_flags": {
+          "DGLITCH_ALWAYS_ON": true,
+          "ALIVE_DURING_SLEEP": false
+     }
+}

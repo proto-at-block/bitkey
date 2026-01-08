@@ -215,6 +215,10 @@ class BitkeyDatabaseProviderImpl(
           activeSlotAdapter = EnumColumnAdapter(),
           secureBootConfigAdapter = EnumColumnAdapter()
         ),
+      mcuInfoDeviceEntityAdapter = McuInfoDeviceEntity.Adapter(
+        mcuRoleAdapter = EnumColumnAdapter(),
+        mcuNameAdapter = EnumColumnAdapter()
+      ),
       fwupDataEntityAdapter =
         FwupDataEntity.Adapter(
           fwupModeAdapter = EnumColumnAdapter()

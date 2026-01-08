@@ -16,6 +16,12 @@ message secure_channel_establish_rsp {
   bytes key_confirmation_tag = 4 [(nanopb).max_size = 16];
 }
 
+message secure_channel_establish_confirm {
+  uint32 protocol_version = 1;  // Highest supported protocol version
+  bytes exchange_sig = 2 [(nanopb).max_size = 64];  // Signed by hardware attestation key.
+  bytes key_confirmation_tag = 3 [(nanopb).max_size = 16];
+}
+
 message secure_channel_message {
   bytes ciphertext = 1 [(nanopb).max_size = 452];
   bytes nonce = 2 [(nanopb).max_size = 12];

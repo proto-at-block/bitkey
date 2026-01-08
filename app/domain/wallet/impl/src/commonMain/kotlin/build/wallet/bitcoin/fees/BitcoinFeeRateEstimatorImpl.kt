@@ -8,105 +8,114 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.targetBlocks
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.ktor.result.RedactedResponseBody
-import build.wallet.ktor.result.bodyResult
-import build.wallet.logging.logNetworkFailure
+import build.wallet.feature.flags.AugurFeesEstimationFeatureFlag
+import build.wallet.feature.isEnabled
+import build.wallet.logging.logWarn
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.getOrElse
-import com.github.michaelbull.result.map
-import dev.zacsweers.redacted.annotations.Unredacted
-import io.ktor.client.request.*
-import kotlinx.serialization.Serializable
 
 @BitkeyInject(AppScope::class)
 class BitcoinFeeRateEstimatorImpl(
   private val mempoolHttpClient: MempoolHttpClient,
+  private val augurFeesHttpClient: AugurFeesHttpClient,
   private val bdkBlockchainProvider: BdkBlockchainProvider,
+  private val augurFeesEstimationFeatureFlag: AugurFeesEstimationFeatureFlag,
 ) : BitcoinFeeRateEstimator {
   override suspend fun estimatedFeeRateForTransaction(
     networkType: BitcoinNetworkType,
     estimatedTransactionPriority: EstimatedTransactionPriority,
   ): FeeRate {
-    return mempoolHttpClient.client(networkType)
-      .bodyResult<Response> { get("api/v1/fees/recommended") }
-      .map { body ->
-        when (estimatedTransactionPriority) {
-          FASTEST -> FeeRate(body.fastestFee)
-          THIRTY_MINUTES -> FeeRate(body.halfHourFee)
-          SIXTY_MINUTES -> FeeRate(body.hourFee)
+    return if (augurFeesEstimationFeatureFlag.isEnabled()) {
+      augurFeesHttpClient.getAugurFeesFeeRate(networkType, estimatedTransactionPriority)
+        .getOrElse {
+          // Fallback to mempool if AugurFees fails
+          mempoolHttpClient.getMempoolFeeRate(networkType, estimatedTransactionPriority)
+            .getOrElse {
+              // Final fallback to BDK/Electrum
+              getBdkFeeRate(estimatedTransactionPriority)
+            }
         }
-      }
-      .logNetworkFailure { "Failed to get fee rate" }
-      .getOrElse {
-        // Attempt to use Electrum estimates if there is an issue fetching from Mempool.
-        // If we get an error trying to interact with Electrum, return the fallback feerate, which
-        // is 1sat/vB
-        bdkBlockchainProvider.blockchain().result
-          .fold(
-            success = { blockchain ->
-              blockchain.estimateFee(estimatedTransactionPriority.targetBlocks())
-                .result
-                .fold(
-                  success = { FeeRate(it) },
-                  failure = { FeeRate.Fallback }
-                )
-            },
-            failure = { FeeRate.Fallback }
-          )
-      }
+    } else {
+      mempoolHttpClient.getMempoolFeeRate(networkType, estimatedTransactionPriority)
+        .getOrElse { mempoolError ->
+          // Fallback to BDK/Electrum when mempool fails
+          getBdkFeeRate(estimatedTransactionPriority)
+        }
+    }
   }
 
   override suspend fun getEstimatedFeeRates(
     networkType: BitcoinNetworkType,
   ): Result<FeeRatesByPriority, Error> =
     coroutineBinding {
-      mempoolHttpClient.client(networkType)
-        .bodyResult<Response> { get("api/v1/fees/recommended") }
-        .logNetworkFailure { "Failed to get fee rates" }
-        .fold(
-          success = {
-            FeeRatesByPriority(
-              fastestFeeRate = FeeRate(it.fastestFee),
-              halfHourFeeRate = FeeRate(it.halfHourFee),
-              hourFeeRate = FeeRate(it.hourFee)
-            )
-          },
-          failure = {
-            val feeRateMap = mutableMapOf<EstimatedTransactionPriority, FeeRate>()
-            val blockchain = bdkBlockchainProvider.blockchain()
-              .result
-              .bind()
-
-            EstimatedTransactionPriority.entries
-              .scan(mutableMapOf<EstimatedTransactionPriority, FeeRate>()) { feeRates, priority ->
-                blockchain.estimateFee(priority.targetBlocks())
-                  .result
-                  .fold(
-                    success = { feeRate -> feeRates[priority] = FeeRate(feeRate) },
-                    failure = { feeRates[priority] = FeeRate.Fallback }
-                  )
-                feeRates
+      if (augurFeesEstimationFeatureFlag.isEnabled()) {
+        augurFeesHttpClient.getAugurFeesFeeRates(networkType)
+          .getOrElse {
+            // Fallback to mempool if AugurFees fails
+            mempoolHttpClient.getMempoolFeeRates(networkType)
+              .getOrElse { mempoolError ->
+                // Final fallback to BDK/Electrum
+                getBdkFeeRates().bind()
               }
-
-            FeeRatesByPriority(
-              fastestFeeRate = feeRateMap[FASTEST] ?: FeeRate.Fallback,
-              halfHourFeeRate = feeRateMap[THIRTY_MINUTES] ?: FeeRate.Fallback,
-              hourFeeRate = feeRateMap[SIXTY_MINUTES] ?: FeeRate.Fallback
-            )
           }
-        )
+      } else {
+        mempoolHttpClient.getMempoolFeeRates(networkType)
+          .getOrElse { mempoolError ->
+            // Fallback to BDK/Electrum when mempool fails
+            getBdkFeeRates().bind()
+          }
+      }
     }
 
-  /** Represents the response from mempool */
-  @Unredacted
-  @Serializable
-  private data class Response(
-    val fastestFee: Float,
-    val halfHourFee: Float,
-    val hourFee: Float,
-    val economyFee: Float,
-    val minimumFee: Float,
-  ) : RedactedResponseBody
+  private suspend fun getBdkFeeRate(
+    estimatedTransactionPriority: EstimatedTransactionPriority,
+  ): FeeRate {
+    return bdkBlockchainProvider.blockchain().result
+      .fold(
+        success = { blockchain ->
+          blockchain.estimateFee(estimatedTransactionPriority.targetBlocks())
+            .result
+            .fold(
+              success = { FeeRate(it) },
+              failure = {
+                logWarn { "BDK fee estimation failed for $estimatedTransactionPriority" }
+                FeeRate.Fallback
+              }
+            )
+        },
+        failure = {
+          logWarn { "BDK fee estimation failed for $estimatedTransactionPriority" }
+          FeeRate.Fallback
+        }
+      )
+  }
+
+  private suspend fun getBdkFeeRates(): Result<FeeRatesByPriority, Error> =
+    coroutineBinding {
+      val blockchain = bdkBlockchainProvider.blockchain()
+        .result
+        .bind()
+
+      val feeRateMap = mutableMapOf<EstimatedTransactionPriority, FeeRate>()
+
+      EstimatedTransactionPriority.entries.forEach { priority ->
+        blockchain.estimateFee(priority.targetBlocks())
+          .result
+          .fold(
+            success = { feeRate -> feeRateMap[priority] = FeeRate(feeRate) },
+            failure = {
+              logWarn { "BDK fee estimation failed for $priority" }
+              feeRateMap[priority] = FeeRate.Fallback
+            }
+          )
+      }
+
+      FeeRatesByPriority(
+        fastestFeeRate = feeRateMap[FASTEST] ?: FeeRate.Fallback,
+        halfHourFeeRate = feeRateMap[THIRTY_MINUTES] ?: FeeRate.Fallback,
+        hourFeeRate = feeRateMap[SIXTY_MINUTES] ?: FeeRate.Fallback
+      )
+    }
 }

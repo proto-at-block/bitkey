@@ -24,6 +24,7 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
 import build.wallet.feature.flags.CheckHardwareIsPairedFeatureFlag
 import build.wallet.feature.setFlagValue
+import build.wallet.nfc.NfcAvailability
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcReaderCapabilityMock
 import build.wallet.nfc.NfcSession.Parameters
@@ -55,6 +56,7 @@ import okio.ByteString.Companion.encodeUtf8
 class NfcSessionUIStateMachineImplTests : FunSpec({
 
   val deviceInfoProvider = DeviceInfoProviderMock()
+  val nfcReaderCapability = NfcReaderCapabilityMock()
   val nfcTransactor = NfcTransactorMock(turbines::create)
   val enableNfcNavigator = EnableNfcNavigatorMock()
   val asyncNfcSigningFeatureFlag = AsyncNfcSigningFeatureFlag(FeatureFlagDaoFake())
@@ -67,7 +69,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
   val stateMachine = NfcSessionUIStateMachineImpl(
-    nfcReaderCapability = NfcReaderCapabilityMock(),
+    nfcReaderCapability = nfcReaderCapability,
     enableNfcNavigator = enableNfcNavigator,
     deviceInfoProvider = deviceInfoProvider,
     nfcTransactor = nfcTransactor,
@@ -110,6 +112,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   beforeTest {
     accountConfigService.reset()
     deviceInfoProvider.reset()
+    nfcReaderCapability.reset()
     nfcTransactor.reset()
     accountService.reset()
     signatureVerifier.reset()
@@ -315,6 +318,46 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
       awaitBody<NfcBodyModel> {
         status.shouldBeTypeOf<Success>()
       }
+    }
+  }
+
+  test("shows no NFC message when NFC is not available") {
+    nfcReaderCapability.availability = NfcAvailability.NotAvailable
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel>(NfcEventTrackerScreenId.NFC_NOT_AVAILABLE)
+    }
+  }
+
+  test("shows enable NFC instructions when NFC is disabled") {
+    nfcReaderCapability.availability = NfcAvailability.Available.Disabled
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel>(NfcEventTrackerScreenId.NFC_ENABLE_INSTRUCTIONS)
+    }
+  }
+
+  test("calls onCancel when back is pressed on no NFC message") {
+    nfcReaderCapability.availability = NfcAvailability.NotAvailable
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel>(NfcEventTrackerScreenId.NFC_NOT_AVAILABLE) {
+        onBack?.invoke()
+      }
+
+      onCancelCalls.awaitItem()
+    }
+  }
+
+  test("calls onCancel when back is pressed on enable NFC instructions") {
+    nfcReaderCapability.availability = NfcAvailability.Available.Disabled
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel>(NfcEventTrackerScreenId.NFC_ENABLE_INSTRUCTIONS) {
+        onBack?.invoke()
+      }
+
+      onCancelCalls.awaitItem()
     }
   }
 })

@@ -3,6 +3,7 @@ package build.wallet.statemachine.home.full
 import androidx.compose.runtime.*
 import bitkey.ui.framework.NavigatorPresenter
 import bitkey.ui.screens.device.DeviceSettingsScreen
+import bitkey.ui.screens.recovery.KeysetRepairScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import bitkey.ui.screens.securityhub.SecurityHubScreen
 import build.wallet.bitkey.account.FullAccount
@@ -333,6 +334,7 @@ class HomeUiStateMachineImpl(
                     )
                   )
                 )
+                BannerType.SpendingKeysetMismatch -> uiState.copy(presentedScreen = KeysetRepair)
               }
             }
           )
@@ -544,6 +546,14 @@ class HomeUiStateMachineImpl(
           uiState = uiState.copy(presentedScreen = null)
         }
       )
+      KeysetRepair -> navigatorPresenter.model(
+        initialScreen = KeysetRepairScreen(
+          account = props.account as FullAccount
+        ),
+        onExit = {
+          uiState = uiState.copy(presentedScreen = null)
+        }
+      )
     }
   }
 }
@@ -628,6 +638,9 @@ private sealed interface PresentedScreen {
 
   /** Indicates that the recovery channel settings screen is being displayed */
   data object RecoveryChannelSettings : PresentedScreen
+
+  /** Indicates that the keyset repair flow is being displayed */
+  data object KeysetRepair : PresentedScreen
 }
 
 /**

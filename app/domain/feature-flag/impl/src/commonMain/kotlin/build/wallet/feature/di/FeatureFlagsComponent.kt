@@ -103,11 +103,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun encryptedDescriptorUploadFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    EncryptedDescriptorSupportUploadFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun atRiskNotificationsFeatureFlag(featureFlagDao: FeatureFlagDao) =
     AtRiskNotificationsFeatureFlag(featureFlagDao)
 
@@ -181,11 +176,20 @@ interface FeatureFlagsComponent {
     appVariant: AppVariant,
   ) = AgeRangeVerificationFeatureFlag(featureFlagDao, appVariant)
 
-
   @Provides
   @SingleIn(AppScope::class)
   fun cloudBackupHealthLoggingFeatureFlag(featureFlagDao: FeatureFlagDao) =
     CloudBackupHealthLoggingFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun augurFeesEstimationFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    AugurFeesEstimationFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun keysetRepairFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    KeysetRepairFeatureFlag(featureFlagDao)
 
   @Provides
   fun featureFlags(
@@ -204,7 +208,6 @@ interface FeatureFlagsComponent {
     fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
     fingerprintResetMinFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
-    encryptedDescriptorSupportUploadFeatureFlag: EncryptedDescriptorSupportUploadFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
     chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
     onboardingCompletionFailsafeFeatureFlag: OnboardingCompletionFailsafeFeatureFlag,
@@ -222,6 +225,8 @@ interface FeatureFlagsComponent {
     cashAppFeePromotionFeatureFlag: CashAppFeePromotionFeatureFlag,
     bip177FeatureFlag: Bip177FeatureFlag,
     cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
+    augurFeesEstimationFeatureFlag: AugurFeesEstimationFeatureFlag,
+    keysetRepairFeatureFlag: KeysetRepairFeatureFlag,
     ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
@@ -237,7 +242,6 @@ interface FeatureFlagsComponent {
       chaincodeDelegationFeatureFlag,
       onboardingCompletionFailsafeFeatureFlag,
       txVerificationFeatureFlag,
-      encryptedDescriptorSupportUploadFeatureFlag,
       appUpdateModalFeatureFlag,
       privateWalletMigrationFeatureFlag,
       replaceFullWithLiteAccountFeatureFlag,
@@ -248,6 +252,8 @@ interface FeatureFlagsComponent {
       publicCustomerSupportFeatureFlag,
       sharedCloudBackupsFeatureFlag,
       cashAppFeePromotionFeatureFlag,
+      augurFeesEstimationFeatureFlag,
+      keysetRepairFeatureFlag,
       ageRangeVerificationFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
@@ -259,7 +265,7 @@ interface FeatureFlagsComponent {
       firmwareCommsLoggingFeatureFlag,
       asyncNfcSigningFeatureFlag,
       bip177FeatureFlag,
-      cloudBackupHealthLoggingFeatureFlag,
+      cloudBackupHealthLoggingFeatureFlag
     )
   }
 }

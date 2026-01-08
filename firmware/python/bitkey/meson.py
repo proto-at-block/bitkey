@@ -5,6 +5,7 @@ import shlex
 import pathlib
 import subprocess
 from shutil import copyfile
+from typing import Optional
 
 import lib.ipc.ipc_codegen as ipc_codegen
 
@@ -86,14 +87,27 @@ option('config_prod', type : 'boolean', value : false)
 
 
 class MesonBuild:
-    def __init__(self, invoke_context, platform=None, build_dir=BUILD_FW_DIR, ignore_codegen_cache=False, target=None):
+    def __init__(
+        self,
+        invoke_context,
+        platform: Optional[str] = None,
+        build_dir: Optional[str] = None,
+        ignore_codegen_cache: bool = False,
+        target: Optional[str] = None
+    ):
         self._ctx = invoke_context
-        self._build_dir = build_dir.absolute()
         self._ignore_codegen_cache = ignore_codegen_cache
         self._platform = platform if platform else self._ctx.platform
+        self._build_dir = build_dir.absolute() if build_dir else \
+            BUILD_ROOT_DIR.joinpath("firmware", self._platform).absolute()
         self._platforms = Platforms()
         self._target = target if target else self._ctx.target
         self._targets = None
+
+        # Update context to reflect the target of the build.
+        self._ctx.platform = self._platform
+        self._ctx.target = self._target
+
         self._build_options = BuildOptions(self._ctx, self._build_dir)
 
     def setup(self):
@@ -109,8 +123,8 @@ class MesonBuild:
         return self._targets
 
     @property
-    def target(self) -> Target:
-        return Target(self._target)
+    def target(self) -> Optional[Target]:
+        return Target(self._target) if self._target else None
 
     @property
     def platform(self) -> dict:
@@ -119,7 +133,7 @@ class MesonBuild:
 
     @cached_property
     def deprecated_hw_revisions(self) -> list:
-        return self.platform['deprecated_hw_revisions']
+        return self.platform.get('deprecated_hw_revisions', [])
 
     @property
     def is_bootloader(self) -> bool:
@@ -143,17 +157,17 @@ class MesonBuild:
 
         if dev_targets:
             self._build_options.configure(BuildVariant.DEV)
-            self._build_firmware(dev_targets, platform_config, verbose)
+            self._build_firmware(dev_targets, platform_config, verbose, all_targets)
 
         if prod_targets:
             self._build_options.configure(BuildVariant.PROD)
-            self._build_firmware(prod_targets, platform_config, verbose)
+            self._build_firmware(prod_targets, platform_config, verbose, all_targets)
 
-    def _build_firmware(self, targets, platform_config, verbose):
+    def _build_firmware(self, targets, platform_config, verbose, all_targets=False):
         with self._ctx.cd(self._build_dir):
-            if platform_config["bootloader_required"]:
+            if platform_config["bootloader_required"] and not all_targets:
                 loader_name = platform_config["bootloader_image"]
-                loader_target = Target(self._ctx.target).loader(loader_name)
+                loader_target = Target(self._target).loader(loader_name)
                 if loader_target:
                     targets.append(str(loader_target.elf))
 

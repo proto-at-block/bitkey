@@ -4,10 +4,10 @@ srcs = [
   'src/secutils_memzero.c',
 ]
 
-# only add FreeRTOS hooks for embedded app
-if system == 'efr32mg24'
+# only add RTOS hooks for embedded app
+if embedded_build
   app_srcs = ['port-application/secure_glitch_random_delay.c']
-  app_deps = [assert_dep, helpers_dep, mcu_efr32xg24_dep]
+  app_deps = [assert_dep, helpers_dep, mcu_dep, rtos_dep]
 else
   app_srcs = ['port-bootloader/secure_glitch_random_delay.c']
   app_deps = [assert_dep, helpers_dep]

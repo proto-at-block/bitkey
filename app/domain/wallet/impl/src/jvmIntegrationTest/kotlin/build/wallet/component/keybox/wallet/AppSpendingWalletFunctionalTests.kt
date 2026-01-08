@@ -5,10 +5,12 @@ import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
+import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeLessThan
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -78,12 +80,12 @@ class AppSpendingWalletFunctionalTests : FunSpec({
               .shouldNotBeNull().address.shouldBe(fundingResult.depositAddress.address)
             tx.fee
               .shouldNotBeNull()
-              .shouldBe(fundingResult.tx.fee)
+              .shouldBe(fundingResult.tx.fee.amount)
             tx.subtotal.fractionalUnitValue.shouldBe(
               fundingResult.tx.amountSats.toBigInteger()
             )
             tx.total.fractionalUnitValue.shouldBe(
-              fundingResult.tx.amountSats.toBigInteger() + fundingResult.tx.fee.fractionalUnitValue
+              fundingResult.tx.amountSats.toBigInteger() + fundingResult.tx.fee.amount.fractionalUnitValue
             )
             tx.transactionType.shouldBe(Incoming)
           }
@@ -104,11 +106,15 @@ class AppSpendingWalletFunctionalTests : FunSpec({
         val appAndHwSignedPsbt =
           app.nfcTransactor.fakeTransact(
             transaction = { session, commands ->
-              commands.signTransaction(
+              val result = commands.signTransaction(
                 session = session,
                 psbt = appSignedPsbt,
                 spendingKeyset = account.keybox.activeSpendingKeyset
               )
+              when (result) {
+                is HardwareInteraction.Completed<Psbt> -> result.result
+                else -> error("Unexpected result $result")
+              }
             }
           ).getOrThrow()
         appAndHwSignedPsbt.amountSats.shouldBe(5_000UL)

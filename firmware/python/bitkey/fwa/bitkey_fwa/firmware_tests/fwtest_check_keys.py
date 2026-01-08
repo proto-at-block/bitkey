@@ -16,6 +16,7 @@ class KeyChecks(bitkey_fwa.TestCase):
     """Check that various keys are present and establish a root of trust"""
 
     @bitkey_fwa.asset("app")
+    @bitkey_fwa.product("w1a")
     def fwtest_verify_delta_patch_pubkey(self):
         """"Verify the delta patch pubkey"""
 

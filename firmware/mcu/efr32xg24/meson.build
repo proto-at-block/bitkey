@@ -3,10 +3,10 @@ private_includes = [
   'inc_priv',
   'src',
   'gecko-cfg',
+  mcu_common_includes,
   gecko_sdk_includes,
   rtos_includes,
   config_includes,
-  freertos_includes,
   printf_includes,
   perf_includes,
   helpers_includes,
@@ -36,6 +36,7 @@ mcu_srcs = [
   'src/mcu_reset.c',
   'src/mcu_smu.c',
   'src/mcu_wdog.c',
+  'src/mcu_temperature.c',
 ]
 
 # only add FreeRTOS hooks for embedded app
@@ -73,7 +74,12 @@ gecko_sdk_srcs = [
 ]
 
 deps = [assert_dep, freertos_dep]
-mcu_efr32xg24_includes = include_directories('inc')
+mcu_efr32xg24_includes = [
+  include_directories('inc'),
+  include_directories('gecko-cfg'),
+  mcu_common_includes,
+  gecko_sdk_includes,
+]
 
 mcu_efr32xg24_lib = library('mcu-efr32xg24',
   mcu_srcs,
@@ -86,11 +92,9 @@ mcu_efr32xg24_lib = library('mcu-efr32xg24',
 
 mcu_efr32xg24_dep = declare_dependency(
   link_with : mcu_efr32xg24_lib,
-  include_directories : private_includes,  # TODO: Change this to the below line.
+  include_directories : private_includes,
   dependencies : deps,
-  # include_directories : ['inc']
 )
-
 
 mcu_efr32xg24_bl_lib = library('mcu-efr32xg24-bl',
   mcu_srcs,
@@ -103,7 +107,6 @@ mcu_efr32xg24_bl_lib = library('mcu-efr32xg24-bl',
 
 mcu_efr32xg24_bl_dep = declare_dependency(
   link_with : mcu_efr32xg24_bl_lib,
-  include_directories : private_includes,  # TODO: Change this to the below line.
+  include_directories : private_includes,
   dependencies : deps,
-  # include_directories : ['inc']
 )

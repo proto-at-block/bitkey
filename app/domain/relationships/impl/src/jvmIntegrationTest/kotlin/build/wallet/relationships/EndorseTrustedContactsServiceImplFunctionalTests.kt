@@ -98,7 +98,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
         hardwareProofOfPossession = app.getHardwareFactorProofOfPossession(),
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
-      .getOrThrow()
+      .getOrThrow { it.cause }
     // Delete the invitation since we'll be adding it back as an unendorsed trusted contact.
     relationshipsF8eClientFake.deleteInvitation(invite.invitation.relationshipId)
 

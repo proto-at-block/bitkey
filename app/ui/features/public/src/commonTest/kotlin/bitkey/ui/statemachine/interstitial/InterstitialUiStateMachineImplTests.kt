@@ -31,6 +31,7 @@ class InterstitialUiStateMachineImplTests : FunSpec({
   test("default screen model is null") {
     stateMachine().test(props = props) {
       awaitItem().shouldBeNull()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 

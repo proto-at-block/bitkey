@@ -152,6 +152,7 @@ private fun getExpectedPartners(f8eEnvironment: F8eEnvironment): List<PartnerInf
   return when (f8eEnvironment) {
     F8eEnvironment.Production -> listOf(
       CASH_APP,
+      STRIKE,
       COINBASE,
       ROBINHOOD,
       MOONPAY,

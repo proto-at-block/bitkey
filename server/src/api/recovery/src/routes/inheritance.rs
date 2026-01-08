@@ -11,7 +11,7 @@ use account::service::{FetchAccountInput, Service as AccountService};
 use analytics::{
     destination::tracker::Tracker,
     log_server_event,
-    routes::definitions::{ServerAction, ServerEvent, ServerInheritanceInfo},
+    routes::definitions::{ActionServer, ServerEvent, ServerInheritanceInfo},
 };
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::{generate_electrum_rpc_uris, TransactionBroadcasterTrait};
@@ -175,10 +175,10 @@ async fn log_inheritance_event(tracker: Tracker, account_id: AccountId, claim: &
         claim_id: claim.common_fields().id.to_string(),
     };
     let action = match claim {
-        InheritanceClaim::Pending(_) => ServerAction::ActionServerInheritanceClaimSubmitted,
-        InheritanceClaim::Completed(_) => ServerAction::ActionServerInheritanceClaimCompleted,
-        InheritanceClaim::Canceled(_) => ServerAction::ActionServerInheritanceClaimDenied,
-        _ => ServerAction::ActionServerUnspecified,
+        InheritanceClaim::Pending(_) => ActionServer::InheritanceClaimSubmitted,
+        InheritanceClaim::Completed(_) => ActionServer::InheritanceClaimCompleted,
+        InheritanceClaim::Canceled(_) => ActionServer::InheritanceClaimDenied,
+        _ => ActionServer::Unspecified,
     };
     let event = ServerEvent {
         action: action.into(),

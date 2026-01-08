@@ -7,15 +7,15 @@ use time::OffsetDateTime;
 
 // Internal crate imports
 use crate::tests::{
-    gen_services, lib::create_default_account_with_predefined_wallet, requests::axum::TestClient,
+    gen_services,
+    lib::{create_default_account_with_predefined_wallet, wallet_protocol::setup_fixture},
+    requests::axum::TestClient,
 };
 
 // Workspace crate imports
+use crate::tests::lib::wallet_protocol::{build_app_signed_psbt_for_protocol, WalletTestProtocol};
 use account::service::FetchAccountInput;
-use bdk_utils::bdk::{
-    wallet::{get_funded_wallet, AddressIndex},
-    FeeRate,
-};
+use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex};
 use transaction_verification::routes::InitiateTransactionVerificationRequest;
 use transaction_verification::routes::ProcessTransactionVerificationTokenRequest;
 use types::{
@@ -217,16 +217,19 @@ async fn update_transaction_verification_policy_test(
     }
 }
 
+#[rstest]
+#[case(WalletTestProtocol::Legacy)]
+#[case(WalletTestProtocol::PrivateCcd)]
 #[tokio::test]
-async fn transaction_verification_with_threshold_under_limit_approved_by_wsm() {
+async fn transaction_verification_with_threshold_under_limit_approved_by_wsm(
+    #[case] protocol: WalletTestProtocol,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let (account, wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
 
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
     // Set transaction verification policy to $1000 threshold
@@ -238,7 +241,7 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm() {
 
     client
         .update_transaction_verification_policy(
-            &account.id,
+            &fixture.account.id,
             true, // app signed only
             false,
             &keys,
@@ -252,18 +255,15 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm() {
     // This is a test PSBT that sends 1000 sats
     let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
     let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
-    let mut builder = wallet.build_tx();
-    builder
-        .add_recipient(
-            recipient_address.script_pubkey(),
-            get_unique_test_amount(1000),
-        )
-        .fee_rate(FeeRate::default_min_relay_fee());
-    let (mut psbt, _) = builder.finish().unwrap();
-    wallet.sign(&mut psbt, Default::default()).unwrap();
+    let psbt = build_app_signed_psbt_for_protocol(
+        &fixture,
+        recipient_address,
+        get_unique_test_amount(1000),
+        &[],
+    );
 
     // Use the active keyset from the account
-    let signing_keyset_id = account.active_keyset_id;
+    let signing_keyset_id = fixture.signing_keyset_id;
 
     // Initiate transaction verification
     let request = InitiateTransactionVerificationRequest {
@@ -275,7 +275,7 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm() {
     };
 
     let resp = client
-        .initiate_transaction_verification(&account.id, &keys, &request)
+        .initiate_transaction_verification(&fixture.account.id, &keys, &request)
         .await;
 
     // Verify the response
@@ -288,22 +288,28 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm() {
             assert!(!hw_grant.commitment.is_empty());
             assert!(!hw_grant.reverse_hash_chain.is_empty());
             assert!(!hw_grant.signature.to_string().is_empty());
-            assert_eq!(hw_grant.hw_auth_public_key, account.hardware_auth_pubkey);
+            assert_eq!(
+                hw_grant.hw_auth_public_key,
+                fixture.account.hardware_auth_pubkey
+            );
         }
         _ => panic!("Expected transaction to be signed without verification"),
     }
 }
 
+#[rstest]
+#[case(WalletTestProtocol::Legacy)]
+#[case(WalletTestProtocol::PrivateCcd)]
 #[tokio::test]
-async fn transaction_verification_with_threshold_over_limit_requires_verification() {
+async fn transaction_verification_with_threshold_over_limit_requires_verification(
+    #[case] protocol: WalletTestProtocol,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let (account, wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
 
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
     // Set transaction verification policy to ALWAYS
@@ -311,7 +317,7 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
 
     client
         .update_transaction_verification_policy(
-            &account.id,
+            &fixture.account.id,
             true, // app signed only
             false,
             &keys,
@@ -323,27 +329,24 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
 
     let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
     let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
-    let mut builder = wallet.build_tx();
-    builder
-        .add_recipient(
-            recipient_address.script_pubkey(),
-            get_unique_test_amount(1000),
-        )
-        .fee_rate(FeeRate::default_min_relay_fee());
-    let (mut psbt, _) = builder.finish().unwrap();
-    wallet.sign(&mut psbt, Default::default()).unwrap();
+    let psbt = build_app_signed_psbt_for_protocol(
+        &fixture,
+        recipient_address,
+        get_unique_test_amount(1000),
+        &[],
+    );
 
     // Initiate transaction verification
     let request = InitiateTransactionVerificationRequest {
         psbt: psbt.to_string(),
         fiat_currency: USD,
         bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
-        signing_keyset_id: account.active_keyset_id,
+        signing_keyset_id: fixture.signing_keyset_id,
         should_prompt_user: true,
     };
 
     let resp = client
-        .initiate_transaction_verification(&account.id, &keys, &request)
+        .initiate_transaction_verification(&fixture.account.id, &keys, &request)
         .await;
 
     // Verify the response
@@ -363,7 +366,7 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
     };
 
     let check_resp = client
-        .check_transaction_verification(&account.id, &verification_id, &keys)
+        .check_transaction_verification(&fixture.account.id, &verification_id, &keys)
         .await;
     match check_resp.body.unwrap() {
         TransactionVerificationView::Pending => (),
@@ -378,22 +381,48 @@ enum TokenType {
 }
 
 #[rstest]
-#[case::random_token(TokenType::RandomToken, StatusCode::BAD_REQUEST)]
-#[case::confirmation_token(TokenType::ConfirmationToken, StatusCode::OK)]
-#[case::cancellation_token(TokenType::CancellationToken, StatusCode::OK)]
+#[case::legacy(
+    TokenType::RandomToken,
+    StatusCode::BAD_REQUEST,
+    WalletTestProtocol::Legacy
+)]
+#[case::legacy_confirm(
+    TokenType::ConfirmationToken,
+    StatusCode::OK,
+    WalletTestProtocol::Legacy
+)]
+#[case::legacy_cancel(
+    TokenType::CancellationToken,
+    StatusCode::OK,
+    WalletTestProtocol::Legacy
+)]
+#[case::private(
+    TokenType::RandomToken,
+    StatusCode::BAD_REQUEST,
+    WalletTestProtocol::PrivateCcd
+)]
+#[case::private_confirm(
+    TokenType::ConfirmationToken,
+    StatusCode::OK,
+    WalletTestProtocol::PrivateCcd
+)]
+#[case::private_cancel(
+    TokenType::CancellationToken,
+    StatusCode::OK,
+    WalletTestProtocol::PrivateCcd
+)]
 #[tokio::test]
 async fn transaction_verification_verification_flow_test(
     #[case] use_token_type: TokenType,
     #[case] expected_status: StatusCode,
+    #[case] protocol: WalletTestProtocol,
 ) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let (account, wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
 
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
     // Set transaction verification policy to ALWAYS
@@ -401,7 +430,7 @@ async fn transaction_verification_verification_flow_test(
 
     client
         .update_transaction_verification_policy(
-            &account.id,
+            &fixture.account.id,
             true, // app signed only
             false,
             &keys,
@@ -413,27 +442,24 @@ async fn transaction_verification_verification_flow_test(
 
     let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
     let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
-    let mut builder = wallet.build_tx();
-    builder
-        .add_recipient(
-            recipient_address.script_pubkey(),
-            get_unique_test_amount(1000),
-        )
-        .fee_rate(FeeRate::default_min_relay_fee());
-    let (mut psbt, _) = builder.finish().unwrap();
-    wallet.sign(&mut psbt, Default::default()).unwrap();
+    let psbt = build_app_signed_psbt_for_protocol(
+        &fixture,
+        recipient_address,
+        get_unique_test_amount(1000),
+        &[],
+    );
 
     // Initiate transaction verification
     let request = InitiateTransactionVerificationRequest {
         psbt: psbt.to_string(),
         fiat_currency: USD,
         bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
-        signing_keyset_id: account.active_keyset_id,
+        signing_keyset_id: fixture.signing_keyset_id,
         should_prompt_user: true,
     };
 
     let resp = client
-        .initiate_transaction_verification(&account.id, &keys, &request)
+        .initiate_transaction_verification(&fixture.account.id, &keys, &request)
         .await;
 
     // Verify the response
@@ -455,7 +481,7 @@ async fn transaction_verification_verification_flow_test(
     let Ok(TransactionVerification::Pending(pending)) = bootstrap
         .services
         .transaction_verification_service
-        .fetch(&account.id, &verification_id)
+        .fetch(&fixture.account.id, &verification_id)
         .await
     else {
         panic!("Expected verification to be pending");
@@ -489,7 +515,7 @@ async fn transaction_verification_verification_flow_test(
     let response = bootstrap
         .services
         .transaction_verification_service
-        .fetch(&account.id, &verification_id)
+        .fetch(&fixture.account.id, &verification_id)
         .await
         .expect("Failed to fetch verification");
     assert_eq!(
@@ -498,16 +524,19 @@ async fn transaction_verification_verification_flow_test(
     );
 }
 
+#[rstest]
+#[case(WalletTestProtocol::Legacy)]
+#[case(WalletTestProtocol::PrivateCcd)]
 #[tokio::test]
-async fn transaction_verification_requires_verification_idempotent() {
+async fn transaction_verification_requires_verification_idempotent(
+    #[case] protocol: WalletTestProtocol,
+) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let (account, wallet) =
-        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
-            .await;
+    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
 
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
     // Set transaction verification policy to ALWAYS
@@ -515,7 +544,7 @@ async fn transaction_verification_requires_verification_idempotent() {
 
     client
         .update_transaction_verification_policy(
-            &account.id,
+            &fixture.account.id,
             true, // app signed only
             false,
             &keys,
@@ -527,27 +556,24 @@ async fn transaction_verification_requires_verification_idempotent() {
 
     let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
     let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
-    let mut builder = wallet.build_tx();
-    builder
-        .add_recipient(
-            recipient_address.script_pubkey(),
-            get_unique_test_amount(1000),
-        )
-        .fee_rate(FeeRate::default_min_relay_fee());
-    let (mut psbt, _) = builder.finish().unwrap();
-    wallet.sign(&mut psbt, Default::default()).unwrap();
+    let psbt = build_app_signed_psbt_for_protocol(
+        &fixture,
+        recipient_address,
+        get_unique_test_amount(1000),
+        &[],
+    );
 
     // Initiate transaction verification
     let request = InitiateTransactionVerificationRequest {
         psbt: psbt.to_string(),
         fiat_currency: USD,
         bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
-        signing_keyset_id: account.active_keyset_id,
+        signing_keyset_id: fixture.signing_keyset_id,
         should_prompt_user: true,
     };
 
     let resp = client
-        .initiate_transaction_verification(&account.id, &keys, &request)
+        .initiate_transaction_verification(&fixture.account.id, &keys, &request)
         .await;
 
     // Verify the response
@@ -567,7 +593,7 @@ async fn transaction_verification_requires_verification_idempotent() {
     };
 
     let idempotent_resp = client
-        .initiate_transaction_verification(&account.id, &keys, &request)
+        .initiate_transaction_verification(&fixture.account.id, &keys, &request)
         .await;
 
     // Verify the response

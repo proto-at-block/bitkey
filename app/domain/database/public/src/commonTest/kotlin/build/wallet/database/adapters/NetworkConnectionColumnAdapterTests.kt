@@ -65,6 +65,22 @@ class NetworkConnectionColumnAdapterTests : FunSpec({
     }
   }
 
+  context("Augur Fees Network Connection") {
+    val connection = NetworkConnection.HttpClientNetworkConnection.AugurFees
+    val dbValue =
+      """
+      {"type":"build.wallet.availability.NetworkConnection.HttpClientNetworkConnection.AugurFees"}
+      """.trimIndent()
+
+    test("decode from string") {
+      NetworkConnectionColumnAdapter.decode(dbValue).shouldBe(connection)
+    }
+
+    test("encode as string") {
+      NetworkConnectionColumnAdapter.encode(connection).shouldBe(dbValue)
+    }
+  }
+
   context("F8e Network Connection") {
     fun connection(environment: F8eEnvironment) =
       NetworkConnection.HttpClientNetworkConnection.F8e(environment)

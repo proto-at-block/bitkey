@@ -51,7 +51,9 @@ class AgeSignalsServiceImpl(
         AgeSignalsResponse.Error(errorCode = e.errorCodeName(), message = e.message, cause = e)
       } catch (e: CancellationException) {
         throw e
-      } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+      } catch (
+        @Suppress("TooGenericExceptionCaught") e: Exception,
+      ) {
         AgeSignalsResponse.Error(errorCode = "UNEXPECTED", message = e.message, cause = e)
       }
     }

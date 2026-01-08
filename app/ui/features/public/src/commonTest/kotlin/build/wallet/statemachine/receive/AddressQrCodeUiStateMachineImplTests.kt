@@ -23,7 +23,7 @@ import build.wallet.platform.sharing.SharingManagerMock.SharedText
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
-import build.wallet.statemachine.qr.QrCodeServiceImpl
+import build.wallet.statemachine.qr.QrCodeServiceFake
 import build.wallet.statemachine.qr.QrCodeState
 import build.wallet.statemachine.root.RestoreCopyAddressStateDelay
 import build.wallet.statemachine.ui.awaitBody
@@ -48,7 +48,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   val sharingManager = SharingManagerMock(turbines::create)
   val bitcoinAddressService = BitcoinAddressServiceFake()
   val themePreferenceService = ThemePreferenceServiceFake()
-  val qrCodeService = QrCodeServiceImpl()
+  val qrCodeService = QrCodeServiceFake()
   val getTransferPartnerListF8eClient = GetTransferPartnerListF8eClientMock(turbines::create)
   val getTransferRedirectF8eClient = GetTransferRedirectF8eClientMock(turbines::create)
   val partnershipTransactionsService = PartnershipTransactionsServiceMock(
@@ -94,6 +94,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     bitcoinAddressService.reset()
+    qrCodeService.reset()
     themePreferenceService.clearThemePreference()
     getTransferPartnerListF8eClient.reset()
     getTransferRedirectF8eClient.reset()

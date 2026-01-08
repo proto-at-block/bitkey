@@ -15,10 +15,6 @@ fwup_bundle:
       signature:
         name: {{application_a_name}}.detached_signature
   parameters:
-    wca_chunk_size: 452
-    # 632K - 64.
-    # Application slot size minus signature size.
-    # This is tied to partitions.yml (sizes, and signature location), and MUST match it.
-    signature_offset: 647104
-    # Also from partitions.yml. MUST match.
-    app_properties_offset: 1024
+    wca_chunk_size: {{fwup_params.chunk_size}}
+    signature_offset: {{fwup_params.signature_offset}}
+    app_properties_offset: {{fwup_params.app_props_offset}}

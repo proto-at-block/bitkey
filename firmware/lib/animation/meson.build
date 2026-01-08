@@ -16,13 +16,3 @@ animation_dep = declare_dependency(
   include_directories : includes,
   dependencies : deps,
 )
-
-animation_cmd_lib = library('animation-cmd',
-  'animation_cmd.c',
-  include_directories : includes,
-  dependencies : [deps, shell_dep, ipc_dep],
-)
-animation_cmd_dep = declare_dependency(
-  link_whole : animation_cmd_lib,
-  dependencies : [deps, shell_dep],
-)

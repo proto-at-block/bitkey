@@ -1,241 +1,251 @@
-#include "criterion_test_utils.h"
-#include "ecc.h"
-#include "fff.h"
-#include "hash.h"
+#include "aes.h"
 #include "hex.h"
-#include "ripemd160_impl.h"
-#include "secp256k1.h"
-#include "secp256k1_extrakeys.h"
-#include "secp256k1_preallocated.h"
-#include "secp256k1_schnorrsig.h"
+#include "key_management.h"
+#include "log.h"
 #include "secure_rng.h"
 
-#include <criterion/criterion.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
-DEFINE_FFF_GLOBALS;
-FAKE_VALUE_FUNC(bool, crypto_hkdf, key_handle_t*, hash_alg_t, uint8_t*, size_t, uint8_t*, size_t,
-                key_handle_t*);
-FAKE_VALUE_FUNC(bool, export_pubkey, key_handle_t*, key_handle_t*);
+static bool test_gcm_vector(const char* name, const uint8_t* key_bytes, const uint8_t* iv,
+                            const uint8_t* plaintext, size_t pt_len, const uint8_t* aad,
+                            size_t aad_len, const uint8_t* expected_ciphertext,
+                            const uint8_t* expected_tag) {
+  ASSERT(pt_len <= 64);
+  uint8_t ciphertext[64] = {0};
+  uint8_t decrypted[64] = {0};
+  uint8_t tag[AES_GCM_TAG_LENGTH] = {0};
 
-static int fill_random(unsigned char* data, size_t size) {
-  memset(data, 'a', size);
-  return 1;
-}
-
-// NOTE: This test is almost entirely copied from the schnorr example in libsecp256k1.
-Test(crypto_test, schnorr_roundtrip) {
-  unsigned char msg_hash[32] = {
-    0x31, 0x5F, 0x5B, 0xDB, 0x76, 0xD0, 0x78, 0xC4, 0x3B, 0x8A, 0xC0, 0x06, 0x4E, 0x4A, 0x01, 0x64,
-    0x61, 0x2B, 0x1F, 0xCE, 0x77, 0xC8, 0x69, 0x34, 0x5B, 0xFC, 0x94, 0xC7, 0x58, 0x94, 0xED, 0xD3,
-  };
-  unsigned char seckey[32];
-  unsigned char randomize[32];
-  unsigned char auxiliary_rand[32];
-  unsigned char serialized_pubkey[32];
-  unsigned char signature[64];
-  int is_signature_valid;
-  int return_val;
-  secp256k1_xonly_pubkey pubkey;
-  secp256k1_keypair keypair;
-  /* The specification in secp256k1_extrakeys.h states that `secp256k1_keypair_create`
-   * needs a context object initialized for signing. And in secp256k1_schnorrsig.h
-   * they state that `secp256k1_schnorrsig_verify` needs a context initialized for
-   * verification, which is why we create a context for both signing and verification
-   * with the SECP256K1_CONTEXT_SIGN and SECP256K1_CONTEXT_VERIFY flags. */
-  secp256k1_context* ctx =
-    secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-  if (!fill_random(randomize, sizeof(randomize))) {
-    printf("Failed to generate randomness\n");
-    return;
-  }
-  /* Randomizing the context is recommended to protect against side-channel
-   * leakage See `secp256k1_context_randomize` in secp256k1.h for more
-   * information about it. This should never fail. */
-  return_val = secp256k1_context_randomize(ctx, randomize);
-  cr_assert(return_val);
-
-  /*** Key Generation ***/
-
-  /* If the secret key is zero or out of range (bigger than secp256k1's
-   * order), we try to sample a new key. Note that the probability of this
-   * happening is negligible. */
-  while (1) {
-    if (!fill_random(seckey, sizeof(seckey))) {
-      printf("Failed to generate randomness\n");
-      return;
-    }
-    /* Try to create a keypair with a valid context, it should only fail if
-     * the secret key is zero or out of range. */
-    if (secp256k1_keypair_create(ctx, &keypair, seckey)) {
-      break;
-    }
-  }
-
-  /* Extract the X-only public key from the keypair. We pass NULL for
-   * `pk_parity` as the parity isn't needed for signing or verification.
-   * `secp256k1_keypair_xonly_pub` supports returning the parity for
-   * other use cases such as tests or verifying Taproot tweaks.
-   * This should never fail with a valid context and public key. */
-  return_val = secp256k1_keypair_xonly_pub(ctx, &pubkey, NULL, &keypair);
-  cr_assert(return_val);
-
-  /* Serialize the public key. Should always return 1 for a valid public key. */
-  return_val = secp256k1_xonly_pubkey_serialize(ctx, serialized_pubkey, &pubkey);
-  cr_assert(return_val);
-
-  /*** Signing ***/
-
-  /* Generate 32 bytes of randomness to use with BIP-340 schnorr signing. */
-  if (!fill_random(auxiliary_rand, sizeof(auxiliary_rand))) {
-    printf("Failed to generate randomness\n");
-    return;
-  }
-
-  /* Generate a Schnorr signature.
-   *
-   * We use the secp256k1_schnorrsig_sign32 function that provides a simple
-   * interface for signing 32-byte messages (which in our case is a hash of
-   * the actual message). BIP-340 recommends passing 32 bytes of randomness
-   * to the signing function to improve security against side-channel attacks.
-   * Signing with a valid context, a 32-byte message, a verified keypair, and
-   * any 32 bytes of auxiliary random data should never fail. */
-  return_val = secp256k1_schnorrsig_sign32(ctx, signature, msg_hash, &keypair, auxiliary_rand);
-  cr_assert(return_val);
-
-  /*** Verification ***/
-
-  /* Deserialize the public key. This will return 0 if the public key can't
-   * be parsed correctly */
-  if (!secp256k1_xonly_pubkey_parse(ctx, &pubkey, serialized_pubkey)) {
-    printf("Failed parsing the public key\n");
-    return;
-  }
-
-  /* Verify a signature. This will return 1 if it's valid and 0 if it's not. */
-  is_signature_valid = secp256k1_schnorrsig_verify(ctx, signature, msg_hash, 32, &pubkey);
-
-  printf("Is the signature valid? %s\n", is_signature_valid ? "true" : "false");
-  printf("Secret Key: ");
-  dumphex(seckey, sizeof(seckey));
-  printf("Public Key: ");
-  dumphex(serialized_pubkey, sizeof(serialized_pubkey));
-  printf("Signature: ");
-  dumphex(signature, sizeof(signature));
-
-  /* This will clear everything from the context and free the memory */
-  secp256k1_context_destroy(ctx);
-
-  /* It's best practice to try to clear secrets from memory after using them.
-   * This is done because some bugs can allow an attacker to leak memory, for
-   * example through "out of bounds" array access (see Heartbleed), Or the OS
-   * swapping them to disk. Hence, we overwrite the secret key buffer with zeros.
-   *
-   * TODO: Prevent these writes from being optimized out, as any good compiler
-   * will remove any writes that aren't used. */
-  memset(seckey, 0, sizeof(seckey));
-}
-
-Test(crypto_test, ripemd160) {
-  unsigned char data[] = "abc";
-  uint8_t digest[20] = {0};
-  cr_assert(mbedtls_ripemd160(data, strlen((char*)data), digest));
-
-  uint8_t expected[] = {
-    0x8e, 0xb2, 0x08, 0xf7, 0xe0, 0x5d, 0x98, 0x7a, 0x9b, 0x04,
-    0x4a, 0x8e, 0x98, 0xc6, 0xb0, 0x87, 0xf1, 0x5a, 0x0b, 0xfc,
-  };
-
-  cr_util_cmp_buffers(digest, expected, sizeof(expected));
-}
-
-Test(crypto_test, crypto_ecc_validate_private_key_p256) {
-  uint8_t zeros[ECC_PRIVKEY_SIZE] = {0};
+  // The key bytes get attached to a key_handle struct so technically we cant guarantee const
+  uint8_t key_local[AES_256_LENGTH_BYTES];
+  memcpy(key_local, key_bytes, AES_256_LENGTH_BYTES);
 
   key_handle_t key = {
-    .alg = ALG_ECC_P256,
-    .key.bytes = zeros,
-    .key.size = ECC_PRIVKEY_SIZE,
-    .acl = SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY | SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY,
+    .alg = ALG_AES_256,
+    .storage_type = KEY_STORAGE_EXTERNAL_PLAINTEXT,
+    .key.bytes = key_local,
+    .key.size = 32,
   };
 
-  // All-zero is invalid
-  cr_assert(crypto_ecc_validate_private_key(&key) == false);
-
-  // Greater than curve order is invalid
-  uint8_t p256_n[] = {
-    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84, 0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51,
-  };
-  key.key.bytes = p256_n;
-
-  // Pick a random byte, add a random value to it. All of these should be invalid.
-  for (int i = 0; i < 100000; i++) {
-    uint8_t random_byte = rand() % ECC_PRIVKEY_SIZE;
-
-    // Must ensure no overflow.
-    uint8_t random_value = rand() % (256 - p256_n[random_byte]);
-    key.key.bytes[random_byte] += random_value;
-
-    cr_assert(crypto_ecc_validate_private_key(&key) == false);
-
-    // Reset
-    key.key.bytes[random_byte] -= random_value;
+  // Test encryption
+  if (!aes_gcm_encrypt(plaintext, ciphertext, pt_len, iv, tag, aad, aad_len, &key)) {
+    LOGE("%s FAILED: encryption failed\n", name);
+    return false;
   }
 
-  // Within 0 to curve order is valid
-
-  // Pick a random byte, subtract a random value from it. All of these should be valid.
-  for (int i = 0; i < 100000; i++) {
-    uint8_t random_byte = rand() % ECC_PRIVKEY_SIZE;
-    uint8_t random_value = (rand() % (p256_n[random_byte] + 1));
-
-    if (p256_n[random_byte] == 0 || random_value == 0) {
-      continue;
-    }
-
-    key.key.bytes[random_byte] -= random_value;
-    cr_assert(crypto_ecc_validate_private_key(&key) == true);
-    key.key.bytes[random_byte] += random_value;
+  if (pt_len > 0 && memcmp(ciphertext, expected_ciphertext, pt_len) != 0) {
+    LOGE("%s FAILED: ciphertext mismatch", name);
+    printf("  Expected: ");
+    dumphex(expected_ciphertext, pt_len);
+    printf("  Got:      ");
+    dumphex(ciphertext, pt_len);
+    return false;
   }
 
-  // Generate a bunch of private keys. Probabilistically, they should all be valid.
-
-#if 0
-  const uint32_t loops = 10000000;  // 10 million
-#endif
-  // Don't try so many loops in CI
-  const uint32_t loops = 10000;
-
-  for (int i = 0; i < loops; i++) {
-    uint8_t random_bytes[ECC_PRIVKEY_SIZE] = {0};
-    cr_assert(crypto_random(random_bytes, ECC_PRIVKEY_SIZE));
-
-    key.key.bytes = random_bytes;
-
-    cr_assert(crypto_ecc_validate_private_key(&key));
+  if (memcmp(tag, expected_tag, 16) != 0) {
+    LOGE("%s FAILED: tag mismatch", name);
+    printf("  Expected: ");
+    dumphex(expected_tag, 16);
+    printf("  Got:      ");
+    dumphex(tag, 16);
+    return false;
   }
+
+  // Test encryption in-place
+  memcpy(ciphertext, plaintext, pt_len);
+  if (!aes_gcm_encrypt(ciphertext, ciphertext, pt_len, iv, tag, aad, aad_len, &key)) {
+    LOGE("%s FAILED: in-place encryption failed\n", name);
+    return false;
+  }
+  if (pt_len > 0 && memcmp(ciphertext, expected_ciphertext, pt_len) != 0) {
+    LOGE("%s FAILED: in-place encryption ciphertext mismatch", name);
+    printf("  Expected: ");
+    dumphex(expected_ciphertext, pt_len);
+    printf("  Got:      ");
+    dumphex(ciphertext, pt_len);
+    return false;
+  }
+
+  if (memcmp(tag, expected_tag, 16) != 0) {
+    LOGE("%s FAILED: in-place encryption tag mismatch", name);
+    printf("  Expected: ");
+    dumphex(expected_tag, 16);
+    printf("  Got:      ");
+    dumphex(tag, 16);
+    return false;
+  }
+
+  // Test decryption
+  if (!aes_gcm_decrypt(ciphertext, decrypted, pt_len, iv, tag, aad, aad_len, &key)) {
+    LOGE("%s FAILED: decryption failed", name);
+    return false;
+  }
+
+  if (pt_len > 0 && memcmp(decrypted, plaintext, pt_len) != 0) {
+    LOGE("%s FAILED: decrypted plaintext mismatch", name);
+    return false;
+  }
+
+  // Test that tampered tag fails
+  tag[0] ^= 1;
+  if (aes_gcm_decrypt(ciphertext, decrypted, pt_len, iv, tag, aad, aad_len, &key)) {
+    LOGE("%s FAILED: decryption should have failed with tampered tag", name);
+    return false;
+  }
+  tag[0] ^= 1;
+
+  // Test decryption in-place
+  if (!aes_gcm_decrypt(ciphertext, ciphertext, pt_len, iv, tag, aad, aad_len, &key)) {
+    LOGE("%s FAILED: decryption failed", name);
+    return false;
+  }
+
+  if (pt_len > 0 && memcmp(ciphertext, plaintext, pt_len) != 0) {
+    LOGE("%s FAILED: decrypted plaintext mismatch", name);
+    return false;
+  }
+
+  LOGI("%s PASSED", name);
+
+  return true;
 }
 
-Test(crypto_test, crypto_ecc_validate_private_key_ed25519) {
-  key_handle_t key = {
-    .alg = ALG_ECC_ED25519,
-    .key.size = ECC_PRIVKEY_SIZE,
-    .acl = SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY | SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY,
-  };
+void crypto_test_gcm(void) {
+  bool all_passed = true;
+  LOGI("AES GCM Test:");
 
-  // Generate a bunch of private keys. Probabilistically, they should all be valid.
-#if 0
-  const uint32_t loops = 10000000;  // 10 million
-#endif
-  // Don't try so many loops in CI
-  const uint32_t loops = 10000;
+  // NIST AES-GCM-256 test vectors from:
+  // https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/mac/gcmtestvectors.zip
 
-  for (int i = 0; i < loops; i++) {
-    uint8_t random_bytes[ECC_PRIVKEY_SIZE] = {0};
-    cr_assert(crypto_random(random_bytes, ECC_PRIVKEY_SIZE));
+  // Test Case 0 (256-bit key, no plaintext, no AAD, taglen 128) from NIST GCM test vectors
+  {
+    const uint8_t key[] = {
+      0xb5, 0x2c, 0x50, 0x5a, 0x37, 0xd7, 0x8e, 0xda, 0x5d, 0xd3, 0x4f,
+      0x20, 0xc2, 0x25, 0x40, 0xea, 0x1b, 0x58, 0x96, 0x3c, 0xf8, 0xe5,
+      0xbf, 0x8f, 0xfa, 0x85, 0xf9, 0xf2, 0x49, 0x25, 0x05, 0xb4,
+    };
+    const uint8_t iv[] = {
+      0x51, 0x6c, 0x33, 0x92, 0x9d, 0xf5, 0xa3, 0x28, 0x4f, 0xf4, 0x63, 0xd7,
+    };
+    const uint8_t pt[] = {};
+    const uint8_t tag[] = {
+      0xbd, 0xc1, 0xac, 0x88, 0x4d, 0x33, 0x24, 0x57,
+      0xa1, 0xd2, 0x66, 0x4f, 0x16, 0x8c, 0x76, 0xf0,
+    };
+    all_passed &= test_gcm_vector("Test 0 (no pt, no add)", key, iv, pt, 0, NULL, 0, NULL, tag);
+  }
 
-    key.key.bytes = random_bytes;
+  // Test Case 0 (256-bit key, no plaintext, aad(128), Tag(128)) from NIST GCM test vectors
+  {
+    const uint8_t key[] = {
+      0x78, 0xdc, 0x4e, 0x0a, 0xaf, 0x52, 0xd9, 0x35, 0xc3, 0xc0, 0x1e,
+      0xea, 0x57, 0x42, 0x8f, 0x00, 0xca, 0x1f, 0xd4, 0x75, 0xf5, 0xda,
+      0x86, 0xa4, 0x9c, 0x8d, 0xd7, 0x3d, 0x68, 0xc8, 0xe2, 0x23,
+    };
+    const uint8_t iv[] = {
+      0xd7, 0x9c, 0xf2, 0x2d, 0x50, 0x4c, 0xc7, 0x93, 0xc3, 0xfb, 0x6c, 0x8a,
+    };
+    const uint8_t pt[] = {};
+    const uint8_t aad[] = {
+      0xb9, 0x6b, 0xaa, 0x8c, 0x1c, 0x75, 0xa6, 0x71,
+      0xbf, 0xb2, 0xd0, 0x8d, 0x06, 0xbe, 0x5f, 0x36,
+    };
+    const uint8_t tag[] = {
+      0x3e, 0x5d, 0x48, 0x6a, 0xa2, 0xe3, 0x0b, 0x22,
+      0xe0, 0x40, 0xb8, 0x57, 0x23, 0xa0, 0x6e, 0x76,
+    };
+    all_passed &= test_gcm_vector("Test 1 (no pt)", key, iv, pt, 0, aad, sizeof(aad), NULL, tag);
+  }
 
-    cr_assert(crypto_ecc_validate_private_key(&key));
+  // Test Case 0 (256-bit key, plaintext(128), no aad, Tag(128)) from NIST GCM test vectors
+  {
+    const uint8_t key[] = {
+      0x31, 0xbd, 0xad, 0xd9, 0x66, 0x98, 0xc2, 0x04, 0xaa, 0x9c, 0xe1,
+      0x44, 0x8e, 0xa9, 0x4a, 0xe1, 0xfb, 0x4a, 0x9a, 0x0b, 0x3c, 0x9d,
+      0x77, 0x3b, 0x51, 0xbb, 0x18, 0x22, 0x66, 0x6b, 0x8f, 0x22,
+    };
+    const uint8_t iv[] = {
+      0x0d, 0x18, 0xe0, 0x6c, 0x7c, 0x72, 0x5a, 0xc9, 0xe3, 0x62, 0xe1, 0xce,
+    };
+    const uint8_t pt[] = {
+      0x2d, 0xb5, 0x16, 0x8e, 0x93, 0x25, 0x56, 0xf8,
+      0x08, 0x9a, 0x06, 0x22, 0x98, 0x1d, 0x01, 0x7d,
+    };
+    const uint8_t ct[] = {
+      0xfa, 0x43, 0x62, 0x18, 0x96, 0x61, 0xd1, 0x63,
+      0xfc, 0xd6, 0xa5, 0x6d, 0x8b, 0xf0, 0x40, 0x5a,
+    };
+    const uint8_t tag[] = {
+      0xd6, 0x36, 0xac, 0x1b, 0xbe, 0xdd, 0x5c, 0xc3,
+      0xee, 0x72, 0x7d, 0xc2, 0xab, 0x4a, 0x94, 0x89,
+    };
+    all_passed &= test_gcm_vector("Test 2 (no aad)", key, iv, pt, sizeof(pt), NULL, 0, ct, tag);
+  }
+
+  // Test Case 0 (256-bit key, plaintext(128), aad(128), Tag(128)) from NIST GCM test vectors
+  {
+    const uint8_t key[] = {
+      0x7f, 0x71, 0x68, 0xa4, 0x06, 0xe7, 0xc1, 0xef, 0x0f, 0xd4, 0x7a,
+      0xc9, 0x22, 0xc5, 0xec, 0x5f, 0x65, 0x97, 0x65, 0xfb, 0x6a, 0xaa,
+      0x04, 0x8f, 0x70, 0x56, 0xf6, 0xc6, 0xb5, 0xd8, 0x51, 0x3d,
+    };
+    const uint8_t iv[] = {
+      0xb8, 0xb5, 0xe4, 0x07, 0xad, 0xc0, 0xe2, 0x93, 0xe3, 0xe7, 0xe9, 0x91,
+    };
+    const uint8_t pt[] = {
+      0xb7, 0x06, 0x19, 0x4b, 0xb0, 0xb1, 0x0c, 0x47,
+      0x4e, 0x1b, 0x2d, 0x7b, 0x22, 0x78, 0x22, 0x4c,
+    };
+    const uint8_t aad[] = {
+      0xff, 0x76, 0x28, 0xf6, 0x42, 0x7f, 0xbc, 0xef,
+      0x1f, 0x3b, 0x82, 0xb3, 0x74, 0x04, 0xe1, 0x16,
+    };
+    const uint8_t ct[] = {
+      0x8f, 0xad, 0xa0, 0xb8, 0xe7, 0x77, 0xa8, 0x29,
+      0xca, 0x96, 0x80, 0xd3, 0xbf, 0x4f, 0x35, 0x74,
+    };
+    const uint8_t tag[] = {
+      0xda, 0xca, 0x35, 0x42, 0x77, 0xf6, 0x33, 0x5f,
+      0xc8, 0xbe, 0xc9, 0x08, 0x86, 0xda, 0x70, 0x43,
+    };
+    all_passed &= test_gcm_vector("Test 3", key, iv, pt, sizeof(pt), aad, sizeof(aad), ct, tag);
+  }
+
+  // Test Case 0 (256-bit key, plaintext(408), aad(160), Tag(128)) from NIST GCM test vectors
+  {
+    const uint8_t key[] = {
+      0x24, 0x50, 0x1a, 0xd3, 0x84, 0xe4, 0x73, 0x96, 0x3d, 0x47, 0x6e,
+      0xdc, 0xfe, 0x08, 0x20, 0x52, 0x37, 0xac, 0xfd, 0x49, 0xb5, 0xb8,
+      0xf3, 0x38, 0x57, 0xf8, 0x11, 0x4e, 0x86, 0x3f, 0xec, 0x7f,
+    };
+    const uint8_t iv[] = {
+      0x9f, 0xf1, 0x85, 0x63, 0xb9, 0x78, 0xec, 0x28, 0x1b, 0x3f, 0x27, 0x94,
+    };
+    const uint8_t pt[] = {
+      0x27, 0xf3, 0x48, 0xf9, 0xcd, 0xc0, 0xc5, 0xbd, 0x5e, 0x66, 0xb1, 0xcc, 0xb6,
+      0x3a, 0xd9, 0x20, 0xff, 0x22, 0x19, 0xd1, 0x4e, 0x8d, 0x63, 0x1b, 0x38, 0x72,
+      0x26, 0x5c, 0xf1, 0x17, 0xee, 0x86, 0x75, 0x7a, 0xcc, 0xb1, 0x58, 0xbd, 0x9a,
+      0xbb, 0x38, 0x68, 0xfd, 0xc0, 0xd0, 0xb0, 0x74, 0xb5, 0xf0, 0x1b, 0x2c,
+    };
+    const uint8_t aad[] = {
+      0xad, 0xb5, 0xec, 0x72, 0x0c, 0xcf, 0x98, 0x98, 0x50, 0x00,
+      0x28, 0xbf, 0x34, 0xaf, 0xcc, 0xbc, 0xac, 0xa1, 0x26, 0xef,
+    };
+    const uint8_t ct[] = {
+      0xeb, 0x7c, 0xb7, 0x54, 0xc8, 0x24, 0xe8, 0xd9, 0x6f, 0x7c, 0x6d, 0x9b, 0x76,
+      0xc7, 0xd2, 0x6f, 0xb8, 0x74, 0xff, 0xbf, 0x1d, 0x65, 0xc6, 0xf6, 0x4a, 0x69,
+      0x8d, 0x83, 0x9b, 0x0b, 0x06, 0x14, 0x5d, 0xae, 0x82, 0x05, 0x7a, 0xd5, 0x59,
+      0x94, 0xcf, 0x59, 0xad, 0x7f, 0x67, 0xc0, 0xfa, 0x5e, 0x85, 0xfa, 0xb8,
+    };
+    const uint8_t tag[] = {
+      0xbc, 0x95, 0xc5, 0x32, 0xfe, 0xcc, 0x59, 0x4c,
+      0x36, 0xd1, 0x55, 0x02, 0x86, 0xa7, 0xa3, 0xf0,
+    };
+    all_passed &= test_gcm_vector("Test 4", key, iv, pt, sizeof(pt), aad, sizeof(aad), ct, tag);
+  }
+
+  if (all_passed) {
+    LOGI("All GCM tests Passed");
   }
 }

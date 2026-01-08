@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "slack": {
+      "command": "uvx",
+      "args": ["mcp_slack"],
+      "env": {
+        "SLACK_TOKEN": "${SLACK_TOKEN}",
+        "SLACK_DEFAULT_WORKSPACE_ID": "T05HJ0CKWG5"
+      }
+    }
+  }
+}

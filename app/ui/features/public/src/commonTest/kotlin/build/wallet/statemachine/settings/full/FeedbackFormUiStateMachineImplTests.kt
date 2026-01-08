@@ -2,9 +2,6 @@ package build.wallet.statemachine.settings.full
 
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.EncryptedDescriptorSupportUploadFeatureFlag
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -30,16 +27,13 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
   val supportTicketFormValidator = SupportTicketFormValidatorFake()
   val dateTimeFormatter = DateTimeFormatterMock()
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
-  val encryptedDescriptorSupportUploadFeatureFlag =
-    EncryptedDescriptorSupportUploadFeatureFlag(FeatureFlagDaoFake())
 
   val stateMachine = FeedbackFormUiStateMachineImpl(
     supportTicketRepository = supportTicketRepository,
     supportTicketFormValidator = supportTicketFormValidator,
     dateTimeFormatter = dateTimeFormatter,
     inAppBrowserNavigator = inAppBrowserNavigator,
-    actionSuccessDuration = ActionSuccessDuration(0.milliseconds),
-    encryptedDescriptorSupportUploadFeatureFlag = encryptedDescriptorSupportUploadFeatureFlag
+    actionSuccessDuration = ActionSuccessDuration(0.milliseconds)
   )
 
   val props = FeedbackFormUiProps(
@@ -64,10 +58,6 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
     onBack = {}
   )
 
-  beforeTest {
-    encryptedDescriptorSupportUploadFeatureFlag.reset()
-  }
-
   test("smoke test") {
     stateMachine.test(props) {
       // A silly smoke test to make sure the state machine doesn't crash. INC-3635.
@@ -82,31 +72,7 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("feature flag disabled - SendEncryptedDescriptorDataModel and supportRequestedDescriptor picker not shown") {
-    encryptedDescriptorSupportUploadFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-
-    stateMachine.test(props) {
-      awaitBody<FillingFormBodyModel> {
-        val hasEncryptedDescriptorModel = mainContentList.any { content ->
-          content is FormMainContentModel.ListGroup &&
-            content.listGroupModel.items.any { item ->
-              item.title == "Wallet Descriptor"
-            }
-        }
-        hasEncryptedDescriptorModel.shouldBe(false)
-
-        val hasSupportRequestedDescriptorPicker = mainContentList.any { content ->
-          content is FormMainContentModel.Picker &&
-            content.title == "Has Support requested a wallet descriptor?"
-        }
-        hasSupportRequestedDescriptorPicker.shouldBe(false)
-      }
-    }
-  }
-
-  test("feature flag enabled but supportRequestedDescriptor false - SendEncryptedDescriptorDataModel not shown but picker shown") {
-    encryptedDescriptorSupportUploadFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
+  test("full account - supportRequestedDescriptor false - SendEncryptedDescriptorDataModel not shown but picker shown") {
     stateMachine.test(props) {
       awaitBody<FillingFormBodyModel> {
         val hasEncryptedDescriptorModel = mainContentList.any { content ->
@@ -126,9 +92,7 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("feature flag enabled and supportRequestedDescriptor true - SendEncryptedDescriptorDataModel and picker shown") {
-    encryptedDescriptorSupportUploadFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
+  test("full account - supportRequestedDescriptor true - SendEncryptedDescriptorDataModel and picker shown") {
     val propsWithSupportRequestedDescriptor = props.copy(
       initialData = buildSupportTicketData {
         sendEncryptedDescriptor = SendEncryptedDescriptor.Selected(FullAccountMock.accountId)
@@ -154,9 +118,7 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("feature flag enabled but account is not available - SendEncryptedDescriptorDataModel and supportRequestedDescriptor picker not shown") {
-    encryptedDescriptorSupportUploadFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
+  test("account not available - SendEncryptedDescriptorDataModel and supportRequestedDescriptor picker not shown") {
     stateMachine.test(propsWithNullAccount) {
       awaitBody<FillingFormBodyModel> {
         val hasEncryptedDescriptorModel = mainContentList.any { content ->

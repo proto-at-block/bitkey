@@ -20,8 +20,8 @@ features = [
   '-DSL_CATALOG_FREERTOS_KERNEL_PRESENT',
 ]
 
-app_deps = [mcu_efr32xg24_dep, secutils_dep]
-bl_deps = [mcu_efr32xg24_bl_dep, secutils_bl_dep]
+app_deps = [mcu_dep, rtos_dep, secutils_dep]
+bl_deps = [mcu_dep, secutils_bl_dep]
 
 secure_engine_lib = library('secure-engine',
   srcs,

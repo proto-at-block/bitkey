@@ -105,7 +105,7 @@ static bool erase_flash(const uint32_t addr, const uint32_t size) {
 
   // Check that the address range is not within the currently active slot
   if (addr_in_range(addr, (uint32_t)fwup_current_slot_address(), fwup_slot_size())) {
-    LOGE("erase_flash(): address: 0x%08lX is within the currently active slot 0x%08lX, %lu", addr,
+    LOGE("erase_flash(): address: 0x%08lX is within the currently active slot 0x%08lX, %zu", addr,
          (uint32_t)fwup_current_slot_address(), fwup_slot_size());
     return false;
   }

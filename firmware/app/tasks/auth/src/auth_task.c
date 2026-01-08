@@ -1,12 +1,12 @@
 #include "auth_task.h"
 
-#include "animation.h"
 #include "assert.h"
 #include "attributes.h"
 #include "auth.h"
 #include "bio.h"
 #include "feature_flags.h"
 #include "filesystem.h"
+#include "fwup.h"
 #include "grant_protocol.h"
 #include "hex.h"
 #include "ipc.h"
@@ -17,6 +17,7 @@
 #include "secure_channel.h"
 #include "sleep.h"
 #include "sysevent.h"
+#include "ui_messaging.h"
 #include "unlock.h"
 
 #define INVALID_FINGERPRINT_INDEX 0xFF
@@ -83,9 +84,6 @@ static struct {
 
 static const uint32_t bio_lib_retry_ms = 5000u;
 
-// TODO(W-3920): Write a proper animation state machine.
-extern bool fwup_started;
-
 static fwpb_status unlock_err_to_fwpb_status(unlock_err_t err) {
   switch (err) {
     case UNLOCK_OK:
@@ -112,13 +110,9 @@ static void finger_down_animation(void) {
   // different fade. But in practice, the rate limit for bad fingerprints is high enough that the
   // transition from fading-out red to white doesn't look bad.
   if (auth_state.authenticated == SECURE_TRUE) {
-    static led_start_animation_t LED_TASK_DATA msg = {
-      .animation = (uint32_t)ANI_FINGER_DOWN_FROM_UNLOCKED, .immediate = true};
-    ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+    UI_SHOW_EVENT(UI_EVENT_FINGER_DOWN_FROM_UNLOCKED);
   } else {
-    static led_start_animation_t LED_TASK_DATA msg = {
-      .animation = (uint32_t)ANI_FINGER_DOWN_FROM_LOCKED, .immediate = true};
-    ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+    UI_SHOW_EVENT(UI_EVENT_FINGER_DOWN_FROM_LOCKED);
   }
 }
 
@@ -130,23 +124,19 @@ static void lock_animation(bool previously_authenticated) {
   }
 
   // TODO(W-4580)
-  static led_set_rest_animation_t LED_TASK_DATA rest_msg = {.animation = (uint32_t)ANI_OFF};
-  ipc_send(led_port, &rest_msg, sizeof(rest_msg), IPC_LED_SET_REST_ANIMATION);
+  UI_SET_IDLE_STATE(UI_EVENT_NO_IDLE);  // Clear idle state
 
-  static led_start_animation_t LED_TASK_DATA msg = {.immediate = true};
-
-  if (fwup_started) {
-    msg.animation = (uint32_t)ANI_LOCKED_FROM_FWUP;
+  // Use specific lock events based on context
+  if (fwup_in_progress()) {
+    UI_SHOW_EVENT(UI_EVENT_AUTH_LOCKED_FROM_FWUP);
   } else if (auth_priv.current_enrollment_ctx.enrollment_in_progress) {
-    msg.animation = (uint32_t)ANI_LOCKED_FROM_ENROLLMENT;
+    UI_SHOW_EVENT(UI_EVENT_AUTH_LOCKED_FROM_ENROLLMENT);
   } else {
-    msg.animation = (uint32_t)ANI_LOCKED;
+    UI_SHOW_EVENT(UI_EVENT_AUTH_LOCKED);
   }
-
-  ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
 }
 
-NO_OPTIMIZE void set_authenticated_with_animation(secure_bool_t state) {
+NO_OPTIMIZE void set_authenticated(secure_bool_t state, bool show_animation) {
   rtos_mutex_lock(&auth_priv.auth_lock);
 
   secure_bool_t prev_state = auth_state.authenticated;
@@ -157,11 +147,15 @@ NO_OPTIMIZE void set_authenticated_with_animation(secure_bool_t state) {
     // Unlocked
     rtos_timer_stop(&auth_priv.unlock_timer);
     rtos_timer_start(&auth_priv.unlock_timer, auth_priv.auth_expiry_ms);
+    sleep_stop_power_timer();
   }
   else {
     // Locked
-    lock_animation((prev_state == SECURE_TRUE));
+    if (show_animation) {
+      lock_animation((prev_state == SECURE_TRUE));
+    }
     rtos_timer_stop(&auth_priv.unlock_timer);
+    sleep_start_power_timer();
   }
 
   rtos_mutex_unlock(&auth_priv.auth_lock);
@@ -170,7 +164,9 @@ NO_OPTIMIZE void set_authenticated_with_animation(secure_bool_t state) {
 NO_OPTIMIZE secure_bool_t refresh_auth(void) {
   secure_bool_t authed = is_authenticated();
   SECURE_IF_FAILOUT(authed == SECURE_TRUE) {
-    set_authenticated_with_animation(SECURE_TRUE);  // Refresh timer
+    // Refresh auth timer
+    rtos_timer_stop(&auth_priv.unlock_timer);
+    rtos_timer_start(&auth_priv.unlock_timer, auth_priv.auth_expiry_ms);
     return SECURE_TRUE;
   }
   return SECURE_FALSE;
@@ -203,6 +199,62 @@ void present_grant_for_fingerprint_enrollment(void) {
   rtos_mutex_unlock(&auth_priv.auth_lock);
 }
 
+// ========== Internal fingerprint command handlers ==========
+NO_OPTIMIZE void handle_start_fingerprint_enrollment_internal(ipc_ref_t* message) {
+  auth_start_fingerprint_enrollment_internal_t* cmd =
+    (auth_start_fingerprint_enrollment_internal_t*)message->object;
+
+  // Set up enrollment context
+  auth_priv.current_enrollment_ctx.index = cmd->index;
+  auth_priv.current_enrollment_ctx.enrollment_in_progress = true;
+  SECURE_DO({ auth_priv.current_enrollment_ctx.enroll_ok = SECURE_FALSE; });
+  strncpy(auth_priv.current_enrollment_ctx.label, cmd->label, BIO_LABEL_MAX_LEN);
+
+  // Send UI event to indicate enrollment has started
+  UI_SHOW_EVENT(UI_EVENT_ENROLLMENT_START);
+}
+
+NO_OPTIMIZE void handle_get_enrolled_fingerprints_internal(ipc_ref_t* UNUSED(message)) {
+  // Prepare response
+  auth_enrolled_fingerprints_response_t response = {0};
+  response.count = 0;
+
+  // Collect enrolled fingerprints
+  for (uint8_t i = 0; i < TEMPLATE_MAX_COUNT; i++) {
+    if (bio_fingerprint_index_exists(i)) {
+      response.indices[response.count] = i;
+
+      // Retrieve the label for this fingerprint
+      if (!bio_storage_label_retrieve(i, response.labels[response.count])) {
+        // If label retrieval fails, use a default
+        snprintf(response.labels[response.count], sizeof(response.labels[response.count]),
+                 "Fingerprint %d", i + 1);
+        LOGE("Failed to retrieve label for fingerprint %d, using default", i);
+      }
+
+      response.count++;
+    }
+  }
+
+  // Send response with labels via UI event
+  UI_SHOW_EVENT_WITH_DATA(UI_EVENT_FINGERPRINT_STATUS, &response, sizeof(response));
+}
+
+NO_OPTIMIZE void handle_delete_fingerprint_internal(ipc_ref_t* message) {
+  auth_delete_fingerprint_internal_t* cmd = (auth_delete_fingerprint_internal_t*)message->object;
+
+  bool success = bio_storage_delete_template(cmd->index);
+
+  LOGD("[Auth] Deleted fingerprint at slot %d: %s", cmd->index, success ? "success" : "failed");
+
+  // Send UI event to update display
+  if (success) {
+    UI_SHOW_EVENT(UI_EVENT_FINGERPRINT_DELETED);
+  } else {
+    UI_SHOW_EVENT(UI_EVENT_FINGERPRINT_DELETE_FAILED);
+  }
+}
+
 static void reset_auth_state(void) {
   auth_state.method = UNSPECIFIED;
   auth_state.fingerprint_index = BIO_TEMPLATE_ID_INVALID;
@@ -214,33 +266,28 @@ NO_OPTIMIZE static void internal_deauthenticate(void) {
 }
 
 NO_OPTIMIZE void deauthenticate(void) {
-  set_authenticated_with_animation(SECURE_FALSE);
+  set_authenticated(SECURE_FALSE, true);
   internal_deauthenticate();
 }
 
 void deauthenticate_without_animation(void) {
-  auth_state.authenticated = SECURE_FALSE;
+  set_authenticated(SECURE_FALSE, false);
   internal_deauthenticate();
-  rtos_timer_stop(&auth_priv.unlock_timer);
 }
 
 void enroll_failed_animation(void) {
   if (onboarding_complete()) {
-    static led_set_rest_animation_t LED_TASK_DATA rest_msg = {.animation = (uint32_t)ANI_OFF};
-    ipc_send(led_port, &rest_msg, sizeof(rest_msg), IPC_LED_SET_REST_ANIMATION);
-    static led_start_animation_t LED_TASK_DATA msg = {.animation = (uint32_t)ANI_ENROLLMENT_FAILED,
-                                                      .immediate = true};
-    ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+    UI_SET_IDLE_STATE(UI_EVENT_NO_IDLE);
+    UI_SHOW_EVENT(UI_EVENT_ENROLLMENT_FAILED);
   } else {
-    static led_set_rest_animation_t end_fail_msg = {.animation = (uint32_t)ANI_REST};
-    ipc_send(led_port, &end_fail_msg, sizeof(end_fail_msg), IPC_LED_SET_REST_ANIMATION);
-    ipc_send_empty(led_port, IPC_LED_STOP_ANIMATION);
+    UI_SET_IDLE_STATE(UI_EVENT_IDLE);
+    UI_SHOW_EVENT(UI_EVENT_LED_CLEAR);
   }
 }
 
 // Helper method to set the authenticated state plus the unlock method.
 NO_OPTIMIZE static void set_authenticated_via_fingerprint(void) {
-  set_authenticated_with_animation(SECURE_TRUE);
+  set_authenticated(SECURE_TRUE, true);
   auth_state.method = BIOMETRICS;
   // fingerprint_index is set in the matching thread.
 }
@@ -274,9 +321,7 @@ NO_OPTIMIZE void handle_start_fingerprint_enrollment(ipc_ref_t* message) {
   auth_priv.current_enrollment_ctx.enrollment_in_progress = true;
   SECURE_DO({ auth_priv.current_enrollment_ctx.enroll_ok = SECURE_FALSE; });
 
-  static led_start_animation_t LED_TASK_DATA msg = {.animation = (uint32_t)ANI_ENROLLMENT,
-                                                    .immediate = true};
-  ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+  UI_SHOW_EVENT(UI_EVENT_ENROLLMENT_START);
 
   // Immediately reply -- enrollment doesn't happen within the NFC field.
   // This indicates to the caller that enrollment will begin.
@@ -390,7 +435,7 @@ void handle_unlock_secret(ipc_ref_t* message) {
                  "mac size mismatch");
 
   unlock_secret_t decrypted_secret = {0};
-  if (secure_channel_decrypt(
+  if (secure_nfc_channel_decrypt(
         cmd->msg.send_unlock_secret_cmd.secret.ciphertext.bytes, decrypted_secret.bytes,
         cmd->msg.send_unlock_secret_cmd.secret.ciphertext.size,
         cmd->msg.send_unlock_secret_cmd.secret.nonce.bytes,
@@ -404,9 +449,7 @@ void handle_unlock_secret(ipc_ref_t* message) {
     unlock_check_secret(&decrypted_secret, &rsp->msg.send_unlock_secret_rsp.remaining_delay_ms,
                         &rsp->msg.send_unlock_secret_rsp.retry_counter);
   if (err == UNLOCK_OK) {
-    static led_start_animation_t LED_TASK_DATA msg = {.animation = (uint32_t)ANI_UNLOCKED,
-                                                      .immediate = true};
-    ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+    UI_SHOW_EVENT(UI_EVENT_AUTH_SUCCESS);
     auth_state.method = UNLOCK_SECRET;
   }
   rsp->status = unlock_err_to_fwpb_status(err);
@@ -440,7 +483,7 @@ void handle_provision_unlock_secret(ipc_ref_t* message) {
     "mac size mismatch");
 
   unlock_secret_t decrypted_secret = {0};
-  if (secure_channel_decrypt(
+  if (secure_nfc_channel_decrypt(
         cmd->msg.provision_unlock_secret_cmd.secret.ciphertext.bytes, decrypted_secret.bytes,
         cmd->msg.provision_unlock_secret_cmd.secret.ciphertext.size,
         cmd->msg.provision_unlock_secret_cmd.secret.nonce.bytes,
@@ -646,6 +689,9 @@ void auth_main_thread(void* UNUSED(args)) {
     ipc_recv(auth_port, &message);
 
     switch (message.tag) {
+        // ========== PROTO/NFC COMMANDS (External) ==========
+        // These commands come from phone app via NFC and send proto responses
+
       case IPC_PROTO_START_FINGERPRINT_ENROLLMENT_CMD: {
         handle_start_fingerprint_enrollment(&message);
         break;
@@ -656,10 +702,6 @@ void auth_main_thread(void* UNUSED(args)) {
       }
       case IPC_PROTO_QUERY_AUTHENTICATION_CMD: {
         handle_query_authentication(&message);
-        break;
-      }
-      case IPC_AUTH_SET_TIMESTAMP: {
-        auth_priv.timestamp = ((auth_set_timestamp_t*)message.object)->timestamp;
         break;
       }
       case IPC_PROTO_SEND_UNLOCK_SECRET_CMD: {
@@ -694,8 +736,29 @@ void auth_main_thread(void* UNUSED(args)) {
         handle_cancel_fingerprint_enrollment(&message);
         break;
       }
+
+        // ========== INTERNAL COMMANDS (Firmware-to-Firmware) ==========
+        // These commands come from internal firmware components
+        // They do NOT send proto responses back via NFC
+
+      case IPC_AUTH_SET_TIMESTAMP: {
+        auth_priv.timestamp = ((auth_set_timestamp_t*)message.object)->timestamp;
+        break;
+      }
       case IPC_AUTH_PRESENT_GRANT_FOR_FINGERPRINT_ENROLLMENT: {
         present_grant_for_fingerprint_enrollment();
+        break;
+      }
+      case IPC_AUTH_START_FINGERPRINT_ENROLLMENT_INTERNAL: {
+        handle_start_fingerprint_enrollment_internal(&message);
+        break;
+      }
+      case IPC_AUTH_GET_ENROLLED_FINGERPRINTS_INTERNAL: {
+        handle_get_enrolled_fingerprints_internal(&message);
+        break;
+      }
+      case IPC_AUTH_DELETE_FINGERPRINT_INTERNAL: {
+        handle_delete_fingerprint_internal(&message);
         break;
       }
       default: {
@@ -706,8 +769,6 @@ void auth_main_thread(void* UNUSED(args)) {
 }
 
 NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
-  bio_hal_init();
-
   bool bio_lib_ready = bio_lib_init();
   for (;;) {
     unsigned int glitch_count = secure_glitch_get_count();
@@ -757,8 +818,7 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
         auth_state.fingerprint_index = used_index;
 
         // Clear the enrollment rest animation now that enrollment is complete
-        static led_set_rest_animation_t LED_TASK_DATA rest_msg = {.animation = (uint32_t)ANI_OFF};
-        ipc_send(led_port, &rest_msg, sizeof(rest_msg), IPC_LED_SET_REST_ANIMATION);
+        UI_SET_IDLE_STATE(UI_EVENT_NO_IDLE);
       });
     } else if ((onboarding_complete() == SECURE_TRUE)) {  // Fingerprint unlock
       // Give the user some immediate feedback by turning on the LED; the actual matching takes

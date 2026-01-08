@@ -1,7 +1,8 @@
 use serde::Deserialize;
 use strum_macros::EnumString;
 
-mod sanctions_screener;
+mod sanctions;
+pub mod screening;
 pub mod service;
 
 #[derive(Deserialize)]

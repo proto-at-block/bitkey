@@ -5,6 +5,8 @@
 #include "detools.h"
 #include "ecc.h"
 #include "filesystem.h"
+#include "fwup_delta_impl.h"
+#include "fwup_flash_impl.h"
 #include "fwup_impl.h"
 #include "hash.h"
 #include "hex.h"
@@ -13,6 +15,7 @@
 #include "rtos_mpu.h"
 #include "security_config.h"
 #include "secutils.h"
+#include "wallet.pb.h"
 
 #include <stdalign.h>
 #include <stdlib.h>
@@ -34,11 +37,11 @@ static fs_file_t fwup_file_handle = {0};
 extern security_config_t security_config;
 
 static struct {
-  uint32_t remaining_patch_size;  // Only used for inline mode.
-  uint32_t active_slot_base_addr;
-  uint32_t active_slot_offset_pointer;
-  uint32_t target_slot_base_addr;
-  uint32_t target_slot_offset_pointer;
+  size_t remaining_patch_size;  // Only used for inline mode.
+  uintptr_t active_slot_base_addr;
+  uintptr_t active_slot_offset_pointer;
+  uintptr_t target_slot_base_addr;
+  uintptr_t target_slot_offset_pointer;
   bool file_opened;
 } delta_state = {0};
 
@@ -98,7 +101,8 @@ static int to_write(void* UNUSED(arg_p), const uint8_t* buf_p, size_t size) {
   if (aligned_addr != raw_addr || size % sizeof(uint32_t) != 0) {
     alignas(sizeof(uint32_t)) static uint8_t scratch[512];
 
-    _Static_assert(sizeof(scratch) > sizeof(((fwpb_fwup_transfer_cmd_fwup_data_t*)0)->bytes));
+    _Static_assert(sizeof(scratch) > sizeof(((fwpb_fwup_transfer_cmd_fwup_data_t*)0)->bytes),
+                   "Scratch buffer is too small to fit FWUP data.");
 
     // Read the existing data from flash into the scratch buffer.
     memcpy(scratch, flash_write_addr, sizeof(scratch));

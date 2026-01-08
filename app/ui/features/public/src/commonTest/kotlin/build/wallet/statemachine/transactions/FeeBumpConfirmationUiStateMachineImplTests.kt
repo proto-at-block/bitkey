@@ -18,6 +18,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.ktor.result.HttpError
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateServiceFake
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
@@ -80,7 +81,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
       txid = "1234",
       recipientAddress = BitcoinAddress("1234"),
       sendAmount = BitcoinMoney.sats(10000),
-      oldFee = Fee(BitcoinMoney.sats(2000), feeRate = FeeRate(1f)),
+      oldFee = Fee(BitcoinMoney.sats(2000)),
       transactionType = Outgoing
     ),
     onExit = {},
@@ -99,9 +100,9 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
         onConfirmClick()
       }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
+      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>>("nfc") {
         shouldShowLongRunningOperation.shouldBeTrue()
-        onSuccess(PsbtMock)
+        onSuccess(HardwareInteraction.Completed(PsbtMock))
       }
 
       awaitBody<LoadingSuccessBodyModel>()
@@ -128,8 +129,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
         onConfirmClick()
       }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
-        onSuccess(PsbtMock)
+      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>>("nfc") {
+        onSuccess(HardwareInteraction.Completed(PsbtMock))
       }
 
       awaitBody<LoadingSuccessBodyModel>()
@@ -151,8 +152,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
-        onSuccess(PsbtMock)
+      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>>("nfc") {
+        onSuccess(HardwareInteraction.Completed(PsbtMock))
       }
 
       awaitBody<LoadingSuccessBodyModel>()
@@ -174,8 +175,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
-        onSuccess(PsbtMock)
+      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>>("nfc") {
+        onSuccess(HardwareInteraction.Completed(PsbtMock))
       }
 
       awaitBody<LoadingSuccessBodyModel>()

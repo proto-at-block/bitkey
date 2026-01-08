@@ -8,7 +8,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okio.ByteString
 
-object ByteStringAsBase64SerializerTests : FunSpec({
+class ByteStringAsBase64SerializerTests : FunSpec({
 
   val bytes = ByteString.of(1, 2, 3) // [0x01,0x02,0x03]
   val sampleValue = SampleValue(bytes)

@@ -27,6 +27,7 @@ kotlin {
       dependencies {
         implementation(projects.libs.moneyFake)
         implementation(projects.libs.stateMachineTesting)
+        implementation(projects.domain.bitkeyPrimitivesFake)
       }
     }
   }

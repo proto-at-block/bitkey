@@ -16,8 +16,11 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 
+bdk_utils = { workspace = true }
 errors = { workspace = true }
+feature_flags = { workspace = true }
 repository = { workspace = true, features = ["screener"] }
+thiserror = { workspace = true }
 types = { workspace = true, features = ["account"] }
 
 [dev-dependencies]

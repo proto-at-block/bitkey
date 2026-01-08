@@ -1,0 +1,34 @@
+#pragma once
+
+#include "em_gpio.h"
+
+#include <stdbool.h>
+#include <stdint.h>
+
+typedef enum {
+  MCU_GPIO_MODE_DISABLED = 0,
+  MCU_GPIO_MODE_INPUT,
+  MCU_GPIO_MODE_INPUT_PULL,
+  MCU_GPIO_MODE_INPUT_PULL_FILTER,
+  MCU_GPIO_MODE_PUSH_PULL,
+  MCU_GPIO_MODE_PUSH_PULL_DRIVE,
+  MCU_GPIO_MODE_WIRED_OR,
+  MCU_GPIO_MODE_WIRED_OR_PULLDOWN,
+  MCU_GPIO_MODE_OPEN_DRAIN,  // Gecko SDK uses the term 'wired and'.
+  MCU_GPIO_MODE_OPEN_DRAIN_FILTER,
+  MCU_GPIO_MODE_OPEN_DRAIN_PULLUP,
+  MCU_GPIO_MODE_OPEN_DRAIN_PULLUP_FILTER,
+  MCU_GPIO_MODE_OPEN_DRAIN_DRIVE,
+  MCU_GPIO_MODE_OPEN_DRAIN_DRIVE_FILTER,
+  MCU_GPIO_MODE_OPEN_DRAIN_DRIVE_PULLUP,
+  MCU_GPIO_MODE_OPEN_DRAIN_DRIVE_PULLUP_FILTER,
+} mcu_gpio_mode_e;
+
+typedef struct {
+  uint32_t port;
+  uint32_t pin;
+  mcu_gpio_mode_e mode;
+} mcu_gpio_config_t;
+
+#define MCU_GPIO_EXTI_GROUPS (4u)
+#define MCU_GPIO_EXTI_MAX    (GPIO_EXTINTNO_MAX)

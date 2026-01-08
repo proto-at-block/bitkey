@@ -7,6 +7,7 @@ deps = [
   helpers_dep,
   assert_dep,
   ringbuf_dep,
+  rtos_dep,
 ]
 
 if embedded_build

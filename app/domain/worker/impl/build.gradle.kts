@@ -18,6 +18,7 @@ kotlin {
         implementation(projects.domain.privilegedActionsPublic)
         implementation(projects.domain.recoveryPublic)
         implementation(projects.domain.relationshipsPublic)
+        implementation(projects.domain.walletPublic)
 
         implementation(projects.libs.loggingPublic)
         implementation(projects.domain.securityCenterPublic)

@@ -20,6 +20,8 @@ import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyexitkit.EmergencyExitKitPdfGeneratorFake
 import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryFake
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.SharedCloudBackupsFeatureFlag
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -63,7 +65,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     csekDao = CsekDaoFake(),
     inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create),
     emergencyExitKitPdfGenerator = EmergencyExitKitPdfGeneratorFake(),
-    emergencyExitKitRepository = EmergencyExitKitRepositoryFake()
+    emergencyExitKitRepository = EmergencyExitKitRepositoryFake(),
+    sharedCloudBackupsFeatureFlag = SharedCloudBackupsFeatureFlag(FeatureFlagDaoFake())
   )
 
   val onBackupSavedCalls = turbines.create<Unit>("backup saved")
@@ -131,9 +134,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.awaitBackup(
-        cloudAccount
-      ).shouldBe(CloudBackupV3WithFullAccountMock)
+      cloudBackupRepository.awaitBackup(cloudAccount)
+        .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }
@@ -192,9 +194,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.awaitBackup(
-        cloudAccount
-      ).shouldBe(CloudBackupV3WithFullAccountMock)
+      cloudBackupRepository.awaitBackup(cloudAccount)
+        .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }
@@ -223,9 +224,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.awaitBackup(
-        cloudAccount
-      ).shouldBe(CloudBackupV3WithFullAccountMock)
+      cloudBackupRepository.awaitBackup(cloudAccount)
+        .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }
@@ -265,9 +265,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       onExistingAppDataFoundCalls.awaitItem()
         .shouldNotBeNull().shouldBeEqual(CloudBackupV3WithFullAccountMock)
 
-      cloudBackupRepository.awaitBackup(
-        cloudAccount
-      ).shouldBe(CloudBackupV3WithFullAccountMock)
+      cloudBackupRepository.awaitBackup(cloudAccount)
+        .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }
@@ -301,9 +300,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       cloudBackupCreator.createCalls.awaitItem()
 
       // Verify V3 backup was created despite V2 existing
-      cloudBackupRepository.awaitBackup(
-        cloudAccount
-      ).shouldBe(CloudBackupV3WithFullAccountMock)
+      cloudBackupRepository.awaitBackup(cloudAccount)
+        .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }
@@ -322,9 +320,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.awaitBackup(
-        cloudAccount
-      ).shouldBe(CloudBackupV3WithFullAccountMock)
+      cloudBackupRepository.awaitBackup(cloudAccount)
+        .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }

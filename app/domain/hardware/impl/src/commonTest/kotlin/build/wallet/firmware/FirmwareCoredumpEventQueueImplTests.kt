@@ -24,7 +24,8 @@ class FirmwareCoredumpEventQueueImplTests : FunSpec({
               "serial_$index",
               "version_$index",
               "swType_$index",
-              "hwRevision_$index"
+              "hwRevision_$index",
+              "mcuInfo_$index"
             )
           )
         }

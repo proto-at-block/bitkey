@@ -11,6 +11,9 @@ import com.github.michaelbull.result.map
 class ListKeysetsF8eClientMock : ListKeysetsF8eClient {
   var numKeysets = 4
 
+  /** The active keyset ID to return. Defaults to the first keyset. */
+  var activeKeysetId: String = "spending-public-keyset-fake-server-id-0"
+
   var result: Result<ListKeysetsResponse, NetworkingError>? = null
 
   override suspend fun listKeysets(
@@ -31,10 +34,18 @@ class ListKeysetsF8eClientMock : ListKeysetsF8eClient {
             serverDescriptor = DescriptorPublicKeyMock(identifier = "server-xpub-$index").dpub
           )
         }
-    ).map { ListKeysetsResponse(keysets = it, wrappedSsek = null, descriptorBackups = emptyList()) }
+    ).map {
+      ListKeysetsResponse(
+        keysets = it,
+        wrappedSsek = null,
+        descriptorBackups = emptyList(),
+        activeKeysetId = activeKeysetId
+      )
+    }
   }
 
   fun reset() {
     result = null
+    activeKeysetId = "spending-public-keyset-fake-server-id-0"
   }
 }

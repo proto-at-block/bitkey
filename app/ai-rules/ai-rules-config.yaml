@@ -1,0 +1,8 @@
+# ai-rules configuration for Bitkey mobile app
+# Reference: https://github.com/block/ai-rules/blob/v1.2.0/README.md
+
+# Use defaults for agents (generates for all supported agents)
+# agents: []
+
+# Don't add generated patterns to .gitignore (we track generated files)
+gitignore: false

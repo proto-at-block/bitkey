@@ -19,8 +19,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2025.23.3
-        PROJECT_BUNDLE_VERSION: 3
+        PROJECT_BUNDLE_SHORT_VERSION: 2025.25.0
+        PROJECT_BUNDLE_VERSION: 2
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -75,8 +75,6 @@ targets:
     dependencies:
     - package: bdk-swift-legacy
       product: BitcoinDevKitLegacy
-    - package: bdk-swift
-      product: BitcoinDevKit
     - package: bugsnag-cocoa
       product: "Bugsnag"
     - package: dd-sdk-ios
@@ -183,7 +181,11 @@ targets:
             exit 0
           fi
           cd "$SRCROOT/.."
-          REPRODUCIBLE_BUILD="$REPRODUCIBLE_BUILD_VARIABLES_PATH" ./bin/gradle :shared:xc-framework:embedAndSignAppleFrameworkForXcode --configuration-cache
+          GRADLE_FLAGS="--configuration-cache"
+          if [ -n "$CI" ]; then
+            GRADLE_FLAGS="$GRADLE_FLAGS --no-watch-fs"
+          fi
+          REPRODUCIBLE_BUILD="$REPRODUCIBLE_BUILD_VARIABLES_PATH" ./bin/gradle :shared:xc-framework:embedAndSignAppleFrameworkForXcode $GRADLE_FLAGS
       - name: Embed reproducible-build-variables if exists
         basedOnDependencyAnalysis: false
         shell: /usr/bin/env bash
@@ -277,9 +279,6 @@ settings:
 packages:
   rust:
     path: ../rust
-  bdk-swift:
-    url: https://github.com/bitcoindevkit/bdk-swift
-    exactVersion: 2.0.0
   bdk-swift-legacy:
     path: ../third_party/spm/bdk-swift-legacy
   bugsnag-cocoa:

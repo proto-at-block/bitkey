@@ -9,6 +9,7 @@
 #include "lfs.h"
 #include "mempool.h"
 #include "rtos.h"
+#include "secure_rng.h"
 #include "seed.h"
 #include "wallet.h"
 
@@ -67,6 +68,8 @@ FAKE_VALUE_FUNC(uint64_t, rtos_thread_micros);
 
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_set_bits, rtos_event_group_t*, const uint32_t);
+FAKE_VALUE_FUNC(bool, rtos_event_group_set_bits_from_isr, rtos_event_group_t*, const uint32_t,
+                bool*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_get_bits, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_wait_bits, rtos_event_group_t*, const uint32_t,
                 const bool, const bool, uint32_t);
@@ -138,10 +141,6 @@ uint32_t timestamp(void) {
 
 void detect_glitch(void) {}
 
-uint16_t crypto_rand_short(void) {
-  return 1;
-}
-
 uint32_t clock_get_freq(void) {
   return 1;
 }
@@ -165,6 +164,8 @@ void setup(void) {
   cr_assert(lfs_format(&lfs, &cfg) == 0);
   cr_assert(lfs_mount(&lfs, &cfg) == 0);
   set_lfs(&lfs);
+
+  (void)BIP84_MAINNET_INTERNAL;
 }
 
 void teardown(void) {

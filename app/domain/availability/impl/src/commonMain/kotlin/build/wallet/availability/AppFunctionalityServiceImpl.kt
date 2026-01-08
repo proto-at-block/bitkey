@@ -58,7 +58,8 @@ class AppFunctionalityServiceImpl(
         authSignatureStatus == Unauthenticated -> LimitedFunctionality(
           cause = InactiveApp
         )
-        appVariant == Emergency -> LimitedFunctionality(
+        // Emergency Exit Mode: either sideloaded APK or EEK recovery in normal app
+        appVariant == Emergency || f8eEnvironment == F8eEnvironment.ForceOffline -> LimitedFunctionality(
           cause = EmergencyExitMode
         )
         f8eReachability == UNREACHABLE -> LimitedFunctionality(

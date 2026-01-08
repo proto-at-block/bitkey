@@ -19,10 +19,17 @@ if get_option('config_prod')
   message('Production config')
 endif
 
+display_rotate_env = run_command('sh', '-c', 'echo $W3_ENV_DISPLAY_ROTATE_180', check: true).stdout().strip()
+if display_rotate_env != ''
+  add_project_arguments('-DDISPLAY_ROTATE_180=' + display_rotate_env, language: 'c')
+  message('DISPLAY_ROTATE_180=' + display_rotate_env)
+endif
+
 fs = import('fs')
 
 system = meson.get_external_property('system', build_machine.system())
 embedded_build = meson.get_external_property('embedded_build', false)
+platform = meson.get_external_property('platform', build_machine.system())
 
 message('Building for ' + system)
 
@@ -36,7 +43,7 @@ message('Bootloader version ' + bl_version)
 
 # Used by FreeRTOS and MCU hal, so must come early.
 memfault_sdk_includes = include_directories(
-  'hal/memfault',
+  'hal/memfault/inc/',
   'third-party/memfault-firmware-sdk/components/include/',
   'third-party/memfault-firmware-sdk/ports/include/',
 )
@@ -47,6 +54,12 @@ buildtype = get_option('buildtype')
 if buildtype == 'debug'
   add_project_arguments([ f'-ffile-prefix-map='+meson.project_source_root()+'/=/' ], language: 'c')
 endif
+
+# We need to define this early to be able to use it in the libew build.
+secp256k1_dir = 'third-party/secp256k1'
+libew_secp256k1_include_dir = include_directories(secp256k1_dir / 'include')
+# We need to build transitive dependencies of libew (libwally) before the rest of the project.
+subdir('third-party/libew/third-party')
 
 # Needs to come early to provide printf_dep
 subdir('third-party')
@@ -73,7 +86,11 @@ endif
 # The following includes must be declared
 # before `mcu` since `mcu` depends on the following headers.
 rtos_includes = include_directories('lib/rtos/inc')
-config_includes = include_directories('config')
+config_includes = include_directories(
+  'config/rtos/' + platform,
+  'config/platform/' + platform,
+  'config',
+)
 security_config_includes = include_directories('config/keys/inc')
 perf_includes = include_directories('lib/perf')
 mpu_regions_includes = include_directories('lib/mpu_regions/inc')
@@ -87,24 +104,24 @@ assert_includes = include_directories('lib/assert')
 subdir('lib/assert')
 
 subdir('fuzz')
+
+subdir('lib/ringbuf')
 subdir('mcu')
 subdir('hal/clock')
-
-subdir('lib/secutils')
-subdir('hal/secure-engine')
 
 # Order of subdir() matters, but libs may depend on drivers, and vice versa:
 # so instead of simply subdir'ing the directories, we specify each target subdirectory
 # here in order to intermix them.
-subdir('lib/auth')
 subdir('lib/shell')
+subdir('lib/rtos')
+subdir('lib/secutils')
+subdir('hal/secure-engine')
+subdir('lib/auth')
 subdir('hal/memfault/memfault-log')
 subdir('lib/log')
 subdir('hal/led')
 subdir('lib/protobuf')
-subdir('lib/rtos')
 subdir('hal/sysevent')
-subdir('lib/ringbuf')
 subdir('lib/perf')
 memfault_event_defs = include_directories('hal/memfault/defs')
 subdir('lib/bitlog')
@@ -134,11 +151,16 @@ subdir('lib/wca')
 subdir('lib/protobuf/helpers')
 subdir('lib/bip32')
 subdir('lib/wallet')
+subdir('lib/psbt')
 subdir('lib/bootloader')
 subdir('lib/fwup')
 subdir('lib/mpu_regions')
 subdir('lib/indexfs')
+subdir('lib/tlv')
+subdir('lib/langpack')
 
+subdir('lib/ui_messaging')
+subdir('lib/temperature')
 subdir('lib/animation')
 subdir('hal/serial')
 subdir('hal/exti')
@@ -149,6 +171,18 @@ subdir('lib/unlock')
 subdir('lib/policy')
 subdir('lib/grant_protocol')
 subdir('lib/onboarding')
+subdir('hal/button')
+subdir('hal/gfx')
+subdir('hal/coproc')
+subdir('hal/touch')
+
+subdir('lib/uc')
+subdir('lib/display')
+subdir('lib/display_controller')
+
+if fs.is_dir('ui-simulate')
+  subdir('ui-simulate')
+endif
 
 subdir('config')
 subdir('app')

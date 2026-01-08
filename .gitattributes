@@ -1,3 +1,6 @@
 app/android/**/snapshots/**/*.png filter=lfs diff=lfs merge=lfs -text
 app/**/*.sq linguist-language=sql
 app/**/*.sqm linguist-language=sql
+app/rust/bdk-ffi/libs/**/*.a filter=lfs diff=lfs merge=lfs -text
+app/rust/bdk-ffi/libs/**/*.so filter=lfs diff=lfs merge=lfs -text
+app/rust/bdk-ffi/libs/**/*.dylib filter=lfs diff=lfs merge=lfs -text

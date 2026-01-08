@@ -490,6 +490,8 @@ impl BootstrapBuilder {
             exchange_rate_service.clone(),
             notification_service.clone(),
             Arc::new(wsm_client.clone()),
+            feature_flags_service.clone(),
+            screener_service.clone(),
         );
 
         let twilio_client = config::extract::<onboarding::routes::Config>(profile)?

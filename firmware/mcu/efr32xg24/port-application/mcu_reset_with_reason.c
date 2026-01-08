@@ -3,7 +3,7 @@
 #include "rtos_mpu.h"
 #include "rtos_thread.h"
 
-SYSCALL void mcu_reset_with_reason(mcu_reset_reason_t reason) {
+SYSCALL NO_RETURN void mcu_reset_with_reason(mcu_reset_reason_t reason) {
   if (!rtos_in_isr()) {
     rtos_thread_reset_privilege();
     rtos_thread_raise_privilege();

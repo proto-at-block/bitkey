@@ -1,5 +1,6 @@
 package build.wallet.support
 
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.email.EmailValidatorMock
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.datatest.withData
@@ -64,13 +65,15 @@ class SupportTicketFormValidatorImplTests : DescribeSpec({
         }
       }
 
-      it("succeeds with valid email and any supportRequestedDescriptor setting") {
-        checkAll<SendEncryptedDescriptor> {
-            sendEncryptedDescriptorChecked: SendEncryptedDescriptor ->
+      describe("succeeds with valid email and any sendEncryptedDescriptor setting") {
+        withData(
+          SendEncryptedDescriptor.NotSelected,
+          SendEncryptedDescriptor.Selected(FullAccountIdMock)
+        ) { sendEncryptedDescriptorValue ->
           emailValidator.isValid = true
           val data =
             buildSupportTicketData {
-              sendEncryptedDescriptor = sendEncryptedDescriptorChecked
+              sendEncryptedDescriptor = sendEncryptedDescriptorValue
             }
 
           validator.validate(form, data).shouldBeTrue()

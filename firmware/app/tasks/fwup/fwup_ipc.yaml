@@ -8,3 +8,7 @@ messages:
       auth: after_onboarding
     - name: fwpb_fwup_finish_cmd
       auth: after_onboarding
+  structs:
+    - name: fwup_start_coproc_rsp_t
+    - name: fwup_transfer_coproc_rsp_t
+    - name: fwup_finish_coproc_rsp_t

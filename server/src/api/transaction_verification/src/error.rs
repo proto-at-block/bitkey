@@ -8,6 +8,8 @@ use types::account::identifiers::KeysetId;
 use types::transaction_verification::entities::TransactionVerificationDiscriminants;
 use wsm_rust_client::Error as WsmError;
 
+use screener::screening::SanctionsScreenerError;
+
 #[derive(Debug, Error)]
 pub enum TransactionVerificationError {
     #[error(transparent)]
@@ -41,6 +43,12 @@ pub enum TransactionVerificationError {
     InvalidWebAuthToken,
     #[error("Invalid keyset type: {0}")]
     InvalidKeysetType(KeysetId),
+    #[error("One or more script pub keys are invalid. Cannot check transaction.")]
+    InvalidScriptPubKeys,
+    #[error("One or more outputs belong to sanctioned individuals.")]
+    OutputsBelongToSanctionedIndividuals,
+    #[error("Error screening transaction")]
+    ScreenerError(#[from] ApiError),
 }
 
 impl From<TransactionVerificationError> for ApiError {
@@ -75,8 +83,27 @@ impl From<TransactionVerificationError> for ApiError {
             | TransactionVerificationError::NoSpendKeyset(_)
             | TransactionVerificationError::PsbtParsingFailed(_)
             | TransactionVerificationError::InvalidWebAuthToken
-            | TransactionVerificationError::InvalidKeysetType(_) => {
+            | TransactionVerificationError::InvalidKeysetType(_)
+            | TransactionVerificationError::InvalidScriptPubKeys
+            | TransactionVerificationError::OutputsBelongToSanctionedIndividuals => {
                 ApiError::GenericBadRequest(err_msg)
+            }
+            TransactionVerificationError::ScreenerError(inner) => inner,
+        }
+    }
+}
+
+impl From<SanctionsScreenerError> for TransactionVerificationError {
+    fn from(value: SanctionsScreenerError) -> Self {
+        match value {
+            SanctionsScreenerError::InvalidScriptPubKeys => {
+                TransactionVerificationError::InvalidScriptPubKeys
+            }
+            SanctionsScreenerError::OutputsBelongToSanctionedIndividuals => {
+                TransactionVerificationError::OutputsBelongToSanctionedIndividuals
+            }
+            SanctionsScreenerError::ScreenerError(err) => {
+                TransactionVerificationError::ScreenerError(err)
             }
         }
     }

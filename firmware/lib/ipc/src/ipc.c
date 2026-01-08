@@ -56,6 +56,10 @@ bool _ipc_send(ipc_port_t port, ipc_ref_t* ref, ipc_options_t options) {
 
   if (options.take_ownership) {
     uint8_t* owned_msg = mempool_alloc(ipc_priv.mempool, ref->length);
+    if (!owned_msg) {
+      // Allocation failed - cannot take ownership
+      return false;
+    }
     memcpy(owned_msg, ref->object, ref->length);
     ref->object = owned_msg;
   }

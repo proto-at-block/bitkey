@@ -8,6 +8,9 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
@@ -20,7 +23,11 @@ data class FeeOptionsBodyModel(
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
     header = FormHeaderModel(
-      icon = LargeIconSpeedometer,
+      iconModel = IconModel(
+        icon = LargeIconSpeedometer,
+        iconSize = IconSize.Avatar,
+        iconTint = IconTint.Foreground
+      ),
       headline = title,
       alignment = CENTER
     ),

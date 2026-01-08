@@ -677,9 +677,7 @@ class DescriptorBackupServiceImpl(
       logInfo { "Ensuring descriptor backup exists for active keyset" }
 
       // Get current account
-      val account = accountService.getAccountOrNull<FullAccount>()
-        .bind()
-      if (account == null) return@coroutineBinding
+      val account = accountService.getAccountOrNull<FullAccount>().get() ?: return@coroutineBinding
 
       // Skip if active keyset is not private
       if (!account.keybox.activeSpendingKeyset.f8eSpendingKeyset.isPrivateWallet) {

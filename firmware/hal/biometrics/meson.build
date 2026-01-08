@@ -26,7 +26,7 @@ bio_includes = include_directories('inc')
 bio_platform_includes = include_directories('bio_platform_config')
 
 bio_deps = [
-  mcu_efr32xg24_dep,
+  mcu_dep,
   bitlog_dep,
   fpc_bep_dep,
   log_dep,
@@ -37,7 +37,7 @@ bio_deps = [
   helpers_dep,
   fs_dep,
   secutils_dep,
-  animation_dep,
+  ui_messaging_dep,
   ipc_dep,
   sysevent_dep,
   auth_dep,

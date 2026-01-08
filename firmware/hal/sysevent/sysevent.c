@@ -13,6 +13,11 @@ void sysevent_set(const sysevent_t events) {
   rtos_event_group_set_bits(&sys_events, (uint32_t)events);
 }
 
+void sysevent_set_from_isr(const sysevent_t events) {
+  bool woken = false;
+  rtos_event_group_set_bits_from_isr(&sys_events, (uint32_t)events, &woken);
+}
+
 bool sysevent_get(const sysevent_t event) {
   uint32_t bits = rtos_event_group_get_bits(&sys_events);
   return bits & (uint32_t)event;

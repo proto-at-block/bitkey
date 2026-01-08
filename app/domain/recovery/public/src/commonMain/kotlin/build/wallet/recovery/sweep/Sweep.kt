@@ -27,7 +27,7 @@ data class Sweep(
    * Bitcoin fee amount required to broadcast the sweep transaction
    * for all sweep PSBTs.
    */
-  val totalFeeAmount: BitcoinMoney = unsignedPsbts.sumOf { it.psbt.fee }
+  val totalFeeAmount: BitcoinMoney = unsignedPsbts.sumOf { it.psbt.fee.amount }
 
   /**
    * Total amount of bitcoin to transfer in the sweep transaction.

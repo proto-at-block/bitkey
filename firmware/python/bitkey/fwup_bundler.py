@@ -1,17 +1,17 @@
-import jinja2
-import os
-import yaml
-import shutil
 import json
-import semver
-
+import os
+import shutil
 from dataclasses import dataclass
-
+from pathlib import Path
 from shutil import copy
 
-from pathlib import Path
+import jinja2
+import semver
+import yaml
 from bitkey_proto import wallet_pb2 as wallet_pb
+
 from .firmware_signer import FwupDeltaPatchGenerator
+from .fwup import FwupParams
 
 
 @dataclass
@@ -52,9 +52,10 @@ class DeltaBundle:
 
 
 def load_patch_signing_key(image_type: str, version: str, product="w1a", base_directory=None) -> str:
-    # If the version is less than 1.0.52, use the dev key; we created the prod delta patch
+    # For w1a: If the version is less than 1.0.52, use the dev key; we created the prod delta patch
     # signing key in 1.0.52.
-    if semver.compare(version, "1.0.52") < 0:
+
+    if semver.compare(version, "1.0.52") < 0 and product == "w1a":
         image_type = "dev"
 
     if image_type == "prod":
@@ -120,18 +121,21 @@ class FwupBundler:
             if path.is_file():
                 path.unlink()
 
-    def generate_full(self, output_dir, files, version):
+    def generate_full(self, output_dir, files, version, include_bootloader=True):
         """Generate a FWUP bundle for a full firmware release."""
 
         self._ensure_clean_dir(output_dir)
 
-        params = {"manifest_version": "0.0.1",
-                  "product": self.product,
-                  "version": version,
-                  "bootloader_name": self.bootloader_name(),
-                  "application_a_name": self.application_name("a"),
-                  "application_b_name": self.application_name("b"),
-                  }
+        params = {
+            "manifest_version": "0.0.1",
+            "product": self.product,
+            "version": version,
+            "bootloader_name": self.bootloader_name(),
+            "application_a_name": self.application_name("a"),
+            "application_b_name": self.application_name("b"),
+            "fwup_params": FwupParams.from_product(self.product),
+            "include_bootloader": include_bootloader,
+        }
         yaml_file = self._render_template(
             "fwup-manifest.jinja.yml", output_dir, params)
 
@@ -168,15 +172,17 @@ class FwupBundler:
 
         self._ensure_clean_dir(bundle_dir)
 
-        params = {"manifest_version": "0.0.1",
-                  "product": self.product,
-                  "from_version": info.from_version,
-                  "to_version": info.to_version,
-                  "a2b_patch_name": self.patch_name("a", "b"),
-                  "b2a_patch_name": self.patch_name("b", "a"),
-                  "application_a_name": self.application_name("a"),
-                  "application_b_name": self.application_name("b"),
-                  }
+        params = {
+            "manifest_version": "0.0.1",
+            "product": self.product,
+            "from_version": info.from_version,
+            "to_version": info.to_version,
+            "a2b_patch_name": self.patch_name("a", "b"),
+            "b2a_patch_name": self.patch_name("b", "a"),
+            "application_a_name": self.application_name("a"),
+            "application_b_name": self.application_name("b"),
+            "fwup_params": FwupParams.from_product(self.product),
+        }
         yaml_file = self._render_template(
             "fwup-delta-manifest.jinja.yml", bundle_dir, params)
         self._write_json(yaml_file)

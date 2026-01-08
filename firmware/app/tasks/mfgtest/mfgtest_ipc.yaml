@@ -10,3 +10,40 @@ messages:
       auth: never
     - name: fwpb_mfgtest_battery_variant_cmd
       auth: never
+    - name: fwpb_mfgtest_runin_get_data_cmd
+      auth: never
+    - name: fwpb_mfgtest_button_cmd
+      auth: never
+    - name: fwpb_mfgtest_show_screen_cmd
+      auth: never
+    - name: fwpb_mfgtest_spi_loopback_cmd
+      auth: never
+    - name: fwpb_mfgtest_nfc_loopback_cmd
+      auth: never
+    - name: fwpb_mfgtest_board_id_cmd
+      auth: never
+    - name: fwpb_mfgtest_touch_test_cmd
+      auth: never
+    - name: fwpb_mfgtest_charger_cmd
+      auth: never
+  structs:
+    - name: mfgtest_runin_complete_internal_t
+      fields:
+        - uint32_t loop_count
+        - uint32_t initial_soc
+        - uint32_t final_soc
+        - uint32_t min_soc
+        - uint32_t elapsed_ms
+        - bool plugged_in
+        - uint32_t button_events
+        - uint32_t captouch_events
+        - uint32_t touch_events
+        - uint32_t fingerprint_events
+        - bool success
+    - name: mfgtest_touch_test_result_internal_t
+      fields:
+        - bool timeout
+        - uint16_t x
+        - uint16_t y
+        - uint16_t boxes_remaining
+    - name: mfgtest_coproc_gpio_response_t

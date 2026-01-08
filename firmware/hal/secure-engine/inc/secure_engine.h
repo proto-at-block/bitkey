@@ -21,7 +21,7 @@
 // AES
 sl_status_t se_aes_gcm(sl_se_command_context_t* cmd_ctx, const sl_se_key_descriptor_t* key,
                        sl_se_cipher_operation_t mode, size_t length,
-                       uint8_t iv[SE_AES_GCM_IV_LENGTH], const unsigned char* aad,
+                       uint8_t const iv[SE_AES_GCM_IV_LENGTH], const unsigned char* aad,
                        size_t aad_length, const unsigned char* input, unsigned char* output,
                        uint8_t tag[SE_AES_GCM_TAG_LENGTH]);
 

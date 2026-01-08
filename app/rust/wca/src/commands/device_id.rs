@@ -3,6 +3,8 @@ use teltra::TelemetryIdentifiers;
 
 use crate::{
     commands::metadata::FirmwareSlot,
+    commands::metadata::McuName,
+    commands::metadata::McuRole,
     errors::CommandError,
     fwpb,
     fwpb::device_info_rsp::DeviceInfoRspStatus,
@@ -39,6 +41,18 @@ pub struct BioMatchStats {
     pub fail_count: u32,
 }
 
+#[derive(Debug)]
+pub struct McuInfo {
+    pub name: McuName,
+    pub role: McuRole,
+    pub firmware_version: String,
+}
+
+#[derive(Debug)]
+pub struct DeviceInfoMcu {
+    pub mcus: Vec<McuInfo>,
+}
+
 pub struct DeviceInfo {
     pub version: String,
     pub serial: String,
@@ -51,6 +65,7 @@ pub struct DeviceInfo {
     pub battery_cycles: u32,
     pub secure_boot_config: Option<SecureBootConfig>,
     pub bio_match_stats: Option<BioMatchStats>,
+    pub device_info_mcus: Option<DeviceInfoMcu>,
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
@@ -151,6 +166,7 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
         battery_cycles,
         secure_boot_config,
         bio_match_stats,
+        device_info_mcus,
     }) = message
     {
         match DeviceInfoRspStatus::try_from(rsp_status) {
@@ -216,6 +232,35 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
             None => None,
         };
 
+        let mcus = match device_info_mcus.as_slice() {
+            [] => None,
+            _ => {
+                let mut mcu_vect = Vec::new();
+                for mcu in device_info_mcus {
+                    if let Some(firmware_version) = mcu.version {
+                        let version_string = format!(
+                            "{}.{}.{}",
+                            firmware_version.major, firmware_version.minor, firmware_version.patch
+                        );
+                        mcu_vect.push(McuInfo {
+                            name: match fwpb::McuName::try_from(mcu.mcu_name) {
+                                Ok(fwpb::McuName::Efr32) => McuName::Efr32,
+                                Ok(fwpb::McuName::Stm32u5) => McuName::Stm32u5,
+                                _ => McuName::Efr32,
+                            },
+                            role: match fwpb::McuRole::try_from(mcu.mcu_role) {
+                                Ok(fwpb::McuRole::Core) => McuRole::Core,
+                                Ok(fwpb::McuRole::Uxc) => McuRole::Uxc,
+                                _ => McuRole::Core,
+                            },
+                            firmware_version: version_string,
+                        });
+                    }
+                }
+                Some(DeviceInfoMcu { mcus: mcu_vect })
+            }
+        };
+
         Ok(DeviceInfo {
             version,
             serial,
@@ -228,6 +273,7 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
             battery_cycles,
             secure_boot_config,
             bio_match_stats,
+            device_info_mcus: mcus,
         })
     } else {
         Err(CommandError::MissingMessage)

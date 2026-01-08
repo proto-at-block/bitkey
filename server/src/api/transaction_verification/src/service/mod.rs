@@ -1,7 +1,9 @@
 use crate::repository::TransactionVerificationRepository;
 use account::service::Service as AccountService;
 use exchange_rate::service::Service as ExchangeRateService;
+use feature_flags::service::Service as FeatureFlagsService;
 use notification::service::Service as NotificationService;
+use screener::screening::SanctionsScreener;
 use serde::Deserialize;
 use std::sync::Arc;
 use wsm_rust_client::GrantService;
@@ -29,6 +31,8 @@ pub struct Service {
     exchange_rate_service: ExchangeRateService,
     notification_service: NotificationService,
     grant_service: Arc<dyn GrantService + Send + Sync>,
+    feature_flags_service: FeatureFlagsService,
+    screener_service: Arc<dyn SanctionsScreener + Send + Sync>,
 }
 
 impl Service {
@@ -39,6 +43,8 @@ impl Service {
         exchange_rate_service: ExchangeRateService,
         notification_service: NotificationService,
         grant_service: Arc<dyn GrantService + Send + Sync>,
+        feature_flags_service: FeatureFlagsService,
+        screener_service: Arc<dyn SanctionsScreener + Send + Sync>,
     ) -> Self {
         Self {
             config,
@@ -47,6 +53,8 @@ impl Service {
             exchange_rate_service,
             notification_service,
             grant_service,
+            feature_flags_service,
+            screener_service,
         }
     }
 }

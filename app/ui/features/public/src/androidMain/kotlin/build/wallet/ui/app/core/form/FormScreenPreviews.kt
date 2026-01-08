@@ -25,10 +25,12 @@ import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.formBodyModel
 import build.wallet.statemachine.core.list.ListFormBodyModel
 import build.wallet.statemachine.money.currency.FiatCurrencyListFormModel
+import build.wallet.statemachine.send.fee.FeeOptionsBodyModel
 import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
@@ -38,7 +40,6 @@ import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -283,60 +284,45 @@ internal fun PreviewMobilePaySheetScreen() {
 @Composable
 fun PreviewFeeOptionsFormScreen() {
   FormScreen(
-    model =
-      formBodyModel(
-        onBack = {},
-        toolbar =
-          ToolbarModel(
-            leadingAccessory =
-              BackAccessory(onClick = {})
+    model = FeeOptionsBodyModel(
+      title = "Select a transfer speed",
+      feeOptions = FormMainContentModel.FeeOptionList(
+        options = immutableListOf(
+          FormMainContentModel.FeeOptionList.FeeOption(
+            optionName = "Priority",
+            transactionTime = "~10 mins",
+            transactionFee = "$0.33 (1,086 sats)",
+            selected = false,
+            enabled = true,
+            onClick = {}
           ),
-        header =
-          FormHeaderModel(
-            icon = Icon.LargeIconSpeedometer,
-            headline = "Select a transfer speed",
-            alignment = FormHeaderModel.Alignment.CENTER
+          FormMainContentModel.FeeOptionList.FeeOption(
+            optionName = "Standard",
+            transactionTime = "~30 mins",
+            transactionFee = "$0.22 (1,086 sats)",
+            selected = true,
+            enabled = true,
+            onClick = {}
           ),
-        mainContentList =
-          immutableListOf(
-            FormMainContentModel.FeeOptionList(
-              options =
-                immutableListOf(
-                  FormMainContentModel.FeeOptionList.FeeOption(
-                    optionName = "Priority",
-                    transactionTime = "~10 mins",
-                    transactionFee = "$0.33 (1,086 sats)",
-                    selected = false,
-                    enabled = true,
-                    onClick = {}
-                  ),
-                  FormMainContentModel.FeeOptionList.FeeOption(
-                    optionName = "Standard",
-                    transactionTime = "~30 mins",
-                    transactionFee = "$0.22 (1,086 sats)",
-                    selected = true,
-                    enabled = true,
-                    onClick = {}
-                  ),
-                  FormMainContentModel.FeeOptionList.FeeOption(
-                    optionName = "Slow",
-                    transactionTime = "~60 mins",
-                    transactionFee = "$0.11 (1,086 sats)",
-                    selected = false,
-                    enabled = true,
-                    onClick = {}
-                  )
-                )
-            )
-          ),
-        primaryButton =
-          ButtonModel(
-            text = "Continue",
-            size = ButtonModel.Size.Footer,
-            onClick = StandardClick {}
-          ),
-        id = null
-      )
+          FormMainContentModel.FeeOptionList.FeeOption(
+            optionName = "Slow",
+            transactionTime = "~60 mins",
+            transactionFee = "$0.11 (1,086 sats)",
+            selected = false,
+            enabled = true,
+            onClick = {}
+          )
+        )
+      ),
+      primaryButton =
+        ButtonModel(
+          text = "Continue",
+          size = Footer,
+          isEnabled = true,
+          onClick = StandardClick {}
+        ),
+      onBack = {}
+    )
   )
 }
 
@@ -404,7 +390,6 @@ internal fun CurrencyListPreview() {
       )
   )
 }
-
 
 @Preview
 @Composable

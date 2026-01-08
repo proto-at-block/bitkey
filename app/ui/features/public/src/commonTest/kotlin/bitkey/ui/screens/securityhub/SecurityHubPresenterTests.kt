@@ -4,6 +4,7 @@ import bitkey.privilegedactions.FingerprintResetAvailabilityServiceImpl
 import bitkey.securitycenter.*
 import bitkey.securitycenter.SecurityActionRecommendation.*
 import bitkey.ui.framework.test
+import bitkey.ui.screens.recovery.KeysetRepairScreen
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.FunctionalityFeatureStates
@@ -411,7 +412,18 @@ class SecurityHubPresenterTests : FunSpec({
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE)
         ENABLE_TRANSACTION_VERIFICATION -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY)
+        REPAIR_KEYSET_MISMATCH -> recommendation.navigationScreenId()
+          .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_KEYSET_REPAIR)
       }
+    }
+  }
+
+  test("tapping REPAIR_KEYSET_MISMATCH recommendation navigates to keyset repair screen") {
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        onRecommendationClick(REPAIR_KEYSET_MISMATCH)
+      }
+      it.goToCalls.awaitItem().shouldBeTypeOf<KeysetRepairScreen>()
     }
   }
 

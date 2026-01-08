@@ -141,6 +141,7 @@ adpu_from_proto!(CancelFingerprintEnrollmentCmd);
 adpu_from_proto!(FingerprintResetRequestCmd);
 adpu_from_proto!(FingerprintResetFinalizeCmd);
 adpu_from_proto!(ProvisionAppAuthPubkeyCmd);
+adpu_from_proto!(GetConfirmationResultCmd);
 
 impl TryFrom<crate::fwpb::CoredumpGetCmd> for apdu::Command {
     type Error = EncodeError;
@@ -221,6 +222,7 @@ pub fn decode_and_check(
         Ok(crate::fwpb::Status::VersionMismatch) => {
             Err(crate::errors::CommandError::VersionInvalid)
         }
+        Ok(crate::fwpb::Status::ConfirmationPending) => Ok(message),
         Err(_) => Ok(message), // TODO(W-1211): Same as above comment.
     }
 }

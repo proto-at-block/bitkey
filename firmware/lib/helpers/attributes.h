@@ -14,6 +14,8 @@
 #define FWUP_TASK_DATA   __attribute__((section(".fwup_task_data")))
 #define NFC_TASK_DATA    __attribute__((section(".nfc_task_data")))
 #define LED_TASK_DATA    __attribute__((section(".led_task_data")))
+#define UI_TASK_DATA     __attribute__((section(".ui_task_data")))
+#define USART_TASK_DATA  __attribute__((section(".usart_task_data")))
 #define PERIPHERALS_DATA __attribute__((section(".peripherals_data")))
 #define SECTION(x)       __attribute__((section(x)))
 #else
@@ -23,7 +25,9 @@
 #define SHARED_TASK_BSS
 #define FWUP_TASK_DATA
 #define NFC_TASK_DATA
+#define UI_TASK_DATA
 #define LED_TASK_DATA
+#define USART_TASK_DATA
 #define PERIPHERALS_DATA
 #define SECTION(x)
 #endif
@@ -49,7 +53,9 @@
 #define SHARED_TASK_BSS
 #define FWUP_TASK_DATA
 #define NFC_TASK_DATA
+#define UI_TASK_DATA
 #define LED_TASK_DATA
+#define USART_TASK_DATA
 #define PERIPHERALS_DATA
 #define PACKED
 

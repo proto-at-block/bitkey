@@ -8,11 +8,14 @@ use crate::{
 use account::service::tests::{
     construct_test_account_service, create_full_account_for_test, generate_test_authkeys,
 };
+use account::service::FetchAccountInput;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
 use database::ddb::{Config as DDBConfig, Repository};
 use exchange_rate::service::Service as ExchangeRateService;
+use feature_flags::service::Service as FeatureFlagsService;
 use http_server::config;
 use notification::service::tests::construct_test_notification_service;
+use screener::screening::{SanctionsScreener, SanctionsScreenerError};
 use types::{
     account::{
         bitcoin::Network,
@@ -23,6 +26,19 @@ use types::{
 };
 
 pub async fn construct_test_transaction_verification_service() -> Service {
+    let feature_flags_service =
+        feature_flags::config::Config::new_with_overrides(Default::default())
+            .to_service()
+            .await
+            .expect("construct feature flags service");
+
+    construct_test_transaction_verification_service_with(false, feature_flags_service).await
+}
+
+pub async fn construct_test_transaction_verification_service_with(
+    should_block_transaction: bool,
+    feature_flags_service: FeatureFlagsService,
+) -> Service {
     let profile = Some("test");
     let ddb_config = config::extract::<DDBConfig>(profile).expect("extract ddb config");
     let ddb_connection = ddb_config.to_connection().await;
@@ -31,6 +47,10 @@ pub async fn construct_test_transaction_verification_service() -> Service {
     let mock_grant_service = MockGrantService::new();
     let transaction_verification_repository =
         TransactionVerificationRepository::new(ddb_connection.clone());
+    let screener_service = TestSanctionsService {
+        should_block_transaction,
+    };
+
     Service::new(
         config::extract::<Config>(profile).expect("extract tx verify config"),
         transaction_verification_repository,
@@ -38,6 +58,8 @@ pub async fn construct_test_transaction_verification_service() -> Service {
         ExchangeRateService::new(),
         notification_service,
         Arc::new(mock_grant_service),
+        feature_flags_service,
+        Arc::new(screener_service),
     )
 }
 
@@ -54,7 +76,12 @@ pub async fn setup_account_with_transaction_verification_policy(
             .await
             .unwrap();
     }
-    account
+    account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account.id,
+        })
+        .await
+        .expect("fetch account with updated policy")
 }
 
 // Helper to set up transaction verification data
@@ -100,3 +127,18 @@ mod initiate_tests;
 
 #[cfg(test)]
 mod verification_tests;
+
+#[derive(Clone)]
+struct TestSanctionsService {
+    should_block_transaction: bool,
+}
+
+impl SanctionsScreener for TestSanctionsService {
+    fn should_block_transaction(
+        &self,
+        _account: &types::account::entities::Account,
+        _addresses: &[String],
+    ) -> Result<bool, SanctionsScreenerError> {
+        Ok(self.should_block_transaction)
+    }
+}

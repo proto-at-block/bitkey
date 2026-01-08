@@ -5,7 +5,6 @@
 #include <stddef.h>  // FPC forgot to include stddef.h in some of their headers,
                      // so this include must come first.
 // clang-format on
-#include "animation.h"
 #include "auth.h"
 #include "bitlog.h"
 #include "fpc_bep_algorithms.h"
@@ -22,6 +21,7 @@
 #include "perf.h"
 #include "rtos.h"
 #include "sysinfo.h"
+#include "ui_messaging.h"
 
 #define BIO_IMAGE_CAPTURE_MAX_TRIES (4)
 #define BLOCKING_WAIT               (RTOS_EVENT_GROUP_TIMEOUT_MAX)
@@ -147,14 +147,6 @@ NO_OPTIMIZE static secure_bool_t match_image(fpc_bep_identify_result_t* identify
   volatile fpc_bep_result_t result =
     fpc_bep_identify((const fpc_bep_template_t**)&bio_priv.template, 1, identify_result);
 
-  // Play animation as fast as possible, i.e. don't use SECURE_ macros to provide the
-  // user feedback.
-  // Showing the unlocked LED isn't security-sensitive, but the checks below are.
-  if (result == FPC_BEP_RESULT_OK && identify_result->match) {
-    static led_start_animation_t msg = {.animation = (uint32_t)ANI_UNLOCKED, .immediate = true};
-    ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
-  }
-
   SECURE_IF_FAILIN(result != FPC_BEP_RESULT_OK) {
     BITLOG_EVENT(bio_auth_error, result);
     return SECURE_FALSE;
@@ -191,6 +183,11 @@ static secure_bool_t match_against_all_templates(fpc_bep_identify_result_t* iden
       identify_result->index = id;
       bio_priv.template_id = id;
       match_found = SECURE_TRUE;
+
+      // Send AUTH_SUCCESS event with correct template index
+      fingerprint_auth_data_t auth_data = {.template_index = id};
+      UI_SHOW_EVENT_WITH_DATA(UI_EVENT_AUTH_SUCCESS, &auth_data, sizeof(auth_data));
+
       goto out;
     }
   }
@@ -244,6 +241,36 @@ fail:
   return false;
 }
 
+bool bio_wait_for_finger_non_blocking(bio_gesture_t gesture) {
+  fpc_bep_finger_status_t status;
+  switch (gesture) {
+    case BIO_FINGER_DOWN:
+      status = FPC_BEP_FINGER_STATUS_PRESENT;
+      break;
+    case BIO_FINGER_UP:
+      status = FPC_BEP_FINGER_STATUS_NOT_PRESENT;
+      break;
+    default:
+      LOGE("Invalid gesture: %d", gesture);
+      return false;
+  }
+
+  fpc_bep_result_t result = fpc_bep_sensor_sleep(bio_priv.sensor_hw_detect_poll_period_ms);
+  if (result != FPC_BEP_RESULT_OK) {
+    LOGE("Sleep failed: %d", result);
+    fpc_bep_sensor_deep_sleep();
+    return false;
+  }
+
+  fpc_bep_finger_status_t finger_present;
+  result = fpc_bep_check_finger_present(&finger_present);
+  if (result != FPC_BEP_RESULT_OK) {
+    fpc_bep_sensor_deep_sleep();
+    return false;
+  }
+  return (finger_present == status);
+}
+
 void bio_wait_for_finger_blocking(bio_gesture_t gesture) {
 #if BIO_DEV_MODE
   // This function is called from auth_task, and interferes with other FPC
@@ -272,8 +299,9 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
   perf_reset(perf.enroll_pass);
   perf_reset(perf.enroll_fail);
 
-  static led_set_rest_animation_t start_msg = {.animation = (uint32_t)ANI_ENROLLMENT};
-  ipc_send(led_port, &start_msg, sizeof(start_msg), IPC_LED_SET_REST_ANIMATION);
+  enrollment_progress_data_t start_data = {.samples_remaining = number_required_samples,
+                                           .total_samples = number_required_samples};
+  UI_SHOW_EVENT_WITH_DATA(UI_EVENT_ENROLLMENT_START, &start_data, sizeof(start_data));
 
   fpc_bep_enrollment_status_t enroll_status;
 
@@ -335,18 +363,23 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
     }
 
     // Indicate whether the sample was accepted to the user via the LED.
-    static led_start_animation_t msg = {.animation = 0, .immediate = true};
     if (enroll_status.samples_remaining < previous_samples_remaining) {
       // Record good samples only; we want to see the quality of the template, which
       // is formed from only samples we accept.
       bio_get_and_update_diagnostics(&stats->diagnostics);
 
       perf_count(perf.enroll_pass);
-      msg.animation = (uint32_t)ANI_FINGERPRINT_SAMPLE_GOOD;
-      ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+      enrollment_progress_data_t progress_data = {
+        .samples_remaining = enroll_status.samples_remaining,
+        .total_samples = number_required_samples};
+      UI_SHOW_EVENT_WITH_DATA(UI_EVENT_ENROLLMENT_PROGRESS_GOOD, &progress_data,
+                              sizeof(progress_data));
     } else {
-      msg.animation = (uint32_t)ANI_FINGERPRINT_SAMPLE_BAD;
-      ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+      enrollment_progress_data_t progress_data = {
+        .samples_remaining = enroll_status.samples_remaining,
+        .total_samples = number_required_samples};
+      UI_SHOW_EVENT_WITH_DATA(UI_EVENT_ENROLLMENT_PROGRESS_BAD, &progress_data,
+                              sizeof(progress_data));
       perf_count(perf.enroll_fail);
     }
 
@@ -357,9 +390,7 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
     wait_for_finger_up(BLOCKING_WAIT);
   }
 
-  static led_start_animation_t msg = {.animation = (uint32_t)ANI_ENROLLMENT_COMPLETE,
-                                      .immediate = true};
-  ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+  UI_SHOW_EVENT(UI_EVENT_ENROLLMENT_COMPLETE);
 
   result = fpc_bep_enroll_finish(&enroll_template);  // May be null
   if (result != FPC_BEP_RESULT_OK) {
@@ -436,9 +467,7 @@ NO_OPTIMIZE secure_bool_t bio_authenticate_finger(secure_bool_t* is_match,
   }
 
   if (!capture_image_and_extract_template(image)) {
-    static led_start_animation_t msg = {.animation = (uint32_t)ANI_FINGERPRINT_BAD,
-                                        .immediate = true};
-    ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+    UI_SHOW_EVENT(UI_EVENT_FINGERPRINT_BAD);
     perf_cancel(perf.auth);
     perf_count(perf.errors);
     goto out;
@@ -447,9 +476,7 @@ NO_OPTIMIZE secure_bool_t bio_authenticate_finger(secure_bool_t* is_match,
   fpc_bep_identify_result_t identify_result = {.match = false, .index = 0};
   bool update_template = false;
   if (match_against_all_templates(&identify_result, &update_template) != SECURE_TRUE) {
-    static led_start_animation_t msg = {.animation = (uint32_t)ANI_FINGERPRINT_BAD,
-                                        .immediate = true};
-    ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+    UI_SHOW_EVENT(UI_EVENT_FINGERPRINT_BAD);
     perf_cancel(perf.auth);
     perf_count(perf.errors);
     goto out;

@@ -3,15 +3,15 @@ srcs = [
 ]
 serial_includes = include_directories('inc')
 
-deps = [mcu_efr32xg24_dep]
+deps = [mcu_dep, printf_dep]
 
-serial_w1a_lib = library('serial-w1a',
+serial_lib = library('serial',
   srcs,
   include_directories : serial_includes,
   dependencies : deps,
 )
-serial_w1a_dep = declare_dependency(
-  link_with : serial_w1a_lib,
+serial_dep = declare_dependency(
+  link_with : serial_lib,
   include_directories : serial_includes,
   dependencies : deps,
 )

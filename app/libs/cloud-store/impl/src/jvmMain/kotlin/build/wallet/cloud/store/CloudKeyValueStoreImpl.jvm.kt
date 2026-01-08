@@ -38,11 +38,14 @@ class CloudKeyValueStoreImpl(
   }
 
   override suspend fun keys(account: CloudStoreAccount): Result<List<String>, CloudError> {
-    return Ok(store().keys().toList())
+    return Ok(store().keys().map { account.toDecompositeKey(it) }.filter { it.isNotEmpty() }.toList())
   }
 
   private fun CloudStoreAccount.toCompositeKey(key: String) =
     "${(this as CloudStoreAccountFake).identifier}_$key"
+
+  private fun CloudStoreAccount.toDecompositeKey(key: String) =
+    key.substringAfter("${(this as CloudStoreAccountFake).identifier}_", "")
 
   private companion object {
     const val STORE_NAME = "CloudFake"

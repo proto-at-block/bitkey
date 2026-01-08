@@ -77,15 +77,16 @@ class RelationshipsServiceMock(
   }
 
   val createInvitationCalls = turbine("createInvitation calls")
+  var createInvitationResult: Result<OutgoingInvitation, CreateInvitationError> = Ok(OutgoingInvitationFake)
 
   override suspend fun createInvitation(
     account: FullAccount,
     trustedContactAlias: TrustedContactAlias,
     hardwareProofOfPossession: HwFactorProofOfPossession,
     roles: Set<TrustedContactRole>,
-  ): Result<OutgoingInvitation, Error> {
+  ): Result<OutgoingInvitation, CreateInvitationError> {
     createInvitationCalls.add(Unit)
-    return Ok(OutgoingInvitationFake)
+    return createInvitationResult
   }
 
   override suspend fun refreshInvitation(
@@ -151,6 +152,7 @@ class RelationshipsServiceMock(
     acceptInvitationResult = defaultAcceptInvitationResult
     retrieveInvitationResult = defaultRetrieveInvitationResult
     syncAndVerifyRelationshipsResult = defaultSyncAndVerifyRelationshipsResult
+    createInvitationResult = Ok(OutgoingInvitationFake)
     relationshipsFlow.value = RelationshipsFake
     return Ok(Unit)
   }

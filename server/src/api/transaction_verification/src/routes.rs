@@ -24,7 +24,7 @@ use account::service::{
 use authn_authz::key_claims::KeyClaims;
 use bdk_utils::{
     bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, generate_electrum_rpc_uris,
-    get_outflow_addresses_for_psbt, get_total_outflow_for_psbt, DescriptorKeyset,
+    DescriptorKeyset,
 };
 use errors::ApiError;
 use exchange_rate::{
@@ -46,6 +46,7 @@ use privileged_action::service::{
 };
 use secure_site::static_handler::{html_error, inject_json_into_template};
 use types::{
+    account::spending::SpendingKeyset,
     account::{
         entities::TransactionVerificationPolicy,
         identifiers::{AccountId, KeysetId},
@@ -62,7 +63,9 @@ use types::{
             InitiateTransactionVerificationView, PutTransactionVerificationPolicyRequest,
             TransactionVerificationView,
         },
-        service::DescriptorKeysetWalletProvider,
+        service::{
+            DescriptorKeysetWalletProvider, PrivateKeysetWalletProvider, VerificationWalletProvider,
+        },
         TransactionVerificationId,
     },
 };
@@ -385,26 +388,34 @@ async fn initiate_transaction_verification(
         })
         .await?;
     let signing_keyset_id = request.signing_keyset_id;
-    let source_descriptor: DescriptorKeyset = account
+
+    let spending_keyset = account
         .spending_keysets
         .get(&signing_keyset_id)
-        .ok_or_else(|| TransactionVerificationError::NoSpendKeyset(signing_keyset_id.clone()))?
-        .legacy_multi_sig_or(TransactionVerificationError::InvalidKeysetType(
-            signing_keyset_id,
-        ))?
-        .to_owned()
-        .into();
-    let wallet_provider = DescriptorKeysetWalletProvider::new(source_descriptor, rpc_uris);
+        .cloned()
+        .ok_or_else(|| TransactionVerificationError::NoSpendKeyset(signing_keyset_id.clone()))?;
+    let network = spending_keyset.network().into();
+
+    let wallet_provider: VerificationWalletProvider = match spending_keyset {
+        SpendingKeyset::LegacyMultiSig(legacy) => {
+            let source_descriptor: DescriptorKeyset = legacy.clone().into();
+            DescriptorKeysetWalletProvider::new(source_descriptor, rpc_uris).into()
+        }
+        SpendingKeyset::PrivateMultiSig(private) => {
+            PrivateKeysetWalletProvider::new(private.clone()).into()
+        }
+    };
 
     let tx_verification = transaction_verification_service
         .initiate(
-            &account_id,
-            account.hardware_auth_pubkey,
+            &account,
             wallet_provider,
             psbt,
+            network,
             request.fiat_currency,
             request.bitcoin_display_unit,
             request.should_prompt_user,
+            context_key,
         )
         .await?;
     Ok(Json(tx_verification.to_response()))
@@ -464,16 +475,29 @@ pub async fn get_transaction_verification_interface(
         })
         .await
         .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-    let electrum_rpc_uris = default_electrum_rpc_uris();
-    let wallet = account
-        .active_descriptor_keyset()
-        .ok_or(html_error(StatusCode::BAD_REQUEST, "Invalid keyset state"))?
-        .generate_wallet(false, &electrum_rpc_uris)
+    let active_keyset = account
+        .active_spending_keyset()
+        .ok_or(html_error(StatusCode::BAD_REQUEST, "Invalid keyset state"))?;
+
+    let wallet_provider: VerificationWalletProvider = match active_keyset {
+        SpendingKeyset::LegacyMultiSig(legacy) => {
+            let electrum_rpc_uris = default_electrum_rpc_uris();
+            let source_descriptor: DescriptorKeyset = legacy.clone().into();
+            DescriptorKeysetWalletProvider::new(source_descriptor, electrum_rpc_uris).into()
+        }
+        SpendingKeyset::PrivateMultiSig(private) => {
+            PrivateKeysetWalletProvider::new(private.clone()).into()
+        }
+    };
+    let wallet = wallet_provider
+        .into_wallet()
         .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     let psbt = &tx_verification.common_fields.psbt;
 
     let to_currency_code = tx_verification.fiat_currency;
-    let amount_sats = get_total_outflow_for_psbt(&wallet, psbt);
+    let amount_sats = wallet
+        .total_outflow_sats(psbt)
+        .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     let amount_fiat = cents_for_sats(
         &config,
         &exchange_rate_service,
@@ -482,7 +506,8 @@ pub async fn get_transaction_verification_interface(
     )
     .await
     .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-    let recipient = match get_outflow_addresses_for_psbt(&wallet, psbt, wallet.network())
+    let recipient = match wallet
+        .outflow_addresses(psbt)
         .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?
     {
         addresses if addresses.is_empty() => {

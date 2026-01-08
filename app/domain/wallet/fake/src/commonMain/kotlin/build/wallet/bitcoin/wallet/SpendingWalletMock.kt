@@ -9,6 +9,7 @@ import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
@@ -129,15 +130,16 @@ class SpendingWalletMock(
   ): Result<Psbt, Throwable> {
     createPsbtResult?.let { return it }
     createPsbtResults[recipientAddress]?.let { return it }
+    val feeAmount = when (feePolicy) {
+      is FeePolicy.Absolute -> feePolicy.fee.amount
+      else -> BitcoinMoney.btc(BigDecimal.TEN)
+    }
+
     return Ok(
       Psbt(
         id = "psbt-id",
         base64 = "some-base-64",
-        fee =
-          when (feePolicy) {
-            is FeePolicy.Absolute -> feePolicy.fee.amount
-            else -> BitcoinMoney.btc(BigDecimal.TEN)
-          },
+        fee = Fee(feeAmount),
         baseSize = 10000,
         numOfInputs = 1,
         amountSats = 10000UL
@@ -158,19 +160,20 @@ class SpendingWalletMock(
       createSignedPsbtResults[constructionType.recipientAddress]?.let { return it }
     }
 
+    val feeAmount = if (constructionType is SpendingWallet.PsbtConstructionMethod.Regular) {
+      when (val policy = constructionType.feePolicy) {
+        is FeePolicy.Absolute -> policy.fee.amount
+        else -> BitcoinMoney.btc(BigDecimal.TEN)
+      }
+    } else {
+      BitcoinMoney.btc(BigDecimal.TEN)
+    }
+
     return Ok(
       Psbt(
         id = "psbt-id",
         base64 = "some-base-64",
-        fee =
-          if (constructionType is SpendingWallet.PsbtConstructionMethod.Regular) {
-            when (val policy = constructionType.feePolicy) {
-              is FeePolicy.Absolute -> policy.fee.amount
-              else -> BitcoinMoney.btc(BigDecimal.TEN)
-            }
-          } else {
-            BitcoinMoney.btc(BigDecimal.TEN)
-          },
+        fee = Fee(feeAmount),
         baseSize = 10000,
         numOfInputs = 1,
         amountSats = 10000UL

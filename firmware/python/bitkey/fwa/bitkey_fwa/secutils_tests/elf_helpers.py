@@ -1,5 +1,8 @@
-from elftools.elf.elffile import ELFFile
 from collections import defaultdict
+from typing import Set
+
+from elftools.elf.elffile import ELFFile
+
 
 def get_address_of_variable(elf_file_path: str, variable_name: str) -> int:
     """
@@ -150,3 +153,42 @@ def get_functions_with_variable(elf_file_path: str, variable_name: str) -> dict[
         if func is not None:
             ret_func_dict[func].append(hex(ref))
     return ret_func_dict
+
+
+def get_sources(elf_file_path: str) -> Set[str]:
+    """
+    Returns a set of source files that were compiled into the given ELF file.
+
+    Args:
+        elf_file_path (str): Path to the ELF file.
+
+    Returns:
+        Set of source file paths from the root directory.
+    """
+    with open(elf_file_path, "rb") as f:
+        elf_file = ELFFile(f)
+        dwarf_info = elf_file.get_dwarf_info()
+
+        source_files = set()
+        for compile_unit in dwarf_info.iter_CUs():
+            # Get the line program for the current compile unit.
+            line_program = dwarf_info.line_program_for_CU(compile_unit)
+
+            # Iterate through the file entries in the line program.
+            for entry in line_program.header.file_entry:
+                dir_index = entry.dir_index
+                fname = entry.name.decode("utf-8")
+
+                # Resolve the directory if it's a relative path
+                if dir_index > 0:
+                    # Directory entries are 1-indexed in DWARF.
+                    directory = line_program.header.include_directory[dir_index - 1].decode("utf-8")
+                    fpath = f"{directory}/{fname}"
+                else:
+                    # If dir_index is 0, the path might be absolute or relative to the
+                    # compilation directory. For simplicity, we'll just use the file name
+                    # as is, assuming it's either absolute or the compilation directory is
+                    # implicit. More robust handling might involve DW_AT_comp_dir.
+                    fpath = fname
+                source_files.add(fpath)
+    return source_files

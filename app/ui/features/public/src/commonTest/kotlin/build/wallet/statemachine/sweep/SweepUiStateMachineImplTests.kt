@@ -160,7 +160,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
-          totalFeeAmount = PsbtMock.fee,
+          totalFeeAmount = PsbtMock.fee.amount,
           totalTransferAmount = PsbtMock.amountBtc,
           destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
@@ -194,7 +194,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(
         SweepCompleteData(
           proceed = {},
-          totalFeeAmount = PsbtMock.fee,
+          totalFeeAmount = PsbtMock.fee.amount,
           totalTransferAmount = PsbtMock.amountBtc,
           destinationAddress = "bc1qtest"
         )
@@ -227,7 +227,7 @@ class SweepUiStateMachineImplTests : FunSpec({
           )
         )
       val totalFeeAmount =
-        PsbtMock.fee + PsbtMock.fee
+        PsbtMock.fee.amount + PsbtMock.fee.amount
       val totalTransferAmount = PsbtMock.amountBtc + PsbtMock.amountBtc
       val needsHwSign = sweepPsbts.take(1).toSet()
       val hwSignedPsbts = setOf(sweepPsbts[1].psbt.copy(base64 = "hw-signed"))
@@ -304,7 +304,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
-          totalFeeAmount = PsbtMock.fee,
+          totalFeeAmount = PsbtMock.fee.amount,
           totalTransferAmount = PsbtMock.amountBtc,
           destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
@@ -323,7 +323,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(
         SweepCompleteData(
           proceed = { sweepProceedCalls += Unit },
-          totalFeeAmount = PsbtMock.fee,
+          totalFeeAmount = PsbtMock.fee.amount,
           totalTransferAmount = PsbtMock.amountBtc,
           destinationAddress = "bc1qtest"
         )
@@ -360,7 +360,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         )
       )
       val totalFeeAmount =
-        PsbtMock.fee + PsbtMock.fee
+        PsbtMock.fee.amount + PsbtMock.fee.amount
       val totalTransferAmount = PsbtMock.amountBtc + PsbtMock.amountBtc
       val needsHwSign = sweepPsbts.take(1).toSet()
       val hwSignedPsbts = setOf(sweepPsbts[1].psbt.copy(base64 = "hw-signed"))
@@ -419,7 +419,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
-          totalFeeAmount = PsbtMock.fee,
+          totalFeeAmount = PsbtMock.fee.amount,
           totalTransferAmount = PsbtMock.amountBtc,
           destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
@@ -467,7 +467,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
-          totalFeeAmount = PsbtMock.fee,
+          totalFeeAmount = PsbtMock.fee.amount,
           totalTransferAmount = PsbtMock.amountBtc,
           destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
@@ -526,7 +526,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
-          totalFeeAmount = PsbtMock.fee,
+          totalFeeAmount = PsbtMock.fee.amount,
           totalTransferAmount = PsbtMock.amountBtc,
           destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }
@@ -587,7 +587,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
-          totalFeeAmount = PsbtMock.fee,
+          totalFeeAmount = PsbtMock.fee.amount,
           totalTransferAmount = PsbtMock.amountBtc,
           destinationAddress = "bc1qtest",
           startSweep = { startSweepCalls += Unit }

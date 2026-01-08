@@ -14,8 +14,8 @@ class FirmwareCoredumpEventProcessorImplTests : FunSpec({
   val memfaultClient = MemfaultClientMock(turbines::create)
   val firmwareCoredumpSender = FirmwareCoredumpEventProcessorImpl(memfaultClient)
 
-  val coredump1 = FirmwareCoredump(ByteString.EMPTY, TelemetryIdentifiers("1", "", "", ""))
-  val coredump2 = FirmwareCoredump(ByteString.EMPTY, TelemetryIdentifiers("2", "", "", ""))
+  val coredump1 = FirmwareCoredump(ByteString.EMPTY, TelemetryIdentifiers("1", "", "", "", ""))
+  val coredump2 = FirmwareCoredump(ByteString.EMPTY, TelemetryIdentifiers("2", "", "", "", ""))
 
   beforeTest {
     memfaultClient.reset()

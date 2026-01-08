@@ -178,7 +178,7 @@ fpc_bep_result_t fpc_sensor_spi_write_read(uint8_t* data, size_t write_size, siz
   uint8_t* tx_buf = data;
   uint8_t* rx_buf = data;
   while (remaining > 0) {
-    int count = BLK_MIN(remaining, MCU_DMA_MAX_XFER_COUNT);
+    int count = BLK_MIN(remaining, (int)mcu_dma_get_max_xfer_size());
     mcu_err_t result =
       mcu_spi_master_transfer_b(&fpc_priv.spi_state, tx_buf + off, rx_buf + off, count);
     if (result != MCU_ERROR_OK) {
@@ -479,6 +479,14 @@ bool bio_sensor_is_secured(bool* secured) {
 
 bool bio_sensor_is_otp_locked(bool* locked) {
   return fpc_bep_sensor_security_get_otp_locked_status(locked) == FPC_BEP_RESULT_OK;
+}
+
+bool bio_sensor_write_read(uint8_t* data, size_t data_size) {
+  if ((data == NULL) || (data_size == 0)) {
+    return false;
+  }
+  const fpc_bep_result_t result = fpc_sensor_spi_write_read(data, data_size, data_size, false);
+  return (result == FPC_BEP_RESULT_OK);
 }
 
 void fpc_sensor_security_get_cmac_challenge(uint8_t* challenge) {

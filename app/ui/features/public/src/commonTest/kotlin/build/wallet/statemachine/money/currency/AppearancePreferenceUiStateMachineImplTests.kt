@@ -8,6 +8,8 @@ import build.wallet.analytics.v1.Action.ACTION_APP_BITCOIN_DISPLAY_PREFERENCE_CH
 import build.wallet.analytics.v1.Action.ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.inappsecurity.HideBalancePreferenceFake
 import build.wallet.money.currency.FiatCurrenciesServiceFake
 import build.wallet.money.currency.GBP
@@ -26,8 +28,6 @@ import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilSheet
 import build.wallet.ui.theme.ThemePreferenceServiceFake
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.Bip177FeatureFlag
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.collections.shouldContainExactly

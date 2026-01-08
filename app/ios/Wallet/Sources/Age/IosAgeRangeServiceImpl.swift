@@ -102,7 +102,8 @@ public final class IosAgeRangeServiceImpl: Shared.IosAgeRangeService {
             // Step 1: Check if user is in a jurisdiction requiring age verification
             // Apple determines this based on device region settings
             // Currently true for: Texas, Utah, Louisiana
-            let isEligible = try await DeclaredAgeRange.AgeRangeService.shared.isEligibleForAgeFeatures
+            let isEligible = try await DeclaredAgeRange.AgeRangeService.shared
+                .isEligibleForAgeFeatures
 
             guard isEligible else {
                 // User not in an applicable jurisdiction - no age check required
@@ -121,7 +122,7 @@ public final class IosAgeRangeServiceImpl: Shared.IosAgeRangeService {
 
             // Step 3: Map Apple's response to our Kotlin-friendly types
             switch response {
-            case .sharing(let range):
+            case let .sharing(range):
                 // User shared their age range
                 // lowerBound is the minimum age in their range (e.g., 18 means "18 or older")
                 // Can be nil if Apple doesn't have age information for this user
@@ -165,4 +166,3 @@ public final class IosAgeRangeServiceImpl: Shared.IosAgeRangeService {
         }
     }
 }
-

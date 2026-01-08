@@ -160,9 +160,8 @@ data class BitcoinTransaction(
 }
 
 fun BitcoinTransaction.toSpeedUpTransactionDetails(): SpeedUpTransactionDetails? {
-  val feeRate = feeRate()
   // This should be unexpected, so we handle with returning null and log and error if it occurs.
-  if (recipientAddress == null || fee == null || feeRate == null) {
+  if (recipientAddress == null || fee == null) {
     logError { "Missing recipient address or fee information for transaction $id" }
     return null
   }
@@ -170,7 +169,7 @@ fun BitcoinTransaction.toSpeedUpTransactionDetails(): SpeedUpTransactionDetails?
   return SpeedUpTransactionDetails(
     txid = this.id,
     recipientAddress = recipientAddress,
-    oldFee = Fee(amount = fee, feeRate = feeRate),
+    oldFee = Fee(amount = fee),
     sendAmount = this.subtotal,
     transactionType = this.transactionType
   )

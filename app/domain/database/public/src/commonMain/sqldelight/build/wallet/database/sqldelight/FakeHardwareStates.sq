@@ -1,0 +1,20 @@
+import kotlin.Boolean;
+
+-- Table for storing the state of fake hardware for testing purposes.
+-- This is a simple key-value store with a single row to store the value
+CREATE TABLE fakeHardwareStatesEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    transactionVerificationEnabled INTEGER AS Boolean NOT NULL
+);
+
+setTransactionVerificationEnabled:
+INSERT OR REPLACE INTO fakeHardwareStatesEntity(rowId, transactionVerificationEnabled)
+-- Use stable row ID to ensure we only ever have a single entity.
+VALUES(0, ?);
+
+getTransactionVerificationEnabled:
+SELECT * FROM fakeHardwareStatesEntity
+WHERE rowId = 0;
+
+clear:
+DELETE FROM fakeHardwareStatesEntity;

@@ -1,6 +1,8 @@
+import os
 import subprocess
 from collections import defaultdict
-import os
+from typing import Dict, List, Optional
+
 from macro_constants import macro_weight
 
 
@@ -17,7 +19,11 @@ def run_cscope(dir_path: str) -> None:
     subprocess.run(["cscope", "-Rbqk", "-I", "."], capture_output=True, text=True)
 
 
-def get_function_macro_counts(dir_path: str, macros: list) -> dict[str, int]:
+def get_function_macro_counts(
+    dir_path: str,
+    macros: List[str],
+    sources: Optional[List[str]] = None
+) -> Dict[str, int]:
     """
     Returns the number of times secutils_fixed_true is used per function.
     This only outputs non zero occurences of secutils_fixed_true.
@@ -25,6 +31,7 @@ def get_function_macro_counts(dir_path: str, macros: list) -> dict[str, int]:
     Args:
         dir_path (str): The directory path.
         macros (List[str]): The list of macro names.
+        sources (List[str]): Optional list of filenames to filter to.
     
     Returns:
         Dict[str, int]: A dictionary that maps function names to the number of times secutils_fixed_true is used in that function.
@@ -39,6 +46,10 @@ def get_function_macro_counts(dir_path: str, macros: list) -> dict[str, int]:
             fields = line.split()
             if len(fields) > 1:
                 if fields[1] in macros:
+                    # Skip if function name matches a macro name.
+                    continue
+                elif sources and fields[0] not in sources:
+                    # File name is not in the source file inclusion list.
                     continue
                 function_name = fields[1]
                 secutils_count[function_name] += macro_weight[macro_name]

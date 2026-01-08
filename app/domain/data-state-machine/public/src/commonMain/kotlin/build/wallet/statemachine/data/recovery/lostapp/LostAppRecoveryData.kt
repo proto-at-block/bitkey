@@ -20,7 +20,7 @@ sealed interface LostAppRecoveryData {
    */
   sealed interface LostAppRecoveryHaveNotStartedData : LostAppRecoveryData {
     data class AttemptingCloudRecoveryLostAppRecoveryDataData(
-      val cloudBackup: CloudBackup,
+      val cloudBackups: List<CloudBackup>,
       val rollback: () -> Unit,
       val onRecoverAppKey: () -> Unit,
       val goToLiteAccountCreation: () -> Unit,

@@ -4,7 +4,7 @@ use tracing::instrument;
 
 use crate::destination::Destination;
 use crate::errors::AnalyticsError;
-use crate::routes::definitions::{Action, Event, EventBundle, ServerAction, ServerEvent};
+use crate::routes::definitions::{Action, ActionServer, Event, EventBundle, ServerEvent};
 
 const AUTH_HEADER: &str = "Authorization";
 const AUTH_TYPE: &str = "Basic ";
@@ -78,11 +78,10 @@ fn translate_events(bundle: EventBundle) -> SegmentTrackEventBundle {
         .into_iter()
         .map(|e| {
             let properties = SegmentProperties::ServerEvent(e.clone());
-            let action =
-                ServerAction::try_from(e.action).unwrap_or(ServerAction::ActionServerUnspecified);
+            let action = ActionServer::try_from(e.action).unwrap_or(ActionServer::Unspecified);
             SegmentTrackEvent {
                 user_id: e.account_id,
-                event: ServerAction::as_str_name(&action).to_owned(),
+                event: ActionServer::as_str_name(&action).to_owned(),
                 properties,
                 timestamp: e.event_time,
                 event_type: String::from(EVENT_TYPE),
@@ -128,7 +127,7 @@ mod local_analytics_segment_tracker_test {
         destination::segment_tracker::{
             api_key_to_auth_header, translate_events, SegmentProperties,
         },
-        routes::definitions::{Action, Event, EventBundle, ServerAction, ServerEvent},
+        routes::definitions::{Action, ActionServer, Event, EventBundle, ServerEvent},
     };
 
     #[test]
@@ -197,7 +196,7 @@ mod local_analytics_segment_tracker_test {
         );
         assert_eq!(
             segment_event_bundle.batch[0].event,
-            ServerAction::as_str_name(&ServerAction::ActionServerUnspecified)
+            ActionServer::as_str_name(&ActionServer::Unspecified)
         );
         assert_eq!(
             segment_event_bundle.batch[0].timestamp,

@@ -1,0 +1,64 @@
+[binaries]
+c       = 'arm-none-eabi-gcc'
+cpp     = 'arm-none-eabi-g++'
+ld      = 'arm-none-eabi-ld'
+ar      = 'arm-none-eabi-ar'
+as      = 'arm-none-eabi-as'
+size    = 'arm-none-eabi-size'
+objdump = 'arm-none-eabi-objdump'
+objcopy = 'arm-none-eabi-objcopy'
+strip   = 'arm-none-eabi-strip'
+gdb     = 'arm-none-eabi-gdb'
+
+[properties]
+system = 'efr32mg24'
+embedded_build = true
+platform = 'w1'
+
+[built-in options]
+c_args = [
+  '-mcpu=cortex-m33',
+  '-mthumb',
+  '-mfpu=fpv5-sp-d16',
+  '-mfloat-abi=hard',
+  '-mno-unaligned-access',
+  '-fdata-sections',
+  '-ffunction-sections',
+  '-fstack-protector-strong',
+  '-O2',
+  '-g3',
+  '-Wall',
+  '-Wextra',
+  '-Werror',
+  '-fno-builtin',
+  # For Memfault compact logging.
+  '-std=gnu11',
+  '-DEMBEDDED_BUILD=1',
+  # Ensure secure-engine feature flags are propagated
+  '-DSL_SE_MANAGER_YIELD_WHILE_WAITING_FOR_COMMAND_COMPLETION',
+  '-DSL_CATALOG_FREERTOS_KERNEL_PRESENT',
+  # Gecko SDK defines. Remove these once we remove Gecko SDK entirely.
+  '-DDEBUG_EFM=1',
+  '-DEFR32MG24B010F1536IM48=1']
+
+c_link_args = [
+  '-mcpu=cortex-m33',
+  '-mthumb',
+  '-mfpu=fpv5-sp-d16',
+  '-mfloat-abi=hard',
+  '-mno-unaligned-access',
+  '--specs=nano.specs',
+  '--specs=rdimon.specs',
+  '--specs=nosys.specs',
+  '-nostartfiles',
+  '-lc',
+  '-lm',
+  '-Wl,--gc-sections',
+  # For custom stack canary implementation
+  '-Wl,--wrap=__stack_chk_fail']
+
+[host_machine]
+system = 'none'
+cpu_family = 'arm'
+cpu = 'cortex-m33'
+endian = 'little'

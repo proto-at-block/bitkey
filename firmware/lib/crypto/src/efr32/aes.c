@@ -11,8 +11,8 @@ typedef enum {
 } operation_t;
 
 static bool aes_gcm_op(operation_t op, const uint8_t* input, uint8_t* output, uint32_t length,
-                       uint8_t iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH], uint8_t* aad,
-                       uint32_t aad_length, key_handle_t* key) {
+                       uint8_t const iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH],
+                       uint8_t const* aad, uint32_t aad_length, key_handle_t* key) {
   if (!input || !output || !key) {
     return false;
   }
@@ -32,14 +32,14 @@ static bool aes_gcm_op(operation_t op, const uint8_t* input, uint8_t* output, ui
 }
 
 bool aes_gcm_encrypt(const uint8_t* plaintext, uint8_t* ciphertext, uint32_t length,
-                     uint8_t iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH], uint8_t* aad,
-                     uint32_t aad_length, key_handle_t* key) {
+                     uint8_t const iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH],
+                     uint8_t const* aad, uint32_t aad_length, key_handle_t* key) {
   return aes_gcm_op(OP_ENCRYPT, plaintext, ciphertext, length, iv, tag, aad, aad_length, key);
 }
 
 bool aes_gcm_decrypt(const uint8_t* ciphertext, uint8_t* plaintext, uint32_t length,
-                     uint8_t iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH], uint8_t* aad,
-                     uint32_t aad_length, key_handle_t* key) {
+                     uint8_t const iv[AES_GCM_IV_LENGTH], uint8_t tag[AES_GCM_TAG_LENGTH],
+                     uint8_t const* aad, uint32_t aad_length, key_handle_t* key) {
   return aes_gcm_op(OP_DECRYPT, ciphertext, plaintext, length, iv, tag, aad, aad_length, key);
 }
 

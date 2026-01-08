@@ -7,6 +7,7 @@ srcs = [
 ]
 
 includes = [
+  config_includes,
   gecko_sdk_includes,
   # Reach in for a private includes for NFC demo code
   fw_root/'hal/nfc/src/',
@@ -16,74 +17,84 @@ includes = [
 
 partitions_config = meson.project_source_root()/'config/partitions/w1a/partitions.yml'
 
-base_deps = [
+common_deps = [
   # HAL
   led_dep,
-  serial_w1a_dep,
-  hal_nfc_w1a_dep,
+  serial_dep,
+  hal_nfc_deps['embedded'],
   bio_dep,
   secure_engine_dep,
   power_dep,
-  memfault_dep,
+  memfault_deps['efr32mg24'],
   board_id_dep,
   tamper_dep,
   clock_dep,
+  exti_deps['efr32mg24'],
 
   # Tasks
   nfc_task_w1a_dep,
   auth_task_dep,
-  key_manager_task_dep,
-  mfgtest_task_dep,
-  sysinfo_task_dep,
-  fwup_task_dep,
-  led_task_dep,
+  key_manager_task_deps['w1'],
+  mfgtest_task_deps['w1'],
+  sysinfo_task_deps['w1'],
+  fwup_task_deps['w1-core'],
   captouch_task_dep,
+  # MPU
+  w1_mpu_dep,
 
   # Libraries
   animation_dep,
+  crypto_deps['efr32mg24'],
   sysinfo_dep,
   protos_dep,
   metadata_dep,
   fs_dep,
   fs_efr32mg24_dep,
+  fwup_deps['efr32'],
   wallet_dep,
   bitlog_dep,
   feature_flags_dep,
   secutils_dep,
   canary_dep,
   mpu_regions_dep,
+
+  # OS
+  freertos_deps['w1'],
+  rtos_deps['efr32mg24'],
 ]
 
-# Development builds include the shell task and all shell command
-# handlers.
-dev_variant_deps = base_deps + [
+base_deps = common_deps + [ui_task_led_dep]
+mfgtest_base_deps = common_deps + [ui_task_led_mfgtest_dep]
+
+dev_tools_deps = [
+  shell_deps['w1'],
   shell_task_dep,
   log_dep,
 
-  rtos_cmd_dep,
+  rtos_cmd_deps['efr32mg24'],
   led_cmd_dep,
   perf_cmd_dep,
   bio_cmd_dep,
   metadata_cmd_dep,
   fs_cmd_dep,
   sysinfo_cmd_dep,
-  crypto_cmd_dep,
-  memfault_cmd_dep,
+  crypto_cmd_deps['efr32mg24'],
+  memfault_cmd_deps['efr32mg24'],
   power_cmd_dep,
   wca_cmd_dep,
   bitlog_cmd_dep,
   canary_cmd_dep,
   mpu_cmd_dep,
-  animation_cmd_dep,
+  ui_cmd_dep,
   unlock_cmd_dep,
 ]
 
-prod_variant_deps = base_deps + [
-  log_noprintf_dep
-]
+dev_variant_deps = base_deps + dev_tools_deps
+mfgtest_variant_deps = mfgtest_base_deps + dev_tools_deps
+prod_variant_deps = base_deps + [log_noprintf_dep]
 
-foreach hardware : hardware_configs.keys()
-  foreach build_env : build_env_configs.keys()
+foreach hardware : w1_hardware_configs.keys()
+  foreach build_env : w1_build_env_configs.keys()
     foreach slot : slot_configs.keys()
       prog = f'@hardware@-app-@slot@-@build_env@'
       ldscript_name = f'@prog@.ld'
@@ -93,15 +104,17 @@ foreach hardware : hardware_configs.keys()
       nometa_elf_name = f'@prog@.nometa.elf'
       signed_elf_name = f'@prog@.signed.elf'
 
-      hardware_deps = hardware_configs[hardware][0]
-      hardware_args = hardware_configs[hardware][1]
+      hardware_deps = w1_hardware_configs[hardware][0]
+      hardware_args = w1_hardware_configs[hardware][1]
       slot_args = slot_configs[slot][0]
-      build_env_deps = build_env_configs[build_env][0]
-      build_env_args = build_env_configs[build_env][1]
-      key_type = build_env_configs[build_env][2]
+      build_env_deps = w1_build_env_configs[build_env][0]
+      build_env_args = w1_build_env_configs[build_env][1]
+      key_type = w1_build_env_configs[build_env][2]
 
       if build_env == 'prod'
         deps = prod_variant_deps
+      elif build_env == 'mfgtest-dev'
+        deps = mfgtest_variant_deps
       else
         deps = dev_variant_deps
       endif

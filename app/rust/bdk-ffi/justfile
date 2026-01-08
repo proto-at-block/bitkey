@@ -1,0 +1,183 @@
+default:
+  just --list
+
+bindings_dir := "_build/generated/uniffi"
+cargo_target_dir := "../_build/rust/target"
+cargo_profile := "release-smaller"
+gobley_bindgen_root := "_build/gobley-tools-install/uniffi-bindgen"
+gobley_bindgen_bin := gobley_bindgen_root + "/bin/gobley-uniffi-bindgen"
+gobley_bindgen_config := "gobley-uniffi-bindgen.toml"
+
+# Build and copy all platform libraries into `libs/`.
+vendor-libs:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  . ../../bin/activate-hermit
+
+  host_os="$(uname -s)"
+
+  ndk_version="$(awk -F' = ' '/^android-ndk =/ {gsub(/"/, "", $2); print $2}' ../../gradle/libs.versions.toml)"
+  android_min_sdk="$(awk -F' = ' '/^android-sdk-min =/ {gsub(/"/, "", $2); print $2}' ../../gradle/libs.versions.toml)"
+
+  sdk_dir="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+  if [ -z "$sdk_dir" ] && [ -f ../../local.properties ]; then
+    sdk_dir="$(awk -F= '/^sdk\\.dir=/{print $2}' ../../local.properties)"
+  fi
+  if [ -z "$sdk_dir" ]; then
+    sdk_dir="$HOME/Library/Android/sdk"
+  fi
+
+  android_ndk_home="$sdk_dir/ndk/$ndk_version"
+
+  ndk_prebuilt=""
+  for candidate in darwin-x86_64 darwin-arm64 linux-x86_64; do
+    if [ -d "$android_ndk_home/toolchains/llvm/prebuilt/$candidate/bin" ]; then
+      ndk_prebuilt="$candidate"
+      break
+    fi
+  done
+
+  if [ -z "$ndk_prebuilt" ]; then
+    echo "Android NDK toolchain not found under: $android_ndk_home/toolchains/llvm/prebuilt/"
+    exit 1
+  fi
+
+  export ANDROID_NDK_HOME="$android_ndk_home"
+  export NDK_BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$ndk_prebuilt/bin"
+  export API_LEVEL="$android_min_sdk"
+
+  echo "Using Android NDK: $ANDROID_NDK_HOME"
+  echo "Using Android API level: $API_LEVEL"
+
+  rustup target add \
+    aarch64-linux-android \
+    armv7-linux-androideabi \
+    i686-linux-android \
+    x86_64-linux-android
+
+  if [ "$host_os" = "Darwin" ]; then
+    rustup target add \
+      aarch64-apple-darwin \
+      aarch64-apple-ios \
+      aarch64-apple-ios-sim
+
+    cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target aarch64-apple-darwin
+    mkdir -p libs/macos/arm64
+    cp "{{cargo_target_dir}}/aarch64-apple-darwin/{{cargo_profile}}/libbdk.dylib" libs/macos/arm64/libbdk.dylib
+
+    cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target aarch64-apple-ios
+    mkdir -p libs/ios/iosArm64
+    cp "{{cargo_target_dir}}/aarch64-apple-ios/{{cargo_profile}}/libbdk.a" libs/ios/iosArm64/libbdk.a
+
+    cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target aarch64-apple-ios-sim
+    mkdir -p libs/ios/iosSimulatorArm64
+    cp "{{cargo_target_dir}}/aarch64-apple-ios-sim/{{cargo_profile}}/libbdk.a" libs/ios/iosSimulatorArm64/libbdk.a
+  fi
+
+  export CC_aarch64_linux_android="$NDK_BIN/aarch64-linux-android${API_LEVEL}-clang"
+  export CXX_aarch64_linux_android="$NDK_BIN/aarch64-linux-android${API_LEVEL}-clang++"
+  export AR_aarch64_linux_android="$NDK_BIN/llvm-ar"
+  export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
+  cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target aarch64-linux-android
+  mkdir -p libs/android/arm64-v8a
+  cp "{{cargo_target_dir}}/aarch64-linux-android/{{cargo_profile}}/libbdk.so" libs/android/arm64-v8a/libbdk.so
+
+  export CC_armv7_linux_androideabi="$NDK_BIN/armv7a-linux-androideabi${API_LEVEL}-clang"
+  export CXX_armv7_linux_androideabi="$NDK_BIN/armv7a-linux-androideabi${API_LEVEL}-clang++"
+  export AR_armv7_linux_androideabi="$NDK_BIN/llvm-ar"
+  export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$CC_armv7_linux_androideabi"
+  cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target armv7-linux-androideabi
+  mkdir -p libs/android/armeabi-v7a
+  cp "{{cargo_target_dir}}/armv7-linux-androideabi/{{cargo_profile}}/libbdk.so" libs/android/armeabi-v7a/libbdk.so
+
+  export CC_i686_linux_android="$NDK_BIN/i686-linux-android${API_LEVEL}-clang"
+  export CXX_i686_linux_android="$NDK_BIN/i686-linux-android${API_LEVEL}-clang++"
+  export AR_i686_linux_android="$NDK_BIN/llvm-ar"
+  export CARGO_TARGET_I686_LINUX_ANDROID_LINKER="$CC_i686_linux_android"
+  cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target i686-linux-android
+  mkdir -p libs/android/x86
+  cp "{{cargo_target_dir}}/i686-linux-android/{{cargo_profile}}/libbdk.so" libs/android/x86/libbdk.so
+
+  export CC_x86_64_linux_android="$NDK_BIN/x86_64-linux-android${API_LEVEL}-clang"
+  export CXX_x86_64_linux_android="$NDK_BIN/x86_64-linux-android${API_LEVEL}-clang++"
+  export AR_x86_64_linux_android="$NDK_BIN/llvm-ar"
+  export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$CC_x86_64_linux_android"
+  cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target x86_64-linux-android
+  mkdir -p libs/android/x86_64
+  cp "{{cargo_target_dir}}/x86_64-linux-android/{{cargo_profile}}/libbdk.so" libs/android/x86_64/libbdk.so
+
+  if [ "$host_os" = "Linux" ]; then
+    cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target x86_64-unknown-linux-gnu
+  elif [ "$host_os" = "Darwin" ]; then
+    if ! command -v docker >/dev/null 2>&1; then
+      echo "docker is required to build the Linux x86_64 JVM library on macOS"
+      exit 1
+    fi
+    if ! docker info >/dev/null 2>&1; then
+      echo "docker is installed but the daemon is not running (start Docker Desktop)"
+      exit 1
+    fi
+
+    repo_root="$(cd ../../../ && pwd)"
+    uid="$(id -u)"
+    gid="$(id -g)"
+
+    docker run --rm --platform linux/amd64 \
+      --user "$uid:$gid" \
+      -e HOME=/tmp \
+      -e CARGO_HOME=/work/app/rust/_build/rust/docker-cargo-home \
+      -v "$repo_root":/work \
+      -w /work/app/rust \
+      rust:1.86.0 \
+      cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target x86_64-unknown-linux-gnu --config 'build.rustc-wrapper=""'
+  fi
+
+  mkdir -p libs/linux/x86_64
+  cp "{{cargo_target_dir}}/x86_64-unknown-linux-gnu/{{cargo_profile}}/libbdk.so" libs/linux/x86_64/libbdk.so
+
+# Generate Kotlin Multiplatform UniFFI bindings into `_build/generated/uniffi`.
+generate-bindings:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  . ../../bin/activate-hermit
+
+  if [ ! -x "{{gobley_bindgen_bin}}" ]; then
+    cargo install --quiet --root "{{gobley_bindgen_root}}" gobley-uniffi-bindgen@0.3.7
+  fi
+
+  rm -rf "{{bindings_dir}}"
+
+  uniffi_library=""
+  if [ -f libs/macos/arm64/libbdk.dylib ]; then
+    uniffi_library="libs/macos/arm64/libbdk.dylib"
+  elif [ -f libs/linux/x86_64/libbdk.so ]; then
+    uniffi_library="libs/linux/x86_64/libbdk.so"
+  else
+    echo "No UniFFI library found in libs/ (run \`just vendor-libs\` first)"
+    exit 1
+  fi
+
+  "{{gobley_bindgen_bin}}" \
+    --out-dir "{{bindings_dir}}" \
+    --config "{{gobley_bindgen_config}}" \
+    --library \
+    --crate bdk \
+    "$uniffi_library"
+
+  mkdir -p "{{bindings_dir}}/nativeInterop/cinterop"
+  printf '%s\\n' 'staticLibraries = libbdk.a' > "{{bindings_dir}}/nativeInterop/cinterop/bdk.def"
+  : > "{{bindings_dir}}/nativeInterop/cinterop/dummy.def"
+
+update: vendor-libs generate-bindings
+
+build:
+  cargo build --profile release-smaller
+
+check:
+  cargo fmt
+  cargo clippy
+
+test:
+  cargo test

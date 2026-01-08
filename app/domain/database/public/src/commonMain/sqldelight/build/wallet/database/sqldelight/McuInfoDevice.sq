@@ -1,0 +1,23 @@
+import build.wallet.firmware.McuName;
+import build.wallet.firmware.McuRole;
+
+CREATE TABLE mcuInfoDeviceEntity(
+  id                     INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  mcuRole                TEXT AS McuRole NOT NULL,
+  mcuName                TEXT AS McuName NOT NULL,
+  firmwareVersion        TEXT NOT NULL,
+  firmwareDeviceInfoId   INTEGER NOT NULL,
+  FOREIGN KEY (firmwareDeviceInfoId) REFERENCES firmwareDeviceInfoEntity(rowId) ON DELETE CASCADE
+);
+
+setMcuInfo:
+INSERT OR REPLACE INTO mcuInfoDeviceEntity(mcuRole, mcuName, firmwareVersion, firmwareDeviceInfoId)
+ -- firmwareDeviceInfoId is always 0
+VALUES(?, ?, ?, 0);
+
+findMcuInfo:
+SELECT * FROM mcuInfoDeviceEntity
+WHERE firmwareDeviceInfoId = ?;
+
+clear:
+DELETE FROM mcuInfoDeviceEntity;

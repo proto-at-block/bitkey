@@ -35,6 +35,7 @@ class SecurityActionsServiceImplTest : FunSpec({
       FingerprintsActionFactoryFake(),
       HardwareDeviceActionFactoryFake(),
       TxVerificationActionFactoryFake(),
+      KeysetSyncActionFactoryFake(),
       eventTracker,
       metricTrackerService,
       securityRecommendationInteractionDao,
@@ -61,7 +62,8 @@ class SecurityActionsServiceImplTest : FunSpec({
 
         atRiskRecommendations.shouldContainExactly(
           SecurityActionRecommendation.PAIR_HARDWARE_DEVICE,
-          SecurityActionRecommendation.BACKUP_MOBILE_KEY
+          SecurityActionRecommendation.BACKUP_MOBILE_KEY,
+          SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH
         )
       }
     }
@@ -115,6 +117,9 @@ class SecurityActionsServiceImplTest : FunSpec({
         it.includeRecommendations = false
       },
       TxVerificationActionFactoryFake(),
+      KeysetSyncActionFactoryFake().also {
+        it.includeRecommendations = false
+      },
       eventTracker,
       metricTrackerService,
       securityRecommendationInteractionDao,
@@ -163,6 +168,7 @@ class SecurityActionsServiceImplTest : FunSpec({
         SecurityActionRecommendation.PAIR_HARDWARE_DEVICE -> false
         SecurityActionRecommendation.BACKUP_MOBILE_KEY -> false
         SecurityActionRecommendation.UPDATE_FIRMWARE -> false
+        SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH -> false
         else -> true
       }
 

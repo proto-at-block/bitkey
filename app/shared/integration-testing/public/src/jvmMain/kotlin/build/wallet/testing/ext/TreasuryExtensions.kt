@@ -2,9 +2,11 @@ package build.wallet.testing.ext
 
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
+import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.treasury.FundingResult
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.money.BitcoinMoney
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.testing.AppTester
 import build.wallet.testing.fakeTransact
 import com.github.michaelbull.result.getOrThrow
@@ -33,7 +35,11 @@ suspend fun AppTester.returnFundsToTreasury() {
   val appAndHwSignedPsbt =
     nfcTransactor.fakeTransact(
       transaction = { session, commands ->
-        commands.signTransaction(session, appSignedPsbt, account.keybox.activeSpendingKeyset)
+        val result = commands.signTransaction(session, appSignedPsbt, account.keybox.activeSpendingKeyset)
+        when (result) {
+          is HardwareInteraction.Completed<Psbt> -> result.result
+          else -> error("Error signing transaction.")
+        }
       }
     ).getOrThrow()
   bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()

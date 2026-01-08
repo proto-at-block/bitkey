@@ -557,6 +557,7 @@ private fun SecurityAction.title(): StringResource =
     SOCIAL_RECOVERY -> Res.string.social_recovery_action_title
     HARDWARE_DEVICE -> Res.string.hardware_device_action_title
     TRANSACTION_VERIFICATION -> Res.string.transaction_verification_title
+    KEYSET_SYNC -> Res.string.keyset_sync_action_title
   }
 
 private fun SecurityAction.icon(): Icon =
@@ -570,6 +571,7 @@ private fun SecurityAction.icon(): Icon =
     SOCIAL_RECOVERY -> Icon.SmallIconShieldPerson
     HARDWARE_DEVICE -> Icon.SmallIconBitkey
     TRANSACTION_VERIFICATION -> Icon.SmallIconShieldCheck
+    KEYSET_SYNC -> Icon.SmallIconWarning
   }
 
 private fun SecurityAction.statusColor(): Color =
@@ -597,6 +599,7 @@ private fun SecurityActionRecommendation.title(): StringResource =
     UPDATE_FIRMWARE -> Res.string.update_firmware_recommendation_title
     PAIR_HARDWARE_DEVICE -> Res.string.pair_device_recommendation_title
     ENABLE_TRANSACTION_VERIFICATION -> Res.string.transaction_verification_recommendation_title
+    REPAIR_KEYSET_MISMATCH -> Res.string.repair_keyset_mismatch_recommendation_title
   }
 
 private fun SecurityActionRecommendation.icon(): Icon =
@@ -614,6 +617,7 @@ private fun SecurityActionRecommendation.icon(): Icon =
     SETUP_BIOMETRICS -> Icon.SmallIconLock
     UPDATE_FIRMWARE, PAIR_HARDWARE_DEVICE -> Icon.SmallIconBitkey
     ENABLE_TRANSACTION_VERIFICATION -> Icon.SmallIconShieldCheck
+    REPAIR_KEYSET_MISMATCH -> Icon.SmallIconWarning
   }
 
 @Snapshot

@@ -7,6 +7,9 @@ class Port(IntEnum):
     B = 1
     C = 2
     D = 3
+    E = 4
+    F = 5
+    G = 6
 
     @staticmethod
     def from_str(s):
@@ -130,7 +133,17 @@ W1A_EVT_CONFIG = PlatformConfig(
         w=Gpio(Port.A, 9),
     ))
 
+W3A_UXC_EVT = "w3a-uxc-evt"
+W3A_UXC_EVT_CONFIG = PlatformConfig(
+    led=LedConfig(
+        r=None,
+        g=None,
+        b=None,
+        w=None,
+    ))
+
 CONFIG_MAP = {
     W1A_PROTO0: W1A_PROTO0_CONFIG,
     W1A_EVT: W1A_EVT_CONFIG,
+    W3A_UXC_EVT: W3A_UXC_EVT_CONFIG,
 }

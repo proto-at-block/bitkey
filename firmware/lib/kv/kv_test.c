@@ -54,6 +54,8 @@ FAKE_VOID_FUNC(rtos_thread_create_static, rtos_thread_t*, f_cb, const char*, voi
 FAKE_VOID_FUNC(rtos_thread_delete, rtos_thread_t*);
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_set_bits, rtos_event_group_t*, const uint32_t);
+FAKE_VALUE_FUNC(bool, rtos_event_group_set_bits_from_isr, rtos_event_group_t*, const uint32_t,
+                bool*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_get_bits, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_wait_bits, rtos_event_group_t*, const uint32_t,
                 const bool, const bool, uint32_t);

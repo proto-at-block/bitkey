@@ -109,7 +109,7 @@ class CompleteInheritanceClaimUiStateMachineImpl(
         amount = moneyFormatter.format(
           convertedOrZeroWithRates(
             converter = currencyConverter,
-            fromAmount = currentState.details.psbt.amountBtc + currentState.details.psbt.fee,
+            fromAmount = currentState.details.psbt.amountBtc + currentState.details.psbt.fee.amount,
             toCurrency = fiatCurrency,
             rates = exchangeRates.toImmutableList()
           ) as FiatMoney
@@ -117,7 +117,7 @@ class CompleteInheritanceClaimUiStateMachineImpl(
         fees = moneyFormatter.format(
           convertedOrZeroWithRates(
             converter = currencyConverter,
-            fromAmount = currentState.details.psbt.fee,
+            fromAmount = currentState.details.psbt.fee.amount,
             toCurrency = fiatCurrency,
             rates = exchangeRates.toImmutableList()
           ) as FiatMoney
@@ -165,7 +165,7 @@ class CompleteInheritanceClaimUiStateMachineImpl(
         amount = moneyFormatter.format(
           convertedOrZeroWithRates(
             converter = currencyConverter,
-            fromAmount = currentState.details.psbt.amountBtc + currentState.details.psbt.fee,
+            fromAmount = currentState.details.psbt.amountBtc + currentState.details.psbt.fee.amount,
             toCurrency = fiatCurrency,
             rates = exchangeRates.toImmutableList()
           ) as FiatMoney
@@ -173,7 +173,7 @@ class CompleteInheritanceClaimUiStateMachineImpl(
         fees = moneyFormatter.format(
           convertedOrZeroWithRates(
             converter = currencyConverter,
-            fromAmount = currentState.details.psbt.fee,
+            fromAmount = currentState.details.psbt.fee.amount,
             toCurrency = fiatCurrency,
             rates = exchangeRates.toImmutableList()
           ) as FiatMoney

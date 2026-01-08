@@ -1,6 +1,7 @@
 package build.wallet.firmware
 
 import build.wallet.database.BitkeyDatabaseProvider
+import build.wallet.database.sqldelight.FirmwareDeviceInfoEntity
 import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -31,6 +32,14 @@ class FirmwareDeviceInfoDaoImpl(
         secureBootConfig = deviceInfo.secureBootConfig,
         timeRetrieved = deviceInfo.timeRetrieved
       )
+      mcuInfoDeviceQueries.clear()
+      deviceInfo.mcuInfo.forEach { mcuInfo ->
+        mcuInfoDeviceQueries.setMcuInfo(
+          mcuRole = mcuInfo.mcuRole,
+          mcuName = mcuInfo.mcuName,
+          firmwareVersion = mcuInfo.firmwareVersion
+        )
+      }
     }
       .logFailure { "Failed to set device info" }
   }
@@ -41,27 +50,7 @@ class FirmwareDeviceInfoDaoImpl(
         .firmwareDeviceInfoQueries
         .getDeviceInfo()
         .asFlowOfOneOrNull()
-        .map { result ->
-          result
-            .map { deviceInfoEntity ->
-              deviceInfoEntity?.let { deviceInfo ->
-                FirmwareDeviceInfo(
-                  version = deviceInfo.version,
-                  serial = deviceInfo.serial,
-                  swType = deviceInfo.swType,
-                  hwRevision = deviceInfo.hwRevision,
-                  activeSlot = deviceInfo.activeSlot,
-                  batteryCharge = deviceInfo.batteryCharge,
-                  vCell = deviceInfo.vCell,
-                  avgCurrentMa = deviceInfo.avgCurrentMa,
-                  batteryCycles = deviceInfo.batteryCycles,
-                  secureBootConfig = deviceInfo.secureBootConfig,
-                  timeRetrieved = deviceInfo.timeRetrieved,
-                  bioMatchStats = null // Intentionally not persisted; no need.
-                )
-              }
-            }
-        }
+        .map { result -> result.map { deviceInfoEntity -> map(deviceInfoEntity) } }
         .distinctUntilChanged()
         .collect(::emit)
     }
@@ -72,29 +61,47 @@ class FirmwareDeviceInfoDaoImpl(
       .getDeviceInfo()
       .awaitAsOneOrNullResult()
       .logFailure { "Failed to get device info" }
-      .map { deviceInfoEntity ->
-        deviceInfoEntity?.let { deviceInfo ->
-          FirmwareDeviceInfo(
-            version = deviceInfo.version,
-            serial = deviceInfo.serial,
-            swType = deviceInfo.swType,
-            hwRevision = deviceInfo.hwRevision,
-            activeSlot = deviceInfo.activeSlot,
-            batteryCharge = deviceInfo.batteryCharge,
-            vCell = deviceInfo.vCell,
-            avgCurrentMa = deviceInfo.avgCurrentMa,
-            batteryCycles = deviceInfo.batteryCycles,
-            secureBootConfig = deviceInfo.secureBootConfig,
-            timeRetrieved = deviceInfo.timeRetrieved,
-            bioMatchStats = null
-          )
-        }
-      }
+      .map { deviceInfoEntity -> map(deviceInfoEntity) }
   }
+
+  private suspend fun map(deviceInfoEntity: FirmwareDeviceInfoEntity?): FirmwareDeviceInfo? =
+    deviceInfoEntity?.let { deviceInfo ->
+      FirmwareDeviceInfo(
+        version = deviceInfo.version,
+        serial = deviceInfo.serial,
+        swType = deviceInfo.swType,
+        hwRevision = deviceInfo.hwRevision,
+        activeSlot = deviceInfo.activeSlot,
+        batteryCharge = deviceInfo.batteryCharge,
+        vCell = deviceInfo.vCell,
+        avgCurrentMa = deviceInfo.avgCurrentMa,
+        batteryCycles = deviceInfo.batteryCycles,
+        secureBootConfig = deviceInfo.secureBootConfig,
+        timeRetrieved = deviceInfo.timeRetrieved,
+        bioMatchStats = null,
+        mcuInfo = findMcuInfo(deviceInfo.rowId)
+      )
+    }
 
   override suspend fun clear(): Result<Unit, DbError> {
     return databaseProvider.database()
-      .awaitTransaction { firmwareDeviceInfoQueries.clear() }
+      .awaitTransaction {
+        mcuInfoDeviceQueries.clear()
+        firmwareDeviceInfoQueries.clear()
+      }
       .logFailure { "Failed to clear device info" }
   }
+
+  private suspend fun findMcuInfo(rowId: Long): List<McuInfo> =
+    databaseProvider.database()
+      .mcuInfoDeviceQueries
+      .findMcuInfo(rowId)
+      .executeAsList()
+      .map { mcuInfo ->
+        McuInfo(
+          mcuRole = mcuInfo.mcuRole,
+          mcuName = mcuInfo.mcuName,
+          firmwareVersion = mcuInfo.firmwareVersion
+        )
+      }
 }

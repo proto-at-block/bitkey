@@ -135,3 +135,13 @@ class TxVerificationActionFactoryFake : TxVerificationActionFactory, FakeActionF
 ) {
   override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
+
+class KeysetSyncActionFactoryFake : KeysetSyncActionFactory, FakeActionFactory(
+  recommendations = listOf(
+    SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH
+  ),
+  category = SecurityActionCategory.RECOVERY,
+  type = SecurityActionType.KEYSET_SYNC
+) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+}

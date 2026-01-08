@@ -12,6 +12,7 @@ import build.wallet.availability.NetworkReachability.REACHABLE
 import build.wallet.availability.NetworkReachability.UNREACHABLE
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.config.AppVariant.Emergency
@@ -165,7 +166,7 @@ class AppFunctionalityServiceImplTests : FunSpec({
     }
   }
 
-  test("Emergency Exit Kit variant has limited emergecy access mode") {
+  test("Emergency Exit Kit variant has limited emergency access mode") {
     service = AppFunctionalityServiceImpl(
       accountConfigService = accountConfigService,
       networkReachabilityEventDao = networkReachabilityEventDao,
@@ -179,6 +180,24 @@ class AppFunctionalityServiceImplTests : FunSpec({
     }
 
     service.status.test {
+      awaitItem().shouldBe(
+        LimitedFunctionality(
+          cause = EmergencyExitMode
+        )
+      )
+    }
+  }
+
+  test("EEK recovery in normal app has limited emergency access mode") {
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    service.status.test {
+      awaitItem().shouldBe(FullFunctionality) // default value
+
+      accountConfigService.setF8eEnvironment(F8eEnvironment.ForceOffline)
+
       awaitItem().shouldBe(
         LimitedFunctionality(
           cause = EmergencyExitMode

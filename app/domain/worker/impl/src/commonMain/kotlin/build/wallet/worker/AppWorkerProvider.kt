@@ -37,6 +37,7 @@ import build.wallet.notifications.RegisterWatchAddressPeriodicProcessor
 import build.wallet.onboarding.OnboardingCompletionFailsafeWorker
 import build.wallet.partnerships.PartnershipTransactionsSyncWorker
 import build.wallet.platform.permissions.PushPermissionCheckerWorker
+import build.wallet.recovery.keyset.KeysetRepairWorker
 import build.wallet.recovery.sweep.SweepSyncWorker
 import build.wallet.relationships.EndorseTrustedContactsWorker
 import build.wallet.relationships.SyncRelationshipsWorker
@@ -91,6 +92,7 @@ class AppWorkerProviderImpl(
   private val pushPermissionCheckerWorker: PushPermissionCheckerWorker,
   private val deviceTokenAppWorker: DeviceTokenAppWorker,
   private val descriptorBackupHealthSyncWorker: DescriptorBackupHealthSyncWorker,
+  private val keysetRepairWorker: KeysetRepairWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -130,7 +132,8 @@ class AppWorkerProviderImpl(
       onboardingCompletionFailsafeWorker,
       pushPermissionCheckerWorker,
       deviceTokenAppWorker,
-      descriptorBackupHealthSyncWorker
+      descriptorBackupHealthSyncWorker,
+      keysetRepairWorker
     )
   }
 }

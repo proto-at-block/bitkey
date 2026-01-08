@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.cloud
 
 import androidx.compose.runtime.*
+import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
@@ -73,6 +74,7 @@ class ExistingFullAccountUiStateMachineImpl(
           )
 
           cloudBackupRepository.clear(
+            accountId = FullAccountId(props.cloudBackup.accountId),
             cloudStoreAccount,
             clearRemoteOnly = false
           )

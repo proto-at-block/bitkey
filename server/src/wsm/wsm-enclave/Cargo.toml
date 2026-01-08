@@ -11,7 +11,7 @@ name = "wsm-enclave"
 aes-gcm = "0.10.3"
 anyhow = { workspace = true }
 aws-config = { workspace = true }
-aws-lc-rs = { version = "=1.13.0" }
+aws-lc-rs = { version = "=1.14.0" }
 aws-nitro-enclaves-nsm-api = "0.4.0"
 aws-sdk-kms = { workspace = true }
 axum = { workspace = true, features = ["json", "macros"] }

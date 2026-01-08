@@ -1,8 +1,12 @@
 
 # Products
 PRODUCT_W1A = "w1a"
+PRODUCT_W3A_CORE = "w3a-core"
+PRODUCT_W3A_UXC = "w3a-uxc"
 PRODUCTS = {
     PRODUCT_W1A,
+    PRODUCT_W3A_CORE,
+    PRODUCT_W3A_UXC,
 }
 
 # Platforms

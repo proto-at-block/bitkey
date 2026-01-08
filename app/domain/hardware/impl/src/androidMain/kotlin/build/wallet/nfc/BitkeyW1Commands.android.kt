@@ -22,6 +22,7 @@ import build.wallet.firmware.FirmwareFeatureFlag
 import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
+import build.wallet.firmware.McuInfo
 import build.wallet.firmware.TemplateMatchStats
 import build.wallet.firmware.UnlockInfo
 import build.wallet.firmware.UnlockMethod
@@ -33,10 +34,13 @@ import build.wallet.grants.GrantRequest
 import build.wallet.logging.NFC_TAG
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.rust.firmware.*
 import build.wallet.rust.firmware.FirmwareSlot.A
 import build.wallet.rust.firmware.FirmwareSlot.B
+import build.wallet.rust.firmware.McuName
+import build.wallet.rust.firmware.McuRole
 import build.wallet.rust.firmware.SecureBootConfig
 import build.wallet.toByteString
 import build.wallet.toUByteList
@@ -353,20 +357,22 @@ class BitkeyW1Commands(
     session: NfcSession,
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
-  ) = executeCommand(
-    session = session,
-    generateCommand = {
-      SignTransaction(
-        psbt.base64,
-        spendingKeyset.hardwareKey.key.origin.fingerprint,
-        session.parameters.asyncNfcSigning
-      )
-    },
-    getNext = { command, data -> command.next(data) },
-    getResponse = { state: PartiallySignedTransactionState.Data -> state.response },
-    generateResult = { state: PartiallySignedTransactionState.Result ->
-      psbt.copy(base64 = state.value)
-    }
+  ) = HardwareInteraction.Completed(
+    result = executeCommand(
+      session = session,
+      generateCommand = {
+        SignTransaction(
+          psbt.base64,
+          spendingKeyset.hardwareKey.key.origin.fingerprint,
+          session.parameters.asyncNfcSigning
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: PartiallySignedTransactionState.Data -> state.response },
+      generateResult = { state: PartiallySignedTransactionState.Result ->
+        psbt.copy(base64 = state.value)
+      }
+    )
   )
 
   override suspend fun startFingerprintEnrollment(
@@ -399,8 +405,14 @@ class BitkeyW1Commands(
       session = session,
       generateCommand = ::WipeState,
       getNext = { command, data -> command.next(data) },
-      getResponse = { state: BooleanState.Data -> state.response },
-      generateResult = { state: BooleanState.Result -> state.value }
+      getResponse = { state: WipeStateResultState.Data -> state.response },
+      generateResult = { state: WipeStateResultState.Result ->
+        when (val result = state.value) {
+          is WipeStateResult.Success -> result.value
+          is WipeStateResult.ConfirmationPending ->
+            error("Confirmation pending not yet supported - firmware should not return this")
+        }
+      }
     )
 
   override suspend fun getCert(
@@ -625,7 +637,22 @@ private fun DeviceInfo.toFirmwareDeviceInfo(now: Instant) =
         },
         failCount = it.failCount.toLong()
       )
-    }
+    },
+    mcuInfo = deviceInfoMcus?.mcus?.map { info ->
+      McuInfo(
+        mcuRole =
+          when (info.role) {
+            McuRole.CORE -> build.wallet.firmware.McuRole.CORE
+            McuRole.UXC -> build.wallet.firmware.McuRole.UXC
+          },
+        mcuName =
+          when (info.name) {
+            McuName.EFR32 -> build.wallet.firmware.McuName.EFR32
+            McuName.STM32U5 -> build.wallet.firmware.McuName.STM32U5
+          },
+        firmwareVersion = info.firmwareVersion
+      )
+    }.orEmpty()
   )
 
 private fun CoreEventFragment.toEventFragment() =

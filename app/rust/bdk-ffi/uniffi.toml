@@ -1,0 +1,10 @@
+[bindings.kotlin]
+package_name = "org.bitcoindevkit"
+cdylib_name = "bdk"
+
+[bindings.python]
+cdylib_name = "bdk"
+
+[bindings.swift]
+module_name = "BitcoinDevKit"
+cdylib_name = "bdk"

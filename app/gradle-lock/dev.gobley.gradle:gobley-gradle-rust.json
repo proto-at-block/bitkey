@@ -1,0 +1,18 @@
+{
+    "module-identifier": "dev.gobley.gradle:gobley-gradle-rust",
+    "components": [
+        {
+            "version": "0.3.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gobley-gradle-rust-0.3.7.jar": "283869212950cc3bd0f236e68e84243b9c197fcf7f03d2c0fb400959bf0eedaa"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]"
+            ]
+        }
+    ]
+}

@@ -19,11 +19,7 @@ import build.wallet.f8e.mobilepay.isServerSignedWithKeyset
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.NetworkingError
-import build.wallet.recovery.sweep.Sweep
-import build.wallet.recovery.sweep.SweepContext
-import build.wallet.recovery.sweep.SweepPsbt
-import build.wallet.recovery.sweep.SweepServiceMock
-import build.wallet.recovery.sweep.SweepSignaturePlan
+import build.wallet.recovery.sweep.*
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
@@ -135,7 +131,7 @@ class SweepDataStateMachineImplTests : FunSpec({
           "bc1qtest"
         )
       )
-    val totalFeeAmount = PsbtMock.fee + PsbtMock.fee
+    val totalFeeAmount = PsbtMock.fee.amount + PsbtMock.fee.amount
     val totalTransferAmount = PsbtMock.amountBtc + PsbtMock.amountBtc
     sweepService.prepareSweepResult = Ok(
       Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
@@ -206,7 +202,7 @@ class SweepDataStateMachineImplTests : FunSpec({
           "bc1qtest"
         )
       )
-    val totalFeeAmount = needsHwPsbt.fee + needsAppPsbt.fee
+    val totalFeeAmount = needsHwPsbt.fee.amount + needsAppPsbt.fee.amount
     val totalTransferAmount = needsHwPsbt.amountBtc + needsAppPsbt.amountBtc
     sweepService.prepareSweepResult = Ok(
       Sweep(unsignedPsbts = expectedSweepPsbts.toSet())

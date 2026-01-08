@@ -2,7 +2,7 @@ import logging
 import re
 import allure
 import subprocess
-from python.automation.conftest import PRODUCT, HARDWARE_REVISION, IMAGE_TYPE
+from python.automation.conftest import PlatformConfig
 import sh
 
 from python.bitkey import fw_version
@@ -39,9 +39,9 @@ class Inv:
         return str(result)
 
     @allure.step("Bundle")
-    def fwup_bundle(self, product=PRODUCT, image_type=IMAGE_TYPE, hardware_revision=HARDWARE_REVISION):  # Pass these flags as args eventually
-        result = sh.inv("fwup.bundle", "-p", product,
-                        "-i", image_type, "-h", hardware_revision)
+    def fwup_bundle(self, platform_config: PlatformConfig):
+        result = sh.inv("fwup.bundle", "-p", platform_config.product,
+                        "-i", platform_config.type, "-h", platform_config.revision)
         return result
 
     @allure.step("Fwup")

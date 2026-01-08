@@ -19,6 +19,7 @@ typedef struct {
 } rtos_event_group_t;
 
 void rtos_event_group_create(rtos_event_group_t* event_group);
+void rtos_event_group_destroy(rtos_event_group_t* event_group);
 uint32_t rtos_event_group_get_bits(rtos_event_group_t* event_group);
 uint32_t rtos_event_group_set_bits(rtos_event_group_t* event_group, const uint32_t bits);
 bool rtos_event_group_set_bits_from_isr(rtos_event_group_t* event_group, const uint32_t bits,

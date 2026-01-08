@@ -1,0 +1,16 @@
+port_name: ui_port
+
+messages:
+  structs:
+    # High-level UI events (cross-platform)
+    - name: ui_show_event_t
+      fields:
+        - uint32_t event        # ui_event_type_t
+    - name: ui_show_event_with_data_t
+      fields:
+        - uint32_t event        # ui_event_type_t
+        - uint32_t data_len     # Actual length of data
+        - uint8_t data[256]     # Flexible data buffer for addresses, strings, etc
+    - name: ui_set_idle_state_t
+      fields:
+        - uint32_t idle_state   # ui_event_type_t

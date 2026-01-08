@@ -4,6 +4,7 @@ import build.wallet.bdk.bindings.BdkWalletFactoryMock
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.descriptor.BitcoinDescriptor.Spending
 import build.wallet.bitcoin.wallet.SpendingWalletDescriptor
+import build.wallet.platform.data.FileDirectoryProvider
 import com.github.michaelbull.result.get
 import io.kotest.core.config.ProjectConfiguration.Companion.MaxConcurrency
 import io.kotest.core.spec.IsolationMode.SingleInstance
@@ -29,13 +30,14 @@ class BdkWalletProviderImplTests : FunSpec({
       changeDescriptor = Spending("receiving")
     )
 
-  val provider =
-    BdkWalletProviderImpl(
-      bdkWalletFactory = BdkWalletFactoryMock(),
-      bdkDatabaseConfigProvider = BdkDatabaseConfigProviderMock()
-    )
-
   test("wallet instance is cached, thread safe").config(invocations = 10) {
+    val provider =
+      BdkWalletProviderImpl(
+        bdkWalletFactory = BdkWalletFactoryMock(),
+        bdkDatabaseConfigProvider = BdkDatabaseConfigProviderMock(),
+        fileDirectoryProvider = FileDirectoryProviderFake()
+      )
+
     val wallet1Deferred =
       async(start = UNDISPATCHED) {
         provider.getBdkWallet(walletDescriptor)
@@ -49,3 +51,7 @@ class BdkWalletProviderImplTests : FunSpec({
     wallet1.shouldBeSameInstanceAs(wallet2)
   }
 })
+
+private class FileDirectoryProviderFake : FileDirectoryProvider {
+  override fun appDir(): String = "/tmp/test"
+}

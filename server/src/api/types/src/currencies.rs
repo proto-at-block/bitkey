@@ -61,7 +61,8 @@ pub enum CurrencyCode {
     JPY = 392,
     USD = 840,
     EUR = 978,
-    XXX = 999,  // Defined as "no currency" by ISO-4217.
+    XXX = 999, // Defined as "no currency" by ISO-4217.
+    #[serde(alias = "XBT")]
     BTC = 1001, // Not an ISO code!
 }
 

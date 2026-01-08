@@ -10,19 +10,19 @@ includes = [
 ]
 
 bl_deps = [
-  mcu_efr32xg24_bl_dep,
+  mcu_bl_deps['efr32mg24'],
   secure_engine_bl_dep,
   secutils_bl_dep,
-  crypto_bl_dep,
-  bootloader_dep,
+  crypto_bl_deps['efr32mg24'],
+  bootloader_bl_deps['app-cert'],
   canary_dep,
   clock_dep,
 ]
 
 partitions_config = meson.project_source_root()/'config/partitions/w1a/partitions.yml'
 
-foreach hardware : hardware_configs.keys()
-  foreach build_env : build_env_configs.keys()
+foreach hardware : w1_hardware_configs.keys()
+  foreach build_env : w1_build_env_configs.keys()
     prog = f'@hardware@-loader-@build_env@'
     ldscript_name = f'@prog@.ld'
     elf_name = f'@prog@.elf'
@@ -31,9 +31,9 @@ foreach hardware : hardware_configs.keys()
     nometa_elf_name = f'@prog@.nometa.elf'
     signed_elf_name = f'@prog@.signed.elf'
 
-    hardware_deps = hardware_configs[hardware][0]
-    build_env_deps = build_env_configs[build_env][0]
-    key_type = build_env_configs[build_env][2]
+    hardware_deps = w1_hardware_configs[hardware][0]
+    build_env_deps = w1_build_env_configs[build_env][0]
+    key_type = w1_build_env_configs[build_env][2]
 
     ldscript = custom_target(ldscript_name,
       depend_files : [
@@ -46,7 +46,7 @@ foreach hardware : hardware_configs.keys()
         )
       ],
       output : ldscript_name,
-      command : [invoke, 'gen.linker', '--target', prog, '--output', '@OUTPUT@'],
+      command : [invoke, 'gen.linker', '--target', prog, '--platform', 'w1', '--output', '@OUTPUT@'],
       build_by_default: true
     )
 

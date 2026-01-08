@@ -127,7 +127,11 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
 
   test("Setting a new threshold above a certain amount from disabled state") {
     stateMachine.test(props) {
-      awaitItem() // Loading state
+      awaitBody<TxVerificationPolicyStateModel> {
+        checked.shouldBe(false)
+        enabled.shouldBe(false)
+        updatePolicy(true)
+      }
 
       awaitBody<TxVerificationPolicyStateModel> {
         checked.shouldBe(false)
@@ -142,6 +146,7 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
       awaitSheet<VerificationThresholdPickerModel> {
         onConfirmClick()
       }
+      awaitBodyMock<ProofOfPossessionNfcProps>()
     }
   }
 

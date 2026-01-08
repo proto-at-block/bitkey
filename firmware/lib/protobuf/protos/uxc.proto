@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package fwpb;
+
+import "display.proto";
+import "mfgtest.proto";
+import "secure-channel.proto";
+import "wallet.proto";
+
+// MCU authentication states.
+enum uxc_auth_status {
+  // No prior key or certificate exchange has taken place.
+  UXC_AUTH_STATUS_UNAUTHENTICATED = 0;
+
+  // Key / certificate exchange has taken place, but MCU state is not locked.
+  UXC_AUTH_STATUS_UNLOCKED = 1;
+
+  // Key / certificate exchange has taken place and MCU state is locked. If the
+  // recipient has not provided the sender their key / certificate as of yet,
+  // then encrypted comms will not be possible.
+  UXC_AUTH_STATUS_LOCKED = 2;
+};
+
+// Message sent from a MCU using the UC protocol on boot.
+message uxc_boot_status_msg {
+  // Identifiers for the MCUs that are booting up.
+  enum uxc_mcu_id {
+    // Unused (default).
+    UNSPECIFIED = 0;
+
+    // Core MCU is booting up.
+    CORE = 1;
+
+    // UXC MCU is booting up.
+    UXC = 2;
+
+    // Reserved for future use.
+    reserved 3 to 9;
+  };
+
+  // Identifier of the booting MCU.
+  uxc_mcu_id mcu_id = 1;
+
+  // Authentication status of the MCU.
+  uxc_auth_status auth_status = 2;
+
+  // Semantic version of the active application image.
+  semver version = 3;
+}
+
+// Messages sent from the host to the UXC device.
+message uxc_msg_host {
+  oneof msg {
+    // Empty command.
+    empty_cmd empty_cmd = 1;
+
+    // Instructs the UXC to reset.
+    reset_cmd reset_cmd = 2;
+
+    // Requests the firmware metadata from the UXC.
+    meta_cmd meta_cmd = 3;
+
+    // Requests the start of a firmware update session.
+    fwup_start_cmd fwup_start_cmd = 4;
+
+    // Provides FWUP image data.
+    fwup_transfer_cmd fwup_transfer_cmd = 5;
+
+    // Requests the firmware update be applied.
+    fwup_finish_cmd fwup_finish_cmd = 6;
+
+    // Request to set / clear / read UXC GPIO.
+    mfgtest_gpio_cmd mfgtest_gpio_cmd = 7;
+
+    // Request coredump from the UXC.
+    coredump_get_cmd coredump_get_cmd = 8;
+
+    // Requests bitlogs from the UXC.
+    events_get_cmd events_get_cmd = 9;
+
+    // Request certificate from the UXC.
+    cert_get_cmd cert_get_cmd = 10;
+
+    // Provides a certificate to the UXC.
+    cert_get_rsp cert_get_rsp = 11;
+
+    // Status message sent from Host -> Device on boot.
+    uxc_boot_status_msg boot_status_msg = 12;
+
+    // Display command to the UXC.
+    display_command display_cmd = 13;
+
+    // Provides an ephemeral public key to UXC for secure channel establishment.
+    secure_channel_establish_cmd secure_channel_establish = 14;
+
+    // Contains information used by UXC to verify the authenticity of the session.
+    secure_channel_establish_confirm secure_channel_confirm = 15;
+  }
+}
+
+// Messages sent from the UXC device to the Host (e.g. Main IC).
+message uxc_msg_device {
+  oneof msg {
+    // Empty command response.
+    empty_rsp empty_rsp = 1;
+
+    // UXC firmware manifest.
+    meta_rsp meta_rsp = 2;
+
+    // Response to firmware update start command.
+    fwup_start_rsp fwup_start_rsp = 3;
+
+    // Response to firmware update transfer data.
+    fwup_transfer_rsp fwup_transfer_rsp = 4;
+
+    // Response to firmware update complete command.
+    fwup_finish_rsp fwup_finish_rsp = 5;
+
+    // Output state of the requested GPIO.
+    mfgtest_gpio_rsp mfgtest_gpio_rsp = 6;
+
+    // UXC coredump data.
+    coredump_get_rsp coredump_get_rsp = 7;
+
+    // Drains bitlogs from the UXC.
+    events_get_rsp events_get_rsp = 8;
+
+    // Provides certificates from the UXC (e.g. comms encryption).
+    cert_get_rsp cert_get_rsp = 9;
+
+    // Requests certificate from the host.
+    cert_get_cmd cert_get_cmd = 10;
+
+    // Status message sent from Host -> Device on boot.
+    uxc_boot_status_msg boot_status_msg = 11;
+
+    // Display response from the UXC.
+    display_response display_rsp = 12;
+
+    // Touch event from the UXC.
+    display_touch display_touch = 13;
+
+    // Touch test status update from the UXC.
+    display_mfg_touch_test_status mfg_touch_test_status = 14;
+
+    // Contains UXC public key as well as information used by EFR32 to verify the authenticity of the session.
+    secure_channel_establish_rsp secure_channel_response = 15;
+  }
+}

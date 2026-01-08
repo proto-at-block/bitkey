@@ -1,10 +1,11 @@
 package build.wallet.firmware
 
 data class TelemetryIdentifiers(
-  var serial: String,
-  var version: String,
-  var swType: String,
-  var hwRevision: String,
+  val serial: String,
+  val version: String,
+  val swType: String,
+  val hwRevision: String,
+  val mcuInfo: String,
 ) {
   fun hwRevisionWithoutProduct() =
     // Transform a hwRevision like 'w1a-dvt' to 'dvt'.

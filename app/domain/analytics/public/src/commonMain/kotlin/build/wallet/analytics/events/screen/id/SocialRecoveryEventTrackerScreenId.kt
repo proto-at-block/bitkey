@@ -195,4 +195,10 @@ enum class SocialRecoveryEventTrackerScreenId : EventTrackerScreenId {
 
   /** Awaiting Protected customer endorsement */
   PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_AWAITING_ENDORSEMENT,
+
+  /** Error screen shown when the protected customer failed to create an inheritance invite. */
+  TC_BENEFICIARY_ENROLLMENT_CREATE_INVITE_FAILURE,
+
+  /** Error screen shown when the protected customer failed to create a Social Recovery invite. */
+  TC_ENROLLMENT_CREATE_INVITE_FAILURE,
 }

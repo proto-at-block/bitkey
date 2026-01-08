@@ -31,6 +31,19 @@ variable "signing_access_lambda_role_names" {
 
 variable "imported_key_id" {
   type        = string
-  description = "ID or ARN of a pre-existing KMS key to adopt (optional)."
+  description = "ID or ARN of a pre-existing KMS key to adopt (optional). Creates an alias for the key."
   default     = null
+}
+
+variable "imported_key_alias" {
+  type        = string
+  description = "Alias (without 'alias/' prefix) of a pre-existing KMS key to adopt (optional). Does not create a new alias."
+  default     = null
+
+  # This validation ensures imported_key_id and imported_key_alias are mutually exclusive.
+  # Only needed on one variable since all variables are evaluated during plan.
+  validation {
+    condition     = var.imported_key_alias == null || var.imported_key_id == null
+    error_message = "Cannot specify both imported_key_id and imported_key_alias. Use one or the other."
+  }
 }

@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScree
 import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.di.ActivityScope
@@ -15,6 +16,7 @@ import build.wallet.logging.logDebug
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.statemachine.core.ErrorData
@@ -222,7 +224,13 @@ class SweepUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
               sweepData.needsHwSign
-                .map { commands.signTransaction(session, it.psbt, it.sourceKeyset) }
+                .mapNotNull {
+                  val result = commands.signTransaction(session, it.psbt, it.sourceKeyset)
+                  when (result) {
+                    is HardwareInteraction.Completed<Psbt> -> result.result
+                    else -> null
+                  }
+                }
                 .toSet()
             },
             onSuccess = sweepData.addHwSignedSweeps,

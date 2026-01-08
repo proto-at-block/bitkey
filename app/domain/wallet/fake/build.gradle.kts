@@ -13,6 +13,7 @@ kotlin {
         api(projects.libs.bitcoinPrimitivesFake)
         implementation(projects.libs.bdkBindingsFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
+        implementation(projects.rust.bdkFfi)
         implementation(projects.libs.timeFake)
       }
     }

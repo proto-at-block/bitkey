@@ -24,7 +24,7 @@ use wca::{
 use wca::{
     commands::{
         FingerprintEnrollmentStatus, GetDeviceInfo, GetFingerprintEnrollmentStatus,
-        GetNextSpendingKey, SignChallenge, StartFingerprintEnrollment, WipeState,
+        GetNextSpendingKey, SignChallenge, StartFingerprintEnrollment, WipeState, WipeStateResult,
     },
     errors::CommandError,
 };
@@ -83,7 +83,7 @@ pub trait NFCTransactions {
         existing: Vec<DescriptorPublicKey>,
         network: bdk::bitcoin::Network,
     ) -> Result<DescriptorPublicKey, TransactorError>;
-    fn wipe(&self) -> Result<bool, TransactorError>;
+    fn wipe(&self) -> Result<WipeStateResult, TransactorError>;
 }
 
 impl<T: Transactor + ?Sized> NFCTransactions for T {
@@ -162,7 +162,7 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
         self.perform(GetNextSpendingKey::new(existing, network.into()))
     }
 
-    fn wipe(&self) -> Result<bool, TransactorError> {
+    fn wipe(&self) -> Result<WipeStateResult, TransactorError> {
         self.perform(WipeState::new())
     }
 }

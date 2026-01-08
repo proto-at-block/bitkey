@@ -20,7 +20,7 @@ interface NfcCommandsComponent {
   ): @Impl NfcCommands = fake
 
   /**
-   * Bind W3 to the same fake implementation on JVM since W3 is Android-only.
+   * Bind W3 to the same fake implementation on JVM.
    */
   @Provides
   fun provideNfcCommandsW3(

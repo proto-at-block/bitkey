@@ -4,6 +4,7 @@
 #include "attributes.h"
 #include "mcu_usart.h"
 #include "rtos.h"
+#include "serial.h"
 #include "shell.h"
 #include "shell_cmd.h"
 
@@ -16,6 +17,8 @@ static void shell_thread(void* args);
 static void shell_mutex_create(void);
 static bool shell_mutex_lock(void);
 static bool shell_mutex_unlock(void);
+
+extern serial_config_t serial_config;
 
 static const shell_config_t shell_cfg = {
   .vprintf_func = vprintf,
@@ -40,7 +43,8 @@ static void shell_thread(void* UNUSED(args)) {
   SHELL_CMD_REGISTER_ALL();
 
   for (;;) {
-    const uint32_t n_read = mcu_usart_read_timeout(buffer, SHELL_BUFFER_LEN, 10);
+    const uint32_t n_read =
+      mcu_usart_read_timeout(&serial_config.usart, buffer, SHELL_BUFFER_LEN, 10);
 
     if (n_read > 0) {
       shell_process(buffer, n_read);

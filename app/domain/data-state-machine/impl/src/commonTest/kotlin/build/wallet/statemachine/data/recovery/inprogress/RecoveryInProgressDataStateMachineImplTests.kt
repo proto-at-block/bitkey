@@ -1480,5 +1480,6 @@ private fun createFirmwareDeviceInfo(version: String) =
     batteryCycles = 10,
     secureBootConfig = SecureBootConfig.DEV,
     timeRetrieved = Instant.fromEpochSeconds(1234567890).epochSeconds,
-    bioMatchStats = null
+    bioMatchStats = null,
+    mcuInfo = emptyList()
   )

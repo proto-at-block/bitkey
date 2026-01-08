@@ -2,17 +2,28 @@
 
 #include "bitops.h"
 
+#include <stdbool.h>
+
+static struct {
+  /**
+   * @brief `true` if GPIOs were configured.
+   */
+  bool initialized;
+} board_id_priv = {0};
+
 extern board_id_config_t board_id_config;
 
 void board_id_init(void) {
   mcu_gpio_configure(&board_id_config.board_id0, false);
   mcu_gpio_configure(&board_id_config.board_id1, false);
+  board_id_priv.initialized = true;
 }
 
-void board_id_read(uint8_t* board_id_out) {
+bool board_id_read(uint8_t* board_id_out) {
   uint8_t id0 = (uint8_t)mcu_gpio_read(&board_id_config.board_id0);
   uint8_t id1 = (uint8_t)mcu_gpio_read(&board_id_config.board_id1);
   *board_id_out = 0;
   BIT_CHANGE(*board_id_out, BOARD_ID0_POS, id0);
   BIT_CHANGE(*board_id_out, BOARD_ID1_POS, id1);
+  return board_id_priv.initialized;
 }

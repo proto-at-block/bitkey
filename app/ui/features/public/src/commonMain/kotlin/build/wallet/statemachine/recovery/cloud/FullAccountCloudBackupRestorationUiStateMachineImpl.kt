@@ -99,6 +99,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     FingerprintResetMinFirmwareVersionFeatureFlag,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val hardwareUnlockInfoService: bitkey.firmware.HardwareUnlockInfoService,
+  private val selectCloudBackupUiStateMachine: SelectCloudBackupUiStateMachine,
 ) : FullAccountCloudBackupRestorationUiStateMachine {
   @Composable
   override fun model(props: FullAccountCloudBackupRestorationUiProps): ScreenModel {
@@ -139,7 +140,10 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         cloudBackupFoundModel(props, setState = { uiState = it })
 
       is SocialRecoveryExplanationState ->
-        socialRecoveryExplanationModel(props, setState = { uiState = it })
+        socialRecoveryExplanationModel(state, setState = { uiState = it })
+
+      is SelectingSocRecBackupUiState ->
+        selectingSocRecBackupModel(state, props.onExit, setState = { uiState = it })
 
       is UnsealingCsek ->
         unsealingCsekModel(props, setState = { uiState = it })
@@ -147,6 +151,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       is RestoringFromBackupUiState ->
         restoringFromBackupModel(
           props,
+          state,
           loadingRestoringFromBackupModel,
           setState = { uiState = it }
         )
@@ -186,7 +191,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     RecoveryAuthenticationEffect(state, setState = setState)
     return LoadingBodyModel(
       title = START_SOCIAL_RECOVERY_MESSAGE,
-      onBack = { setState(SocialRecoveryExplanationState) },
+      onBack = { setState(CloudBackupFoundUiState) },
       id = CloudEventTrackerScreenId.CLOUD_RECOVERY_AUTHENTICATION
     ).asRootScreen()
   }
@@ -238,22 +243,34 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     props: FullAccountCloudBackupRestorationUiProps,
     setState: (CloudBackupRestorationUiState) -> Unit,
   ): ScreenModel {
+    // Show social recovery button if ANY backup has social recovery data available
+    val showSocRecButton = props.backups.any { it.socRecDataAvailable }
+
     return CloudBackupFoundModel(
       devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
       onBack = props.onExit,
       onRestore = {
         setState(UnsealingCsek)
       },
-      showSocRecButton = props.backup.socRecDataAvailable,
+      showSocRecButton = showSocRecButton,
       onLostBitkeyClick = {
-        setState(SocialRecoveryExplanationState)
+        // Filter to backups with social recovery data
+        val socRecBackups = props.backups.filter { it.socRecDataAvailable }
+
+        if (socRecBackups.size > 1) {
+          // Multiple backups with social recovery - show selection
+          setState(SelectingSocRecBackupUiState(socRecBackups))
+        } else {
+          // Single backup with social recovery - proceed directly
+          setState(SocialRecoveryExplanationState(socRecBackups.first()))
+        }
       }
     ).asRootScreen()
   }
 
   @Composable
   private fun socialRecoveryExplanationModel(
-    props: FullAccountCloudBackupRestorationUiProps,
+    state: SocialRecoveryExplanationState,
     setState: (CloudBackupRestorationUiState) -> Unit,
   ): ScreenModel {
     return SocialRecoveryExplanationModel(
@@ -261,7 +278,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         setState(CloudBackupFoundUiState)
       },
       onContinue = {
-        val backup = props.backup as? SocRecV1BackupFeatures
+        // Use the selected backup for social recovery
+        val backup = state.selectedBackup as? SocRecV1BackupFeatures
         val account = backup?.fullAccountFields as? SocRecV1AccountFeatures
 
         setState(
@@ -272,7 +290,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 actionDescription = "Reading full account from backup",
                 cause = Error("Backup did not contain data for full account")
               ),
-              onBack = { setState(SocialRecoveryExplanationState) },
+              onBack = { setState(SocialRecoveryExplanationState(state.selectedBackup)) },
               failure = CloudBackupFailure.CantFindCloudAccount
             )
           } else {
@@ -287,20 +305,65 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   }
 
   @Composable
+  private fun selectingSocRecBackupModel(
+    state: SelectingSocRecBackupUiState,
+    onExit: () -> Unit,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    return selectCloudBackupUiStateMachine.model(
+      props = SelectCloudBackupUiProps(
+        backups = state.socRecBackups,
+        onBackupSelected = { selectedBackup ->
+          setState(SocialRecoveryExplanationState(selectedBackup))
+        },
+        onBack = onExit
+      )
+    )
+  }
+
+  @Composable
   private fun unsealingCsekModel(
     props: FullAccountCloudBackupRestorationUiProps,
     setState: (CloudBackupRestorationUiState) -> Unit,
   ): ScreenModel {
-    val sealedCsek = when (val backup = props.backup) {
-      is CloudBackupV2, is CloudBackupV3 ->
-        (backup.fullAccountFields as FullAccountFields).sealedHwEncryptionKey
+    // Map backups to their sealed CSEKs so we can track which backup succeeds
+    val backupToSealedCsek = props.backups.mapNotNull { backup ->
+      when (backup) {
+        is CloudBackupV2, is CloudBackupV3 ->
+          backup to (backup.fullAccountFields as FullAccountFields).sealedHwEncryptionKey
+        else -> null
+      }
     }
+
     return nfcSessionUIStateMachine.model(
       NfcSessionUIStateMachineProps(
         session = { session, commands ->
-          val csek = Csek(
-            commands.unsealSymmetricKey(session, sealedCsek)
-          )
+          // Try unsealing each CSEK until one succeeds
+          var unsealedCsek: Csek? = null
+          var successfulBackup: CloudBackup? = null
+          var lastError: Throwable? = null
+
+          for ((backup, sealedCsek) in backupToSealedCsek) {
+            try {
+              val result = Csek(commands.unsealSymmetricKey(session, sealedCsek))
+              unsealedCsek = result
+              successfulBackup = backup
+
+              // Store the mapping for the successful CSEK
+              csekDao.set(key = sealedCsek, value = result)
+              break
+            } catch (e: NfcException) {
+              lastError = e
+              // Continue to next CSEK
+            } catch (e: IllegalArgumentException) {
+              lastError = e
+              // Continue to next CSEK
+            }
+          }
+
+          if (unsealedCsek == null || successfulBackup == null) {
+            throw lastError ?: Error("Could not unseal any backup with this hardware")
+          }
 
           // Unsealing proves we're on the original hardware, so reuse this session to
           // persist current device info and fingerprint data for security hub.
@@ -313,14 +376,10 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             hardwareUnlockInfoService.replaceAllUnlockInfo(enrolledFingerprints.toUnlockInfoList())
           }.logFailure { "Failed to sync fingerprint data during cloud recovery" }
 
-          csek
+          Pair(unsealedCsek, successfulBackup)
         },
-        onSuccess = { unsealedCsek ->
-          csekDao.set(
-            key = sealedCsek,
-            value = unsealedCsek
-          )
-          setState(RestoringFromBackupUiState)
+        onSuccess = { (_, successfulBackup) ->
+          setState(RestoringFromBackupUiState(successfulBackup))
         },
         onCancel = { setState(CloudBackupFoundUiState) },
         onError = { error ->
@@ -332,7 +391,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                   actionDescription = "Unsealing CSEK for full account cloud restoration",
                   cause = error
                 ),
-                onBack = { setState(SocialRecoveryExplanationState) },
+                onBack = { setState(CloudBackupFoundUiState) },
                 failure = CloudBackupFailure.HWCantDecryptCSEK
               )
             )
@@ -353,10 +412,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   @Composable
   private fun restoringFromBackupModel(
     props: FullAccountCloudBackupRestorationUiProps,
+    state: RestoringFromBackupUiState,
     loadingModel: ScreenModel,
     setState: (CloudBackupRestorationUiState) -> Unit,
   ): ScreenModel {
-    RestoringFromBackupEffect(props, setState = setState)
+    RestoringFromBackupEffect(props, state, setState = setState)
     return loadingModel
   }
 
@@ -418,9 +478,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     props: FullAccountCloudBackupRestorationUiProps,
     setState: (CloudBackupRestorationUiState) -> Unit,
   ): ScreenModel {
+    // Use the first backup for the UI display
+    val primaryBackup = props.backups.first()
     return existingFullAccountUiStateMachine.model(
       ExistingFullAccountUiProps(
-        cloudBackup = props.backup,
+        cloudBackup = primaryBackup,
         devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
         onBack = props.onExit,
         onRestore = { setState(UnsealingCsek) },
@@ -483,11 +545,12 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   @Composable
   private fun RestoringFromBackupEffect(
     props: FullAccountCloudBackupRestorationUiProps,
+    state: RestoringFromBackupUiState,
     setState: (CloudBackupRestorationUiState) -> Unit,
   ) {
     LaunchedEffect("restoring-from-backup") {
       backupRestorer
-        .restoreFromBackup(cloudBackup = props.backup)
+        .restoreFromBackup(cloudBackup = state.successfulBackup)
         .logFailure { "Error restoring keybox from cloud backup" }
         .onFailure {
           setState(
@@ -569,9 +632,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   ) {
     LaunchedEffect("complete-socrec-restore") {
       coroutineBinding {
+        // Use the first backup for social recovery restoration
+        val primaryBackup = props.backups.first()
         val restoration =
           backupRestorer.restoreFromBackupWithDecryptedKeys(
-            cloudBackup = props.backup,
+            cloudBackup = primaryBackup,
             keysInfo = state.fullAccountKeys
           ).bind()
 
@@ -701,7 +766,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 actionDescription = "Storing app recovery auth key",
                 cause = it
               ),
-              onBack = { setState(SocialRecoveryExplanationState) },
+              onBack = { setState(CloudBackupFoundUiState) },
               failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
             )
           )
@@ -734,7 +799,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
               actionDescription = "Authenticating with new app recovery auth key, storing tokens, and syncing socrec relationships",
               cause = it
             ),
-            onBack = { setState(SocialRecoveryExplanationState) },
+            onBack = { setState(CloudBackupFoundUiState) },
             failure = CloudBackupFailure.AppCantPerformPostRestorationSteps
           )
         )
@@ -792,8 +857,11 @@ private sealed interface CloudBackupRestorationUiState {
    * We also track the hw authentication key since it's needed
    * if the customer wishes to rotate the authentication keys after the
    * cloud backup restoration.
+   * @property successfulBackup The backup that was successfully unsealed with the hardware key
    */
-  data object RestoringFromBackupUiState : CloudBackupRestorationUiState
+  data class RestoringFromBackupUiState(
+    val successfulBackup: build.wallet.cloud.backup.CloudBackup,
+  ) : CloudBackupRestorationUiState
 
   /**
    * Failure when restoring the account from the backup.
@@ -828,7 +896,19 @@ private sealed interface CloudBackupRestorationUiState {
     val fullAccountId: FullAccountId,
   ) : CloudBackupRestorationUiState
 
-  data object SocialRecoveryExplanationState : CloudBackupRestorationUiState
+  /**
+   * Showing social recovery explanation screen for the selected backup.
+   */
+  data class SocialRecoveryExplanationState(
+    val selectedBackup: build.wallet.cloud.backup.CloudBackup,
+  ) : CloudBackupRestorationUiState
+
+  /**
+   * Multiple backups with social recovery data - showing selection screen.
+   */
+  data class SelectingSocRecBackupUiState(
+    val socRecBackups: List<build.wallet.cloud.backup.CloudBackup>,
+  ) : CloudBackupRestorationUiState
 
   /**
    * Uses the recovery key to authenticate and restore an account from

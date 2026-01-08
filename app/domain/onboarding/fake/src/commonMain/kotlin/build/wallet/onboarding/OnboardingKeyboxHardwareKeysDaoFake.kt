@@ -20,6 +20,7 @@ class OnboardingKeyboxHardwareKeysDaoFake : OnboardingKeyboxHardwareKeysDao {
   }
 
   override suspend fun clear() {
+    shouldFail = false
     keys = null
   }
 }

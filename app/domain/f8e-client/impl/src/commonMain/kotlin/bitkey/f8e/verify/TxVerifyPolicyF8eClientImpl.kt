@@ -1,8 +1,9 @@
 package bitkey.f8e.verify
 
+import bitkey.f8e.privilegedactions.OptionalPrivilegedAction
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
-import bitkey.f8e.privilegedactions.toPrimitive
 import bitkey.verification.TxVerificationPolicy
+import bitkey.verification.VerificationThreshold
 import bitkey.verification.VerificationThreshold.Companion.Always
 import bitkey.verification.VerificationThreshold.Disabled
 import bitkey.verification.VerificationThreshold.Enabled
@@ -10,7 +11,6 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
@@ -41,40 +41,36 @@ import kotlinx.serialization.json.jsonObject
 
 @BitkeyInject(AppScope::class)
 class TxVerifyPolicyF8eClientImpl(
-  private val f8eHttpClient: F8eHttpClient,
+  override val f8eHttpClient: F8eHttpClient,
   private val fiatCurrencyDao: FiatCurrencyDao,
 ) : TxVerifyPolicyF8eClient {
-  override suspend fun setPolicy(
+  override suspend fun requestAction(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-    policy: TxVerificationPolicy,
-    amountBtc: BitcoinMoney?,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
-  ): Result<TxVerificationPolicy, Error> {
+    request: TxVerificationUpdateRequest,
+  ): Result<OptionalPrivilegedAction<VerificationThreshold>, Throwable> {
     return f8eHttpClient.authenticated()
       .bodyResult<SetPolicyResponse> {
         put("/api/accounts/${fullAccountId.serverId}/tx-verify/policy") {
-          withHardwareFactor(hwFactorProofOfPossession)
+          withHardwareFactor(request.hwFactorProofOfPossession)
           withDescription("Set Tx Verification Policy")
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
           setRedactedBody(
             PolicyChangeRequest(
-              state = when (policy) {
-                is TxVerificationPolicy.Active -> when (policy.threshold) {
-                  Always -> VerificationState.ALWAYS
-                  Disabled -> VerificationState.NEVER
-                  else -> VerificationState.THRESHOLD
-                }
-                is TxVerificationPolicy.Pending -> error("Can't set a pending policy directly")
+              state = when (request.threshold) {
+                Always -> VerificationState.ALWAYS
+                Disabled -> VerificationState.NEVER
+                else -> VerificationState.THRESHOLD
               },
-              threshold = policy
+              threshold = request
                 .threshold
                 .amount
-                .takeIf { policy.threshold is Enabled && policy.threshold != Always }
+                .takeIf { request.threshold is Enabled && request.threshold != Always }
                 ?.let {
                   CurrencyThreshold(
-                    amountSats = amountBtc?.fractionalUnitValue?.ulongValue(exactRequired = true) ?: error("Reference amount in BTC is required for enabled threshold policy"),
+                    amountSats = request.amountBtc?.fractionalUnitValue?.ulongValue(exactRequired = true)
+                      ?: error("Reference amount in BTC is required for enabled threshold policy"),
                     amountFiat = it.fractionalUnitValue.ulongValue(exactRequired = true),
                     currencyCode = it.currency.textCode.code
                   )
@@ -84,10 +80,10 @@ class TxVerifyPolicyF8eClientImpl(
         }
       }.map { response ->
         when (response) {
-          is SetPolicyResponse.EmptyResponse -> policy
+          is SetPolicyResponse.EmptyResponse -> OptionalPrivilegedAction.NotRequired(request.threshold)
           is SetPolicyResponse.PrivilegedActionInstanceResponse ->
             response.privilegedActionInstance
-              .let { TxVerificationPolicy.Pending(it.toPrimitive()) }
+              .let { OptionalPrivilegedAction.Required(it) }
         }
       }
   }

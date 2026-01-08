@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.github.z4kn4fein:semver-jvm",
+    "components": [
+        {
+            "version": "2.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "semver-jvm-2.0.0.jar": "fbbf174a4e78aa5be1f1b7db73edc5c0a6a2e59e1562263e2c3a2e510fa1ba45"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]"
+            ]
+        }
+    ]
+}

@@ -18,7 +18,8 @@ storage_deps = [
   sysevent_dep,
   indexfs_dep,
   fwup_dep,
-  mcu_efr32xg24_dep,
+  mcu_dep,
+  wallet_dep,
 ]
 
 unlock_fake_storage_lib = library('unlock-fake-storage',

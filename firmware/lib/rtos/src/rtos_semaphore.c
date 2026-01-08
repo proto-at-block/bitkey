@@ -8,6 +8,15 @@ void rtos_semaphore_create(rtos_semaphore_t* semaphore) {
   ASSERT(semaphore->handle != NULL);
 }
 
+void rtos_semaphore_destroy(rtos_semaphore_t* semaphore) {
+  ASSERT(semaphore != NULL);
+
+  if (semaphore->handle != NULL) {
+    vSemaphoreDelete(semaphore->handle);
+    semaphore->handle = NULL;
+  }
+}
+
 void rtos_semaphore_create_counting(rtos_semaphore_t* semaphore, uint32_t max_count,
                                     uint32_t initial_count) {
   semaphore->handle = xSemaphoreCreateCountingStatic(max_count, initial_count, &semaphore->buffer);

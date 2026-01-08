@@ -4,6 +4,7 @@
 #include "fff.h"
 #include "policy.h"
 #include "rtos.h"
+#include "secure_rng.h"
 #include "secutils.h"
 
 #include <criterion/criterion.h>
@@ -36,9 +37,6 @@ derivation_path_t* get_w1_auth_path(void) {
 }
 
 void detect_glitch(void) {}
-uint16_t crypto_rand_short(void) {
-  return 1;
-}
 uint32_t clock_get_freq(void) {
   return 1;
 }

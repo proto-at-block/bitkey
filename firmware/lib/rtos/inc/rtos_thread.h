@@ -32,6 +32,22 @@ void rtos_thread_create_static(rtos_thread_t* thread, void (*func)(void*), const
                                uint32_t stack_size, StaticTask_t* task_buffer,
                                rtos_thread_mpu_t mpu_regions);
 
+#if (configENABLE_MPU == 0)
+// No MPU: Create thread with dummy MPU regions
+#define rtos_thread_create(func, args, priority, stack_size)                                      \
+  ({                                                                                              \
+    static rtos_thread_t _##func##_thread = {0};                                                  \
+    static StaticTask_t _##func##_task_buffer = {0};                                              \
+    alignas(stack_size) static uint32_t _##func##_stack_buffer[stack_size / sizeof(uint32_t)] = { \
+      0};                                                                                         \
+    static rtos_thread_mpu_t _##func##_regions = {.privilege = 0};                                \
+    rtos_thread_create_static(&_##func##_thread, func, "" #func "", args, priority,               \
+                              _##func##_stack_buffer, stack_size, &_##func##_task_buffer,         \
+                              _##func##_regions);                                                 \
+    &_##func##_thread;                                                                            \
+  })
+#else
+// MPU enabled: Thread creation with MPU regions (must be defined externally)
 #define rtos_thread_create(func, args, priority, stack_size)                                      \
   ({                                                                                              \
     static rtos_thread_t _##func##_thread = {0};                                                  \
@@ -43,6 +59,7 @@ void rtos_thread_create_static(rtos_thread_t* thread, void (*func)(void*), const
                               _##func##_regions);                                                 \
     &_##func##_thread;                                                                            \
   })
+#endif
 
 void rtos_thread_delete(rtos_thread_t* thread);
 void rtos_thread_start_scheduler(void);

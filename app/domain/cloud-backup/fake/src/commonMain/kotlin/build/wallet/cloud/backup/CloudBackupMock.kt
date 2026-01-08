@@ -131,7 +131,7 @@ const val CLOUD_BACKUP_V3_WITH_FULL_ACCOUNT_FIELDS_JSON = """
  * Centralized list of all full account backup mock versions for parameterized testing.
  * Add new versions here to automatically include them in parameterized tests.
  */
-val AllFullAccountBackupMocks = listOf(
+val AllFullAccountBackupMocks: List<CloudBackup> = listOf(
   CloudBackupV2WithFullAccountMock,
   CloudBackupV3WithFullAccountMock
 )
@@ -140,7 +140,7 @@ val AllFullAccountBackupMocks = listOf(
  * Centralized list of all lite account backup mock versions for parameterized testing.
  * Add new versions here to automatically include them in parameterized tests.
  */
-val AllLiteAccountBackupMocks = listOf(
+val AllLiteAccountBackupMocks: List<CloudBackup> = listOf(
   CloudBackupV2WithLiteAccountMock,
   CloudBackupV3WithLiteAccountMock
 )

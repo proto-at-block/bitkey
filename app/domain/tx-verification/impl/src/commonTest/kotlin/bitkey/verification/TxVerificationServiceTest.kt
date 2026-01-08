@@ -9,6 +9,7 @@ import bitkey.privilegedactions.AuthorizationStrategyType
 import bitkey.privilegedactions.PrivilegedActionType
 import bitkey.verification.TxVerificationPolicy.Active
 import build.wallet.account.AccountServiceFake
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
@@ -227,7 +228,7 @@ class TxVerificationServiceTest : FunSpec({
       val psbt = Psbt(
         id = "psbt-id",
         base64 = "some-base-64",
-        fee = BitcoinMoney.sats(10_000),
+        fee = Fee(BitcoinMoney.sats(10_000)),
         baseSize = 20_000,
         numOfInputs = 1,
         amountSats = 20_000UL
@@ -251,7 +252,7 @@ class TxVerificationServiceTest : FunSpec({
     val psbt = Psbt(
       id = "psbt-id",
       base64 = "some-base-64",
-      fee = BitcoinMoney.sats(10_000),
+      fee = Fee(BitcoinMoney.sats(10_000)),
       baseSize = 20_000,
       numOfInputs = 1,
       amountSats = 20_000UL

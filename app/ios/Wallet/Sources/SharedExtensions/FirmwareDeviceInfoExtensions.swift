@@ -41,7 +41,24 @@ extension Shared.FirmwareDeviceInfo {
                     },
                     failCount: Int64(bioMatchStats.failCount)
                 )
-            }
+            },
+            mcuInfo: deviceInfo.deviceInfoMcus?.mcus.map { info in
+                Shared.McuInfo(
+                    mcuRole: {
+                        switch info.role {
+                        case .core: return .core
+                        case .uxc: return .uxc
+                        }
+                    }(),
+                    mcuName: {
+                        switch info.name {
+                        case .efr32: return .efr32
+                        case .stm32u5: return .stm32u5
+                        }
+                    }(),
+                    firmwareVersion: info.firmwareVersion
+                )
+            } ?? []
         )
     }
 

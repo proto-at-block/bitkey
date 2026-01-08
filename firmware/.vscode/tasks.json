@@ -2,9 +2,67 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build",
+            "label": "Build W1",
             "type": "shell",
-            "command": "source activate; inv build",
+            "command": "source activate; inv build.targets -p w1",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": {
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}/build"
+                ],
+                "pattern": {
+                    "regexp": "^\\.\\.\\/(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                },
+                "owner": "gcc"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Build W3-Core",
+            "type": "shell",
+            "command": "source activate; inv build.targets -p w3-core",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": {
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}/build"
+                ],
+                "pattern": {
+                    "regexp": "^\\.\\.\\/(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                },
+                "owner": "gcc"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Build W3-UXC",
+            "type": "shell",
+            "command": "source activate; inv build.targets -p w3-uxc",
             "presentation": {
                 "echo": true,
                 "reveal": "silent",

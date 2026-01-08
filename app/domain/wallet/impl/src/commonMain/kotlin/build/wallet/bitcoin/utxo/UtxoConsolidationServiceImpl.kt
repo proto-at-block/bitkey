@@ -96,7 +96,7 @@ class UtxoConsolidationServiceImpl(
           targetAddress = targetAddress,
           eligibleUtxoCount = selectedUtxos.size,
           balance = utxoBalance,
-          consolidationCost = psbt.fee,
+          consolidationCost = psbt.fee.amount,
           appSignedPsbt = psbt,
           transactionPriority = consolidationTransactionPriority,
           walletHasUnconfirmedUtxos = utxos.unconfirmed.isNotEmpty(),

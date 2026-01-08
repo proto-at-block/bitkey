@@ -595,13 +595,17 @@ def activate_delta_release(
                 )
                 click.echo(sh.memfault(*args))
             except sh.ErrorReturnCode as e:
-                # Gross. But, so is shelling out.
-                if "Already active for this cohort" in e.stderr.decode("utf-8"):
+                error_msg = e.stderr.decode("utf-8")
+                if "already active" in error_msg.lower():
                     click.echo(
                         click.style(
-                            f"  Delta {release['from_version']['version']} -> {release['to_version']['version']} already active for cohort {cohort}",
+                            f"  Release already active, deactivating first...",
                             fg="yellow",
                         )
                     )
+                    deactivate_args = args.copy()
+                    deactivate_args.append("--deactivate")
+                    sh.memfault(*deactivate_args)
+                    click.echo(sh.memfault(*args))
                 else:
-                    click.echo(click.style(e.stderr.decode("utf-8"), fg="red"))
+                    click.echo(click.style(error_msg, fg="red"))

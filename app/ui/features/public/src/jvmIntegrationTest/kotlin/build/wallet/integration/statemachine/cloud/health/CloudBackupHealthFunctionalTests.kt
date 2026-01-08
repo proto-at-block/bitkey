@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_DETECTED
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_INITIATE
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.cloud.store.CloudFileStoreFake
 import build.wallet.cloud.store.CloudFileStoreResult
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
@@ -37,6 +38,8 @@ import okio.ByteString.Companion.toByteString
 private const val CLOUD_ACCESS_FAILURE = "cloud-access-failure"
 
 class CloudBackupHealthFunctionalTests : FunSpec({
+
+  val fullAccountId = FullAccountIdMock
 
   suspend fun TestScope.launchAppAndOnboard(): AppTester {
     return launchNewApp().apply {
@@ -105,7 +108,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
   test("Cloud backup health dashboard repair App Key backup") {
     val app = launchAppAndOnboard()
     app.appUiStateMachine.test(props = Unit) {
-      app.cloudBackupRepository.clear(CloudStoreAccount1Fake, false)
+      app.cloudBackupRepository.clear(fullAccountId, CloudStoreAccount1Fake, false)
       shouldNavigateToCloudBackupHealthDashboard {
         appKeyBackupStatusCard.backupStatus.title
           .shouldBe("Problem with App Key\nBackup")

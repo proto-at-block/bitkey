@@ -27,6 +27,8 @@ import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.UpToDate
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.fwup.FirmwareDataUpToDateMock
+import build.wallet.recovery.keyset.SpendingKeysetRepairServiceFake
+import build.wallet.recovery.keyset.SpendingKeysetSyncStatus
 import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
@@ -43,6 +45,7 @@ class FundsLostRiskServiceImplTests : FunSpec({
   val atRiskNotificationsFeatureFlag = AtRiskNotificationsFeatureFlag(
     featureFlagDao = FeatureFlagDaoFake()
   )
+  val keysetRepairService = SpendingKeysetRepairServiceFake()
 
   fun service() =
     FundsLostRiskServiceImpl(
@@ -51,7 +54,8 @@ class FundsLostRiskServiceImplTests : FunSpec({
       notificationsService = notificationsService,
       accountService = accountService,
       notificationTriggerF8eClient = notificationTriggerF8eClient,
-      atRiskNotificationsFeatureFlag = atRiskNotificationsFeatureFlag
+      atRiskNotificationsFeatureFlag = atRiskNotificationsFeatureFlag,
+      spendingKeysetRepairService = keysetRepairService
     )
 
   beforeTest {
@@ -59,6 +63,7 @@ class FundsLostRiskServiceImplTests : FunSpec({
     cloudBackupHealthRepository.reset()
     firmwareDataService.reset()
     notificationsService.reset()
+    keysetRepairService.reset()
   }
 
   test("protected when all factors are healthy") {
@@ -124,6 +129,31 @@ class FundsLostRiskServiceImplTests : FunSpec({
 
     service.riskLevel().test {
       awaitUntil(FundsLostRiskLevel.AtRisk(AtRiskCause.MissingHardware))
+    }
+  }
+
+  test("at risk when keyset mismatch is detected") {
+    cloudBackupHealthRepository.appKeyBackupStatus.value =
+      Healthy(ClockFake().now)
+    cloudBackupHealthRepository.eekBackupStatus.value =
+      EekBackupStatus.Healthy(ClockFake().now)
+    firmwareDataService.firmwareData.value = FirmwareDataUpToDateMock
+    notificationsService.criticalNotificationsStatus.value = Enabled
+    keysetRepairService.setStatus(
+      SpendingKeysetSyncStatus.Mismatch(
+        localActiveKeysetId = "local-keyset-id",
+        serverActiveKeysetId = "server-keyset-id"
+      )
+    )
+
+    val service = service()
+
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    service.riskLevel().test {
+      awaitUntil(FundsLostRiskLevel.AtRisk(AtRiskCause.ActiveSpendingKeysetMismatch))
     }
   }
 

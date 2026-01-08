@@ -1,0 +1,159 @@
+/**
+ * @file
+ *
+ * @brief Language Pack String IDs
+ *
+ * @{
+ */
+
+#pragma once
+
+/**
+ * @brief Enumeration of language pack string IDs (tags).
+ *
+ * @note Values should be explicitly listed as they identify tags in flash.
+ */
+typedef enum {
+  /**
+   * @brief Reserved for TLV sentinel. Do not use.
+   */
+  LANGPACK_ID_RESERVED = 0,
+
+  /**
+   * @brief Reserved for unit tests.
+   */
+  LANGPACK_ID_TEST_STRING = 1,
+
+  /**
+   * @defgroup LANGPACK_ABOUT About Screen Strings
+   * @{
+   */
+  LANGPACK_ID_ABOUT_TITLE = 2,
+  LANGPACK_ID_ABOUT_FIRMWARE_LABEL = 3,
+  LANGPACK_ID_ABOUT_HARDWARE_LABEL = 4,
+  LANGPACK_ID_ABOUT_SERIAL_LABEL = 5,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_BRIGHTNESS Brightness Screen Strings
+   * @{
+   */
+  LANGPACK_ID_BRIGHTNESS_TITLE = 6,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_FINGERPRINT_REMOVE Fingerprint Removal Screen Strings
+   * @{
+   */
+  LANGPACK_ID_FINGERPRINT_REMOVE_TITLE = 7,
+  LANGPACK_ID_FINGERPRINT_REMOVE_CONFIRM = 8,
+  LANGPACK_ID_FINGERPRINT_REMOVE_BACK = 9,
+  LANGPACK_ID_FINGERPRINT_REMOVE_REMOVED = 10,
+  LANGPACK_ID_FINGERPRINT_REMOVE_ID = 46,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_FINGERPRINT Fingerprint Management Screen Strings
+   * @{
+   */
+  LANGPACK_ID_FINGERPRINT_TITLE = 11,
+  LANGPACK_ID_FINGERPRINT_FINISH_TITLE = 12,
+  LANGPACK_ID_FINGERPRINT_INTRO = 13,
+  LANGPACK_ID_FINGERPRINT_BUTTON = 14,
+  LANGPACK_ID_FINGERPRINT_SUCCESS = 15,
+  LANGPACK_ID_FINGERPRINT_FINISH = 16,
+  LANGPACK_ID_FINGERPRINT_APP_DOWNLOAD = 17,
+  LANGPACK_ID_FINGERPRINT_QR = 18,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_SCAN Scan Screen Strings
+   * @{
+   */
+  LANGPACK_ID_SCAN_TITLE = 19,
+  LANGPACK_ID_SCAN_TAP = 47,
+  LANGPACK_ID_SCAN_SIGN = 48,
+  LANGPACK_ID_SCAN_VERIFY = 49,
+  LANGPACK_ID_SCAN_CONFIRM = 50,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_FINGERPRINT_MENU Fingerprint Menu Screen Strings
+   * @{
+   */
+  LANGPACK_ID_FINGERPRINT_MENU_FMT = 20,
+  LANGPACK_ID_FINGERPRINT_MENU_ADD = 21,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_ONBOARDING Onboarding Screen Strings
+   * @{
+   */
+  LANGPACK_ID_ONBOARDING_TITLE = 22,
+  LANGPACK_ID_ONBOARDING_PAGE2 = 23,
+  LANGPACK_ID_ONBOARDING_PAGE3 = 24,
+  LANGPACK_ID_ONBOARDING_PAGE4 = 25,
+  LANGPACK_ID_ONBOARDING_PAGE5 = 26,
+  LANGPACK_ID_ONBOARDING_BUTTON4 = 27,
+  LANGPACK_ID_ONBOARDING_BUTTON5 = 28,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_REGULATORY Regulatory Screen Strings
+   * @{
+   */
+  LANGPACK_ID_REGULATORY_TITLE = 29,
+  LANGPACK_ID_REGULATORY_FCC_ID = 30,
+  LANGPACK_ID_REGULATORY_FCC_NOTES_FMT = 31,
+  LANGPACK_ID_REGULATORY_NOTE1 = 32,
+  LANGPACK_ID_REGULATORY_NOTE2 = 33,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_MONEY_MOVEMENT Money Movement Screen Strings
+   * @{
+   */
+  LANGPACK_ID_MONEY_MOVEMENT_ADDRESS = 34,
+  LANGPACK_ID_MONEY_MOVEMENT_AMOUNT = 35,
+  LANGPACK_ID_MONEY_MOVEMENT_CONFIRM = 36,
+  LANGPACK_ID_MONEY_MOVEMENT_BTC_SUFFIX = 37,
+  LANGPACK_ID_MONEY_MOVEMENT_BTC_FEE_SUFFIX = 38,
+  LANGPACK_ID_MONEY_MOVEMENT_VERIFY = 39,
+  LANGPACK_ID_MONEY_MOVEMENT_CANCEL = 40,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_FINGERPRINT_ENROLL Fingerprint Enrollment Strings
+   * @{
+   */
+  LANGPACK_ID_FINGERPRINT_ENROLL_FIRST = 41,
+  LANGPACK_ID_FINGERPRINT_ENROLL_ERROR = 42,
+  LANGPACK_ID_FINGERPRINT_ENROLL_SUCCESS = 43,
+  LANGPACK_ID_FINGERPRINT_ENROLL_FAIL = 44,
+  LANGPACK_ID_FINGERPRINT_ENROLL_REPEAT = 45,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_FWUP Firmware Update Strings
+   * @{
+   */
+  LANGPACK_ID_FIRMWARE_UPDATE_SUCCESS = 51,
+  LANGPACK_ID_FIRMWARE_UPDATE_FAILED = 52,
+  /** @} */
+
+  /**
+   * @defgroup LANGPACK_MENU Menu Strings
+   * @{
+   */
+  LANGPACK_ID_MENU_BACK = 53,
+  LANGPACK_ID_MENU_FINGERPRINTS = 54,
+  LANGPACK_ID_MENU_BRIGHTNESS = 55,
+  LANGPACK_ID_MENU_ABOUT = 56,
+  LANGPACK_ID_MENU_REGULATORY = 57,
+  LANGPACK_ID_MENU_LOCK = 58,
+  LANGPACK_ID_MENU_OFF = 59,
+  LANGPACK_ID_MENU_TOUCH_TEST = 60,
+  /** @} */
+} langpack_string_id_t;
+
+/** @} */

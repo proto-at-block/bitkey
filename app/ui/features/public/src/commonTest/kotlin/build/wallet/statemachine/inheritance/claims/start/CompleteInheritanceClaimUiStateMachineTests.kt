@@ -2,6 +2,7 @@ package build.wallet.statemachine.inheritance.claims.start
 
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimBothDescriptorsFake
@@ -16,11 +17,7 @@ import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachineImpl
-import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachineProps
-import build.wallet.statemachine.inheritance.claims.complete.EmptyBenefactorWalletScreenModel
-import build.wallet.statemachine.inheritance.claims.complete.InheritanceTransferConfirmationScreenModel
-import build.wallet.statemachine.inheritance.claims.complete.InheritanceTransferSuccessScreenModel
+import build.wallet.statemachine.inheritance.claims.complete.*
 import build.wallet.statemachine.ui.awaitUntilBody
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -32,7 +29,7 @@ class CompleteInheritanceClaimUiStateMachineTests : FunSpec({
   val transferPbst = Psbt(
     id = "psbt-id",
     base64 = "some-base-64",
-    fee = BitcoinMoney.sats(10_000),
+    fee = Fee(BitcoinMoney.sats(10_000)),
     baseSize = 20_000,
     numOfInputs = 1,
     amountSats = 20_000UL

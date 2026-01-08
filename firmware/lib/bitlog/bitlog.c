@@ -4,8 +4,12 @@
 #include "bitlog_impl.h"
 #include "log.h"
 #include "perf.h"
+#include "rtos.h"
 
 STATIC_VISIBLE_FOR_TESTING uint8_t SHARED_TASK_BSS bitlog_storage[BITLOG_STORAGE_SIZE] = {0};
+
+static bool bitlog_lock(void);
+static bool bitlog_unlock(void);
 
 STATIC_VISIBLE_FOR_TESTING bitlog_priv_t SHARED_TASK_BSS bitlog_priv = {
   .timestamp_cb = NULL,
@@ -27,18 +31,26 @@ static inline uint24_t _truncate_24(void* reg) {
   return out;
 }
 
+static bool bitlog_lock(void) {
+  return rtos_mutex_lock(&bitlog_priv.ringbuf_lock);
+}
+
+static bool bitlog_unlock(void) {
+  return rtos_mutex_unlock(&bitlog_priv.ringbuf_lock);
+}
+
 void bitlog_init(bitlog_api_t api) {
   bitlog_priv.timestamp_cb = api.timestamp_cb;
   bitlog_priv.perf.dropped_events = perf_create(PERF_COUNT, bitlog_dropped_events);
 
   rtos_mutex_create(&bitlog_priv.ringbuf_lock);
 
-  bitlog_priv.ringbuf.buf = bitlog_storage;
-  bitlog_priv.ringbuf.max_size = BITLOG_STORAGE_SIZE;
-  bitlog_priv.ringbuf.head = 0;
-  bitlog_priv.ringbuf.tail = 0;
-  bitlog_priv.ringbuf.lock = &bitlog_priv.ringbuf_lock;
-  bitlog_priv.ringbuf.full = false;
+  ringbuf_api_t api_callbacks = {
+    .lock = bitlog_lock,
+    .unlock = bitlog_unlock,
+  };
+  bitlog_priv.ringbuf.api = api_callbacks;
+  ringbuf_init(&bitlog_priv.ringbuf, bitlog_storage, BITLOG_STORAGE_SIZE);
 }
 
 void _bitlog_record_event(uint16_t event, uint8_t status, void* pc, void* lr) {

@@ -56,6 +56,8 @@ resource "aws_lambda_function" "function" {
   source_code_hash = var.force_update ? timestamp() : null
   timeout          = 900
   memory_size      = 1024
+  # Enable versioning (required for provisioned concurrency)
+  publish = var.provisioned_concurrency > 0
 
   tracing_config {
     mode = "Active"
@@ -89,30 +91,19 @@ resource "aws_lambda_function" "function" {
   }
 }
 
-resource "aws_cloudwatch_event_rule" "lambda_schedule" {
-  name                = local.use_prefix ? "${var.resource_prefix}-${local.role_name}" : var.function_name
-  description         = "Trigger ${local.use_prefix ? var.resource_prefix : ""}-${var.function_name} Lambda on schedule"
-  schedule_expression = "rate(1 day)"
+# Provisioned concurrency keeps Lambda instances warm to eliminate cold starts
+resource "aws_lambda_alias" "live" {
+  count = var.provisioned_concurrency > 0 ? 1 : 0
 
-  lifecycle {
-    create_before_destroy = true
-  }
+  name             = "live"
+  function_name    = aws_lambda_function.function.function_name
+  function_version = aws_lambda_function.function.version
 }
 
-resource "aws_lambda_permission" "allow_eventbridge" {
-  statement_id  = "AllowExecutionFromEventBridge"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.function.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.lambda_schedule.arn
-}
+resource "aws_lambda_provisioned_concurrency_config" "concurrency" {
+  count = var.provisioned_concurrency > 0 ? 1 : 0
 
-resource "aws_cloudwatch_event_target" "invoke_lambda" {
-  rule      = aws_cloudwatch_event_rule.lambda_schedule.name
-  target_id = local.use_prefix ? "${var.resource_prefix}-${local.role_name}" : var.function_name
-  arn       = aws_lambda_function.function.arn
-
-  lifecycle {
-    create_before_destroy = true
-  }
+  function_name                     = aws_lambda_function.function.function_name
+  qualifier                         = aws_lambda_alias.live[0].name
+  provisioned_concurrent_executions = var.provisioned_concurrency
 }

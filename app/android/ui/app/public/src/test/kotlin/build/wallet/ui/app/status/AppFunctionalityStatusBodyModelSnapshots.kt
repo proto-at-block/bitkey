@@ -1,6 +1,7 @@
 package build.wallet.ui.app.status
 
 import build.wallet.availability.AppFunctionalityStatus
+import build.wallet.availability.EmergencyExitMode
 import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InternetUnreachable
 import build.wallet.kotest.paparazzi.paparazziExtension
@@ -48,6 +49,20 @@ class AppFunctionalityStatusBodyModelSnapshots : FunSpec({
                 Instant.DISTANT_PAST,
                 Instant.DISTANT_PAST
               ),
+            dateFormatter = { "9:14pm" },
+            onClose = {}
+          )
+      )
+    }
+  }
+
+  test("app_status_emergencyExitMode") {
+    paparazzi.snapshot {
+      FormScreen(
+        model =
+          AppFunctionalityStatusBodyModel(
+            status = AppFunctionalityStatus.LimitedFunctionality(cause = EmergencyExitMode),
+            cause = EmergencyExitMode,
             dateFormatter = { "9:14pm" },
             onClose = {}
           )

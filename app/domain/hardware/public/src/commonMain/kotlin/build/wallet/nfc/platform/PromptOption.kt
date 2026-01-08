@@ -1,5 +1,7 @@
 package build.wallet.nfc.platform
 
+import build.wallet.nfc.NfcSession
+
 /**
  * Represents a selectable option to display in the app as an emulated
  * hardware interaction.
@@ -17,5 +19,5 @@ data class PromptOption<T>(
    * When invoked, this can either return a `Completed`
    * response with data, or a new interaction to emulate.
    */
-  val onSelect: () -> HardwareInteraction<T>,
+  val onSelect: suspend (NfcSession) -> HardwareInteraction<T>,
 )

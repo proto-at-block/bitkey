@@ -80,8 +80,13 @@ internal suspend fun Keybox.appKeys(
 
     // We MUST have the active keyset private key
     ensure(resultMap.containsKey(activeSpendingKeyset.appKey)) {
-      IllegalStateException("Active app spending private key not found.")
+      MissingActivePrivateKeyError()
     }
 
     resultMap
   }
+
+/**
+ * Thrown if the wallet's active spending key is missing an associated private key.
+ */
+class MissingActivePrivateKeyError : IllegalStateException("Active app spending private key not found.")

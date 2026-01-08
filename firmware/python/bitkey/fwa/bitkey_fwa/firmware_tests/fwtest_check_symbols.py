@@ -94,6 +94,7 @@ class SymbolChecks(bitkey_fwa.TestCase):
 
     @bitkey_fwa.suffix("elf")
     @bitkey_fwa.asset("app")
+    @bitkey_fwa.product("w1a")
     def fwtest_elf_verify_symbol_pair_data(self):
         """Verify that various app symbol pairs are populated with data and aligned correctly"""
 

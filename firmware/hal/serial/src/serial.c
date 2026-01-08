@@ -20,7 +20,8 @@ void serial_init(void) {
 void serial_echo(void) {
   memset(buffer, 0, MCU_USART_RX_BUFFER_LEN);
 
-  const uint32_t n_read = mcu_usart_read_timeout(buffer, MCU_USART_RX_BUFFER_LEN, 100);
+  const uint32_t n_read =
+    mcu_usart_read_timeout(&serial_config.usart, buffer, MCU_USART_RX_BUFFER_LEN, 100);
   if (n_read > 0) {
     printf("%s", buffer);
   }
@@ -28,6 +29,6 @@ void serial_echo(void) {
 
 void _putchar(char c) {
   if (serial_config.retarget_printf.enable) {
-    mcu_usart_tx_write(serial_config.retarget_printf.target, (uint8_t*)&c, 1);
+    mcu_usart_write(&serial_config.usart, (uint8_t*)&c, 1);
   }
 }

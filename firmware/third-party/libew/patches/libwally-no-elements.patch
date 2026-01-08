@@ -1,0 +1,51 @@
+diff --git a/src/psbt.c b/src/psbt.c
+index 8e0ab3f8..5b2d2d4f 100644
+--- a/src/psbt.c
++++ b/src/psbt.c
+@@ -4553,8 +4553,9 @@ static int get_signing_data(const struct wally_psbt *psbt,
+             /* Add items to maps without allocating/copying */
+             append_signing_data(scripts, i, utxo->script, utxo->script_len);
+             if (assets) {
+-                append_signing_data(assets, i, utxo->asset, utxo->asset_len);
+-                append_signing_data(values, i, utxo->value, utxo->value_len);
++                /* Elements not supported - skip asset/value fields */
++                /* append_signing_data(assets, i, utxo->asset, utxo->asset_len); */
++                /* append_signing_data(values, i, utxo->value, utxo->value_len); */
+             } else {
+                 append_signing_data(values, i, (unsigned char*)&utxo->satoshi,
+                                     sizeof(utxo->satoshi));
+@@ -4612,7 +4613,7 @@ int wally_psbt_get_input_signature_hash(struct wally_psbt *psbt, size_t index,
+                 &scripts, assets_p, &values,
+                 script, script_len,
+                 0, WALLY_NO_CODESEPARATOR, NULL, 0,
+-                psbt->genesis_blockhash, sizeof(psbt->genesis_blockhash),
++                NULL, 0, /* No Elements genesis_blockhash */
+                 sighash, sighash_type,
+                 psbt->signing_cache, bytes_out, len);
+
+diff --git a/src/tx_io.c b/src/tx_io.c
+index 8e0ab3f8..5b2d2d4f 100644
+--- a/src/tx_io.c
++++ b/src/tx_io.c
+@@ -964,11 +964,11 @@ int wally_tx_get_input_signature_hash(
+ {
+     size_t is_elements = 0;
+     uint32_t sighash_type = flags & WALLY_SIGTYPE_MASK;
+-    int ret = WALLY_EINVAL;
+
+     if (!tx || !tx->num_inputs || !tx->num_outputs || !values ||
+         BYTES_INVALID(script, script_len) || key_version > 1 ||
+         codesep_position != WALLY_NO_CODESEPARATOR || /* TODO: Add support */
+         BYTES_INVALID(annex, annex_len) ||
+         BYTES_INVALID_N(genesis_blockhash, genesis_blockhash_len, SHA256_LEN) ||
+         !flags || (flags & ~SIGTYPE_ALL) || !bytes_out || len != SHA256_LEN)
+         return WALLY_EINVAL;
+
+-    if ((ret = wally_tx_is_elements(tx, &is_elements)) != WALLY_OK)
+-        return ret;
++    /* Elements not supported - always false */
++    is_elements = 0;
++    /* Skip wally_tx_is_elements check - always non-Elements */
+ #ifndef BUILD_ELEMENTS
+     if (is_elements)
+         return WALLY_EINVAL;

@@ -1,0 +1,120 @@
+---
+description: Base repository guidelines
+alwaysApply: true
+---
+
+# Repository Guidelines
+
+This is a Rust-based wallet server API that runs on AWS ECS, providing backend services for Bitkey, a Bitcoin wallet application. The project uses a workspace structure with multiple crates organized under `src/api/` and `src/wsm/` directories, managing accounts, notifications, recovery, mobile payments, and W1 Security Module (WSM) through secure enclaves.
+
+## Project Structure & Module Organization
+
+The codebase follows a Rust workspace pattern with clear separation of concerns:
+
+- **`src/api/`** - Main API server crates including account management, authentication/authorization, notifications, recovery, mobile payments, transaction verification, and various supporting services
+- **`src/wsm/`** - W1 Security Module components including `wsm-api`, `wsm-common`, `wsm-enclave`, and `wsm-rust-client` for secure key management
+- **`src/feature_flags/`** - Feature flag service integration
+- **`src/wallet-telemetry/`** - Telemetry and observability utilities
+- **`auth/`** - Authentication lambda handlers
+- **`scripts/`** - Deployment and utility scripts
+- **`vendor/`** - Vendored dependencies (base32, isocountry, urlencoding, urn)
+- **`state_machines/`** - State machine definitions
+- **`target/`** - Build artifacts (gitignored)
+
+Each API crate typically contains `service/`, `repository/`, `routes/`, and `entities/` modules following a layered architecture pattern.
+
+## Build, Test, and Development Commands
+
+This project uses **Just** (justfile) as the primary task runner. Key commands:
+
+- **`just`** - List all available recipes
+- **`git submodule update --init --recursive`** - Pull submodule dependencies (run this first)
+- **`just build`** - Build all binaries including API and WSM with partnerships feature
+- **`just test`** - Run all tests (requires sidecars running)
+- **`just sidecars`** - Start local dependencies (DynamoDB Local + admin UI, Jaeger, Bitcoin regtest bitcoind) and seed the treasury wallet
+- **`just run`** - Start sidecars and run the server in debug mode
+- **`just run-integration`** - Run the entire integrated server cluster (API + WSM)
+- **`just start-integration`** - Start integrated cluster in background
+- **`just fmt`** - Format code and run clippy with auto-fixes
+- **`just clippy-ci`** - Run CI clippy checks
+- **`just test-some <path>`** - Run specific tests matching a path pattern
+
+The project uses **Cargo** with `--locked` flag for reproducible builds. Docker Compose manages local infrastructure services.
+
+## Coding Style & Naming Conventions
+
+**Language**: Rust 1.86.0 (specified in `rust-toolchain.toml`)
+
+**Indentation**: 4 spaces (standard Rust convention)
+
+**Naming Conventions**:
+- **snake_case** for functions, variables, modules, and file names
+- **PascalCase** for types, structs, enums, and traits
+- **SCREAMING_SNAKE_CASE** for constants
+
+**Code Organization**:
+- Services are organized with a `Service` struct containing repositories and dependencies
+- Input structs follow the pattern `<Operation>Input` (e.g., `FetchAccountInput`, `CreateAccountAndKeysetsInput`)
+- Modules are split into separate files under subdirectories (e.g., `service/mod.rs` with operation-specific files)
+
+**Linting**: The workspace enforces strict linting rules:
+- `unsafe_code = "forbid"` - No unsafe code allowed
+- Clippy warnings for `dbg_macro`, `print_stderr`, `print_stdout`, `todo`, `unimplemented`
+
+**Formatting**: Use `cargo fmt` (enforced in CI via `just fmt-ci`)
+
+## Testing Guidelines
+
+**Framework**: Uses `cargo nextest` for test execution with `rstest` for parameterized tests
+
+**Running Tests**:
+- Ensure sidecars are running: `just sidecars` or `just run-integration`
+- Run all tests: `just test` (sets `RUST_MIN_STACK=4194304` for stack size)
+- Run specific tests: `just test-some <pattern>`
+- CI tests: `just test-ci` (uses nextest profile `ci` with `--no-fail-fast`)
+
+**Test Organization**:
+- Unit and integration tests live alongside source code
+- Test modules typically in `service/tests.rs` or dedicated test files
+- Mock implementations use `mockall` crate
+
+**Local Infrastructure**: Tests require Docker containers for DynamoDB Local (plus the admin UI), Jaeger, and the Bitcoin regtest node (bitcoind) started via `just sidecars`
+
+## Architecture & Key Technologies
+
+**Core Stack**:
+- **Web Framework**: Axum 0.7.4 with axum-macros for routing
+- **Database**: AWS DynamoDB (via `aws-sdk-dynamodb`)
+- **Authentication**: JWT with Cognito user pools
+- **Observability**: OpenTelemetry, Jaeger (local), Datadog (production)
+- **Async Runtime**: Tokio with multi-threaded runtime
+- **Bitcoin**: BDK 0.29.0 for Bitcoin operations
+- **Feature Flags**: LaunchDarkly SDK
+
+**Key Patterns**:
+- Repository pattern for data access
+- Service layer for business logic
+- Axum route handlers with typed extractors
+- OpenAPI documentation via `utoipa` (add `#[utoipa::path]` to endpoints)
+
+**Debugging**: Use `#[axum_macros::debug_handler]` for better error messages on handler trait issues
+
+## Security & Configuration
+
+- Secrets managed via AWS Secrets Manager
+- LaunchDarkly SDK key fetched from AWS: `fromagerie/launchdarkly/sdk_key`
+- Configuration uses `config` crate with TOML files (`src/api/Rocket.toml`)
+- WSM runs in secure enclaves with Nitro CLI for enclave image building
+
+## Deployment
+
+- **Named Stacks**: `just stack-up <name>` creates a development stack
+- **WSM-only Deploy**: `just wsm-deploy <name>` for testing against deployed enclaves
+- **Backend Testing**: `just start-backend` pulls and runs ECR images locally
+- **GitHub CLI**: Required for some scripts (`gh auth login`)
+
+## Additional Resources
+
+- **Tracing**: Local Jaeger at <http://localhost:16686>, production Datadog at <https://go/w1datadog>
+- **OpenAPI Docs**: Available at `/docs/swagger-ui` when server is running
+- **Bitcoin Regtest**: Use `just get-regtest-funds <address> <amount>` to fund addresses locally

@@ -32,6 +32,8 @@ pub enum BdkUtilError {
     UnsupportedBitcoinNetwork(String),
     #[error("Malformed RPC URI")]
     MalformedURI,
+    #[error("Invalid chaincode delegation PSBT: {0}")]
+    InvalidChaincodeDelegationPsbt(String),
     #[error("Electrum client error: {0}")]
     ElectrumClientError(#[from] bdk::electrum_client::Error),
     #[error("Unable to broadcast transaction: {0}")]
@@ -67,7 +69,8 @@ impl From<&BdkUtilError> for ApiError {
             | BdkUtilError::UnsupportedBitcoinNetwork(_)
             | BdkUtilError::MissingWitnessUtxo
             | BdkUtilError::MinRelayFeeNotMetError
-            | BdkUtilError::InvalidOutputAddressInPsbt => {
+            | BdkUtilError::InvalidOutputAddressInPsbt
+            | BdkUtilError::InvalidChaincodeDelegationPsbt(_) => {
                 ApiError::GenericBadRequest(val.to_string())
             }
             BdkUtilError::TransactionAlreadyInMempoolError => {

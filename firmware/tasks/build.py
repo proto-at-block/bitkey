@@ -1,9 +1,11 @@
 import os
+from typing import List, Optional
 
 from invoke import task
 
 from bitkey.meson import MesonBuild
 
+from .lib.config import get_defaults
 from .lib.paths import *
 from .lib.platforms import Platforms
 
@@ -13,7 +15,7 @@ from .lib.platforms import Platforms
           "verbose": "Set to true for more build output",
           "ignore_codegen_cache": "Set to true always re-generate code, ignoring the cache",
       })
-def build(c, verbose=False, ignore_codegen_cache=False):
+def build(c, verbose: bool = False, ignore_codegen_cache: bool = False) -> None:
     """Builds the configured target and platform"""
 
     m = MesonBuild(c, ignore_codegen_cache=ignore_codegen_cache)
@@ -26,11 +28,12 @@ def build(c, verbose=False, ignore_codegen_cache=False):
           "platform": "Platform to build",
           "verbose": "Set to true for more build output"
       })
-def build_all_targets(c, platform=None, verbose=False):
+def build_all_targets(c, platform: Optional[str] = None, verbose: bool = False):
     """Builds firmware targets for the configured or supplied platform"""
 
     platform = platform or c.platform
-    m = MesonBuild(c, platform, BUILD_FW_DIR)
+    target = (get_defaults() or {}).get(platform, {}).get("target", c.target)
+    m = MesonBuild(c, platform, target=target)
     m.setup()
     m.build_firmware(True, verbose)
 
@@ -39,7 +42,7 @@ def build_all_targets(c, platform=None, verbose=False):
     "platforms": "List of platforms to build",
     "verbose": "Set to true for more build output"
 })
-def build_platforms(c, platforms, verbose=False):
+def build_platforms(c, platforms: Optional[List[str]] = None, verbose=False):
     """Builds all firmware platforms and targets"""
     if not platforms:
         platforms = next(os.walk(APPS_DIR))[1]

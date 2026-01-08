@@ -37,6 +37,8 @@ data class ListKeysetsResponse(
   val keysets: List<RemoteKeyset>,
   val wrappedSsek: SealedSsek?,
   val descriptorBackups: List<DescriptorBackup>,
+  /** The server's active keyset ID. */
+  val activeKeysetId: String,
 )
 
 /**

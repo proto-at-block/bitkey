@@ -11,7 +11,6 @@ import build.wallet.bitkey.inheritance.InheritanceMaterialPackage
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
-import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.XCiphertext
@@ -33,11 +32,12 @@ class InheritanceCryptoImpl(
   ): Result<InheritanceMaterialHashData, Error> {
     val contacts = relationships.getEndorsedInheritanceContacts()
       ?: return Err(Error("Inheritance Contacts unavailable."))
+    val sortedContacts = contacts.sortedBy { it.id.value }
     return coroutineBinding {
       InheritanceMaterialHashData(
         networkType = keybox.config.bitcoinNetworkType,
         spendingKey = keybox.activeAppKeyBundle.spendingKey,
-        contacts = contacts
+        contacts = sortedContacts
       )
     }
   }
@@ -47,7 +47,7 @@ class InheritanceCryptoImpl(
   ): Result<InheritanceMaterial, Error> {
     val contacts = relationships.getEndorsedInheritanceContacts()
       ?: return Err(Error("Inheritance Contacts unavailable."))
-
+    val sortedContacts = contacts.sortedBy { it.id.value }
     return coroutineBinding {
       val pkMatOutput = createInheritanceKeyset(keybox)
         .mapError { Error("Error creating inheritance keyset", it) }
@@ -74,9 +74,9 @@ class InheritanceCryptoImpl(
         ).bind()
       }
 
-      val packages = contacts.map {
+      val packages = sortedContacts.map {
         InheritanceMaterialPackage(
-          relationshipId = RelationshipId(it.relationshipId),
+          relationshipId = it.id,
           sealedDek = crypto
             .encryptPrivateKeyEncryptionKey(it.identityKey, pkMatOutput.privateKeyEncryptionKey)
             .bind(),

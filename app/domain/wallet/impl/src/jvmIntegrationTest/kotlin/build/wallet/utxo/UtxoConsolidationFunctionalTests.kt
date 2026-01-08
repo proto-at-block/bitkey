@@ -65,7 +65,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
         it.consolidationCost.isPositive.shouldBeTrue()
         it.walletHasUnconfirmedUtxos.shouldBeFalse()
 
-        it.appSignedPsbt.fee.isPositive.shouldBeTrue()
+        it.appSignedPsbt.fee.amount.isPositive.shouldBeTrue()
         it.appSignedPsbt.numOfInputs.shouldBe(2)
       }
 

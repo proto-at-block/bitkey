@@ -1,19 +1,20 @@
-import click
+import os
 import tempfile
+
+import click
 import semver
 import sh
-import os
-
+from bitkey import fw_version
+from bitkey.comms import WalletComms, ShellTransaction
+from bitkey.fwup import Fwup, FwupParams
+from bitkey.fwup_bundler import FwupBundler, FwupDeltaInfo, load_patch_signing_key
+from bitkey.meson import MesonBuild
+from bitkey.wallet import Wallet
+from bitkey_proto import wallet_pb2
 from invoke import task
 from pathlib import Path
 
-from bitkey.fwup import Fwup
-from bitkey.fwup_bundler import FwupBundler, FwupDeltaInfo, load_patch_signing_key
-from bitkey.meson import MesonBuild
-
 from .lib.paths import (BUILD_FW_DIR, BUILD_FWUP_BUNDLE_DIR)
-from bitkey import fw_version
-from bitkey.comms import WalletComms, ShellTransaction
 from .memfault import released_versions, fetch_release
 
 
@@ -36,8 +37,20 @@ def check_exists(path: str):
           "start_sequence_id": "",
           "serial_port": "",
           "mode": "",
+          "mcu": "",
+          "product": "",
       })
-def fwup(c, fwup_bundle=None, binary=None, signature=None, start_sequence_id=0, serial_port=None, mode="FWUP_MODE_NORMAL"):
+def fwup(
+    c,
+    fwup_bundle=None,
+    binary=None,
+    signature=None,
+    start_sequence_id=0,
+    serial_port=None,
+    mode="FWUP_MODE_NORMAL",
+    mcu="efr32",
+    product="w1",
+):
     """Firmware update"""
     bundle = check_exists(fwup_bundle)
     bin = check_exists(binary)
@@ -47,16 +60,23 @@ def fwup(c, fwup_bundle=None, binary=None, signature=None, start_sequence_id=0, 
         click.echo("Invalid arguments. Need a bundle, or (binary and signature).")
         return
 
+    # Determine which MCU is being updated (defaults to EFR32).
+    mcu_role = Wallet.chip_name_to_role(product, mcu)
+    # Only pass fwup_params if not using a bundle (bundle has params in manifest)
+    fwup_params = Wallet(product=product).fwup_params(
+        mcu=mcu) if not bundle else None
+
     if serial_port != None:
         comms = WalletComms(
             ShellTransaction(port=serial_port))
         update = Fwup(bundle, bin, sig, start_sequence_id,
-                      comms=comms, mode=mode)
+                      comms=comms, fwup_params=fwup_params, mode=mode, mcu_role=mcu_role)
     else:
-        update = Fwup(bundle, bin, sig, start_sequence_id, mode=mode)
+        update = Fwup(bundle, bin, sig, start_sequence_id,
+                      mode=mode, fwup_params=fwup_params, mcu_role=mcu_role)
     result = update.start()
     if not result:
-        print("Failed to start")
+        click.secho("Failed to start", fg="red")
         return
 
     click.echo("Firmware update in progress...")
@@ -72,29 +92,42 @@ def fwup(c, fwup_bundle=None, binary=None, signature=None, start_sequence_id=0, 
 
 
 @task(help={
-    "binary": "",
-    "signature": "",
-    "metadata": "",
+    "binary": "Path to bootloader .signed.bin",
+    "signature": "Path to bootloader .detached_signature",
+    "metadata": "Path to bootloader .detached_metadata",
     "serial_port": "",
+    "mcu": "",
+    "product": "",
+    "variant": "",
 })
-def bl_upgrade(c, binary=None, signature=None, metadata=None, serial_port=None, bl_size=(48*1024)):
+def bl_upgrade(c, binary=None, signature=None, metadata=None, serial_port=None, bl_size=(48*1024), mcu="efr32", product="w1", variant="a"):
     bin = check_exists(binary)
     sig = check_exists(signature)
     meta = check_exists(metadata)
 
-    if not bin and not sig and not meta:
-        click.echo("Need a binary and signature file and metadata")
+    if not (bin and sig and meta):
+        click.echo("Need --binary, --signature, and --metadata")
         return
+
+    # Determine which MCU is being updated (defaults to EFR32).
+    mcu_role = Wallet.chip_name_to_role(product, mcu)
+    role_name = wallet_pb2.mcu_role.Name(mcu_role).split("_")[-1].lower()
+    if product.startswith("w1"):
+        params = FwupParams.from_product("w1")
+    else:
+        _product_name = f"{product}{variant}-{role_name}"
+        params = FwupParams.from_product(_product_name)
 
     if serial_port != None:
         comms = WalletComms(
             ShellTransaction(port=serial_port))
-        update = Fwup(None, bin, sig, 0, comms=comms)
+        update = Fwup(None, bin, sig, 0, comms=comms,
+                      mcu_role=mcu_role, fwup_params=params)
     else:
-        update = Fwup(None, bin, sig, 0)
+        update = Fwup(None, bin, sig, 0, mcu_role=mcu_role, fwup_params=params)
     result = update.start()
     if not result:
-        print(result)
+        click.secho("Firmware update failed to start.", fg="red")
         return
 
     click.echo("Firmware update in progress...")
@@ -126,18 +159,29 @@ def bl_upgrade(c, binary=None, signature=None, metadata=None, serial_port=None, 
 
 @task(help={
     "product": "",
+    "platform": "",
     "hardware_revision": "",
     "image_type": "",
     "version": "",
     "build_dir": "",
     "bundle_dir": "",
 })
-def bundle(c, product=None, hardware_revision=None, image_type=None, version=None, build_dir=None, bundle_dir=None):
+def bundle(
+    c,
+    product=None,
+    platform="w1",
+    hardware_revision=None,
+    image_type=None,
+    version=None,
+    build_dir=None,
+    bundle_dir=None
+):
     """Generate fwup bundle"""
     if not version:
         version = fw_version.get()
 
-    build_dir = Path(build_dir) if build_dir else BUILD_FW_DIR
+    build_dir = Path(
+        build_dir) if build_dir else BUILD_FW_DIR.joinpath(platform)
     bundle_dir = Path(bundle_dir) if bundle_dir else BUILD_FWUP_BUNDLE_DIR
 
     bundler = FwupBundler(product, hardware_revision, image_type)
@@ -145,17 +189,25 @@ def bundle(c, product=None, hardware_revision=None, image_type=None, version=Non
 
     def f(file): return meson.find_file(file)
 
+    # STM32U5-based platforms (w3-uxc) don't have signed bootloaders
+    stm32u5_platforms = ["w3-uxc"]
+    include_bootloader = platform not in stm32u5_platforms
+
     files = [
-        f(bundler.bootloader_name() + ".signed.bin"),
-        f(bundler.bootloader_name() + ".detached_signature"),
-        f(bundler.bootloader_name() + ".detached_metadata"),
         f(bundler.application_name("a") + ".signed.bin"),
         f(bundler.application_name("a") + ".detached_signature"),
         f(bundler.application_name("b") + ".signed.bin"),
         f(bundler.application_name("b") + ".detached_signature"),
     ]
 
-    bundler.generate_full(bundle_dir, files, version)
+    if include_bootloader:
+        files.extend([
+            f(bundler.bootloader_name() + ".signed.bin"),
+            f(bundler.bootloader_name() + ".detached_signature"),
+        ])
+
+    bundler.generate_full(bundle_dir, files, version,
+                          include_bootloader=include_bootloader)
 
 
 @task(help={

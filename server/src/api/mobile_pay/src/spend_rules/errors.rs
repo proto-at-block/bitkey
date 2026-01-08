@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter, Result};
 use std::mem::discriminant;
 
+use screener::screening::SanctionsScreenerError;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq)]
@@ -62,5 +63,19 @@ impl SpendRuleCheckErrors {
         self.0
             .iter()
             .any(|e| discriminant(e) == discriminant(error))
+    }
+}
+
+impl From<SanctionsScreenerError> for SpendRuleCheckError {
+    fn from(value: SanctionsScreenerError) -> Self {
+        match value {
+            SanctionsScreenerError::InvalidScriptPubKeys => {
+                SpendRuleCheckError::InvalidScriptPubKeys
+            }
+            SanctionsScreenerError::OutputsBelongToSanctionedIndividuals => {
+                SpendRuleCheckError::OutputsBelongToSanctionedIndividuals
+            }
+            SanctionsScreenerError::ScreenerError(_) => SpendRuleCheckError::ScreenerError,
+        }
     }
 }

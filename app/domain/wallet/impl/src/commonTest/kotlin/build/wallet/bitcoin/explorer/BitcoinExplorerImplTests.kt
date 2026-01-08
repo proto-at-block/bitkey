@@ -15,7 +15,7 @@ class BitcoinExplorerImplTests : FunSpec({
         txId = txId,
         network = BITCOIN,
         explorerType = Mempool
-      ).shouldBe("https://mempool.space/tx/$txId")
+      ).shouldBe("https://bitkey.mempool.space/tx/$txId")
     }
 
     test("signet network") {
@@ -23,7 +23,7 @@ class BitcoinExplorerImplTests : FunSpec({
         txId = txId,
         network = SIGNET,
         explorerType = Mempool
-      ).shouldBe("https://mempool.space/signet/tx/$txId")
+      ).shouldBe("https://bitkey.mempool.space/signet/tx/$txId")
     }
 
     test("testnet network") {
@@ -31,7 +31,7 @@ class BitcoinExplorerImplTests : FunSpec({
         txId = txId,
         network = TESTNET,
         explorerType = Mempool
-      ).shouldBe("https://mempool.space/testnet/tx/$txId")
+      ).shouldBe("https://bitkey.mempool.space/testnet/tx/$txId")
     }
 
     test("regtest network") {
@@ -39,7 +39,7 @@ class BitcoinExplorerImplTests : FunSpec({
         txId = txId,
         network = REGTEST,
         explorerType = Mempool
-      ).shouldBe("https://mempool.space/regtest/tx/$txId")
+      ).shouldBe("https://bitkey.mempool.space/regtest/tx/$txId")
     }
 
     test("with vout anchor") {
@@ -48,7 +48,7 @@ class BitcoinExplorerImplTests : FunSpec({
         network = BITCOIN,
         explorerType = Mempool,
         vout = 1
-      ).shouldBe("https://mempool.space/tx/$txId#vout=1")
+      ).shouldBe("https://bitkey.mempool.space/tx/$txId#vout=1")
     }
   }
 })

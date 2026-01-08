@@ -1,4 +1,28 @@
 # ignore third_party code from clang-format checks
-firmware/third-party/*
+firmware/third-party/cmp/*
+firmware/third-party/fff/*
+firmware/third-party/FreeRTOS/*
+firmware/third-party/gecko-sdk/*
+firmware/third-party/libbase58/*
+firmware/third-party/littlefs/*
+firmware/third-party/lvgl/*
+firmware/third-party/memfault-firmware-sdk/*
+firmware/third-party/nanocobs/*
+firmware/third-party/nanopb/*
+firmware/third-party/picocert/*
+firmware/third-party/printf/*
+firmware/third-party/secp256k1/*
+firmware/third-party/stm32u5xx-hal/*
+firmware/third-party/uthash/*
+firmware/third-party/CMSIS_6/*
+firmware/third-party/cmsis-device-u5/*
+firmware/third-party/detools/*
+firmware/third-party/fpc-bep/*
+firmware/third-party/st-rfal/*
+# Note: libew is intentionally NOT listed - we want to lint it
+
+# BUT also exclude libew's vendored dependencies
+firmware/third-party/libew/third-party/*
+
 firmware/mcu/efr32xg24/gecko-cfg/*
 firmware/app/**/**/autogen/*

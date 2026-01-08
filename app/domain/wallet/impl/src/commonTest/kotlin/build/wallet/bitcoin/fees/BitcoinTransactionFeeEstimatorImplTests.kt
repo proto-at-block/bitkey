@@ -41,7 +41,7 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
     spendingWallet.createPsbtResult =
       Ok(
         PsbtMock.copy(
-          fee = BitcoinMoney.sats(200),
+          fee = Fee(BitcoinMoney.sats(200)),
           baseSize = 2000,
           numOfInputs = 1,
           amountSats = 100UL
@@ -62,9 +62,9 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
     // This gives us a vsize of 2064, and each fee is this value times the fee rate
 
     fees.size.shouldBe(3)
-    fees[FASTEST].shouldBe(Fee(amount = BitcoinMoney.sats(6192), FeeRate(3f)))
-    fees[THIRTY_MINUTES].shouldBe(Fee(amount = BitcoinMoney.sats(4128), FeeRate(2f)))
-    fees[SIXTY_MINUTES].shouldBe(Fee(amount = BitcoinMoney.sats(2064), FeeRate(1f)))
+    fees[FASTEST].shouldBe(Fee(amount = BitcoinMoney.sats(6192)))
+    fees[THIRTY_MINUTES].shouldBe(Fee(amount = BitcoinMoney.sats(4128)))
+    fees[SIXTY_MINUTES].shouldBe(Fee(amount = BitcoinMoney.sats(2064)))
   }
 
   test("estimator propagates fee rate estimator errors") {

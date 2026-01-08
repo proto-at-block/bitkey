@@ -22,9 +22,9 @@ import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.cloud.backup.CloudBackupRepository
-import build.wallet.cloud.backup.CloudBackupV2Restorer
-import build.wallet.cloud.backup.CloudBackupV3Restorer
+import build.wallet.cloud.backup.CloudBackupRestorer
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
+import build.wallet.cloud.backup.JsonSerializer
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.SekGenerator
@@ -50,6 +50,7 @@ import build.wallet.feature.flags.AgeRangeVerificationFeatureFlag
 import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
 import build.wallet.feature.flags.PrivateWalletMigrationBalanceThresholdFeatureFlag
 import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
+import build.wallet.feature.flags.SharedCloudBackupsFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.flags.UtxoMaxConsolidationCountFeatureFlag
 import build.wallet.home.GettingStartedTaskDao
@@ -93,6 +94,7 @@ import kotlinx.coroutines.CoroutineScope
 interface JvmAppComponent {
   val accountDataStateMachine: AccountDataStateMachine
   val accountService: AccountService
+  val jsonSerializer: JsonSerializer
   val accountConfigService: AccountConfigService
   val appCoroutineScope: CoroutineScope
   val appDataDeleter: AppDataDeleter
@@ -131,8 +133,7 @@ interface JvmAppComponent {
   val fileDirectoryProvider: FileDirectoryProvider
   val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService
   val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator
-  val cloudBackupV2Restorer: CloudBackupV2Restorer
-  val cloudBackupV3Restorer: CloudBackupV3Restorer
+  val cloudBackupRestorer: CloudBackupRestorer
   val csekDao: CsekDao
   val fundsRiskLossService: FundsLostRiskService
   val gettingStartedTaskDao: GettingStartedTaskDao
@@ -190,4 +191,5 @@ interface JvmAppComponent {
   val privateWalletMigrationDao: PrivateWalletMigrationDao
   val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag
   val ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag
+  val sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag
 }

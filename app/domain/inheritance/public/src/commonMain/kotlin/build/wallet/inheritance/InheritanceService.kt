@@ -8,6 +8,7 @@ import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.relationships.CreateInvitationError
 import com.github.michaelbull.result.Result
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -55,12 +56,12 @@ interface InheritanceService {
    * @param hardwareProofOfPossession the hardware proof of possession for creating the invitation
    * @param trustedContactAlias the alias of the beneficiary
    *
-   * @return result either an [OutgoingInvitation] or an [Error]
+   * @return result either an [OutgoingInvitation] or a [CreateInvitationError]
    */
   suspend fun createInheritanceInvitation(
     hardwareProofOfPossession: HwFactorProofOfPossession,
     trustedContactAlias: TrustedContactAlias,
-  ): Result<OutgoingInvitation, Error>
+  ): Result<OutgoingInvitation, CreateInvitationError>
 
   /**
    * Uploads any inheritance material to the server for storage.

@@ -240,8 +240,8 @@ public final class BitkeyW1Commands: NfcCommands {
         session: NfcSession,
         psbt: Psbt,
         spendingKeyset: SpendingKeyset
-    ) async throws -> Psbt {
-        return try await .init(
+    ) async throws -> Shared.HardwareInteraction {
+        let signedPsbt = try await Psbt(
             id: psbt.id,
             base64: SignTransaction(
                 serializedPsbt: psbt.base64,
@@ -255,6 +255,8 @@ public final class BitkeyW1Commands: NfcCommands {
             inputs: psbt.inputs,
             outputs: psbt.outputs
         )
+        return Shared.HardwareInteractionCompleted<Psbt>(result: signedPsbt) as Shared
+            .HardwareInteraction
     }
 
     public func startFingerprintEnrollment(

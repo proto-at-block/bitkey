@@ -162,4 +162,21 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
       }
     }
   }
+
+  test("Model when FullFunctionality - AtRisk due to ActiveSpendingKeysetMismatch") {
+    stateMachine.test(props) {
+      awaitItem().shouldBeNull()
+      appFunctionalityService.status.emit(
+        AppFunctionalityStatus.FullFunctionality
+      )
+      fundsLostRiskService.riskLevel.emit(AtRisk(cause = AtRiskCause.ActiveSpendingKeysetMismatch))
+
+      awaitItem().shouldNotBeNull().apply {
+        title.shouldBe("Your wallet is at risk")
+        subtitle.shouldBe("Fix your local data to protect your funds →")
+        onClick?.invoke()
+        propsOnBannerClickCalls.awaitItem()
+      }
+    }
+  }
 })

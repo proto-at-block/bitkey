@@ -43,6 +43,12 @@ Bitkey mobile application built with Kotlin Multiplatform (KMP) targeting Androi
 - **testing-state-machines.md** - Testing UI State Machines and presentation logic
 - **testing-services.md** - Testing domain services and business logic
 
+**Development Tools:**
+- **mcp-setup.md** - Guidelines for adding new MCP servers to the AI rules system
+- **datadog-mcp-usage.md** - Guidelines for using Datadog MCP for observability and debugging
+- **slack-mcp-usage.md** - Guidelines for using Slack MCP server effectively for development context gathering
+
 **Meta:**
 - **ai-code-review.md** - Canonical checklist for verifying architecture, typing, testing, and tooling during reviews
-- **rule-writing.md** - Guidelines for writing and maintaining AI rules in this codebase
+- **ai-rule-writing.md** - Guidelines for writing and maintaining AI rules in this codebase
+- **documentation.md** - Source code documentation patterns for interfaces, implementations, and schemas

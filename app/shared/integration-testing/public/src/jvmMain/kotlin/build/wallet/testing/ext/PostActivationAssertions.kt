@@ -73,7 +73,8 @@ suspend fun AppTester.verifyPostActivationState(expectations: PostActivationExpe
 
   expectations.expectCloudBackup?.let { shouldExist ->
     cloudAccount.shouldNotBeNull()
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount).getOrThrow()
+    val backup = cloudBackupRepository.readActiveBackup(cloudAccount)
+      .getOrThrow()
     if (shouldExist) {
       backup.shouldNotBeNull()
     } else {

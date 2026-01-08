@@ -39,6 +39,7 @@ kotlin {
         implementation(projects.libs.platformFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)
+        implementation(projects.libs.cloudStoreFake)
       }
     }
 

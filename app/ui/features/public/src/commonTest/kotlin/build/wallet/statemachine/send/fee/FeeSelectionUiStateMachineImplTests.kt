@@ -9,7 +9,6 @@ import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationErr
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.SpendingBelowDustLimitError
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimatorMock
 import build.wallet.bitcoin.fees.Fee
-import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
@@ -89,9 +88,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
     bitcoinTransactionFeeEstimator.feesResult =
       Ok(
         mapOf(
-          FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
-          THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
-          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
+          FASTEST to Fee(BitcoinMoney.btc(10.0)),
+          THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0)),
+          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0))
         )
       )
     transactionPriorityPreference.preference = null
@@ -164,8 +163,8 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
     bitcoinTransactionFeeEstimator.feesResult =
       Ok(
         mapOf(
-          THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
-          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
+          THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0)),
+          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0))
         )
       )
 
@@ -191,7 +190,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
     bitcoinTransactionFeeEstimator.feesResult =
       Ok(
         mapOf(
-          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
+          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0))
         )
       )
 
@@ -245,9 +244,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
     bitcoinTransactionFeeEstimator.feesResult =
       Ok(
         mapOf(
-          FASTEST to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate),
-          THIRTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate),
-          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
+          FASTEST to Fee(BitcoinMoney.btc(1.0)),
+          THIRTY_MINUTES to Fee(BitcoinMoney.btc(1.0)),
+          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0))
         )
       )
 

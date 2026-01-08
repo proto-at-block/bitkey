@@ -15,6 +15,19 @@
             ]
         },
         {
+            "version": "1.9.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk7-1.9.0.jar": "b7979a7aac94055f0d9f1fd3b47ce5ffe1cb6032a842ba9fbe7186f085289178"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]"
+            ]
+        },
+        {
             "version": "2.1.0",
             "variants": [
                 {

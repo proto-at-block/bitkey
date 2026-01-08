@@ -61,14 +61,13 @@ import build.wallet.statemachine.nfc.NfcBodyModel.Status.Connected as ConnectedS
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Searching as SearchingState
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Success as SuccessState
 
-class NfcSessionUIStateMachineProps<T>(
-  /**
-   * The NFC session callback that callers should use to perform commands.
-   * Callers should return the action that should be taken upon a successful transaction.
-   */
-  val session: suspend (NfcSession, NfcCommands) -> T,
+/**
+ * Shared configuration for NFC session props classes.
+ * Contains all common fields between [NfcSessionUIStateMachineProps] and
+ * [NfcContinuationSessionUIStateMachineProps].
+ */
+data class NfcSessionConfig(
   val onConnected: () -> Unit = {},
-  val onSuccess: suspend (@UnsafeVariance T) -> Unit,
   val onCancel: () -> Unit,
   val onInauthenticHardware: (Throwable) -> Unit = {},
   /**
@@ -79,7 +78,7 @@ class NfcSessionUIStateMachineProps<T>(
   val onError: (NfcException) -> Boolean = { false },
   val needsAuthentication: Boolean = true,
   /** Whether the tapped hardware must match the hardware associated with the account. */
-  val hardwareVerification: HardwareVerification = Required(),
+  val hardwareVerification: NfcSessionUIStateMachineProps.HardwareVerification = Required(),
   val shouldLock: Boolean = true,
   // TODO(BKR-1117): make non-nullable
   val segment: AppSegment? = null,
@@ -91,7 +90,68 @@ class NfcSessionUIStateMachineProps<T>(
    *  add some flavor text on iOS.
    */
   val shouldShowLongRunningOperation: Boolean = false,
+)
+
+class NfcSessionUIStateMachineProps<T>(
+  /**
+   * The NFC session callback that callers should use to perform commands.
+   * Callers should return the action that should be taken upon a successful transaction.
+   */
+  val session: suspend (NfcSession, NfcCommands) -> T,
+  val onSuccess: suspend (@UnsafeVariance T) -> Unit,
+  val config: NfcSessionConfig,
 ) {
+  // Backward compatibility: delegate to config properties
+  val onConnected: () -> Unit get() = config.onConnected
+  val onCancel: () -> Unit get() = config.onCancel
+  val onInauthenticHardware: (Throwable) -> Unit get() = config.onInauthenticHardware
+  val onError: (NfcException) -> Boolean get() = config.onError
+  val needsAuthentication: Boolean get() = config.needsAuthentication
+  val hardwareVerification: HardwareVerification get() = config.hardwareVerification
+  val shouldLock: Boolean get() = config.shouldLock
+  val segment: AppSegment? get() = config.segment
+  val actionDescription: String? get() = config.actionDescription
+  val screenPresentationStyle: ScreenPresentationStyle get() = config.screenPresentationStyle
+  val eventTrackerContext: NfcEventTrackerScreenIdContext get() = config.eventTrackerContext
+  val shouldShowLongRunningOperation: Boolean get() = config.shouldShowLongRunningOperation
+
+  /**
+   * Backward-compatible constructor that maintains existing callsite signatures.
+   */
+  constructor(
+    session: suspend (NfcSession, NfcCommands) -> T,
+    onConnected: () -> Unit = {},
+    onSuccess: suspend (@UnsafeVariance T) -> Unit,
+    onCancel: () -> Unit,
+    onInauthenticHardware: (Throwable) -> Unit = {},
+    onError: (NfcException) -> Boolean = { false },
+    needsAuthentication: Boolean = true,
+    hardwareVerification: HardwareVerification = Required(),
+    shouldLock: Boolean = true,
+    segment: AppSegment? = null,
+    actionDescription: String? = null,
+    screenPresentationStyle: ScreenPresentationStyle,
+    eventTrackerContext: NfcEventTrackerScreenIdContext,
+    shouldShowLongRunningOperation: Boolean = false,
+  ) : this(
+    session = session,
+    onSuccess = onSuccess,
+    config = NfcSessionConfig(
+      onConnected = onConnected,
+      onCancel = onCancel,
+      onInauthenticHardware = onInauthenticHardware,
+      onError = onError,
+      needsAuthentication = needsAuthentication,
+      hardwareVerification = hardwareVerification,
+      shouldLock = shouldLock,
+      segment = segment,
+      actionDescription = actionDescription,
+      screenPresentationStyle = screenPresentationStyle,
+      eventTrackerContext = eventTrackerContext,
+      shouldShowLongRunningOperation = shouldShowLongRunningOperation
+    )
+  )
+
   constructor(
     transaction: NfcTransaction<T>,
     screenPresentationStyle: ScreenPresentationStyle,
@@ -104,16 +164,18 @@ class NfcSessionUIStateMachineProps<T>(
   ) : this(
     session = transaction::session,
     onSuccess = transaction::onSuccess,
-    onCancel = transaction::onCancel,
-    needsAuthentication = transaction.needsAuthentication,
-    hardwareVerification = hardwareVerification,
-    shouldLock = transaction.shouldLock,
-    segment = segment,
-    actionDescription = actionDescription,
-    screenPresentationStyle = screenPresentationStyle,
-    eventTrackerContext = eventTrackerContext,
-    onInauthenticHardware = onInauthenticHardware,
-    onError = onError
+    config = NfcSessionConfig(
+      onCancel = transaction::onCancel,
+      needsAuthentication = transaction.needsAuthentication,
+      hardwareVerification = hardwareVerification,
+      shouldLock = transaction.shouldLock,
+      segment = segment,
+      actionDescription = actionDescription,
+      screenPresentationStyle = screenPresentationStyle,
+      eventTrackerContext = eventTrackerContext,
+      onInauthenticHardware = onInauthenticHardware,
+      onError = onError
+    )
   )
 
   /**

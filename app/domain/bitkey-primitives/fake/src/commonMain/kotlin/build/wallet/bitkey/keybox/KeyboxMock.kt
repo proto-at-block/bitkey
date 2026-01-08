@@ -15,7 +15,7 @@ import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.f8e.FullAccountIdMock
-import build.wallet.bitkey.f8e.LiteAccountId
+import build.wallet.bitkey.f8e.LiteAccountIdMock
 import build.wallet.bitkey.f8e.SoftwareAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
@@ -113,7 +113,7 @@ val LiteAccountConfigMock = LiteAccountConfig(
 )
 
 val LiteAccountMock = LiteAccount(
-  accountId = LiteAccountId("server-id"),
+  accountId = LiteAccountIdMock,
   config = LiteAccountConfigMock,
   recoveryAuthKey = AppRecoveryAuthPublicKeyMock
 )

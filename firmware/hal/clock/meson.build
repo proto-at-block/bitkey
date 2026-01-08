@@ -3,7 +3,7 @@ srcs = [
 ]
 clock_includes = include_directories('inc')
 
-deps = [mcu_efr32xg24_dep]
+deps = [mcu_dep]
 
 clock_lib = library('clock',
   srcs,

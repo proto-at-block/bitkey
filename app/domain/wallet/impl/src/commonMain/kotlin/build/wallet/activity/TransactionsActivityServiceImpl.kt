@@ -8,6 +8,7 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinWalletService
+import build.wallet.bitcoin.wallet.WalletV2Provider
 import build.wallet.bitcoin.wallet.WatchingWallet
 import build.wallet.bitcoin.wallet.WatchingWalletDescriptor
 import build.wallet.bitcoin.wallet.WatchingWalletProvider
@@ -17,7 +18,9 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.toSpendingKeysets
+import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
@@ -39,10 +42,12 @@ import kotlinx.coroutines.flow.*
 @BitkeyInject(AppScope::class)
 class TransactionsActivityServiceImpl(
   private val expectedTransactionsPhase2FeatureFlag: ExpectedTransactionsPhase2FeatureFlag,
+  private val bdk2FeatureFlag: Bdk2FeatureFlag,
   private val partnershipTransactionsService: PartnershipTransactionsService,
   private val bitcoinWalletService: BitcoinWalletService,
   private val accountService: AccountService,
   private val watchingWalletProvider: WatchingWalletProvider,
+  private val walletV2Provider: WalletV2Provider,
   private val bitcoinMultiSigDescriptorBuilder: BitcoinMultiSigDescriptorBuilder,
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val appScope: CoroutineScope,
@@ -195,7 +200,12 @@ class TransactionsActivityServiceImpl(
         .map {
           val descriptor = it.toWalletDescriptor(account.config.bitcoinNetworkType)
           async(Dispatchers.IO) {
-            watchingWalletProvider.getWallet(descriptor)
+            val walletResult = if (bdk2FeatureFlag.isEnabled()) {
+              walletV2Provider.getWallet(descriptor)
+            } else {
+              watchingWalletProvider.getWallet(descriptor)
+            }
+            walletResult
               .onSuccess { wallet ->
                 wallet.sync()
               }

@@ -22,6 +22,7 @@ import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.core.form.FormMainContentModel.DeviceStatusCard
 import build.wallet.statemachine.core.form.FormMainContentModel.SettingsList
@@ -345,6 +346,82 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
       // Back on the device settings screen
       awaitBody<FormBodyModel>()
+    }
+  }
+
+  test("about sheet shows current firmware version when mcu info is empty") {
+    val firmwareVersion = "9.9.9"
+    firmwareDataService.firmwareData.value =
+      FirmwareDataUpToDateMock.copy(
+        firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(
+          version = firmwareVersion,
+          mcuInfo = emptyList()
+        )
+      )
+
+    presenter.test(screen) { _ ->
+      awaitBody<FormBodyModel> {
+        mainContentList[1]
+          .shouldBeInstanceOf<SettingsList>()
+          .items[0]
+          .onClick
+          .shouldNotBeNull()
+          .invoke()
+      }
+
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .body.shouldBeInstanceOf<FormBodyModel>()
+        .mainContentList[0]
+        .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        .listGroupModel
+        .items[3]
+        .apply {
+          title.shouldBe("Firmware version")
+          sideText.shouldBe(firmwareVersion)
+        }
+    }
+  }
+
+  test("about sheet shows current firmware version composed from mcu info") {
+    firmwareDataService.firmwareData.value =
+      FirmwareDataUpToDateMock.copy(
+        firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(
+          version = "1.2.3",
+          mcuInfo = listOf(
+            build.wallet.firmware.McuInfo(
+              mcuRole = build.wallet.firmware.McuRole.CORE,
+              mcuName = build.wallet.firmware.McuName.EFR32,
+              firmwareVersion = "1.0.1"
+            ),
+            build.wallet.firmware.McuInfo(
+              mcuRole = build.wallet.firmware.McuRole.UXC,
+              mcuName = build.wallet.firmware.McuName.STM32U5,
+              firmwareVersion = "2.0.2"
+            )
+          )
+        )
+      )
+
+    presenter.test(screen) { _ ->
+      awaitBody<FormBodyModel> {
+        mainContentList[1]
+          .shouldBeInstanceOf<SettingsList>()
+          .items[0]
+          .onClick
+          .shouldNotBeNull()
+          .invoke()
+      }
+
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .body.shouldBeInstanceOf<FormBodyModel>()
+        .mainContentList[0]
+        .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        .listGroupModel
+        .items[3]
+        .apply {
+          title.shouldBe("Firmware version")
+          sideText.shouldBe("1.0.1/2.0.2")
+        }
     }
   }
 

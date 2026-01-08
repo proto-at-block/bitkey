@@ -54,8 +54,12 @@ void proto_send_rsp_without_free(fwpb_wallet_rsp* rsp) {
 }
 
 void proto_free_buffers(fwpb_wallet_cmd* cmd, fwpb_wallet_rsp* rsp) {
-  ipc_proto_free((uint8_t*)cmd);
-  ipc_proto_free((uint8_t*)rsp);
+  if (cmd != NULL) {
+    ipc_proto_free((uint8_t*)cmd);
+  }
+  if (rsp != NULL) {
+    ipc_proto_free((uint8_t*)rsp);
+  }
 }
 
 void proto_send_rsp(fwpb_wallet_cmd* cmd, fwpb_wallet_rsp* rsp) {

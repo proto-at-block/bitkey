@@ -1,5 +1,6 @@
 package build.wallet.debug.cloud
 
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
@@ -18,7 +19,7 @@ class CloudBackupDeleterImpl(
   private val cloudBackupRepository: CloudBackupRepository,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
 ) : CloudBackupDeleter {
-  override suspend fun delete() {
+  override suspend fun delete(accountId: AccountId?) {
     check(appVariant != Customer) {
       "Not allowed to clear cloud backups in Customer builds."
     }
@@ -27,7 +28,29 @@ class CloudBackupDeleterImpl(
       .onSuccess { cloudAccount ->
         cloudAccount?.let {
           cloudBackupRepository.clear(
-            it,
+            accountId = accountId,
+            cloudStoreAccount = it,
+            clearRemoteOnly = true
+          ).logFailure { "Error deleting cloud backup" }
+        }
+      }
+      .onFailure { error ->
+        logError { "Failed to find cloud account for deleting backup: $error" }
+      }
+    cloudStoreAccountRepository.clear()
+      .logFailure { "Failed to clear cloud storage account" }
+  }
+
+  override suspend fun deleteAll() {
+    check(appVariant != Customer) {
+      "Not allowed to clear cloud backups in Customer builds."
+    }
+
+    cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
+      .onSuccess { cloudAccount ->
+        cloudAccount?.let {
+          cloudBackupRepository.clearAll(
+            cloudStoreAccount = it,
             clearRemoteOnly = true
           ).logFailure { "Error deleting cloud backup" }
         }

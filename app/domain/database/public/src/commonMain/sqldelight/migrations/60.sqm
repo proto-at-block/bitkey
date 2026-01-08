@@ -1,0 +1,9 @@
+import kotlin.Boolean;
+
+-- Create table for storing fake hardware state used for testing
+CREATE TABLE fakeHardwareStatesEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    transactionVerificationEnabled INTEGER AS Boolean NOT NULL
+);
+
+PRAGMA foreign_key_check;

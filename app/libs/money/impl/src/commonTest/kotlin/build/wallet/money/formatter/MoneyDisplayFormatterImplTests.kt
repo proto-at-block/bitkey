@@ -2,8 +2,8 @@ package build.wallet.money.formatter
 
 import build.wallet.amount.DoubleFormatterImpl
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.setFlagValue
 import build.wallet.feature.flags.Bip177FeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.money.*
 import build.wallet.money.currency.EUR
 import build.wallet.money.currency.GBP

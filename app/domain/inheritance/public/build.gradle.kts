@@ -12,6 +12,7 @@ kotlin {
       dependencies {
         api(projects.domain.bitkeyPrimitivesPublic)
         api(projects.domain.databasePublic)
+        api(projects.domain.relationshipsPublic)
       }
     }
   }

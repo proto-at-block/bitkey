@@ -10,6 +10,8 @@ typedef enum {
   ALG_SHA256 = 0,
   ALG_SHA512 = 1,
   ALG_HASH160 = 2,
+  ALG_MD5 = 3,
+  ALG_SHA1 = 4,
 } hash_alg_t;
 
 typedef struct {

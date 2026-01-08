@@ -11,6 +11,7 @@ import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdCon
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT_RECTIFIABLE
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING
 import build.wallet.analytics.v1.Action
+import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupRepository
@@ -27,6 +28,7 @@ import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.Rect
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.ShowingCustomerSupportUiState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.SigningIntoCloudState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.UnrectifiableFailureState
+import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.UnrectifiableFailureState.*
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateLiteMessages
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.InAppBrowserModel
@@ -129,8 +131,10 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
                       errorData = errorData
                     )
                   }
-                  is UnrectifiableCloudBackupError -> {
-                    UnrectifiableFailureState.UploadingLiteAccountBackupFailure(
+                  is CloudBackupError.AccountIdMismatched,
+                  is UnrectifiableCloudBackupError,
+                  -> {
+                    UploadingLiteAccountBackupFailure(
                       errorData = errorData
                     )
                   }

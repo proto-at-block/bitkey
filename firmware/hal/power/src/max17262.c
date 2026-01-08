@@ -399,7 +399,83 @@ err:
   return false;
 }
 
-// Custom Full INI with OCV Table
+bool max17262_configure_soc_alerts(bool enable_1percent_change) {
+  // For 1% SOC change alerts, they are controlled by Config2.dSOCen bit
+
+  // Read current Config2 register
+  max17262_reg_config2_t config2 = {0};
+  READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_CONFIG2, &config2.bytes[0]);
+
+  // Enable/disable 1% SOC change alerts
+  config2.values.dSOCen = enable_1percent_change;
+
+  // Write back Config2 register
+  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_CONFIG2, &config2.bytes[0]);
+
+  return true;
+}
+
+bool max17262_set_soc_thresholds(uint8_t min_soc, uint8_t max_soc) {
+  max17262_reg_salrth_t threshold = {0};
+  threshold.values.min_soc = min_soc;
+  threshold.values.max_soc = max_soc;
+
+  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_SALRTH, &threshold.bytes[0]);
+
+  return true;
+}
+
+bool max17262_enable_alerts(bool enable) {
+  // Read current config register
+  max17262_reg_config_t config = {0};
+  READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_CONFIG, &config.bytes[0]);
+
+  // Set Alert Enable bit (D2)
+  config.values.Aen = enable;
+
+  // Make SOC alerts sticky (remain until cleared)
+  config.values.SS = true;
+
+  // Write back config register
+  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_CONFIG, &config.bytes[0]);
+
+  return true;
+}
+
+bool max17262_clear_alerts(void) {
+  // Read status register to get current alerts
+  max17262_reg_status_t status = {0};
+  READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_STATUS, &status.bytes[0]);
+
+  // Clear alert bits by writing 0 to them (while preserving other bits)
+  status.values.Smn = 0;
+  status.values.Smx = 0;
+  status.values.dSOCi = 0;
+
+  // Write back to clear the alerts
+  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_STATUS, &status.bytes[0]);
+
+  return true;
+}
+
+bool max17262_get_soc_alert(max17262_soc_alert_t* alert) {
+  max17262_reg_status_t status = {0};
+  READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_STATUS, &status.bytes[0]);
+
+  // Check for SOC-related alerts in priority order
+  if (status.values.dSOCi) {
+    *alert = MAX17262_SOC_ALERT_1PCT_CHANGE;
+  } else if (status.values.Smn) {
+    *alert = MAX17262_SOC_ALERT_MIN_THRESHOLD;
+  } else if (status.values.Smx) {
+    *alert = MAX17262_SOC_ALERT_MAX_THRESHOLD;
+  } else {
+    *alert = MAX17262_SOC_ALERT_NONE;
+  }
+
+  return true;
+}
+
 static bool ez_config_option_3(uint8_t* hibcfg, battery_variant_t variant) {
   // Unlock model access
   if (!modelgauge_unlock()) {

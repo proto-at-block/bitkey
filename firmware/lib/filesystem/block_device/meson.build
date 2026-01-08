@@ -1,4 +1,5 @@
 subdir('efr32mg24')
+subdir('stm32u585')
 
 srcs = [
   'bd_cmd.c',

@@ -1,4 +1,5 @@
 [build]
+rustc-wrapper = "sccache"
 target-dir = "_build/rust/target"
 
 [target.'cfg(target_os = "android")']

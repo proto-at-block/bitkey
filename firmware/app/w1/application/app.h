@@ -13,7 +13,6 @@
 #include "grant_protocol.h"
 #include "key_manager_task.h"
 #include "led.h"
-#include "led_task.h"
 #include "mcu_i2c.h"
 #include "mcu_smu.h"
 #include "mcu_wdog.h"
@@ -30,6 +29,7 @@
 #include "secure_rng.h"
 #include "secutils.h"
 #include "serial.h"
+#include "ui_task.h"
 #ifndef CONFIG_PROD
 #include "shell_task.h"
 #endif

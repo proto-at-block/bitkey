@@ -1,5 +1,6 @@
 w1:
-  crossfile: w1.crossfile
+  crossfile: cross-files/w1.crossfile
+  default: True  # Default build when calling `inv build`
   jlink_gdb_chip: EFR32MG24BXXXF1536
   bootloader_required: true
   bootloader_image: loader
@@ -9,4 +10,22 @@ w1:
     - w1a-proto-0
     - w1a-dev-board-rev-0
     - w1a-dev-board-rev-1
+  target: w1a-evt-app-a-dev # default build target
 
+w3-core:
+  crossfile: cross-files/w3-core.crossfile
+  default: False
+  jlink_gdb_chip: EFR32MG24BXXXF1536
+  bootloader_required: true
+  bootloader_image: loader
+  partitions: w3a-core
+  target: w3a-core-evt-app-a-dev
+
+w3-uxc:
+  crossfile: cross-files/w3-uxc.crossfile
+  default: False
+  jlink_gdb_chip: STM32U585ZI
+  bootloader_required: true
+  bootloader_image: loader
+  partitions: w3a-uxc
+  target: w3a-uxc-evt-app-a-dev

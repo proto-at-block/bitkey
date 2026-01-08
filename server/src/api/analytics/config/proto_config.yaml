@@ -63,7 +63,7 @@ enums:
     attrs:
       - derive(serde::Serialize, serde::Deserialize)
       - rustfmt::skip
-  - paths: [ServerAction]
+  - paths: [ActionServer]
     attrs:
       - derive(serde::Serialize, serde::Deserialize)
       - rustfmt::skip      

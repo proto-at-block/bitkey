@@ -8,7 +8,6 @@ import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiProps
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachine
-import com.github.michaelbull.result.coroutines.coroutineBinding
 
 @BitkeyInject(ActivityScope::class)
 class InviteTrustedContactFlowUiStateMachineImpl(
@@ -22,17 +21,13 @@ class InviteTrustedContactFlowUiStateMachineImpl(
         AddingTrustedContactUiProps(
           account = props.account,
           onAddTc = { trustedContactAlias, hardwareProofOfPossession ->
-            coroutineBinding {
-              val invitation =
-                relationshipsService
-                  .createInvitation(
-                    account = props.account,
-                    trustedContactAlias = trustedContactAlias,
-                    hardwareProofOfPossession = hardwareProofOfPossession,
-                    roles = setOf(TrustedContactRole.SocialRecoveryContact)
-                  ).bind()
-              invitation
-            }
+            relationshipsService
+              .createInvitation(
+                account = props.account,
+                trustedContactAlias = trustedContactAlias,
+                hardwareProofOfPossession = hardwareProofOfPossession,
+                roles = setOf(TrustedContactRole.SocialRecoveryContact)
+              )
           },
           onInvitationShared = props.onExit,
           onExit = props.onExit

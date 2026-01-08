@@ -17,9 +17,16 @@ pandas==2.2.1
 prettytable==3.10.0
 memfault-cli==1.6.0
 
+# LVGL Asset Generation
+pypng==0.20220715.0
+
+# LVGL Asset Generation
+pypng==0.20220715.0
+
 # Bitkey python modules
 -e ./python
 -e ./python/bitkey/fwa
+-e ./config
 -e ./lib/protobuf
 
 # VSCode Support

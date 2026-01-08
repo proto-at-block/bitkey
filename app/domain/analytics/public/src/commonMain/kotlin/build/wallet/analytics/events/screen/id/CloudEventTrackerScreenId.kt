@@ -99,4 +99,7 @@ enum class CloudEventTrackerScreenId : EventTrackerScreenId {
 
   /** Screen for selecting which orphaned account to recover when multiple accounts are found */
   ORPHANED_ACCOUNT_SELECTION,
+
+  /** Screen for selecting which backup to recover when multiple unencryptable backups are found in cloud storage */
+  SELECT_ACCOUNT_BACKUP,
 }

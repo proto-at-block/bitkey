@@ -2,16 +2,19 @@ use super::Service;
 use crate::error::TransactionVerificationError;
 use account::service::FetchAccountInput;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
-use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
-use bdk_utils::get_total_outflow_for_psbt;
+use bdk_utils::bdk::bitcoin::Network;
 use exchange_rate::currency_conversion::sats_for;
 use exchange_rate::error::ExchangeRateError;
 use exchange_rate::service::Service as ExchangeRateService;
+use feature_flags::flag::ContextKey;
 use notification::payloads::transaction_verification::TransactionVerificationPayload;
 use notification::service::SendNotificationInput;
 use notification::{NotificationPayloadBuilder, NotificationPayloadType};
 use tracing::instrument;
-use types::account::entities::TransactionVerificationPolicy::{Always, Never, Threshold};
+use types::account::entities::{
+    Account, FullAccount,
+    TransactionVerificationPolicy::{Always, Never, Threshold},
+};
 use types::account::money::Money;
 use types::currencies::CurrencyCode;
 use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
@@ -20,7 +23,9 @@ use types::transaction_verification::entities::{
     BitcoinDisplayUnit, TransactionVerificationPending,
 };
 use types::transaction_verification::router::TransactionVerificationGrantView;
-use types::transaction_verification::service::WalletProvider;
+use types::transaction_verification::service::{
+    TransactionVerificationWallet, VerificationWalletProvider,
+};
 use types::{
     account::identifiers::AccountId,
     transaction_verification::{
@@ -30,18 +35,29 @@ use types::{
 
 impl Service {
     #[instrument(skip(self, wallet_provider, psbt))]
-    pub async fn initiate<W: WalletProvider>(
+    pub async fn initiate(
         &self,
-        account_id: &AccountId,
-        hardware_auth_pubkey: PublicKey,
-        wallet_provider: W,
+        account: &FullAccount,
+        wallet_provider: VerificationWalletProvider,
         psbt: Psbt,
+        network: Network,
         fiat_currency: CurrencyCode,
         bitcoin_display_unit: BitcoinDisplayUnit,
         should_prompt_user: bool,
+        context_key: Option<ContextKey>,
     ) -> Result<InitiateVerificationResult, TransactionVerificationError> {
+        let hardware_auth_pubkey = account.hardware_auth_pubkey;
+        self.screener_service.screen_psbt_outputs_for_sanctions(
+            &psbt,
+            network,
+            &Account::Full(account.clone()),
+            &self.feature_flags_service,
+            context_key,
+        )?;
+        let account_id = account.id.clone();
+
         let needs_verify = self
-            .is_verification_required(account_id, wallet_provider, &psbt)
+            .is_verification_required(account, wallet_provider, &psbt)
             .await?;
 
         let result = if !needs_verify {
@@ -74,7 +90,7 @@ impl Service {
                 });
             }
             let tx_verification = TransactionVerification::new_pending(
-                account_id,
+                &account_id,
                 psbt,
                 fiat_currency,
                 bitcoin_display_unit,
@@ -99,10 +115,25 @@ impl Service {
         &self,
         account_id: &AccountId,
         psbt: Psbt,
+        network: Network,
         fiat_currency: CurrencyCode,
         bitcoin_display_unit: BitcoinDisplayUnit,
         should_prompt_user: bool,
+        context_key: Option<ContextKey>,
     ) -> Result<InitiateVerificationResult, TransactionVerificationError> {
+        let account = self
+            .account_service
+            .fetch_full_account(FetchAccountInput { account_id })
+            .await?;
+
+        self.screener_service.screen_psbt_outputs_for_sanctions(
+            &psbt,
+            network,
+            &Account::Full(account),
+            &self.feature_flags_service,
+            context_key,
+        )?;
+
         let result = if !should_prompt_user {
             InitiateVerificationResult::VerificationRequired
         } else {
@@ -117,7 +148,7 @@ impl Service {
                 TransactionVerification::Pending(p) => p,
                 _ => unreachable!("Expected TransactionVerification::Pending"),
             };
-            self.send_verification_notification(&account_id, pending)
+            self.send_verification_notification(account_id, pending)
                 .await?;
             InitiateVerificationResult::VerificationRequested {
                 verification_id: tx_verification.common_fields().id.clone(),
@@ -128,17 +159,13 @@ impl Service {
         Ok(result)
     }
 
-    async fn is_verification_required<W: WalletProvider>(
+    async fn is_verification_required(
         &self,
-        account_id: &AccountId,
-        wallet_provider: W,
+        account: &FullAccount,
+        wallet_provider: VerificationWalletProvider,
         psbt: &Psbt,
     ) -> Result<bool, TransactionVerificationError> {
-        let policy_opt = self
-            .account_service
-            .fetch_full_account(FetchAccountInput { account_id })
-            .await?
-            .transaction_verification_policy;
+        let policy_opt = account.transaction_verification_policy.clone();
 
         let result = match policy_opt {
             None => false,
@@ -154,16 +181,18 @@ impl Service {
         Ok(result)
     }
 
-    async fn is_above_threshold<W: WalletProvider>(
+    async fn is_above_threshold(
         &self,
-        wallet_provider: W,
+        wallet_provider: VerificationWalletProvider,
         psbt: &Psbt,
         threshold: Money,
     ) -> Result<bool, TransactionVerificationError> {
-        let wallet = wallet_provider
-            .get_wallet()
+        let wallet: TransactionVerificationWallet = wallet_provider
+            .into_wallet()
             .map_err(TransactionVerificationError::BdkUtils)?;
-        let total_spend_sats = get_total_outflow_for_psbt(wallet.as_ref(), psbt);
+        let total_spend_sats = wallet
+            .total_outflow_sats(psbt)
+            .map_err(TransactionVerificationError::BdkUtils)?;
         let threshold_sats = sats_for_amount(
             threshold,
             self.config.use_local_currency_exchange,
@@ -176,7 +205,7 @@ impl Service {
 
     async fn send_verification_notification(
         &self,
-        account_id: &&AccountId,
+        account_id: &AccountId,
         tx_verification: &TransactionVerificationPending,
     ) -> Result<(), TransactionVerificationError> {
         let payload = NotificationPayloadBuilder::default()

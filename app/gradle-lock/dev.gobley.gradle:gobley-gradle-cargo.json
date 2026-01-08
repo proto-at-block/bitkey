@@ -1,0 +1,18 @@
+{
+    "module-identifier": "dev.gobley.gradle:gobley-gradle-cargo",
+    "components": [
+        {
+            "version": "0.3.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gobley-gradle-cargo-0.3.7.jar": "b16f3f2ad283ac9f0c115aa17c878881b484e8a16d2052a2eabe7eb3c34ff7f8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]"
+            ]
+        }
+    ]
+}

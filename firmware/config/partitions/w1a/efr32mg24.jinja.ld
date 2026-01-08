@@ -79,6 +79,13 @@ SECTIONS
     . = ALIGN(4);
     __shell_cmds_end   = .;
 
+    /* UI task function pointers */
+    . = ALIGN(4);
+    PROVIDE(__ui_task_funcs_start__ = .);
+    KEEP(*(.ui_backend_led.led_backend_ops));
+    . = ALIGN(4);
+    PROVIDE(__ui_task_funcs_end__ = .);
+
     KEEP(*(.eh_frame*))
   } > REGION_TEXT
 
@@ -157,14 +164,14 @@ SECTIONS
     PROVIDE(__nfc_task_data_end__ = .);
     /* end shared data */
 
-    /* led task data */
+    /* ui task data */
     . = ALIGN(32);
-    PROVIDE(__led_task_data_start__ = .);
-    *(.led_task_data*)
+    PROVIDE(__ui_task_data_start__ = .);
+    *(.ui_task_data*)
     *src_fpc_biometrics.c.o(.data .data*)
     . = ALIGN(32);
-    PROVIDE(__led_task_data_end__ = .);
-    /* end led data */
+    PROVIDE(__ui_task_data_end__ = .);
+    /* end ui data */
 
     *(vtable)
     *(.data*)

@@ -227,7 +227,7 @@ interface NfcCommands {
     session: NfcSession,
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
-  ): Psbt
+  ): HardwareInteraction<Psbt>
 
   /**
    * Start fingerprint enrollment at the index specified by [fingerprintHandle].

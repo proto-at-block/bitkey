@@ -1,5 +1,6 @@
 venv
 build
+config/dist
 config/*.svd
 config/keys/*/*localstack*
 python/build
@@ -24,3 +25,5 @@ third-party/st-rfal/source/rfal_isoDepPATCHED.c
 .cache
 *.egg-info/
 .releases/
+cscope.*
+nscope.*

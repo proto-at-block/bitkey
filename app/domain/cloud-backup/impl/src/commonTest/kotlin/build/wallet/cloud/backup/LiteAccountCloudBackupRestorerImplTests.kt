@@ -6,13 +6,14 @@ import bitkey.auth.AuthTokenScope.Recovery
 import bitkey.auth.RefreshToken
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
+import build.wallet.auth.AccountAuthenticator.AuthData
 import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.auth.AuthStorageError
 import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.auth.AppRecoveryAuthPrivateKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
-import build.wallet.bitkey.f8e.LiteAccountIdMock
+import build.wallet.bitkey.f8e.LiteAccountId
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestorationError
 import build.wallet.cloud.backup.local.BackupStorageError
@@ -57,7 +58,6 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
       val backupVersion = when (backup) {
         is CloudBackupV2 -> "v2"
         is CloudBackupV3 -> "v3"
-        else -> "unknown"
       }
 
       context("cloud backup $backupVersion") {
@@ -67,16 +67,33 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
           appPrivateKeyDaoFake.reset()
           accountService.reset()
           cloudBackupDao.reset()
+          accountAuthenticator.authResults =
+            mutableListOf(
+              Ok(
+                AuthData(
+                  accountId = backup.accountId,
+                  authTokens =
+                    AccountAuthTokens(
+                      accessToken = AccessToken(raw = "access-token-fake"),
+                      refreshToken = RefreshToken(raw = "refresh-token-fake"),
+                      accessTokenExpiresAt = Instant.DISTANT_FUTURE
+                    )
+                )
+              )
+            )
         }
 
         test("success") {
+          val expectedLiteAccount =
+            LiteAccountMock.copy(accountId = LiteAccountId(backup.accountId))
+
           restorer
-            .restoreFromBackup(backup as CloudBackup)
-            .shouldBe(Ok(LiteAccountMock))
+            .restoreFromBackup(backup)
+            .shouldBe(Ok(expectedLiteAccount))
           accountAuthenticator.authCalls.awaitItem().shouldBe(
             (backup as SocRecV1BackupFeatures).appRecoveryAuthKeypair.publicKey
           )
-          authTokensService.getTokens(LiteAccountIdMock, Recovery)
+          authTokensService.getTokens(expectedLiteAccount.accountId, Recovery)
             .shouldBeOk(
               AccountAuthTokens(
                 accessToken = AccessToken(raw = "access-token-fake"),
@@ -94,7 +111,7 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
           accountService.accountState.value.shouldBeEqual(
             Ok(
               AccountStatus.OnboardingAccount(
-                LiteAccountMock
+                expectedLiteAccount
               )
             )
           )
@@ -107,7 +124,7 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
               Err(AuthStorageError())
             )
           restorer
-            .restoreFromBackup(backup as CloudBackup)
+            .restoreFromBackup(backup)
             .shouldBe(Err(AccountBackupRestorationError(authError)))
           accountAuthenticator.authCalls.awaitItem().shouldBe(
             (backup as SocRecV1BackupFeatures).appRecoveryAuthKeypair.publicKey
@@ -118,19 +135,21 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
           val throwable = Throwable("foo")
           appPrivateKeyDaoFake.storeAppAuthKeyPairResult = Err(throwable)
           restorer
-            .restoreFromBackup(backup as CloudBackup)
+            .restoreFromBackup(backup)
             .shouldBe(Err(AccountBackupRestorationError(throwable)))
         }
 
         test("failure - cloud backup dao failure") {
+          val expectedLiteAccountId = LiteAccountId(backup.accountId)
+
           cloudBackupDao.returnError = true
           restorer
-            .restoreFromBackup(backup as CloudBackup)
+            .restoreFromBackup(backup)
             .shouldBe(Err(AccountBackupRestorationError(BackupStorageError())))
           accountAuthenticator.authCalls.awaitItem().shouldBe(
             (backup as SocRecV1BackupFeatures).appRecoveryAuthKeypair.publicKey
           )
-          authTokensService.getTokens(LiteAccountIdMock, Recovery)
+          authTokensService.getTokens(expectedLiteAccountId, Recovery)
             .shouldBeOk(
               AccountAuthTokens(
                 accessToken = AccessToken(raw = "access-token-fake"),

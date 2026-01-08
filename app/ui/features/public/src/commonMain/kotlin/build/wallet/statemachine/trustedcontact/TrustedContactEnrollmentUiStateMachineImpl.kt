@@ -1,11 +1,7 @@
 package build.wallet.statemachine.trustedcontact
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import bitkey.relationships.Relationships
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.*
@@ -318,7 +314,9 @@ class TrustedContactEnrollmentUiStateMachineImpl(
           .asScreen(props.screenPresentationStyle)
       }
 
-      is State.AcceptingInviteWithF8eFailure ->
+      is State.AcceptingInviteWithF8eFailure -> {
+        val currentRelationships by remember { relationshipsService.relationships }.collectAsState()
+
         AcceptingInviteWithF8eFailureBodyModel(
           error = state.error,
           onRetry = {
@@ -326,8 +324,16 @@ class TrustedContactEnrollmentUiStateMachineImpl(
           },
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
           isInheritance = isInheritance,
-          onBack = { uiState = State.EnteringProtectedCustomerName(state.account, state.invitation) }
+          currentRelationships = currentRelationships ?: Relationships.EMPTY,
+          onBack = {
+            uiState = if (isInheritance) {
+              State.EnteringBenefactorName(state.account, state.invitation)
+            } else {
+              State.EnteringProtectedCustomerName(state.account, state.invitation)
+            }
+          }
         ).asScreen(props.screenPresentationStyle)
+      }
 
       is State.AcceptingInviteWithF8eSuccess ->
         AcceptingInviteWithF8eSuccessBodyModel(

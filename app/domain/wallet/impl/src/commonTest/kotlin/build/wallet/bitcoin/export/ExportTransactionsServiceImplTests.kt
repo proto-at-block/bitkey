@@ -5,6 +5,7 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
+import build.wallet.bitcoin.wallet.WalletV2ProviderMock
 import build.wallet.bitcoin.wallet.WatchingWalletProviderMock
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -14,6 +15,9 @@ import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.f8e.recovery.ListKeysetsResponse
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.Bdk2FeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
 import build.wallet.platform.random.UuidGeneratorFake
@@ -31,11 +35,15 @@ class ExportTransactionsServiceImplTests : FunSpec({
   val accountService = AccountServiceFake()
   val watchingWallet = SpendingWalletFake()
   val watchingWalletProvider = WatchingWalletProviderMock(watchingWallet)
+  val walletV2Provider = WalletV2ProviderMock()
+  val bdk2FeatureFlag = Bdk2FeatureFlag(FeatureFlagDaoFake())
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val uuidGenerator = UuidGeneratorFake()
   val service = ExportTransactionsServiceImpl(
     accountService = accountService,
     watchingWalletProvider = watchingWalletProvider,
+    walletV2Provider = walletV2Provider,
+    bdk2FeatureFlag = bdk2FeatureFlag,
     bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
     exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
     listKeysetsF8eClient = listKeysetsF8eClient,
@@ -46,6 +54,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
     accountService.reset()
     watchingWallet.reset()
     watchingWalletProvider.reset()
+    walletV2Provider.reset()
+    bdk2FeatureFlag.setFlagValue(false)
     accountService.setActiveAccount(FullAccountMock)
 
     val activeKeyset =
@@ -63,7 +73,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
             )
           ),
           wrappedSsek = null,
-          descriptorBackups = emptyList()
+          descriptorBackups = emptyList(),
+          activeKeysetId = activeKeyset.f8eSpendingKeyset.keysetId
         )
       )
   }
@@ -96,6 +107,20 @@ class ExportTransactionsServiceImplTests : FunSpec({
     // Assert we still only produce the header.
     val dataString = service.export().shouldBeOk().data.utf8()
     dataString.split("\n").count().shouldBe(1)
+  }
+
+  test("export uses V2 wallet provider when BDK2 flag enabled") {
+    bdk2FeatureFlag.setFlagValue(true)
+    walletV2Provider.walletResult = Ok(watchingWallet)
+
+    service.export().shouldBeOk()
+
+    walletV2Provider.requestedDescriptors.test {
+      val requestedDescriptors = awaitUntil { it.size == 1 }
+      requestedDescriptors.first().identifier.shouldBe("WatchingWallet spending-public-keyset-fake-id-1")
+    }
+
+    watchingWalletProvider.requestedDescriptors.value.shouldBe(emptyList())
   }
 
   test("successful export with confirmed transaction") {
@@ -142,6 +167,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
     val testService = ExportTransactionsServiceImpl(
       accountService = accountService,
       watchingWalletProvider = watchingWalletProvider,
+      walletV2Provider = walletV2Provider,
+      bdk2FeatureFlag = bdk2FeatureFlag,
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
       listKeysetsF8eClient = ListKeysetsF8eClientMock(),
@@ -179,6 +206,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
     val testService = ExportTransactionsServiceImpl(
       accountService = accountService,
       watchingWalletProvider = watchingWalletProvider,
+      walletV2Provider = walletV2Provider,
+      bdk2FeatureFlag = bdk2FeatureFlag,
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
       listKeysetsF8eClient = f8eClientWithDifferentKeysets,

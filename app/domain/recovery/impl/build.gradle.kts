@@ -22,6 +22,7 @@ kotlin {
         implementation(projects.libs.timePublic)
         implementation(projects.libs.keyValueStorePublic)
         implementation(projects.libs.chaincodeDelegationPublic)
+        implementation(projects.domain.cloudBackupImpl)
       }
     }
 
@@ -50,6 +51,7 @@ kotlin {
         implementation(projects.domain.notificationsFake)
         implementation(projects.domain.hardwareFake)
         implementation(projects.libs.chaincodeDelegationFake)
+        implementation(projects.libs.cloudStoreFake)
       }
     }
 

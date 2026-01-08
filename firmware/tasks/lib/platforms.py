@@ -20,5 +20,4 @@ class Platforms:
         for platform in self.platforms:
             if platform in str(path):
                 return self.platforms[platform]
-        print(f"Path '{path}' must contain a known platform")
-        exit(1)
+        raise RuntimeError(f"Path '{path}' must contain a known platform")

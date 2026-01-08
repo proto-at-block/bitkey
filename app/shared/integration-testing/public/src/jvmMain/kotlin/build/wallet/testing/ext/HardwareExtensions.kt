@@ -7,6 +7,7 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.FakeHwAuthKeypair
 import build.wallet.nfc.TransactionFn
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
 import build.wallet.testing.AppTester
@@ -82,10 +83,14 @@ suspend fun <T> AppTester.hardwareTransaction(transaction: TransactionFn<T>): T 
  */
 suspend fun AppTester.signPsbtWithHardware(psbt: Psbt): Psbt {
   return hardwareTransaction { session, commands ->
-    commands.signTransaction(
+    val result = commands.signTransaction(
       session = session,
       psbt = psbt,
       spendingKeyset = getActiveFullAccount().keybox.activeSpendingKeyset
     )
+    when (result) {
+      is HardwareInteraction.Completed<Psbt> -> result.result
+      else -> error("An error occurred while signing the PSBT.")
+    }
   }
 }

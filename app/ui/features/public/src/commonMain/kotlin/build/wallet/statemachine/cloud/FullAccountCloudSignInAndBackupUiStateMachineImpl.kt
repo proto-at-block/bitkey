@@ -8,6 +8,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_BACKUP_INITIALIZE
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_BACKUP_MISSING
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupRepository
@@ -23,6 +24,8 @@ import build.wallet.di.BitkeyInject
 import build.wallet.emergencyexitkit.EmergencyExitKitPdfGenerator
 import build.wallet.emergencyexitkit.EmergencyExitKitRepository
 import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryError.RectifiableCloudError
+import build.wallet.feature.flags.SharedCloudBackupsFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.logging.logDebug
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
@@ -31,6 +34,7 @@ import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.*
+import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.UnrectifiableFailureUiState.*
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateFullMessages
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -58,6 +62,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val emergencyExitKitPdfGenerator: EmergencyExitKitPdfGenerator,
   private val emergencyExitKitRepository: EmergencyExitKitRepository,
+  private val sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag,
 ) : FullAccountCloudSignInAndBackupUiStateMachine {
   @Composable
   override fun model(props: FullAccountCloudSignInAndBackupProps): ScreenModel {
@@ -142,18 +147,41 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
 
       is CheckingCloudBackupUiState -> {
         LaunchedEffect("check cloud account for backup") {
-          cloudBackupRepository.readActiveBackup(state.account)
-            .onSuccess { backup ->
-              when (backup) {
-                null -> uiState = CreatingAndSavingBackupUiState(state.account, state.sealedCsek)
+          cloudBackupRepository.readAllBackups(state.account)
+            .onSuccess { backups ->
+              when {
+                backups.isEmpty() -> {
+                  // No backups exist, proceed with creation
+                  uiState = CreatingAndSavingBackupUiState(state.account, state.sealedCsek)
+                }
+
+                sharedCloudBackupsFeatureFlag.isEnabled() -> {
+                  // Shared backups ON: Only conflict if our account ID matches
+                  val matchingBackup = backups.find {
+                    it.accountId == props.keybox.fullAccountId.serverId
+                  }
+
+                  if (matchingBackup != null) {
+                    // Found our account ID - show overwrite confirmation
+                    handleAppDataFound(
+                      state = state,
+                      props = props,
+                      backup = matchingBackup,
+                      setState = { uiState = it }
+                    )
+                  } else {
+                    // Different account IDs - safe to create (won't clobber)
+                    uiState = CreatingAndSavingBackupUiState(state.account, state.sealedCsek)
+                  }
+                }
+
                 else -> {
+                  // Shared backups OFF: Existing behavior - any backup is potential conflict
                   handleAppDataFound(
                     state = state,
                     props = props,
-                    backup = backup,
-                    setState = {
-                      uiState = it
-                    }
+                    backup = backups.first(),
+                    setState = { uiState = it }
                   )
                 }
               }
@@ -174,6 +202,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                     )
                 }
 
+                is CloudBackupError.AccountIdMismatched ->
+                  uiState = CreatingAndSavingBackupUiState(state.account, state.sealedCsek)
                 is UnrectifiableCloudBackupError -> {
                   logError(throwable = cloudBackupError) { "Failed to read cloud backup: $cloudBackupError" }
                   if (cloudBackupError.cause is UnknownAppDataFoundError) {

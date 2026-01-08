@@ -13,6 +13,7 @@ typedef struct {
 } rtos_semaphore_t;
 
 void rtos_semaphore_create(rtos_semaphore_t* semaphore);
+void rtos_semaphore_destroy(rtos_semaphore_t* semaphore);
 void rtos_semaphore_create_counting(rtos_semaphore_t* semaphore, uint32_t max_count,
                                     uint32_t initial_count);
 bool rtos_semaphore_take(rtos_semaphore_t* semaphore, uint32_t timeout_ms);

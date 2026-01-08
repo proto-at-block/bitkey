@@ -24,6 +24,6 @@ grant_dep = declare_dependency(
 grant_test = executable('grant-test',
   'grant_protocol_test.c',
   include_directories : ['inc', 'src'],
-  dependencies : [grant_dep, test_deps],
+  dependencies : [crypto_deps['posix'], grant_dep, test_deps],
 )
 test('grant test', grant_test)

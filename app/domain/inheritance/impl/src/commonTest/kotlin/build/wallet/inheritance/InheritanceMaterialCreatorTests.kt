@@ -74,6 +74,27 @@ class InheritanceMaterialCreatorTests : FunSpec({
     result1.shouldNotBeEqual(result2)
   }
 
+  test("Contact ordering does not change hash") {
+    val firstContact = EndorsedTrustedContactFake1.copy(
+      relationshipId = "first-contact"
+    )
+    val secondContact = EndorsedTrustedContactFake1.copy(
+      relationshipId = "second-contact"
+    )
+
+    inheritanceRelationshipsProvider.endorsedInheritanceContactsResult =
+      listOf(firstContact, secondContact)
+    val result1 = creator.getInheritanceMaterialHashData(KeyboxMock)
+
+    inheritanceRelationshipsProvider.endorsedInheritanceContactsResult =
+      listOf(secondContact, firstContact)
+    val result2 = creator.getInheritanceMaterialHashData(KeyboxMock)
+
+    result1.isOk.shouldBeTrue()
+    result2.isOk.shouldBeTrue()
+    result1.shouldBeEqual(result2)
+  }
+
   test("Packages are encrypted for each contact") {
     privateKeyDao.appSpendingKeys[KeyboxMock.activeAppKeyBundle.spendingKey] = AppSpendingPrivateKeyMock
     val firstContact = EndorsedTrustedContactFake1.copy(

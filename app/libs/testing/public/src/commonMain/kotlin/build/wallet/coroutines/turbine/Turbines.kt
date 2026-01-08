@@ -108,9 +108,7 @@ suspend inline fun <T> ReceiveTurbine<out T>.awaitNoEvents(timeout: Duration = 5
  * @return The received item, or null if no item was emitted within [timeout].
  */
 @DelicateCoroutinesApi
-suspend fun <T> ReceiveTurbine<out T>.awaitItemMaybe(
-  timeout: Duration = 10.milliseconds,
-): T? {
+suspend fun <T> ReceiveTurbine<out T>.awaitItemMaybe(timeout: Duration = 10.milliseconds): T? {
   val pollInterval = 2.milliseconds
   val mark = TimeSource.Monotonic.markNow()
 

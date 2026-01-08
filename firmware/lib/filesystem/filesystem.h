@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lfs.h"
+#include "platform.h"
 
 #define FS_FILE_NAME_MAX_LEN (255)
 
@@ -8,9 +9,24 @@
 #define FS_BLOCK_COUNT 16
 #define FS_MAX_NUM_DIR ((FS_BLOCK_COUNT - 1) / 2)
 
+#define FS_FILE_CACHE_SIZE PLATFORM_CFG_LFS_CACHE_SIZE
+#define FS_LFS_READ_SIZE   PLATFORM_CFG_LFS_READ_SIZE
+#define FS_LFS_PROG_SIZE   PLATFORM_CFG_LFS_PROG_SIZE
+
+// Compile-time assertions to ensure cache size requirements are met
+#ifdef EMBEDDED_BUILD
+#include "mcu_flash.h"
+_Static_assert(((MCU_FLASH_PAGE_SIZE % FS_FILE_CACHE_SIZE) == 0),
+               "Cache size must be a factor of the block size (MCU_FLASH_PAGE_SIZE)");
+#endif
+_Static_assert(((FS_FILE_CACHE_SIZE % FS_LFS_READ_SIZE) == 0),
+               "Cache size must be a multiple of the read size");
+_Static_assert(((FS_FILE_CACHE_SIZE % FS_LFS_PROG_SIZE) == 0),
+               "Cache size must be a multiple of the program size");
+
 typedef struct {
   uint8_t handle[sizeof(lfs_file_t)];
-  uint8_t __attribute__((aligned(4))) file_buffer[8 * 1024];
+  uint8_t __attribute__((aligned(4))) file_buffer[FS_FILE_CACHE_SIZE];
 } fs_file_t;
 
 typedef struct {

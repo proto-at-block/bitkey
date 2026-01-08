@@ -71,6 +71,7 @@ void _log(log_level_t level, const char* colour, const char* file, int line, con
 // Public API
 
 void log_set_level(log_level_t level);
+log_level_t log_get_level(void);
 
 #define LOGI(...) _LOG(LOG_INFO, LOG_FORMAT(INFO), __VA_ARGS__)
 #define LOGD(...) _LOG(LOG_DEBUG, LOG_FORMAT(DEBUG), __VA_ARGS__)

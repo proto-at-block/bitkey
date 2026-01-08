@@ -20,6 +20,8 @@ kotlin {
         implementation(projects.domain.privilegedActionsPublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.domain.metricsPublic)
+        implementation(projects.domain.walletPublic)
+        implementation(projects.domain.featureFlagPublic)
       }
     }
     commonTest {

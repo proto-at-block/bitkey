@@ -1,8 +1,8 @@
 srcs = [
-  'src/mpu_regions.c',
+  'src/mpu_common.c',
 ]
 
-deps = [mcu_efr32xg24_dep, assert_dep, proto_helpers_dep, log_dep, fwup_dep]
+deps = [mcu_dep, assert_dep, proto_helpers_dep, log_dep, rtos_dep]
 
 mpu_regions_lib = library('mpu_regions',
   srcs,

@@ -14,12 +14,12 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.ktor.result.HttpError
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.clipboard.plainTextItemAndroid
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.sharing.shareInvitation
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.relationships.CreateInvitationError
 import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
@@ -34,6 +34,7 @@ import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSett
 import build.wallet.statemachine.settings.full.notifications.Source
 import build.wallet.statemachine.trustedcontact.PromoCodeUpsellUiProps
 import build.wallet.statemachine.trustedcontact.PromoCodeUpsellUiStateMachine
+import build.wallet.statemachine.trustedcontact.model.CreatingInviteWithF8eFailureBodyModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.mapBoth
@@ -316,15 +317,9 @@ class AddingTrustedContactUiStateMachineImpl(
       }
 
       is FailedToSaveState ->
-        NetworkErrorFormBodyModel(
-          eventTrackerScreenId = null,
-          title = "Unable to save contact",
-          isConnectivityError = current.error is HttpError.NetworkError,
-          errorData = ErrorData(
-            segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
-            actionDescription = "Saving Recovery Contact to F8e",
-            cause = current.error
-          ),
+        CreatingInviteWithF8eFailureBodyModel(
+          isInheritance = isInheritance,
+          error = current.error,
           onRetry = {
             state =
               SavingWithBitkeyState(
@@ -474,7 +469,7 @@ class AddingTrustedContactUiStateMachineImpl(
 
     data class FailedToSaveState(
       val proofOfPossession: HwFactorProofOfPossession,
-      val error: Error,
+      val error: CreateInvitationError,
       val tcName: String,
     ) : State
 

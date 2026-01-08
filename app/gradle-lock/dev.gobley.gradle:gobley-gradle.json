@@ -1,0 +1,18 @@
+{
+    "module-identifier": "dev.gobley.gradle:gobley-gradle",
+    "components": [
+        {
+            "version": "0.3.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gobley-gradle-0.3.7.jar": "41bff37c4c4ebe7d2519d825945b87a9968ba37e1cd5ef418764d37ad8c28543"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]"
+            ]
+        }
+    ]
+}

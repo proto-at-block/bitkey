@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext.APP_RECOVERY
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupRepository
@@ -35,6 +36,7 @@ class AccessCloudBackupUiStateMachineImpl(
   private val rectifiableErrorHandlingUiStateMachine: RectifiableErrorHandlingUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val selectCloudBackupUiStateMachine: SelectCloudBackupUiStateMachine,
 ) : AccessCloudBackupUiStateMachine {
   @Composable
   override fun model(props: AccessCloudBackupUiProps): ScreenModel {
@@ -107,26 +109,33 @@ class AccessCloudBackupUiStateMachineImpl(
 
       is CheckingCloudBackupUiState -> {
         LaunchedEffect("check cloud account for backup") {
-          cloudBackupRepository.readActiveBackup(currentState.account)
-            .onSuccess { backup ->
-              when (backup) {
-                null -> if (props.showErrorOnBackupMissing) {
-                  state = CloudBackupNotFoundUiState(currentState.account)
-                } else {
-                  onCannotAccessCloudBackup(
-                    intent = props.startIntent,
+          cloudBackupRepository.readAllBackups(currentState.account)
+            .onSuccess { backups ->
+              when {
+                backups.isEmpty() -> handleNewBackup(
+                  props, {
+                    state = CloudBackupNotFoundUiState(currentState.account)
+                  }
+                )
+                shouldShowBackupSelection(backups) -> {
+                  // Multiple backups with at least one lite account - let user choose
+                  state = SelectingBackupUiState(currentState.account, backups)
+                }
+                backups.size == 1 -> {
+                  // Single backup - proceed directly
+                  handleExistingBackupFound(
+                    cloudStoreAccount = currentState.account,
+                    backup = backups.first(),
                     inviteCode = props.inviteCode,
-                    onStartLostAppRecovery = props.onStartLostAppRecovery,
-                    onStartLiteAccountCreation = props.onStartLiteAccountCreation
+                    onStartCloudRecovery = props.onStartCloudRecovery,
+                    onStartLiteAccountRecovery = props.onStartLiteAccountRecovery
                   )
                 }
-                else -> handleExistingBackupFound(
-                  cloudStoreAccount = currentState.account,
-                  backup = backup,
-                  inviteCode = props.inviteCode,
-                  onStartCloudRecovery = props.onStartCloudRecovery,
-                  onStartLiteAccountRecovery = props.onStartLiteAccountRecovery
-                )
+                else -> {
+                  // Multiple full accounts - pass all of them so recovery flow can try
+                  // decrypting each with the hardware key until one succeeds
+                  props.onStartCloudRecovery(currentState.account, backups)
+                }
               }
             }
             .onFailure { cloudBackupError ->
@@ -138,7 +147,13 @@ class AccessCloudBackupUiStateMachineImpl(
                   )
                 }
 
-                is UnrectifiableCloudBackupError -> if (props.showErrorOnBackupMissing) {
+                is CloudBackupError.AccountIdMismatched -> handleNewBackup(
+                  props, {
+                    state = CloudBackupNotFoundUiState(currentState.account)
+                  }
+                )
+                is UnrectifiableCloudBackupError,
+                -> if (props.showErrorOnBackupMissing) {
                   state = CloudBackupNotFoundUiState(currentState.account)
                 } else {
                   onCannotAccessCloudBackup(
@@ -179,6 +194,23 @@ class AccessCloudBackupUiStateMachineImpl(
           }
         ).asRootScreen()
 
+      is SelectingBackupUiState ->
+        selectCloudBackupUiStateMachine.model(
+          props = SelectCloudBackupUiProps(
+            backups = currentState.backups,
+            onBackupSelected = { selectedBackup ->
+              handleExistingBackupFound(
+                cloudStoreAccount = currentState.account,
+                backup = selectedBackup,
+                inviteCode = props.inviteCode,
+                onStartCloudRecovery = props.onStartCloudRecovery,
+                onStartLiteAccountRecovery = props.onStartLiteAccountRecovery
+              )
+            },
+            onBack = props.onExit
+          )
+        )
+
       is ShowingTroubleshootingSteps ->
         CloudBackupTroubleshootingStepsModel(
           onBack = { state = currentState.fromState },
@@ -206,15 +238,31 @@ class AccessCloudBackupUiStateMachineImpl(
     }
   }
 
+  private fun handleNewBackup(
+    props: AccessCloudBackupUiProps,
+    onShowErrorOnBackupMissing: () -> Unit,
+  ) {
+    if (props.showErrorOnBackupMissing) {
+      onShowErrorOnBackupMissing()
+    } else {
+      onCannotAccessCloudBackup(
+        intent = props.startIntent,
+        inviteCode = props.inviteCode,
+        onStartLostAppRecovery = props.onStartLostAppRecovery,
+        onStartLiteAccountCreation = props.onStartLiteAccountCreation
+      )
+    }
+  }
+
   private fun handleExistingBackupFound(
     cloudStoreAccount: CloudStoreAccount,
     backup: CloudBackup,
     inviteCode: String?,
-    onStartCloudRecovery: (CloudStoreAccount, CloudBackup) -> Unit,
+    onStartCloudRecovery: (CloudStoreAccount, List<CloudBackup>) -> Unit,
     onStartLiteAccountRecovery: (CloudBackup) -> Unit,
   ) {
     if (backup.isFullAccount()) {
-      onStartCloudRecovery(cloudStoreAccount, backup)
+      onStartCloudRecovery(cloudStoreAccount, listOf(backup))
     } else if (inviteCode != null) {
       Router.route = Route.TrustedContactInvite(inviteCode)
     } else {
@@ -240,6 +288,14 @@ class AccessCloudBackupUiStateMachineImpl(
     }
   }
 
+  /**
+   * Determines if we should show the backup selection screen.
+   * Shows selection when there are multiple backups and at least one is a lite account.
+   */
+  private fun shouldShowBackupSelection(backups: List<CloudBackup>): Boolean {
+    return backups.size > 1 && backups.any { !it.isFullAccount() }
+  }
+
   private sealed interface State {
     /**
      * Checking to see if we have a Cloud account logged in already / initiating the Google Sign
@@ -261,6 +317,14 @@ class AccessCloudBackupUiStateMachineImpl(
      * Could not find wallet backup on the cloud storage.
      */
     data class CloudBackupNotFoundUiState(val account: CloudStoreAccount?) : State
+
+    /**
+     * Multiple backups found - showing selection screen to let user choose.
+     */
+    data class SelectingBackupUiState(
+      val account: CloudStoreAccount,
+      val backups: List<CloudBackup>,
+    ) : State
 
     /**
      * Could not find cloud backup and showing iOS troubleshooting modal.

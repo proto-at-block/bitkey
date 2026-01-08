@@ -1,6 +1,10 @@
 package bitkey.verification
 
+import bitkey.f8e.privilegedactions.OptionalPrivilegedAction.NotRequired
+import bitkey.f8e.privilegedactions.OptionalPrivilegedAction.Required
+import bitkey.f8e.privilegedactions.toPrimitive
 import bitkey.f8e.verify.TxVerificationF8eClient
+import bitkey.f8e.verify.TxVerificationUpdateRequest
 import bitkey.f8e.verify.TxVerifyPolicyF8eClient
 import bitkey.privilegedactions.AuthorizationStrategy
 import bitkey.privilegedactions.AuthorizationStrategyType
@@ -27,11 +31,14 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.sqldelight.asFlowOfOneOrNull
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
+import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recover
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -40,10 +47,10 @@ import kotlinx.coroutines.flow.flow
 
 @BitkeyInject(AppScope::class)
 class TxVerificationServiceImpl(
+  private val accountService: AccountService,
   private val txVerificationDao: TxVerificationDao,
   private val policyClient: TxVerifyPolicyF8eClient,
   private val verificationClient: TxVerificationF8eClient,
-  private val accountService: AccountService,
   private val currencyConverter: CurrencyConverter,
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
@@ -80,27 +87,33 @@ class TxVerificationServiceImpl(
     amountBtc: BitcoinMoney?,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<TxVerificationPolicy, Error> {
-    return coroutineBinding {
-      val account = accountService.getAccount<FullAccount>()
-        .logFailure { "Update Threshold cannot be called without full account." }
-        .bind()
+    val fullAccount = accountService.getAccount<FullAccount>()
+      .logFailure { "Update Threshold cannot be called without full account." }
+      .getOrElse { return Err(Error("Account not available")) }
 
-      policyClient.setPolicy(
-        fullAccountId = account.accountId,
-        f8eEnvironment = account.config.f8eEnvironment,
-        policy = policy,
+    return policyClient.requestAction(
+      f8eEnvironment = fullAccount.config.f8eEnvironment,
+      fullAccountId = fullAccount.accountId,
+      request = TxVerificationUpdateRequest(
+        threshold = policy.threshold,
         amountBtc = amountBtc,
         hwFactorProofOfPossession = hwFactorProofOfPossession
-      ).bind().also { apiResult ->
-        when (apiResult) {
-          is TxVerificationPolicy.Active -> {
-            logInfo { "Verification policy updated to ${apiResult.threshold}" }
-            txVerificationDao.setThreshold(apiResult.threshold).bind()
+      )
+    ).mapError {
+      Error("Error updating policy threshold: ${it::class.simpleName}", it)
+    }.flatMap { result ->
+      coroutineBinding {
+        when (result) {
+          is NotRequired<VerificationThreshold> -> {
+            logInfo { "Verification policy updated" }
+            txVerificationDao.setThreshold(result.response).bind()
+            TxVerificationPolicy.Active(result.response)
           }
-          is TxVerificationPolicy.Pending -> {
+          is Required<VerificationThreshold> -> {
+            val privilegedAction = result.privilegedActionInstance.toPrimitive()
             bitkeyDatabaseProvider.database()
               .pendingPrivilegedActionsQueries
-              .getPendingActionByType(apiResult.authorization.privilegedActionType)
+              .getPendingActionByType(privilegedAction.privilegedActionType)
               .executeAsOneOrNull()
               ?.id
               ?.run {
@@ -114,10 +127,11 @@ class TxVerificationServiceImpl(
             bitkeyDatabaseProvider.database()
               .pendingPrivilegedActionsQueries
               .insertPendingAction(
-                id = apiResult.authorization.id,
-                type = apiResult.authorization.privilegedActionType,
+                id = privilegedAction.id,
+                type = privilegedAction.privilegedActionType,
                 strategy = AuthorizationStrategyType.OUT_OF_BAND
               )
+            TxVerificationPolicy.Pending(privilegedAction)
           }
         }
       }

@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_S
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
@@ -113,7 +114,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
     }
 
     test("initiate lost app recovery and cancel from onboarded app: $type") {
-      testWithTwoApps(isContested = isContested) { lostHwAppTester, lostAppAppTester, resetHardwareAndClearBackups, _ ->
+      testWithTwoApps(isContested = isContested, executeWorkers = false) { lostHwAppTester, lostAppAppTester, resetHardwareAndClearBackups, _ ->
         lostAppAppTester.initiateLostAppRecovery(isContested = isContested)
         resetHardwareAndClearBackups()
         lostHwAppTester.initiateLostHardwareRecovery(
@@ -294,6 +295,7 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.verifyCommsForLostApp(
 private suspend fun TestScope.testWithTwoApps(
   isContested: Boolean,
   isUsingSocRecFakes: Boolean = false,
+  executeWorkers: Boolean = true,
   testContent: suspend CoroutineScope.(
     lostHwAppTester: StateMachineTester<Unit, ScreenModel>,
     lostAppAppTester: StateMachineTester<Unit, ScreenModel>,
@@ -302,16 +304,20 @@ private suspend fun TestScope.testWithTwoApps(
   ) -> Unit,
 ) {
   // Setup lost hardware
-  val lostHwApp = launchNewApp(isUsingSocRecFakes = isUsingSocRecFakes)
+  val lostHwApp = launchNewApp(
+    isUsingSocRecFakes = isUsingSocRecFakes,
+    executeWorkers = executeWorkers
+  )
   lostHwApp.onboardFullAccountWithFakeHardware(true, delayNotifyDuration = 2.seconds)
   val fakeHardwareSeed = lostHwApp.fakeNfcCommands.fakeHardwareKeyStore.getSeed()
-  lostHwApp.deleteBackupsFromFakeCloud()
+  lostHwApp.deleteBackupsFromFakeCloud(FullAccountIdMock)
   lostHwApp.fakeNfcCommands.wipeDevice()
 
   // Move the hardware that was lost to a new device
   val lostAppApp = launchNewApp(
     isUsingSocRecFakes = isUsingSocRecFakes,
-    hardwareSeed = fakeHardwareSeed
+    hardwareSeed = fakeHardwareSeed,
+    executeWorkers = executeWorkers
   )
 
   turbineScope(timeout = 30.seconds) {
@@ -351,7 +357,7 @@ private suspend fun TestScope.testWithTwoApps(
       lostAppAppTester,
       // Reset hardware and clear backups
       {
-        lostHwApp.deleteBackupsFromFakeCloud()
+        lostHwApp.deleteBackupsFromFakeCloud(FullAccountIdMock)
         lostHwApp.fakeNfcCommands.wipeDevice()
         lostAppApp.fakeNfcCommands.wipeDevice()
         lostAppApp.fakeNfcCommands.fakeHardwareKeyStore.setSeed(oldSeed)

@@ -22,6 +22,8 @@ import build.wallet.notifications.RegisterWatchAddressProcessor
 import build.wallet.queueprocessor.Processor
 import build.wallet.queueprocessor.ProcessorMock
 import build.wallet.recovery.DescriptorBackupServiceFake
+import build.wallet.recovery.keyset.SpendingKeysetRepairServiceFake
+import build.wallet.recovery.keyset.SpendingKeysetSyncStatus.Mismatch
 import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -41,6 +43,7 @@ class BitcoinAddressServiceImplTests : FunSpec({
   val descriptorBackupService = DescriptorBackupServiceFake()
   val featureFlagDao = FeatureFlagDaoFake()
   val descriptorBackupFailsafeFeatureFlag = DescriptorBackupFailsafeFeatureFlag(featureFlagDao)
+  val spendingKeysetRepairService = SpendingKeysetRepairServiceFake()
 
   fun createService(
     notificationPreferences: NotificationPreferences = NotificationPreferences(
@@ -54,7 +57,8 @@ class BitcoinAddressServiceImplTests : FunSpec({
     notificationsPreferencesCachedProvider = NotificationsPreferencesCachedProviderMock(
       getNotificationPreferencesResult = Ok(notificationPreferences)
     ),
-    descriptorBackupService = descriptorBackupService
+    descriptorBackupService = descriptorBackupService,
+    spendingKeysetRepairService = spendingKeysetRepairService
   )
 
   beforeTest {
@@ -65,6 +69,7 @@ class BitcoinAddressServiceImplTests : FunSpec({
     accountService.reset()
     descriptorBackupService.reset()
     featureFlagDao.reset()
+    spendingKeysetRepairService.reset()
   }
 
   test("generate new address successfully - money movement notifications enabled") {
@@ -146,5 +151,15 @@ class BitcoinAddressServiceImplTests : FunSpec({
     spendingWallet.newAddressResult = Ok(someBitcoinAddress)
 
     service.generateAddress().shouldBeErrOfType<IllegalStateException>()
+  }
+
+  test("checks spending keyset status prior to address generation") {
+    accountService.setActiveAccount(FullAccountMock.copy(keybox = PrivateWalletKeyboxMock))
+    spendingKeysetRepairService.setStatus(Mismatch("a", "b"))
+
+    val service = createService()
+    spendingWallet.newAddressResult = Ok(someBitcoinAddress)
+
+    service.generateAddress().shouldBeErrOfType<KeysetMismatchError>()
   }
 })

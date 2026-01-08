@@ -73,7 +73,7 @@ extension SignTransaction: IOCommand {
 }
 
 extension WipeState: IOCommand {
-    typealias FFIStateType = BooleanState
+    typealias FFIStateType = WipeStateResultState
     typealias ResultType = Bool
 }
 
@@ -197,6 +197,24 @@ extension IOCommand {
         switch try self.next(response: response) {
         case let .data(response: response): return .data(response: response)
         case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<Bool>
+        where FFIStateType == WipeStateResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response):
+            return .data(response: response)
+        case let .result(value: value):
+            switch value {
+            case let .success(success):
+                return .result(value: success)
+            case .confirmationPending:
+                fatalError(
+                    "Confirmation pending not yet supported - firmware should not return this"
+                )
+            }
         }
     }
 

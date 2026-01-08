@@ -20,6 +20,8 @@ void rtos_thread_create_static(rtos_thread_t* thread, void (*func)(void*), const
                                uint32_t stack_size, StaticTask_t* task_buffer,
                                rtos_thread_mpu_t mpu_regions) {
   ASSERT(IS_POWER_OF_TWO(stack_size));
+
+#if (configENABLE_MPU == 1)
   ASSERT(mpu_regions.privilege == rtos_thread_unprivileged_bit ||
          mpu_regions.privilege == rtos_thread_privileged_bit);
 
@@ -33,6 +35,24 @@ void rtos_thread_create_static(rtos_thread_t* thread, void (*func)(void*), const
                                        .pxTaskBuffer = (StaticTask_t*)task_buffer};
   memcpy(pxTaskDefinition.xRegions, mpu_regions.regions, sizeof(mpu_regions.regions));
   xTaskCreateRestrictedStatic(&pxTaskDefinition, (TaskHandle_t*)&(thread->handle));
+#else
+  // When MPU is disabled, use the standard static task creation
+  // MPU regions parameter is ignored when MPU is not enabled
+  (void)mpu_regions;
+
+  TaskHandle_t task_handle =
+    xTaskCreateStatic(func,                           // Task function
+                      name,                           // Task name
+                      stack_size / sizeof(uint32_t),  // Stack size in words
+                      args,                           // Task parameters
+                      priority,                       // Priority
+                      (StackType_t*)stack_buffer,     // Stack buffer
+                      task_buffer                     // Task control block buffer
+    );
+
+  thread->handle = (uintptr_t)task_handle;
+  ASSERT(task_handle != NULL);
+#endif
 }
 
 void rtos_thread_delete(rtos_thread_t* thread) {

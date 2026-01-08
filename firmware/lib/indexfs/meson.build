@@ -12,7 +12,7 @@ deps = [
   helpers_dep,
   assert_dep,
   log_dep,
-  mcu_efr32xg24_dep,
+  mcu_dep,
 ]
 
 indexfs_lib = library('indexfs',

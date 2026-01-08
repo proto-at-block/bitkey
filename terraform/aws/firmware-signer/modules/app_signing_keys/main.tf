@@ -8,16 +8,32 @@ locals {
     for role_name in var.public_access_lambda_role_names :
     "arn:aws:iam::${var.account_id}:role/${role_name}"
   ]
+
+  # Determine which import method is being used
+  import_by_id    = var.imported_key_id != null
+  import_by_alias = var.imported_key_alias != null
+  create_new_key  = !local.import_by_id && !local.import_by_alias
 }
 
-# For imported keys, just reference them
-data "aws_kms_key" "imported" {
-  count  = var.imported_key_id != null ? 1 : 0
+# For keys imported by ID
+data "aws_kms_key" "imported_by_id" {
+  count  = local.import_by_id ? 1 : 0
   key_id = var.imported_key_id
 }
 
+# For keys imported by alias
+data "aws_kms_alias" "imported_by_alias" {
+  count = local.import_by_alias ? 1 : 0
+  name  = "alias/${var.imported_key_alias}"
+}
+
+data "aws_kms_key" "imported_by_alias" {
+  count  = local.import_by_alias ? 1 : 0
+  key_id = data.aws_kms_alias.imported_by_alias[0].target_key_id
+}
+
 resource "aws_kms_key" "app_signing_key" {
-  count                    = var.imported_key_id == null ? 1 : 0
+  count                    = local.create_new_key ? 1 : 0
   description              = "${var.product_name} app signing key"
   multi_region             = var.multi_region
   key_usage                = "SIGN_VERIFY"
@@ -87,21 +103,34 @@ resource "aws_kms_key" "app_signing_key" {
 
 # Use whichever key exists
 locals {
-  kms_key_id  = var.imported_key_id != null ? data.aws_kms_key.imported[0].id : aws_kms_key.app_signing_key[0].id
-  kms_key_arn = var.imported_key_id != null ? data.aws_kms_key.imported[0].arn : aws_kms_key.app_signing_key[0].arn
+  kms_key_id = (
+    local.import_by_alias ? data.aws_kms_key.imported_by_alias[0].id :
+    local.import_by_id ? data.aws_kms_key.imported_by_id[0].id :
+    aws_kms_key.app_signing_key[0].id
+  )
+  kms_key_arn = (
+    local.import_by_alias ? data.aws_kms_key.imported_by_alias[0].arn :
+    local.import_by_id ? data.aws_kms_key.imported_by_id[0].arn :
+    aws_kms_key.app_signing_key[0].arn
+  )
 }
 
+# Only create alias if not importing by alias (key already has one)
 resource "aws_kms_alias" "app_signing_key" {
+  count         = local.import_by_alias ? 0 : 1
   name          = "alias/${var.resource_prefix}-${var.product_name}-app-signing-key"
   target_key_id = local.kms_key_id
 }
 
-resource "aws_iam_policy" "public_access_policy" {
-  name        = "${var.resource_prefix}-${var.product_name}-kms-key-public-access-policy"
-  description = "Policy to allow public accesses to the ${var.product_name} KMS key"
+# Use inline policies instead of managed policies to avoid hitting the 10 managed policies per role limit
+#
+# Note: The wildcard in the resource is intentional here to allow listing all aliases and getting any public key.
+#tfsec:ignore:aws-iam-no-policy-wildcards
+resource "aws_iam_role_policy" "public_access_inline" {
+  for_each = toset(var.public_access_lambda_role_names)
+  name     = "${var.resource_prefix}-${var.product_name}-kms-key-public-access-inline"
+  role     = each.key
 
-  # Note: The wildcard in the resource is intentional here to allow listing all aliases and getting any public key.
-  #tfsec:ignore:aws-iam-no-policy-wildcards
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -112,42 +141,25 @@ resource "aws_iam_policy" "public_access_policy" {
           "kms:GetPublicKey",
           "kms:Verify"
         ]
-        Resource = [
-          "*"
-        ]
+        Resource = ["*"]
       },
     ]
   })
 }
 
-resource "aws_iam_policy" "sign_policy" {
-  name        = "${var.resource_prefix}-${var.product_name}-kms-key-sign-policy"
-  description = "Policy to allow signing with the ${var.product_name} KMS key"
+resource "aws_iam_role_policy" "sign_inline" {
+  for_each = toset(var.signing_access_lambda_role_names)
+  name     = "${var.resource_prefix}-${var.product_name}-kms-key-sign-inline"
+  role     = each.key
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Effect = "Allow"
-        Action = [
-          "kms:Sign"
-        ]
-        Resource = [
-          local.kms_key_arn
-        ]
+        Effect   = "Allow"
+        Action   = ["kms:Sign"]
+        Resource = [local.kms_key_arn]
       },
     ]
   })
-}
-
-resource "aws_iam_role_policy_attachment" "public_access_policy_attachments" {
-  for_each   = toset(var.public_access_lambda_role_names)
-  policy_arn = aws_iam_policy.public_access_policy.arn
-  role       = each.key
-}
-
-resource "aws_iam_role_policy_attachment" "sign_policy_attachments" {
-  for_each   = toset(var.signing_access_lambda_role_names)
-  policy_arn = aws_iam_policy.sign_policy.arn
-  role       = each.key
 }

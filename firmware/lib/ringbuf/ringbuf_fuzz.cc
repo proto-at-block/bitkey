@@ -11,10 +11,11 @@ extern "C" {
 
 DEFINE_FFF_GLOBALS;
 
-bool rtos_mutex_lock(rtos_mutex_t* UNUSED(t)) {
+static bool fuzz_lock(void) {
   return true;
 }
-bool rtos_mutex_unlock(rtos_mutex_t* UNUSED(a)) {
+
+static bool fuzz_unlock(void) {
   return true;
 }
 bool bio_fingerprint_exists(void) {
@@ -34,12 +35,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     int sub_buf_data_len = 0;
     uint8_t data = 0;
 
-    ringbuf.buf = main_buf;
-    ringbuf.max_size = sizeof(main_buf);
-    ringbuf.head = 0;
-    ringbuf.tail = 0;
-    ringbuf.lock = NULL;
-    ringbuf.full = false;
+    ringbuf_api_t api = {
+      .lock = fuzz_lock,
+      .unlock = fuzz_unlock,
+    };
+    ringbuf.api = api;
+    ringbuf_init(&ringbuf, main_buf, sizeof(main_buf));
 
     jitter = fuzzed_data.ConsumeIntegralInRange(0, 5);      // sometimes try to go past the buffer
     int select = fuzzed_data.ConsumeIntegralInRange(0, 7);  // keep in sync with number of cases

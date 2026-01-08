@@ -13,7 +13,7 @@ import zipfile
 import tempfile
 
 
-def flash_build_zip(build_zip: Path, bootloader: bool = False):
+def flash_build_zip(build_zip: Path, chip_name: str, bootloader: bool = False) -> None:
     build_dir = tempfile.TemporaryDirectory()
     with zipfile.ZipFile(build_zip, "r") as zip_ref:
         zip_ref.extractall(build_dir.name)
@@ -36,7 +36,7 @@ def flash_build_zip(build_zip: Path, bootloader: bool = False):
     # be a higher version resident in one of the slots, and the flash will appear to
     # 'not have worked' because the BL picked the higher version.
     with JLinkGdbServer(
-        "EFR32MG24BXXXF1536", gdb_flash_cfg.name, "JLinkGDBServer", "arm-none-eabi-gdb"
+        chip_name, gdb_flash_cfg.name, "JLinkGDBServer", "arm-none-eabi-gdb"
     ) as gdb:
         if bootloader:
             if not gdb.flash(Path(bootloader_path)):
@@ -54,6 +54,7 @@ def flash_build_zip(build_zip: Path, bootloader: bool = False):
         "version": "Version number to flash, formatted like 1.0.80",
         "fwup": "Firmware update to the lastest version for your device using a USB NFC reader",
         "bootloader": "Update the bootloader too",
+        "chip": "Target device chip",
     },
 )
 def apply(
@@ -62,6 +63,7 @@ def apply(
     version: str = None,
     fwup: str = None,
     bootloader: bool = False,
+    chip: str = "EFR32MG24BXXXF1536",
 ):
     """Apply a firmware release to your device. Must specify ONE OF (build_zip, version, fwup)."""
 
@@ -92,7 +94,7 @@ def apply(
         # so if it's lost, that sensor can never be talked to again.
         backup = do_backup(c, None)
         assert backup, "Backup failed"
-        flash_build_zip(build_zip, bootloader=bootloader)
+        flash_build_zip(build_zip, chip, bootloader=bootloader)
     elif fwup:
         wallet = Wallet(WalletComms(NFCTransaction()))
         FirmwareUpdater(wallet).fwup()

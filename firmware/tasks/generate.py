@@ -47,13 +47,15 @@ def meta(c, target=None, generate=False, build_type="dev", fw_image_type="", inp
 
 @task(help={
     "target": "Custom target to generate linker script for",
+    "platform": "Target platform",
     "output": "Generated linker script output file",
 })
-def linker(c, target=None, output=None):
+def linker(c, target=None, platform=None, output=None):
     """Generate the linker script for a target"""
     target = target if target else c.target
+    platform = platform if platform else c.platform
 
     # Get the target information
-    mb = MesonBuild(c, target=target)
+    mb = MesonBuild(c, target=target, platform=platform)
     lg = LinkerGenerator(target, mb.platform['partitions'], mb.is_bootloader)
     lg.generate(output)

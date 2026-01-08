@@ -12,6 +12,16 @@ enum class HwKeyConfig {
   UNKNOWN,
 }
 
+enum class McuRole {
+  CORE,
+  UXC,
+}
+
+enum class McuName {
+  EFR32,
+  STM32U5,
+}
+
 data class TemplateMatchStats(
   val passCount: Long,
   val firmwareVersion: String,
@@ -32,6 +42,18 @@ data class BioMatchStats(
   }
 }
 
+data class McuInfo(
+  val mcuRole: McuRole,
+  val mcuName: McuName,
+  val firmwareVersion: String,
+) {
+  override fun toString(): String {
+    val role = mcuRole.name
+    val name = mcuName.name
+    return "role: $role, name: $name, firmwareVersion: $firmwareVersion"
+  }
+}
+
 /**
  * @version Firmware version number.
  * @serial Hardware's top-level (assembly) serial number.
@@ -45,6 +67,7 @@ data class BioMatchStats(
  * @secureBootConfig Secure boot configuration.
  * @timeRetrieved Time this information was retrieved in Unix epoch seconds.
  * @bioMatchStats Fingerprint match statistics. This field SHOULD NOT be persisted. It should only be used for telemetry.
+ * @mcuInfo Information about the MCUs present in the device.
  */
 data class FirmwareDeviceInfo(
   val version: String,
@@ -59,6 +82,7 @@ data class FirmwareDeviceInfo(
   val secureBootConfig: SecureBootConfig,
   val timeRetrieved: Long,
   val bioMatchStats: BioMatchStats?,
+  val mcuInfo: List<McuInfo>,
 ) {
   /**
    * Detects the hardware type from the hardware revision string.
@@ -116,4 +140,6 @@ data class FirmwareDeviceInfo(
     // actually full.
     return (batteryCharge * (100.0 / 85)).coerceAtMost(100.0).toInt()
   }
+
+  fun mcuInfo(): String = mcuInfo.joinToString("/") { "${it.mcuRole}:${it.firmwareVersion}" }
 }

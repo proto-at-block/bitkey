@@ -135,7 +135,7 @@ static void configure_gpios(const mcu_i2c_bus_config_t* config) {
 }
 
 bool mcu_i2c_transfer_enter_critical(const mcu_i2c_device_t* device) {
-  return _mcu_i2c_bus_ctitical_lock(device->peripheral);
+  return _mcu_i2c_bus_critical_lock(device->peripheral);
 }
 
 bool mcu_i2c_transfer_exit_critical(const mcu_i2c_device_t* device) {

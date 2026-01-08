@@ -133,7 +133,8 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
       ListKeysetsResponse(
         keysets = listOf(mockRemoteKeyset),
         wrappedSsek = null,
-        descriptorBackups = emptyList()
+        descriptorBackups = emptyList(),
+        activeKeysetId = mockRemoteKeyset.keysetId
       )
     )
 
@@ -174,7 +175,8 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
           ListKeysetsResponse(
             keysets = listOf(mockRemoteKeyset),
             wrappedSsek = mockWrappedSsek,
-            descriptorBackups = mockDescriptorBackups
+            descriptorBackups = mockDescriptorBackups,
+            activeKeysetId = mockRemoteKeyset.keysetId
           )
         )
 

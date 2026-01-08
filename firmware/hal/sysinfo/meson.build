@@ -4,7 +4,7 @@ srcs = [
 includes = ['inc']
 
 deps = [
-  mcu_efr32xg24_dep,
+  mcu_dep,
   helpers_dep,
   fs_dep,
   log_dep,
@@ -22,7 +22,7 @@ sysinfo_dep = declare_dependency(
 
 cmd_deps = [
   sysinfo_dep,
-  mcu_efr32xg24_dep,
+  mcu_dep,
   printf_dep,
   shell_dep,
   log_dep,

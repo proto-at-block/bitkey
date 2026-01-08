@@ -1,0 +1,8 @@
+{
+  "rules": [
+    {
+      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-bitkey-server.md"
+    }
+  ],
+  "useCursorRules": false
+}

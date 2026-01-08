@@ -2,7 +2,7 @@ srcs = [
   'canary.c',
 ]
 
-deps = [mcu_efr32xg24_dep, secure_engine_dep]
+deps = [crypto_dep, helpers_dep, mcu_dep]
 
 canary_lib = library('canary',
   srcs,

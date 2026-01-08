@@ -1,0 +1,18 @@
+{
+    "module-identifier": "net.peanuuutz.tomlkt:tomlkt-jvm",
+    "components": [
+        {
+            "version": "0.3.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "tomlkt-jvm-0.3.7.jar": "c996b2dee0bf7be1d9d962e944d13510331092cf5687fddcc0523aba4eadfe4f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bdk-ffi]"
+            ]
+        }
+    ]
+}

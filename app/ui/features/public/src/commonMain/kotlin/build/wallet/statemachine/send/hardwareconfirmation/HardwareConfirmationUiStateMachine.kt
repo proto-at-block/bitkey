@@ -7,11 +7,7 @@ import build.wallet.statemachine.core.StateMachine
  * State machine for the hardware confirmation screen shown before NFC signing.
  * This screen prompts the user to review transaction details on their Bitkey device.
  */
-interface HardwareConfirmationUiStateMachine : StateMachine<HardwareConfirmationUiProps, ScreenModel> {
-  companion object {
-    const val HARDWARE_CONFIRMATION_LEARN_MORE_URL = "https://example.com"
-  }
-}
+interface HardwareConfirmationUiStateMachine : StateMachine<HardwareConfirmationUiProps, ScreenModel>
 
 /**
  * @property onBack - Handler for back/cancel action

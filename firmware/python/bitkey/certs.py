@@ -52,12 +52,13 @@ def check_device_cert_is_for_block(cert) -> bool:
 
     subject = cert.subject
 
-    BLOCK = "Block Inc"
+    ORG_W1 = "Block Inc"
+    ORG_W3 = "Bitkey W3, Block Inc"
 
     o = subject.get_attributes_for_oid(x509.NameOID.ORGANIZATION_NAME)[0].value
     cn = subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 
-    return (o == BLOCK) and (BLOCK in cn)
+    return ((o == ORG_W1) and (ORG_W1 in cn)) or ((o == ORG_W3) and (ORG_W3 in cn))
 
 
 def extract_pubkey_from_cert(cert) -> bytes:

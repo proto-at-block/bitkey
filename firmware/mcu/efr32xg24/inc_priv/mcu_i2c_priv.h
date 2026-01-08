@@ -14,7 +14,7 @@ typedef struct {
   /* RTOS */
   rtos_mutex_t init_access;
   rtos_mutex_t transfer_access;
-  rtos_mutex_t ctitical_access;
+  rtos_mutex_t critical_access;
 
   /* Performance Counters */
   struct {
@@ -32,7 +32,7 @@ mcu_i2c_bus_state_t* _mcu_i2c_bus_get_state(const mcu_i2c_t peripheral);
 void _mcu_i2c_bus_init_state(const mcu_i2c_t peripheral);
 bool _mcu_i2c_bus_lock(const mcu_i2c_t peripheral);
 bool _mcu_i2c_bus_unlock(const mcu_i2c_t peripheral);
-bool _mcu_i2c_bus_ctitical_lock(const mcu_i2c_t peripheral);
+bool _mcu_i2c_bus_critical_lock(const mcu_i2c_t peripheral);
 bool _mcu_i2c_bus_critical_unlock(const mcu_i2c_t peripheral);
 bool _mcu_i2c_bus_init_lock(const mcu_i2c_t peripheral);
 bool _mcu_i2c_bus_init_unlock(const mcu_i2c_t peripheral);

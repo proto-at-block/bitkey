@@ -48,3 +48,21 @@
 [submodule "firmware/third-party/memfault-firmware-sdk"]
 	path = firmware/third-party/memfault-firmware-sdk
 	url = https://github.com/memfault/memfault-firmware-sdk.git
+[submodule "firmware/third-party/lvgl"]
+	path = firmware/third-party/lvgl
+	url = https://github.com/lvgl/lvgl.git
+[submodule "firmware/third-party/stm32u5xx-hal"]
+	path = firmware/third-party/stm32u5xx-hal
+	url = https://github.com/STMicroelectronics/stm32u5xx-hal-driver
+[submodule "firmware/third-party/cmsis-device-u5"]
+	path = firmware/third-party/cmsis-device-u5
+	url = https://github.com/STMicroelectronics/cmsis-device-u5.git
+[submodule "firmware/third-party/CMSIS_6"]
+	path = firmware/third-party/CMSIS_6
+	url = https://github.com/ARM-software/CMSIS_6.git
+[submodule "firmware/third-party/nanocobs"]
+	path = firmware/third-party/nanocobs
+	url = https://github.com/charlesnicholson/nanocobs.git
+[submodule "firmware/third-party/picocert"]
+	path = firmware/third-party/picocert
+	url = https://github.com/block/picocert.git

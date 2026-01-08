@@ -19,11 +19,13 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostA
 interface LostAppRecoveryDataStateMachine : StateMachine<LostAppRecoveryProps, LostAppRecoveryData>
 
 /**
+ * @property cloudBackups List of cloud backups to try during recovery. The restoration flow will
+ * attempt to decrypt each backup with the hardware key until one succeeds.
  * @property fullAccountConfig keybox configuration to use for Lost App recovery.
  * @property account existing account if any. TODO(W-3072): move into state machine as implementation detail.
  */
 data class LostAppRecoveryProps(
-  val cloudBackup: CloudBackup?,
+  val cloudBackups: List<CloudBackup>,
   val activeRecovery: StillRecovering?,
   val onRollback: () -> Unit,
   val goToLiteAccountCreation: () -> Unit,
@@ -41,7 +43,7 @@ class LostAppRecoveryDataStateMachineImpl(
       null ->
         lostAppRecoveryHaveNotStartedDataStateMachine.model(
           LostAppRecoveryHaveNotStartedProps(
-            cloudBackup = props.cloudBackup,
+            cloudBackups = props.cloudBackups,
             onRollback = props.onRollback,
             goToLiteAccountCreation = props.goToLiteAccountCreation
           )

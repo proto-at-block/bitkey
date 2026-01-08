@@ -6,10 +6,22 @@ set -euo pipefail
 ### https://github.com/squareup/runway-pipeline-config/blob/main/pipelines/mdx-ios/wallet.yaml
 ### It `cat` .yml files to populate a BK pipeline based on env vars
 
+# Check if .buildkite/ files changed (auto-triggers iOS builds for CI config validation)
+buildkite_changed() {
+    local default_branch="${BUILDKITE_PIPELINE_DEFAULT_BRANCH:-main}"
+
+    if ! git fetch origin "${default_branch}" --depth=1 2>/dev/null; then
+        echo "Warning: git fetch origin ${default_branch} failed; skipping .buildkite/ change detection." >&2
+        return 1
+    fi
+
+    git diff --name-only "origin/${default_branch}...HEAD" 2>/dev/null | grep -q "^\.buildkite/"
+}
+
 if [[ "${BUILDKITE_PULL_REQUEST:-}" != "false" ]]; then
-    if [[ "${BUILDKITE_PULL_REQUEST_LABELS:-}" =~ (app|core|ios) ]]; then
+    if [[ "${BUILDKITE_PULL_REQUEST_LABELS:-}" =~ (app|core|ios|ci) ]] || buildkite_changed; then
         cat .buildkite/mobuild/pipeline.pr.yml
-    else 
+    else
         cat .buildkite/mobuild/pipeline.pr.noop.yml
     fi 
 elif [[ "${BUILDKITE_BRANCH:-}" == "${BUILDKITE_PIPELINE_DEFAULT_BRANCH:-}" ]]; then

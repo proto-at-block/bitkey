@@ -1,5 +1,7 @@
 #include "mcu_dma.h"
 
+#include "mcu_dma_impl.h"
+
 #include "em_core.h"
 #include "em_ldma.h"
 
@@ -34,7 +36,8 @@ mcu_err_t mcu_dma_init(const int8_t nvic_priority) {
   CORE_DECLARE_IRQ_STATE;
 
   LDMA_Init_t dma_init = LDMA_INIT_DEFAULT;
-  dma_init.ldmaInitCtrlNumFixed = 0;
+  // Use fixed priority for channels 0-1, round-robin for higher channels.
+  dma_init.ldmaInitCtrlNumFixed = 2;
 
   CORE_ENTER_ATOMIC();
   if (initialised) {
@@ -59,7 +62,11 @@ mcu_err_t mcu_dma_init(const int8_t nvic_priority) {
   return MCU_ERROR_OK;
 }
 
-mcu_err_t mcu_dma_allocate_channel(uint32_t* channel, mcu_dma_callback_t callback) {
+uint32_t mcu_dma_get_max_xfer_size(void) {
+  return MCU_DMA_MAX_XFER_COUNT;
+}
+
+mcu_err_t mcu_dma_allocate_channel(uint32_t* channel) {
   CORE_DECLARE_IRQ_STATE;
 
   if (!initialised) {
@@ -75,7 +82,8 @@ mcu_err_t mcu_dma_allocate_channel(uint32_t* channel, mcu_dma_callback_t callbac
     if (!channels[i].allocated) {
       *channel = i;
       channels[i].allocated = true;
-      channels[i].callback = callback;
+      channels[i].callback = NULL;
+      channels[i].user_param = NULL;
       CORE_EXIT_ATOMIC();
       return MCU_ERROR_OK;
     }
@@ -83,6 +91,22 @@ mcu_err_t mcu_dma_allocate_channel(uint32_t* channel, mcu_dma_callback_t callbac
   CORE_EXIT_ATOMIC();
 
   return MCU_ERROR_DMA_CHANNELS_EXHAUSTED;
+}
+
+mcu_err_t mcu_dma_channel_configure(uint32_t channel, void* user_param) {
+  channel_table_t* ch;
+
+  if (channel >= LDMA_CH_NUM) {
+    return MCU_ERROR_PARAMETER;
+  }
+
+  ch = &channels[channel];
+  if (ch->allocated == false) {
+    return MCU_ERROR_DMA_CHANNEL_NOT_ALLOC;
+  }
+
+  ch->user_param = user_param;
+  return MCU_ERROR_OK;
 }
 
 mcu_err_t mcu_dma_peripheral_memory(uint32_t channel, mcu_dma_signal_t signal, void* dst, void* src,
@@ -96,6 +120,22 @@ mcu_err_t mcu_dma_memory_peripheral(int32_t channel, mcu_dma_signal_t signal, vo
                                     bool src_inc, int len, mcu_dma_data_size_t size,
                                     mcu_dma_callback_t callback, void* user_param) {
   return start_transfer(MCU_DMA_MODE_BASIC, MCU_DMA_DIR_M2P, channel, signal, dst, src, NULL,
+                        src_inc, len, size, callback, user_param);
+}
+
+mcu_err_t mcu_dma_peripheral_memory_ping_pong(int32_t channel, mcu_dma_signal_t signal, void* dst1,
+                                              void* dst2, void* src, bool dst_inc, int len,
+                                              mcu_dma_data_size_t size, mcu_dma_callback_t callback,
+                                              void* user_param) {
+  return start_transfer(MCU_DMA_MODE_PING_PONG, MCU_DMA_DIR_P2M, channel, signal, dst1, dst2, src,
+                        dst_inc, len, size, callback, user_param);
+}
+
+mcu_err_t mcu_dma_memory_peripheral_ping_pong(int32_t channel, mcu_dma_signal_t signal, void* dst,
+                                              void* src1, void* src2, bool src_inc, int len,
+                                              mcu_dma_data_size_t size, mcu_dma_callback_t callback,
+                                              void* user_param) {
+  return start_transfer(MCU_DMA_MODE_PING_PONG, MCU_DMA_DIR_M2P, channel, signal, dst, src1, src2,
                         src_inc, len, size, callback, user_param);
 }
 
@@ -140,7 +180,23 @@ static mcu_err_t start_transfer(mcu_dma_mode_t mode, mcu_dma_direction_t directi
   desc->xfer.xferCnt = len - 1;
   desc->xfer.dstAddr = (uint32_t)(uint8_t*)buf0;
   desc->xfer.srcAddr = (uint32_t)(uint8_t*)buf1;
-  desc->xfer.size = size;
+
+  switch (size) {
+    case MCU_DMA_SIZE_1_BYTE:
+      desc->xfer.size = ldmaCtrlSizeByte;
+      break;
+
+    case MCU_DMA_SIZE_2_BYTES:
+      desc->xfer.size = ldmaCtrlSizeHalf;
+      break;
+
+    case MCU_DMA_SIZE_4_BYTES:
+      desc->xfer.size = ldmaCtrlSizeWord;
+      break;
+
+    default:
+      return MCU_ERROR_PARAMETER;
+  }
 
   if (mode == MCU_DMA_MODE_PING_PONG) {
     desc->xfer.linkMode = ldmaLinkModeRel;

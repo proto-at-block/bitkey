@@ -1,8 +1,9 @@
 srcs = [
-  'captouch_task.c',
+  'src/captouch_task.c',
+  'src/captouch_task_mpu.c',
 ]
 
-incs = ['.']
+incs = ['inc', mpu_regions_includes]
 deps = [
   rtos_dep,
   power_dep,
@@ -10,6 +11,7 @@ deps = [
   sysevent_dep,
   ipc_dep,
   auth_dep,
+  ui_messaging_dep,
 ]
 
 captouch_task_lib = library(

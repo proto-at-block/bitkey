@@ -94,6 +94,7 @@ bool bio_lib_init(void);
 void bio_lib_reset(void);
 void bio_hal_init(void);
 
+bool bio_wait_for_finger_non_blocking(bio_gesture_t gesture);
 void bio_wait_for_finger_blocking(bio_gesture_t gesture);
 
 // Retrieve how many fingers have already been enrolled in `count`
@@ -130,6 +131,19 @@ bool bio_image_analysis_test(fpc_bep_capture_test_mode_t mode,
                              fpc_bep_analyze_result_t* test_result);
 bool bio_sensor_is_secured(bool* secured);
 bool bio_sensor_is_otp_locked(bool* locked);
+
+/**
+ * @brief Writes/reads data to the fingerprint sensor.
+ *
+ * @details Writes @p data_size bytes from the given @p data to the fingerprint
+ * sensor, returning @p data_size bytes into the same buffer.
+ *
+ * @param data       Buffer to read data from and write data to.
+ * @param data_size  Number of bytes in the data buffer @p data.
+ *
+ * @return `true` on success, otherwise `false`.
+ */
+bool bio_sensor_write_read(uint8_t* data, size_t data_size);
 bool bio_image_capture_test(uint8_t** image_out, uint32_t* image_size_out);
 
 // Get the firmware version that enrolled a given template.

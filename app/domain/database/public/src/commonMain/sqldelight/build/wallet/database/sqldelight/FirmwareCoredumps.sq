@@ -4,15 +4,16 @@ CREATE TABLE firmwareCoredumpsEntity(
     serial    TEXT NOT NULL,
     swVersion TEXT NOT NULL,
     hwVersion TEXT NOT NULL,
-    swType    TEXT NOT NULL
+    swType    TEXT NOT NULL,
+    mcuInfo   TEXT NOT NULL DEFAULT ""
 );
 
 append:
-INSERT INTO firmwareCoredumpsEntity(coredump, serial, swVersion, hwVersion, swType)
-VALUES(?, ?, ?, ?, ?);
+INSERT INTO firmwareCoredumpsEntity(coredump, serial, swVersion, hwVersion, swType, mcuInfo)
+VALUES(?, ?, ?, ?, ?, ?);
 
 take:
-SELECT id, coredump, serial, swVersion, hwVersion, swType FROM firmwareCoredumpsEntity ORDER BY id ASC LIMIT ?;
+SELECT id, coredump, serial, swVersion, hwVersion, swType, mcuInfo FROM firmwareCoredumpsEntity ORDER BY id ASC LIMIT ?;
 
 removeFirst:
 DELETE FROM firmwareCoredumpsEntity

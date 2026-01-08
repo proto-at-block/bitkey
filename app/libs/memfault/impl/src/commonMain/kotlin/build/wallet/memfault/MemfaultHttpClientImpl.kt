@@ -16,6 +16,7 @@ import io.ktor.http.ContentType.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.util.*
 import kotlinx.serialization.json.Json
+import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(AppScope::class)
 class MemfaultHttpClientImpl(
@@ -34,6 +35,12 @@ class MemfaultHttpClientImpl(
             ignoreUnknownKeys = true
           }
         )
+      }
+
+      install(HttpTimeout) {
+        connectTimeoutMillis = 15.seconds.inWholeMilliseconds
+        requestTimeoutMillis = 60.seconds.inWholeMilliseconds
+        socketTimeoutMillis = 60.seconds.inWholeMilliseconds
       }
 
       defaultRequest {

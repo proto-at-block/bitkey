@@ -117,30 +117,30 @@ private fun bitcoinDisplayUnitSnapshotModel(
   selectedUnit: BitcoinDisplayUnit,
   isBip177Enabled: Boolean,
 ) = BitcoinDisplayUnitSelectionBodyModel(
-    items = BitcoinDisplayUnit.entries.map { unit ->
-      ListItemModel(
-        title = unit.displayText(isBip177Enabled = isBip177Enabled),
-        secondaryText = when (unit) {
-          BitcoinDisplayUnit.Bitcoin -> "0.001 BTC"
-          BitcoinDisplayUnit.Satoshi -> if (isBip177Enabled) "₿100,000" else "100,000 sats"
-        },
-        treatment = ListItemTreatment.PRIMARY,
-        onClick = {},
-        selected = unit == selectedUnit,
-        trailingAccessory = if (unit == selectedUnit) {
-          ListItemAccessory.IconAccessory(
-            model = IconModel(
-              icon = Icon.SmallIconCheckFilled,
-              iconSize = IconSize.Small,
-              iconTint = IconTint.Primary
-            )
+  items = BitcoinDisplayUnit.entries.map { unit ->
+    ListItemModel(
+      title = unit.displayText(isBip177Enabled = isBip177Enabled),
+      secondaryText = when (unit) {
+        BitcoinDisplayUnit.Bitcoin -> "0.001 BTC"
+        BitcoinDisplayUnit.Satoshi -> if (isBip177Enabled) "₿100,000" else "100,000 sats"
+      },
+      treatment = ListItemTreatment.PRIMARY,
+      onClick = {},
+      selected = unit == selectedUnit,
+      trailingAccessory = if (unit == selectedUnit) {
+        ListItemAccessory.IconAccessory(
+          model = IconModel(
+            icon = Icon.SmallIconCheckFilled,
+            iconSize = IconSize.Small,
+            iconTint = IconTint.Primary
           )
-        } else {
-          null
-        }
-      )
-    }.toImmutableList(),
-    selectedUnit = selectedUnit,
-    isBip177Enabled = isBip177Enabled,
-    onSelectUnit = {}
-  )
+        )
+      } else {
+        null
+      }
+    )
+  }.toImmutableList(),
+  selectedUnit = selectedUnit,
+  isBip177Enabled = isBip177Enabled,
+  onSelectUnit = {}
+)

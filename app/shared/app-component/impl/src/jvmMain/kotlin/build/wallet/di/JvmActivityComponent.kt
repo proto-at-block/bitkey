@@ -1,9 +1,9 @@
 package build.wallet.di
 
+import build.wallet.availability.AgeRangeVerificationServiceImpl
 import build.wallet.f8e.inheritance.ShortenInheritanceClaimF8eClient
 import build.wallet.inheritance.InheritanceClaimsRepository
 import build.wallet.nfc.NfcTransactor
-import build.wallet.availability.AgeRangeVerificationServiceImpl
 import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachine
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiStateMachine
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseQuotesUiStateMachine

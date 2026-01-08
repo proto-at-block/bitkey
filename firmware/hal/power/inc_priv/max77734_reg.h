@@ -43,6 +43,22 @@ typedef enum {
 } max77734_reg_t;
 
 typedef enum {
+  MAX77734_CHG_DTLS_OFF = 0b0000,
+  MAX77734_CHG_DTLS_PREQUALIFICATION = 0b0001,
+  MAX77734_CHG_DTLS_CC = 0b0010,
+  MAX77734_CHG_DTLS_JEITA_CC = 0b0011,
+  MAX77734_CHG_DTLS_CV = 0b0100,
+  MAX77734_CHG_DTLS_JEITA_CV = 0b0101,
+  MAX77734_CHG_DTLS_TOP_OFF = 0b0110,
+  MAX77734_CHG_DTLS_JEITA_TOP_OFF = 0b0111,
+  MAX77734_CHG_DTLS_DONE = 0b1000,
+  MAX77734_CHG_DTLS_JEITA_DONE = 0b1001,
+  MAX77734_CHG_DTLS_PREQUALIFICATION_TIMER_FAULT = 0b1010,
+  MAX77734_CHG_DTLS_FAST_CHARGE_TIMER_FAULT = 0b1011,
+  MAX77734_CHG_DTLS_BATTERY_TEMP_FAULT = 0b1100,
+} max77734_chg_dtls_bitfield_t;
+
+typedef enum {
   MAX77734BENP = 0x01,
   MAX77734CENP = 0x03,
   MAX77734GENP = 0x04,
@@ -181,6 +197,22 @@ typedef union {
     uint8_t RSVD;        // Reserved
   } values;
 } max77734_reg_cnfg_ldo_b_t;
+
+/**
+ * @brief LDO Enable Control (LDO_EN) values for CNFG_LDO_B register.
+ */
+typedef enum {
+  MAX77734_LDO_EN_AUTO = 0b00,      /**< LDO enables when nENLDO asserts or CHGIN valid */
+  MAX77734_LDO_EN_FORCED_ON = 0b01, /**< LDO is forced ON */
+} max77734_ldo_en_t;
+
+/**
+ * @brief LDO Power Mode Control (LDO_PM) values for CNFG_LDO_B register.
+ */
+typedef enum {
+  MAX77734_LDO_PM_LOW_POWER = 0b00, /**< Forced low-power mode */
+  MAX77734_LDO_PM_NORMAL = 0b01,    /**< Normal mode */
+} max77734_ldo_pm_t;
 
 typedef union {
   uint8_t bytes[1];

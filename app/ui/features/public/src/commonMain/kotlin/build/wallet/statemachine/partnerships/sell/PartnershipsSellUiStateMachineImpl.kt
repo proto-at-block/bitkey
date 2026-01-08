@@ -66,7 +66,7 @@ class PartnershipsSellUiStateMachineImpl(
     // available or are out of date due to the customer being offline or unable to communicate with f8e
     val exchangeRates: ImmutableList<ExchangeRate>? by remember {
       mutableStateOf(
-        exchangeRateService.mostRecentRatesSinceDurationForCurrency(5.minutes, fiatCurrency)
+        exchangeRateService.mostRecentRatesSinceDurationForCurrency(6.minutes, fiatCurrency)
           ?.toImmutableList()
       )
     }

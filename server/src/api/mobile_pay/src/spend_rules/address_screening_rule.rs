@@ -1,20 +1,18 @@
 use std::sync::Arc;
 
-use feature_flags::flag::{evaluate_flag_value, ContextKey};
+use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
 
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk_utils::bdk::bitcoin::{Address, Network};
+use bdk_utils::bdk::bitcoin::Network;
 use types::account::entities::Account;
 
 use crate::spend_rules::errors::SpendRuleCheckError;
 use crate::spend_rules::Rule;
-use screener::service::SanctionsScreener;
-
-const FLAG_KEY: &str = "f8e-sanction-test-account";
+use screener::screening::SanctionsScreener;
 
 pub(crate) struct AddressScreeningRule<'a> {
-    screener_service: Arc<dyn SanctionsScreener>,
+    screener_service: Arc<dyn SanctionsScreener + Send + Sync>,
     feature_flags_service: FeatureFlagsService,
     account: &'a Account,
     network: Network,
@@ -26,39 +24,20 @@ impl Rule for AddressScreeningRule<'_> {
         &self,
         psbt: &PartiallySignedTransaction,
     ) -> Result<(), SpendRuleCheckError> {
-        let tx = psbt.clone().unsigned_tx;
-        let destination_addresses = tx
-            .output
-            .iter()
-            .map(|output| {
-                Address::from_script(&output.script_pubkey, self.network)
-                    .map(|address| address.to_string())
-                    .map_err(|_| SpendRuleCheckError::InvalidScriptPubKeys)
-            })
-            .collect::<Result<Vec<String>, SpendRuleCheckError>>()?;
-
-        let sanction_test_account = self
-            .context_key
-            .as_ref()
-            .and_then(|ck| evaluate_flag_value(&self.feature_flags_service, FLAG_KEY, ck).ok())
-            .unwrap_or(false);
-
-        if sanction_test_account
-            || self
-                .screener_service
-                .should_block_transaction(self.account, &destination_addresses)
-                .map_err(|_| SpendRuleCheckError::ScreenerError)?
-        {
-            Err(SpendRuleCheckError::OutputsBelongToSanctionedIndividuals)
-        } else {
-            Ok(())
-        }
+        self.screener_service.screen_psbt_outputs_for_sanctions(
+            psbt,
+            self.network,
+            self.account,
+            &self.feature_flags_service,
+            self.context_key.clone(),
+        )?;
+        Ok(())
     }
 }
 
 impl<'a> AddressScreeningRule<'a> {
     pub fn new(
-        screener_service: Arc<dyn SanctionsScreener>,
+        screener_service: Arc<dyn SanctionsScreener + Send + Sync>,
         feature_flags_service: FeatureFlagsService,
         account: &'a Account,
         network: Network,
@@ -82,7 +61,7 @@ mod tests {
     use bdk_utils::bdk::bitcoin::ScriptBuf;
     use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex};
     use bdk_utils::bdk::FeeRate;
-    use errors::ApiError;
+    use screener::screening::{SanctionsScreenerError, SANCTION_TEST_FLAG_KEY};
     use secp256k1::rand::rngs::OsRng;
     use secp256k1::{Secp256k1, SecretKey};
     use time::OffsetDateTime;
@@ -98,7 +77,7 @@ mod tests {
             &self,
             _account: &Account,
             _addresses: &[String],
-        ) -> Result<bool, ApiError> {
+        ) -> Result<bool, SanctionsScreenerError> {
             Ok(self.should_block_transaction)
         }
     }
@@ -185,7 +164,7 @@ mod tests {
 
         // Sets the flag to test sanctions
         let feature_flags_service = feature_flags::config::Config::new_with_overrides(
-            HashMap::from([(FLAG_KEY.to_string(), true.to_string())]),
+            HashMap::from([(SANCTION_TEST_FLAG_KEY.to_string(), true.to_string())]),
         )
         .to_service()
         .await

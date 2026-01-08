@@ -1,0 +1,41 @@
+[package]
+edition = "2018"
+homepage = "https://bitcoindevkit.org"
+license = "MIT OR Apache-2.0"
+name = "bdk-ffi"
+repository = "https://github.com/bitcoindevkit/bdk"
+version = "2.2.0-alpha.0"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+name = "bdk"
+
+[[bin]]
+name = "uniffi-bindgen-bdk"
+path = "uniffi-bindgen.rs"
+
+[dependencies]
+bdk_electrum = { version = "0.23.2", default-features = false, features = [
+  "use-rustls-ring",
+] }
+bdk_esplora = { version = "0.22.1", default-features = false, features = [
+  "blocking",
+  "blocking-https-rustls",
+  "std",
+] }
+bdk_kyoto = { version = "0.15.2" }
+bdk_wallet = { version = "2.2.0", features = [
+  "all-keys",
+  "keys-bip39",
+  "rusqlite",
+] }
+
+thiserror = "2.0.17"
+uniffi = { version = "=0.29.4", features = ["cli"] }
+
+[build-dependencies]
+uniffi = { version = "=0.29.4", features = ["build"] }
+
+[dev-dependencies]
+assert_matches = "1.5.0"
+uniffi = { version = "=0.29.4", features = ["bindgen-tests"] }

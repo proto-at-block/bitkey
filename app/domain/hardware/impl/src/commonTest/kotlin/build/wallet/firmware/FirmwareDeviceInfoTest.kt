@@ -19,7 +19,8 @@ class FirmwareDeviceInfoTest : FunSpec({
       91,
       SecureBootConfig.NOT_SET,
       1234,
-      null
+      null,
+      mcuInfo = emptyList()
     )
 
   test("the firmware device fixture should be invalid") {

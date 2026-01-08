@@ -1,4 +1,16 @@
 {
+  "mcpServers": {
+    "slack": {
+      "args": [
+        "mcp_slack"
+      ],
+      "command": "uvx",
+      "env": {
+        "SLACK_DEFAULT_WORKSPACE_ID": "T05HJ0CKWG5",
+        "SLACK_TOKEN": "${SLACK_TOKEN}"
+      }
+    }
+  },
   "rules": [
     {
       "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-overview.md"
@@ -10,10 +22,19 @@
       "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-hermit-environment.md"
     },
     {
+      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-ai-rule-writing.md"
+    },
+    {
       "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-dao-pattern.md"
     },
     {
       "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-basics.md"
+    },
+    {
+      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-mcp-setup.md"
+    },
+    {
+      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-datadog-mcp-usage.md"
     },
     {
       "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-basics.md"
@@ -46,6 +67,9 @@
       "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-integration.md"
     },
     {
+      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-slack-mcp-usage.md"
+    },
+    {
       "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-state-machines.md"
     },
     {
@@ -59,9 +83,6 @@
     },
     {
       "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-models.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-rule-writing.md"
     },
     {
       "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md"

@@ -63,7 +63,8 @@ private class FirmwareTelemetryInterceptor(
         serial = deviceInfo.serial,
         version = deviceInfo.version,
         swType = deviceInfo.swType,
-        hwRevision = deviceInfo.hwRevision
+        hwRevision = deviceInfo.hwRevision,
+        mcuInfo = deviceInfo.mcuInfo()
       )
 
     getEvents(commands, session)?.let {

@@ -99,6 +99,10 @@ enum class SecurityActionRecommendation(
     actionType = SecurityActionType.TRANSACTION_VERIFICATION,
     hasEducation = true
   ),
+  REPAIR_KEYSET_MISMATCH(
+    actionType = SecurityActionType.KEYSET_SYNC,
+    hasEducation = false
+  ),
 }
 
 /**
@@ -114,6 +118,7 @@ enum class SecurityActionType {
   APP_KEY_BACKUP,
   SOCIAL_RECOVERY,
   TRANSACTION_VERIFICATION,
+  KEYSET_SYNC,
 }
 
 enum class SecurityActionState {

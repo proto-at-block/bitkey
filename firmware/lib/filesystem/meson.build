@@ -38,52 +38,54 @@ deps = [
   sysevent_dep,
 ]
 
+# Only add mcu_dep for embedded builds
+if embedded_build
+  deps += mcu_dep
+endif
+
 srcs = [
   'filesystem.c',
+  'filesystem_mpu.c',
   'filesystem_util.c',
 ]
 
-if system == 'efr32mg24'
-  deps += perf_dep
+incs = ['.', 'block_device', mpu_regions_includes, config_includes]
 
-  fs_lib = library('filesystem',
-    srcs,
-    include_directories : [
-      '.',
-      'block_device',
-    ],
-    dependencies : deps
-  )
-  fs_dep = declare_dependency(
-    link_with : fs_lib,
-    include_directories : ['.'],
-    dependencies : [lfs_dep]
-  )
-elif system == 'darwin' or system == 'linux'
+if system == 'darwin' or system == 'linux'
   deps += perf_stubs_dep
 
   fs_lib = library('filesystem',
     srcs,
-    include_directories : [
-      '.',
-      'block_device',
-    ],
+    include_directories : incs,
     dependencies : deps
   )
   fs_dep = declare_dependency(
     link_with : fs_lib,
-    include_directories : ['.'],
+    include_directories : ['.', config_includes],
     dependencies : [lfs_dep, lfs_testbd_dep]
+  )
+else
+  deps += perf_dep
+
+  fs_lib = library('filesystem',
+    srcs,
+    include_directories : incs,
+    dependencies : deps
+  )
+  fs_dep = declare_dependency(
+    link_with : fs_lib,
+    include_directories : ['.', config_includes],
+    dependencies : [lfs_dep, mcu_dep]
   )
 endif
 
 fs_cmd_lib = library('filesystem-cmd',
   'fs_cmd.c',
-  include_directories : ['.'],
+  include_directories : ['.', config_includes],
   dependencies : [deps, fs_bd_cmd_dep, shell_dep]
 )
 fs_cmd_dep = declare_dependency(
   link_whole : fs_cmd_lib,
-  include_directories : ['.'],
+  include_directories : ['.', config_includes],
   dependencies : [deps, fs_bd_cmd_dep, shell_dep]
 )

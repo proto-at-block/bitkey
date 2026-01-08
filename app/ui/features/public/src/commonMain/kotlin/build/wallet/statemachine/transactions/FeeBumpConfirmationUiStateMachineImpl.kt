@@ -15,7 +15,11 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateService
-import build.wallet.statemachine.core.*
+import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.statemachine.core.ErrorData
+import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
@@ -61,7 +65,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
 
         val transactionDetails = TransactionDetails.SpeedUp(
           transferAmount = transferBitcoinAmount,
-          feeAmount = feeBitcoinAmount,
+          feeAmount = feeBitcoinAmount.amount,
           oldFeeAmount = props.speedUpTransactionDetails.oldFee.amount
         )
 
@@ -126,8 +130,13 @@ class FeeBumpConfirmationUiStateMachineImpl(
               feeRate = props.newFeeRate
             )
           },
-          onSuccess = { appAndHwSignedPsbt ->
-            uiState = State.BroadcastingTransaction(appAndHwSignedPsbt)
+          onSuccess = { result ->
+            when (result) {
+              is HardwareInteraction.Completed<Psbt> -> result.result
+              else -> null
+            }?.let {
+              uiState = State.BroadcastingTransaction(it)
+            } ?: error("An error occurred.")
           },
           screenPresentationStyle = ScreenPresentationStyle.Modal,
           eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION,
@@ -195,7 +204,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
           transferAmount = BitcoinMoney
             .sats(currentState.appAndHwSignedPsbt.amountSats.toBigInteger()),
           oldFeeAmount = props.speedUpTransactionDetails.oldFee.amount,
-          feeAmount = currentState.appAndHwSignedPsbt.fee
+          feeAmount = currentState.appAndHwSignedPsbt.fee.amount
         )
 
         when (props.speedUpTransactionDetails.transactionType) {

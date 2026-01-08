@@ -2,11 +2,13 @@ package build.wallet.statemachine.recovery.cloud
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.platform.device.DevicePlatform
 import build.wallet.platform.device.DevicePlatform.*
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -22,6 +24,8 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 
 expect fun CloudBackupNotFoundBodyModel(
   onBack: () -> Unit,
@@ -207,6 +211,37 @@ data class CloudBackupFoundModel(
       testTag = "restore-bitkey-wallet"
     ),
     id = CLOUD_BACKUP_FOUND
+  )
+
+data class SelectCloudBackupBodyModel(
+  val backupItems: ImmutableList<CloudBackupItemModel>,
+  val onBackupSelected: (CloudBackup) -> Unit,
+  val onLearnMoreClick: () -> Unit,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    id = SELECT_ACCOUNT_BACKUP,
+    onBack = onBack,
+    toolbar = ToolbarModel(
+      leadingAccessory = BackAccessory(onClick = onBack)
+    ),
+    header = FormHeaderModel(
+      headline = "Choose a backup",
+      sublineModel = LabelModel.LinkSubstringModel.from(
+        string = "You can use one of the cloud backups we found to restore your account. Learn more",
+        substringToOnClick = mapOf("Learn more" to onLearnMoreClick),
+        underline = true,
+        bold = true
+      )
+    ),
+    mainContentList = immutableListOf(
+      FormMainContentModel.ListGroup(
+        listGroupModel = ListGroupModel(
+          items = backupItems.map { it.toListItemModel(onBackupSelected) }.toImmutableList(),
+          style = ListGroupStyle.DIVIDER
+        )
+      )
+    ),
+    primaryButton = null
   )
 
 data class SocialRecoveryExplanationModel(

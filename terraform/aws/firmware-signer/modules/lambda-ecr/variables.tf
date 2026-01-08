@@ -60,3 +60,9 @@ variable "force_update" {
   description = "Force Lambda to update by pulling the latest image, even if the tag hasn't changed."
   default     = false
 }
+
+variable "provisioned_concurrency" {
+  type        = number
+  description = "Number of provisioned concurrent executions. Set to 0 to disable."
+  default     = 1
+}

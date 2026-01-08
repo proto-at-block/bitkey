@@ -11,8 +11,9 @@ class EnableNfcNavigatorImpl : EnableNfcNavigator {
   @Composable
   override fun navigateToEnableNfc(onReturn: () -> Unit) {
     LaunchedEffect("log-nfc-is-not-supported") {
-      // TODO: W-6657 - figure out why some iOS devices are not supporting NFC.
-      logError { "NFC is not available on this iOS device." }
+      // This should never be called on iOS - NFC is either available or the device
+      // lacks hardware entirely. There's no "disabled" state like Android.
+      logWarn { "NFC is not available on this iOS device." }
     }
   }
 }

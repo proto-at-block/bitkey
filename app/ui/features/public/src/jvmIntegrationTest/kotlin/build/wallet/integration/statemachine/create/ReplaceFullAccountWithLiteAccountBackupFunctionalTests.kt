@@ -1,11 +1,13 @@
 package build.wallet.integration.statemachine.create
 
+import androidx.compose.runtime.key
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.platform.permissions.PermissionStatus
@@ -21,6 +23,7 @@ import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
 import build.wallet.testing.ext.testWithTwoApps
+import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
@@ -40,13 +43,18 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
     )
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
-    onboardApp.cloudBackupRepository
-      .readActiveBackup(
-        CloudStoreAccountFake.CloudStoreAccount1Fake
-      )
+    onboardApp.cloudKeyValueStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
       .getOrThrow()
-      .shouldNotBeNull()
-      .shouldBe(liteBackup)
+      .first()
+      .let { key ->
+        onboardApp.cloudKeyValueStore.getString(CloudStoreAccountFake.CloudStoreAccount1Fake, key)
+          .shouldBeOk()
+          .shouldNotBeNull()
+          .shouldBe(
+            onboardApp.jsonSerializer.encodeToStringResult<CloudBackupV3>(liteBackup as CloudBackupV3)
+              .getOrThrow()
+          )
+      }
 
     // Set push notifications to authorized to enable us to successfully advance through
     // the notifications step in onboarding.
@@ -99,13 +107,18 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
     )
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
-    onboardApp.cloudBackupRepository
-      .readActiveBackup(
-        CloudStoreAccountFake.CloudStoreAccount1Fake
-      )
+    onboardApp.cloudKeyValueStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
       .getOrThrow()
-      .shouldNotBeNull()
-      .shouldBe(liteBackup)
+      .first()
+      .let { key ->
+        onboardApp.cloudKeyValueStore.getString(CloudStoreAccountFake.CloudStoreAccount1Fake, key)
+          .shouldBeOk()
+          .shouldNotBeNull()
+          .shouldBe(
+            onboardApp.jsonSerializer.encodeToStringResult<CloudBackupV3>(liteBackup as CloudBackupV3)
+              .getOrThrow()
+          )
+      }
 
     onboardApp.appUiStateMachine.test(
       props = Unit,

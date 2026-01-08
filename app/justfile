@@ -11,6 +11,10 @@ default:
 list:
   just --list
 
+# Update vendored `bdk-ffi` libs + UniFFI bindings.
+bdk-ffi-bindings:
+  just -f rust/bdk-ffi/justfile update
+
 # Update git submodules
 submodules:
   #!/usr/bin/env bash
@@ -98,7 +102,7 @@ ios-snapshots-verify:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
   echo "⚠️⚠️⚠️ Please be aware than verifying snapshots locally may result in flakey failures ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.5'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.0'
 
 # Record and update baseline UI snapshots for iOS
 ios-snapshots-record:
@@ -107,23 +111,23 @@ ios-snapshots-record:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=true
   echo "⚠️⚠️⚠️ Only for use for local development, DO NOT COMMIT LOCALLY GENERATED SNAPSHOTS ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.5'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.0'
 
 [private]
 ios-snapshot-prework:
   #!/bin/bash
   just install-xcode-clt
   # Check for the specific iOS simulator runtime
-  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-18-5' && echo true || echo false)
+  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-26-0' && echo true || echo false)
   if [ "$runtime" == "false" ]; then
-    echo "You must install the iOS 18.5 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the iOS 26.0 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
   # Check for the specific simulator device
-  devices=$(xcrun simctl list devices | awk '/-- iOS 18.5 --/{flag=1;next}/--/{flag=0}flag')
-  device=$(echo "$devices" | grep -E 'iPhone 16 Pro Max \(.*\)' && echo true || echo false)
+  devices=$(xcrun simctl list devices | awk '/-- iOS 26.0 --/{flag=1;next}/--/{flag=0}flag')
+  device=$(echo "$devices" | grep -E 'iPhone 17 Pro Max \(.*\)' && echo true || echo false)
   if [ "$device" == "false" ]; then
-    echo "You must install the iPhone 16 Pro Max 18.5 simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the iPhone 17 Pro Max 26.0 simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
   # Generate Swift Snapshot test cases before generating xcode project

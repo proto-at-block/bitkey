@@ -57,10 +57,21 @@ class FirmwareUnderTest(object):
 
         # parse the artifacts
 
+        # Handle compound product names (e.g., w3a-core)
         cls.product = next(artifacts_iter)
         if cls.product not in constants.PRODUCTS:
-            raise ValueError(
-                f"Unknown product specified: {cls.product}")
+            # Try combining with next part (for multi-part product names like w3a-core)
+            try:
+                next_part = next(artifacts_iter)
+                compound_product = f"{cls.product}-{next_part}"
+                if compound_product in constants.PRODUCTS:
+                    cls.product = compound_product
+                else:
+                    raise ValueError(
+                        f"Unknown product specified: {cls.product}")
+            except StopIteration:
+                raise ValueError(
+                    f"Unknown product specified: {cls.product}")
 
         cls.platform = next(artifacts_iter)
         if cls.platform not in constants.PLATFORMS:

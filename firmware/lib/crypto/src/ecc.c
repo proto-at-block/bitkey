@@ -14,7 +14,6 @@
 
 #ifdef EMBEDDED_BUILD
 #include "rtos_mutex.h"
-#include "secure_engine.h"
 
 #define CTX_SIZE (180u)
 static rtos_mutex_t ctx_lock;

@@ -1,4 +1,6 @@
 #include "app.h"
+#include "bio.h"
+#include "exti.h"
 
 // These are here instead of in sysinfo.c because propagating cflags to dependencies
 // in Meson is hard (impossible?).
@@ -18,12 +20,9 @@ NO_OPTIMIZE int main(void) {
   mpu_regions_init();
 
   mcu_i2c_init();  // Must come after MPU init but before power init
+  exti_init();
 
-#ifdef MFGTEST
-  power_init(false);
-#else
-  power_init(true);
-#endif
+  power_init();
 
   led_init();
   serial_init();
@@ -61,7 +60,7 @@ NO_OPTIMIZE int main(void) {
     .set_drain_only_events = &memfault_port_drain_only_events,
   });
 
-  secure_channel_init();
+  secure_nfc_channel_init();
 
   fs_mount();
 
@@ -69,18 +68,21 @@ NO_OPTIMIZE int main(void) {
 
   nfc_task_create();
   sysinfo_task_create(PLATFORM_HW_REV);
-  led_task_create();
+
+  bio_hal_init();
+
+  ui_task_create();
+
+  captouch_task_create();
 
 #ifdef MFGTEST
   power_retain_charged_indicator();
-  led_mfgtest_task_create();
   mfgtest_task_create();
   fwup_task_create((fwup_task_options_t){
     .bl_upgrade = true,
   });
   auth_task_create(true);
 #else
-  // captouch_task_create();
   key_manager_task_create();
   auth_task_create(false);
   fwup_task_create((fwup_task_options_t){

@@ -1,23 +1,24 @@
+from __future__ import annotations
+
+import logging
+import time
+from typing import List, Optional
+
 from . import platform_config
 import click
 
 from .platform_config import PlatformConfig, Gpio, Port, DeviceIdentifiers, SerialNumber, DevInfo, ChipId, BoardId, ChargerInfo, FuelStatus
+from .. import comms, uxc
 from ..shell import Shell
-
-HW_REV = "hardware_revision"
-SERIAL_PORT_NAME = "serial_port_name"
-
-
-def _get_config(ctx):
-    return platform_config.CONFIG_MAP[ctx.obj[HW_REV]]
 
 
 # TODO: Remove this once we have a settled-upon set of identifiers so that we can introspect.
 @click.group()
 @click.option('--hardware-revision', type=click.STRING, default=platform_config.W1A_PROTO0)
 @click.option('--serial-port-name', type=click.STRING, default=None)
+@click.option('--verbose', is_flag=True, default=False)
 @click.pass_context
-def cli(ctx, hardware_revision, serial_port_name):
+def cli(ctx, hardware_revision, serial_port_name, verbose: bool):
     """W1 Controller CLI.
 
     The global argument `hardware-revision` describes a product (e.g. w1a) and build (e.g. proto0) combination.
@@ -28,12 +29,106 @@ def cli(ctx, hardware_revision, serial_port_name):
     if hardware_revision not in platform_config.CONFIG_MAP.keys():
         raise click.BadParameter(
             f"Unknown hardware revision {hardware_revision}. Choices are: {' '.join(list(platform_config.CONFIG_MAP.keys()))}")
-    ctx.obj[HW_REV] = hardware_revision
-    ctx.obj[SERIAL_PORT_NAME] = serial_port_name
+
+    if hardware_revision.lower().startswith("w1"):
+        controller_cls = W1Controller
+    elif hardware_revision.lower().startswith("w3"):
+        if "uxc" in hardware_revision.lower():
+            controller_cls = W3UXCController
+        else:
+            controller_cls = W1Controller
+    else:
+        raise click.BadParameter(
+            f"Unknown hardware revision {hardware_revision}. Choices are: {' '.join(list(platform_config.CONFIG_MAP.keys()))}")
+
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
+    config = platform_config.CONFIG_MAP[hardware_revision]
+    ctx.obj = controller_cls(config=config, serial_port_name=serial_port_name)
+
+
+class Controller:
+
+    pass
+
+
+class W3UXCController(Controller):
+
+    def __init__(
+        self: W3UXCController,
+        config: PlatformConfig,
+        serial_port_name: Optional[str] = None
+    ) -> None:
+        """Initializes the controller instance.
+
+        :param self: the controller instance.
+        :param config: configuration for the target platform.
+        :param serial_port_name: optional identifier of the serial cable to use.
+        :returns: ``None``
+        """
+        interfaces: Optional[str] = None
+        if serial_port_name:
+            interfaces = [serial_port_name]
+
+        self.config: PlatformConfig = config
+        self._transport: comms.SerialTransport = comms.SerialTransport(interfaces=interfaces)
+        self._host: uxc.UXCHost = uxc.UXCHost(write=self._transport.write, read=self._transport.read)
+
+        self._transport.open()
+        self._host.start()
+
+    def __del__(self: W3UXCController) -> None:
+        """Tears down the controller instance.
+
+        :param self: the controller instance.
+        :returns: ``None``
+        """
+        # Wait a bit for any operations currently in progress to finish.
+        time.sleep(0.25)
+
+        # Must close in this order.
+        self._host.stop()
+        self._transport.close()
+
+    def toggle_gpio(self: W3UXCController, gpio: Gpio, state: bool) -> None:
+        """Sets a GPIO based on the given ``state``.
+
+        :param self: the controller instance.
+        :param gpio: GPIO to toggle.
+        :param state: ``True`` to set GPIO, otherwise ``False`` to clear.
+        :returns: ``None``
+        """
+        func = self._host.gpio_set if state else self._host.gpio_clear
+        func(gpio.port, gpio.pin)
+
+    def toggle_led(self: W3UXCController, color: str, state: bool) -> None:
+        """Toggles on/off an LED based on the given ``state``.
+
+        This function assumes there is a singular LED per color.
+
+        :param self: the controller instance.
+        :param color: the colored LED to toggle.
+        :param state: ``True`` to turn on the LED, otherwise ``False`` to turn off.
+        :returns: ``None``
+        """
+        gpio = getattr(self.config.led, color.lower(), None)
+        if gpio is None:
+            raise RuntimeError(f"Colour not supported: '{color}'")
+        self.toggle_gpio(gpio, state)
+
+    def metadata(self: UXCController) -> str:
+        """Returns a string representation of the UXC firmware metadata.
+
+        :param self: the controller instance.
+        :returns: String representation of UXC firmware metadata.
+        """
+        metadata = self._host.get_metadata()
+        return str(metadata) if metadata else ""
 
 
 # TODO: janky text parsing will be replaced by protobufs, but external API will be unchanged.
-class W1Controller:
+class W1Controller(Controller):
     def __init__(self, config: PlatformConfig, serial_port_name: str = None):
         self.config = config
         self.shell = Shell(serial_port_name=serial_port_name)
@@ -116,6 +211,19 @@ class W1Controller:
         vcell = int(output[2].split("=")[1].strip().replace('mV', ''))
         return FuelStatus(repsoc, vcell)
 
+    def nfc_loopback_test(self: W1Controller, nfc_test_type: str, timeout: int = 5000) -> bool:
+        """Performs an NFC loopback test.
+
+        :param self: the controller instance.
+        :param nfc_test_type: NFC protocol identifier (e.g. 'a' or 'b').
+        :param timeout: timeout, in milliseconds, for the loopback test (default: 5000ms)
+        :returns: `True` if test was successful, otherwise `False`.
+        """
+        output = self.shell.command(f"nfc --loopback {nfc_test_type} --timeout {timeout}")
+        if "Card detected" in output:
+            return True
+        return False
+
 
 @cli.command()
 @click.argument("port", type=click.Choice(["a", "b", "c", "d"], case_sensitive=False), required=True)
@@ -131,8 +239,7 @@ def toggle_gpio(ctx, port, pin, state):
     before usage.
     """
     state = (state == "on")
-    W1Controller(config=_get_config(ctx), serial_port_name=ctx.obj[SERIAL_PORT_NAME]).toggle_gpio(
-        Gpio(Port.from_str(port), pin), state)
+    ctx.obj.toggle_gpio(Gpio(Port.from_str(port), pin), state)
 
 
 @cli.command()
@@ -148,24 +255,21 @@ def toggle_led(ctx, color, state):
     to be toggled.
     """
     state = (state == "on")
-    W1Controller(config=_get_config(
-        ctx), serial_port_name=ctx.obj[SERIAL_PORT_NAME]).toggle_led(color, state)
+    ctx.obj.toggle_led(color, state)
 
 
 @cli.command()
 @click.pass_context
 def identifiers(ctx):
     """Output device identifiers such as serial number, board id, and chip id."""
-    click.echo(W1Controller(config=_get_config(ctx),
-               serial_port_name=ctx.obj[SERIAL_PORT_NAME]).identifiers())
+    click.echo(ctx.obj.identifiers())
 
 
 @cli.command()
 @click.pass_context
 def metadata(ctx):
     """Output firmware metadata, such as version number."""
-    click.echo(W1Controller(config=_get_config(ctx),
-               serial_port_name=ctx.obj[SERIAL_PORT_NAME]).metadata())
+    click.echo(ctx.obj.metadata())
 
 
 @cli.command()
@@ -175,12 +279,10 @@ def metadata(ctx):
 @click.pass_context
 def write_serial(ctx, serial, which):
     """Program a serial number to device memory."""
-    controller = W1Controller(config=_get_config(
-        ctx), serial_port_name=ctx.obj[SERIAL_PORT_NAME])
     if which == "mlb":
-        out = controller.write_mlb_serial(serial)
+        out = ctx.obj.write_mlb_serial(serial)
     elif which == "assy":
-        out = controller.write_assy_serial(serial)
+        out = ctx.obj.write_assy_serial(serial)
     click.echo(out)
 
 
@@ -188,9 +290,7 @@ def write_serial(ctx, serial, which):
 @click.pass_context
 def uptime(ctx):
     """Retrieve system uptime in seconds."""
-    controller = W1Controller(config=_get_config(
-        ctx), serial_port_name=ctx.obj[SERIAL_PORT_NAME])
-    click.echo(controller.uptime())
+    click.echo(ctx.obj.uptime())
 
 
 @cli.command()
@@ -200,9 +300,7 @@ def uptime(ctx):
 @click.pass_context
 def charger(ctx, status, mode, dump):
     """Charger commands."""
-    controller = W1Controller(config=_get_config(
-        ctx), serial_port_name=ctx.obj[SERIAL_PORT_NAME])
-    info = controller.charger_info()
+    info = ctx.obj.charger_info()
     if status:
         click.echo(info.status)
     if mode:
@@ -212,12 +310,26 @@ def charger(ctx, status, mode, dump):
 
 
 @cli.command()
+@click.option("-t", "--timeout", nargs=1, default=5000, type=int, help="timeout (milliseconds) for tap test")
+@click.argument("nfc-type", nargs=1, type=click.Choice(["a", "b", "A", "B"]), required=True)
+@click.pass_context
+def nfc_loopback(ctx: click.Context, nfc_type: str, timeout: int) -> None:
+    """Perform an NFC loopback test."""
+    if nfc_type and nfc_type.lower() in ["a", "b"]:
+        res = ctx.obj.nfc_loopback_test(nfc_type.lower(), timeout=timeout)
+        if res:
+            click.echo("Loopback test passed")
+        else:
+            click.echo("Loopback test failed")
+    else:
+        click.echo(f"Invalid NFC type specified: '{nfc_type}'")
+
+
+@cli.command()
 @click.pass_context
 def fuel(ctx):
     """Get fuel status."""
-    controller = W1Controller(config=_get_config(
-        ctx), serial_port_name=ctx.obj[SERIAL_PORT_NAME])
-    click.echo(controller.fuel())
+    click.echo(ctx.obj.fuel())
 
 
 @cli.command()

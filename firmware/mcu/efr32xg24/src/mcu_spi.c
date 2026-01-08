@@ -1,6 +1,7 @@
 #include "mcu_spi.h"
 
 #include "mcu_dma.h"
+#include "mcu_dma_impl.h"
 
 #include "em_cmu.h"
 #include "em_core.h"
@@ -19,7 +20,7 @@ static const uint32_t fifo_clear_timeout_ms = 10;
 
 static mcu_err_t mcu_spi_init_eusart(mcu_spi_state_t* state, mcu_spi_config_t* config);
 static mcu_err_t mcu_spi_init_usart(mcu_spi_state_t* state, mcu_spi_config_t* config);
-static void gpio_init(mcu_spi_state_t* handle, bool enable);
+static void mcu_spi_gpio_init(mcu_spi_state_t* handle, bool enable);
 static mcu_err_t transfer_api_blocking_prologue(mcu_spi_state_t* state, void* buffer,
                                                 uint32_t count);
 static void start_dma_transfer(mcu_spi_state_t* state, const void* tx_buffer, void* rx_buffer,
@@ -42,6 +43,12 @@ mcu_err_t mcu_spi_init(mcu_spi_state_t* state, mcu_spi_config_t* config) {
 
 mcu_err_t mcu_spi_master_transfer_b(mcu_spi_state_t* state, const void* tx_buffer, void* rx_buffer,
                                     uint32_t count) {
+  return mcu_spi_master_transfer_async(state, tx_buffer, rx_buffer, count, NULL);
+}
+
+mcu_err_t mcu_spi_master_transfer_async(mcu_spi_state_t* state, const void* tx_buffer,
+                                        void* rx_buffer, uint32_t count,
+                                        mcu_spi_callback_t callback) {
   mcu_err_t result;
 
   perf_begin(perf.transfers);
@@ -68,9 +75,18 @@ mcu_err_t mcu_spi_master_transfer_b(mcu_spi_state_t* state, const void* tx_buffe
     return MCU_ERROR_PARAMETER;
   }
 
-  start_dma_transfer(state, tx_buffer, rx_buffer, count, blocking_complete_cb);
+  /* choose which callback to hand off to DMA */
+  mcu_spi_callback_t cb = callback ? callback : blocking_complete_cb;
 
-  /* Wait for the transfer to complete */
+  start_dma_transfer(state, tx_buffer, rx_buffer, count, cb);
+
+  if (callback) {
+    /* non-blocking: return immediately */
+    rtos_mutex_unlock(&state->access);
+    return MCU_ERROR_OK;
+  }
+
+  /* blocking: wait for our semaphore to be given by blocking_complete_cb */
   rtos_semaphore_take(&state->cb_complete, RTOS_SEMAPHORE_TIMEOUT_MAX);
   rtos_mutex_unlock(&state->access);
 
@@ -190,13 +206,18 @@ static mcu_err_t mcu_spi_init_eusart(mcu_spi_state_t* state, mcu_spi_config_t* c
       ((uint32_t)config->cs.pin << _GPIO_EUSART_CSROUTE_PIN_SHIFT);
   }
 
-  gpio_init(state, true);
+  mcu_spi_gpio_init(state, true);
 
-  mcu_dma_init(MCU_DMA_IRQ_PRIORITY);
-  if (mcu_dma_allocate_channel(&state->tx_dma_channel, NULL) != MCU_ERROR_OK) {
+  mcu_err_t err = mcu_dma_init(MCU_DMA_IRQ_PRIORITY);
+  if ((err != MCU_ERROR_OK) && (err != MCU_ERROR_ALREADY_INITIALISED)) {
+    return err;
+  }
+
+  // Allocate RX channel first to get lower channel number (higher priority).
+  if (mcu_dma_allocate_channel(&state->rx_dma_channel) != MCU_ERROR_OK) {
     return MCU_ERROR_DMA_ALLOC;
   }
-  if (mcu_dma_allocate_channel(&state->rx_dma_channel, NULL) != MCU_ERROR_OK) {
+  if (mcu_dma_allocate_channel(&state->tx_dma_channel) != MCU_ERROR_OK) {
     return MCU_ERROR_DMA_ALLOC;
   }
 
@@ -212,7 +233,7 @@ static mcu_err_t mcu_spi_init_usart(mcu_spi_state_t* state, mcu_spi_config_t* co
   return MCU_ERROR_NOT_IMPLEMENTED;
 }
 
-void gpio_init(mcu_spi_state_t* state, bool enable) {
+static void mcu_spi_gpio_init(mcu_spi_state_t* state, bool enable) {
   if (enable) {
     if (state->config->master) {
       mcu_gpio_set_mode(&state->config->mosi, MCU_GPIO_MODE_PUSH_PULL, false);

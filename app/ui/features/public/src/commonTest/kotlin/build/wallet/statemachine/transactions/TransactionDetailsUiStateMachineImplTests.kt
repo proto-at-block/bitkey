@@ -5,17 +5,18 @@ import build.wallet.activity.onChainDetails
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action
-import build.wallet.bdk.bindings.BdkError
+import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.explorer.BitcoinExplorerMock
-import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
+import build.wallet.bitcoin.fees.Fee
+import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
-import build.wallet.bitcoin.transactions.TX_FAKE_ID
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -45,6 +46,7 @@ import build.wallet.time.DurationFormatterFake
 import build.wallet.time.TimeZoneProviderMock
 import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -91,6 +93,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   val clipboard = ClipboardMock()
   val haptics = HapticsMock()
+  val speedUpTransactionService = SpeedUpTransactionServiceFake()
 
   val stateMachine =
     TransactionDetailsUiStateMachineImpl(
@@ -109,7 +112,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       bitcoinTransactionBumpabilityChecker = bitcoinTransactionBumpabilityChecker,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       feeBumpConfirmationUiStateMachine = feeBumpConfirmationUiStateMachine,
-      feeRateEstimator = BitcoinFeeRateEstimatorMock(),
+      speedUpTransactionService = speedUpTransactionService,
       inAppBrowserNavigator = inAppBrowserNavigator,
       bitcoinWalletService = bitcoinWalletService,
       transactionsActivityService = transactionActivityService,
@@ -492,7 +495,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       inAppBrowserNavigator.onOpenCalls
         .awaitItem()
         .shouldBe(
-          "https://mempool.space/tx/4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
+          "https://bitkey.mempool.space/tx/4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
         )
     }
   }
@@ -644,7 +647,10 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             transactionType = Outgoing,
             isLate = true
           )
+        }
 
+        // after currency conversion - click the explainer icon here
+        awaitBody<TransactionDetailModel> {
           with(mainContentList[2].shouldBeInstanceOf<DataList>()) {
             items[0]
               .explainer
@@ -660,9 +666,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
               ?.invoke()
           }
         }
-
-        // after currency conversion
-        awaitBody<TransactionDetailModel>()
 
         // after clicking explainer icon button
         val screenModel = awaitItem()
@@ -685,6 +688,21 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("tapping speed up should open the fee bump flow") {
+      speedUpTransactionService.result = Ok(
+        SpeedUpTransactionResult(
+          psbt = PsbtMock,
+          newFeeRate = FeeRate(satsPerVByte = 10.0f),
+          details = SpeedUpTransactionDetails(
+            txid = TX_FAKE_ID,
+            recipientAddress = someBitcoinAddress,
+            sendAmount = BitcoinMoney.btc(1.0),
+            oldFee = Fee(
+              amount = BitcoinMoney.sats(1_000_000)
+            ),
+            transactionType = Outgoing
+          )
+        )
+      )
       stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
@@ -713,7 +731,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("tapping speed up with insufficient balance to bump fee should show error screen") {
-      spendingWallet.createSignedPsbtResult = Err(BdkError.InsufficientFunds(null, null))
+      speedUpTransactionService.result = Err(SpeedUpTransactionError.InsufficientFunds)
       stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
@@ -748,7 +766,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("tapping speed up when fee rates are too low should show error screen") {
-      spendingWallet.createSignedPsbtResult = Err(BdkError.FeeRateTooLow(null, null))
+      speedUpTransactionService.result = Err(SpeedUpTransactionError.FeeRateTooLow)
       stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
