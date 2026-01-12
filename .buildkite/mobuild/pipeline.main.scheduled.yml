@@ -17,6 +17,6 @@ steps:
       SKIP_BUILDKITE_AGENT_CHECKOUT: "true"
       IOS_SIMULATOR_ONLY: "false"
     plugins:
-      - squareup/ios-builder#v1.0.0:
+      - squareup/ios-builder#v1.1.3:
           build_action: team-alpha
           options: --manual-mpp

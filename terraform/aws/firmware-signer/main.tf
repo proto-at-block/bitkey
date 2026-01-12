@@ -129,6 +129,7 @@ module "kickoff_docker" {
   enable_datadog_trace   = local.enable_datadog
   force_update           = var.force_lambda_update
   ephemeral_storage_size = 10240 # Maximum size for kickoff (needs space for signing operations)
+  memory_size            = 4096
   tag                    = var.env != "production" ? "6c79021d" : "6c79021d"
   env_variables          = local.common_lambda_env_vars
 }

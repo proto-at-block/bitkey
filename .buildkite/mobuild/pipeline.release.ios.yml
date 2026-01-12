@@ -15,6 +15,6 @@ steps:
     env:
       SKIP_BUILDKITE_AGENT_CHECKOUT: "true"
     plugins:
-      - squareup/ios-builder#v1.0.0:
+      - squareup/ios-builder#v1.1.3:
           build_action: release
           options: --manual-mpp

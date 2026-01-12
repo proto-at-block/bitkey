@@ -55,7 +55,7 @@ resource "aws_lambda_function" "function" {
   # Useful when pushing new images to ECR with the same tag (mutable tags).
   source_code_hash = var.force_update ? timestamp() : null
   timeout          = 900
-  memory_size      = 1024
+  memory_size      = var.memory_size
   # Enable versioning (required for provisioned concurrency)
   publish = var.provisioned_concurrency > 0
 

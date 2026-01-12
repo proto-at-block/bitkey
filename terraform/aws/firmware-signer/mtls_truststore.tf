@@ -23,15 +23,6 @@ locals {
   truststore_hash = md5(local.combined_certs)
 }
 
-# Create the truststore file locally (temporary)
-resource "local_file" "truststore_pem" {
-  filename = "${path.module}/.terraform/truststore-${var.env}.pem"
-  content  = local.combined_certs
-
-  # Ensure proper file permissions
-  file_permission = "0644"
-}
-
 # Upload the dynamically generated truststore to S3
 resource "aws_s3_object" "mtls_cert_truststore" {
   bucket       = aws_s3_bucket.mtls_cert_bucket.id
