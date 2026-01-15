@@ -24,8 +24,10 @@ import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitResto
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.money.BitcoinMoney
 import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.shouldHaveTotalBalance
 import build.wallet.testing.ext.testForLegacyAndPrivateWallet
 import build.wallet.testing.fakeTransact
 import build.wallet.ui.model.list.ListItemModel
@@ -124,11 +126,8 @@ class EmergencyExitRecoveryFunctionalTests : FunSpec({
       }
 
       // Validate that this is the same wallet as originally created.
-      awaitUntilBody<MoneyHomeBodyModel>(
-        matching = {
-          it.balanceModel.primaryAmount == "$0.00" && it.balanceModel.secondaryAmount == "0 sats"
-        }
-      )
+      awaitUntilBody<MoneyHomeBodyModel>()
+      newApp.shouldHaveTotalBalance(BitcoinMoney.zero())
 
       newApp.getActiveFullAccount().keybox.activeSpendingKeyset.appKey
         .shouldBeEqual(spendingKeys.appKey)

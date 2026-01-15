@@ -19,27 +19,22 @@ import build.wallet.ui.model.icon.IconTint.On30
 import build.wallet.ui.model.icon.IconTint.Primary
 import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 data class RecoveryChannelsSetupFormBodyModel(
   val pushItem: RecoveryChannelsSetupFormItemModel,
   val smsItem: RecoveryChannelsSetupFormItemModel?,
   val emailItem: RecoveryChannelsSetupFormItemModel,
-  override val onBack: (() -> Unit)?,
   val learnOnClick: (() -> Unit),
   val continueOnClick: (() -> Unit),
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SETUP,
-    onBack = onBack,
-    toolbar = onBack?.let { ob ->
-      ToolbarModel(leadingAccessory = BackAccessory(ob))
-    },
-    header =
-      FormHeaderModel(
-        headline = "Set up critical alerts",
-        subline = "You will only receive alerts about recovery attempts, inheritance, and privacy updates."
-      ),
+    onBack = null, // Do not allow users to go back to cloud backup step
+    toolbar = ToolbarModel(),
+    header = FormHeaderModel(
+      headline = "Set up critical alerts",
+      subline = "You will only receive alerts about recovery attempts, inheritance, and privacy updates."
+    ),
     mainContentList =
       immutableListOf(
         ListGroup(

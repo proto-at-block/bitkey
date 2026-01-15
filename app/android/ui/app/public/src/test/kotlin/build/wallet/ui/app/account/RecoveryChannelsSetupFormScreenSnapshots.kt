@@ -31,7 +31,6 @@ class RecoveryChannelsSetupFormScreenSnapshots : FunSpec({
             uiErrorHint = UiErrorHint.None,
             onClick = {}
           ),
-          onBack = {},
           learnOnClick = {},
           continueOnClick = {}
         )
@@ -58,7 +57,6 @@ class RecoveryChannelsSetupFormScreenSnapshots : FunSpec({
             uiErrorHint = UiErrorHint.None,
             onClick = {}
           ),
-          onBack = {},
           learnOnClick = {},
           continueOnClick = {}
         )
@@ -81,7 +79,6 @@ class RecoveryChannelsSetupFormScreenSnapshots : FunSpec({
             uiErrorHint = UiErrorHint.None,
             onClick = {}
           ),
-          onBack = {},
           learnOnClick = {},
           continueOnClick = {}
         )
@@ -108,7 +105,6 @@ class RecoveryChannelsSetupFormScreenSnapshots : FunSpec({
             uiErrorHint = UiErrorHint.None,
             onClick = {}
           ),
-          onBack = {},
           learnOnClick = {},
           continueOnClick = {}
         )

@@ -7,6 +7,7 @@ import build.wallet.logging.logError
 import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.mapError
 import kotlinx.datetime.Clock
 import platform.Foundation.NSNotificationCenter
@@ -88,7 +89,17 @@ class iCloudKeyValueStoreImpl(
       )
     }
       .mapError { iCloudKeyValueStoreError(message = it.toString()) }
-      .also { requestSync() }
+      .also { result ->
+        result.fold(
+          success = {
+            logInfo { "iCloud KVS: successfully wrote value for key=$key (size=${value.length} chars)" }
+          },
+          failure = { error ->
+            logError { "iCloud KVS: error writing key=$key: $error" }
+          }
+        )
+        requestSync()
+      }
   }
 
   override fun getString(
@@ -99,6 +110,20 @@ class iCloudKeyValueStoreImpl(
 
     return catchingResult { iCloudKeyValueStore.stringForKey(key) }
       .mapError { iCloudKeyValueStoreError(message = it.toString()) }
+      .also { result ->
+        result.fold(
+          success = { value ->
+            if (value == null) {
+              logInfo { "iCloud KVS: no value found for key=$key" }
+            } else {
+              logInfo { "iCloud KVS: successfully read value for key=$key (size=${value.length} chars)" }
+            }
+          },
+          failure = { error ->
+            logError { "iCloud KVS: error reading key=$key: $error" }
+          }
+        )
+      }
   }
 
   override fun removeString(

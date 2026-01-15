@@ -21,6 +21,7 @@ import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryFake
 import build.wallet.encrypt.XCiphertext
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.CloudBackupForceReuploadTimestampFeatureFlag
 import build.wallet.feature.flags.CloudBackupHealthLoggingFeatureFlag
 import build.wallet.logging.LogLevel
 import build.wallet.logging.LogWriterMock
@@ -55,6 +56,8 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
   val jsonSerializer = JsonSerializer()
   val featureFlagDao = FeatureFlagDaoFake()
   val cloudBackupHealthLoggingFeatureFlag = CloudBackupHealthLoggingFeatureFlag(featureFlagDao)
+  val cloudBackupForceReuploadTimestampFeatureFlag =
+    CloudBackupForceReuploadTimestampFeatureFlag(featureFlagDao)
   val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
 
   fun createHealthRepository() =
@@ -67,6 +70,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       appFunctionalityService = appFunctionalityService,
       jsonSerializer = jsonSerializer,
       cloudBackupHealthLoggingFeatureFlag = cloudBackupHealthLoggingFeatureFlag,
+      cloudBackupForceReuploadTimestampFeatureFlag = cloudBackupForceReuploadTimestampFeatureFlag,
       fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
       cloudBackupOperationLock = CloudBackupOperationLockImpl()
     )
@@ -511,6 +515,141 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       // DAO should still have the original oversized backup (not updated)
       val unchangedBackup = cloudBackupDao.get(fullAccount.accountId.serverId)
       unchangedBackup.shouldBeOk(oversizedBackup)
+    }
+  }
+
+  context("force reupload timestamp feature flag") {
+    beforeTest {
+      cloudStoreAccountRepository.reset()
+      cloudBackupRepository.reset()
+      cloudBackupDao.reset()
+      emergencyExitKitRepository.reset()
+      fullAccountCloudBackupRepairer.reset()
+      appFunctionalityService.reset()
+      featureFlagDao.reset()
+      fullAccountCloudBackupCreator.reset()
+      logWriter.clear()
+      Logger.configure(
+        tag = "Test",
+        minimumLogLevel = LogLevel.Verbose,
+        logWriters = listOf(logWriter)
+      )
+      cloudStoreAccountRepository.set(cloudAccount)
+    }
+
+    test("marks backup as stale when timestamp is older than flag threshold") {
+      val healthRepository = createHealthRepository()
+      
+      // Set up matching backups (would normally be healthy)
+      val backup = CloudBackupV3WithFullAccountMock
+      cloudBackupDao.set(fullAccount.accountId.serverId, backup)
+      setCloudBackup(cloudAccount, backup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      // Set feature flag to a timestamp in the future
+      cloudBackupForceReuploadTimestampFeatureFlag.setFlagValue(
+        FeatureFlagValue.StringFlag("2099-01-01T00:00:00Z")
+      )
+      cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
+
+      val status = healthRepository.performSync(fullAccount)
+
+      // Should report as stale backup due to timestamp
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.StaleBackup>()
+      
+      // Should log the reason
+      logWriter.logs.any { 
+        it.message.contains("older than force reupload threshold")
+      }.shouldBe(true)
+    }
+
+    test("reports backup as healthy when timestamp is newer than flag threshold") {
+      val healthRepository = createHealthRepository()
+      
+      // Set up matching backups
+      val backup = CloudBackupV3WithFullAccountMock
+      cloudBackupDao.set(fullAccount.accountId.serverId, backup)
+      setCloudBackup(cloudAccount, backup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      // Set feature flag to a timestamp in the past
+      cloudBackupForceReuploadTimestampFeatureFlag.setFlagValue(
+        FeatureFlagValue.StringFlag("2020-01-01T00:00:00Z")
+      )
+      cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
+
+      val status = healthRepository.performSync(fullAccount)
+
+      // Should report as healthy since backup is newer than threshold
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+    }
+
+    test("ignores feature flag when value is empty") {
+      val healthRepository = createHealthRepository()
+      
+      // Set up matching backups
+      val backup = CloudBackupV3WithFullAccountMock
+      cloudBackupDao.set(fullAccount.accountId.serverId, backup)
+      setCloudBackup(cloudAccount, backup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      // Feature flag is empty (default)
+      cloudBackupForceReuploadTimestampFeatureFlag.setFlagValue(
+        FeatureFlagValue.StringFlag("")
+      )
+      cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
+
+      val status = healthRepository.performSync(fullAccount)
+
+      // Should report as healthy, flag is disabled
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+    }
+
+    test("handles invalid timestamp format gracefully") {
+      val healthRepository = createHealthRepository()
+      
+      // Set up matching backups
+      val backup = CloudBackupV3WithFullAccountMock
+      cloudBackupDao.set(fullAccount.accountId.serverId, backup)
+      setCloudBackup(cloudAccount, backup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      // Set feature flag to invalid timestamp
+      cloudBackupForceReuploadTimestampFeatureFlag.setFlagValue(
+        FeatureFlagValue.StringFlag("not-a-valid-timestamp")
+      )
+      cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
+
+      val status = healthRepository.performSync(fullAccount)
+
+      // Should report as healthy, invalid timestamp is ignored
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+      
+      // Should log the error
+      logWriter.logs.any {
+        it.message.contains("Invalid timestamp format")
+      }.shouldBe(true)
+    }
+
+    test("force reupload takes precedence over backup match check") {
+      val healthRepository = createHealthRepository()
+      
+      // Set up matching backups that would normally be healthy
+      val backup = CloudBackupV3WithFullAccountMock
+      cloudBackupDao.set(fullAccount.accountId.serverId, backup)
+      setCloudBackup(cloudAccount, backup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      // Set feature flag to force reupload
+      cloudBackupForceReuploadTimestampFeatureFlag.setFlagValue(
+        FeatureFlagValue.StringFlag("2099-12-31T23:59:59Z")
+      )
+      cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
+
+      val status = healthRepository.performSync(fullAccount)
+
+      // Should report as stale even though backups match
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.StaleBackup>()
     }
   }
 })

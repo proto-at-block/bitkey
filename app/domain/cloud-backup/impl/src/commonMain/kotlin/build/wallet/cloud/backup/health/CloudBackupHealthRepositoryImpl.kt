@@ -20,10 +20,14 @@ import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.emergencyexitkit.EmergencyExitKitRepository
+import build.wallet.feature.flags.CloudBackupForceReuploadTimestampFeatureFlag
 import build.wallet.feature.flags.CloudBackupHealthLoggingFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
+import kotlinx.datetime.Instant
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
@@ -45,6 +49,7 @@ class CloudBackupHealthRepositoryImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val jsonSerializer: JsonSerializer,
   private val cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
+  private val cloudBackupForceReuploadTimestampFeatureFlag: CloudBackupForceReuploadTimestampFeatureFlag,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val cloudBackupOperationLock: CloudBackupOperationLock,
 ) : CloudBackupHealthRepository {
@@ -75,6 +80,7 @@ class CloudBackupHealthRepositoryImpl(
   override suspend fun performSync(account: FullAccount): CloudBackupStatus {
     // CRITICAL: Do NOT call CloudBackupVersionMigrationWorker.executeWork() or
     // SocRecCloudBackupSyncWorker.refreshCloudBackup() within this block - it would cause a deadlock.
+    logDebug { "Starting cloud backup health check" }
     return cloudBackupOperationLock.withLock {
       getCurrentCloudAccount()
         .fold(
@@ -82,15 +88,28 @@ class CloudBackupHealthRepositoryImpl(
             val cloudBackupStatus = syncBackupStatus(cloudAccount, account)
 
             if (cloudBackupStatus.isHealthy()) {
+              logInfo { "Cloud backup health check completed - backup is healthy" }
               cloudBackupStatus
             } else {
+              logInfo {
+                "Cloud backup health check found issues - " +
+                  "appKeyStatus=${cloudBackupStatus.appKeyBackupStatus::class.simpleName}, " +
+                  "eekStatus=${cloudBackupStatus.eekBackupStatus::class.simpleName}"
+              }
               // Attempt to repair the backup silently first
               fullAccountCloudBackupRepairer.attemptRepair(account, cloudAccount, cloudBackupStatus)
               // Re-sync and return whatever the status is after repair attempt.
-              syncBackupStatus(cloudAccount, account)
+              val postRepairStatus = syncBackupStatus(cloudAccount, account)
+              logInfo {
+                "Cloud backup health check completed after repair attempt - " +
+                  "appKeyStatus=${postRepairStatus.appKeyBackupStatus::class.simpleName}, " +
+                  "eekStatus=${postRepairStatus.eekBackupStatus::class.simpleName}"
+              }
+              postRepairStatus
             }
           },
           failure = {
+            logWarn { "Cloud backup health check failed - cannot access cloud account" }
             // If we can't get the cloud account, we can't sync the backup status.
             CloudBackupStatus(
               appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
@@ -125,6 +144,7 @@ class CloudBackupHealthRepositoryImpl(
     account: FullAccount,
   ): AppKeyBackupStatus {
     if (appFunctionalityService.status.value.featureStates.cloudBackupHealth == Unavailable) {
+      logDebug { "App key backup status check: connectivity unavailable" }
       return AppKeyBackupStatus.ProblemWithBackup.ConnectivityUnavailable
     }
 
@@ -133,10 +153,25 @@ class CloudBackupHealthRepositoryImpl(
       .toErrorIfNull { Error("No local backup found") }
       .logFailure { "Error finding local backup" }
       .get()
+    
+    if (localCloudBackup == null) {
       // We are missing a local backup, so we can't validate the integrity of the cloud backup.
       // Mark backup as missing to let the customer
-      ?: return AppKeyBackupStatus.ProblemWithBackup.BackupMissing
+      logInfo { "App key backup status check: no local backup found - marking as missing" }
+      return AppKeyBackupStatus.ProblemWithBackup.BackupMissing
+    }
 
+    // Check for backup size issues
+    checkAndFixBackupSize(localCloudBackup, account)?.let { return it }
+
+    // Compare local and cloud backups
+    return compareLocalAndCloudBackups(cloudAccount, localCloudBackup)
+  }
+
+  private suspend fun checkAndFixBackupSize(
+    localCloudBackup: CloudBackup,
+    account: FullAccount,
+  ): AppKeyBackupStatus? {
     val localBackupSize = getBackupSizeBytes(localCloudBackup)
 
     if (localBackupSize >= CLOUD_BACKUP_SIZE_WARNING_BYTES && cloudBackupHealthLoggingFeatureFlag.isEnabled()) {
@@ -155,17 +190,29 @@ class CloudBackupHealthRepositoryImpl(
           .get()
         if (fixedBackup != null) {
           cloudBackupDao.set(account.accountId.serverId, fixedBackup)
+          logInfo { "App key backup status check: backup exceeded size limit - fixed and marked as stale" }
           return AppKeyBackupStatus.ProblemWithBackup.StaleBackup
         }
       }
     }
+    return null
+  }
+
+  private suspend fun compareLocalAndCloudBackups(
+    cloudAccount: CloudStoreAccount,
+    localCloudBackup: CloudBackup,
+  ): AppKeyBackupStatus {
+    val localBackupSize = getBackupSizeBytes(localCloudBackup)
 
     return cloudBackupRepository
       .readActiveBackup(cloudAccount)
       .fold(
         success = { cloudBackup ->
           when (cloudBackup) {
-            null -> AppKeyBackupStatus.ProblemWithBackup.BackupMissing
+            null -> {
+              logInfo { "App key backup status check: no cloud backup found" }
+              AppKeyBackupStatus.ProblemWithBackup.BackupMissing
+            }
             else -> {
               if (cloudBackup != localCloudBackup) {
                 if (cloudBackupHealthLoggingFeatureFlag.isEnabled()) {
@@ -179,13 +226,32 @@ class CloudBackupHealthRepositoryImpl(
                     }"
                   }
                 }
+                logInfo { "App key backup status check: backup mismatch detected" }
                 AppKeyBackupStatus.ProblemWithBackup.InvalidBackup(cloudBackup)
               } else {
                 // TODO(BKR-1155): do we need to perform additional integrity checks?
-                AppKeyBackupStatus.Healthy(
-                  // TODO(BKR-1154): use actual timestamp from backup
-                  lastUploaded = Clock.System.now()
-                )
+                logInfo { "App key backup status check: backup is healthy (local matches cloud)" }
+                
+                // For V2 backups, preserve existing behavior: always return healthy with current time
+                // For V3 backups, use actual timestamp and check force reupload flag
+                when (cloudBackup) {
+                  is CloudBackupV2 -> {
+                    // V2 backup - no timestamp available, return healthy with current time.
+                    // Note: CloudBackupVersionMigrationWorker will migrate V2 to V3 on next app
+                    // startup/foreground, and subsequent health checks will then use the actual
+                    // V3 timestamp for force reupload evaluation.
+                    AppKeyBackupStatus.Healthy(lastUploaded = Clock.System.now())
+                  }
+                  is CloudBackupV3 -> {
+                    // V3 backup - check if forced reupload is needed based on feature flag
+                    if (shouldForceReuploadDueToTimestamp(cloudBackup.createdAt)) {
+                      logInfo { "App key backup status check: backup needs reupload due to force reupload timestamp" }
+                      AppKeyBackupStatus.ProblemWithBackup.StaleBackup
+                    } else {
+                      AppKeyBackupStatus.Healthy(lastUploaded = cloudBackup.createdAt)
+                    }
+                  }
+                }
               }
             }
           }
@@ -206,11 +272,45 @@ class CloudBackupHealthRepositoryImpl(
       )
   }
 
+  /**
+   * Checks if a forced reupload is required based on the feature flag timestamp.
+   * Returns true if the feature flag is set to a valid timestamp and the last uploaded
+   * timestamp is older than the flag's threshold.
+   */
+  private fun shouldForceReuploadDueToTimestamp(lastUploaded: Instant): Boolean {
+    val flagValue = cloudBackupForceReuploadTimestampFeatureFlag.flagValue().value.value
+
+    // If flag is empty or whitespace, forced reupload is disabled
+    if (flagValue.isBlank()) {
+      return false
+    }
+
+    // Try to parse the flag value as an Instant
+    val forceReuploadThreshold = try {
+      Instant.parse(flagValue)
+    } catch (e: IllegalArgumentException) {
+      logInfo { "Invalid timestamp format in cloud-backup-force-reupload-timestamp flag: $flagValue - ${e.message}" }
+      return false
+    }
+
+    // Check if backup is older than threshold
+    val shouldForce = lastUploaded < forceReuploadThreshold
+
+    if (shouldForce) {
+      logInfo {
+        "Backup last uploaded at $lastUploaded is older than force reupload threshold $forceReuploadThreshold"
+      }
+    }
+
+    return shouldForce
+  }
+
   private suspend fun syncEekBackupStatus(cloudAccount: CloudStoreAccount): EekBackupStatus {
     return emergencyExitKitRepository
       .read(cloudAccount)
       .fold(
         success = {
+          logInfo { "EEK backup status check: backup is healthy" }
           EekBackupStatus.Healthy(
             // TODO(BKR-1154): use actual timestamp from backup
             lastUploaded = Clock.System.now()
@@ -218,6 +318,7 @@ class CloudBackupHealthRepositoryImpl(
         },
         failure = {
           // TODO(BKR-1153): handle unknown loading errors
+          logInfo { "EEK backup status check: backup missing or unreadable" }
           EekBackupStatus.ProblemWithBackup.BackupMissing
         }
       )

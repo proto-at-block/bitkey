@@ -6,6 +6,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.mapUnit
 import build.wallet.platform.data.MimeType
 import com.github.michaelbull.result.*
@@ -53,8 +54,10 @@ class GoogleDriveKeyValueStoreImpl(
         val entryFile = drive.findEntryFile(key).bind()
         if (entryFile == null) {
           drive.createNewEntryFile(key, value.encodeUtf8()).bind()
+          logInfo { "Google Drive: created new file for key=$key (size=${value.length} chars)" }
         } else {
           drive.updateExistingEntryFile(entryFile.id, key, value.encodeUtf8()).bind()
+          logInfo { "Google Drive: updated existing file for key=$key (size=${value.length} chars)" }
         }
       }
     }.logFailure { "Error setting value for key=$key on Google Drive" }
@@ -72,13 +75,17 @@ class GoogleDriveKeyValueStoreImpl(
           drive.findEntryFile(key)
             .flatMap { entryFile ->
               when (entryFile) {
-                null -> Err(GoogleDriveError(message = "Failed to delete key=$key; file does not exist"))
+                null -> {
+                  logInfo { "Google Drive: file not found for deletion, key=$key" }
+                  Err(GoogleDriveError(message = "Failed to delete key=$key; file does not exist"))
+                }
                 else -> Ok(entryFile)
               }
             }
             .bind()
 
         drive.deleteExistingEntryFile(entryFile.id).bind()
+        logInfo { "Google Drive: successfully deleted file for key=$key" }
       }
     }.logFailure(LogLevel.Warn) { "Error deleting value for key=$key from Google Drive" }
 
@@ -109,9 +116,14 @@ class GoogleDriveKeyValueStoreImpl(
 
         val file = drive.findEntryFile(key).bind()
 
-        file?.let {
+        if (file == null) {
+          logInfo { "Google Drive: no file found for key=$key" }
+          null
+        } else {
           val fileData = drive.downloadEntryFile(file).bind()
-          fileData.utf8()
+          val value = fileData.utf8()
+          logInfo { "Google Drive: successfully read value for key=$key (size=${value.length} chars)" }
+          value
         }
       }
     }.logFailure { "Error reading string value for key=$key from Google Drive cloud storage" }

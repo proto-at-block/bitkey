@@ -192,6 +192,11 @@ interface FeatureFlagsComponent {
     KeysetRepairFeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun cloudBackupForceReuploadTimestampFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    CloudBackupForceReuploadTimestampFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
     coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
@@ -228,6 +233,7 @@ interface FeatureFlagsComponent {
     augurFeesEstimationFeatureFlag: AugurFeesEstimationFeatureFlag,
     keysetRepairFeatureFlag: KeysetRepairFeatureFlag,
     ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag,
+    cloudBackupForceReuploadTimestampFeatureFlag: CloudBackupForceReuploadTimestampFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       bdk2FeatureFlag,
@@ -265,7 +271,8 @@ interface FeatureFlagsComponent {
       firmwareCommsLoggingFeatureFlag,
       asyncNfcSigningFeatureFlag,
       bip177FeatureFlag,
-      cloudBackupHealthLoggingFeatureFlag
+      cloudBackupHealthLoggingFeatureFlag,
+      cloudBackupForceReuploadTimestampFeatureFlag
     )
   }
 }

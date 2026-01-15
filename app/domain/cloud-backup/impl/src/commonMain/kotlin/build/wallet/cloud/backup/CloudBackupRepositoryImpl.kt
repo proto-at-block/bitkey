@@ -48,14 +48,20 @@ class CloudBackupRepositoryImpl(
     cloudStoreAccount: CloudStoreAccount,
   ): Result<CloudBackup?, CloudBackupError> =
     coroutineBinding {
+      logInfo { "Reading active backup from cloud storage" }
       var backup: CloudBackup? = null
       if (sharedCloudBackupsFeatureFlag.isEnabled()) {
         // Migrate before reading if the flag is on
         migrateBackupToAccountIdKey(cloudStoreAccount)
 
         val accountId =
-          accountService.activeAccount().firstOrNull()?.accountId ?: return@coroutineBinding null
+          accountService.activeAccount().firstOrNull()?.accountId
+        if (accountId == null) {
+          logInfo { "No active account found, skipping backup read" }
+          return@coroutineBinding null
+        }
         val key = cloudBackupRepositoryKeys.activeBackupFormatAccountSpecificKey(accountId)
+        logInfo { "Attempting to read backup with account-specific key: $key" }
         // Try account-specific key first, fall back to legacy
         backup = readThenParseBackup(cloudStoreAccount, key).bind()
 
@@ -70,9 +76,14 @@ class CloudBackupRepositoryImpl(
 
       // If not found in account-specific key, try legacy key (for migration)
       if (backup == null) {
+        logInfo { "Attempting to read backup with legacy key: $cloudBackupLegacyKeyPrefix" }
         // Use legacy behavior (read only from "cloud-backup" key)
         // No account ID verification needed since only one backup exists at the legacy key
         backup = readThenParseBackup(cloudStoreAccount, cloudBackupLegacyKeyPrefix).bind()
+      }
+
+      if (backup == null) {
+        logInfo { "No backup found in cloud storage (tried both account-specific and legacy keys)" }
       }
 
       backup
@@ -284,16 +295,22 @@ class CloudBackupRepositoryImpl(
         .bind()
 
       when (backupEncoded) {
-        null -> null
-        else ->
+        null -> {
+          logInfo { "No backup found at key=$key" }
+          null
+        }
+        else -> {
           // Found encoded app data
           // Attempt to decode as V3 backup, then fall back to V2. See the cloud backup README.md.
-          jsonSerializer.decodeFromStringResult<CloudBackupV3>(backupEncoded)
+          val backup = jsonSerializer.decodeFromStringResult<CloudBackupV3>(backupEncoded)
             .orElse { jsonSerializer.decodeFromStringResult<CloudBackupV2>(backupEncoded) }
             .mapError {
               UnrectifiableCloudBackupError(UnknownAppDataFoundError(it))
             }
             .bind()
+          logInfo { "Successfully parsed backup from key=$key (accountId=${backup.accountId})" }
+          backup
+        }
       }
     }.logFailure(Warn) { "Error reading cloud backup from cloud storage" }
 

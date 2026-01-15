@@ -828,7 +828,8 @@ data "aws_iam_policy_document" "api_iam_policy" {
     ]
     resources = [
       "arn:aws:dynamodb:*:${data.aws_caller_identity.this.account_id}:table/${local.tables.account_table_name}",
-      "arn:aws:dynamodb:*:${data.aws_caller_identity.this.account_id}:table/${local.tables.social_recovery_table_name}"
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.this.account_id}:table/${local.tables.social_recovery_table_name}",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.this.account_id}:table/${local.tables.signed_psbt_cache_table_name}"
     ]
   }
 

@@ -40,6 +40,7 @@ locals {
     refund_request_job                            = "refund-request-job"        # schedule periodic refund request job
     tax_refund_request_job                        = "tax-refund-request-job"    # schedule periodic tax refund request job    
     order_slack_reporting_job                     = "order-slack-reporting-job" # schedule period order slack reporting job
+    temporal_worker                               = "temporal-worker"           # start the temporal worker
     stuck_orders_declined_job                     = "stuck-orders-declined-job"
     stuck_orders_awaiting_pickup_job              = "stuck-orders-awaiting-pickup-job"
     stuck_orders_disputed_job                     = "stuck-orders-disputed-job"
@@ -276,6 +277,36 @@ module "order_slack_reporting_job" {
   }
 }
 
+module "web_temporal_worker" {
+  source = "../../../models/ecs-service"
+
+  namespace = var.namespace
+  name      = "${var.name}-temporal-worker"
+
+  vpc_name             = var.vpc_name
+  security_group_ids   = [module.lookup_db.ingress_security_group_id]
+  cluster_arn          = var.cluster_arn
+  image_name           = var.image_name
+  image_tag            = var.image_tag
+  environment          = var.environment
+  cpu_architecture     = "X86_64"
+  desired_count        = 1
+  create_load_balancer = false
+  command              = [local.commands.temporal_worker]
+
+  environment_variables = merge(local.environment_variables, {
+    DD_SERVICE = "${var.name}-temporal-worker"
+  })
+  secrets = local.secrets
+
+  task_policy_arns = merge({
+    secrets = aws_iam_policy.secrets_policy.arn
+  }, var.task_policy_arns)
+  exec_policy_arns = {
+    secrets = aws_iam_policy.secrets_policy.arn
+  }
+}
+
 module "web_stuck_orders" {
   source = "../../../models/ecs-service"
 
@@ -391,6 +422,16 @@ resource "aws_iam_role_policy" "order_slack_reporting_job_secrets_policy_exec" {
 
 resource "aws_iam_role_policy" "order_slack_reporting_job_secrets_policy" {
   role   = module.order_slack_reporting_job.task_role_name
+  policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
+}
+
+resource "aws_iam_role_policy" "web_temporal_worker_secrets_policy_exec" {
+  role   = module.web_temporal_worker.exec_role_name
+  policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
+}
+
+resource "aws_iam_role_policy" "web_temporal_worker_secrets_policy" {
+  role   = module.web_temporal_worker.task_role_name
   policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
 }
 

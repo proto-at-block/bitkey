@@ -2,7 +2,6 @@ package build.wallet.recovery
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.db.DbTransactionError
 import build.wallet.f8e.recovery.ServerRecovery
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import com.github.michaelbull.result.Ok
@@ -48,12 +47,6 @@ class RecoveryDaoMock(
   ): Result<Unit, Error> {
     setLocalRecoveryProgressCalls += progress
     return setLocalRecoveryProgressResult
-  }
-
-  var setLocalRecoveryPresent: Result<Boolean, DbTransactionError> = Ok(false)
-
-  override suspend fun isLocalRecoveryPresent(): Result<Boolean, DbTransactionError> {
-    return setLocalRecoveryPresent
   }
 
   fun reset() {

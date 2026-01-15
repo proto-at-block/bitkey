@@ -11,9 +11,7 @@ import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.notifications.NotificationTouchpointService
 import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.onboarding.OnboardingKeyboxStep
-import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
-import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
 import build.wallet.onboarding.OnboardingKeyboxStepStateDao
 import build.wallet.platform.settings.TelephonyCountryCodeProvider
 import build.wallet.platform.settings.isCountry
@@ -164,11 +162,6 @@ class NotificationPreferencesSetupUiStateMachineImpl(
               ConfigureRecoveryOptionsUiState(overlayState = NoEmailError)
             } else {
               ConfigureRecoveryOptionsUiState(overlayState = ConfirmSkipRecoveryMethods)
-            }
-          },
-          onBack = {
-            scope.launch {
-              onboardingKeyboxStepStateDao.setStateForStep(CloudBackup, Incomplete)
             }
           },
           learnOnClick = {
