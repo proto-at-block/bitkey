@@ -2,6 +2,7 @@ package build.wallet.platform
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.logging.logWarn
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.*
 import build.wallet.platform.config.DeviceTokenConfig
@@ -12,15 +13,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 @BitkeyInject(AppScope::class)
 class DeviceTokenConfigProviderImpl(
   private val appVariant: AppVariant,
 ) : DeviceTokenConfigProvider {
   override suspend fun config(): DeviceTokenConfig? {
+    val token = getToken() ?: return null
     return DeviceTokenConfig(
-      deviceToken = getToken(),
+      deviceToken = token,
       touchpointPlatform =
         when (appVariant) {
           Emergency -> FcmCustomer
@@ -32,7 +33,7 @@ class DeviceTokenConfigProviderImpl(
     )
   }
 
-  private suspend fun getToken(): String {
+  private suspend fun getToken(): String? {
     return withContext(Dispatchers.IO) {
       suspendCancellableCoroutine { continuation ->
         FirebaseMessaging.getInstance()
@@ -40,8 +41,9 @@ class DeviceTokenConfigProviderImpl(
           .addOnSuccessListener { token ->
             continuation.resume(token)
           }
-          .addOnFailureListener {
-            continuation.resumeWithException(it)
+          .addOnFailureListener { exception ->
+            logWarn(throwable = exception) { "Failed to get FCM token" }
+            continuation.resume(null)
           }
           .addOnCanceledListener {
             continuation.cancel()

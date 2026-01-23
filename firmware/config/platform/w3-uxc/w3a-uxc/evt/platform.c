@@ -100,11 +100,6 @@ display_config_t display_config = {.gfx_config =
                                               .pupd = MCU_GPIO_PULL_UP},
                                        .display_width = 466,
                                        .display_height = 466,
-#ifndef DISPLAY_ROTATE_180
-                                       .rotate_180 = false,
-#else
-                                       .rotate_180 = (bool)DISPLAY_ROTATE_180,
-#endif
                                      },
                                    .pwr_on_delay = 100u,     // 100 ms
                                    .pwr_off_delay = 100u,    // 100 ms

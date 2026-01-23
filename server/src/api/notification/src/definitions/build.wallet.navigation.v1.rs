@@ -56,6 +56,8 @@ pub enum NavigationScreenId {
     CloudRepair = 19,
     /// * Transaction Verification Policy management screen. *
     TxVerificationPolicy = 20,
+    /// * Screen for repairing local keysets if there is an issue
+    KeysetRepair = 21,
 }
 impl NavigationScreenId {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -113,6 +115,7 @@ impl NavigationScreenId {
             NavigationScreenId::TxVerificationPolicy => {
                 "NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY"
             }
+            NavigationScreenId::KeysetRepair => "NAVIGATION_SCREEN_ID_KEYSET_REPAIR",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -155,6 +158,7 @@ impl NavigationScreenId {
             "NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY" => {
                 Some(Self::TxVerificationPolicy)
             }
+            "NAVIGATION_SCREEN_ID_KEYSET_REPAIR" => Some(Self::KeysetRepair),
             _ => None,
         }
     }

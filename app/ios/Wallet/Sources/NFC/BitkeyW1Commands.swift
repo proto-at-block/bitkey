@@ -7,12 +7,45 @@ public final class BitkeyW1Commands: NfcCommands {
     public func fwupStart(
         session: NfcSession,
         patchSize: KotlinUInt?,
-        fwupMode: Shared.FwupMode
-    ) async throws -> KotlinBoolean {
-        return try await .init(bool: FwupStart(
+        fwupMode: Shared.FwupMode,
+        mcuRole: Shared.McuRole = .core
+    ) async throws -> Shared.HardwareInteraction {
+        let result = try await FwupStart(
             patchSize: patchSize?.uint32Value,
-            fwupMode: fwupMode.toCoreFwupMode()
-        ).transceive(session: session))
+            fwupMode: fwupMode.toCoreFwupMode(),
+            mcuRole: mcuRole.toCoreMcuRole()
+        ).transceive(session: session)
+        switch result {
+        case let .success(value):
+            return Shared.HardwareInteractionCompleted<KotlinBoolean>(
+                result: KotlinBoolean(bool: value)
+            ) as Shared.HardwareInteraction
+        case let .confirmationPending(responseHandle, confirmationHandle):
+            let handles = Shared.ConfirmationHandles(
+                responseHandle: responseHandle.map { KotlinUByte(value: $0) },
+                confirmationHandle: confirmationHandle.map { KotlinUByte(value: $0) }
+            )
+            let suspendFunction = NfcSessionSuspendFunction { newSession, commands in
+                let confirmResult = try await commands.getConfirmationResult(
+                    session: newSession,
+                    handles: handles
+                )
+                switch confirmResult {
+                case let fwupStartResult as Shared.ConfirmationResultFwupStart:
+                    return Shared.HardwareInteractionCompleted<KotlinBoolean>(
+                        result: KotlinBoolean(bool: fwupStartResult.success)
+                    ) as Shared.HardwareInteraction
+                default:
+                    throw NfcException.CommandError(
+                        message: "fwupStart expected FwupStart result but got: \(type(of: confirmResult))",
+                        cause: nil
+                    ).asError()
+                }
+            }
+            return Shared.HardwareInteractionRequiresConfirmation<KotlinBoolean>(
+                fetchResult: suspendFunction
+            ) as Shared.HardwareInteraction
+        }
     }
 
     public func fwupTransfer(
@@ -20,13 +53,15 @@ public final class BitkeyW1Commands: NfcCommands {
         sequenceId: UInt32,
         fwupData: [KotlinUByte],
         offset: UInt32,
-        fwupMode: Shared.FwupMode
+        fwupMode: Shared.FwupMode,
+        mcuRole: Shared.McuRole = .core
     ) async throws -> KotlinBoolean {
         return try await .init(bool: FwupTransfer(
             sequenceId: sequenceId,
             fwupData: fwupData.map(\.uint8Value),
             offset: offset,
-            fwupMode: fwupMode.toCoreFwupMode()
+            fwupMode: fwupMode.toCoreFwupMode(),
+            mcuRole: mcuRole.toCoreMcuRole()
         ).transceive(session: session))
     }
 
@@ -34,12 +69,14 @@ public final class BitkeyW1Commands: NfcCommands {
         session: NfcSession,
         appPropertiesOffset: UInt32,
         signatureOffset: UInt32,
-        fwupMode: Shared.FwupMode
+        fwupMode: Shared.FwupMode,
+        mcuRole: Shared.McuRole = .core
     ) async throws -> FwupFinishResponseStatus {
         return try await FwupFinish(
             appPropertiesOffset: appPropertiesOffset,
             signatureOffset: signatureOffset,
-            fwupMode: fwupMode.toCoreFwupMode()
+            fwupMode: fwupMode.toCoreFwupMode(),
+            mcuRole: mcuRole.toCoreMcuRole()
         ).transceive(session: session).toFwupFinishResponseStatus()
     }
 
@@ -54,16 +91,37 @@ public final class BitkeyW1Commands: NfcCommands {
         return try await .init(int: Int32(GetCoredumpCount().transceive(session: session)))
     }
 
-    public func getCoredumpFragment(session: NfcSession, offset: Int32) async throws -> Shared
+    public func getCoredumpFragment(
+        session: NfcSession,
+        offset: Int32,
+        mcuRole: Shared.McuRole
+    ) async throws -> Shared
         .CoredumpFragment
     {
-        let fragment = try await GetCoredumpFragment(offset: UInt32(offset))
-            .transceive(session: session)
+        let fragment = try await GetCoredumpFragment(
+            offset: UInt32(offset),
+            mcuRole: mcuRole.toCoreMcuRole()
+        )
+        .transceive(session: session)
         return .init(
             data: fragment.data.map { KotlinUByte(value: $0) },
             offset: fragment.offset,
             complete: fragment.complete,
-            coredumpsRemaining: fragment.coredumpsRemaining
+            coredumpsRemaining: fragment.coredumpsRemaining,
+            mcuRole: {
+                switch fragment.mcuRole {
+                case .core: return .core
+                case .uxc: return .uxc
+                case .none: return nil
+                }
+            }() as Shared.McuRole?,
+            mcuName: {
+                switch fragment.mcuName {
+                case .efr32: return .efr32
+                case .stm32u5: return .stm32u5
+                case .none: return nil
+                }
+            }() as Shared.McuName?,
         )
     }
 
@@ -74,11 +132,22 @@ public final class BitkeyW1Commands: NfcCommands {
         )
     }
 
-    public func getEvents(session: NfcSession) async throws -> Shared.EventFragment {
-        let events = try await GetEvents().transceive(session: session)
+    public func getEvents(
+        session: NfcSession,
+        mcuRole: Shared.McuRole
+    ) async throws -> Shared.EventFragment {
+        let events = try await GetEvents(mcuRole: mcuRole.toCoreMcuRole())
+            .transceive(session: session)
         return .init(
             fragment: events.fragment.map { KotlinUByte(value: $0) },
-            remainingSize: events.remainingSize
+            remainingSize: events.remainingSize,
+            mcuRole: {
+                switch events.mcuRole {
+                case .core: return .core
+                case .uxc: return .uxc
+                case .none: return nil
+                }
+            }() as Shared.McuRole?,
         )
     }
 
@@ -272,8 +341,37 @@ public final class BitkeyW1Commands: NfcCommands {
         return try await .init(unsignedShort: Version().transceive(session: session))
     }
 
-    public func wipeDevice(session: NfcSession) async throws -> KotlinBoolean {
-        return try await .init(bool: WipeState().transceive(session: session))
+    public func wipeDevice(session: NfcSession) async throws -> Shared.HardwareInteraction {
+        let result = try await WipeState().transceive(session: session)
+        switch result {
+        case let .success(value):
+            return Shared.HardwareInteractionCompleted<KotlinBoolean>(
+                result: KotlinBoolean(bool: value)
+            ) as Shared.HardwareInteraction
+        case let .confirmationPending(responseHandle, confirmationHandle):
+            let handles = Shared.ConfirmationHandles(
+                responseHandle: responseHandle.map { KotlinUByte(value: $0) },
+                confirmationHandle: confirmationHandle.map { KotlinUByte(value: $0) }
+            )
+            let suspendFunction = NfcSessionSuspendFunction { newSession, commands in
+                let confirmResult = try await commands.getConfirmationResult(
+                    session: newSession,
+                    handles: handles
+                )
+                guard let wipeResult = confirmResult as? Shared.ConfirmationResultWipeDevice else {
+                    throw NfcException.CommandError(
+                        message: "wipeDevice expected WipeDevice result but got: \(type(of: confirmResult))",
+                        cause: nil
+                    ).asError()
+                }
+                return Shared.HardwareInteractionCompleted<KotlinBoolean>(
+                    result: KotlinBoolean(bool: wipeResult.success)
+                ) as Shared.HardwareInteraction
+            }
+            return Shared.HardwareInteractionRequiresConfirmation<KotlinBoolean>(
+                fetchResult: suspendFunction
+            ) as Shared.HardwareInteraction
+        }
     }
 
     public func getFirmwareFeatureFlags(session: NfcSession) async throws
@@ -362,6 +460,22 @@ public final class BitkeyW1Commands: NfcCommands {
                 .transceive(session: session)
         )
     }
+
+    public func getConfirmationResult(
+        session: NfcSession,
+        handles: Shared.ConfirmationHandles
+    ) async throws -> Shared.ConfirmationResult {
+        let result = try await GetConfirmationResult(
+            responseHandle: handles.responseHandle.map(\.uint8Value),
+            confirmationHandle: handles.confirmationHandle.map(\.uint8Value)
+        ).transceive(session: session)
+        switch result {
+        case let .wipeState(success):
+            return Shared.ConfirmationResultWipeDevice(success: success)
+        case let .fwupStart(success):
+            return Shared.ConfirmationResultFwupStart(success: success)
+        }
+    }
 }
 
 // MARK: -
@@ -386,6 +500,16 @@ private extension Shared.FwupMode {
         case .delta: return .delta
         case .normal: return .normal
         default: return .normal
+        }
+    }
+}
+
+private extension Shared.McuRole {
+    func toCoreMcuRole() -> firmware.McuRole {
+        switch self {
+        case .core: return .core
+        case .uxc: return .uxc
+        default: return .core
         }
     }
 }

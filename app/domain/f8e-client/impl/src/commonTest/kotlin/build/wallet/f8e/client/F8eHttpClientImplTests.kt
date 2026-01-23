@@ -34,6 +34,7 @@ import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.bodyResult
 import build.wallet.platform.config.AppVariant.Development
+import build.wallet.platform.connectivity.InternetConnectionCheckerFake
 import build.wallet.platform.data.MimeType
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.settings.CountryCodeGuesserMock
@@ -151,6 +152,7 @@ class F8eHttpClientImplTests : FunSpec({
           firmwareDeviceInfoDao = firmwareDeviceInfoDaoMock,
           countryCodeGuesser = CountryCodeGuesserMock(),
           networkReachabilityProvider = authedNetworkReachabilityProvider,
+          internetConnectionChecker = InternetConnectionCheckerFake(),
           networkingDebugService = networkingDebugService,
           engine = overrideEngine,
           clock = ClockFake()
@@ -167,6 +169,7 @@ class F8eHttpClientImplTests : FunSpec({
           firmwareDeviceInfoDao = firmwareDeviceInfoDaoMock,
           countryCodeGuesser = CountryCodeGuesserMock(),
           networkReachabilityProvider = unauthedNetworkReachabilityProvider,
+          internetConnectionChecker = InternetConnectionCheckerFake(),
           networkingDebugService = networkingDebugService,
           engine = unauthenticatedMockEngine.engine
         )

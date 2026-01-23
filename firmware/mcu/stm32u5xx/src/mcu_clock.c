@@ -82,16 +82,16 @@ static const aux_clock_config_t aux_clock_configs[] = {
           .r = 8,   // 160MHz / 8 = 20MHz R output
         },
     },
-  [MCU_AUX_CLOCK_HSE_16MHZ_AUX_48MHZ] =
+  [MCU_AUX_CLOCK_HSE_16MHZ_AUX_44MHZ] =
     {
       .pll2 =
         {
           .vco_input_range = LL_RCC_PLLINPUTRANGE_8_16,
           .m = 1,   // 16MHz / 1 = 16MHz PLL input
-          .n = 24,  // 16MHz * 24 = 384MHz VCO
-          .p = 8,   // 384MHz / 8 = 48MHz P output
-          .q = 8,   // 384MHz / 8 = 48MHz Q output
-          .r = 8,   // 384MHz / 8 = 48MHz R output
+          .n = 22,  // 16MHz * 22 = 352MHz VCO
+          .p = 8,   // 352MHz / 8 = 44MHz P output
+          .q = 8,   // 352MHz / 8 = 44MHz Q output
+          .r = 8,   // 352MHz / 8 = 44MHz R output
         },
     },
 };

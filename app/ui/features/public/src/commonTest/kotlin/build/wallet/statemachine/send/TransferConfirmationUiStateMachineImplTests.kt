@@ -24,7 +24,7 @@ import build.wallet.limit.MobilePayServiceMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcContinuationSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -156,7 +156,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
@@ -385,7 +385,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
@@ -479,7 +479,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
@@ -698,13 +698,89 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachineId
       )
     }
 
     mobilePayService.signPsbtCalls.awaitItem()
 
+    transactionPriorityPreference.preference.shouldBeNull()
+  }
+
+  test("broadcast failure after server-to-hardware fallback shows error instead of success") {
+    val preferenceToSet = FASTEST
+    spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
+    mobilePayService.signPsbtWithMobilePayResult = Err(NetworkError(Error("fee too low")))
+    mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
+    bitcoinWalletService.broadcastError = BdkError.Electrum(Exception(""), null)
+
+    stateMachine.test(
+      props.copy(
+        selectedPriority = preferenceToSet
+      )
+    ) {
+      // CreatingAppSignedPsbt
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // ViewingTransferConfirmation
+      awaitBody<FormBodyModel> {
+        clickPrimaryButton()
+      }
+
+      // SigningWithServer (fails)
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      mobilePayService.signPsbtGrants.awaitItem().shouldBeNull()
+
+      // ReceivedServerSigningError - user clicks Continue to fallback to hardware
+      awaitBody<FormBodyModel> {
+        with(header.shouldNotBeNull()) {
+          headline.shouldBe("We couldn’t send this as a mobile-only transaction")
+          sublineModel.shouldNotBeNull().string.shouldBe(
+            "Please use your hardware device to confirm this transaction."
+          )
+        }
+        with(primaryButton.shouldNotBeNull()) {
+          text.shouldBe("Continue")
+          onClick()
+        }
+      }
+
+      // SigningWithHardware (succeeds)
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
+        id = nfcSessionUIStateMachineId
+      ) {
+        onSuccess(appAndHwSignedPsbt)
+      }
+
+      // BroadcastingTransaction (fails)
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      bitcoinWalletService.broadcastedPsbts.test {
+        awaitUntil { it.isNotEmpty() }.shouldContainExactly(appAndHwSignedPsbt)
+      }
+
+      // Should show error screen
+      awaitBody<FormBodyModel> {
+        expectGenericErrorMessage()
+        clickPrimaryButton()
+      }
+      onExitCalls.awaitItem()
+    }
+
+    mobilePayService.signPsbtCalls.awaitItem()
+
+    // Transaction priority should not be set since broadcast failed
     transactionPriorityPreference.preference.shouldBeNull()
   }
 }

@@ -91,6 +91,7 @@ dev_tools_deps = [
   canary_cmd_dep,
   mpu_cmd_dep,
   ui_cmd_dep,
+  display_controller_cmd_dep,
   unlock_cmd_dep,
   hal_nfc_cmd_dep,
   temperature_cmd_dep,

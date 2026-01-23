@@ -23,6 +23,7 @@ import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
 import build.wallet.feature.flags.CheckHardwareIsPairedFeatureFlag
+import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.nfc.NfcAvailability
 import build.wallet.nfc.NfcException
@@ -65,6 +66,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   val signatureVerifier = SignatureVerifierMock(signatureVerifyCalls)
   val accountService = AccountServiceFake()
   val checkHardwareIsPairedFeatureFlag = CheckHardwareIsPairedFeatureFlag(FeatureFlagDaoFake())
+  val nfcSessionRetryAttemptsFeatureFlag = NfcSessionRetryAttemptsFeatureFlag(FeatureFlagDaoFake())
   val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
@@ -78,8 +80,9 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     signatureVerifier = signatureVerifier,
     accountService = accountService,
     checkHardwareIsPairedFeatureFlag = checkHardwareIsPairedFeatureFlag,
-    recoveryStatusService = recoveryStatusService,
     inAppBrowserNavigator = inAppBrowserNavigator,
+    nfcSessionRetryAttemptsFeatureFlag = nfcSessionRetryAttemptsFeatureFlag,
+    recoveryStatusService = recoveryStatusService,
     appVariant = AppVariant.Customer
   )
 

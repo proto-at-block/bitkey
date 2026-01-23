@@ -298,13 +298,12 @@ message mfgtest_button_rsp {
 // Command to show manufacturing test screens
 message mfgtest_show_screen_cmd {
   enum mfgtest_screen_mode {
-    EXIT = 0;           // Exit/close the mfg screen
-    ANIMATION = 1;      // Starfield FPS test
-    reserved 2 to 6;    // Previously RED, GREEN, BLUE, WHITE, BLACK - now use CUSTOM_COLOR
-    BURNIN_GRID = 7;    // R/G/B/Black grid pattern
-    COLOR_BARS = 8;     // EBU standard color bars for ESD testing
-    SCROLLING_H = 9;    // Scrolling 'H' characters for ESD testing
-    CUSTOM_COLOR = 10;  // Solid color screen (RGB as 0xRRGGBB in custom_rgb field)
+    EXIT = 0;                   // Exit/close the mfg screen
+    reserved 1 to 6;            // Previously ANIMATION, RED, GREEN, BLUE, WHITE, BLACK - now use CUSTOM_COLOR
+    BURNIN_GRID = 7;            // R/G/B/Black grid pattern
+    COLOR_BARS = 8;             // EBU standard color bars for ESD testing
+    SCROLLING_H = 9;            // Scrolling 'H' characters for ESD testing
+    CUSTOM_COLOR = 10;          // Solid color screen (RGB as 0xRRGGBB in custom_rgb field)
   }
 
   mfgtest_screen_mode screen_mode = 1;

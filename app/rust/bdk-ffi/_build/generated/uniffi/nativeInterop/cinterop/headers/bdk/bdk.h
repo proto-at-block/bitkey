@@ -447,6 +447,10 @@ void uniffi_bdk_fn_free_electrumclient(void * ptr, UniffiRustCallStatus *_Nonnul
 );
 void * uniffi_bdk_fn_constructor_electrumclient_new(RustBuffer url, RustBuffer socks5, UniffiRustCallStatus *_Nonnull out_status
 );
+void * uniffi_bdk_fn_method_electrumclient_block_hash(void * ptr, int64_t height, UniffiRustCallStatus *_Nonnull out_status
+);
+RustBuffer uniffi_bdk_fn_method_electrumclient_block_header(void * ptr, int64_t height, UniffiRustCallStatus *_Nonnull out_status
+);
 RustBuffer uniffi_bdk_fn_method_electrumclient_block_headers_subscribe(void * ptr, UniffiRustCallStatus *_Nonnull out_status
 );
 double uniffi_bdk_fn_method_electrumclient_estimate_fee(void * ptr, int64_t number, UniffiRustCallStatus *_Nonnull out_status
@@ -460,6 +464,8 @@ RustBuffer uniffi_bdk_fn_method_electrumclient_server_features(void * ptr, Uniff
 void * uniffi_bdk_fn_method_electrumclient_sync(void * ptr, void * request, int64_t batchSize, int8_t fetchPrevTxouts, UniffiRustCallStatus *_Nonnull out_status
 );
 void * uniffi_bdk_fn_method_electrumclient_transaction_broadcast(void * ptr, void * tx, UniffiRustCallStatus *_Nonnull out_status
+);
+void * uniffi_bdk_fn_method_electrumclient_transaction_get(void * ptr, void * txid, UniffiRustCallStatus *_Nonnull out_status
 );
 void * uniffi_bdk_fn_clone_esploraclient(void * ptr, UniffiRustCallStatus *_Nonnull out_status
 );
@@ -1170,6 +1176,12 @@ int16_t uniffi_bdk_checksum_method_descriptorsecretkey_extend(void
 int16_t uniffi_bdk_checksum_method_descriptorsecretkey_secret_bytes(void
     
 );
+int16_t uniffi_bdk_checksum_method_electrumclient_block_hash(void
+    
+);
+int16_t uniffi_bdk_checksum_method_electrumclient_block_header(void
+    
+);
 int16_t uniffi_bdk_checksum_method_electrumclient_block_headers_subscribe(void
     
 );
@@ -1189,6 +1201,9 @@ int16_t uniffi_bdk_checksum_method_electrumclient_sync(void
     
 );
 int16_t uniffi_bdk_checksum_method_electrumclient_transaction_broadcast(void
+    
+);
+int16_t uniffi_bdk_checksum_method_electrumclient_transaction_get(void
     
 );
 int16_t uniffi_bdk_checksum_method_esploraclient_broadcast(void

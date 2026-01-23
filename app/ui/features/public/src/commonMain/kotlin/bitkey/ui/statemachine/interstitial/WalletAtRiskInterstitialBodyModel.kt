@@ -1,5 +1,6 @@
 package bitkey.ui.statemachine.interstitial
 
+import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -18,7 +19,7 @@ data class WalletAtRiskInterstitialBodyModel(
   val onButtonClick: () -> Unit,
   val onClose: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = MoneyHomeEventTrackerScreenId.WALLET_AT_RISK_INTERSTITIAL,
     onBack = onClose,
     toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory(

@@ -1,8 +1,11 @@
 #include "assert.h"
 #include "attributes.h"
+#include "auth.h"
+#include "board_id.h"
 #include "button.h"
 #include "coproc_power.h"
 #include "display_controller.h"
+#include "ipc.h"
 #include "log.h"
 #include "metadata.h"
 #include "rtos.h"
@@ -27,23 +30,10 @@ static struct {
   uint8_t event_data[128];
   uint32_t event_data_len;
   bool button_bypass_enabled;
+  uint32_t last_wake_time_ms;
 } display_state UI_TASK_DATA = {0};
 
-#define DISPLAY_BACKEND_POLL_INTERVAL_MS 10
-
-static void handle_display_response(void* proto, void* UNUSED(context)) {
-  fwpb_uxc_msg_device* msg = (fwpb_uxc_msg_device*)proto;
-
-  // Check if this is a display ready response
-  if (msg->which_msg == fwpb_uxc_msg_device_display_rsp_tag &&
-      msg->msg.display_rsp.which_response == fwpb_display_response_ready_tag &&
-      msg->msg.display_rsp.response.ready == true) {
-    // Display subsystem is ready - send IPC message to UI task to show initial screen
-    UI_SHOW_EVENT(UI_EVENT_DISPLAY_READY);
-  }
-
-  uc_free_recv_proto(proto);
-}
+#define DISPLAY_BACKEND_POLL_INTERVAL_MS 20
 
 static void handle_touch_event(void* proto, void* UNUSED(context)) {
   fwpb_uxc_msg_device* msg = (fwpb_uxc_msg_device*)proto;
@@ -53,60 +43,49 @@ static void handle_touch_event(void* proto, void* UNUSED(context)) {
   }
 
   sleep_refresh_power_timer();
+  refresh_auth();
 
+#ifdef MFGTEST
   fwpb_display_touch* touch = &msg->msg.display_touch;
 
-  // Map gestures to button events
-  button_event_payload_t button_payload = {
-    .type = BUTTON_PRESS_SINGLE,
-    .duration_ms = 0,
-  };
-
-  switch (touch->event) {
-    case fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_GESTURE_SWIPE_RIGHT:
-    case fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_GESTURE_SWIPE_DOWN:
-      button_payload.button = BUTTON_LEFT;
-      break;
-    case fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_GESTURE_SWIPE_LEFT:
-    case fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_GESTURE_SWIPE_UP:
-      button_payload.button = BUTTON_RIGHT;
-      break;
-    case fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_GESTURE_LONG_PRESS:
-      button_payload.button = BUTTON_BOTH;
-      break;
-#ifdef MFGTEST
-    case fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_TOUCH: {
-      // Forward raw touch coordinates to UI for mfgtest visualization
-      ui_event_touch_t touch_event = {.x = touch->coord.x, .y = touch->coord.y};
-      UI_SHOW_EVENT_WITH_DATA(UI_EVENT_MFGTEST_TOUCH, (uint8_t*)&touch_event, sizeof(touch_event));
-      uc_free_recv_proto(proto);
-      return;
-    }
-#endif
-    /* Unused Gestures */
-    case fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_GESTURE_DOUBLE_TAP:
-    case fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_GESTURE_TRIPLE_TAP:
-      uc_free_recv_proto(proto);
-      return;
-    default:
-
-      uc_free_recv_proto(proto);
-      return;
+  if (touch->event == fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_TOUCH) {
+    ui_event_touch_t touch_event = {.x = touch->coord.x, .y = touch->coord.y};
+    UI_SHOW_EVENT_WITH_DATA(UI_EVENT_MFGTEST_TOUCH, (uint8_t*)&touch_event, sizeof(touch_event));
   }
+#endif
 
-  UI_SHOW_EVENT_WITH_DATA(UI_EVENT_BUTTON, &button_payload, sizeof(button_payload));
   uc_free_recv_proto(proto);
 }
 
+#ifdef MFGTEST
 static void handle_touch_test_status(void* proto, void* UNUSED(context)) {
   fwpb_uxc_msg_device* msg = (fwpb_uxc_msg_device*)proto;
   if (msg && (msg->which_msg == fwpb_uxc_msg_device_mfg_touch_test_status_tag)) {
-#ifdef MFGTEST
     mfgtest_touch_test_status_payload_t status = {
       .boxes_remaining = (uint16_t)msg->msg.mfg_touch_test_status.boxes_remaining};
     UI_SHOW_EVENT_WITH_DATA(UI_EVENT_MFGTEST_TOUCH_TEST_STATUS, (uint8_t*)&status, sizeof(status));
-#endif
   }
+  uc_free_recv_proto(proto);
+}
+#endif
+
+static void handle_display_action(void* proto, void* UNUSED(context)) {
+  fwpb_uxc_msg_device* msg = (fwpb_uxc_msg_device*)proto;
+  if (!msg || msg->which_msg != fwpb_uxc_msg_device_display_action_tag) {
+    uc_free_recv_proto(proto);
+    return;
+  }
+
+  sleep_refresh_power_timer();
+
+  fwpb_display_action* action = &msg->msg.display_action;
+
+  // Send IPC message to UI task
+  static SHARED_TASK_DATA ui_display_action_t action_msg;
+  action_msg.action = (uint32_t)action->action;
+  action_msg.data = (uint32_t)action->data;
+  ipc_send(ui_port, &action_msg, sizeof(action_msg), IPC_UI_DISPLAY_ACTION);
+
   uc_free_recv_proto(proto);
 }
 
@@ -114,19 +93,36 @@ static void display_backend_init(void) {
   display_state.idle_state = UI_EVENT_IDLE;
   display_state.current_event = UI_EVENT_IDLE;
 
-  // Register UC route for display responses from UXC
-  uc_route_register(fwpb_uxc_msg_device_display_rsp_tag, handle_display_response, NULL);
+  // Handle display action events
+  uc_route_register(fwpb_uxc_msg_device_display_action_tag, handle_display_action, NULL);
 
-  // Handle touch events.
+  // Handle touch events
   uc_route_register(fwpb_uxc_msg_device_display_touch_tag, handle_touch_event, NULL);
 
+#ifdef MFGTEST
   // Handle touch test status updates.
   uc_route_register(fwpb_uxc_msg_device_mfg_touch_test_status_tag, handle_touch_test_status, NULL);
+#endif
 
   coproc_power_on();
 
   // Initialize display controller immediately - process events while coproc boots
   display_controller_init();
+
+  // Set display rotation based on board ID at boot
+  // Touch boards need 180 degree rotation (both wake and nowake variants)
+#if DISPLAY_ROTATE_180
+  display_controller_set_rotation(true);
+#else
+  uint8_t board_id = 0;
+  if (board_id_read(&board_id)) {
+    bool needs_rotation =
+      (board_id == W3_BOARD_ID_TOUCH_WAKE) || (board_id == W3_BOARD_ID_TOUCH_NOWAKE);
+    display_controller_set_rotation(needs_rotation);
+  } else {
+    LOGW("board_id_read failed; using default rotation");
+  }
+#endif
 }
 
 static void display_backend_show_event(ui_event_type_t event) {
@@ -134,7 +130,7 @@ static void display_backend_show_event(ui_event_type_t event) {
 
   display_controller_handle_ui_event(event, NULL, 0);
 
-  LOGI("Display event: %d", event);
+  // LOGD("Display event: %d", event);
 }
 
 static void display_backend_show_event_with_data(ui_event_type_t event, const uint8_t* data,
@@ -162,7 +158,7 @@ static void display_backend_show_event_with_data(ui_event_type_t event, const ui
 
   display_controller_handle_ui_event(event, data, len);
 
-  LOGI("Display event with data: %d (len: %lu)", event, len);
+  // LOGD("Display event with data: %d (len: %lu)", event, len);
 }
 
 static void display_backend_set_idle_state(ui_event_type_t idle_state) {
@@ -184,8 +180,51 @@ static void display_backend_clear(void) {
   LOGI("Display cleared");
 }
 
-static const char* display_backend_get_name(void) {
-  return "Display";
+static void display_backend_handle_display_action(uint32_t action, uint32_t data) {
+  // Dispatch to display controller based on action type
+  switch (action) {
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_READY:
+      display_controller_show_initial_screen();
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_APPROVE:
+      display_controller_handle_action_approve();
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_CANCEL:
+      display_controller_handle_action_cancel();
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_BACK:
+      display_controller_handle_action_back();
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_EXIT:
+      display_controller_handle_action_exit_with_data(data);
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_MENU:
+      display_controller_handle_action_menu();
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_LOCK_DEVICE:
+      display_controller_handle_action_lock_device();
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_POWER_OFF:
+      display_controller_handle_action_power_off();
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_START_ENROLLMENT:
+      display_controller_handle_action_start_enrollment();
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_DELETE_FINGERPRINT:
+      display_controller_handle_action_delete_fingerprint((uint8_t)data);
+      break;
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_SLEEP_READY: {
+      bool ready = (data != 0);
+      LOGD("UXC sleep ready action received: %d", ready);
+      if (ready) {
+        ipc_send_empty(sysinfo_port, IPC_SYSINFO_UXC_SLEEP_READY);
+      }
+      break;
+    }
+    default:
+      LOGW("Unknown display action: %lu", action);
+      break;
+  }
 }
 
 static void display_backend_run(void) {
@@ -236,7 +275,7 @@ static void display_backend_run(void) {
 
   display_controller_tick();
 
-  rtos_thread_sleep(DISPLAY_BACKEND_POLL_INTERVAL_MS);
+  rtos_thread_sleep_until(&display_state.last_wake_time_ms, DISPLAY_BACKEND_POLL_INTERVAL_MS);
 }
 
 // Backend operations table
@@ -246,8 +285,8 @@ static const ui_backend_ops_t display_backend_ops = {
   .show_event_with_data = display_backend_show_event_with_data,
   .set_idle_state = display_backend_set_idle_state,
   .clear = display_backend_clear,
+  .handle_display_action = display_backend_handle_display_action,
   .run = display_backend_run,
-  .get_name = display_backend_get_name,
 };
 
 // Backend registration function

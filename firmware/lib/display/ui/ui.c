@@ -1,6 +1,7 @@
 #include "ui.h"
 
 #include "gesture_tx.h"
+#include "log.h"
 #include "lvgl/lvgl.h"
 #include "screens.h"
 
@@ -20,6 +21,9 @@ static struct {
   ui_brightness_callback_t brightness_callback;
   ui_fps_callback_t fps_callback;
   ui_fps_callback_t effective_fps_callback;
+  ui_rotation_callback_t rotation_callback;
+
+  uint32_t current_flags;
 } state;
 
 static const lv_scr_load_anim_t transition_map[] = {
@@ -33,6 +37,24 @@ static const lv_scr_load_anim_t transition_map[] = {
 // Forward declarations
 static void navigate_to_screen(const fwpb_display_show_screen* show_screen);
 
+static void lvgl_log_cb(lv_log_level_t level, const char* buf) {
+  switch (level) {
+    case LV_LOG_LEVEL_TRACE:
+    case LV_LOG_LEVEL_INFO:
+      LOGI("LVGL: %s", buf);
+      break;
+    case LV_LOG_LEVEL_WARN:
+      LOGW("LVGL: %s", buf);
+      break;
+    case LV_LOG_LEVEL_ERROR:
+      LOGE("LVGL: %s", buf);
+      break;
+    default:
+      LOGD("LVGL: %s", buf);
+      break;
+  }
+}
+
 static void update_brightness(void) {
   if (state.brightness_callback) {
     uint8_t level = (state.brightness_percent * state.local_brightness_percent * 255) / 10000;
@@ -42,6 +64,9 @@ static void update_brightness(void) {
 
 void ui_init(ui_brightness_callback_t brightness_callback, ui_fps_callback_t fps_callback,
              ui_fps_callback_t effective_fps_callback) {
+  // Register LVGL logging callback
+  lv_log_register_print_cb(lvgl_log_cb);
+
   // Initialize LVGL display and theme
   lv_disp_t* dispp = lv_display_get_default();
   lv_theme_t* theme = lv_theme_simple_init(dispp);
@@ -62,7 +87,7 @@ void ui_init(ui_brightness_callback_t brightness_callback, ui_fps_callback_t fps
   update_brightness();
 }
 
-static void set_brightness(uint8_t brightness_percent) {
+void ui_set_brightness(uint8_t brightness_percent) {
   if (brightness_percent > 100) {
     brightness_percent = 100;
   }
@@ -76,6 +101,10 @@ void ui_set_local_brightness(uint8_t percent) {
   }
   state.local_brightness_percent = percent;
   update_brightness();
+}
+
+void ui_set_rotation_callback(ui_rotation_callback_t rotation_callback) {
+  state.rotation_callback = rotation_callback;
 }
 
 fwpb_display_result ui_execute_command(const fwpb_display_command* cmd) {
@@ -114,12 +143,20 @@ static void navigate_to_screen(const fwpb_display_show_screen* show_screen) {
     return;  // Unknown screen type
   }
 
+  // Check if rotation flag changed
+  bool new_rotate = (show_screen->flags & fwpb_display_flag_DISPLAY_FLAG_ROTATE_180) != 0;
+  bool old_rotate = (state.current_flags & fwpb_display_flag_DISPLAY_FLAG_ROTATE_180) != 0;
+  if (new_rotate != old_rotate && state.rotation_callback) {
+    state.rotation_callback(new_rotate);
+  }
+  state.current_flags = show_screen->flags;
+
   // Copy the new screen data
   memcpy(&state.current_screen_data, show_screen, sizeof(fwpb_display_show_screen));
 
   // Apply brightness if it changed
   if (show_screen->brightness_percent != state.brightness_percent) {
-    set_brightness(show_screen->brightness_percent);
+    ui_set_brightness(show_screen->brightness_percent);
   }
 
   const bool is_same_screen =
@@ -130,6 +167,14 @@ static void navigate_to_screen(const fwpb_display_show_screen* show_screen) {
       state.current_screen->update(&state.current_screen_data);
     }
     return;
+  }
+
+  // Force cleanup if re-entering the same screen type
+  // This prevents stale event handlers from previous instantiation
+  if (show_screen->which_params == state.current_params_tag && state.previous_screen) {
+    // Same screen type but new instance - clean up immediately
+    LOGD("Forcing cleanup of previous screen (same type re-entry)");
+    cleanup_previous_screen();
   }
 
   // Before switching screens - check if we have a previous screen to clean up
@@ -151,11 +196,9 @@ static void navigate_to_screen(const fwpb_display_show_screen* show_screen) {
     new_screen_obj = new_screen->init(&state.current_screen_data);
   }
 
-  state.current_screen = new_screen;
-
   if (new_screen_obj) {
-    // Attach gesture handlers to the new screen
-    gesture_tx_attach_to_screen(new_screen_obj);
+    // Only update current_screen if init succeeded
+    state.current_screen = new_screen;
 
     lv_scr_load_anim_t anim_type = transition_map[show_screen->transition];
     if (anim_type == LV_SCR_LOAD_ANIM_NONE || show_screen->duration_ms == 0) {

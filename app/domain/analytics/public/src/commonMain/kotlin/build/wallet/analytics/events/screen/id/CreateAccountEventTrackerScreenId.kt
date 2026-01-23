@@ -36,4 +36,7 @@ enum class CreateAccountEventTrackerScreenId : EventTrackerScreenId {
 
   /** Errpr screen shown when we failed to upload the lite account backup */
   NEW_LITE_ACCOUNT_BACKUP_FAILURE,
+
+  /** Screen showing options for how to create an account (hardware vs this device) */
+  CREATE_ACCOUNT_OPTIONS,
 }

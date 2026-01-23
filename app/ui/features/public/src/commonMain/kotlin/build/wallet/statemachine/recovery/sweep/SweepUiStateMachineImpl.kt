@@ -29,8 +29,8 @@ import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.send.*
@@ -38,7 +38,7 @@ import build.wallet.statemachine.walletmigration.PrivateWalletMigrationAppSegmen
 
 @BitkeyInject(ActivityScope::class)
 class SweepUiStateMachineImpl(
-  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val nfcSessionUIStateMachine: NfcConfirmableSessionUiStateMachine,
   private val moneyAmountUiStateMachine: MoneyAmountUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val sweepDataStateMachine: SweepDataStateMachine,
@@ -221,22 +221,23 @@ class SweepUiStateMachineImpl(
 
       is AwaitingHardwareSignedSweepsData ->
         nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
+          NfcConfirmableSessionUIStateMachineProps(
             session = { session, commands ->
-              sweepData.needsHwSign
-                .mapNotNull {
+              val signedPsbts = sweepData.needsHwSign
+                .map {
                   val result = commands.signTransaction(session, it.psbt, it.sourceKeyset)
                   when (result) {
                     is HardwareInteraction.Completed<Psbt> -> result.result
-                    else -> null
+                    else -> error("Unexpected HardwareInteraction type for signTransaction")
                   }
                 }
                 .toSet()
+              HardwareInteraction.Completed(signedPsbts)
             },
             onSuccess = sweepData.addHwSignedSweeps,
-            onCancel = props.onExit ?: {
-              logDebug { "Back not available" }
-            },
+            // When NFC fails or is cancelled, go back to the PSBT confirmation screen
+            // to allow retry instead of exiting the sweep flow entirely
+            onCancel = sweepData.cancelHwSign,
             screenPresentationStyle = props.presentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_MANY_TRANSACTIONS,
             hardwareVerification = Required(useRecoveryPubKey = props.sweepContext is SweepContext.Recovery),

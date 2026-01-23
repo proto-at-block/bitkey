@@ -52,7 +52,10 @@ node_modules
 # CLI tool DB file
 cli/wallet.db/*
 
-# Claude
+# AI Tooling
+AGENTS.local.md
 /CLAUDE.local.md
 **/.claude/settings.local.json
+
+# SPM
 .swiftpm

@@ -5,6 +5,7 @@ import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.encrypt.MessageSignerFake
 import build.wallet.encrypt.SignatureUtilsMock
+import build.wallet.firmware.McuRole
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.nfc.BitkeyW1CommandsFake
@@ -50,6 +51,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
         appPropertiesOffset: UInt,
         signatureOffset: UInt,
         fwupMode: FwupMode,
+        mcuRole: McuRole,
       ): FwupFinishResponseStatus {
         callCount++
         // Simulate iOS detecting device reset before reading response
@@ -62,7 +64,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
     val interceptorFunc = retryCommands()
     var result: FwupFinishResponseStatus? = null
     val effect: NfcEffect = { _, commands ->
-      result = commands.fwupFinish(session, 0u, 0u, FwupMode.Delta)
+      result = commands.fwupFinish(session, 0u, 0u, FwupMode.Delta, McuRole.CORE)
     }
 
     interceptorFunc.invoke(effect)(session, mockCommands)
@@ -88,6 +90,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
         appPropertiesOffset: UInt,
         signatureOffset: UInt,
         fwupMode: FwupMode,
+        mcuRole: McuRole,
       ): FwupFinishResponseStatus {
         callCount++
         // Simulate different error that should not be treated as success
@@ -99,7 +102,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
 
     val interceptorFunc = retryCommands()
     val effect: NfcEffect = { _, commands ->
-      commands.fwupFinish(session, 0u, 0u, FwupMode.Delta)
+      commands.fwupFinish(session, 0u, 0u, FwupMode.Delta, McuRole.CORE)
     }
 
     shouldThrow<CanBeRetried.TransceiveFailure> {
@@ -126,6 +129,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
         appPropertiesOffset: UInt,
         signatureOffset: UInt,
         fwupMode: FwupMode,
+        mcuRole: McuRole,
       ): FwupFinishResponseStatus {
         callCount++
         // Simulate TransceiveFailure with null message - should not be treated as success
@@ -137,7 +141,7 @@ class RetryingNfcCommandsImplTest : FunSpec({
 
     val interceptorFunc = retryCommands()
     val effect: NfcEffect = { _, commands ->
-      commands.fwupFinish(session, 0u, 0u, FwupMode.Delta)
+      commands.fwupFinish(session, 0u, 0u, FwupMode.Delta, McuRole.CORE)
     }
 
     shouldThrow<CanBeRetried.TransceiveFailure> {

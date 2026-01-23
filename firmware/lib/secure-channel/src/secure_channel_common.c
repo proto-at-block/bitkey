@@ -5,7 +5,7 @@
 #include "log.h"
 #include "secure_channel.h"
 #include "secure_rng.h"
-#include "secutils.h"
+#include "wstring.h"
 
 #define CORE_TO_HOST_CONFIRM     "KEYCONFIRM-V1"
 #define CORE_TO_HOST_CONFIRM_LEN (sizeof(CORE_TO_HOST_CONFIRM) - 1)

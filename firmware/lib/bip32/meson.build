@@ -8,6 +8,7 @@ deps = [
   crypto_dep,
   secutils_dep,
   secp256k1_dep,
+  wstd_dep,
 ]
 
 bip32_includes = ['.']

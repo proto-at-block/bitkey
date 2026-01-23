@@ -18,6 +18,7 @@ import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.nfc.NfcException
+import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.onboarding.OnboardingCompletionService
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -37,8 +38,9 @@ import build.wallet.statemachine.dev.featureFlags.FeatureFlagsStateMachine
 import build.wallet.statemachine.dev.logs.LogsUiStateMachine
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.ConfirmationHandlerOverride
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -70,7 +72,7 @@ class DebugMenuScreenPresenter(
   private val fwupNfcUiStateMachine: FwupNfcUiStateMachine,
   private val logsUiStateMachine: LogsUiStateMachine,
   private val networkingDebugConfigPickerUiStateMachine: NetworkingDebugConfigPickerUiStateMachine,
-  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
   private val cloudDevOptionsStateMachine: CloudDevOptionsStateMachine,
   private val firmwareDataService: FirmwareDataService,
   private val onboardingCompletionService: OnboardingCompletionService,
@@ -175,22 +177,33 @@ class DebugMenuScreenPresenter(
             )
         )
 
-      is DebugMenuState.WipingHardware ->
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
-            session = { session, commands ->
-              if (!commands.wipeDevice(session)) {
+      is DebugMenuState.WipingHardware -> {
+        nfcConfirmableSessionUiStateMachine.model(
+          NfcConfirmableSessionUIStateMachineProps(
+            session = { session, commands -> commands.wipeDevice(session) },
+            hardwareVerification = NotRequired,
+            onSuccess = { success: Boolean ->
+              if (!success) {
                 throw NfcException.UnknownError(message = "Failed to wipe device")
               }
+              uiState = DebugMenuState.ShowingDebugMenu
             },
-            hardwareVerification = NotRequired,
-            onSuccess = { uiState = DebugMenuState.ShowingDebugMenu },
             onCancel = { uiState = DebugMenuState.ShowingDebugMenu },
             screenPresentationStyle = Modal,
             eventTrackerContext = DEBUG,
-            shouldLock = false
+            shouldLock = false,
+            onRequiresConfirmation = { _ ->
+              ConfirmationHandlerOverride.CompleteImmediately(true)
+            },
+            onEmulatedPromptSelected = { option ->
+              when (option.name) {
+                EmulatedPromptOption.APPROVE -> ConfirmationHandlerOverride.CompleteImmediately(true)
+                else -> ConfirmationHandlerOverride.CompleteImmediately(false)
+              }
+            }
           )
         )
+      }
 
       is DebugMenuState.ShowingFirmwareMetadata ->
         firmwareMetadataUiStateMachine.model(

@@ -71,6 +71,7 @@ use crate::tests::lib::{
 use crate::tests::mobile_pay_tests::build_mobile_pay_request;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::{gen_services, gen_services_with_overrides, GenServiceOverrides};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 mock! {
     TransactionBroadcaster { }
@@ -93,6 +94,7 @@ async fn sign_transaction_test(
     broadcast_failure_mode: Option<BroadcastFailureMode>, // Should the test double return an ApiError?
     wallet_protocol: WalletTestProtocol,
 ) {
+    let broadcast_will_succeed = broadcast_failure_mode.is_none();
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
         .expect_broadcast()
@@ -212,11 +214,11 @@ async fn sign_transaction_test(
 
     // Only assert on spent amounts if we have valid mobile pay data
     if let (Some(current), Some(final_amount)) = (current_spent, final_spent) {
-        if expect_broadcast {
-            // When broadcast is expected, the spent amount should increase by the transaction amount
+        if expect_broadcast && broadcast_will_succeed {
+            // When broadcast succeeds, the spent amount should increase by the transaction amount
             assert_eq!(final_amount.amount, current.amount + transfer_amount);
         } else {
-            // When broadcast is not expected (transaction should fail), spent amount should remain unchanged
+            // When broadcast fails or is not attempted, spent amount should remain unchanged
             assert_eq!(final_amount.amount, current.amount);
         }
     }
@@ -398,6 +400,129 @@ async fn test_sign_transaction_private_ccd(
     .await
 }
 
+#[tokio::test]
+async fn test_failed_broadcast_does_not_count_against_spending_limit() {
+    let attempts = AtomicUsize::new(0);
+    let mut broadcaster_mock = MockTransactionBroadcaster::new();
+    broadcaster_mock
+        .expect_broadcast()
+        .times(2)
+        .returning(move |_, _, _| {
+            let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+            if attempt == 0 {
+                Err(BdkUtilError::TransactionBroadcastError(Electrum(
+                    ElectrumClientError::Message("Fail".to_string()),
+                )))
+            } else {
+                Ok(())
+            }
+        });
+
+    let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let fixture = setup_fixture(
+        &mut context,
+        &client,
+        &bootstrap.services,
+        WalletTestProtocol::Legacy,
+    )
+    .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&fixture.account.id)
+        .unwrap();
+    let transfer_amount = 1_000;
+
+    // Configure mobile pay so spending records are present.
+    let limit = SpendingLimit {
+        active: true,
+        amount: Money {
+            amount: 5_000,
+            currency_code: USD,
+        },
+        ..Default::default()
+    };
+    let request = build_mobile_pay_request(limit);
+    let mobile_pay_response = client
+        .put_mobile_pay(&fixture.account.id, &request, &keys)
+        .await;
+    assert_eq!(
+        mobile_pay_response.status_code,
+        StatusCode::OK,
+        "{}",
+        mobile_pay_response.body_string
+    );
+
+    let psbt = build_app_signed_psbt_for_protocol(
+        &fixture,
+        gen_external_wallet_address(),
+        transfer_amount,
+        &[],
+    )
+    .to_string();
+
+    let request_data = SignTransactionData {
+        psbt: psbt.clone(),
+        ..Default::default()
+    };
+
+    let current_spent = client
+        .get_mobile_pay(&fixture.account.id, &keys)
+        .await
+        .body
+        .unwrap()
+        .mobile_pay()
+        .unwrap()
+        .spent
+        .amount;
+
+    // First attempt: broadcast fails, should not count toward spent.
+    let first_response = client
+        .sign_transaction_with_keyset(
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
+            &request_data,
+        )
+        .await;
+    assert_eq!(
+        first_response.status_code,
+        StatusCode::INTERNAL_SERVER_ERROR
+    );
+
+    let spent_after_failure = client
+        .get_mobile_pay(&fixture.account.id, &keys)
+        .await
+        .body
+        .unwrap()
+        .mobile_pay()
+        .unwrap()
+        .spent
+        .amount;
+    assert_eq!(spent_after_failure, current_spent);
+
+    // Retry: broadcast succeeds; spent should increase by transfer_amount.
+    let second_response = client
+        .sign_transaction_with_keyset(
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
+            &request_data,
+        )
+        .await;
+    assert_eq!(second_response.status_code, StatusCode::OK);
+
+    let spent_after_success = client
+        .get_mobile_pay(&fixture.account.id, &keys)
+        .await
+        .body
+        .unwrap()
+        .mobile_pay()
+        .unwrap()
+        .spent
+        .amount;
+    assert_eq!(spent_after_success, current_spent + transfer_amount);
+}
+
 async fn sign_transaction_with_transaction_verification_test(
     policy: PolicyUpdate,
     include_verification_id: bool,
@@ -450,7 +575,10 @@ async fn sign_transaction_with_transaction_verification_test(
             true,
             false,
             &keys,
-            &PutTransactionVerificationPolicyRequest { policy },
+            &PutTransactionVerificationPolicyRequest {
+                policy,
+                use_bip_177: false,
+            },
         )
         .await;
     assert_eq!(
@@ -469,6 +597,7 @@ async fn sign_transaction_with_transaction_verification_test(
             app_signed_psbt.clone(),
             CurrencyCode::USD,
             BitcoinDisplayUnit::Bitcoin,
+            false,
         );
         let confirmation_token = pending_verification.confirmation_token.clone();
         bootstrap

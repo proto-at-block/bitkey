@@ -16,6 +16,7 @@ import { ShopApiProcessOrderUpdatesJobMonitors } from "./monitors/web/shop-api-p
 import { ShopApiFetchOrderUpdatesJobMonitors } from "./monitors/web/shop-api-fetch-order-updates-job";
 import { ShopApiRevenueReportingJobMonitors } from "./monitors/web/shop-api-revenue-reporting-job";
 import { RecoveryMonitors } from "./monitors/recovery";
+import { FingerprintResetMonitors } from "./monitors/fingerprintReset";
 import { MoneyMovementMonitors } from "./monitors/moneyMovement";
 import { NotificationsMonitors } from "./monitors/notifications";
 import { SecurityAlertMonitors } from "./monitors/securityAlerts";
@@ -46,6 +47,9 @@ class MonitorsStack extends TerraformStack {
 
     new RecoveryMonitors(this, Environment.STAGING)
     new RecoveryMonitors(this, Environment.PRODUCTION)
+
+    new FingerprintResetMonitors(this, Environment.STAGING)
+    new FingerprintResetMonitors(this, Environment.PRODUCTION)
 
     new RecoveryRelationshipMonitors(this, Environment.STAGING)
     new RecoveryRelationshipMonitors(this, Environment.PRODUCTION)

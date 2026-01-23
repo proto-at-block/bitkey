@@ -14,6 +14,7 @@ kotlin {
       dependencies {
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
+        implementation(projects.rust.bdkFfi)
       }
     }
 

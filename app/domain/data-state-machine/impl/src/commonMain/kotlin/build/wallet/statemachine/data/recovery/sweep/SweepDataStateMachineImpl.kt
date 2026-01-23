@@ -156,6 +156,10 @@ class SweepDataStateMachineImpl(
           addHwSignedSweeps = { hwSignedPsbts ->
             val mergedPsbts = mergeHwSignedPsbts(state.sweep.unsignedPsbts, hwSignedPsbts)
             sweepState = SignAndBroadcastState(mergedPsbts, state.sweep)
+          },
+          cancelHwSign = {
+            // Go back to PsbtsGeneratedState to allow the user to retry
+            sweepState = PsbtsGeneratedState(state.sweep)
           }
         )
 

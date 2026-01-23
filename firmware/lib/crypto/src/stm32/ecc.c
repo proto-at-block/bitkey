@@ -4,6 +4,7 @@
 #include "mcu_pka.h"
 #include "secure_rng.h"
 #include "secutils.h"
+#include "wstring.h"
 
 #include <stdint.h>
 #include <string.h>

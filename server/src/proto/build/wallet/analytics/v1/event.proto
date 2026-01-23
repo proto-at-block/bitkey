@@ -300,7 +300,19 @@ enum Action {
     /** [App] Customer has seen the BIP-177 sats symbol coachmark */
     ACTION_APP_COACHMARK_VIEWED_BIP_177 = 84;
 
-    // Next tag is 85
+    /** [App] Started firmware update for a specific MCU (CORE or UXC). Use screen_id for MCU role. */
+    ACTION_APP_FWUP_MCU_UPDATE_STARTED = 85;
+
+    /** [App] Completed firmware update for a specific MCU. Use screen_id for MCU role. */
+    ACTION_APP_FWUP_MCU_UPDATE_COMPLETE = 86;
+
+    /** [App] Skipped firmware update for MCU already at target version. Use screen_id for MCU role. */
+    ACTION_APP_FWUP_MCU_UPDATE_SKIPPED = 87;
+
+    /** [App] Firmware update failed for a specific MCU. Use screen_id for MCU role. */
+    ACTION_APP_FWUP_MCU_UPDATE_FAILED = 88;
+
+    // Next tag is 89
 }
 
 message PlatformInfo {

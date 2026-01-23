@@ -3,6 +3,7 @@ pub mod migrations;
 use time::Date;
 use tracing::{event, instrument};
 
+use bdk_utils::bdk::bitcoin::Txid;
 use database::ddb::DatabaseError;
 use types::account::identifiers::AccountId;
 
@@ -48,5 +49,19 @@ impl Service {
         record: DailySpendingRecord,
     ) -> Result<(), SigningError> {
         Ok(self.repo.persist(record).await?)
+    }
+
+    /// Remove a spending entry by txid, with retry on version conflicts.
+    #[instrument(err, skip(self))]
+    pub async fn remove_spending_entry(
+        &self,
+        account_id: &AccountId,
+        date: Date,
+        txid: &Txid,
+    ) -> Result<(), SigningError> {
+        Ok(self
+            .repo
+            .remove_spending_entry(account_id, date, txid)
+            .await?)
     }
 }

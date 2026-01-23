@@ -27,6 +27,7 @@ class NfcSessionFake(
         skipFirmwareTelemetry = false,
         nfcFlowName = "fake-flow-name",
         requirePairedHardware = NotRequired,
+        maxNfcRetryAttempts = 3,
         onTagConnected = {},
         onTagDisconnected = {},
         asyncNfcSigning = false

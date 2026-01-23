@@ -14,16 +14,25 @@ pub enum FirmwareSlot {
     B,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum McuName {
     Efr32,
     Stm32u5,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum McuRole {
     Core,
     Uxc,
+}
+
+impl From<McuRole> for fwpb::McuRole {
+    fn from(val: McuRole) -> Self {
+        match val {
+            McuRole::Core => fwpb::McuRole::Core,
+            McuRole::Uxc => fwpb::McuRole::Uxc,
+        }
+    }
 }
 
 #[derive(Debug)]

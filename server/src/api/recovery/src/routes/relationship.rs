@@ -882,6 +882,11 @@ pub async fn endorse_recovery_relationships(
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct GetRecoveryRelationshipInvitationForCodeRequest {
+    pub expected_role: Option<TrustedContactRole>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct GetRecoveryRelationshipInvitationForCodeResponse {
     pub invitation: InboundInvitation,
@@ -898,6 +903,7 @@ pub struct GetRecoveryRelationshipInvitationForCodeResponse {
     params(
         ("account_id" = AccountId, Path, description = "AccountId"),
         ("code" = String, Path, description = "Code"),
+        ("expected_role" = Option<TrustedContactRole>, Query, description = "Expected role for the invite code"),
     ),
     responses(
         (status = 200, description = "Recovery relationship invitation", body=GetRecoveryRelationshipInvitationForCodeResponse),
@@ -907,10 +913,14 @@ pub async fn get_recovery_relationship_invitation_for_code(
     Path((account_id, code)): Path<(AccountId, String)>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
     State(_feature_flags_service): State<FeatureFlagsService>,
+    request: Query<GetRecoveryRelationshipInvitationForCodeRequest>,
 ) -> Result<Json<GetRecoveryRelationshipInvitationForCodeResponse>, ApiError> {
     let result = recovery_relationship_service
         .get_recovery_relationship_invitation_for_code(
-            GetRecoveryRelationshipInvitationForCodeInput { code: &code },
+            GetRecoveryRelationshipInvitationForCodeInput {
+                code: &code,
+                expected_role: request.expected_role,
+            },
         )
         .await?;
 
@@ -1022,7 +1032,10 @@ async fn get_promotion_code_for_invite_code(
 ) -> Result<Json<GetPromotionCodeForInviteCodeResponse>, ApiError> {
     let recovery_relationship = recovery_relationship_service
         .get_recovery_relationship_invitation_for_code(
-            GetRecoveryRelationshipInvitationForCodeInput { code: &invite_code },
+            GetRecoveryRelationshipInvitationForCodeInput {
+                code: &invite_code,
+                expected_role: None,
+            },
         )
         .await?;
 

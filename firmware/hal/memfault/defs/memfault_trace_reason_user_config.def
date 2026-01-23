@@ -52,3 +52,6 @@ MEMFAULT_TRACE_REASON_DEFINE(uc_err)
 
 // Display
 MEMFAULT_TRACE_REASON_DEFINE(display_send_dropped)
+
+// Sleep coordination
+MEMFAULT_TRACE_REASON_DEFINE(sleep_prep_timeout)

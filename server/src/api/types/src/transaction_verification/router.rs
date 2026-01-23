@@ -81,4 +81,7 @@ pub enum InitiateTransactionVerificationView {
 pub struct PutTransactionVerificationPolicyRequest {
     #[serde(flatten)]
     pub policy: PolicyUpdate,
+    /// Whether to use BIP 177 Bitcoin sign (₿) instead of "sats" text.
+    #[serde(default)]
+    pub use_bip_177: bool,
 }

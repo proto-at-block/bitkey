@@ -131,6 +131,20 @@ void rtos_thread_sleep(const uint32_t time_ms) {
     vTaskDelay((portTickType)MS2TICKS(time_ms));
 }
 
+void rtos_thread_sleep_until(uint32_t* last_wake_time_ms, const uint32_t period_ms) {
+  TickType_t last_wake_ticks;
+
+  // Initialize on first call (when last_wake_time_ms is 0)
+  if (*last_wake_time_ms == 0) {
+    last_wake_ticks = xTaskGetTickCount();
+  } else {
+    last_wake_ticks = MS2TICKS(*last_wake_time_ms);
+  }
+
+  vTaskDelayUntil(&last_wake_ticks, MS2TICKS(period_ms));
+  *last_wake_time_ms = TICKS2MS(last_wake_ticks);
+}
+
 /* rtos_thread_systime should only be used with hal_thread_* / rtos calls as it _will_ wrap at
  * UINT32_MAX, which is handled by freertos */
 uint32_t rtos_thread_systime(void) {

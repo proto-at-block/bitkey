@@ -5,6 +5,7 @@ import build.wallet.time.MinimumLoadingDuration
 import me.tatarka.inject.annotations.Provides
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
 
+@Suppress("TooManyFunctions")
 @ContributesTo(AppScope::class)
 interface UiDelaysComponent {
   @Provides
@@ -33,6 +34,9 @@ interface UiDelaysComponent {
 
   @Provides
   fun provideBitkeyWordMarkAnimationDuration() = BitkeyWordMarkAnimationDuration()
+
+  @Provides
+  fun provideAddressQrCodeLoadingDuration() = AddressQrCodeLoadingDuration()
 
   @Provides
   fun provideRemainingRecoveryDelayWordsUpdateFrequency() =

@@ -660,6 +660,7 @@ async fn cancel_out_of_band_instance_test() {
             &keys,
             &PutTransactionVerificationPolicyRequest {
                 policy: PolicyUpdate::Always,
+                use_bip_177: false,
             },
         )
         .await;
@@ -678,6 +679,7 @@ async fn cancel_out_of_band_instance_test() {
             &keys,
             &PutTransactionVerificationPolicyRequest {
                 policy: PolicyUpdate::Never,
+                use_bip_177: false,
             },
         )
         .await;
@@ -783,6 +785,7 @@ pub async fn respond_to_privileged_action_request_test() {
             &keys,
             &PutTransactionVerificationPolicyRequest {
                 policy: PolicyUpdate::Never,
+                use_bip_177: false,
             },
         )
         .await;

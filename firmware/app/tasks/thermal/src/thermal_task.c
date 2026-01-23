@@ -50,6 +50,4 @@ void thermal_task_create(void) {
   rtos_thread_t* task_handle =
     rtos_thread_create(thermal_thread, NULL, THERMAL_TASK_PRIORITY, THERMAL_TASK_STACK_SIZE);
   ASSERT(task_handle);
-
-  LOGI("Thermal monitoring task created successfully");
 }

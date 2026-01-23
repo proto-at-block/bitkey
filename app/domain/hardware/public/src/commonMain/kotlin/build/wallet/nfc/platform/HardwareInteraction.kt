@@ -19,25 +19,28 @@ sealed interface HardwareInteraction<R> {
   ) : HardwareInteraction<R>
 
   /**
-   * Indicates that an interaction has started, but requires additional
-   * interaction with the device to continue.
+   * Indicates that an interaction has started, but requires the user to confirm
+   * on the device before the result can be retrieved. The caller must perform
+   * another NFC tap after the user confirms.
    */
-  data class Continuation<R>(
+  data class RequiresConfirmation<R>(
     /**
-     * Callable to invoke when the app is ready to scan the next command.
+     * Callable to invoke when the app is ready to perform the second NFC tap
+     * to fetch the result after the user has confirmed on the device.
      */
-    val tryContinue: suspend (NfcSession) -> HardwareInteraction<R>,
+    val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<R>,
   ) : HardwareInteraction<R>
 
   /**
-   * Request that the app emulate a series of selectable
-   * options before proceeding with the response.
+   * Emulates on-device confirmation for fake hardware implementations.
+   *
+   * The UI shows a prompt with [options] simulating the device's confirmation screen.
+   * After user selection, the confirmation flow continues with a second NFC tap.
    */
-  data class EmulatePrompt<R>(
+  data class ConfirmWithEmulatedPrompt<R>(
     /**
-     * A list of options that the app should emulate, in lieu of real hardware
-     * interactions.
+     * Options simulating device confirmation choices (e.g., "Approve", "Deny").
      */
-    val options: List<PromptOption<R>>,
+    val options: List<EmulatedPromptOption<R>>,
   ) : HardwareInteraction<R>
 }

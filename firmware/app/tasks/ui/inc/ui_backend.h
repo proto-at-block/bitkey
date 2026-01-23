@@ -15,11 +15,11 @@ typedef struct {
   void (*set_idle_state)(ui_event_type_t idle_state);
   void (*clear)(void);
 
+  // Handle display actions from UXC (w3 only)
+  void (*handle_display_action)(uint32_t action, uint32_t data);
+
   // Run periodic updates (e.g., animations)
   void (*run)(void);
-
-  // Get backend name for logging
-  const char* (*get_name)(void);
 } ui_backend_ops_t;
 
 const ui_backend_ops_t* ui_backend_get(void);

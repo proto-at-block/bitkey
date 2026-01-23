@@ -1,10 +1,13 @@
 #include "assert.h"
 #include "attributes.h"
+#include "bitlog.h"
 #include "ipc.h"
 #include "kv.h"
 #include "log.h"
 #include "metadata.h"
+#include "power.h"
 #include "proto_helpers.h"
+#include "rtos.h"
 #include "sysinfo.h"
 #include "sysinfo_task_impl.h"
 #include "uc.h"
@@ -13,6 +16,9 @@
 #include "uxc.pb.h"
 
 #include <string.h>
+
+#define SLEEP_PREP_TIMEOUT_MS (500)
+#define BITLOG_SAVE_DELAY_MS  (50)
 
 static SHARED_TASK_DATA device_info_t device_info_for_ui;
 
@@ -149,4 +155,33 @@ static void _sysinfo_task_handle_coproc_boot_message(void* proto, void* UNUSED(c
 static void _sysinfo_task_handle_coproc_metadata(void* proto, void* UNUSED(context)) {
   // Pass through the pointer. Sysinfo task will handle free'ing the data.
   ipc_send(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_METADATA);
+}
+
+void sysinfo_task_port_prepare_sleep_and_power_down(void) {
+  LOGD("Preparing for coordinated power down");
+
+  // Send prepare sleep command to UXC
+  fwpb_uxc_msg_host* cmd = uc_alloc_send_proto();
+  if (cmd) {
+    cmd->which_msg = fwpb_uxc_msg_host_display_cmd_tag;
+    cmd->msg.display_cmd.which_command = fwpb_display_command_prepare_sleep_tag;
+
+    if (!uc_send(cmd)) {
+      LOGE("Failed to send prepare sleep command to UXC");
+    }
+  } else {
+    LOGE("Failed to allocate proto for prepare sleep command");
+  }
+
+  // Wait for UXC to enter monitor mode and send IPC_SYSINFO_UXC_SLEEP_READY
+  // (If IPC arrives first, it will power down immediately)
+  rtos_thread_sleep(SLEEP_PREP_TIMEOUT_MS);
+  // Timeout - UXC didn't respond in time
+  BITLOG_EVENT(sleep_prep_timeout, 0);
+  // Give bitlog time to save
+  rtos_thread_sleep(BITLOG_SAVE_DELAY_MS);
+
+  LOGW("UXC sleep ready timeout - powering down anyway");
+  power_set_ldo_low_power_mode();  // Reduce LDO quiescent current before sleep
+  power_set_retain(false);
 }

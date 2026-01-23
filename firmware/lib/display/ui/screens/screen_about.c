@@ -1,9 +1,9 @@
 #include "screen_about.h"
 
 #include "assert.h"
-#include "bottom_back.h"
 #include "display.pb.h"
 #include "langpack.h"
+#include "top_back.h"
 #include "ui.h"
 
 #include <stdio.h>
@@ -14,7 +14,7 @@
 
 // Layout configuration
 #define CONTAINER_SIZE        240
-#define SCREEN_TITLE_Y_OFFSET 50
+#define SCREEN_TITLE_Y_OFFSET 80
 #define LABEL_Y_START         10
 #define LABEL_Y_SPACING       80
 #define LABEL_VALUE_OFFSET    30
@@ -30,7 +30,7 @@
 #define FONT_LABEL_VALUE  (&cash_sans_mono_regular_24)
 
 static lv_obj_t* screen = NULL;
-static bottom_back_t back_button;
+static top_back_t back_button;
 static lv_obj_t* firmware_value_label = NULL;
 static lv_obj_t* hardware_value_label = NULL;
 static lv_obj_t* serial_value_label = NULL;
@@ -38,12 +38,18 @@ static lv_obj_t* serial_value_label = NULL;
 static lv_obj_t* create_info_label(lv_obj_t* parent, const char* name, const char* value,
                                    int y_offset) {
   lv_obj_t* label_name = lv_label_create(parent);
+  if (!label_name) {
+    return NULL;
+  }
   lv_label_set_text(label_name, name);
   lv_obj_set_style_text_color(label_name, lv_color_hex(COLOR_LABEL_NAME), 0);
   lv_obj_set_style_text_font(label_name, FONT_LABEL_NAME, 0);
   lv_obj_align(label_name, LV_ALIGN_TOP_MID, 0, y_offset);
 
   lv_obj_t* label_val = lv_label_create(parent);
+  if (!label_val) {
+    return NULL;
+  }
   lv_label_set_text(label_val, value ? value : "");
   lv_obj_set_style_text_color(label_val, lv_color_hex(COLOR_LABEL_VALUE), 0);
   lv_obj_set_style_text_font(label_val, FONT_LABEL_VALUE, 0);
@@ -62,18 +68,24 @@ lv_obj_t* screen_about_init(void* ctx) {
   }
 
   screen = lv_obj_create(NULL);
+  if (!screen) {
+    return NULL;
+  }
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
   lv_obj_t* screen_title = lv_label_create(screen);
+  if (!screen_title) {
+    return NULL;
+  }
   lv_label_set_text(screen_title, langpack_get_string(LANGPACK_ID_ABOUT_TITLE));
   lv_obj_set_style_text_font(screen_title, FONT_SCREEN_TITLE, 0);
   lv_obj_set_style_text_color(screen_title, lv_color_hex(COLOR_TITLE), 0);
   lv_obj_align(screen_title, LV_ALIGN_TOP_MID, 0, SCREEN_TITLE_Y_OFFSET);
 
-  memset(&back_button, 0, sizeof(bottom_back_t));
-  bottom_back_create(screen, &back_button);
-
   lv_obj_t* cont = lv_obj_create(screen);
+  if (!cont) {
+    return NULL;
+  }
   lv_obj_set_size(cont, CONTAINER_SIZE, CONTAINER_SIZE);
   lv_obj_center(cont);
   lv_obj_set_style_radius(cont, LV_RADIUS_CIRCLE, 0);
@@ -90,6 +102,9 @@ lv_obj_t* screen_about_init(void* ctx) {
     create_info_label(cont, langpack_get_string(LANGPACK_ID_ABOUT_SERIAL_LABEL),
                       params ? params->serial_number : "", LABEL_Y_START + LABEL_Y_SPACING * 2);
 
+  memset(&back_button, 0, sizeof(top_back_t));
+  top_back_create(screen, &back_button, NULL);
+
   ui_set_local_brightness(SCREEN_BRIGHTNESS);
 
   return screen;
@@ -100,7 +115,7 @@ void screen_about_destroy(void) {
     return;
   }
 
-  bottom_back_destroy(&back_button);
+  top_back_destroy(&back_button);
   lv_obj_del(screen);
   screen = NULL;
   firmware_value_label = NULL;

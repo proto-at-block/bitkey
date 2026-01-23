@@ -594,6 +594,42 @@ class SweepDataStateMachineImplTests : FunSpec({
     }
   }
 
+  test("cancel hardware signing returns to PSBTs generated screen") {
+    val needsHwPsbt = PsbtMock.copyId("needs-hw")
+    val expectedSweepPsbts = listOf(
+      SweepPsbt(
+        needsHwPsbt,
+        SweepSignaturePlan.HardwareAndServer,
+        SpendingKeysetMock,
+        "bc1qtest"
+      )
+    )
+    sweepService.prepareSweepResult = Ok(
+      Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
+    )
+
+    stateMachine.testWithVirtualTime(props()) {
+      awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
+
+      val psbtsGeneratedData = awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
+      psbtsGeneratedData.startSweep()
+
+      val awaitingHwData = awaitItem().shouldBeTypeOf<AwaitingHardwareSignedSweepsData>()
+
+      // Cancel hardware signing (e.g., NFC failed or user backed out)
+      awaitingHwData.cancelHwSign()
+
+      // Should return to PSBTs generated screen to allow retry
+      val psbtsGeneratedAgain = awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
+      psbtsGeneratedAgain.totalFeeAmount.shouldBe(psbtsGeneratedData.totalFeeAmount)
+      psbtsGeneratedAgain.totalTransferAmount.shouldBe(psbtsGeneratedData.totalTransferAmount)
+
+      // User can retry
+      psbtsGeneratedAgain.startSweep()
+      awaitItem().shouldBeTypeOf<AwaitingHardwareSignedSweepsData>()
+    }
+  }
+
   test("private wallet migration - app signing fails") {
     val hwSignedPsbt = PsbtMock.copyId("hw-signed").copyBase64("hw-signed")
     val oldMultisigKeyset = SpendingKeysetMock

@@ -93,7 +93,8 @@ class ElfSigner(ABC):
             self._set_build_id(slot)
 
         # Check signature is in the right place for signing
-        signature_data = self._read_symbol_data(self._image_to_sig_sym_name(image_type))
+        signature_data = self._read_symbol_data(
+            self._image_to_sig_sym_name(image_type))
         assert signature_data == b"\xca\xfe" * (
             self.ECC_P256_SIG_SIZE // 2
         ), f"signature in wrong location, or image was already signed. was {hexlify(signature_data)}"
@@ -233,7 +234,8 @@ class ElfSigner(ABC):
             self.symtab = self.elf.get_section_by_name(".symtab")
 
         digest = self.gen_hash()
-        signature = self._read_symbol_data(self._image_to_sig_sym_name(asset_info.get_image_type()))
+        signature = self._read_symbol_data(
+            self._image_to_sig_sym_name(asset_info.get_image_type()))
 
         try:
             key_manager.verify_signature(digest, signature)
@@ -276,7 +278,8 @@ class ElfSigner(ABC):
 
         bin_path = Path(self.elf_path).with_suffix(".bin")
 
-        sig_path = Path(self.elf_path).with_suffix("").with_suffix(".detached_signature")
+        sig_path = Path(self.elf_path).with_suffix(
+            "").with_suffix(".detached_signature")
 
         # Create a signed .bin that we can flash, which excludes
         # everything past the last bit of code, including the signature
@@ -317,7 +320,8 @@ class ElfSigner(ABC):
         # Detach the metadata as well, for the bootloader. This is necessary because the BL
         # metadata is at the *end*, not the start.
         if image_type == "bl":
-            detached_meta = Path(self.elf_path).with_suffix("").with_suffix(".detached_metadata")
+            detached_meta = Path(self.elf_path).with_suffix(
+                "").with_suffix(".detached_metadata")
             subprocess.run(
                 [
                     "arm-none-eabi-objcopy",

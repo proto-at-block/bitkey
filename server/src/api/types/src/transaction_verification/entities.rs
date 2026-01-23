@@ -17,7 +17,9 @@ use crate::{account::identifiers::AccountId, transaction_verification::Transacti
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BitcoinDisplayUnit {
+    /// Display as BTC decimal: "0.001 BTC"
     Bitcoin,
+    /// Display as base unit: "10,000 sats" or "₿10,000" (when use_bip_177 is true)
     Satoshi,
 }
 
@@ -79,6 +81,7 @@ impl TransactionVerification {
         psbt: Psbt,
         fiat_currency: CurrencyCode,
         bitcoin_display_unit: BitcoinDisplayUnit,
+        use_bip_177: bool,
     ) -> Self {
         let id = TransactionVerificationId::gen().unwrap();
         Self::Pending(TransactionVerificationPending::new(
@@ -87,6 +90,7 @@ impl TransactionVerification {
             psbt,
             fiat_currency,
             bitcoin_display_unit,
+            use_bip_177,
         ))
     }
 }
@@ -104,6 +108,9 @@ pub struct TransactionVerificationPending {
     pub fiat_currency: CurrencyCode,
     /// The unit in which the Bitcoin amount is displayed in the secure verification site.
     pub bitcoin_display_unit: BitcoinDisplayUnit,
+    /// Whether to use BIP 177 Bitcoin sign (₿) instead of "sats" text for Satoshi display.
+    #[serde(default)]
+    pub use_bip_177: bool,
     #[serde(flatten)]
     pub common_fields: TransactionVerificationCommonFields,
 }
@@ -115,6 +122,7 @@ impl TransactionVerificationPending {
         psbt: Psbt,
         fiat_currency: CurrencyCode,
         bitcoin_display_unit: BitcoinDisplayUnit,
+        use_bip_177: bool,
     ) -> Self {
         // Generate 128 bytes (1024 bits) of random data for each token
         let mut web_auth_bytes = [0u8; 128];
@@ -137,6 +145,7 @@ impl TransactionVerificationPending {
             cancellation_token,
             fiat_currency,
             bitcoin_display_unit,
+            use_bip_177,
             common_fields: TransactionVerificationCommonFields::new(id, account_id, psbt),
         }
     }
@@ -229,6 +238,7 @@ mod tests {
             psbt.clone(),
             CurrencyCode::USD,
             Satoshi,
+            false,
         );
 
         match &tx_verification {
@@ -239,6 +249,7 @@ mod tests {
                 // Check display fields
                 assert_eq!(pending.fiat_currency, CurrencyCode::USD);
                 assert_eq!(pending.bitcoin_display_unit, Satoshi);
+                assert!(!pending.use_bip_177);
 
                 // Check tokens were generated
                 assert!(!pending.confirmation_token.is_empty());
@@ -261,9 +272,13 @@ mod tests {
         let account_id = AccountId::gen().unwrap();
         let psbt = create_test_psbt();
 
-        if let TransactionVerification::Pending(pending) =
-            TransactionVerification::new_pending(&account_id, psbt, CurrencyCode::USD, Satoshi)
-        {
+        if let TransactionVerification::Pending(pending) = TransactionVerification::new_pending(
+            &account_id,
+            psbt,
+            CurrencyCode::USD,
+            Satoshi,
+            false,
+        ) {
             // Test confirmation token
             assert!(pending.is_confirmation_token(&pending.confirmation_token));
             assert!(!pending.is_confirmation_token("wrong-token"));
@@ -291,9 +306,13 @@ mod tests {
             signature: Signature::from_compact(&[0u8; 64]).unwrap(),
         };
 
-        if let TransactionVerification::Pending(pending) =
-            TransactionVerification::new_pending(&account_id, psbt, CurrencyCode::USD, Satoshi)
-        {
+        if let TransactionVerification::Pending(pending) = TransactionVerification::new_pending(
+            &account_id,
+            psbt,
+            CurrencyCode::USD,
+            Satoshi,
+            false,
+        ) {
             // Test transition to Failed
             let failed = pending.mark_as_failed();
             match failed {
@@ -323,9 +342,13 @@ mod tests {
         let account_id = AccountId::gen().unwrap();
         let psbt = create_test_psbt();
 
-        if let TransactionVerification::Pending(pending) =
-            TransactionVerification::new_pending(&account_id, psbt, CurrencyCode::USD, Satoshi)
-        {
+        if let TransactionVerification::Pending(pending) = TransactionVerification::new_pending(
+            &account_id,
+            psbt,
+            CurrencyCode::USD,
+            Satoshi,
+            false,
+        ) {
             let signed_hw_grant = TransactionVerificationGrantView {
                 version: 0,
                 hw_auth_public_key: PublicKey::from_str(
@@ -364,9 +387,15 @@ mod tests {
             psbt.clone(),
             CurrencyCode::USD,
             Satoshi,
+            false,
         );
-        let verification2 =
-            TransactionVerification::new_pending(&account_id, psbt, CurrencyCode::USD, Satoshi);
+        let verification2 = TransactionVerification::new_pending(
+            &account_id,
+            psbt,
+            CurrencyCode::USD,
+            Satoshi,
+            false,
+        );
 
         if let (TransactionVerification::Pending(v1), TransactionVerification::Pending(v2)) =
             (&verification1, &verification2)

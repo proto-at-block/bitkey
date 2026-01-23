@@ -5,4 +5,6 @@ data class CoredumpFragment(
   val offset: Int,
   val complete: Boolean,
   val coredumpsRemaining: Int,
+  val mcuRole: McuRole?,
+  val mcuName: McuName?,
 )

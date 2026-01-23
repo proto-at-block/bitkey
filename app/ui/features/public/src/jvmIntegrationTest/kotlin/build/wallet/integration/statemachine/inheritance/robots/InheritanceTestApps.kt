@@ -1,14 +1,11 @@
 package build.wallet.integration.statemachine.inheritance.robots
 
 import app.cash.turbine.ReceiveTurbine
-import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SuccessBodyModel
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.input.NameInputBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.inheritance.InheritanceManagementUiProps
@@ -16,19 +13,18 @@ import build.wallet.statemachine.inheritance.ManagingInheritanceBodyModel
 import build.wallet.statemachine.inheritance.ManagingInheritanceTab
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.recovery.socrec.add.SaveContactBodyModel
+import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringBenefactorNameBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.robots.advanceUntilScreenWithBody
-import build.wallet.statemachine.ui.robots.clickRecoveryContacts
+import build.wallet.statemachine.ui.robots.clickInheritance
+import build.wallet.statemachine.ui.robots.clickSettings
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import io.kotest.core.test.TestScope
-import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 
 /**
  * Test Applications initialized with an inheritance relationship.
@@ -152,7 +148,7 @@ suspend fun TestScope.setupInheritanceBetween(
 }
 
 /**
- * Advances through the full account invite screens for a TC receiving an
+ * Advances through the full account invite screens for a beneficiary receiving an
  * inheritance invite.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteScreens(
@@ -160,20 +156,22 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
   protectedCustomerAlias: String,
 ) {
   awaitUntilBody<MoneyHomeBodyModel>()
-    .onSecurityHubTabClick()
+    .clickSettings()
 
-  awaitUntilBody<SecurityHubBodyModel>()
-    .clickRecoveryContacts()
+  awaitUntilBody<SettingsBodyModel> {
+    clickInheritance()
+  }
 
-  awaitUntilBody<FormBodyModel> {
-    header?.headline.shouldBe("Recovery Contacts")
-    mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
-      .toList()[1]
-      .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
-      .listGroupModel
-      .footerButton
-      .shouldNotBeNull()
-      .onClick()
+  awaitUntilBody<ManagingInheritanceBodyModel>(
+    matching = { it.selectedTab == ManagingInheritanceTab.Beneficiaries }
+  ) {
+    onTabRowClick(ManagingInheritanceTab.Inheritance)
+  }
+
+  awaitUntilBody<ManagingInheritanceBodyModel>(
+    matching = { it.selectedTab == ManagingInheritanceTab.Inheritance }
+  ) {
+    onAcceptInvitation()
   }
 
   awaitUntilBody<EnteringInviteCodeBodyModel> {

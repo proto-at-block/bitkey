@@ -5,6 +5,7 @@ import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerSc
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.RECOVERY_CANCELED_NO_LONGER_RECOVERING
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.throwables.shouldNotThrow
@@ -22,7 +23,9 @@ class RecoveryEventTrackerScreenIdMappingKtTest : FunSpec({
         LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE,
         LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E,
         LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS,
-        LOST_APP_DELAY_NOTIFY_DDK_LOADING_ERROR
+        LOST_APP_DELAY_NOTIFY_DDK_LOADING_ERROR,
+        // This screen applies to both app and hardware recovery conflicts, not LOST_APP/LOST_HW pattern
+        RECOVERY_CANCELED_NO_LONGER_RECOVERING
       )
     DelayNotifyRecoveryEventTrackerScreenId.entries
       .filter { !excluded.contains(it) }

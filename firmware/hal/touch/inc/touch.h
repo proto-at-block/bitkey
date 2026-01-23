@@ -178,13 +178,23 @@ void touch_get_latest_event(touch_event_t* event);
 /**
  * @brief Puts the touch controller in low power state
  *
- * @details Getting out of sleep mode is either done by hardware reset, or,
+ * @details Getting out of monitor mode is either done by hardware reset, or,
  *          if configured, a gesture can wake the touch controller
  *          (such as double tap)
  *
- * @return `true` if entered sleep mode successfully.
+ * @return `true` if entered monitor mode successfully.
  */
-bool touch_enter_sleep(void);
+bool touch_enter_monitor_mode(void);
+
+/**
+ * @brief Exits the touch controller from low power monitor mode
+ *
+ * @details Restores the touch controller to normal working mode.
+ *          Should be called on boot to ensure correct state.
+ *
+ * @return `true` if exited monitor mode successfully.
+ */
+bool touch_exit_monitor_mode(void);
 
 /**
  * @brief Process pending ESD check if needed.

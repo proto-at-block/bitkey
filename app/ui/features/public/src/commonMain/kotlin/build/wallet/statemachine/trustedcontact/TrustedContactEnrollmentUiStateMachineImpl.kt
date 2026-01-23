@@ -13,6 +13,7 @@ import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.relationships.TrustedContactRole.Companion.Beneficiary
+import build.wallet.bitkey.relationships.TrustedContactRole.Companion.SocialRecoveryContact
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SealedData
 import build.wallet.di.ActivityScope
@@ -52,7 +53,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
   @Suppress("ComplexMethod")
   @Composable
   override fun model(props: TrustedContactEnrollmentUiProps): ScreenModel {
-    var uiState: State by remember {
+    var uiState: State by remember(props.inviteCode, props.variant) {
       if (props.inviteCode != null) {
         eventTracker.track(Action.ACTION_APP_SOCREC_ENTERED_INVITE_VIA_DEEPLINK)
         mutableStateOf(State.RetrievingInviteWithF8e)
@@ -60,10 +61,16 @@ class TrustedContactEnrollmentUiStateMachineImpl(
         mutableStateOf(State.EnteringInviteCode)
       }
     }
-    var inviteCode by remember { mutableStateOf(props.inviteCode ?: "") }
-    var isInheritance by remember { mutableStateOf(false) }
-    var promoCode: PromotionCode? by remember { mutableStateOf(null) }
-    var protectedCustomerAlias by remember { mutableStateOf(ProtectedCustomerAlias("")) }
+    var inviteCode by remember(props.inviteCode, props.variant) {
+      mutableStateOf(props.inviteCode ?: "")
+    }
+    var isInheritance by remember(props.inviteCode, props.variant) {
+      mutableStateOf(props.variant is Direct && props.variant.target == Inheritance)
+    }
+    var promoCode: PromotionCode? by remember(props.inviteCode, props.variant) { mutableStateOf(null) }
+    var protectedCustomerAlias by remember(props.inviteCode, props.variant) {
+      mutableStateOf(ProtectedCustomerAlias(""))
+    }
 
     return when (val state = uiState) {
       is State.EnteringInviteCode -> {
@@ -86,7 +93,17 @@ class TrustedContactEnrollmentUiStateMachineImpl(
 
       is State.RetrievingInviteWithF8e -> {
         LaunchedEffect("retrieve-invitation") {
-          relationshipsService.retrieveInvitation(props.account, inviteCode)
+          relationshipsService.retrieveInvitation(
+            account = props.account,
+            invitationCode = inviteCode,
+            expectedRole = when (props.variant) {
+              is TrustedContactFeatureVariant.Generic -> null
+              is Direct -> when (props.variant.target) {
+                TrustedContactFeatureVariant.Feature.Inheritance -> Beneficiary
+                TrustedContactFeatureVariant.Feature.Recovery -> SocialRecoveryContact
+              }
+            }
+          )
             .onFailure {
               logWarn(throwable = it.cause) { "Failed to retrieve invite" }
               uiState = State.RetrievingInviteWithF8eFailure(error = it)
@@ -127,7 +144,8 @@ class TrustedContactEnrollmentUiStateMachineImpl(
         RetrievingInviteWithF8eFailureBodyModel(
           error = state.error,
           onRetry = { uiState = State.RetrievingInviteWithF8e },
-          onBack = { uiState = State.EnteringInviteCode }
+          onBack = { uiState = State.EnteringInviteCode },
+          variant = props.variant
         ).asScreen(props.screenPresentationStyle)
 
       is State.ShowingBeneficiaryOnboardingMessage ->

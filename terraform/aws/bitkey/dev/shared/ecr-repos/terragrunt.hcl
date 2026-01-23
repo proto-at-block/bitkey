@@ -14,6 +14,12 @@ inputs = {
     "wsm-api",
     "wsm-enclave",
     "bitkey-reproducible-android-builder",
+    # Nix base images for CI caching (pre-warmed Nix shells)
+    "nix-base-ci-wsm-build",
+    "nix-base-ci-core-test",
+    "nix-base-ci-jvm-rust",
+    "nix-base-ci-android-build",
+    "nix-base-lambda-build",
   ]
   image_tag_mutability = "MUTABLE"
 }

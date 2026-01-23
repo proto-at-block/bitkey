@@ -1953,6 +1953,12 @@ internal val UniffiVTableCallbackInterfaceSyncScriptInspectorUniffiByValue.`unif
 
 
 
+
+
+
+
+
+
 internal object UniffiLib {
     init {
             uniffiCallbackInterfaceFullScanScriptInspector.register(this)
@@ -3005,6 +3011,24 @@ internal object UniffiLib {
         `socks5`,
         uniffiCallStatus,
     )
+    fun uniffi_bdk_fn_method_electrumclient_block_hash(
+        `ptr`: Pointer?,
+        `height`: Long,
+        uniffiCallStatus: UniffiRustCallStatus,
+    ): Pointer? = bdk.cinterop.uniffi_bdk_fn_method_electrumclient_block_hash(
+        `ptr`,
+        `height`,
+        uniffiCallStatus,
+    )
+    fun uniffi_bdk_fn_method_electrumclient_block_header(
+        `ptr`: Pointer?,
+        `height`: Long,
+        uniffiCallStatus: UniffiRustCallStatus,
+    ): RustBufferByValue = bdk.cinterop.uniffi_bdk_fn_method_electrumclient_block_header(
+        `ptr`,
+        `height`,
+        uniffiCallStatus,
+    )
     fun uniffi_bdk_fn_method_electrumclient_block_headers_subscribe(
         `ptr`: Pointer?,
         uniffiCallStatus: UniffiRustCallStatus,
@@ -3070,6 +3094,15 @@ internal object UniffiLib {
     ): Pointer? = bdk.cinterop.uniffi_bdk_fn_method_electrumclient_transaction_broadcast(
         `ptr`,
         `tx`,
+        uniffiCallStatus,
+    )
+    fun uniffi_bdk_fn_method_electrumclient_transaction_get(
+        `ptr`: Pointer?,
+        `txid`: Pointer?,
+        uniffiCallStatus: UniffiRustCallStatus,
+    ): Pointer? = bdk.cinterop.uniffi_bdk_fn_method_electrumclient_transaction_get(
+        `ptr`,
+        `txid`,
         uniffiCallStatus,
     )
     fun uniffi_bdk_fn_clone_esploraclient(
@@ -5326,6 +5359,12 @@ internal object UniffiLib {
     fun uniffi_bdk_checksum_method_descriptorsecretkey_secret_bytes(
     ): Short = bdk.cinterop.uniffi_bdk_checksum_method_descriptorsecretkey_secret_bytes(
     )
+    fun uniffi_bdk_checksum_method_electrumclient_block_hash(
+    ): Short = bdk.cinterop.uniffi_bdk_checksum_method_electrumclient_block_hash(
+    )
+    fun uniffi_bdk_checksum_method_electrumclient_block_header(
+    ): Short = bdk.cinterop.uniffi_bdk_checksum_method_electrumclient_block_header(
+    )
     fun uniffi_bdk_checksum_method_electrumclient_block_headers_subscribe(
     ): Short = bdk.cinterop.uniffi_bdk_checksum_method_electrumclient_block_headers_subscribe(
     )
@@ -5346,6 +5385,9 @@ internal object UniffiLib {
     )
     fun uniffi_bdk_checksum_method_electrumclient_transaction_broadcast(
     ): Short = bdk.cinterop.uniffi_bdk_checksum_method_electrumclient_transaction_broadcast(
+    )
+    fun uniffi_bdk_checksum_method_electrumclient_transaction_get(
+    ): Short = bdk.cinterop.uniffi_bdk_checksum_method_electrumclient_transaction_get(
     )
     fun uniffi_bdk_checksum_method_esploraclient_broadcast(
     ): Short = bdk.cinterop.uniffi_bdk_checksum_method_esploraclient_broadcast(
@@ -9527,6 +9569,38 @@ public actual open class ElectrumClient: Disposable, ElectrumClientInterface {
 
     
     /**
+     * Gets the block hash at the specified height.
+     */
+    @Throws(ElectrumException::class)
+    public actual override fun `blockHash`(`height`: kotlin.ULong): BlockHash {
+        return FfiConverterTypeBlockHash.lift(callWithPointer {
+            uniffiRustCallWithError(ElectrumExceptionErrorHandler) { uniffiRustCallStatus ->
+                UniffiLib.uniffi_bdk_fn_method_electrumclient_block_hash(
+                    it,
+                    FfiConverterULong.lower(`height`),
+                    uniffiRustCallStatus,
+                )
+            }!!
+        })
+    }
+
+    /**
+     * Gets the block header at the specified height.
+     */
+    @Throws(ElectrumException::class)
+    public actual override fun `blockHeader`(`height`: kotlin.ULong): Header {
+        return FfiConverterTypeHeader.lift(callWithPointer {
+            uniffiRustCallWithError(ElectrumExceptionErrorHandler) { uniffiRustCallStatus ->
+                UniffiLib.uniffi_bdk_fn_method_electrumclient_block_header(
+                    it,
+                    FfiConverterULong.lower(`height`),
+                    uniffiRustCallStatus,
+                )
+            }
+        })
+    }
+
+    /**
      * Subscribes to notifications for new block headers, by sending a blockchain.headers.subscribe call.
      */
     @Throws(ElectrumException::class)
@@ -9662,6 +9736,22 @@ public actual open class ElectrumClient: Disposable, ElectrumClientInterface {
                 UniffiLib.uniffi_bdk_fn_method_electrumclient_transaction_broadcast(
                     it,
                     FfiConverterTypeTransaction.lower(`tx`),
+                    uniffiRustCallStatus,
+                )
+            }!!
+        })
+    }
+
+    /**
+     * Fetches a transaction by its txid.
+     */
+    @Throws(ElectrumException::class)
+    public actual override fun `transactionGet`(`txid`: Txid): Transaction {
+        return FfiConverterTypeTransaction.lift(callWithPointer {
+            uniffiRustCallWithError(ElectrumExceptionErrorHandler) { uniffiRustCallStatus ->
+                UniffiLib.uniffi_bdk_fn_method_electrumclient_transaction_get(
+                    it,
+                    FfiConverterTypeTxid.lower(`txid`),
                     uniffiRustCallStatus,
                 )
             }!!

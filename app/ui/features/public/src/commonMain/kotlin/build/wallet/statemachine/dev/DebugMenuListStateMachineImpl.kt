@@ -13,12 +13,15 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.AppDataDeleter
 import build.wallet.debug.cloud.CloudBackupCorrupter
 import build.wallet.debug.cloud.CloudBackupDeleter
+import build.wallet.debug.cloud.CloudBackupKeysetDeleter
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.notifications.TestNotificationF8eClient
 import build.wallet.logging.logWarn
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiStateMachine
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiProps
@@ -31,6 +34,7 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
+import com.github.michaelbull.result.onFailure
 import kotlinx.coroutines.launch
 
 @BitkeyInject(ActivityScope::class)
@@ -45,6 +49,7 @@ class DebugMenuListStateMachineImpl(
   private val bitcoinNetworkPickerUiStateMachine: BitcoinNetworkPickerUiStateMachine,
   private val cloudBackupDeleter: CloudBackupDeleter,
   private val cloudBackupCorrupter: CloudBackupCorrupter,
+  private val cloudBackupKeysetDeleter: CloudBackupKeysetDeleter,
   private val f8eEnvironmentPickerUiStateMachine: F8eEnvironmentPickerUiStateMachine,
   private val featureFlagsOptionsUiStateMachine: FeatureFlagsOptionsUiStateMachine,
   private val infoOptionsUiStateMachine: InfoOptionsUiStateMachine,
@@ -60,6 +65,7 @@ class DebugMenuListStateMachineImpl(
     var actionConfirmation: ActionConfirmationRequest? by remember { mutableStateOf(null) }
     var deleteAppDataRequest: DeleteAppDataRequest? by remember { mutableStateOf(null) }
     var resetCoachmarks by remember { mutableStateOf(false) }
+    var debugMenuErrorMessage by remember { mutableStateOf("") }
 
     if (deleteAppDataRequest != null) {
       val interstitial = DeleteEffect(account, deleteAppDataRequest!!) {
@@ -116,7 +122,9 @@ class DebugMenuListStateMachineImpl(
             resetCoachmarks = {
               resetCoachmarks = true
               actionConfirmation = null
-            }
+            },
+            onCorruptionFailure = { debugMenuErrorMessage = it },
+            onKeysetDeletionFailure = { debugMenuErrorMessage = it }
           ),
           KeyboxDeleterOptionsListGroupModel(
             account = account,
@@ -144,6 +152,18 @@ class DebugMenuListStateMachineImpl(
             actionConfirmation = it,
             onDismiss = { actionConfirmation = null }
           )
+        },
+      bottomSheetModel =
+        debugMenuErrorMessage.takeIf { it.isNotEmpty() }?.let { errorMessage ->
+          ErrorFormBodyModel(
+            title = "An error occurred",
+            subline = errorMessage,
+            primaryButton = ButtonDataModel(
+              text = "Go Back",
+              onClick = { debugMenuErrorMessage = "" }
+            ),
+            eventTrackerScreenId = DebugMenuEventTrackerScreenId.DEBUG_MENU_ERROR
+          ).asSheetModalScreen(onClosed = { debugMenuErrorMessage = "" })
         }
     )
   }
@@ -342,6 +362,8 @@ class DebugMenuListStateMachineImpl(
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
     onSetState: (DebugMenuState) -> Unit,
     resetCoachmarks: () -> Unit,
+    onCorruptionFailure: (String) -> Unit,
+    onKeysetDeletionFailure: (String) -> Unit,
   ): ListGroupModel? {
     val scope = rememberStableCoroutineScope()
 
@@ -418,6 +440,22 @@ class DebugMenuListStateMachineImpl(
                 }
               ),
               ListItemModel(
+                title = "Delete Cloud Backup Active Keyset",
+                onClick = {
+                  onActionConfirmationRequest(
+                    ActionConfirmationRequest(
+                      gatedActionTitle = "Delete active keyset from cloud backup?",
+                      gatedAction = {
+                        scope.launch {
+                          cloudBackupKeysetDeleter.deleteActiveKeyset()
+                            .onFailure { onKeysetDeletionFailure(it.message) }
+                        }
+                      }
+                    )
+                  )
+                }
+              ),
+              ListItemModel(
                 title = "Corrupt Cloud Backup",
                 onClick = {
                   onActionConfirmationRequest(
@@ -426,6 +464,7 @@ class DebugMenuListStateMachineImpl(
                       gatedAction = {
                         scope.launch {
                           cloudBackupCorrupter.corrupt()
+                            .onFailure { onCorruptionFailure(it.message) }
                         }
                       }
                     )

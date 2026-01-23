@@ -5,13 +5,12 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockMethod
-import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationProps
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
@@ -36,10 +35,7 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
 
   val stateMachine = WipingDeviceConfirmationUiStateMachineImpl(
-    nfcSessionUIStateMachine =
-      object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
-        "wiping device nfc"
-      ) {},
+    nfcConfirmableSessionUiStateMachine = NfcConfirmableSessionUiStateMachineMock("wiping device nfc"),
     firmwareDeviceInfoDao = firmwareDeviceInfoDao,
     hardwareUnlockInfoService = hardwareUnlockInfoService
   )
@@ -171,7 +167,7 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<Boolean>> {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Boolean>> {
         onSuccess(true)
       }
 

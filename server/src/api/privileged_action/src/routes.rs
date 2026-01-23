@@ -491,6 +491,8 @@ pub async fn get_privileged_action_verification_interface(
             .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
             verification_params["txPolicyVerification"] =
                 serde_json::json!(tx_policy_verification_payload.policy);
+            verification_params["useBip177"] =
+                serde_json::json!(tx_policy_verification_payload.use_bip_177);
         }
         _ => {
             return Err(html_error(

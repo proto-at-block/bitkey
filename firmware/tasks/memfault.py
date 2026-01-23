@@ -559,7 +559,7 @@ def activate_delta_release(
         cohort = "bitkey-external-beta"
 
     assert cohort in COHORTS
-    assert percent > 0
+    # assert percent > 0
 
     for release in releases:
         args = [

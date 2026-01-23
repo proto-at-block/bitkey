@@ -25,6 +25,8 @@ pub enum ServiceError {
     RelationshipAlreadyEstablished,
     #[error("Recovery relationship invitation expired")]
     InvitationExpired,
+    #[error("Recovery relationship invitation role mismatch")]
+    InvitationRoleMismatch,
     #[error("Recovery relationship invitation code mismatch")]
     InvitationCodeMismatch,
     #[error("Customer cannot be trusted contact")]
@@ -92,6 +94,11 @@ impl From<ServiceError> for ApiError {
             },
             ServiceError::InvitationCodeMismatch => ApiError::Specific {
                 code: ErrorCode::CodeMismatch,
+                detail: Some(msg),
+                field: None,
+            },
+            ServiceError::InvitationRoleMismatch => ApiError::Specific {
+                code: ErrorCode::InvitationRoleMismatch,
                 detail: Some(msg),
                 field: None,
             },

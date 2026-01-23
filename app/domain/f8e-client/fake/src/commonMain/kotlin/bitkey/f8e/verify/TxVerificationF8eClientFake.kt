@@ -24,6 +24,7 @@ class TxVerificationF8eClientFake : TxVerificationF8eClient {
     psbt: Psbt,
     fiatCurrency: FiatCurrency,
     bitcoinDisplayUnit: BitcoinDisplayUnit,
+    useBip177: Boolean,
   ): Result<PendingTransactionVerification, Throwable> {
     return Ok(FakePendingVerification)
   }
@@ -35,6 +36,7 @@ class TxVerificationF8eClientFake : TxVerificationF8eClient {
     psbt: Psbt,
     fiatCurrency: FiatCurrency,
     bitcoinDisplayUnit: BitcoinDisplayUnit,
+    useBip177: Boolean,
   ): Result<TxVerificationApproval, Throwable> {
     return Ok(FakeTxVerificationApproval)
   }

@@ -15,14 +15,13 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateService
-import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.send.*
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorContext
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiError
@@ -39,7 +38,7 @@ import kotlinx.collections.immutable.toImmutableList
 class FeeBumpConfirmationUiStateMachineImpl(
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
   private val exchangeRateService: ExchangeRateService,
-  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val nfcSessionUIStateMachine: NfcConfirmableSessionUiStateMachine,
   private val transferInitiatedUiStateMachine: TransferInitiatedUiStateMachine,
   private val bitcoinWalletService: BitcoinWalletService,
   private val feeEstimationErrorUiStateMachine: FeeEstimationErrorUiStateMachine,
@@ -116,7 +115,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
       }
 
       is State.SigningWithHardware -> nfcSessionUIStateMachine.model(
-        NfcSessionUIStateMachineProps(
+        NfcConfirmableSessionUIStateMachineProps(
           session = { session, commands ->
             commands.signTransaction(
               session = session,
@@ -130,13 +129,8 @@ class FeeBumpConfirmationUiStateMachineImpl(
               feeRate = props.newFeeRate
             )
           },
-          onSuccess = { result ->
-            when (result) {
-              is HardwareInteraction.Completed<Psbt> -> result.result
-              else -> null
-            }?.let {
-              uiState = State.BroadcastingTransaction(it)
-            } ?: error("An error occurred.")
+          onSuccess = { psbt: Psbt ->
+            uiState = State.BroadcastingTransaction(psbt)
           },
           screenPresentationStyle = ScreenPresentationStyle.Modal,
           eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION,

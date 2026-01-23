@@ -18,7 +18,7 @@ void mcu_init(void) {
   mcu_clock_init(MCU_CLOCK_HSI_16MHZ_CORE_160MHZ);
 
   // Configure PLL2 for peripherals (OCTOSPI)
-  mcu_aux_clock_init(MCU_AUX_CLOCK_HSE_16MHZ_AUX_48MHZ);
+  mcu_aux_clock_init(MCU_AUX_CLOCK_HSE_16MHZ_AUX_44MHZ);
 
   // Configure tamper.
   mcu_tamper_init();

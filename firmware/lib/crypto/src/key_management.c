@@ -1,7 +1,7 @@
 #include "key_management.h"
 
 #include "assert.h"
-#include "secutils.h"
+#include "wstring.h"
 
 void zeroize_key(key_handle_t* const key) {
   ASSERT(key);

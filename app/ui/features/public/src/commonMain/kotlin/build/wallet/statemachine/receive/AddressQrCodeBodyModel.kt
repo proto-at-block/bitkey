@@ -39,6 +39,7 @@ data class AddressQrCodeBodyModel(
       val onCopyClick: () -> Unit,
       val onShareClick: () -> Unit,
       val loadingPartnerId: String? = null,
+      val isRefreshing: Boolean = false,
     ) : Content {
       constructor(
         address: String?,
@@ -50,6 +51,7 @@ data class AddressQrCodeBodyModel(
         onCopyClick: () -> Unit,
         onShareClick: () -> Unit,
         loadingPartnerId: String? = null,
+        isRefreshing: Boolean = false,
       ) : this(
         // Chunk the address into 4-letter size groups and then color all the odd
         // substrings ON60 (and the even substrings will be colored with primary color)
@@ -71,7 +73,8 @@ data class AddressQrCodeBodyModel(
         copyButtonLabelText = copyButtonLabelText,
         onCopyClick = onCopyClick,
         onShareClick = onShareClick,
-        loadingPartnerId = loadingPartnerId
+        loadingPartnerId = loadingPartnerId,
+        isRefreshing = isRefreshing
       )
     }
 

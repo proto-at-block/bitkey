@@ -12,6 +12,7 @@
 #include "secure_rng.h"
 #include "seed.h"
 #include "wallet.h"
+#include "wstring.h"
 
 #include <criterion/criterion.h>
 #include <criterion/new/assert.h>

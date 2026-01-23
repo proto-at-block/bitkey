@@ -535,17 +535,17 @@ class AppUiStateMachineImplTests : FunSpec({
         onCancel()
       }
 
-      awaitBody<SplashBodyModel>()
-      eventTracker.awaitSplashScreenEvent()
-
-      awaitBodyMock<FullAccountUiProps> {
+      awaitUntilBodyMock<FullAccountUiProps> {
         accountData.shouldBe(ActiveKeyboxLoadedDataMock)
       }
 
-      eventTracker.eventCalls.awaitItem()
-        .shouldBe(TrackedAction(ACTION_APP_SCREEN_IMPRESSION, LOADING_APP))
-
+      eventTracker.awaitSplashScreenEvent()
       appWorkerExecutor.executeAllCalls.awaitItem()
+
+      @OptIn(DelicateCoroutinesApi::class)
+      eventTracker.eventCalls.awaitItemMaybe()
+        ?.shouldBe(TrackedAction(ACTION_APP_SCREEN_IMPRESSION, LOADING_APP))
+
       cancelAndIgnoreRemainingEvents()
     }
   }

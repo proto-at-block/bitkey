@@ -24,7 +24,7 @@
  */
 
 #include "ripemd160_impl.h"
-#include "secutils.h"
+#include "wstring.h"
 
 #include <string.h>
 

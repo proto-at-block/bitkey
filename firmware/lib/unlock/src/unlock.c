@@ -5,15 +5,10 @@
 #include "ipc.h"
 #include "log.h"
 #include "rtos.h"
-#include "secutils.h"
 #include "sleep.h"
 #include "unlock_impl.h"
 #include "wallet.h"
-
-// This isn't clean from a code organization perspective, but it's best
-// to call set_authenticated() from here, rather than auth_task.c, because
-// otherwise unlock_check_secret() could be glitched past completely.
-extern NO_OPTIMIZE void set_authenticated(secure_bool_t state, bool show_animation);
+#include "wstring.h"
 
 unlock_ctx_t unlock_ctx = {
   .limit_response = RESPONSE_DELAY,
@@ -217,7 +212,7 @@ success:
   *remaining_delay_ms = 0;
   *retry_counter = 0;
 
-  set_authenticated(SECURE_TRUE, true);
+  auth_authenticate_unlock_secret();
 
   return UNLOCK_OK;
 }

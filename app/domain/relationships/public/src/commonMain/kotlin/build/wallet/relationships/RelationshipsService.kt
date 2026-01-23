@@ -89,10 +89,13 @@ interface RelationshipsService {
   /**
    * Retrieves invitation data for a potential Trusted Contact given a code.
    * Note: [AccountId] can be for either a Full or Lite Customer
+   *
+   * @param expectedRole optional role hint to surface role mismatch errors from the server
    */
   suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
+    expectedRole: TrustedContactRole?,
   ): Result<IncomingInvitation, RetrieveInvitationCodeError>
 
   /**

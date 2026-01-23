@@ -16,13 +16,11 @@ import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
-import build.wallet.nfc.platform.HardwareInteraction
-import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitSheet
@@ -42,10 +40,7 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
   val dateTimeFormatter = DateTimeFormatterMock()
   val timeZoneProvider = TimeZoneProviderMock()
   val utxoConsolidationService = UtxoConsolidationServiceFake()
-  val nfcSessionUiStateMachine = object : NfcSessionUIStateMachine,
-    ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
-      "nfc-fake-state-machine"
-    ) {}
+  val nfcSessionUiStateMachine = NfcConfirmableSessionUiStateMachineMock("nfc-fake-state-machine")
 
   val stateMachine = UtxoConsolidationUiStateMachineImpl(
     accountService = accountService,
@@ -92,9 +87,9 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       }
 
       // Nfc signing
-      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>> {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>> {
         shouldShowLongRunningOperation.shouldBeTrue()
-        onSuccess(HardwareInteraction.Completed(PsbtMock)) // NB: Psbt doesn't match the consolidation params
+        onSuccess(PsbtMock) // NB: Psbt doesn't match the consolidation params
       }
 
       // Broadcasting the psbt
@@ -194,9 +189,9 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       }
 
       // Nfc signing
-      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>> {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>> {
         shouldShowLongRunningOperation.shouldBeTrue()
-        onSuccess(HardwareInteraction.Completed(PsbtMock))
+        onSuccess(PsbtMock)
       }
 
       // Broadcasting the psbt

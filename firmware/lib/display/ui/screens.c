@@ -3,7 +3,6 @@
 #include "screens/screen_about.h"
 #include "screens/screen_brightness.h"
 #include "screens/screen_fingerprint.h"
-#include "screens/screen_fingerprint_remove.h"
 #include "screens/screen_firmware_update.h"
 #include "screens/screen_locked.h"
 #include "screens/screen_menu.h"
@@ -11,6 +10,7 @@
 #include "screens/screen_mfg.h"
 #include "screens/screen_money_movement.h"
 #include "screens/screen_onboarding.h"
+#include "screens/screen_privileged_action.h"
 #include "screens/screen_regulatory.h"
 #include "screens/screen_scan.h"
 #include "screens/screen_test_carousel.h"
@@ -91,16 +91,16 @@ const screen_t screen_menu_fingerprints = {
   .update = screen_menu_fingerprints_update,
 };
 
-const screen_t screen_fingerprint_remove = {
-  .init = screen_fingerprint_remove_init,
-  .destroy = screen_fingerprint_remove_destroy,
-  .update = screen_fingerprint_remove_update,
-};
-
 const screen_t screen_firmware_update = {
   .init = screen_firmware_update_init,
   .destroy = screen_firmware_update_destroy,
   .update = screen_firmware_update_update,
+};
+
+const screen_t screen_privileged_action = {
+  .init = screen_privileged_action_init,
+  .destroy = screen_privileged_action_destroy,
+  .update = screen_privileged_action_update,
 };
 
 #ifdef MFGTEST
@@ -149,12 +149,12 @@ static const screen_entry_t registry[] = {
   {fwpb_display_show_screen_about_tag, &screen_about},
   {fwpb_display_show_screen_regulatory_tag, &screen_regulatory},
   {fwpb_display_show_screen_menu_fingerprints_tag, &screen_menu_fingerprints},
-  {fwpb_display_show_screen_fingerprint_remove_tag, &screen_fingerprint_remove},
   {fwpb_display_show_screen_money_movement_tag, &screen_money_movement},
   {fwpb_display_show_screen_mfg_tag, &screen_mfg},
   {fwpb_display_show_screen_locked_tag, &screen_locked},
   {fwpb_display_show_screen_fingerprint_tag, &screen_fingerprint},
   {fwpb_display_show_screen_firmware_update_tag, &screen_firmware_update},
+  {fwpb_display_show_screen_privileged_action_tag, &screen_privileged_action},
 #ifdef MFGTEST
   {fwpb_display_show_screen_test_gesture_tag, &screen_test_gesture},
   {fwpb_display_show_screen_test_scroll_tag, &screen_test_scroll},

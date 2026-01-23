@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lvgl/lvgl.h"
+#include "screens.h"
 
 lv_obj_t* screen_menu_fingerprints_init(void* ctx);
 void screen_menu_fingerprints_destroy(void);

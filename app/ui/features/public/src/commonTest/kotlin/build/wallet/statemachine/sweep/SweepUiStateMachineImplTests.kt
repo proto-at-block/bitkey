@@ -20,7 +20,6 @@ import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.recovery.sweep.SweepSignaturePlan
-import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -35,8 +34,8 @@ import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachineImpl
@@ -66,12 +65,10 @@ class SweepUiStateMachineImplTests : FunSpec({
   val sweepProceedCalls = turbines.create<Unit>("sweep proceed calls")
   val addHwSignedSweepsCalls =
     turbines.create<Set<Psbt>>("add hw signed psbts calls")
+  val cancelHwSignCalls = turbines.create<Unit>("cancel hw sign calls")
   val nfcCommandsMock = NfcCommandsMock(turbine = turbines::create)
 
-  val nfcSessionUIStateMachine =
-    object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
-      "nfc"
-    ) {}
+  val nfcSessionUIStateMachine = NfcConfirmableSessionUiStateMachineMock("nfc")
   val moneyAmountUiStateMachine =
     object : MoneyAmountUiStateMachine,
       StateMachineMock<MoneyAmountUiProps, MoneyAmountModel>(
@@ -262,10 +259,11 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(
         AwaitingHardwareSignedSweepsData(
           needsHwSign = needsHwSign,
-          addHwSignedSweeps = { addHwSignedSweepsCalls += it }
+          addHwSignedSweeps = { addHwSignedSweepsCalls += it },
+          cancelHwSign = { cancelHwSignCalls += Unit }
         )
       )
-      awaitBodyMock<NfcSessionUIStateMachineProps<Set<Psbt>>>(
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Set<Psbt>>>(
         id = nfcSessionUIStateMachine.id
       ) {
         session(NfcSessionFake(), nfcCommandsMock)
@@ -379,10 +377,11 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(
         AwaitingHardwareSignedSweepsData(
           needsHwSign = needsHwSign,
-          addHwSignedSweeps = { addHwSignedSweepsCalls += it }
+          addHwSignedSweeps = { addHwSignedSweepsCalls += it },
+          cancelHwSign = { cancelHwSignCalls += Unit }
         )
       )
-      awaitBodyMock<NfcSessionUIStateMachineProps<Set<Psbt>>>(
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Set<Psbt>>>(
         id = nfcSessionUIStateMachine.id
       ) {
         session(NfcSessionFake(), nfcCommandsMock)
@@ -573,6 +572,51 @@ class SweepUiStateMachineImplTests : FunSpec({
         id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATING_PSBTS
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+    }
+  }
+
+  test("NFC cancel during hardware signing returns to PSBT confirmation") {
+    sweepStateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      val sweepPsbts = listOf(
+        SweepPsbt(
+          PsbtMock.copy(id = "hw-sign"),
+          SweepSignaturePlan.HardwareAndServer,
+          SpendingKeysetMock,
+          "bc1qtest"
+        )
+      )
+      val needsHwSign = sweepPsbts.toSet()
+      sweepDataStateMachine.emitModel(
+        PsbtsGeneratedData(
+          PsbtMock.fee.amount,
+          PsbtMock.amountBtc,
+          destinationAddress = "bc1qtest",
+          startSweep = { startSweepCalls += Unit }
+        )
+      )
+      awaitBody<FormBodyModel> {
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
+        clickPrimaryButton()
+      }
+      startSweepCalls.awaitItem()
+      sweepDataStateMachine.emitModel(
+        AwaitingHardwareSignedSweepsData(
+          needsHwSign = needsHwSign,
+          addHwSignedSweeps = { addHwSignedSweepsCalls += it },
+          cancelHwSign = { cancelHwSignCalls += Unit }
+        )
+      )
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Set<Psbt>>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        // Simulate NFC failure/cancel - this should call cancelHwSign, not props.onExit
+        onCancel()
+      }
+      // Verify cancelHwSign was called (which returns to PSBT confirmation screen)
+      cancelHwSignCalls.awaitItem()
     }
   }
 

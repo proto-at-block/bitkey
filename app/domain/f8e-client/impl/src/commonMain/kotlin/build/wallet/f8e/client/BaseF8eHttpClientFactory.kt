@@ -10,6 +10,7 @@ import build.wallet.f8e.logging.F8eHttpClientLogger
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.logDebug
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.connectivity.InternetConnectionChecker
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.settings.CountryCodeGuesser
 import io.ktor.client.HttpClient
@@ -50,6 +51,7 @@ abstract class BaseF8eHttpClientFactory(
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val countryCodeGuesser: CountryCodeGuesser,
   private val networkReachabilityProvider: NetworkReachabilityProvider?,
+  private val internetConnectionChecker: InternetConnectionChecker?,
   private val networkingDebugService: NetworkingDebugService,
   private val engine: HttpClientEngine?,
 ) {
@@ -111,6 +113,11 @@ abstract class BaseF8eHttpClientFactory(
 
       install(CommonRequestConfigPlugin)
       install(ForceOfflinePlugin)
+      factory.internetConnectionChecker?.let { checker ->
+        install(InternetConnectionPlugin) {
+          internetConnectionChecker = checker
+        }
+      }
       install(FailF8eRequestsPlugin) {
         networkingDebugService = factory.networkingDebugService
       }

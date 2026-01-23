@@ -163,6 +163,8 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
       awaitSheet<ChooseTxPolicyTypeSheetBody> {
         onAlwaysClick()
       }
+
+      awaitBodyMock<ProofOfPossessionNfcProps>()
     }
   }
 

@@ -61,8 +61,7 @@ static bool kv_mutex_unlock(void) {
 }
 
 static void power_system_down_callback(rtos_timer_handle_t UNUSED(timer)) {
-  power_set_ldo_low_power_mode();  // Reduce LDO quiescent current before sleep
-  power_set_retain(false);
+  sysinfo_task_port_prepare_sleep_and_power_down();
 }
 
 static void wdog_feed_callback(rtos_timer_handle_t UNUSED(timer)) {
@@ -727,7 +726,12 @@ void sysinfo_thread(void* UNUSED(args)) {
         sysinfo_task_handle_coproc_metadata(&message);
         break;
       case IPC_SYSINFO_POWER_OFF:
-        LOGI("[Sysinfo] Powering off device...");
+        LOGI("[Sysinfo] Power off requested");
+        sysinfo_task_port_prepare_sleep_and_power_down();
+        break;
+      case IPC_SYSINFO_UXC_SLEEP_READY:
+        LOGD("UXC sleep ready, powering down");
+        power_set_ldo_low_power_mode();  // Reduce LDO quiescent current before sleep
         power_set_retain(false);
         break;
       default:

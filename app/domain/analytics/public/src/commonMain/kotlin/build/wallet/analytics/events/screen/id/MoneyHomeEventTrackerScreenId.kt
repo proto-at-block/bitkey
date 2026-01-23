@@ -12,4 +12,7 @@ enum class MoneyHomeEventTrackerScreenId : EventTrackerScreenId {
 
   /** The screen for a failed partner transaction is showing  */
   FAILED_PARTNER_TRANSACTION,
+
+  /** Interstitial warning screen shown when wallet is at risk */
+  WALLET_AT_RISK_INTERSTITIAL,
 }

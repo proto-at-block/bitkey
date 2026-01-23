@@ -35,6 +35,6 @@ docker build --platform=linux/amd64 -f "$1/app/verifiable-build/android/Dockerfi
   --build-arg REPRODUCIBLE_BUILD_VARIABLES="$3" \
   "$1" || exit $?
 
-buildAabUsingDockerContainer bitkey-android-verification-builder "$ANDROID_FLAVOR" "$2" "$DERIVED_BUGSNAG_UUID_VARIANT"
+buildAabUsingDockerContainer bitkey-android-verification-builder "$ANDROID_FLAVOR" "$2" "$DERIVED_BUGSNAG_UUID_VARIANT" || exit $?
 
 cleanUpDockerResources bitkey-android-verification-builder

@@ -3,7 +3,7 @@ srcs = [
 ]
 
 incs = ['inc']
-deps = [helpers_dep, rtos_dep, secutils_dep]
+deps = [helpers_dep, rtos_dep, secutils_dep, wstd_dep]
 
 mempool_lib = library('mempool',
   srcs,

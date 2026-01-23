@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bio_storage.h"
 #include "fpc_bep_sensor.h"
 #include "fpc_bep_sensor_security.h"
 #include "fpc_bep_sensor_test.h"
@@ -100,9 +101,6 @@ void bio_wait_for_finger_blocking(bio_gesture_t gesture);
 // Retrieve how many fingers have already been enrolled in `count`
 void bio_storage_get_template_count(uint32_t* count);
 
-// Returns true if there is at least one enrolled fingerprint.
-bool bio_fingerprint_exists(void);
-
 bool bio_fingerprint_index_exists(bio_template_id_t id);
 
 bio_err_t bio_storage_delete_template(bio_template_id_t id);
@@ -150,5 +148,3 @@ bool bio_image_capture_test(uint8_t** image_out, uint32_t* image_size_out);
 kv_result_t bio_template_enrolled_by_version_get(bio_template_id_t id, uint32_t* version_out);
 // Record the firmware version that enrolled a given template.
 kv_result_t bio_template_enrolled_by_version_store(bio_template_id_t id);
-
-void bio_wipe_state(void);

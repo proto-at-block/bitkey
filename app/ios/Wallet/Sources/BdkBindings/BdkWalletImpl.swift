@@ -71,7 +71,14 @@ class BdkWalletImpl: BdkWallet {
     }
 
     func syncBlocking(blockchain: BdkBlockchain, progress: BdkProgress?) -> BdkResult<KotlinUnit> {
-        let realBdkBlockchain = blockchain as! BdkBlockchainImpl
+        guard let realBdkBlockchain = blockchain as? LegacyBdkBlockchainImpl else {
+            return Shared.BdkResultErr(
+                error: Shared.BdkError.Generic(
+                    cause: nil,
+                    message: "BdkWalletImpl sync operations require LegacyBdkBlockchainImpl because wallet sync specifically depends on the legacy blockchain implementation. Got \(type(of: blockchain))."
+                )
+            )
+        }
         let ffiProgress = progress.map { Progress(progress: $0) }
         return BdkResult {
             try wallet.sync(blockchain: realBdkBlockchain.ffiBlockchain, progress: ffiProgress)

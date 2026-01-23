@@ -25,6 +25,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.statemachine.qr.QrCodeServiceFake
 import build.wallet.statemachine.qr.QrCodeState
+import build.wallet.statemachine.root.AddressQrCodeLoadingDuration
 import build.wallet.statemachine.root.RestoreCopyAddressStateDelay
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -75,7 +76,8 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     partnershipTransactionsService = partnershipTransactionsService,
     deepLinkHandler = deepLinkHandler,
     haptics = haptics,
-    eventTracker = eventTracker
+    eventTracker = eventTracker,
+    addressQrCodeLoadingDuration = AddressQrCodeLoadingDuration(0.milliseconds)
   )
 
   val onBackCalls = turbines.create<Unit>("back calls")
@@ -105,7 +107,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   test("show screen with address and QR code w/ light mode") {
     themePreferenceService.setThemePreference(ThemePreference.Manual(Theme.LIGHT))
     stateMachine.test(props()) {
-      // Loading address and QR code
+      // Loading address and QR code (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
           addressDisplayString.string.shouldBe("...")
@@ -113,13 +115,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
         }
       }
 
-      // Address loaded, now loading partners
-      awaitBody<AddressQrCodeBodyModel> {
-        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
-          addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
-          qrCodeState.shouldBeInstanceOf<QrCodeState.Success>()
-        }
-      }
+      // Address loaded - partners may still be loading
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Verify analytics events were tracked when partners loaded
@@ -138,7 +134,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
         }
       }
 
-      // Partners loaded
+      // Partners loaded - state updates with partners list
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
           addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
@@ -146,6 +142,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
           qrCodeState.matrix.columnWidth.shouldBe(37)
           qrCodeState.matrix.data.shouldNotBeEmpty()
           qrCodeState.matrix.data.size.shouldBe(37 * 37)
+          partners.size.shouldBe(2)
         }
       }
     }
@@ -154,7 +151,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   test("show screen with address and QR code w/ dark mode") {
     themePreferenceService.setThemePreference(ThemePreference.Manual(Theme.DARK))
     stateMachine.test(props()) {
-      // Loading address and QR code
+      // Loading address and QR code (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
           addressDisplayString.string.shouldBe("...")
@@ -162,13 +159,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
         }
       }
 
-      // Address loaded, now loading partners
-      awaitBody<AddressQrCodeBodyModel> {
-        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
-          addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
-          qrCodeState.shouldBeInstanceOf<QrCodeState.Success>()
-        }
-      }
+      // Address loaded - partners may still be loading
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Verify analytics events were tracked when partners loaded
@@ -187,7 +178,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
         }
       }
 
-      // Partners loaded
+      // Partners loaded - state updates with partners list
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
           addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
@@ -195,6 +186,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
           qrCodeState.matrix.columnWidth.shouldBe(37)
           qrCodeState.matrix.data.shouldNotBeEmpty()
           qrCodeState.matrix.data.size.shouldBe(37 * 37)
+          partners.size.shouldBe(2)
         }
       }
     }
@@ -202,11 +194,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
   test("get new address when onRefreshClick called") {
     stateMachine.test(props()) {
-      // Loading address and QR code
+      // Loading address and QR code (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel> {}
 
-      // Address loaded, now loading partners
-      awaitBody<AddressQrCodeBodyModel> {}
+      // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Verify analytics events were tracked when partners loaded
@@ -242,7 +233,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading new address and QR code
       awaitBody<AddressQrCodeBodyModel> {
         content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
-          .addressDisplayString.string.shouldBe("...")
+          .addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
       }
 
       // New address loaded (partners already loaded, no need to reload)
@@ -255,11 +246,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
   test("copy address to clipboard") {
     stateMachine.test(props()) {
-      // Loading address
+      // Loading address (partners load in parallel)
       awaitItem()
 
-      // Address loaded, loading partners
-      awaitItem()
+      // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Verify analytics events were tracked when partners loaded
@@ -300,11 +290,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
   test("share address") {
     stateMachine.test(props()) {
-      // Loading address
+      // Loading address (partners load in parallel)
       awaitItem()
 
-      // Address loaded, loading partners
-      awaitItem()
+      // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Verify analytics events were tracked when partners loaded
@@ -340,11 +329,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
   test("load partners and track analytics events") {
     stateMachine.test(props()) {
-      // Loading address
+      // Loading address (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel>()
 
-      // Address loaded, loading partners
-      awaitBody<AddressQrCodeBodyModel>()
+      // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Verify analytics tracking for both partners
@@ -379,11 +367,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
   test("redirect to partner when partner clicked") {
     stateMachine.test(props()) {
-      // Loading address
+      // Loading address (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel>()
 
-      // Address loaded, loading partners
-      awaitBody<AddressQrCodeBodyModel>()
+      // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Verify analytics events were tracked when partners loaded
@@ -453,11 +440,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     )
 
     stateMachine.test(props()) {
-      // Loading address
+      // Loading address (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel>()
 
-      // Address loaded, loading partners
-      awaitBody<AddressQrCodeBodyModel>()
+      // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Verify analytics events were tracked when partners loaded
@@ -508,11 +494,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       Err(HttpError.NetworkError(Error("Network error")))
 
     stateMachine.test(props()) {
-      // Loading address
+      // Loading address (partners load in parallel but will fail)
       awaitBody<AddressQrCodeBodyModel>()
 
-      // Address loaded, loading partners
-      awaitBody<AddressQrCodeBodyModel>()
+      // Wait for partner loading to start (will fail)
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Partner loading failed, should still show address screen with empty partners
@@ -530,11 +515,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       Err(HttpError.NetworkError(Error("Network error")))
 
     stateMachine.test(props()) {
-      // Loading address
+      // Loading address (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel>()
 
-      // Address loaded, loading partners
-      awaitBody<AddressQrCodeBodyModel>()
+      // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       // Verify analytics events were tracked when partners loaded

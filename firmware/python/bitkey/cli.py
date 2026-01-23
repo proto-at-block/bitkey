@@ -63,8 +63,10 @@ def add_mcu_option(callback: Callable) -> Callable:
     type=click.Choice(['W1', 'W3'], case_sensitive=False),
     help='Optional product name'
 )
+@click.option('--timeout', type=click.FLOAT, default=None, help="Global timeout in seconds for device operations (default: unlimited)")
+@click.option('--transceive-timeout', type=click.FLOAT, default=None, help="Per-transceive timeout in seconds (default: 0.25)")
 @click.pass_context
-def cli(ctx: click.Context, debug: bool, serial_port: str, nfc_port: str, product: str) -> None:
+def cli(ctx: click.Context, debug: bool, serial_port: str, nfc_port: str, product: str, timeout: float, transceive_timeout: float) -> None:
     help_invoked: bool = any(opt in sys.argv[1:] for opt in ['-h', '--help'])
     if help_invoked:
         # Skip binding the context object if `--help` is passed for a
@@ -76,7 +78,7 @@ def cli(ctx: click.Context, debug: bool, serial_port: str, nfc_port: str, produc
             ShellTransaction(port=serial_port), debug=debug), product=product))
     else:
         ctx.obj = ctx.with_resource(
-            Wallet(comms=WalletComms(NFCTransaction(usbstr=nfc_port), debug=debug), product=product))
+            Wallet(comms=WalletComms(NFCTransaction(usbstr=nfc_port, timeout=timeout, transceive_timeout=transceive_timeout), debug=debug), product=product))
 
 
 @cli.command()
@@ -495,7 +497,8 @@ def mfgtest_touch_test_start(ctx: click.Context, timeout: int) -> None:
     if not ctx.obj.mfgtest_touch_test_start(timeout=timeout):
         click.secho("Failed to start touch test.", fg="red")
     else:
-        click.secho(f"Touch test started successfully. Timeout: {timeout}s", fg="green")
+        click.secho(
+            f"Touch test started successfully. Timeout: {timeout}s", fg="green")
 
 
 @cli.command()
@@ -509,10 +512,12 @@ def mfgtest_touch_test_finish(ctx: click.Context) -> None:
         click.secho("Touch test TIMED OUT", fg="yellow")
         click.secho(f"boxes_remaining: {result.boxes_remaining}", fg="yellow")
     elif result.rsp_status == result.SUCCESS:
-        click.secho(f"boxes_remaining: {result.boxes_remaining} (PASS)", fg="green")
+        click.secho(
+            f"boxes_remaining: {result.boxes_remaining} (PASS)", fg="green")
     else:
         # FAILED or ERROR
-        click.secho(f"boxes_remaining: {result.boxes_remaining} (FAIL)", fg="red")
+        click.secho(
+            f"boxes_remaining: {result.boxes_remaining} (FAIL)", fg="red")
 
 
 @cli.command()

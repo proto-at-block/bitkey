@@ -1,7 +1,9 @@
 package build.wallet.ui.app.core
 
 import build.wallet.kotest.paparazzi.paparazziExtension
+import build.wallet.statemachine.core.AppSegment
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.RenderContext
@@ -42,13 +44,24 @@ class ErrorScreenSnapshots : FunSpec({
   }
 })
 
+private object TestAppSegment : AppSegment {
+  override val id: String = "test"
+}
+
+private val testErrorData = ErrorData(
+  segment = TestAppSegment,
+  actionDescription = "Test error",
+  cause = Exception("Test error")
+)
+
 private val errorWithSublineModel =
   ErrorFormBodyModel(
     title = "Error message",
     subline = "Error description",
     primaryButton = ButtonDataModel(text = "Done", onClick = {}),
     secondaryButton = ButtonDataModel(text = "Go Back", onClick = {}),
-    eventTrackerScreenId = null
+    eventTrackerScreenId = null,
+    errorData = testErrorData
   )
 
 private val errorForSheet = ErrorFormBodyModel(
@@ -57,14 +70,16 @@ private val errorForSheet = ErrorFormBodyModel(
   primaryButton = ButtonDataModel(text = "Done", onClick = {}),
   secondaryButton = ButtonDataModel(text = "Go Back", onClick = {}),
   eventTrackerScreenId = null,
-  renderContext = RenderContext.Sheet
+  renderContext = RenderContext.Sheet,
+  errorData = testErrorData
 )
 
 private val errorWithoutSublineModel =
   ErrorFormBodyModel(
     title = "Error message",
     primaryButton = ButtonDataModel(text = "Done", onClick = {}),
-    eventTrackerScreenId = null
+    eventTrackerScreenId = null,
+    errorData = testErrorData
   )
 
 private val errorWithBack =
@@ -78,5 +93,6 @@ private val errorWithBack =
             onClick = { }
           )
       ),
-    eventTrackerScreenId = null
+    eventTrackerScreenId = null,
+    errorData = testErrorData
   )

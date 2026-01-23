@@ -1,5 +1,7 @@
 package build.wallet.ui.components.qr
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -10,7 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -84,9 +90,36 @@ fun QrCodeWithData(
   val backgroundColor = WalletTheme.colors.background
   val cellColor = WalletTheme.colors.foreground
 
+  // Track old and new matrices for animation
+  var oldMatrix by remember { mutableStateOf<QRMatrix?>(null) }
+  var currentMatrix by remember { mutableStateOf(matrix) }
+  
+  // Animation progress (0.0 = start, 1.0 = complete)
+  val animationProgress = remember { Animatable(1f) }
+
+  // When matrix changes, trigger animation
+  LaunchedEffect(matrix) {
+    if (currentMatrix != matrix) {
+      oldMatrix = currentMatrix
+      currentMatrix = matrix
+      animationProgress.snapTo(0f)
+      animationProgress.animateTo(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = 1000)
+      )
+      // Clear old matrix after animation completes
+      oldMatrix = null
+    }
+  }
+
+  // Use the container column width to lock dimensions
+  val containerColumnWidth = remember(currentMatrix.columnWidth) {
+    currentMatrix.columnWidth
+  }
+
   // Calculate center icon area size once for the entire component
   val centerIconAreaSize = if (centerIcon != null) {
-    calculateCenterIconAreaSize(matrix.columnWidth)
+    calculateCenterIconAreaSize(containerColumnWidth)
   } else {
     0
   }
@@ -96,24 +129,49 @@ fun QrCodeWithData(
       modifier = Modifier.size(qrCodeSizeDp),
       contentDescription = ""
     ) {
-      val cellSize = floor(size.width / matrix.columnWidth)
-      val qrCodeRealSize = cellSize * matrix.columnWidth
+      val cellSize = floor(size.width / containerColumnWidth)
+      val qrCodeRealSize = cellSize * containerColumnWidth
       val baseOffsetPx = ceil((size.width - qrCodeRealSize) / 2)
       val baseOffset = Offset(baseOffsetPx, baseOffsetPx)
 
-      // Draw data cells (excluding finder patterns and center icon area) with spacing
+      // Draw old matrix with inverse animation (fades out as wave passes)
+      oldMatrix?.let { old ->
+        drawDataCells(
+          matrix = old,
+          baseOffset = baseOffset,
+          cellShape = cellShape,
+          cellSize = cellSize,
+          color = cellColor,
+          hasCenterIcon = centerIcon != null,
+          centerIconAreaSize = centerIconAreaSize,
+          animationProgress = animationProgress.value,
+          isInverseAnimation = true // Old matrix fades out
+        )
+
+        drawFinderPatterns(
+          matrix = old,
+          baseOffset = baseOffset,
+          cellSize = cellSize,
+          color = cellColor,
+          backgroundColor = backgroundColor
+        )
+      }
+
+      // Draw new matrix with wipe-up animation (fades in as wave passes)
       drawDataCells(
-        matrix = matrix,
+        matrix = currentMatrix,
         baseOffset = baseOffset,
         cellShape = cellShape,
         cellSize = cellSize,
         color = cellColor,
         hasCenterIcon = centerIcon != null,
-        centerIconAreaSize = centerIconAreaSize
+        centerIconAreaSize = centerIconAreaSize,
+        animationProgress = oldMatrix?.let { animationProgress.value },
+        isInverseAnimation = false // New matrix fades in
       )
 
       drawFinderPatterns(
-        matrix = matrix,
+        matrix = currentMatrix,
         baseOffset = baseOffset,
         cellSize = cellSize,
         color = cellColor,
@@ -125,7 +183,7 @@ fun QrCodeWithData(
       CenterIcon(
         icon = it,
         cellColor = cellColor,
-        gridSize = matrix.columnWidth,
+        gridSize = containerColumnWidth,
         centerIconAreaSize = centerIconAreaSize,
         qrCodeSizeDp = qrCodeSizeDp
       )
@@ -141,41 +199,147 @@ private fun DrawScope.drawDataCells(
   baseOffset: Offset,
   hasCenterIcon: Boolean,
   centerIconAreaSize: Int,
+  animationProgress: Float? = null,
+  isInverseAnimation: Boolean = false,
 ) {
   val spacing = cellSize * CELL_SPACING_RATIO
   val dotSize = cellSize - spacing
 
   for (cellRow in 0 until matrix.rowCount) {
     for (cellColumn in 0 until matrix.columnWidth) {
-      val isColored = matrix[cellRow, cellColumn].isColoredCell()
-      val isFinderCell = isFinderCell(
+      drawDataCell(
+        matrix = matrix,
         cellRow = cellRow,
         cellColumn = cellColumn,
-        gridSize = matrix.columnWidth
-      )
-      val isCenterArea = isCenterIconArea(
-        cellRow = cellRow,
-        cellColumn = cellColumn,
-        gridSize = matrix.columnWidth,
+        cellShape = cellShape,
+        cellSize = cellSize,
+        dotSize = dotSize,
+        color = color,
+        baseOffset = baseOffset,
+        hasCenterIcon = hasCenterIcon,
         centerIconAreaSize = centerIconAreaSize,
-        hasCenterIcon = hasCenterIcon
+        animationProgress = animationProgress,
+        isInverseAnimation = isInverseAnimation
       )
-
-      val isInVisibleZone = !isFinderCell && !isCenterArea
-
-      if (isColored && isInVisibleZone) {
-        drawCell(
-          color = color,
-          topLeftOffset =
-            baseOffset + Offset(
-              x = cellColumn * cellSize + spacing / 2,
-              y = cellRow * cellSize + spacing / 2
-            ),
-          cellSize = dotSize,
-          cellShape = cellShape
-        )
-      }
     }
+  }
+}
+
+/**
+ * Draws a single data cell if it should be visible.
+ */
+private fun DrawScope.drawDataCell(
+  matrix: QRMatrix,
+  cellRow: Int,
+  cellColumn: Int,
+  cellShape: CellShape,
+  cellSize: Float,
+  dotSize: Float,
+  color: Color,
+  baseOffset: Offset,
+  hasCenterIcon: Boolean,
+  centerIconAreaSize: Int,
+  animationProgress: Float?,
+  isInverseAnimation: Boolean,
+) {
+  val isColored = matrix[cellRow, cellColumn].isColoredCell()
+  val isFinderCell = isFinderCell(
+    cellRow = cellRow,
+    cellColumn = cellColumn,
+    gridSize = matrix.columnWidth
+  )
+  val isCenterArea = isCenterIconArea(
+    cellRow = cellRow,
+    cellColumn = cellColumn,
+    gridSize = matrix.columnWidth,
+    centerIconAreaSize = centerIconAreaSize,
+    hasCenterIcon = hasCenterIcon
+  )
+
+  val isInVisibleZone = !isFinderCell && !isCenterArea
+
+  if (!isColored || !isInVisibleZone) return
+
+  // Calculate animation scale and opacity if animating
+  val (scale, opacity) = calculateCellAnimation(
+    cellRow = cellRow,
+    rowCount = matrix.rowCount,
+    animationProgress = animationProgress,
+    isInverseAnimation = isInverseAnimation
+  )
+
+  // Only draw if visible
+  if (scale <= 0f || opacity <= 0f) return
+
+  val cellCenter = baseOffset + Offset(
+    x = cellColumn * cellSize + cellSize / 2,
+    y = cellRow * cellSize + cellSize / 2
+  )
+  val scaledDotSize = dotSize * scale
+
+  drawCell(
+    color = color.copy(alpha = color.alpha * opacity),
+    topLeftOffset = Offset(
+      x = cellCenter.x - scaledDotSize / 2,
+      y = cellCenter.y - scaledDotSize / 2
+    ),
+    cellSize = scaledDotSize,
+    cellShape = cellShape
+  )
+}
+
+/**
+ * Calculates the animation scale and opacity for a cell based on its position
+ * and the current animation progress.
+ */
+private fun calculateCellAnimation(
+  cellRow: Int,
+  rowCount: Int,
+  animationProgress: Float?,
+  isInverseAnimation: Boolean,
+): Pair<Float, Float> {
+  if (animationProgress == null) {
+    // No animation - draw at full scale and opacity
+    return 1f to 1f
+  }
+
+  // Single stage wipe-up animation
+  val rowProgress = cellRow.toFloat() / rowCount.toFloat()
+  val waveSpread = 0.3f // How gradual the wave effect is
+  
+  // Wave position moves from -waveSpread to 1+waveSpread
+  val wavePosition = (1f + waveSpread) * animationProgress
+  
+  // Distance from the wave (negative = before wave, positive = after wave)
+  val distanceFromWave = (wavePosition - rowProgress) / waveSpread
+  
+  // Scale goes from 0.0 to 1.0 as wave passes
+  val normalizedScale = distanceFromWave.coerceIn(0f, 1f)
+  
+  // For inverse animation (old matrix), flip the scale/opacity
+  // Old dots: visible (1.0) before wave, invisible (0.0) after wave
+  // New dots: invisible (0.0) before wave, visible (1.0) after wave
+  return if (isInverseAnimation) {
+    // Old dots: fade out with dramatic scale down
+    // Scale down to 0.2 for more dramatic shrink effect
+    val fadeProgress = 1f - normalizedScale
+    val scale = 0.2f + (fadeProgress * 0.8f) // 1.0 → 0.2 → 0.0
+    scale to fadeProgress
+  } else {
+    // New dots: fade in with pop-up scale effect
+    // Use ease-out-back for slight overshoot effect
+    val easeOutBack = if (normalizedScale < 0.5f) {
+      // First half: scale up quickly with overshoot
+      val t = normalizedScale * 2f
+      val overshoot = 1.2f
+      t * t * ((overshoot + 1f) * t - overshoot)
+    } else {
+      // Second half: settle back to 1.0
+      val t = (normalizedScale - 0.5f) * 2f
+      1.0f + (0.1f * (1f - t)) // 1.1 → 1.0
+    }
+    val scale = easeOutBack.coerceIn(0f, 1.2f)
+    scale to normalizedScale
   }
 }
 

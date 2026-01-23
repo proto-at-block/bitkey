@@ -337,6 +337,8 @@ static bool _touch_hw_reset(void) {
 }
 
 static bool _touch_reset_device(void) {
+  bool status = true;
+
   if (!_touch_hw_reset()) {
     return false;
   }
@@ -345,11 +347,34 @@ static bool _touch_reset_device(void) {
     return false;
   }
 
-  return _touch_set_mode(FT3169_MODE_WORKING);
+  status &= _touch_set_mode(FT3169_MODE_WORKING);
+
+  /* These settings should be default on power up, but write them to make sure */
+  status &= touch_exit_monitor_mode();
+
+  return status;
 }
 
-bool touch_enter_sleep(void) {
-  return _touch_write_reg(FT3169_REG_POWER_MODE, FT3169_POWER_MODE_SLEEP);
+bool touch_enter_monitor_mode(void) {
+  bool status = true;
+  /* Enter Gesture Mode */
+  status &= _touch_write_reg(FT3169_REG_GESTURE_EN, FT3169_GESTURE_ENABLE);
+  /* Set Gesture to Wake From Monitor Mode */
+  status &= _touch_write_reg(FT3169_REG_GESTURE_MASK, FT3169_GESTURE_MASK_DOUBLE_CLICK);
+  /* Set Power Mode to Monitor Mode*/
+  status &= _touch_write_reg(FT3169_REG_POWER_MODE, FT3169_POWER_MODE_MONITOR);
+  return status;
+}
+
+bool touch_exit_monitor_mode(void) {
+  bool status = true;
+  /* Disable Gesture Mode */
+  status &= _touch_write_reg(FT3169_REG_GESTURE_EN, 0x00);
+  /* Clear Gesture Mask */
+  status &= _touch_write_reg(FT3169_REG_GESTURE_MASK, 0x00);
+  /* Set Power Mode to Active */
+  status &= _touch_write_reg(FT3169_REG_POWER_MODE, FT3169_POWER_MODE_ACTIVE);
+  return status;
 }
 
 void touch_set_latest_event(const touch_event_t* event) {

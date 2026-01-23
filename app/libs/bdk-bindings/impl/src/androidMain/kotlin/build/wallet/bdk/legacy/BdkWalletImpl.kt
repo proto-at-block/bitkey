@@ -22,7 +22,7 @@ internal class BdkWalletImpl(
     blockchain: BdkBlockchain,
     progress: BdkProgress?,
   ): BdkResult<Unit> {
-    require(blockchain is BdkBlockchainImpl)
+    require(blockchain is LegacyBdkBlockchainImpl)
     return runCatchingBdkError {
       ffiWallet.sync(
         blockchain = blockchain.ffiBlockchain,

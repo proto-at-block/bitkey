@@ -14,10 +14,10 @@ plugins {
 buildLogic {
   app {
     version(
-      yyyy = 2025,
-      version = 25,
+      yyyy = 2026,
+      version = 0,
       patch = 0,
-      build = 6
+      build = 3
     )
   }
   compose {

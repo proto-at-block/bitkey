@@ -22,7 +22,6 @@ import build.wallet.feature.flags.TxVerificationFeatureFlag
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.partnerships.PartnerInfoFake
-import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
@@ -31,8 +30,8 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcContinuationSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcContinuationSessionUiStateMachine
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
@@ -80,8 +79,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     ) {}
 
   // Initialize the NfcSessionUIStateMachine
-  val nfcSessionUIStateMachine = object : NfcContinuationSessionUiStateMachine,
-    ScreenStateMachineMock<NfcContinuationSessionUIStateMachineProps<*>>("nfc-sell") {}
+  val nfcSessionUIStateMachine = NfcConfirmableSessionUiStateMachineMock("nfc-sell")
 
   // Define the TransferConfirmationUiProps with callbacks connected to the turbine instances
   @Suppress("DEPRECATION")
@@ -228,7 +226,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachine.id
       ) {
         shouldShowLongRunningOperation.shouldBeTrue()

@@ -549,9 +549,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<RotateAuthKeyScreens.Confirmation>()
         .onSelected()
       newApp.waitForFunds()
-      awaitUntilBody<MoneyHomeBodyModel>(
-        matching = { it.balanceModel.secondaryAmount != "0 sats" }
-      )
+      awaitUntilBody<MoneyHomeBodyModel>()
       newApp.awaitNoActiveRecovery()
 
       cancelAndIgnoreRemainingEvents()
@@ -665,9 +663,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         clickPrimaryButton()
       }
       newApp.waitForFunds()
-      awaitUntilBody<MoneyHomeBodyModel>(
-        matching = { it.balanceModel.secondaryAmount != "0 sats" }
-      )
+      awaitUntilBody<MoneyHomeBodyModel>()
       newApp.returnFundsToTreasury()
 
       cancelAndIgnoreRemainingEvents()

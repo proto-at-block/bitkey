@@ -1,54 +1,78 @@
 package build.wallet.nfc
 
-import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareMetadata
+import build.wallet.firmware.McuInfo
+import build.wallet.firmware.McuName
+import build.wallet.firmware.McuRole
 import build.wallet.firmware.SecureBootConfig
+import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
-import build.wallet.nfc.platform.PromptOption
 import kotlinx.datetime.Instant
 import okio.ByteString
 
 /**
  * Fake implementation of NFC commands for the W3.
  *
- * Unless explicitly overridden here this will delegate to the fake W1 commands.
- * Note: Does not use @Fake qualifier to avoid conflict with W1 fake in DI system.
+ * Delegates to W1 fake commands unless overridden.
  */
 @BitkeyInject(AppScope::class)
 class BitkeyW3CommandsFake(
   private val w1CommandsFake: BitkeyW1CommandsFake,
 ) : NfcCommands by w1CommandsFake {
-  override suspend fun signTransaction(
-    session: NfcSession,
-    psbt: Psbt,
-    spendingKeyset: SpendingKeyset,
-  ): HardwareInteraction<Psbt> {
-    return HardwareInteraction.Continuation(
-      tryContinue = { newSession ->
-        HardwareInteraction.EmulatePrompt(
-          options = listOf(
-            PromptOption(
-              name = "Confirm"
-            ) { confirmSession ->
-              w1CommandsFake.signTransaction(
-                confirmSession,
-                psbt,
-                spendingKeyset
-              )
-            },
-            PromptOption(
-              name = "Deny"
-            ) {
-              throw NfcException.CommandError(cause = Error("Denied by user."))
-            }
-          )
+  /**
+   * W3 hardware requires on-device confirmation for wipe operations.
+   *
+   * Returns [HardwareInteraction.ConfirmWithEmulatedPrompt] to simulate the device's
+   * confirmation screen. When "Approve" is selected, [EmulatedPromptOption.onSelect]
+   * wipes the fake device state.
+   */
+  override suspend fun wipeDevice(session: NfcSession): HardwareInteraction<Boolean> {
+    return HardwareInteraction.ConfirmWithEmulatedPrompt(
+      options = listOf(
+        EmulatedPromptOption(
+          name = EmulatedPromptOption.APPROVE,
+          onSelect = { w1CommandsFake.wipeDevice() },
+          fetchResult = { _, _ ->
+            // Simulates real device behavior: wipe invalidates the session nonce,
+            // so the second NFC tap fails because the device no longer recognizes it.
+            throw NfcException.CommandError("Unknown nonce - device was wiped")
+          }
+        ),
+        EmulatedPromptOption(
+          name = EmulatedPromptOption.DENY,
+          fetchResult = { _, _ -> HardwareInteraction.Completed(false) }
         )
-      }
+      )
+    )
+  }
+
+  /**
+   * W3 hardware requires on-device confirmation for firmware update operations.
+   *
+   * Returns [HardwareInteraction.ConfirmWithEmulatedPrompt] to simulate the device's
+   * confirmation screen before starting the FWUP process.
+   */
+  override suspend fun fwupStart(
+    session: NfcSession,
+    patchSize: UInt?,
+    fwupMode: build.wallet.fwup.FwupMode,
+    mcuRole: build.wallet.firmware.McuRole,
+  ): HardwareInteraction<Boolean> {
+    return HardwareInteraction.ConfirmWithEmulatedPrompt(
+      options = listOf(
+        EmulatedPromptOption(
+          name = EmulatedPromptOption.APPROVE,
+          fetchResult = { _, _ -> HardwareInteraction.Completed(true) }
+        ),
+        EmulatedPromptOption(
+          name = EmulatedPromptOption.DENY,
+          fetchResult = { _, _ -> HardwareInteraction.Completed(false) }
+        )
+      )
     )
   }
 
@@ -75,7 +99,9 @@ class BitkeyW3CommandsFake(
 
 /**
  * Fake firmware device info for W3 hardware.
- * Key difference from W1: hwRevision starts with "w3" for W3 hardware detection.
+ * Key differences from W1:
+ * - hwRevision starts with "w3" for W3 hardware detection
+ * - mcuInfo populated with CORE and UXC MCUs for multi-MCU FWUP support
  */
 val FakeW3FirmwareDeviceInfo = FirmwareDeviceInfo(
   version = "1.2.3",
@@ -90,5 +116,16 @@ val FakeW3FirmwareDeviceInfo = FirmwareDeviceInfo(
   secureBootConfig = SecureBootConfig.PROD,
   timeRetrieved = 1691787589,
   bioMatchStats = null,
-  mcuInfo = emptyList()
+  mcuInfo = listOf(
+    McuInfo(
+      mcuRole = McuRole.CORE,
+      mcuName = McuName.EFR32,
+      firmwareVersion = "1.2.3"
+    ),
+    McuInfo(
+      mcuRole = McuRole.UXC,
+      mcuName = McuName.STM32U5,
+      firmwareVersion = "1.2.3"
+    )
+  )
 )

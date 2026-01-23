@@ -1,7 +1,7 @@
 #include "printf.h"
 #include "secure_engine.h"
-#include "secutils.h"
 #include "sli_se_manager_internal.h"
+#include "wstring.h"
 
 #include "em_se.h"
 

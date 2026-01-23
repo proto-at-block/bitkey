@@ -1,7 +1,6 @@
 #include "gesture_tx.h"
 
 #include "display_send.h"
-#include "log.h"
 
 #include <stddef.h>
 #include <string.h>

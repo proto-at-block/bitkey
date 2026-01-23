@@ -1,5 +1,6 @@
 package build.wallet.statemachine.trustedcontact.reinvite
 
+import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
@@ -29,7 +30,7 @@ data class ReinviteContactBodyModel(
    */
   val isBeneficiary: Boolean = false,
 ) : FormBodyModel(
-    id = null,
+    id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_REINVITE_PROMPT,
     onBack = onBackPressed,
     toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClick = onBackPressed)

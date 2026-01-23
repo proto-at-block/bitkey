@@ -66,19 +66,19 @@ interface GetDeviceIdentifiers {
 };
 
 interface FwupStart {
-  constructor(u32? patch_size, FwupMode fwup_mode);
+  constructor(u32? patch_size, FwupMode fwup_mode, McuRole mcu_role);
   [Throws=CommandError]
-  BooleanState next(sequence<u8> response);
+  FwupStartResultState next(sequence<u8> response);
 };
 
 interface FwupTransfer {
-  constructor(u32 sequence_id, sequence<u8> fwup_data, u32 offset, FwupMode fwup_mode);
+  constructor(u32 sequence_id, sequence<u8> fwup_data, u32 offset, FwupMode fwup_mode, McuRole mcu_role);
   [Throws=CommandError]
   BooleanState next(sequence<u8> response);
 };
 
 interface FwupFinish {
-  constructor(u32 app_properties_offset, u32 signature_offset, FwupMode fwup_mode);
+  constructor(u32 app_properties_offset, u32 signature_offset, FwupMode fwup_mode, McuRole mcu_role);
   [Throws=CommandError]
   FwupFinishRspStatusState next(sequence<u8> response);
 };
@@ -96,7 +96,7 @@ interface SetFirmwareFeatureFlags {
 };
 
 interface GetEvents {
-  constructor();
+  constructor(McuRole mcu_role);
   [Throws=CommandError]
   EventFragmentState next(sequence<u8> response);
 };
@@ -114,7 +114,7 @@ interface GetDeviceInfo {
 };
 
 interface GetCoredumpFragment {
-  constructor(u32 offset);
+  constructor(u32 offset, McuRole mcu_role);
   [Throws=CommandError]
   CoredumpFragmentState next(sequence<u8> response);
 };
@@ -362,6 +362,7 @@ interface ConfirmedCommandResultState {
 [Enum]
 interface ConfirmedCommandResult {
   WipeState(boolean success);
+  FwupStart(boolean success);
 };
 
 [Enum]
@@ -372,6 +373,18 @@ interface WipeStateResultState {
 
 [Enum]
 interface WipeStateResult {
+  Success(boolean value);
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface FwupStartResultState {
+  Data(sequence<u8> response);
+  Result(FwupStartResult value);
+};
+
+[Enum]
+interface FwupStartResult {
   Success(boolean value);
   ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
 };
@@ -524,6 +537,7 @@ dictionary FirmwareFeatureFlagCfg {
 dictionary EventFragment {
   sequence<u8> fragment;
   i32 remaining_size;
+  McuRole? mcu_role;
 };
 
 dictionary TelemetryIdentifiers {
@@ -553,6 +567,8 @@ dictionary CoredumpFragment {
   i32 offset;
   boolean complete;
   i32 coredumps_remaining;
+  McuName? mcu_name;
+  McuRole? mcu_role;
 };
 
 [Error]

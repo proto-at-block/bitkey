@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
             el.textContent = roundedAmountFiat;
         });        
         document.querySelectorAll('.amountSats').forEach(el => {
-            const satsText = `${amountSats.toLocaleString()} sats`;
+            const satsText = formatSatoshiAmount(amountSats, data.useBip177);
             el.setAttribute('data-amount-sats', satsText);
             el.textContent = satsText;
         });

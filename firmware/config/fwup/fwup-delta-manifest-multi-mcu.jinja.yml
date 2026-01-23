@@ -1,0 +1,25 @@
+manifest_version: {{manifest_version}}
+fwup_bundle:
+  product: {{product}}
+  from_version: {{from_version}}
+  to_version: {{to_version}}
+  mcus:
+{% for mcu in mcus %}
+    {{mcu.role}}:
+      mcu_name: {{mcu.mcu_name}}
+      assets:
+        a2b_patch:
+          image:
+            name: {{mcu.a2b_patch_name}}.signed.patch
+          signature:
+            name: {{mcu.application_b_name}}.detached_signature
+        b2a_patch:
+          image:
+            name: {{mcu.b2a_patch_name}}.signed.patch
+          signature:
+            name: {{mcu.application_a_name}}.detached_signature
+      parameters:
+        wca_chunk_size: {{mcu.fwup_params.chunk_size}}
+        signature_offset: {{mcu.fwup_params.signature_offset}}
+        app_properties_offset: {{mcu.fwup_params.app_props_offset}}
+{% endfor %}

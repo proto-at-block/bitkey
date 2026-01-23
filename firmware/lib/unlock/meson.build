@@ -8,6 +8,7 @@ deps = [
   sleep_dep,
   auth_dep,
   wallet_dep,
+  wstd_dep,
 ]
 
 storage_deps = [

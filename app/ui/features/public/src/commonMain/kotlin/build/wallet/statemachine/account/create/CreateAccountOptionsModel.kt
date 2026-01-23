@@ -1,5 +1,6 @@
 package build.wallet.statemachine.account.create
 
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -21,7 +22,7 @@ data class CreateAccountOptionsModel(
   val onUseHardwareClick: () -> Unit,
   val onUseThisDeviceClick: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = CreateAccountEventTrackerScreenId.CREATE_ACCOUNT_OPTIONS,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
     header = FormHeaderModel(

@@ -48,10 +48,13 @@ sealed interface SweepData {
    * @property needsHwSign sweep psbts that need to be signed with hardware.
    * @property addHwSignedSweeps - accept hardware signed sweep psbts. Should move
    * to [SigningAndBroadcastingSweepsData].
+   * @property cancelHwSign - cancel hardware signing (e.g., NFC failed). Should move back
+   * to [PsbtsGeneratedData] to allow retry.
    */
   data class AwaitingHardwareSignedSweepsData(
     val needsHwSign: Set<SweepPsbt>,
     val addHwSignedSweeps: (Set<Psbt>) -> Unit,
+    val cancelHwSign: () -> Unit,
   ) : SweepData
 
   /**

@@ -69,6 +69,7 @@ async fn test_initiate_verification(
             Satoshi,
             should_prompt_user,
             None,
+            false,
         )
         .await;
 
@@ -136,6 +137,7 @@ async fn test_psbt_threshold(
             Satoshi,
             false,
             None,
+            false,
         )
         .await;
 
@@ -185,6 +187,7 @@ async fn initiate_rejects_blocked_addresses() {
             Satoshi,
             true,
             None,
+            false,
         )
         .await;
 
@@ -235,6 +238,7 @@ async fn initiate_rejects_blocked_addresses_via_flag() {
                 "accountid".to_string(),
                 Default::default(),
             )),
+            false,
         )
         .await;
 
@@ -277,6 +281,7 @@ async fn initiate_rejects_invalid_script_pubkeys() {
             Satoshi,
             true,
             None,
+            false,
         )
         .await;
 

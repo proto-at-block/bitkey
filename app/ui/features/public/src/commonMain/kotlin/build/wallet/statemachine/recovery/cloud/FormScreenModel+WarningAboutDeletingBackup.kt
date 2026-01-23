@@ -1,5 +1,6 @@
 package build.wallet.statemachine.recovery.cloud
 
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -13,7 +14,7 @@ data class WarningAboutDeletingBackupBodyModel(
   override val onBack: () -> Unit,
   val onContinue: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = CloudEventTrackerScreenId.WARNING_DELETING_CLOUD_BACKUP,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
     header = FormHeaderModel(headline = "Delete your current backup and create a new account"),

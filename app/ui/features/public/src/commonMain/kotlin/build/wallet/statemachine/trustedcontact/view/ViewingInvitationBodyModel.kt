@@ -1,5 +1,6 @@
 package build.wallet.statemachine.trustedcontact.view
 
+import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.statemachine.core.Icon
@@ -27,7 +28,7 @@ data class ViewingInvitationBodyModel(
   val onReinvite: () -> Unit,
   override val onBack: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_INVITATION_DETAIL_SHEET,
     onBack = onBack,
     toolbar = null,
     header = FormHeaderModel(

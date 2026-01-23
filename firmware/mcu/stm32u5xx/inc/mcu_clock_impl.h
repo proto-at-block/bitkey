@@ -17,7 +17,7 @@ typedef enum {
 // Auxiliary clock configuration options (PLL2) for peripherals
 typedef enum {
   MCU_AUX_CLOCK_HSE_16MHZ_AUX_5MHZ,   // HSE 16MHz -> 5MHz (low speed OCTOSPI)
-  MCU_AUX_CLOCK_HSE_16MHZ_AUX_48MHZ,  // HSE 16MHz -> 48MHz (high speed OCTOSPI)
+  MCU_AUX_CLOCK_HSE_16MHZ_AUX_44MHZ,  // HSE 16MHz -> 44MHz (high speed OCTOSPI)
 } mcu_aux_clock_config_e;
 
 // Initialize system clock with selected configuration

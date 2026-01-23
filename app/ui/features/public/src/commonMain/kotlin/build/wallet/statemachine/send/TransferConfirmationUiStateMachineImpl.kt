@@ -46,8 +46,8 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.statemachine.nfc.NfcContinuationSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcContinuationSessionUiStateMachine
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.send.TransferConfirmationUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.*
@@ -68,7 +68,7 @@ import kotlinx.collections.immutable.toImmutableMap
 @BitkeyInject(ActivityScope::class)
 class TransferConfirmationUiStateMachineImpl(
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
-  private val nfcSessionUIStateMachine: NfcContinuationSessionUiStateMachine,
+  private val nfcSessionUIStateMachine: NfcConfirmableSessionUiStateMachine,
   private val transactionPriorityPreference: TransactionPriorityPreference,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val bitcoinWalletService: BitcoinWalletService,
@@ -147,7 +147,6 @@ class TransferConfirmationUiStateMachineImpl(
           props = props,
           state = state,
           selectedPriority = selectedPriority,
-          requiredSigner = requiredSigner,
           onBdkError = {
             uiState = ReceivedBdkErrorUiState
           }
@@ -158,7 +157,8 @@ class TransferConfirmationUiStateMachineImpl(
           onSignSuccess = { appAndServerSignedPsbt ->
             uiState =
               BroadcastingTransactionUiState(
-                twoOfThreeSignedPsbt = appAndServerSignedPsbt
+                twoOfThreeSignedPsbt = appAndServerSignedPsbt,
+                cosigner = F8e
               )
           },
           onSignError = {
@@ -285,7 +285,7 @@ class TransferConfirmationUiStateMachineImpl(
         ).asModalScreen()
       is SigningWithHardwareUiState ->
         nfcSessionUIStateMachine.model(
-          NfcContinuationSessionUIStateMachineProps(
+          NfcConfirmableSessionUIStateMachineProps(
             session = { session, commands ->
               // TODO: refactor NFC APIs to use Result
               val account = accountService.getAccount<FullAccount>().getOrThrow()
@@ -303,7 +303,8 @@ class TransferConfirmationUiStateMachineImpl(
             onSuccess = { psbt ->
               uiState =
                 BroadcastingTransactionUiState(
-                  twoOfThreeSignedPsbt = psbt
+                  twoOfThreeSignedPsbt = psbt,
+                  cosigner = Hardware
                 )
             },
             screenPresentationStyle = Modal,
@@ -361,7 +362,7 @@ class TransferConfirmationUiStateMachineImpl(
     val onExit: () -> Unit,
     val onContinue: () -> Unit,
   ) : FormBodyModel(
-      id = null,
+      id = SendEventTrackerScreenId.SEND_SERVER_SIGNING_ERROR,
       toolbar = ToolbarModel(leadingAccessory = BackAccessory(onExit)),
       eventTrackerContext = null,
       onBack = onExit,
@@ -387,7 +388,6 @@ class TransferConfirmationUiStateMachineImpl(
     props: TransferConfirmationUiProps,
     state: BroadcastingTransactionUiState,
     selectedPriority: EstimatedTransactionPriority,
-    requiredSigner: SigningFactor,
     onBdkError: () -> Unit,
   ) {
     LaunchedEffect("broadcasting-txn") {
@@ -402,7 +402,7 @@ class TransferConfirmationUiStateMachineImpl(
         }
         .logFailure { "Error broadcasting regular transaction." }
         .onFailure {
-          when (requiredSigner) {
+          when (state.cosigner) {
             Hardware -> onBdkError()
             F8e -> {
               // On failure, the Server already published the transaction, so no user error is
@@ -765,9 +765,11 @@ private sealed interface TransferConfirmationUiState {
    * Broadcasting the transaction
    *
    * @property twoOfThreeSignedPsbt - a psbt signed via app & (hardware | server)
+   * @property cosigner - the factor (hardware or server) that co-signed with the app
    */
   data class BroadcastingTransactionUiState(
     val twoOfThreeSignedPsbt: Psbt,
+    val cosigner: SigningFactor,
   ) : TransferConfirmationUiState
 
   sealed interface ErrorUiState : TransferConfirmationUiState {

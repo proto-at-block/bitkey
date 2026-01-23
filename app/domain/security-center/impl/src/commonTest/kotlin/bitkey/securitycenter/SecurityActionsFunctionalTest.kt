@@ -26,7 +26,7 @@ import build.wallet.feature.flags.KeysetRepairFeatureFlag
 import build.wallet.firmware.*
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
-import build.wallet.fwup.FwupDataMock
+import build.wallet.fwup.McuFwupDataListMock_W1
 import build.wallet.inappsecurity.BiometricAuthServiceFake
 import build.wallet.nfc.HardwareProvisionedAppKeyStatusDaoFake
 import build.wallet.recovery.keyset.SpendingKeysetRepairServiceFake
@@ -266,7 +266,7 @@ class SecurityActionsFunctionalTest : FunSpec({
         "Device updated",
         {
           runBlocking {
-            firmwareDataService.updateFirmwareVersion(FwupDataMock)
+            firmwareDataService.updateFirmwareVersion(McuFwupDataListMock_W1)
           }
         },
         SecurityActionRecommendation.UPDATE_FIRMWARE

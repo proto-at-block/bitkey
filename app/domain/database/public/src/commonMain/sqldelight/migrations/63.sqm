@@ -1,0 +1,37 @@
+-- Modify fwupDataEntity to support multi-MCU firmware updates (W3)
+-- Change from rowId-based single entry to mcuRole-based multiple entries
+
+-- 1. Create temp table with new schema
+CREATE TABLE fwupDataEntity_tmp(
+  mcuRole              TEXT NOT NULL PRIMARY KEY,
+  mcuName              TEXT NOT NULL,
+  version              TEXT NOT NULL,
+  chunkSize            INTEGER NOT NULL,
+  signatureOffset      INTEGER NOT NULL,
+  appPropertiesOffset  INTEGER NOT NULL,
+  firmware             BLOB NOT NULL,
+  signature            BLOB NOT NULL,
+  fwupMode             TEXT NOT NULL
+);
+
+-- 2. Copy existing data to temp table with CORE mcuRole (default for W1 devices)
+INSERT INTO fwupDataEntity_tmp(mcuRole, mcuName, version, chunkSize, signatureOffset,
+appPropertiesOffset, firmware, signature, fwupMode)
+SELECT 'CORE', 'EFR32', version, chunkSize, signatureOffset,
+appPropertiesOffset, firmware, signature, fwupMode
+FROM fwupDataEntity
+LIMIT 1;
+
+-- 3. Migrate sequence ID to mcuFwupStateEntity with CORE key
+INSERT OR IGNORE INTO mcuFwupStateEntity(mcuRole, currentSequenceId)
+SELECT 'CORE', currentSequenceId
+FROM fwupDataEntity
+LIMIT 1;
+
+-- 4. Drop old table
+DROP TABLE fwupDataEntity;
+
+-- 5. Rename temp table
+ALTER TABLE fwupDataEntity_tmp RENAME TO fwupDataEntity;
+
+PRAGMA foreign_key_check;

@@ -6,6 +6,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class NetworkReachabilityProviderFake : NetworkReachabilityProvider {
+  var hasConnection: Boolean = true
+
+  override fun hasInternetConnection(): Boolean {
+    return hasConnection
+  }
+
   val internetReachabilityFlow = MutableStateFlow(NetworkReachability.REACHABLE)
 
   override fun internetReachabilityFlow(): StateFlow<NetworkReachability> {
@@ -32,6 +38,7 @@ class NetworkReachabilityProviderFake : NetworkReachabilityProvider {
   }
 
   fun reset() {
+    hasConnection = true
     internetReachabilityFlow.value = NetworkReachability.REACHABLE
     f8eEnvironmentReachabilityFlow.value = NetworkReachability.REACHABLE
   }

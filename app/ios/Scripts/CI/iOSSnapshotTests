@@ -36,7 +36,23 @@ git checkout -b "$new_branch" "HEAD"
 
 echo "📄 Generating report with xctesthtmlreport"
 # Use xhtmlreport to generate a new .html report from the .xcresult file (this makes it easy to extract the images)
-result_bundle=$WORKSPACE/ios-builder/scratch/ResultBundles_ios-snapshots_test-without-building.xcresult
+build_result=$WORKSPACE/ios-builder/scratch/ResultBundles_ios-snapshots_build-for-testing.xcresult
+test_result=$WORKSPACE/ios-builder/scratch/ResultBundles_ios-snapshots_test-without-building.xcresult
+
+# Exit early if build or test xcresult doesn't exist
+if [ ! -d "$build_result" ]; then
+    echo "⚠️ Build failed - no build xcresult found at $build_result"
+    echo "   Check the build logs above for compilation errors."
+    exit 1
+fi
+
+if [ ! -d "$test_result" ]; then
+    echo "⚠️ Tests didn't run - no test xcresult found at $test_result"
+    echo "   The build may have succeeded but tests failed to start."
+    exit 1
+fi
+result_bundle=$test_result
+
 xchtmlreport $result_bundle
 # Extract the .png files in the .xcresult. These are updated snapshots
 echo "📸 Extracing new snapshots"

@@ -8,4 +8,5 @@ data class TxVerificationUpdateRequest(
   val threshold: VerificationThreshold,
   val amountBtc: BitcoinMoney?,
   val hwFactorProofOfPossession: HwFactorProofOfPossession,
+  val useBip177: Boolean,
 )

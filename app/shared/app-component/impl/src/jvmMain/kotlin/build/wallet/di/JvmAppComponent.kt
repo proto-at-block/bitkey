@@ -12,7 +12,9 @@ import bitkey.recovery.fundslost.FundsLostRiskService
 import build.wallet.account.AccountService
 import build.wallet.auth.AuthTokensService
 import build.wallet.auth.FullAccountAuthKeyRotationService
+import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.F8eNetworkReachabilityService
+import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.export.ExportTransactionsService
@@ -69,6 +71,7 @@ import build.wallet.onboarding.*
 import build.wallet.partnerships.PartnershipPurchaseService
 import build.wallet.partnerships.PartnershipTransactionsService
 import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.connectivity.InternetConnectionCheckerImpl
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
 import build.wallet.platform.sharing.SharingManagerFake
@@ -192,4 +195,7 @@ interface JvmAppComponent {
   val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag
   val ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag
   val sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag
+  val jvmInternetConnectionChecker: InternetConnectionCheckerImpl
+  val networkReachabilityProvider: NetworkReachabilityProvider
+  val appFunctionalityService: AppFunctionalityService
 }

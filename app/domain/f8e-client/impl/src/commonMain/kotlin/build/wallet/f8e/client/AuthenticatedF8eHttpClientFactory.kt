@@ -14,6 +14,7 @@ import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.keybox.KeyboxDao
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.connectivity.InternetConnectionChecker
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.settings.CountryCodeGuesser
 import io.ktor.client.*
@@ -35,6 +36,7 @@ class AuthenticatedF8eHttpClientFactory(
   firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   countryCodeGuesser: CountryCodeGuesser,
   networkReachabilityProvider: NetworkReachabilityProvider,
+  internetConnectionChecker: InternetConnectionChecker,
   networkingDebugService: NetworkingDebugService,
   engine: HttpClientEngine? = null,
 ) : BaseF8eHttpClientFactory(
@@ -46,6 +48,7 @@ class AuthenticatedF8eHttpClientFactory(
     firmwareDeviceInfoDao = firmwareDeviceInfoDao,
     countryCodeGuesser = countryCodeGuesser,
     networkReachabilityProvider = networkReachabilityProvider,
+    internetConnectionChecker = internetConnectionChecker,
     networkingDebugService = networkingDebugService,
     engine = engine
   ) {

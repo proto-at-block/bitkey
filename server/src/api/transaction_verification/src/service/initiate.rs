@@ -45,6 +45,7 @@ impl Service {
         bitcoin_display_unit: BitcoinDisplayUnit,
         should_prompt_user: bool,
         context_key: Option<ContextKey>,
+        use_bip_177: bool,
     ) -> Result<InitiateVerificationResult, TransactionVerificationError> {
         let hardware_auth_pubkey = account.hardware_auth_pubkey;
         self.screener_service.screen_psbt_outputs_for_sanctions(
@@ -94,6 +95,7 @@ impl Service {
                 psbt,
                 fiat_currency,
                 bitcoin_display_unit,
+                use_bip_177,
             );
             self.repo.persist(&tx_verification).await?;
             let pending = match tx_verification.clone() {
@@ -120,6 +122,7 @@ impl Service {
         bitcoin_display_unit: BitcoinDisplayUnit,
         should_prompt_user: bool,
         context_key: Option<ContextKey>,
+        use_bip_177: bool,
     ) -> Result<InitiateVerificationResult, TransactionVerificationError> {
         let account = self
             .account_service
@@ -142,6 +145,7 @@ impl Service {
                 psbt,
                 fiat_currency,
                 bitcoin_display_unit,
+                use_bip_177,
             );
             self.repo.persist(&tx_verification).await?;
             let pending = match &tx_verification {

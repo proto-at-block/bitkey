@@ -41,7 +41,7 @@ class AppContext {
         self.appComponent = IosAppComponentCreateComponentKt.create(
             appVariant: appVariant,
             bdkAddressBuilder: BdkAddressBuilderImpl(),
-            bdkBlockchainFactory: BdkBlockchainFactoryImpl(),
+            legacyBdkBlockchainFactory: LegacyBdkBlockchainFactoryImpl(),
             bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactoryImpl(),
             bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGeneratorImpl(),
             bdkMnemonicGenerator: BdkMnemonicGeneratorImpl(),

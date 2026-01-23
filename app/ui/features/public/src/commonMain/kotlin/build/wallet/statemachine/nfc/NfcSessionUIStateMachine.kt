@@ -25,6 +25,8 @@ import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
 import build.wallet.feature.flags.CheckHardwareIsPairedFeatureFlag
+import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
+import build.wallet.feature.intValue
 import build.wallet.feature.isEnabled
 import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
@@ -64,7 +66,7 @@ import build.wallet.statemachine.nfc.NfcBodyModel.Status.Success as SuccessState
 /**
  * Shared configuration for NFC session props classes.
  * Contains all common fields between [NfcSessionUIStateMachineProps] and
- * [NfcContinuationSessionUIStateMachineProps].
+ * [NfcConfirmableSessionUIStateMachineProps].
  */
 data class NfcSessionConfig(
   val onConnected: () -> Unit = {},
@@ -101,7 +103,6 @@ class NfcSessionUIStateMachineProps<T>(
   val onSuccess: suspend (@UnsafeVariance T) -> Unit,
   val config: NfcSessionConfig,
 ) {
-  // Backward compatibility: delegate to config properties
   val onConnected: () -> Unit get() = config.onConnected
   val onCancel: () -> Unit get() = config.onCancel
   val onInauthenticHardware: (Throwable) -> Unit get() = config.onInauthenticHardware
@@ -217,6 +218,7 @@ class NfcSessionUIStateMachineImpl(
   private val recoveryStatusService: RecoveryStatusService,
   private val checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val nfcSessionRetryAttemptsFeatureFlag: NfcSessionRetryAttemptsFeatureFlag,
 ) : NfcSessionUIStateMachine {
   /**
    * Text shown under the progress spinner (on Android) or on the iOS NFC Sheet when performing
@@ -251,7 +253,7 @@ class NfcSessionUIStateMachineImpl(
     }
 
     var newState by remember {
-      mutableStateOf(
+      mutableStateOf<NfcSessionUIState>(
         when (nfcReaderCapability.availability(isHardwareFake)) {
           NotAvailable -> NoNFCMessage
           Disabled -> EnableNFCInstructions
@@ -282,12 +284,12 @@ class NfcSessionUIStateMachineImpl(
               if (newState !is Success) newState = Searching
             },
             asyncNfcSigning = asyncNfcSigningFeatureFlag.isEnabled(),
-            nfcFlowName = props.eventTrackerContext.name
+            nfcFlowName = props.eventTrackerContext.name,
+            maxNfcRetryAttempts = nfcSessionRetryAttemptsFeatureFlag.intValue()
           ),
           transaction = props.session
-        ).onSuccess {
+        ).onSuccess { result ->
           newState = Success
-
           delay(
             NfcSuccessScreenDuration(
               devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
@@ -296,7 +298,7 @@ class NfcSessionUIStateMachineImpl(
           )
           // Must be cast to satisfy compiler type resolution
           @Suppress("USELESS_CAST")
-          (props.onSuccess as suspend (Any?) -> Unit).invoke(it)
+          (props.onSuccess as suspend (Any?) -> Unit).invoke(result)
         }.onFailure { error ->
           when (error) {
             is NfcException.IOSOnly.UserCancellation ->

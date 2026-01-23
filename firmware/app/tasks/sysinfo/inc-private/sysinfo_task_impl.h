@@ -51,4 +51,12 @@ void sysinfo_task_handle_coproc_metadata(ipc_ref_t* message);
  */
 void sysinfo_task_request_coproc_metadata(fwpb_wallet_cmd* cmd);
 
+/**
+ * @brief Platform-specific sleep preparation and power down.
+ *
+ * On W3: Coordinates with UXC to enter touch monitor mode before powering down.
+ * On W1: Powers down immediately (no coprocessor coordination needed).
+ */
+void sysinfo_task_port_prepare_sleep_and_power_down(void);
+
 /** @} */

@@ -9,6 +9,7 @@ import build.wallet.emergencyexitkit.EmergencyExitKitPayload.EmergencyExitKitPay
 import build.wallet.emergencyexitkit.EmergencyExitKitPayloadDecoderImpl
 import build.wallet.encrypt.SymmetricKeyEncryptorImpl
 import build.wallet.integration.statemachine.create.restoreButton
+import build.wallet.money.BitcoinMoney
 import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
@@ -24,7 +25,6 @@ import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitResto
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
-import build.wallet.money.BitcoinMoney
 import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.shouldHaveTotalBalance

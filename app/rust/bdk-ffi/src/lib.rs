@@ -1,6 +1,7 @@
 mod bitcoin;
 mod descriptor;
 mod electrum;
+mod electrum_bitkey_ext;
 mod error;
 mod esplora;
 mod keys;

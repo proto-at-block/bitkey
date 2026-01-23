@@ -228,3 +228,38 @@ ew_error_t ew_psbt_input_get_amount(const ew_psbt_t* psbt, size_t index, bool* h
 ew_error_t ew_psbt_output_get_info(const ew_psbt_t* psbt, size_t index, const uint8_t** script_out,
                                    size_t* script_len_out, bool* has_amount_out,
                                    uint64_t* amount_out);
+
+/**
+ * Parse a PSBT from a byte array.
+ *
+ * @param psbt_bytes The PSBT to parse.
+ * @param psbt_len The length of the PSBT.
+ * @param psbt_out Output parameter for the parsed PSBT.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_from_bytes(const uint8_t* psbt_bytes, size_t psbt_len, ew_psbt_t** psbt_out);
+
+/**
+ * Check if a PSBT output has BIP32 keypath data attached.
+ *
+ * Outputs with keypaths are typically change outputs that belong to the wallet.
+ * Outputs without keypaths are external destinations.
+ *
+ * @param psbt The PSBT wrapper.
+ * @param index The zero-based index of the output.
+ * @param has_keypath_out Output parameter indicating if the output has keypath data.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_output_has_keypath(const ew_psbt_t* psbt, size_t index, bool* has_keypath_out);
+
+/**
+ * Decode a base64-encoded PSBT to a byte array.
+ *
+ * @param base64_psbt The base64-encoded PSBT string.
+ * @param out The destination for the decoded PSBT bytes.
+ * @param out_size The size of the output buffer.
+ * @param written The length of the decoded PSBT bytes.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_base64_to_bytes(const char* base64_psbt, uint8_t* out, size_t out_size,
+                              size_t* written);

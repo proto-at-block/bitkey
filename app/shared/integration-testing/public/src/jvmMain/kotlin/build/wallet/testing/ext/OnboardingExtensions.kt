@@ -143,7 +143,7 @@ suspend fun AppTester.onboardLiteAccountFromInvitation(
   // Accept TC invitation from Protected Customer
   val protectedCustomerAlias = ProtectedCustomerAlias(protectedCustomerName)
   val invitation = relationshipsService
-    .retrieveInvitation(account, inviteCode)
+    .retrieveInvitation(account, inviteCode, expectedRole = null)
     .unwrap()
   val delegatedDecryptionKey =
     relationshipsKeysRepository.getOrCreateKey<DelegatedDecryptionKey>()

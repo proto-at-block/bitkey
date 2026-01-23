@@ -7,10 +7,34 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PIN_BUTTON_SPACING            15
-#define PIN_BUTTON_COUNT              10
+// Pin pad button configuration
+#define PIN_BUTTON_SPACING        10   // Spacing between buttons in pixels
+#define PIN_BUTTON_COUNT          10   // Number of digit buttons (0-9)
+#define PIN_BUTTON_DEFAULT_WIDTH  109  // Default button width
+#define PIN_BUTTON_DEFAULT_HEIGHT 85   // Default button height
+#define PIN_BUTTON_MIN            40   // Minimum button dimension
+#define PIN_BUTTON_MAX            200  // Maximum button dimension
+#define PIN_BUTTON_STEP           5    // Size adjustment step
+
+// Pin pad grid positioning (relative to screen center)
+#define PIN_PAD_START_X (-120)  // X offset for left column
+#define PIN_PAD_START_Y (-110)  // Y offset for top row
+
+// Size control button configuration
+#define SIZE_CTRL_BTN_WIDTH           45
+#define SIZE_CTRL_BTN_HEIGHT          40
+#define SIZE_CTRL_BTN_X_OFFSET        10  // X offset from screen edge
+#define SIZE_CTRL_BTN_Y_OFFSET_TOP    (-30)
+#define SIZE_CTRL_BTN_Y_OFFSET_BOTTOM 20
+
+// Label positioning
+#define DISPLAY_LABEL_Y_OFFSET 20  // PIN display label Y offset from top
+#define SIZE_LABEL_Y_OFFSET    60  // Size label Y offset from top
+
+// General
 #define MAX_PIN_DIGITS                4    // Maximum PIN digits
 #define SCREEN_TRANSITION_DURATION_MS 300  // Screen transition animation duration
+
 // Static screen objects
 static lv_obj_t* screen = NULL;
 static lv_obj_t* display_label = NULL;
@@ -19,12 +43,9 @@ static lv_obj_t* number_buttons[PIN_BUTTON_COUNT] = {NULL};  // 0-9
 static lv_obj_t* clear_button = NULL;
 static lv_obj_t* enter_button = NULL;
 
-// Pin button sizing controls
-static int16_t pin_button_width = 94;
-static int16_t pin_button_height = 70;
-#define PIN_BUTTON_MIN  40
-#define PIN_BUTTON_MAX  200
-#define PIN_BUTTON_STEP 5
+// Pin button sizing controls (runtime adjustable)
+static int16_t pin_button_width = PIN_BUTTON_DEFAULT_WIDTH;
+static int16_t pin_button_height = PIN_BUTTON_DEFAULT_HEIGHT;
 
 // PIN entry state
 static char pin_buffer[5] = {0};  // Max 4 digits + null terminator
@@ -105,26 +126,58 @@ static void pin_size_button_handler(lv_event_t* e) {
 }
 
 static void apply_button_sizes(void) {
-  for (int i = 0; i < 10; i++) {
+  const int spacing = PIN_BUTTON_SPACING;
+  const int start_x = PIN_PAD_START_X;
+  const int start_y = PIN_PAD_START_Y;
+
+  // Update buttons 1-9 (3x3 grid)
+  for (int i = 1; i <= 9; i++) {
     if (number_buttons[i] != NULL) {
+      int row = (i - 1) / 3;
+      int col = (i - 1) % 3;
       lv_obj_set_size(number_buttons[i], pin_button_width, pin_button_height);
+      lv_obj_align(number_buttons[i], LV_ALIGN_CENTER, start_x + col * (pin_button_width + spacing),
+                   start_y + row * (pin_button_height + spacing));
     }
   }
 
+  // Row 4: Clear, 0, Enter
+  int row4_y = start_y + 3 * (pin_button_height + spacing);
+
   if (clear_button != NULL) {
     lv_obj_set_size(clear_button, pin_button_width, pin_button_height);
+    lv_obj_align(clear_button, LV_ALIGN_CENTER, start_x, row4_y);
   }
+
+  if (number_buttons[0] != NULL) {
+    lv_obj_set_size(number_buttons[0], pin_button_width, pin_button_height);
+    lv_obj_align(number_buttons[0], LV_ALIGN_CENTER, start_x + (pin_button_width + spacing),
+                 row4_y);
+  }
+
   if (enter_button != NULL) {
     lv_obj_set_size(enter_button, pin_button_width, pin_button_height);
+    lv_obj_align(enter_button, LV_ALIGN_CENTER, start_x + 2 * (pin_button_width + spacing), row4_y);
+  }
+
+  // Force screen refresh
+  if (screen != NULL) {
+    lv_obj_invalidate(screen);
   }
 }
 
 static void create_size_control_button(const char* text, lv_align_t align, lv_coord_t x_ofs,
                                        lv_coord_t y_ofs, pin_size_action_t action) {
   lv_obj_t* btn = lv_button_create(screen);
-  lv_obj_set_size(btn, 45, 40);
+  if (!btn) {
+    return;
+  }
+  lv_obj_set_size(btn, SIZE_CTRL_BTN_WIDTH, SIZE_CTRL_BTN_HEIGHT);
   lv_obj_align(btn, align, x_ofs, y_ofs);
   lv_obj_t* label = lv_label_create(btn);
+  if (!label) {
+    return;
+  }
   lv_label_set_text(label, text);
   lv_obj_center(label);
   lv_obj_add_event_cb(btn, pin_size_button_handler, LV_EVENT_SHORT_CLICKED,
@@ -227,19 +280,28 @@ lv_obj_t* screen_test_pin_pad_init(void* ctx) {
 
   // Create the screen with black background
   screen = lv_obj_create(NULL);
+  if (!screen) {
+    return NULL;
+  }
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
   // Create display label at the top
   display_label = lv_label_create(screen);
+  if (!display_label) {
+    return NULL;
+  }
   lv_obj_set_style_text_color(display_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(display_label, &cash_sans_mono_regular_28, 0);
-  lv_obj_align(display_label, LV_ALIGN_TOP_MID, 0, 20);
+  lv_obj_align(display_label, LV_ALIGN_TOP_MID, 0, DISPLAY_LABEL_Y_OFFSET);
   lv_label_set_text(display_label, "");
 
   size_label = lv_label_create(screen);
+  if (!size_label) {
+    return NULL;
+  }
   lv_obj_set_style_text_color(size_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(size_label, &cash_sans_mono_regular_20, 0);
-  lv_obj_align(size_label, LV_ALIGN_TOP_MID, 0, 60);
+  lv_obj_align(size_label, LV_ALIGN_TOP_MID, 0, SIZE_LABEL_Y_OFFSET);
   update_size_label();
 
   /* Create number pad buttons in 3x4 grid
@@ -249,13 +311,13 @@ lv_obj_t* screen_test_pin_pad_init(void* ctx) {
    *  7--8--9
    *  Clear--0--Enter
    */
-  pin_button_width = 94;
-  pin_button_height = 70;
+  pin_button_width = PIN_BUTTON_DEFAULT_WIDTH;
+  pin_button_height = PIN_BUTTON_DEFAULT_HEIGHT;
   const int btn_width = pin_button_width;
   const int btn_height = pin_button_height;
   const int spacing = PIN_BUTTON_SPACING;
-  const int start_x = -100;  // Centered offset
-  const int start_y = -110;
+  const int start_x = PIN_PAD_START_X;
+  const int start_y = PIN_PAD_START_Y;
 
   // Create buttons 1-9
   for (int i = 1; i <= 9; i++) {
@@ -263,11 +325,17 @@ lv_obj_t* screen_test_pin_pad_init(void* ctx) {
     int col = (i - 1) % 3;
 
     number_buttons[i] = lv_button_create(screen);
+    if (!number_buttons[i]) {
+      return NULL;
+    }
     lv_obj_set_size(number_buttons[i], btn_width, btn_height);
     lv_obj_align(number_buttons[i], LV_ALIGN_CENTER, start_x + col * (btn_width + spacing),
                  start_y + row * (btn_height + spacing));
 
     lv_obj_t* label = lv_label_create(number_buttons[i]);
+    if (!label) {
+      return NULL;
+    }
     char buf[2];
     snprintf(buf, sizeof(buf), "%d", i);
     lv_label_set_text(label, buf);
@@ -281,38 +349,60 @@ lv_obj_t* screen_test_pin_pad_init(void* ctx) {
 
   // Clear button
   clear_button = lv_button_create(screen);
+  if (!clear_button) {
+    return NULL;
+  }
   lv_obj_set_size(clear_button, btn_width, btn_height);
   lv_obj_align(clear_button, LV_ALIGN_CENTER, start_x, row4_y);
   lv_obj_t* clear_label = lv_label_create(clear_button);
+  if (!clear_label) {
+    return NULL;
+  }
   lv_label_set_text(clear_label, "CLR");
   lv_obj_center(clear_label);
   lv_obj_add_event_cb(clear_button, clear_button_handler, LV_EVENT_SHORT_CLICKED, NULL);
 
   // 0 button
   number_buttons[0] = lv_button_create(screen);
+  if (!number_buttons[0]) {
+    return NULL;
+  }
   lv_obj_set_size(number_buttons[0], btn_width, btn_height);
   lv_obj_align(number_buttons[0], LV_ALIGN_CENTER, start_x + (btn_width + spacing), row4_y);
   lv_obj_t* zero_label = lv_label_create(number_buttons[0]);
+  if (!zero_label) {
+    return NULL;
+  }
   lv_label_set_text(zero_label, "0");
   lv_obj_center(zero_label);
   lv_obj_add_event_cb(number_buttons[0], number_button_handler, LV_EVENT_SHORT_CLICKED, NULL);
 
   // Enter button
   enter_button = lv_button_create(screen);
+  if (!enter_button) {
+    return NULL;
+  }
   lv_obj_set_size(enter_button, btn_width, btn_height);
   lv_obj_align(enter_button, LV_ALIGN_CENTER, start_x + 2 * (btn_width + spacing), row4_y);
   lv_obj_t* enter_label = lv_label_create(enter_button);
+  if (!enter_label) {
+    return NULL;
+  }
   lv_label_set_text(enter_label, "ENTER");
   lv_obj_center(enter_label);
   lv_obj_add_event_cb(enter_button, enter_button_handler, LV_EVENT_SHORT_CLICKED, NULL);
 
   apply_button_sizes();
 
-  // Create controls for adjusting button size (match layout similar to test_scroll)
-  create_size_control_button("+W", LV_ALIGN_LEFT_MID, 10, -30, PIN_SIZE_INC_W);
-  create_size_control_button("-W", LV_ALIGN_LEFT_MID, 10, 20, PIN_SIZE_DEC_W);
-  create_size_control_button("+H", LV_ALIGN_RIGHT_MID, -10, -30, PIN_SIZE_INC_H);
-  create_size_control_button("-H", LV_ALIGN_RIGHT_MID, -10, 20, PIN_SIZE_DEC_H);
+  // Create controls for adjusting button size
+  create_size_control_button("+W", LV_ALIGN_LEFT_MID, SIZE_CTRL_BTN_X_OFFSET,
+                             SIZE_CTRL_BTN_Y_OFFSET_TOP, PIN_SIZE_INC_W);
+  create_size_control_button("-W", LV_ALIGN_LEFT_MID, SIZE_CTRL_BTN_X_OFFSET,
+                             SIZE_CTRL_BTN_Y_OFFSET_BOTTOM, PIN_SIZE_DEC_W);
+  create_size_control_button("+H", LV_ALIGN_RIGHT_MID, -SIZE_CTRL_BTN_X_OFFSET,
+                             SIZE_CTRL_BTN_Y_OFFSET_TOP, PIN_SIZE_INC_H);
+  create_size_control_button("-H", LV_ALIGN_RIGHT_MID, -SIZE_CTRL_BTN_X_OFFSET,
+                             SIZE_CTRL_BTN_Y_OFFSET_BOTTOM, PIN_SIZE_DEC_H);
 
   // Add gesture event handler for swipe navigation
   lv_obj_add_event_cb(screen, screen_event_handler, LV_EVENT_GESTURE, NULL);

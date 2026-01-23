@@ -95,6 +95,7 @@ pub enum ErrorCode {
     NoRecoveryExists,
     // RecoveryRelationship
     InvitationExpired,
+    InvitationRoleMismatch,
     MaxTrustedContactsReached,
     MaxProtectedCustomersReached,
     // Money Movement,
@@ -127,6 +128,7 @@ impl From<ErrorCode> for ErrorCategory {
             | ErrorCode::InvalidPhoneNumber
             | ErrorCode::InvalidEmailAddress
             | ErrorCode::InvitationExpired
+            | ErrorCode::InvitationRoleMismatch
             | ErrorCode::AccountNotFound
             | ErrorCode::MaxTrustedContactsReached
             | ErrorCode::MaxProtectedCustomersReached
@@ -151,7 +153,8 @@ impl From<ErrorCode> for StatusCode {
             | ErrorCode::HwAuthPubkeyInUse
             | ErrorCode::RecoveryAuthPubkeyInUse
             | ErrorCode::InvalidPhoneNumber
-            | ErrorCode::InvalidEmailAddress => StatusCode::BAD_REQUEST,
+            | ErrorCode::InvalidEmailAddress
+            | ErrorCode::InvitationRoleMismatch => StatusCode::BAD_REQUEST,
             ErrorCode::NotFound | ErrorCode::AccountNotFound => StatusCode::NOT_FOUND,
             ErrorCode::TouchpointAlreadyActive
             | ErrorCode::RecoveryAlreadyExists

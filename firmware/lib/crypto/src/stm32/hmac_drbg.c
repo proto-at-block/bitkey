@@ -4,7 +4,7 @@
 #include "hmac_drbg_impl.h"
 #include "mcu.h"
 #include "mcu_hash.h"
-#include "secutils.h"
+#include "wstring.h"
 
 #include <stdint.h>
 #include <string.h>

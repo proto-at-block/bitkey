@@ -21,6 +21,8 @@ import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.*
+import build.wallet.nfc.platform.ConfirmationHandles
+import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.transaction.TransactionError
@@ -43,6 +45,22 @@ class BitkeyW1CommandsFake(
   private val fakeHardwareSpendingWalletProvider: FakeHardwareSpendingWalletProvider,
   private val fakeHardwareStatesDao: FakeHardwareStatesDao,
 ) : NfcCommands {
+  private var telemetryCoredumpCount: Int = 0
+  private var telemetryCoredumpFragmentsByOffset: Map<Int, CoredumpFragment> = emptyMap()
+
+  internal fun setTelemetryCoredump(
+    coredumpCount: Int,
+    fragmentsByOffset: Map<Int, CoredumpFragment>,
+  ) {
+    telemetryCoredumpCount = coredumpCount
+    telemetryCoredumpFragmentsByOffset = fragmentsByOffset
+  }
+
+  internal fun clearTelemetryCoredump() {
+    telemetryCoredumpCount = 0
+    telemetryCoredumpFragmentsByOffset = emptyMap()
+  }
+
   private var fingerprintEnrollmentResult = FingerprintEnrollmentResult(
     status = NOT_IN_PROGRESS,
     passCount = null,
@@ -63,7 +81,8 @@ class BitkeyW1CommandsFake(
     session: NfcSession,
     patchSize: UInt?,
     fwupMode: FwupMode,
-  ) = true
+    mcuRole: McuRole,
+  ): HardwareInteraction<Boolean> = HardwareInteraction.Completed(true)
 
   override suspend fun fwupTransfer(
     session: NfcSession,
@@ -71,6 +90,7 @@ class BitkeyW1CommandsFake(
     fwupData: List<UByte>,
     offset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ) = true
 
   override suspend fun fwupFinish(
@@ -78,21 +98,29 @@ class BitkeyW1CommandsFake(
     appPropertiesOffset: UInt,
     signatureOffset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ) = FwupFinishResponseStatus.Success
 
   override suspend fun getAuthenticationKey(session: NfcSession) =
     HwAuthPublicKey(fakeHardwareKeyStore.getAuthKeypair().publicKey.pubKey)
 
-  override suspend fun getCoredumpCount(session: NfcSession) = 0
+  override suspend fun getCoredumpCount(session: NfcSession) = telemetryCoredumpCount
 
   override suspend fun getCoredumpFragment(
     session: NfcSession,
     offset: Int,
-  ) = CoredumpFragment(emptyList(), 0, true, 0)
+    mcuRole: McuRole,
+  ): CoredumpFragment {
+    return telemetryCoredumpFragmentsByOffset[offset]
+      ?: error("No fake telemetry coredump fragment configured for offset=$offset")
+  }
 
   override suspend fun getDeviceInfo(session: NfcSession) = FakeFirmwareDeviceInfo
 
-  override suspend fun getEvents(session: NfcSession) = EventFragment(emptyList(), 0)
+  override suspend fun getEvents(
+    session: NfcSession,
+    mcuRole: McuRole,
+  ) = EventFragment(emptyList(), 0, null)
 
   override suspend fun getFirmwareFeatureFlags(session: NfcSession): List<FirmwareFeatureFlagCfg> {
     return listOf(
@@ -264,9 +292,9 @@ class BitkeyW1CommandsFake(
     fingerprintEnrollmentResult.status = NOT_IN_PROGRESS
   }
 
-  override suspend fun wipeDevice(session: NfcSession): Boolean {
+  override suspend fun wipeDevice(session: NfcSession): HardwareInteraction<Boolean> {
     wipeDevice()
-    return true
+    return HardwareInteraction.Completed(true)
   }
 
   override suspend fun getCert(
@@ -336,6 +364,13 @@ class BitkeyW1CommandsFake(
     session: NfcSession,
     appAuthKey: ByteString,
   ): Boolean = true
+
+  override suspend fun getConfirmationResult(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+  ): ConfirmationResult {
+    throw NfcException.CommandError(message = "W1 does not support confirmation protocol")
+  }
 
   private fun EnrolledFingerprints.insertOrUpdateFingerprintHandle(
     fingerprintHandle: FingerprintHandle,

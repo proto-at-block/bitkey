@@ -35,7 +35,11 @@ class FwupBundle:
 
     @cached_property
     def mode(self) -> wallet_pb.fwup_mode:
-        if 'delta' in self.manifest_path.name:
+        # Check if this is a delta bundle by looking for from_version/to_version in manifest
+        if 'from_version' in self.manifest.get('fwup_bundle', {}):
+            return wallet_pb.fwup_mode.FWUP_MODE_DELTA_ONESHOT
+        elif 'delta' in self.manifest_path.name:
+            # Fallback to filename check for backwards compatibility
             return wallet_pb.fwup_mode.FWUP_MODE_DELTA_ONESHOT
         else:
             return wallet_pb.fwup_mode.FWUP_MODE_NORMAL
@@ -166,14 +170,35 @@ class Fwup:
         if self.bundle_dir and self.force:
             raise ValueError("May only set bundle_dir or binary+signature")
 
+        # Initialize attributes that may be used in _prepare()
+        self.is_multi_mcu = False
+        self.mcu_manifest = None
+        self.manifest_dict = None
+
         if self.bundle_dir:
             with open(self.bundle_dir / self.FWUP_BUNDLE_YAML_NAME, 'r') as f:
                 self.manifest_dict = yaml.safe_load(f)['fwup_bundle']
+
+                # Detect multi-MCU manifest
+                self.is_multi_mcu = 'mcus' in self.manifest_dict
+
+                if self.is_multi_mcu:
+                    # Find the MCU entry matching our mcu_role
+                    self.mcu_manifest = self._find_mcu_manifest(self.mcu_role)
+                    params_dict = self.mcu_manifest['parameters']
+                    version = self.manifest_dict.get(
+                        'version', self.manifest_dict.get('to_version'))
+                else:
+                    # Single-MCU (W1)
+                    params_dict = self.manifest_dict['parameters']
+                    version = self.manifest_dict.get(
+                        'version', self.manifest_dict.get('to_version'))
+
                 self.params = fwup_params or FwupParams(
-                    version=self.manifest_dict['version'],
-                    chunk_size=self.manifest_dict['parameters']['wca_chunk_size'],
-                    signature_offset=self.manifest_dict['parameters']['signature_offset'],
-                    app_props_offset=self.manifest_dict['parameters']['app_properties_offset'],
+                    version=version,
+                    chunk_size=params_dict['wca_chunk_size'],
+                    signature_offset=params_dict['signature_offset'],
+                    app_props_offset=params_dict['app_properties_offset'],
                     signature_size=64,
                 )
         elif fwup_params:
@@ -181,6 +206,24 @@ class Fwup:
         else:
             raise ValueError(
                 "No bundle directory or FWUP parameters provided.")
+
+    def _find_mcu_manifest(self, mcu_role):
+        """Find the manifest entry for specific MCU role."""
+        if mcu_role is None:
+            # Default to CORE if not specified
+            mcu_role = wallet_pb.mcu_role.MCU_ROLE_CORE
+
+        # Map proto enum to manifest key
+        role_map = {
+            wallet_pb.mcu_role.MCU_ROLE_CORE: 'core',
+            wallet_pb.mcu_role.MCU_ROLE_UXC: 'uxc',
+        }
+
+        role_key = role_map.get(mcu_role)
+        if role_key and role_key in self.manifest_dict['mcus']:
+            return self.manifest_dict['mcus'][role_key]
+
+        raise ValueError(f"MCU role {mcu_role} not found in manifest")
 
     def _prepare(self):
         if self.force:
@@ -194,16 +237,22 @@ class Fwup:
             print(
                 f"Update not needed. Current version is {version}, but requested an update to {self.params.version}")
 
-        # Select binary and signature.
+        # Select binary and signature from MCU-specific or single-MCU assets
         if target_slot == wallet_pb.firmware_slot.SLOT_A:
             app = 'application_a'
         elif target_slot == wallet_pb.firmware_slot.SLOT_B:
             app = 'application_b'
 
-        self.binary = Path(self.bundle_dir) / \
-            self.manifest_dict['assets'][app]['image']['name']
+        if self.is_multi_mcu:
+            # Use MCU-specific assets
+            assets = self.mcu_manifest['assets']
+        else:
+            # Single-MCU (W1)
+            assets = self.manifest_dict['assets']
+
+        self.binary = Path(self.bundle_dir) / assets[app]['image']['name']
         self.signature = Path(self.bundle_dir) / \
-            self.manifest_dict['assets'][app]['signature']['name']
+            assets[app]['signature']['name']
 
         print(
             f"Updating into slot {app} from {version} to {self.params.version} with {self.binary}, {self.signature}")
@@ -348,18 +397,50 @@ class FirmwareUpdater:
         """Determine if we should do a normal or delta fwup, and return the appropriately
         configured Fwup object."""
         mode = fwup_bundle.mode
-        params = self.wallet.fwup_params(mcu)
         mcu_role = self.wallet.chip_name_to_role(self.wallet.product, mcu)
+
+        # For normal mode, get params from wallet; for delta mode, use manifest params
         if mode == wallet_pb.fwup_mode.FWUP_MODE_NORMAL:
+            params = self.wallet.fwup_params(mcu)
             params.version = fwup_bundle.manifest['fwup_bundle']['version']
         elif mode == wallet_pb.fwup_mode.FWUP_MODE_DELTA_ONESHOT:
-            params.version = fwup_bundle.manifest['fwup_bundle']['to_version']
+            # For delta updates, use parameters from the manifest (target firmware params)
+            fwup_bundle_data = fwup_bundle.manifest['fwup_bundle']
+            if 'mcus' in fwup_bundle_data:
+                # Multi-MCU: get params from mcus[role]
+                role_map = {
+                    wallet_pb.mcu_role.MCU_ROLE_CORE: 'core',
+                    wallet_pb.mcu_role.MCU_ROLE_UXC: 'uxc',
+                }
+                role_key = role_map.get(mcu_role)
+                if not role_key:
+                    raise ValueError(f"Unknown MCU role: {mcu_role}")
+                manifest_params = fwup_bundle_data['mcus'][role_key]['parameters']
+            else:
+                # Single-MCU: params at top level
+                manifest_params = fwup_bundle_data.get('parameters', {})
+                if not manifest_params:
+                    # Fallback to wallet params if not in manifest
+                    params = self.wallet.fwup_params(mcu)
+                    params.version = fwup_bundle.manifest['fwup_bundle']['to_version']
+                    manifest_params = None
+
+            if manifest_params:
+                params = FwupParams(
+                    version=int(
+                        fwup_bundle_data['to_version'].replace('.', '')),
+                    chunk_size=manifest_params['wca_chunk_size'],
+                    signature_offset=manifest_params['signature_offset'],
+                    app_props_offset=manifest_params['app_properties_offset'],
+                    signature_size=64  # ECC P256 signatures are always 64 bytes
+                )
         else:
             assert False, mode
 
         if mode == wallet_pb.fwup_mode.FWUP_MODE_NORMAL:
             return Fwup(fwup_bundle.path, None, None, 0, comms=self.wallet.comms,
-                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(fwup_bundle.mode),
+                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(
+                            fwup_bundle.mode),
                         mcu_role=mcu_role)
         elif mode == wallet_pb.fwup_mode.FWUP_MODE_DELTA_ONESHOT:
             manifest = fwup_bundle.manifest
@@ -374,13 +455,30 @@ class FirmwareUpdater:
             else:
                 assert False, active_slot
 
-            binary = fwup_bundle.path / \
-                manifest['fwup_bundle']['assets'][patch_name]['image']['name']
+            # Handle multi-MCU delta manifests
+            fwup_bundle_data = manifest['fwup_bundle']
+            if 'mcus' in fwup_bundle_data:
+                # Multi-MCU delta: assets are under mcus[role]
+                # Convert proto role number to string key ('core' or 'uxc')
+                role_map = {
+                    wallet_pb.mcu_role.MCU_ROLE_CORE: 'core',
+                    wallet_pb.mcu_role.MCU_ROLE_UXC: 'uxc',
+                }
+                role_key = role_map.get(mcu_role)
+                if not role_key:
+                    raise ValueError(f"Unknown MCU role: {mcu_role}")
+                assets = fwup_bundle_data['mcus'][role_key]['assets']
+            else:
+                # Single-MCU delta: assets are at top level
+                assets = fwup_bundle_data['assets']
+
+            binary = fwup_bundle.path / assets[patch_name]['image']['name']
             signature = fwup_bundle.path / \
-                manifest['fwup_bundle']['assets'][patch_name]['signature']['name']
+                assets[patch_name]['signature']['name']
 
             return Fwup(None, binary, signature, 0, comms=self.wallet.comms,
-                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(fwup_bundle.mode),
+                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(
+                            fwup_bundle.mode),
                         mcu_role=mcu_role)
         else:
             assert False, mode

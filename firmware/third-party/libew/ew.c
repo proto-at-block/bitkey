@@ -458,3 +458,62 @@ ew_error_t ew_psbt_from_base64(const char* base64_psbt, ew_psbt_t** psbt_out) {
   *psbt_out = wrapper;
   return EW_OK;
 }
+
+ew_error_t ew_psbt_from_bytes(const uint8_t* psbt_bytes, size_t psbt_len, ew_psbt_t** psbt_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt_bytes || psbt_len == 0 || !psbt_out) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  struct wally_psbt* parsed = NULL;
+  int ret = wally_psbt_from_bytes(psbt_bytes, psbt_len, WALLY_PSBT_PARSE_FLAG_STRICT, &parsed);
+  if (ret != WALLY_OK || !parsed) {
+    return EW_ERROR_INVALID_PSBT;
+  }
+
+  ew_psbt_t* wrapper = api.malloc(sizeof(*wrapper));
+  if (!wrapper) {
+    wally_psbt_free(parsed);
+    return EW_ERROR_INTERNAL;
+  }
+
+  wrapper->inner = parsed;
+  *psbt_out = wrapper;
+  return EW_OK;
+}
+
+ew_error_t ew_psbt_output_has_keypath(const ew_psbt_t* psbt, size_t index, bool* has_keypath_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt || !psbt->inner || !has_keypath_out) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+  if (index >= psbt->inner->num_outputs) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  const struct wally_psbt_output* output = &psbt->inner->outputs[index];
+  *has_keypath_out = (output->keypaths.num_items > 0);
+  return EW_OK;
+}
+
+ew_error_t ew_base64_to_bytes(const char* base64_psbt, uint8_t* out, size_t out_size,
+                              size_t* written) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!base64_psbt || !out || out_size == 0 || !written) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  size_t decoded_len = 0;
+  int ret = wally_base64_to_bytes(base64_psbt, 0, out, out_size, &decoded_len);
+  if (ret != WALLY_OK) {
+    return EW_ERROR_INVALID_PSBT;
+  }
+  *written = decoded_len;
+  return EW_OK;
+}

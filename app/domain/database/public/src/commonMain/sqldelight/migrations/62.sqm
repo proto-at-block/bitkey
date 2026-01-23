@@ -1,0 +1,7 @@
+-- Create per-MCU state tracking table for W3 multi-MCU firmware updates
+CREATE TABLE mcuFwupStateEntity(
+  mcuRole             TEXT NOT NULL PRIMARY KEY,
+  currentSequenceId   INTEGER NOT NULL DEFAULT 0
+);
+
+PRAGMA foreign_key_check;

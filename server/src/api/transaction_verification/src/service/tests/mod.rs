@@ -101,6 +101,7 @@ pub(crate) async fn setup_test_verification(
         psbt,
         CurrencyCode::USD,
         BitcoinDisplayUnit::Satoshi,
+        false,
     );
 
     // Extract tokens

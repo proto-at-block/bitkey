@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ui.h"
+#include "screens.h"
 
 lv_obj_t* screen_onboarding_init(void* ctx);
 void screen_onboarding_destroy(void);

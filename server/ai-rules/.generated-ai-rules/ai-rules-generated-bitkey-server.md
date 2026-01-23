@@ -2,6 +2,10 @@
 
 This is a Rust-based wallet server API that runs on AWS ECS, providing backend services for Bitkey, a Bitcoin wallet application. The project uses a workspace structure with multiple crates organized under `src/api/` and `src/wsm/` directories, managing accounts, notifications, recovery, mobile payments, and W1 Security Module (WSM) through secure enclaves.
 
+## Agents.local
+
+Read @AGENTS.local.md if present.
+
 ## Project Structure & Module Organization
 
 The codebase follows a Rust workspace pattern with clear separation of concerns:

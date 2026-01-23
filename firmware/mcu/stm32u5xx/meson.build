@@ -36,7 +36,7 @@ mcu_srcs = [
   'src/mcu_wdog.c',
 ]
 
-deps = [assert_dep, freertos_dep, stm32u5xx_hal_dep, ringbuf_dep]
+deps = [assert_dep, freertos_dep, stm32u5xx_hal_dep, ringbuf_dep, wstd_dep]
 mcu_stm32u5xx_includes = [
   include_directories('inc'),
   mcu_common_includes,

@@ -16,6 +16,7 @@
 #include "security_config.h"
 #include "secutils.h"
 #include "wallet.pb.h"
+#include "wstring.h"
 
 #include <stdalign.h>
 #include <stdlib.h>

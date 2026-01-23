@@ -16,14 +16,15 @@ extern uint32_t rtos_thread_systime(void);
 #endif
 
 // Run-in test power phase configuration - fixed durations
-#define RUNIN_PHASE1_DURATION_MS (10 * 60 * 1000)  // 10 minutes for initial charge
-#define RUNIN_PHASE2_DURATION_MS (30 * 60 * 1000)  // 30 minutes for discharge
-#define RUNIN_PHASE3_DURATION_MS (30 * 60 * 1000)  // 30 minutes for final charge
+#define RUNIN_PHASE1_DURATION_MS  (10 * 60 * 1000)  // 10 minutes for initial charge
+#define RUNIN_PHASE2_DURATION_MS  (30 * 60 * 1000)  // 30 minutes for discharge
+#define RUNIN_PHASE3_DURATION_MS  (30 * 60 * 1000)  // 30 minutes for final charge
+#define RUNIN_SOC_LOG_INTERVAL_MS 10000             // Log SOC every 10 seconds
 // SOC targets in millipercent (1000 = 1%)
 #define RUNIN_TARGET_CHARGE_SOC       (65 * 1000)  // Phase 1 charge target SOC 65% (displays as 65%)
 #define RUNIN_TARGET_DISCHARGE_SOC    (30 * 1000)  // Phase 2 discharge target SOC 30% (best effort)
 #define RUNIN_TARGET_FINAL_CHARGE_SOC (65 * 1000)  // Phase 3 charge target SOC 65%
-#define RUNIN_FINGERPRINT_CHECK_MS    (200)        // Check fingerprint sensor every 200ms)
+#define RUNIN_FINGERPRINT_CHECK_MS    (200)        // Check fingerprint sensor every 200ms
 
 // Power cycling phases for run-in test
 typedef enum {
@@ -36,7 +37,6 @@ typedef enum {
 // Run-in states
 typedef enum {
   RUNIN_STATE_START_SCREEN = 0,
-  RUNIN_STATE_TOUCH_PROMPT,
   RUNIN_STATE_COUNTDOWN,
   RUNIN_STATE_STATUS,
   RUNIN_STATE_ANIMATION,
@@ -58,7 +58,6 @@ typedef struct {
   uint32_t loop_count;            // Completed display loops
   uint32_t initial_soc;           // Initial battery %
   bool plugged_in;                // USB plugged status at test start
-  uint32_t button_events;         // Phantom button events
   uint32_t captouch_events;       // Phantom capacitive touch events
   uint32_t display_touch_events;  // Phantom display touch events
   uint32_t fingerprint_events;    // Phantom fingerprint events
@@ -76,12 +75,25 @@ static UI_TASK_DATA runin_context_t runin_ctx = {0};
 
 static void _display_controller_show_countdown(display_controller_t* controller);
 
-void display_controller_mfg_on_enter(display_controller_t* controller, const void* data) {
+void display_controller_mfg_on_enter(display_controller_t* controller, const void* entry_data) {
   ASSERT(controller);
 
-  // Check if data specifies a static mfg test mode
-  if (data) {
-    const mfgtest_show_screen_payload_t* payload = (const mfgtest_show_screen_payload_t*)data;
+  // Always reset context on entry to prevent state leakage between test runs
+  memset(&runin_ctx, 0, sizeof(runin_ctx));
+
+  // Set which_params for mfg screens
+  controller->show_screen.which_params = fwpb_display_show_screen_mfg_tag;
+
+  // If entry_data provided, initialize immediately (no need to wait for event)
+  // If no entry_data (e.g., entering from menu), default to START_SCREEN
+  if (entry_data) {
+    const mfgtest_show_screen_payload_t* payload = (const mfgtest_show_screen_payload_t*)entry_data;
+
+    // test_mode == 0 means this was an exit request - don't initialize anything
+    // The flow will exit immediately via on_event handler
+    if (payload->test_mode == 0) {
+      return;
+    }
 
     // Check if we are starting a standalone touch test
     if (payload->test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_TOUCH_TEST_BOXES) {
@@ -89,110 +101,91 @@ void display_controller_mfg_on_enter(display_controller_t* controller, const voi
       controller->touch_test.end_time_ms = rtos_thread_systime() + payload->timeout_ms;
     }
 
-    // Setup params for the specified test mode
+    // Initialize run-in context if showing START_SCREEN
+    if (payload->test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN) {
+      runin_ctx.state = RUNIN_STATE_START_SCREEN;
+      runin_ctx.test_start_ms = rtos_thread_systime();
+      runin_ctx.state_start_ms = runin_ctx.test_start_ms;
+#ifdef EMBEDDED_BUILD
+      runin_ctx.plugged_in = power_is_plugged_in();
+#else
+      runin_ctx.plugged_in = true;
+#endif
+      runin_ctx.initial_soc = controller->battery_percent;
+      runin_ctx.min_soc = controller->battery_percent;
+      runin_ctx.power_phase = RUNIN_POWER_PHASE_INITIAL_CHARGE;
+      runin_ctx.power_phase_start_ms = runin_ctx.test_start_ms;
+    }
+
+    // Setup screen params
     controller->show_screen.params.mfg.test_mode = payload->test_mode;
     controller->show_screen.params.mfg.custom_rgb = payload->custom_rgb;
     controller->show_screen.params.mfg.brightness_percent = payload->brightness_percent;
-    controller->show_screen.which_params = fwpb_display_show_screen_mfg_tag;
+
+    // Set battery info for START_SCREEN
+    if (payload->test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN) {
+      controller->show_screen.params.mfg.initial_soc = runin_ctx.initial_soc;
+      controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
+      controller->show_screen.params.mfg.is_charging = controller->is_charging;
+      controller->show_screen.params.mfg.plugged_in = runin_ctx.plugged_in;
+    }
 
     display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
                                    fwpb_display_transition_DISPLAY_TRANSITION_FADE,
                                    TRANSITION_DURATION_STANDARD);
-    return;
+  } else {
+    // No entry_data - default to START_SCREEN (e.g., when entering from menu)
+    runin_ctx.state = RUNIN_STATE_START_SCREEN;
+    runin_ctx.test_start_ms = rtos_thread_systime();
+    runin_ctx.state_start_ms = runin_ctx.test_start_ms;
+#ifdef EMBEDDED_BUILD
+    runin_ctx.plugged_in = power_is_plugged_in();
+#else
+    runin_ctx.plugged_in = true;
+#endif
+    runin_ctx.initial_soc = controller->battery_percent;
+    runin_ctx.min_soc = controller->battery_percent;
+    runin_ctx.power_phase = RUNIN_POWER_PHASE_INITIAL_CHARGE;
+    runin_ctx.power_phase_start_ms = runin_ctx.test_start_ms;
+
+    // Setup START_SCREEN params
+    controller->show_screen.params.mfg.test_mode =
+      fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN;
+    controller->show_screen.params.mfg.initial_soc = runin_ctx.initial_soc;
+    controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
+    controller->show_screen.params.mfg.is_charging = controller->is_charging;
+    controller->show_screen.params.mfg.plugged_in = runin_ctx.plugged_in;
+
+    display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
+                                   fwpb_display_transition_DISPLAY_TRANSITION_FADE,
+                                   TRANSITION_DURATION_STANDARD);
   }
-
-  // Otherwise, this is run-in test mode (dynamic state machine)
-  LOGI("[MFG] Entering run-in mode");
-
-  // Initialize run-in context
-  memset(&runin_ctx, 0, sizeof(runin_ctx));
-  runin_ctx.state = RUNIN_STATE_START_SCREEN;
-  runin_ctx.test_start_ms = rtos_thread_systime();
-  runin_ctx.state_start_ms = runin_ctx.test_start_ms;
-
-  // Record initial battery from controller (already updated via UI_EVENT_BATTERY_SOC)
-  runin_ctx.initial_soc = controller->battery_percent;
-  runin_ctx.min_soc = controller->battery_percent;  // Initialize min SOC tracking
-
-  // Initialize power phase - will start Phase 1 (initial charge) after countdown
-  runin_ctx.power_phase = RUNIN_POWER_PHASE_INITIAL_CHARGE;
-  runin_ctx.power_phase_start_ms = runin_ctx.test_start_ms;
-
-  // Setup params for start screen
-  controller->show_screen.params.mfg.test_mode =
-    fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN;
-  controller->show_screen.params.mfg.initial_soc = runin_ctx.initial_soc;
-  controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
-  controller->show_screen.params.mfg.is_charging = controller->is_charging;
-  controller->show_screen.which_params = fwpb_display_show_screen_mfg_tag;
-
-  display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_NONE, 0);
 }
 
 void display_controller_mfg_on_exit(display_controller_t* controller) {
   // Reset run-in state on exit
   memset(&runin_ctx, 0, sizeof(runin_ctx));
-  LOGI("[MFG] Exiting run-in mode");
 
-  // Terminate any active touch test.
-  controller->touch_test.active = false;
+  // Terminate any active touch test and send timeout result
+  if (controller->touch_test.active) {
+    LOGW("[MFG] Exiting flow with active touch test - sending timeout");
+#ifdef EMBEDDED_BUILD
+    mfgtest_touch_test_result_internal_t result = {
+      .x = controller->touch_test.touch_event.x,
+      .y = controller->touch_test.touch_event.y,
+      .timeout = true,
+      .boxes_remaining = controller->touch_test.boxes_remaining,
+    };
+    ipc_send(mfgtest_port, &result, sizeof(result), IPC_MFGTEST_TOUCH_TEST_RESULT_INTERNAL);
+#endif
+    controller->touch_test.active = false;
+  }
 
 #ifdef EMBEDDED_BUILD
   // Restore normal power path operation.
   power_usb_suspend(false);
   power_enable_charging();
 #endif
-}
-
-flow_action_t display_controller_mfg_on_button_press(display_controller_t* controller,
-                                                     const button_event_payload_t* event) {
-  ASSERT(controller);
-  ASSERT(event);
-
-  if (event->type != BUTTON_PRESS_SINGLE) {
-    return FLOW_ACTION_NONE;
-  }
-
-  // Start screen: Left button = proceed, Right button = exit
-  if (runin_ctx.state == RUNIN_STATE_START_SCREEN) {
-    if (event->button == BUTTON_RIGHT) {
-      LOGI("[MFG RunIn] User cancelled from start screen");
-      return FLOW_ACTION_EXIT;
-    } else if (event->button == BUTTON_LEFT) {
-#ifdef EMBEDDED_BUILD
-      // Check if device is plugged in - required for run-in test
-      if (!power_is_plugged_in()) {
-        LOGE("[MFG RunIn] Cannot start - device must be plugged in");
-        // Stay on start screen - user must plug in device
-        return FLOW_ACTION_NONE;
-      }
-#endif
-      // Record USB status and advance to touch prompt
-      runin_ctx.plugged_in = true;  // We verified device is plugged in
-      runin_ctx.state = RUNIN_STATE_TOUCH_PROMPT;
-      runin_ctx.state_start_ms = rtos_thread_systime();
-      controller->show_screen.params.mfg.test_mode =
-        fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_TOUCH_PROMPT;
-      LOGI("[MFG RunIn] Proceeding to touch prompt, USB plugged: %d", runin_ctx.plugged_in);
-      return FLOW_ACTION_REFRESH;
-    }
-  }
-
-  // Touch prompt: Any button advances to countdown
-  if (runin_ctx.state == RUNIN_STATE_TOUCH_PROMPT) {
-    _display_controller_show_countdown(controller);
-    return FLOW_ACTION_NONE;
-  }
-
-  // All other states (during test) auto-advance - any button press here is a phantom event
-  if (runin_ctx.state != RUNIN_STATE_COMPLETE) {
-    runin_ctx.button_events++;
-    LOGI("[MFG RunIn] Phantom button event detected (total: %lu)",
-         (unsigned long)runin_ctx.button_events);
-  }
-
-  return FLOW_ACTION_NONE;
 }
 
 static void advance_runin_state(display_controller_t* controller) {
@@ -293,7 +286,7 @@ static void advance_runin_state(display_controller_t* controller) {
                                  fwpb_display_transition_DISPLAY_TRANSITION_NONE, 0);
 }
 
-void display_controller_mfg_on_tick(display_controller_t* controller) {
+flow_action_result_t display_controller_mfg_on_tick(display_controller_t* controller) {
   // Check if a touch test is active or recently completed but the flow has not
   // yet exited.
   if (controller->touch_test.active) {
@@ -310,17 +303,15 @@ void display_controller_mfg_on_tick(display_controller_t* controller) {
       };
       ipc_send(mfgtest_port, &result, sizeof(result), IPC_MFGTEST_TOUCH_TEST_RESULT_INTERNAL);
 #endif
-      // Mark to exit.
-      controller->pending_flow_exit = true;
+      return flow_result_exit_to_scan();
     }
 
-    // Always return if a touch test is active.
-    return;
+    return flow_result_handled();
   }
 
   // If we're in COMPLETE state, nothing to do
   if (runin_ctx.state == RUNIN_STATE_COMPLETE) {
-    return;
+    return flow_result_handled();
   }
 
   uint32_t now = rtos_thread_systime();
@@ -330,6 +321,7 @@ void display_controller_mfg_on_tick(display_controller_t* controller) {
 #ifdef EMBEDDED_BUILD
   // Check for finger down here, as the Auth Task does not run in the MfgTest application.
   // Rate-limited to avoid hammering the FPC sensor with SPI transactions.
+  // Start checking after countdown completes to avoid false positives during setup.
   static uint32_t last_fingerprint_check_ms = 0;
   if ((runin_ctx.state >= RUNIN_STATE_STATUS) && (runin_ctx.state != RUNIN_STATE_COMPLETE)) {
     if (now - last_fingerprint_check_ms >= RUNIN_FINGERPRINT_CHECK_MS) {
@@ -369,9 +361,9 @@ void display_controller_mfg_on_tick(display_controller_t* controller) {
 
     // Power phase state machine - fixed durations with SOC holding
     if (!runin_ctx.power_phase_failed) {
-      // Debug: log SOC periodically (every ~10 seconds)
+      // Debug: log SOC periodically
       static uint32_t last_soc_log_ms = 0;
-      if (now - last_soc_log_ms >= 10000) {
+      if (now - last_soc_log_ms >= RUNIN_SOC_LOG_INTERVAL_MS) {
         LOGI("[MFG RunIn] Phase %d: SOC=%lu.%03lu%%, elapsed=%lu ms, target_reached=%d",
              runin_ctx.power_phase, (unsigned long)(soc / 1000), (unsigned long)(soc % 1000),
              (unsigned long)phase_elapsed, runin_ctx.target_reached);
@@ -472,8 +464,8 @@ void display_controller_mfg_on_tick(display_controller_t* controller) {
       ((runin_ctx.state == RUNIN_STATE_STATUS) || test_now_finished)) {
     // Determine pass/fail - includes phantom events AND power phase failures
     const bool has_phantom_failures =
-      !!(runin_ctx.button_events | runin_ctx.captouch_events | runin_ctx.display_touch_events |
-         runin_ctx.fingerprint_events);
+      (runin_ctx.captouch_events > 0 || runin_ctx.display_touch_events > 0 ||
+       runin_ctx.fingerprint_events > 0);
     const bool has_failures = has_phantom_failures || runin_ctx.power_phase_failed;
 
     // Calculate phase time remaining
@@ -502,7 +494,6 @@ void display_controller_mfg_on_tick(display_controller_t* controller) {
     controller->show_screen.params.mfg.loop_count = runin_ctx.loop_count;
     controller->show_screen.params.mfg.elapsed_ms = total_elapsed;
     controller->show_screen.params.mfg.plugged_in = runin_ctx.plugged_in;
-    controller->show_screen.params.mfg.button_events = runin_ctx.button_events;
     controller->show_screen.params.mfg.captouch_events = runin_ctx.captouch_events;
     controller->show_screen.params.mfg.display_touch_events = runin_ctx.display_touch_events;
     controller->show_screen.params.mfg.fingerprint_events = runin_ctx.fingerprint_events;
@@ -529,7 +520,7 @@ void display_controller_mfg_on_tick(display_controller_t* controller) {
         .min_soc = runin_ctx.min_soc,
         .elapsed_ms = total_elapsed,
         .plugged_in = runin_ctx.plugged_in,
-        .button_events = runin_ctx.button_events,
+        .button_events = 0,  // No buttons on W3
         .captouch_events = runin_ctx.captouch_events,
         .touch_events = runin_ctx.display_touch_events,
         .fingerprint_events = runin_ctx.fingerprint_events,
@@ -544,7 +535,7 @@ void display_controller_mfg_on_tick(display_controller_t* controller) {
   }
 
   if (test_now_finished) {
-    return;
+    return flow_result_handled();
   }
 
   // State-specific timeout handling
@@ -580,29 +571,70 @@ void display_controller_mfg_on_tick(display_controller_t* controller) {
       break;
 
     default:
-      return;  // No timeout for other states
+      return flow_result_handled();  // No timeout for other states
   }
 
   if (elapsed_in_state >= state_timeout) {
     advance_runin_state(controller);
   }
+
+  return flow_result_handled();
 }
 
-void display_controller_mfg_on_event(display_controller_t* controller, ui_event_type_t event,
-                                     const void* data, uint32_t len) {
-  (void)data;
-  (void)len;
+static void _display_controller_show_countdown(display_controller_t* controller) {
+  runin_ctx.state = RUNIN_STATE_COUNTDOWN;
+  runin_ctx.countdown_value = 5;
+  runin_ctx.state_start_ms = rtos_thread_systime();
+  controller->show_screen.params.mfg.test_mode =
+    fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_COUNTDOWN;
+  controller->show_screen.params.mfg.countdown_value = runin_ctx.countdown_value;
+  display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
+                                 fwpb_display_transition_DISPLAY_TRANSITION_NONE,
+                                 TRANSITION_DURATION_STANDARD);
+  LOGI("[MFG RunIn] Starting countdown");
+}
 
+flow_action_result_t display_controller_mfg_on_event(display_controller_t* controller,
+                                                     ui_event_type_t event, const void* data,
+                                                     uint32_t len) {
   switch (event) {
+    case UI_EVENT_MFGTEST_SHOW_SCREEN: {
+      // Handle screen updates when flow is already active
+      if (data && len == sizeof(mfgtest_show_screen_payload_t)) {
+        const mfgtest_show_screen_payload_t* payload = (const mfgtest_show_screen_payload_t*)data;
+
+        // test_mode == 0 means exit MFG flow
+        if (payload->test_mode == 0) {
+          return flow_result_exit_with_transition(fwpb_display_transition_DISPLAY_TRANSITION_FADE,
+                                                  TRANSITION_DURATION_STANDARD);
+        }
+
+        // Setup params for the specified test mode
+        controller->show_screen.params.mfg.test_mode = payload->test_mode;
+        controller->show_screen.params.mfg.custom_rgb = payload->custom_rgb;
+        controller->show_screen.params.mfg.brightness_percent = payload->brightness_percent;
+
+        display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
+                                       fwpb_display_transition_DISPLAY_TRANSITION_FADE,
+                                       TRANSITION_DURATION_STANDARD);
+      }
+      break;
+    }
     case UI_EVENT_BATTERY_SOC:
       // 'break' intentionally omitted.
     case UI_EVENT_CHARGING:
       // 'break' intentionally omitted.
     case UI_EVENT_CHARGING_UNPLUGGED: {
-      // Global state already updated - refresh mfg screen display for start screen only
+      // Update battery display on START_SCREEN
       if (runin_ctx.state == RUNIN_STATE_START_SCREEN) {
+#ifdef EMBEDDED_BUILD
+        runin_ctx.plugged_in = power_is_plugged_in();
+#else
+        runin_ctx.plugged_in = controller->is_charging;
+#endif
         controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
         controller->show_screen.params.mfg.is_charging = controller->is_charging;
+        controller->show_screen.params.mfg.plugged_in = runin_ctx.plugged_in;
         display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
                                        fwpb_display_transition_DISPLAY_TRANSITION_NONE, 0);
       }
@@ -610,7 +642,7 @@ void display_controller_mfg_on_event(display_controller_t* controller, ui_event_
     }
 
     case UI_EVENT_CAPTOUCH: {
-      // Phantom capacitive touch event during test (after countdown starts)
+      // Count phantom capacitive touch events after countdown completes
       if ((runin_ctx.state >= RUNIN_STATE_STATUS) && (runin_ctx.state != RUNIN_STATE_COMPLETE)) {
         runin_ctx.captouch_events++;
         LOGI("[MFG RunIn] Phantom captouch event (total: %lu)",
@@ -620,13 +652,11 @@ void display_controller_mfg_on_event(display_controller_t* controller, ui_event_
     }
 
     case UI_EVENT_MFGTEST_TOUCH: {
+      // Count phantom display touch events after countdown completes
       if ((runin_ctx.state >= RUNIN_STATE_STATUS) && (runin_ctx.state != RUNIN_STATE_COMPLETE)) {
-        // Phantom touch event during test
         runin_ctx.display_touch_events++;
         LOGI("[MFG RunIn] Phantom touch event (total: %lu)",
              (unsigned long)runin_ctx.display_touch_events);
-      } else if (runin_ctx.state == RUNIN_STATE_TOUCH_PROMPT) {
-        _display_controller_show_countdown(controller);
       } else if (controller->touch_test.active) {
         if (data && (len == sizeof(ui_event_touch_t))) {
           const ui_event_touch_t* touch_event = (const ui_event_touch_t*)data;
@@ -660,7 +690,9 @@ void display_controller_mfg_on_event(display_controller_t* controller, ui_event_
         // Continue test if there are more boxes remaining
         controller->touch_test.active = !!status->boxes_remaining;
         // Exit test flow if there are no more boxes remaining
-        controller->pending_flow_exit |= !status->boxes_remaining;
+        if (!status->boxes_remaining) {
+          return flow_result_exit_to_scan();
+        }
       }
       break;
     }
@@ -681,17 +713,45 @@ void display_controller_mfg_on_event(display_controller_t* controller, ui_event_
       // Ignore other events
       break;
   }
+
+  return flow_result_handled();
 }
 
-static void _display_controller_show_countdown(display_controller_t* controller) {
-  runin_ctx.state = RUNIN_STATE_COUNTDOWN;
-  runin_ctx.countdown_value = 5;
-  runin_ctx.state_start_ms = rtos_thread_systime();
-  controller->show_screen.params.mfg.test_mode =
-    fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_COUNTDOWN;
-  controller->show_screen.params.mfg.countdown_value = runin_ctx.countdown_value;
-  display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_NONE,
-                                 TRANSITION_DURATION_QUICK);
-  LOGI("[MFG RunIn] Starting countdown");
+flow_action_result_t display_controller_mfg_on_action(
+  display_controller_t* controller, fwpb_display_action_display_action_type action, uint32_t data) {
+  (void)data;
+
+  // Handle approve action on START_SCREEN - start countdown
+  if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_APPROVE &&
+      runin_ctx.state == RUNIN_STATE_START_SCREEN) {
+#ifdef EMBEDDED_BUILD
+    // Re-check USB status before starting countdown - block if unplugged
+    runin_ctx.plugged_in = power_is_plugged_in();
+    if (!runin_ctx.plugged_in) {
+      LOGW("[MFG RunIn] Cannot start - USB not plugged in");
+      return flow_result_handled();  // Ignore button press
+    }
+#endif
+    _display_controller_show_countdown(controller);
+    return flow_result_handled();
+  }
+
+  // Handle back button - allow exit from START_SCREEN, COMPLETE, or STATUS states
+  if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_BACK) {
+    if (runin_ctx.state == RUNIN_STATE_START_SCREEN || runin_ctx.state == RUNIN_STATE_COMPLETE ||
+        runin_ctx.state == RUNIN_STATE_STATUS) {
+      return flow_result_exit_with_transition(fwpb_display_transition_DISPLAY_TRANSITION_FADE,
+                                              TRANSITION_DURATION_STANDARD);
+    }
+    // Ignore back button during other display states (countdown, animations, color tests)
+    return flow_result_handled();
+  }
+
+  // Legacy EXIT action - allow exit
+  if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_EXIT) {
+    return flow_result_exit_with_transition(fwpb_display_transition_DISPLAY_TRANSITION_FADE,
+                                            TRANSITION_DURATION_STANDARD);
+  }
+
+  return flow_result_handled();
 }

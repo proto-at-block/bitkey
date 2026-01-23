@@ -1,5 +1,6 @@
 srcs = [
   'src/display_controller.c',
+  'src/flows/scan.c',
   'src/flows/menu.c',
   'src/flows/money_movement.c',
   'src/flows/brightness.c',
@@ -7,10 +8,10 @@ srcs = [
   'src/flows/onboarding.c',
   'src/flows/fingerprint.c',
   'src/flows/fingerprint_menu.c',
-  'src/flows/fingerprint_remove.c',
   'src/flows/firmware_update.c',
   'src/flows/mfg.c',
-  'src/flows/lock_screen.c',
+  'src/flows/locked.c',
+  'src/flows/privileged_action.c',
 ]
 
 # Private includes for building the library
@@ -21,6 +22,7 @@ public_includes = include_directories('inc')
 
 deps = [
   assert_dep,
+  auth_dep,
   log_dep,
   protos_dep,
   uc_dep,
@@ -66,3 +68,19 @@ display_controller_mfgtest_dep = declare_dependency(
   include_directories : public_includes,
   dependencies : deps,
 )
+
+if embedded_build
+  display_controller_cmd_lib = library('display_controller_cmd',
+    'src/display_controller_cmd.c',
+    include_directories : [private_includes],
+    dependencies : [display_controller_dep, shell_dep, ui_messaging_dep],
+  )
+
+  display_controller_cmd_dep = declare_dependency(
+    link_whole : display_controller_cmd_lib,
+    dependencies : [display_controller_dep, shell_dep, ui_messaging_dep],
+  )
+else
+  # Stub dependency for non-embedded builds
+  display_controller_cmd_dep = declare_dependency()
+endif

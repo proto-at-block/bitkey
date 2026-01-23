@@ -74,6 +74,7 @@ static struct {
    * @brief Time that the loopback test should end at.
    */
   uint32_t loopback_end_time_ms;
+
 } hal_nfc_loopback_priv NFC_TASK_DATA;
 
 /**
@@ -136,17 +137,24 @@ void hal_nfc_loopback_init(hal_nfc_mode_t mode) {
   hal_nfc_priv.discovery_cfg.notifyCb = NULL;
   hal_nfc_priv.discovery_cfg.compMode = RFAL_COMPLIANCE_MODE_NFC;
 
+  // Set a default totalDuration value for consistency with other discovery
+  // configurations. Note: the loopback implementation uses direct RFAL poller
+  // APIs and enforces its own timeout via loopback_start_time_ms/loopback_end_time_ms,
+  // allowing timeouts larger than the uint16_t totalDuration field limitation (max 65535 ms).
+  hal_nfc_priv.discovery_cfg.totalDuration = HAL_NFC_DEFAULT_READER_TIMEOUT_MS;
+
+  uint32_t requested_timeout_ms;
   if (hal_nfc_priv.card_detection_timeout_ms == 0) {
-    hal_nfc_priv.discovery_cfg.totalDuration = HAL_NFC_DEFAULT_READER_TIMEOUT_MS;
+    requested_timeout_ms = HAL_NFC_DEFAULT_READER_TIMEOUT_MS;
   } else {
-    hal_nfc_priv.discovery_cfg.totalDuration = hal_nfc_priv.card_detection_timeout_ms;
+    requested_timeout_ms = hal_nfc_priv.card_detection_timeout_ms;
     hal_nfc_priv.card_detection_timeout_ms = 0;
   }
 
   hal_nfc_loopback_priv.state = HAL_NFC_LOOPBACK_STATE_POLL;
   hal_nfc_loopback_priv.loopback_start_time_ms = (rtos_thread_micros() / 1000U);
   hal_nfc_loopback_priv.loopback_end_time_ms =
-    (hal_nfc_priv.discovery_cfg.totalDuration + hal_nfc_loopback_priv.loopback_start_time_ms);
+    requested_timeout_ms + hal_nfc_loopback_priv.loopback_start_time_ms;
 
   switch (mode) {
     case HAL_NFC_MODE_LOOPBACK_A:

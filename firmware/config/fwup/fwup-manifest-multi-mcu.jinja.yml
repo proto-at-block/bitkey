@@ -1,0 +1,31 @@
+manifest_version: {{manifest_version}}
+fwup_bundle:
+  product: {{product}}
+  version: {{version}}
+  mcus:
+{% for mcu in mcus %}
+    {{mcu.role}}:
+      mcu_name: {{mcu.mcu_name}}
+      assets:
+{% if mcu.include_bootloader %}
+        bootloader:
+          image:
+            name: {{mcu.bootloader_name}}.signed.bin
+          signature:
+            name: {{mcu.bootloader_name}}.detached_signature
+{% endif %}
+        application_a:
+          image:
+            name: {{mcu.application_a_name}}.signed.bin
+          signature:
+            name: {{mcu.application_a_name}}.detached_signature
+        application_b:
+          image:
+            name: {{mcu.application_b_name}}.signed.bin
+          signature:
+            name: {{mcu.application_b_name}}.detached_signature
+      parameters:
+        wca_chunk_size: {{mcu.fwup_params.chunk_size}}
+        signature_offset: {{mcu.fwup_params.signature_offset}}
+        app_properties_offset: {{mcu.fwup_params.app_props_offset}}
+{% endfor %}

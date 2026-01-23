@@ -6,3 +6,4 @@
 
 # Don't add generated patterns to .gitignore (we track generated files)
 gitignore: false
+

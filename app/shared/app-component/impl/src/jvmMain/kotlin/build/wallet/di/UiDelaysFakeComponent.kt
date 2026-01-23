@@ -10,6 +10,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Fake UI delays used in tests.
  */
+@Suppress("TooManyFunctions")
 @ContributesTo(AppScope::class)
 interface UiDelaysFakeComponent {
   @Provides
@@ -39,6 +40,9 @@ interface UiDelaysFakeComponent {
 
   @Provides
   fun provideBitkeyWordMarkAnimationDuration() = BitkeyWordMarkAnimationDuration(0.seconds)
+
+  @Provides
+  fun provideAddressQrCodeLoadingDuration() = AddressQrCodeLoadingDuration(0.seconds)
 
   @Provides
   fun provideRemainingRecoveryDelayWordsUpdateFrequency() =

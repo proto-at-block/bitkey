@@ -130,9 +130,13 @@ class InheritanceMaterialSyncWorkerTest : FunSpec({
     testCoroutineScheduler.runCurrent()
     inheritanceService.syncCalls.expectNoEvents()
 
+    testCoroutineScheduler.advanceTimeBy(syncFrequency)
     inheritanceService.syncCalls.awaitItem()
 
     testCoroutineScheduler.runCurrent()
     inheritanceService.syncCalls.expectNoEvents()
+
+    testCoroutineScheduler.advanceTimeBy(syncFrequency)
+    inheritanceService.syncCalls.awaitItem()
   }
 })

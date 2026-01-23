@@ -476,6 +476,7 @@ message coredump_get_cmd {
 
   coredump_get_type type = 1;
   uint32 offset = 2;
+  mcu_role mcu_role = 3;
 }
 
 message coredump_get_rsp {
@@ -489,9 +490,12 @@ message coredump_get_rsp {
   coredump_get_rsp_status rsp_status = 1;
   coredump_fragment coredump_fragment = 2;
   uint32 coredump_count = 3;
+  mcu_role mcu_role = 4;
+  mcu_name mcu_name = 5;
 }
 
 message events_get_cmd {
+  mcu_role mcu_role = 1;
 }
 
 message events_get_rsp {
@@ -505,6 +509,7 @@ message events_get_rsp {
   events_get_rsp_status rsp_status = 1;
   uint32 version = 2;
   event_fragment fragment = 3;
+  mcu_role mcu_role = 4;
 }
 
 enum feature_flag {
@@ -895,6 +900,7 @@ message get_confirmation_result_cmd {
 message get_confirmation_result_rsp {
   oneof result {
     wipe_state_rsp wipe_state_result = 1;
+    fwup_start_rsp fwup_start_result = 2;
   }
 }
 

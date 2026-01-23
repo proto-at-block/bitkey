@@ -66,6 +66,7 @@ deps = [
   mempool_dep,
   perf_dep,
   protos_dep,
+  wstd_dep,
 ]
 
 fwup_libs = {}

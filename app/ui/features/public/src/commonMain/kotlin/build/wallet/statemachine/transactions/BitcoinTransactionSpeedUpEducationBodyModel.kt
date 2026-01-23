@@ -1,5 +1,6 @@
 package build.wallet.statemachine.transactions
 
+import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -15,7 +16,7 @@ internal data class BitcoinTransactionSpeedUpEducationBodyModel(
   val onSpeedUpTransaction: () -> Unit,
   val onClose: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = SendEventTrackerScreenId.SEND_SPEED_UP_EDUCATION_SHEET,
     onBack = onClose,
     toolbar = null,
     header = FormHeaderModel(

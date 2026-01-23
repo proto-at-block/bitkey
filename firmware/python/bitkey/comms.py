@@ -20,20 +20,43 @@ logger = logging.getLogger(__name__)
 class NFCTransaction:
     retry_max = 5
     rdwr_options = {'on-connect': lambda tag: False}
-    timeout = 0.25  # 250ms timeout
 
-    def __init__(self, usbstr='usb'):
+    def __init__(self, usbstr='usb', timeout=None, transceive_timeout=None):
+        """Initialize NFC connection.
+
+        Args:
+            usbstr: USB device selector ('usb' auto-detects)
+            timeout: Global timeout in seconds including retries (None = unlimited)
+            transceive_timeout: Per-transceive timeout in seconds (default: 0.25s)
+        """
+        if timeout is not None and timeout < 0:
+            raise ValueError(f"timeout must be non-negative, got {timeout}")
+        if transceive_timeout is not None and transceive_timeout < 0:
+            raise ValueError(
+                f"transceive_timeout must be non-negative, got {transceive_timeout}")
+
+        self.transceive_timeout = transceive_timeout if transceive_timeout is not None else 0.25
+        self.global_timeout = timeout
+        self.tag = None
+
         spec = self.port_spec_to_usb_device(usbstr)
         self.clf = nfc.ContactlessFrontend(spec)
         self._connect()
 
     def _connect(self):
-        try:
+        # Use nfcpy's built-in terminate parameter for timeout support
+        if self.global_timeout is not None and self.global_timeout > 0:
+            started = time.monotonic()
+            def terminate(): return time.monotonic() - started > self.global_timeout
+            self.tag = self.clf.connect(
+                rdwr=self.rdwr_options, terminate=terminate)
+            if not self.tag:
+                raise TimeoutError(
+                    f"Timeout waiting for NFC device ({self.global_timeout}s)")
+        else:
             self.tag = self.clf.connect(rdwr=self.rdwr_options)
-        except Exception as e:
-            raise (e)
-        if self.tag == False or self.tag == None:
-            raise IOError("Failed to connect to NFC reader")
+            if not self.tag:
+                raise IOError("Failed to connect to NFC reader")
 
     def _resume(self):
         # ST-RFAL does not support APDU chaining during NFC activation.
@@ -41,9 +64,9 @@ class NFCTransaction:
         # to resume communications.
         try:
             self.tag.transceive(Wca.make_resume_message())
-        except Exception as e:
+        except Exception:
             print("failed to resume")
-            raise (e)
+            raise
 
     @staticmethod
     def port_spec_to_usb_device(port_spec: str) -> str:
@@ -76,17 +99,29 @@ class NFCTransaction:
             try:
                 bus, dev = util.usb_dev_from_port(port_spec)
             except TypeError:
-                raise RuntimeError(f"Device not found at physical port {port_spec}")
+                raise RuntimeError(
+                    f"Device not found at physical port {port_spec}")
             return f'usb:{bus:03d}:{dev:03d}'
 
         # If we get here, assume it's already a valid format and pass through.
         return f'usb:{port_spec}'
 
     def transceive(self, payload, timeout=None):
-        timeout = timeout if timeout else self.timeout
-        for _ in range(0, self.retry_max):
+        per_transceive_timeout = timeout if timeout is not None else self.transceive_timeout
+
+        # Set up global timeout tracking using monotonic clock
+        start_time = time.monotonic()
+
+        for attempt in range(0, self.retry_max):
+            # Check if we've exceeded the global timeout
+            if self.global_timeout is not None:
+                elapsed = time.monotonic() - start_time
+                if elapsed >= self.global_timeout:
+                    raise IOError(
+                        f"Global timeout ({self.global_timeout}s) exceeded after {attempt} attempts")
+
             try:
-                return self.tag.transceive(bytes(payload), timeout=timeout)
+                return self.tag.transceive(bytes(payload), timeout=per_transceive_timeout)
             except nfc.tag.tt4.Type4TagCommandError:
                 print("NFC error, retrying...")
                 self._connect()

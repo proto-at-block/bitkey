@@ -5,7 +5,7 @@ import bitkey.recovery.fundslost.FundsLostRiskServiceFake
 import bitkey.recovery.fundslost.FundsLostRiskServiceImpl
 import bitkey.recovery.fundslost.FundsLostRiskSyncWorker
 import build.wallet.bdk.bindings.BdkBlockchainFactory
-import build.wallet.bdk.legacy.BdkBlockchainFactoryImpl
+import build.wallet.bdk.bindings.BdkBlockchainFactoryImpl
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.cloud.store.*
 import build.wallet.encrypt.MessageSigner

@@ -15,9 +15,9 @@ use bdk::{
 use thiserror::Error;
 use wca::{
     commands::{
-        DeviceInfo, FirmwareMetadata, FwupFinish, FwupFinishRspStatus, FwupStart, FwupTransfer,
-        GetAuthenticationKey, GetFirmwareMetadata, GetInitialSpendingKey, QueryAuthentication,
-        SignTransaction,
+        DeviceInfo, FirmwareMetadata, FwupFinish, FwupFinishRspStatus, FwupStart, FwupStartResult,
+        FwupTransfer, GetAuthenticationKey, GetFirmwareMetadata, GetInitialSpendingKey,
+        QueryAuthentication, SignTransaction,
     },
     pcsc::{Performer, Transactor, TransactorError},
 };
@@ -129,8 +129,17 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
     }
 
     fn upload(&mut self, upload: &Upload) -> Result<FwupFinishRspStatus, PairingError> {
-        if !self.perform(FwupStart::new(None, wca::commands::FwupMode::Normal))? {
-            return Err(PairingError::FwupStart);
+        match self.perform(FwupStart::new(
+            None,
+            wca::commands::FwupMode::Normal,
+            wca::commands::McuRole::Core,
+        ))? {
+            FwupStartResult::Success { value: true } => {}
+            FwupStartResult::Success { value: false } => return Err(PairingError::FwupStart),
+            FwupStartResult::ConfirmationPending { .. } => {
+                // CLI doesn't support two-tap confirmation flow
+                return Err(PairingError::FwupStart);
+            }
         }
 
         upload_asset(self, upload.chunk_size, &upload.application)?;
@@ -140,6 +149,7 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
             upload.app_properties_offset,
             upload.signature.offset,
             wca::commands::FwupMode::Normal,
+            wca::commands::McuRole::Core,
         ))?)
     }
 
@@ -192,6 +202,7 @@ fn upload_asset<T: Transactor + ?Sized>(
             chunk.to_vec(),
             asset.offset,
             wca::commands::FwupMode::Normal,
+            wca::commands::McuRole::Core,
         ));
 
         match command {

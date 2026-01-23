@@ -44,24 +44,24 @@ ui_task_led_mfgtest_dep = declare_dependency(
 ui_task_display_lib = library('ui_task_display',
   common_srcs + ['src/backends/ui_backend_display.c', 'src/ui_task_display_mpu.c'],
   include_directories : includes,
-  dependencies : common_deps + [display_controller_dep, button_dep, coproc_dep, uc_host_dep],
+  dependencies : common_deps + [display_controller_dep, button_dep, coproc_dep, uc_host_dep, board_id_dep],
   c_args : ['-DUI_BACKEND_DISPLAY'],
 )
 ui_task_display_dep = declare_dependency(
   link_with : ui_task_display_lib,
   include_directories : includes,
-  dependencies : common_deps + [display_controller_dep, button_dep, uc_host_dep],
+  dependencies : common_deps + [display_controller_dep, button_dep, uc_host_dep, board_id_dep],
 )
 
 # Display backend variant for MFGTEST builds
 ui_task_display_mfgtest_lib = library('ui_task_display_mfgtest',
   common_srcs + ['src/backends/ui_backend_display.c', 'src/ui_task_display_mpu.c'],
   include_directories : includes,
-  dependencies : common_deps + [display_controller_mfgtest_dep, button_dep, coproc_dep, uc_host_dep],
+  dependencies : common_deps + [display_controller_mfgtest_dep, button_dep, coproc_dep, uc_host_dep, board_id_dep],
   c_args : ['-DUI_BACKEND_DISPLAY', '-DMFGTEST=1'],
 )
 ui_task_display_mfgtest_dep = declare_dependency(
   link_with : ui_task_display_mfgtest_lib,
   include_directories : includes,
-  dependencies : common_deps + [display_controller_mfgtest_dep, button_dep, uc_host_dep],
+  dependencies : common_deps + [display_controller_mfgtest_dep, button_dep, uc_host_dep, board_id_dep],
 )

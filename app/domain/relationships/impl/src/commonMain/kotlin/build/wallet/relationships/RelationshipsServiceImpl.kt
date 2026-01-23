@@ -201,6 +201,7 @@ class RelationshipsServiceImpl(
   override suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
+    expectedRole: TrustedContactRole?,
   ): Result<IncomingInvitation, RetrieveInvitationCodeError> {
     return relationshipsCodeBuilder.parseInviteCode(invitationCode)
       .mapError { error ->
@@ -215,7 +216,8 @@ class RelationshipsServiceImpl(
       .andThen { (serverPart, _) ->
         relationshipsF8eClient().retrieveInvitation(
           account,
-          serverPart
+          serverPart,
+          expectedRole
         )
           .mapError {
             RetrieveInvitationCodeError.F8ePropagatedError(it)

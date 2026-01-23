@@ -144,7 +144,7 @@ class BdkWalletSyncerImpl(
     overriddenElectrumServer: ElectrumServer?,
   ): Result<Unit, BdkError> {
     return bdkBlockchainProvider
-      .blockchain(
+      .legacyBlockchain(
         electrumServer = overriddenElectrumServer
       )
       .result

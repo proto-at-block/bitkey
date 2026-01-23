@@ -27,9 +27,7 @@ typedef struct {
 // Payload for UI_EVENT_START_SEND_TRANSACTION
 typedef struct {
   char amount_sats[32];
-  char amount_usd[32];
   char fee_sats[32];
-  char fee_usd[32];
   char address[128];
 } send_transaction_data_t;
 
@@ -170,6 +168,7 @@ typedef enum {
   UI_EVENT_START_SEND_TRANSACTION,
   UI_EVENT_START_RECEIVE_TRANSACTION,
   UI_EVENT_SHOW_MENU,
+  UI_EVENT_START_PRIVILEGED_ACTION,
 
   UI_EVENT_MAX
 } ui_event_type_t;

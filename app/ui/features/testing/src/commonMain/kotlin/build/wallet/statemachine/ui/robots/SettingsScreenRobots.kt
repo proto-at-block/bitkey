@@ -10,6 +10,10 @@ fun SettingsBodyModel.clickExportTools() {
   clickRow("Exports")
 }
 
+fun SettingsBodyModel.clickInheritance() {
+  clickRow("Inheritance")
+}
+
 fun SettingsBodyModel.clickPrivateWalletUpdateRow() {
   clickRow("Private Wallet Update")
 }

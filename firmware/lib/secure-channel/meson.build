@@ -1,4 +1,4 @@
-deps = [helpers_dep, log_dep, rtos_dep, crypto_dep, secutils_dep, picocert_dep]
+deps = [helpers_dep, log_dep, rtos_dep, crypto_dep, secutils_dep, picocert_dep, wstd_dep]
 includes = ['.']
 
 secure_channel_lib = library('secure-channel',

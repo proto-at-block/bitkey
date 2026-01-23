@@ -22,6 +22,23 @@ import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 
 /**
+ * Result of a command that required user confirmation on the device.
+ */
+sealed interface ConfirmationResult {
+  data class WipeDevice(val success: Boolean) : ConfirmationResult
+
+  data class FwupStart(val success: Boolean) : ConfirmationResult
+}
+
+/**
+ * Handles for retrieving the result of a confirmed command.
+ */
+data class ConfirmationHandles(
+  val responseHandle: List<UByte>,
+  val confirmationHandle: List<UByte>,
+)
+
+/**
  * [NfcCommands] has a method for each primitive (core) NFC command (e.g. version or sealKey),
  * each taking an [NfcSession] as well as their respective arguments.
  */
@@ -29,16 +46,23 @@ import okio.ByteString.Companion.encodeUtf8
 @Suppress("TooManyFunctions")
 interface NfcCommands {
   /**
-   * Start FWUP process.
+   * Start FWUP process for a specific MCU.
+   *
+   * For W3 hardware, this may return [HardwareInteraction.RequiresConfirmation] which requires
+   * the user to confirm on the device before completing the operation.
+   *
+   * @param mcuRole Target MCU (defaults to CORE for W1 compatibility)
    */
   suspend fun fwupStart(
     session: NfcSession,
     patchSize: UInt?,
     fwupMode: FwupMode,
-  ): Boolean
+    mcuRole: McuRole = McuRole.CORE,
+  ): HardwareInteraction<Boolean>
 
   /**
    * Incremental transfer for FWUP.
+   * @param mcuRole Target MCU (defaults to CORE for W1 compatibility)
    */
   suspend fun fwupTransfer(
     session: NfcSession,
@@ -46,16 +70,19 @@ interface NfcCommands {
     fwupData: List<UByte>,
     offset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole = McuRole.CORE,
   ): Boolean
 
   /**
    * Finish FWUP process.
+   * @param mcuRole Target MCU (defaults to CORE for W1 compatibility)
    */
   suspend fun fwupFinish(
     session: NfcSession,
     appPropertiesOffset: UInt,
     signatureOffset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole = McuRole.CORE,
   ): FwupFinishResponseStatus
 
   /**
@@ -75,6 +102,7 @@ interface NfcCommands {
   suspend fun getCoredumpFragment(
     session: NfcSession,
     offset: Int,
+    mcuRole: McuRole,
   ): CoredumpFragment
 
   /**
@@ -85,7 +113,10 @@ interface NfcCommands {
   /**
    * Get events for firmware telemetry.
    */
-  suspend fun getEvents(session: NfcSession): EventFragment
+  suspend fun getEvents(
+    session: NfcSession,
+    mcuRole: McuRole,
+  ): EventFragment
 
   /**
    * Get firmware feature flags.
@@ -253,8 +284,12 @@ interface NfcCommands {
 
   /**
    * Wipe the keys on the hardware device.
+   *
+   * This command may require user confirmation on the device. When confirmation is required,
+   * returns [HardwareInteraction.RequiresConfirmation] which should be used to retrieve the result
+   * after the user confirms on the device.
    */
-  suspend fun wipeDevice(session: NfcSession): Boolean
+  suspend fun wipeDevice(session: NfcSession): HardwareInteraction<Boolean>
 
   /**
    * Get the certificate for the hardware device.
@@ -305,6 +340,18 @@ interface NfcCommands {
     session: NfcSession,
     appAuthKey: ByteString,
   ): Boolean
+
+  /**
+   * Retrieves the result of a command that required user confirmation on the device.
+   *
+   * @param session the active `NfcSession` used to communicate with the hardware device
+   * @param handles the handles returned from the initial command that required confirmation
+   * @return the result of the confirmed command
+   */
+  suspend fun getConfirmationResult(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+  ): ConfirmationResult
 }
 
 suspend fun NfcCommands.signChallenge(

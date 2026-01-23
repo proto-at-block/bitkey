@@ -23,6 +23,8 @@ import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
 import build.wallet.firmware.McuInfo
+import build.wallet.firmware.McuName
+import build.wallet.firmware.McuRole
 import build.wallet.firmware.TemplateMatchStats
 import build.wallet.firmware.UnlockInfo
 import build.wallet.firmware.UnlockMethod
@@ -34,14 +36,18 @@ import build.wallet.grants.GrantRequest
 import build.wallet.logging.NFC_TAG
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
+import build.wallet.nfc.platform.ConfirmationHandles
+import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.rust.firmware.*
 import build.wallet.rust.firmware.FirmwareSlot.A
 import build.wallet.rust.firmware.FirmwareSlot.B
-import build.wallet.rust.firmware.McuName
-import build.wallet.rust.firmware.McuRole
+import build.wallet.rust.firmware.FwupStartResult
+import build.wallet.rust.firmware.FwupStartResultState
 import build.wallet.rust.firmware.SecureBootConfig
+import build.wallet.rust.firmware.WipeStateResult
+import build.wallet.rust.firmware.WipeStateResultState
 import build.wallet.toByteString
 import build.wallet.toUByteList
 import io.ktor.utils.io.CancellationException
@@ -57,6 +63,8 @@ import build.wallet.rust.firmware.FingerprintHandle as CoreFingerprintHandle
 import build.wallet.rust.firmware.FirmwareFeatureFlag as CoreFirmwareFeatureFlag
 import build.wallet.rust.firmware.FirmwareFeatureFlagCfg as CoreFirmwareFeatureFlagCfg
 import build.wallet.rust.firmware.FirmwareMetadata as CoreFirmwareMetadata
+import build.wallet.rust.firmware.McuName as CoreMcuName
+import build.wallet.rust.firmware.McuRole as CoreMcuRole
 import build.wallet.rust.firmware.UnlockInfo as CoreUnlockInfo
 import build.wallet.rust.firmware.UnlockMethod as CoreUnlockMethod
 
@@ -69,13 +77,41 @@ class BitkeyW1Commands(
     session: NfcSession,
     patchSize: UInt?,
     fwupMode: FwupMode,
-  ) = executeCommand(
-    session = session,
-    generateCommand = { FwupStart(patchSize, fwupMode.toCoreFwupMode()) },
-    getNext = { command, data -> command.next(data) },
-    getResponse = { state: BooleanState.Data -> state.response },
-    generateResult = { state: BooleanState.Result -> state.value }
-  )
+    mcuRole: McuRole,
+  ): HardwareInteraction<Boolean> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        FwupStart(
+          patchSize,
+          fwupMode.toCoreFwupMode(),
+          mcuRole.toCoreMcuRole()
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: FwupStartResultState.Data -> state.response },
+      generateResult = { state: FwupStartResultState.Result -> state.value }
+    )
+    return when (result) {
+      is FwupStartResult.Success -> HardwareInteraction.Completed(result.value)
+      is FwupStartResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation { newSession, commands ->
+          val confirmResult = commands.getConfirmationResult(newSession, handles)
+          when (confirmResult) {
+            is ConfirmationResult.FwupStart ->
+              HardwareInteraction.Completed(confirmResult.success)
+            else -> throw NfcException.CommandError(
+              message = "fwupStart expected FwupStart result but got: ${confirmResult::class.simpleName}"
+            )
+          }
+        }
+      }
+    }
+  }
 
   override suspend fun fwupTransfer(
     session: NfcSession,
@@ -83,9 +119,12 @@ class BitkeyW1Commands(
     fwupData: List<UByte>,
     offset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ) = executeCommand(
     session = session,
-    generateCommand = { FwupTransfer(sequenceId, fwupData, offset, fwupMode.toCoreFwupMode()) },
+    generateCommand = {
+      FwupTransfer(sequenceId, fwupData, offset, fwupMode.toCoreFwupMode(), mcuRole.toCoreMcuRole())
+    },
     getNext = { command, data -> command.next(data) },
     getResponse = { state: BooleanState.Data -> state.response },
     generateResult = { state: BooleanState.Result -> state.value }
@@ -96,10 +135,16 @@ class BitkeyW1Commands(
     appPropertiesOffset: UInt,
     signatureOffset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ) = executeCommand(
     session = session,
     generateCommand = {
-      FwupFinish(appPropertiesOffset, signatureOffset, fwupMode.toCoreFwupMode())
+      FwupFinish(
+        appPropertiesOffset,
+        signatureOffset,
+        fwupMode.toCoreFwupMode(),
+        mcuRole.toCoreMcuRole()
+      )
     },
     getNext = { command, data -> command.next(data) },
     getResponse = { state: FwupFinishRspStatusState.Data -> state.response },
@@ -133,9 +178,10 @@ class BitkeyW1Commands(
   override suspend fun getCoredumpFragment(
     session: NfcSession,
     offset: Int,
+    mcuRole: McuRole,
   ) = executeCommand(
     session = session,
-    generateCommand = { GetCoredumpFragment(offset.toUInt()) },
+    generateCommand = { GetCoredumpFragment(offset.toUInt(), mcuRole.toCoreMcuRole()) },
     getNext = { command, data -> command.next(data) },
     getResponse = { state: CoredumpFragmentState.Data -> state.response },
     generateResult = { state: CoredumpFragmentState.Result ->
@@ -154,16 +200,18 @@ class BitkeyW1Commands(
       }
     )
 
-  override suspend fun getEvents(session: NfcSession) =
-    executeCommand(
-      session = session,
-      generateCommand = ::GetEvents,
-      getNext = { command, data -> command.next(data) },
-      getResponse = { state: EventFragmentState.Data -> state.response },
-      generateResult = { state: EventFragmentState.Result ->
-        state.value.toEventFragment()
-      }
-    )
+  override suspend fun getEvents(
+    session: NfcSession,
+    mcuRole: McuRole,
+  ) = executeCommand(
+    session = session,
+    generateCommand = { GetEvents(mcuRole.toCoreMcuRole()) },
+    getNext = { command, data -> command.next(data) },
+    getResponse = { state: EventFragmentState.Data -> state.response },
+    generateResult = { state: EventFragmentState.Result ->
+      state.value.toEventFragment()
+    }
+  )
 
   override suspend fun getFirmwareFeatureFlags(session: NfcSession) =
     executeCommand(
@@ -400,20 +448,34 @@ class BitkeyW1Commands(
       generateResult = { state: U16State.Result -> state.value }
     )
 
-  override suspend fun wipeDevice(session: NfcSession) =
-    executeCommand(
+  override suspend fun wipeDevice(session: NfcSession): HardwareInteraction<Boolean> {
+    val result = executeCommand(
       session = session,
       generateCommand = ::WipeState,
       getNext = { command, data -> command.next(data) },
       getResponse = { state: WipeStateResultState.Data -> state.response },
-      generateResult = { state: WipeStateResultState.Result ->
-        when (val result = state.value) {
-          is WipeStateResult.Success -> result.value
-          is WipeStateResult.ConfirmationPending ->
-            error("Confirmation pending not yet supported - firmware should not return this")
+      generateResult = { state: WipeStateResultState.Result -> state.value }
+    )
+    return when (result) {
+      is WipeStateResult.Success -> HardwareInteraction.Completed(result.value)
+      is WipeStateResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation { newSession, commands ->
+          val confirmResult = commands.getConfirmationResult(newSession, handles)
+          when (confirmResult) {
+            is ConfirmationResult.WipeDevice ->
+              HardwareInteraction.Completed(confirmResult.success)
+            else -> throw NfcException.CommandError(
+              message = "wipeDevice expected WipeDevice result but got: ${confirmResult::class.simpleName}"
+            )
+          }
         }
       }
-    )
+    }
+  }
 
   override suspend fun getCert(
     session: NfcSession,
@@ -508,6 +570,30 @@ class BitkeyW1Commands(
     getResponse = { state: BooleanState.Data -> state.response },
     generateResult = { state: BooleanState.Result -> state.value }
   )
+
+  override suspend fun getConfirmationResult(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+  ): ConfirmationResult =
+    executeCommand(
+      session = session,
+      generateCommand = {
+        GetConfirmationResult(
+          responseHandle = handles.responseHandle,
+          confirmationHandle = handles.confirmationHandle
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: ConfirmedCommandResultState.Data -> state.response },
+      generateResult = { state: ConfirmedCommandResultState.Result ->
+        when (val result = state.value) {
+          is ConfirmedCommandResult.WipeState ->
+            ConfirmationResult.WipeDevice(result.success)
+          is ConfirmedCommandResult.FwupStart ->
+            ConfirmationResult.FwupStart(result.success)
+        }
+      }
+    )
 }
 
 @Suppress(
@@ -642,13 +728,13 @@ private fun DeviceInfo.toFirmwareDeviceInfo(now: Instant) =
       McuInfo(
         mcuRole =
           when (info.role) {
-            McuRole.CORE -> build.wallet.firmware.McuRole.CORE
-            McuRole.UXC -> build.wallet.firmware.McuRole.UXC
+            CoreMcuRole.CORE -> McuRole.CORE
+            CoreMcuRole.UXC -> McuRole.UXC
           },
         mcuName =
           when (info.name) {
-            McuName.EFR32 -> build.wallet.firmware.McuName.EFR32
-            McuName.STM32U5 -> build.wallet.firmware.McuName.STM32U5
+            CoreMcuName.EFR32 -> McuName.EFR32
+            CoreMcuName.STM32U5 -> McuName.STM32U5
           },
         firmwareVersion = info.firmwareVersion
       )
@@ -658,7 +744,13 @@ private fun DeviceInfo.toFirmwareDeviceInfo(now: Instant) =
 private fun CoreEventFragment.toEventFragment() =
   EventFragment(
     fragment = fragment,
-    remainingSize = remainingSize
+    remainingSize = remainingSize,
+    mcuRole =
+      when (mcuRole) {
+        CoreMcuRole.CORE -> build.wallet.firmware.McuRole.CORE
+        CoreMcuRole.UXC -> build.wallet.firmware.McuRole.UXC
+        else -> null
+      }
   )
 
 private fun CoreCoredumpFragment.toCoredumpFragment() =
@@ -666,13 +758,31 @@ private fun CoreCoredumpFragment.toCoredumpFragment() =
     data = data,
     offset = offset,
     complete = complete,
-    coredumpsRemaining = coredumpsRemaining
+    coredumpsRemaining = coredumpsRemaining,
+    mcuRole =
+      when (mcuRole) {
+        CoreMcuRole.CORE -> McuRole.CORE
+        CoreMcuRole.UXC -> McuRole.UXC
+        else -> null
+      },
+    mcuName =
+      when (mcuName) {
+        CoreMcuName.EFR32 -> McuName.EFR32
+        CoreMcuName.STM32U5 -> McuName.STM32U5
+        else -> null
+      }
   )
 
 private fun FwupMode.toCoreFwupMode() =
   when (this) {
     FwupMode.Normal -> build.wallet.rust.firmware.FwupMode.NORMAL
     FwupMode.Delta -> build.wallet.rust.firmware.FwupMode.DELTA
+  }
+
+private fun McuRole.toCoreMcuRole() =
+  when (this) {
+    McuRole.CORE -> CoreMcuRole.CORE
+    McuRole.UXC -> CoreMcuRole.UXC
   }
 
 private fun FwupFinishRspStatus.toFwupFinishResponseStatus() =

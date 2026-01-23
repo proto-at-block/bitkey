@@ -3,6 +3,7 @@
 #include "assert.h"
 #include "bitlog.h"
 #include "cobs.h"
+#include "log.h"
 #include "mempool.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
@@ -90,6 +91,7 @@ static bool _uc_send(void* proto, uint16_t flags) {
 
   if (err != UC_ERR_NONE) {
     BITLOG_EVENT(uc_err, err);
+    LOGW("uc_send failed: proto_tag=0x%lx err=%d", proto_tag, err);
     return false;
   }
   return true;

@@ -201,4 +201,10 @@ enum class SocialRecoveryEventTrackerScreenId : EventTrackerScreenId {
 
   /** Error screen shown when the protected customer failed to create a Social Recovery invite. */
   TC_ENROLLMENT_CREATE_INVITE_FAILURE,
+
+  /** Screen prompting user to reinvite an expired trusted contact */
+  TC_MANAGEMENT_REINVITE_PROMPT,
+
+  /** Sheet showing details about a trusted contact invitation */
+  TC_MANAGEMENT_INVITATION_DETAIL_SHEET,
 }

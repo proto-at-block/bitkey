@@ -16,10 +16,16 @@ class NetworkReachabilityProviderMock(
   private val internetReachability = MutableStateFlow(NetworkReachability.REACHABLE)
   private val f8eReachability = MutableStateFlow(NetworkReachability.UNREACHABLE)
 
+  var hasConnection: Boolean = true
+
   data class UpdateNetworkReachabilityForConnectionParams(
     val reachability: NetworkReachability,
     val connection: NetworkConnection,
   )
+
+  override fun hasInternetConnection(): Boolean {
+    return hasConnection
+  }
 
   override fun internetReachabilityFlow(): StateFlow<NetworkReachability> {
     return internetReachability

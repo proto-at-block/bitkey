@@ -1,5 +1,6 @@
 #include "display_controller.h"
 
+#include "auth.h"
 #include "display_controller_internal.h"
 #include "log.h"
 #include "rtos.h"
@@ -16,8 +17,6 @@
 #include <attributes.h>
 #include <stdio.h>
 #include <string.h>
-
-extern secure_bool_t refresh_auth(void);
 
 #ifndef EMBEDDED_BUILD
 // External functions and stub types for simulation
@@ -69,35 +68,22 @@ static fwpb_display_result display_controller_send_command(const fwpb_display_co
 // Forward declarations for static functions
 static void lock_device(void);
 static void unlock_device(void);
-static void enter_flow(flow_id_t flow, const void* data);
-static void flow_approve(void);
-static void flow_cancel(void);
-static void flow_exit(void);
+static void enter_flow(flow_id_t flow, const void* entry_data);
+static void handle_flow_action_result(flow_action_result_t result);
 static void refresh_screen(void);
-static bool handle_global_buttons(display_controller_t* ctrl, const button_event_payload_t* event);
 
 // Global controller instance
 display_controller_t UI_TASK_DATA controller = {
   .is_locked = true,  // Start locked
   .current_flow = FLOW_ONBOARDING,
-  .previous_flow = FLOW_COUNT,  // No previous flow initially
   .show_screen.which_params = fwpb_display_show_screen_onboarding_tag,
-  .nav = {.generic = {0}},
+  .nav_stack_depth = 0,
 };
 
-static void display_controller_trigger_enrollment(uint8_t index) {
-#ifdef EMBEDDED_BUILD
-  static SHARED_TASK_DATA auth_start_fingerprint_enrollment_internal_t cmd;
-  cmd.index = index;
+// Display flags sent with every show_screen command
+static SHARED_TASK_DATA uint32_t s_display_flags = 0;
 
-  // Labels managed by phone - simply write generic label at creation.
-  snprintf(cmd.label, sizeof(cmd.label), "Fingerprint %d", index + 1);
-
-  ipc_send(auth_port, &cmd, sizeof(cmd), IPC_AUTH_START_FINGERPRINT_ENROLLMENT_INTERNAL);
-#endif
-}
-
-static void display_controller_query_fingerprint_status(void) {
+void display_controller_query_fingerprint_status(void) {
 #ifdef EMBEDDED_BUILD
   static SHARED_TASK_DATA auth_get_enrolled_fingerprints_internal_t cmd;
 
@@ -114,99 +100,111 @@ static void display_controller_delete_fingerprint(uint8_t index) {
 #endif
 }
 
+// Extern declaration for scan flow handler
+extern const flow_handler_t scan_handler;
+
 // Flow handlers with new interface
 static const flow_handler_t menu_handler = {
   .on_enter = display_controller_menu_on_enter,
   .on_exit = display_controller_menu_on_exit,
-  .on_button_press = display_controller_menu_on_button_press,
   .on_tick = display_controller_menu_on_tick,
   .on_event = NULL,
+  .on_action = display_controller_menu_on_action,
 };
 
 static const flow_handler_t money_movement_handler = {
   .on_enter = display_controller_money_movement_on_enter,
   .on_exit = display_controller_money_movement_on_exit,
-  .on_button_press = display_controller_money_movement_on_button_press,
   .on_tick = display_controller_money_movement_on_tick,
-  .on_event = NULL,
+  .on_event = display_controller_money_movement_on_event,
+  .on_action = display_controller_money_movement_on_action,
 };
 
 static const flow_handler_t brightness_handler = {
   .on_enter = display_controller_brightness_on_enter,
   .on_exit = display_controller_brightness_on_exit,
-  .on_button_press = display_controller_brightness_on_button_press,
   .on_tick = display_controller_brightness_on_tick,
   .on_event = NULL,
+  .on_action = display_controller_brightness_on_action,
 };
 
 static const flow_handler_t info_handler = {
   .on_enter = display_controller_info_on_enter,
   .on_exit = display_controller_info_on_exit,
-  .on_button_press = display_controller_info_on_button_press,
   .on_tick = display_controller_info_on_tick,
   .on_event = NULL,
+  .on_action = display_controller_info_on_action,
 };
 
 static const flow_handler_t onboarding_handler = {
   .on_enter = display_controller_onboarding_on_enter,
   .on_exit = display_controller_onboarding_on_exit,
-  .on_button_press = display_controller_onboarding_on_button_press,
   .on_tick = display_controller_onboarding_on_tick,
   .on_event = NULL,
+  .on_action = display_controller_onboarding_on_action,
 };
 
 static const flow_handler_t fingerprint_handler = {
   .on_enter = display_controller_fingerprint_on_enter,
   .on_exit = display_controller_fingerprint_on_exit,
-  .on_button_press = display_controller_fingerprint_on_button_press,
   .on_tick = display_controller_fingerprint_on_tick,
   .on_event = display_controller_fingerprint_on_event,
+  .on_action = display_controller_fingerprint_on_action,
 };
 
 static const flow_handler_t firmware_update_handler = {
   .on_enter = display_controller_firmware_update_on_enter,
   .on_exit = display_controller_firmware_update_on_exit,
-  .on_button_press = display_controller_firmware_update_on_button_press,
   .on_tick = display_controller_firmware_update_on_tick,
   .on_event = display_controller_firmware_update_on_event,
+  .on_action = display_controller_firmware_update_on_action,
 };
 
 static const flow_handler_t fingerprint_menu_handler = {
   .on_enter = display_controller_fingerprint_menu_on_enter,
   .on_exit = display_controller_fingerprint_menu_on_exit,
-  .on_button_press = display_controller_fingerprint_menu_on_button_press,
   .on_tick = display_controller_fingerprint_menu_on_tick,
-  .on_event = NULL,
-};
-
-static const flow_handler_t fingerprint_remove_handler = {
-  .on_enter = display_controller_fingerprint_remove_on_enter,
-  .on_exit = display_controller_fingerprint_remove_on_exit,
-  .on_button_press = display_controller_fingerprint_remove_on_process,
-  .on_tick = display_controller_fingerprint_remove_on_tick,
-  .on_event = NULL,
+  .on_event = display_controller_fingerprint_menu_on_event,
+  .on_action = display_controller_fingerprint_menu_on_action,
 };
 
 static const flow_handler_t mfg_handler = {
   .on_enter = display_controller_mfg_on_enter,
   .on_exit = display_controller_mfg_on_exit,
-  .on_button_press = display_controller_mfg_on_button_press,
   .on_tick = display_controller_mfg_on_tick,
   .on_event = display_controller_mfg_on_event,
+  .on_action = display_controller_mfg_on_action,
+};
+
+static const flow_handler_t locked_handler = {
+  .on_enter = display_controller_locked_on_enter,
+  .on_exit = display_controller_locked_on_exit,
+  .on_tick = display_controller_locked_on_tick,
+  .on_event = display_controller_locked_on_event,
+  .on_action = display_controller_locked_on_action,
+};
+
+static const flow_handler_t privileged_action_handler = {
+  .on_enter = display_controller_privileged_action_on_enter,
+  .on_exit = display_controller_privileged_action_on_exit,
+  .on_tick = display_controller_privileged_action_on_tick,
+  .on_event = display_controller_privileged_action_on_event,
+  .on_action = display_controller_privileged_action_on_action,
 };
 
 // Array mapping flow IDs to flow handlers
 static const flow_handler_t* flow_handlers[FLOW_COUNT] = {
+  [FLOW_SCAN] = &scan_handler,
   [FLOW_ONBOARDING] = &onboarding_handler,
   [FLOW_MENU] = &menu_handler,
   [FLOW_TRANSACTION] = &money_movement_handler,
   [FLOW_FINGERPRINT_MGMT] = &fingerprint_handler,
   [FLOW_FINGERPRINTS_MENU] = &fingerprint_menu_handler,
-  [FLOW_FINGERPRINT_REMOVE] = &fingerprint_remove_handler,
+  [FLOW_LOCKED] = &locked_handler,
   [FLOW_RECOVERY] = NULL,  // Future
   [FLOW_FIRMWARE_UPDATE] = &firmware_update_handler,
-  [FLOW_WIPE] = NULL,                // Future
-  [FLOW_PRIVILEGED_ACTIONS] = NULL,  // Future
+  [FLOW_WIPE] = NULL,  // Future
+  [FLOW_PRIVILEGED_ACTIONS] = &privileged_action_handler,
   [FLOW_BRIGHTNESS] = &brightness_handler,
   [FLOW_INFO] = &info_handler,
   [FLOW_MFG] = &mfg_handler,
@@ -236,15 +234,20 @@ void display_controller_init(void) {
   sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
 #endif
 
-  if (onboarding_complete() != SECURE_TRUE) {
-    // Start onboarding flow
+#ifdef MFGTEST
+  // In MFG test mode, always start locked regardless of onboarding status
+  const bool start_onboarding = false;
+#else
+  const bool start_onboarding = (onboarding_complete() != SECURE_TRUE);
+#endif
+
+  if (start_onboarding) {
     controller.is_locked = false;
     controller.current_flow = FLOW_ONBOARDING;
     controller.show_screen.which_params = fwpb_display_show_screen_onboarding_tag;
   } else {
-    // Device is locked, prepare lock screen params
     controller.is_locked = true;
-    controller.current_flow = FLOW_COUNT;
+    controller.current_flow = FLOW_LOCKED;
     controller.show_screen.which_params = fwpb_display_show_screen_locked_tag;
   }
 }
@@ -254,20 +257,14 @@ void display_controller_tick(void) {
   if (in_flow()) {
     const flow_handler_t* handler = flow_handlers[controller.current_flow];
     if (handler && handler->on_tick) {
-      handler->on_tick(&controller);
-    }
-
-    // Check if tick handler requested flow exit
-    if (controller.pending_flow_exit) {
-      controller.pending_flow_exit = false;
-      flow_exit();
+      flow_action_result_t result = handler->on_tick(&controller);
+      handle_flow_action_result(result);
     }
   }
 }
 
 void display_controller_show_initial_screen(void) {
   LOGI("UXC ready received, showing initial screen at %ldms", rtos_thread_systime());
-  LOGI("Initial screen which_params = %d", (int)controller.show_screen.which_params);
   controller.initial_screen_shown = true;
   refresh_screen();
 }
@@ -277,77 +274,9 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
     case UI_EVENT_BUTTON: {
       if (data && len == sizeof(button_event_payload_t)) {
         const button_event_payload_t* button_event = (const button_event_payload_t*)data;
-
-        // LOGD("Button event: button=%d, type=%d, locked=%d, flow=%d",
-        //      button_event->button, button_event->type, controller.is_locked,
-        //      controller.current_flow);
-
-        // Try global button handlers first
-        if (handle_global_buttons(&controller, button_event)) {
-          LOGD("Event handled globally");
-          return;  // Event handled globally
-        }
-
-        // If accepting input, pass to flow handler and process returned action
-        if (accepting_input()) {
-          const flow_handler_t* handler = flow_handlers[controller.current_flow];
-          if (handler && handler->on_button_press) {
-            flow_action_t action = handler->on_button_press(&controller, button_event);
-            LOGD("Flow handler returned action: %d", action);
-
-            // Process the action
-            switch (action) {
-              case FLOW_ACTION_APPROVE:
-                flow_approve();
-                break;
-              case FLOW_ACTION_CANCEL:
-                flow_cancel();
-                break;
-              case FLOW_ACTION_REFRESH:
-                refresh_screen();
-                break;
-              case FLOW_ACTION_EXIT:
-                flow_exit();
-                break;
-              case FLOW_ACTION_START_ENROLLMENT:
-                display_controller_trigger_enrollment(controller.nav.fingerprint.slot_index);
-                break;
-              case FLOW_ACTION_QUERY_FINGERPRINTS:
-                display_controller_query_fingerprint_status();
-                break;
-              case FLOW_ACTION_DELETE_FINGERPRINT:
-                // Use detail_index from fingerprint_menu or fingerprint_remove nav state
-                if (controller.current_flow == FLOW_FINGERPRINTS_MENU) {
-                  display_controller_delete_fingerprint(
-                    controller.nav.fingerprint_menu.detail_index);
-                } else if (controller.current_flow == FLOW_FINGERPRINT_REMOVE) {
-                  display_controller_delete_fingerprint(
-                    controller.nav.fingerprint_remove.fingerprint_index);
-                }
-                // Query updated enrollment status after deletion
-                display_controller_query_fingerprint_status();
-                break;
-              case FLOW_ACTION_POWER_OFF:
-#ifdef EMBEDDED_BUILD
-                ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF);
-#endif
-                flow_exit();
-                break;
-              case FLOW_ACTION_NONE:
-              default:
-                // No action needed
-                break;
-            }
-          } else {
-            LOGW("No handler or on_button_press for flow %d", controller.current_flow);
-          }
-        }
+        LOGD("Button event: type=%d button=%d", button_event->type, button_event->button);
+        // Touch-only UI - buttons not used for navigation
       }
-      break;
-    }
-
-    case UI_EVENT_DISPLAY_READY: {
-      display_controller_show_initial_screen();
       break;
     }
 
@@ -412,61 +341,17 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
       break;
     }
 
-    case UI_EVENT_START_SEND_TRANSACTION: {
-      if (data && len == sizeof(send_transaction_data_t)) {
-        struct {
-          transaction_type_t type;
-          send_transaction_data_t data;
-        } send_wrapper;
-        send_wrapper.type = TRANSACTION_TYPE_SEND;
-        memcpy(&send_wrapper.data, data, sizeof(send_transaction_data_t));
-        enter_flow(FLOW_TRANSACTION, &send_wrapper);
-      }
-      break;
-    }
-
-    case UI_EVENT_START_RECEIVE_TRANSACTION: {
-      if (data && len == sizeof(receive_transaction_data_t)) {
-        struct {
-          transaction_type_t type;
-          receive_transaction_data_t data;
-        } receive_wrapper;
-        receive_wrapper.type = TRANSACTION_TYPE_RECEIVE;
-        memcpy(&receive_wrapper.data, data, sizeof(receive_transaction_data_t));
-        enter_flow(FLOW_TRANSACTION, &receive_wrapper);
-      }
-      break;
-    }
-
     case UI_EVENT_ENROLLMENT_START: {
       // Prevents resetting the page when enrollment is triggered internally
       if (controller.current_flow != FLOW_FINGERPRINT_MGMT) {
-        enter_flow(FLOW_FINGERPRINT_MGMT, data);
-      }
-      break;
-    }
-
-    case UI_EVENT_ENROLLMENT_PROGRESS_GOOD:
-      // 'break' intentionally omitted.
-    case UI_EVENT_ENROLLMENT_PROGRESS_BAD:
-      // 'break' intentionally omitted.
-    case UI_EVENT_ENROLLMENT_FAILED: {
-      if (controller.current_flow == FLOW_FINGERPRINT_MGMT) {
-        const flow_handler_t* handler = flow_handlers[controller.current_flow];
-        if (handler && handler->on_event) {
-          handler->on_event(&controller, event, data, len);
-        }
+        enter_flow(FLOW_FINGERPRINT_MGMT, NULL);
       }
       break;
     }
 
     case UI_EVENT_ENROLLMENT_COMPLETE: {
+      // Query updated fingerprint enrollment status after completion
       if (controller.current_flow == FLOW_FINGERPRINT_MGMT) {
-        const flow_handler_t* handler = flow_handlers[controller.current_flow];
-        if (handler && handler->on_event) {
-          handler->on_event(&controller, event, data, len);
-        }
-        // Query updated fingerprint enrollment status after completion
         display_controller_query_fingerprint_status();
       }
       break;
@@ -504,18 +389,6 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
       break;
     }
 
-    case UI_EVENT_FWUP_COMPLETE:
-      // 'break' intentionally omitted.
-    case UI_EVENT_FWUP_FAILED: {
-      if (controller.current_flow == FLOW_FIRMWARE_UPDATE) {
-        const flow_handler_t* handler = flow_handlers[controller.current_flow];
-        if (handler && handler->on_event) {
-          handler->on_event(&controller, event, data, len);
-        }
-      }
-      break;
-    }
-
     case UI_EVENT_SHOW_MENU: {
       enter_flow(FLOW_MENU, NULL);
       break;
@@ -540,55 +413,40 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
         controller.is_charging = false;
       }
 
-      // Then refresh screens that depend on this state
-      if (controller.is_locked) {
-        display_controller_lock_screen_on_event(&controller, event, data, len);
-      } else if (in_flow()) {
-        // Dispatch to current flow's event handler if it has one
-        const flow_handler_t* handler = flow_handlers[controller.current_flow];
-        if (handler && handler->on_event) {
-          handler->on_event(&controller, event, data, len);
-        }
-      }
       break;
     }
 
     case UI_EVENT_MFGTEST_SHOW_SCREEN: {
-      if (data && len == sizeof(mfgtest_show_screen_payload_t)) {
-        const mfgtest_show_screen_payload_t* payload = (const mfgtest_show_screen_payload_t*)data;
-        if (payload->test_mode != 0) {
-          // Enter MFG flow to show the requested test screen
-          enter_flow(FLOW_MFG, payload);
-        } else {
-          // test_mode == 0 means exit MFG flow
-          if (controller.current_flow == FLOW_MFG) {
-            flow_exit();
-          }
-        }
+      // Enter MFG flow if not already in it, passing payload as entry_data
+      if (!in_flow() || controller.current_flow != FLOW_MFG) {
+        enter_flow(FLOW_MFG, data);
       }
       break;
     }
 
-    case UI_EVENT_CAPTOUCH:
-      // 'break' intentionally omitted.
-    case UI_EVENT_MFGTEST_TOUCH:
-      // 'break' intentionally omitted.
-    case UI_EVENT_MFGTEST_TOUCH_TEST_STATUS:
-      // 'break' intentionally omitted.
-    case UI_EVENT_FINGER_DOWN_FROM_LOCKED:
-      // 'break' intentionally omitted.
-    case UI_EVENT_FINGER_DOWN_FROM_UNLOCKED: {
-      if (controller.current_flow == FLOW_MFG) {
-        const flow_handler_t* handler = flow_handlers[controller.current_flow];
-        if (handler && handler->on_event) {
-          handler->on_event(&controller, event, data, len);
-        }
+    case UI_EVENT_CAPTOUCH: {
+#ifdef MFGTEST
+      // In MFGTEST, captouch unlocks the device (auth task doesn't run)
+      if (controller.is_locked && controller.current_flow == FLOW_LOCKED) {
+        unlock_device();
       }
+#endif
       break;
     }
 
     default:
       break;
+  }
+
+  // Finally, route ALL events to current flow if it has an event handler
+  // This happens after controller state changes so flows see updated state
+  // Flows will ignore events they don't care about
+  if (in_flow()) {
+    const flow_handler_t* handler = flow_handlers[controller.current_flow];
+    if (handler && handler->on_event) {
+      flow_action_result_t result = handler->on_event(&controller, event, data, len);
+      handle_flow_action_result(result);
+    }
   }
 }
 
@@ -598,70 +456,69 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
 
 static void lock_device(void) {
   controller.is_locked = true;
-  controller.current_flow = FLOW_COUNT;
-  controller.show_screen.which_params = fwpb_display_show_screen_locked_tag;
 
   // Reset menu state when locking
   controller.nav.menu.selected_item =
-    fwpb_display_menu_item_DISPLAY_MENU_ITEM_BACK;  // Reset to first item (Back button)
-  controller.saved_menu_selection = fwpb_display_menu_item_DISPLAY_MENU_ITEM_BACK;
-  controller.nav.fingerprint_menu.selected_item = 0;  // Reset fingerprint menu too
-  controller.previous_flow = FLOW_COUNT;              // Clear flow history
+    fwpb_display_menu_item_DISPLAY_MENU_ITEM_FINGERPRINTS;  // Reset to first menu item
+  controller.nav.fingerprint_menu.selected_item = 0;        // Reset fingerprint menu too
 
-  // Use lock screen handler to set up the screen parameters
-  display_controller_lock_screen_on_enter(&controller, NULL);
+  // Clear current flow before calling enter_flow to prevent it from pushing to stack
+  controller.current_flow = FLOW_SCAN;
 
-  display_controller_show_screen(&controller, fwpb_display_show_screen_locked_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_FADE,
-                                 TRANSITION_DURATION_QUICK);
+  // Clear navigation stack so unlock returns to scan
+  controller.nav_stack_depth = 0;
+
+  enter_flow(FLOW_LOCKED, NULL);
 }
 
 static void unlock_device(void) {
   controller.is_locked = false;
-  controller.current_flow = FLOW_COUNT;
-  controller.show_screen.which_params = fwpb_display_show_screen_scan_tag;
-  controller.show_screen.params.scan.action =
-    fwpb_display_params_scan_display_params_scan_action_TAP;
-  display_controller_show_screen(&controller, fwpb_display_show_screen_scan_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_FADE,
-                                 TRANSITION_DURATION_STANDARD);
 }
 
-static void enter_flow(flow_id_t flow, const void* data) {
-  const flow_id_t prev_flow = controller.current_flow;
+static void enter_flow(flow_id_t flow, const void* entry_data) {
+  // Push to navigation stack when leaving menu for a sub-flow
+  // Also push when leaving fingerprints menu for enrollment
+  if ((controller.current_flow == FLOW_MENU && flow != FLOW_MENU) ||
+      (controller.current_flow == FLOW_FINGERPRINTS_MENU && flow == FLOW_FINGERPRINT_MGMT)) {
+    // Leaving menu or fingerprints menu, save the selection
+    if (controller.nav_stack_depth < ARRAY_SIZE(controller.nav_stack)) {
+      controller.nav_stack[controller.nav_stack_depth].flow = controller.current_flow;
+
+      // Save the appropriate selection based on which flow we're leaving
+      if (controller.current_flow == FLOW_MENU) {
+        controller.nav_stack[controller.nav_stack_depth].saved_selection =
+          controller.nav.menu.selected_item;
+      } else if (controller.current_flow == FLOW_FINGERPRINTS_MENU) {
+        controller.nav_stack[controller.nav_stack_depth].saved_selection =
+          controller.nav.fingerprint_menu.selected_item;
+      }
+
+      LOGD("Nav stack push: depth=%d, from_flow=%d, to_flow=%d", controller.nav_stack_depth,
+           controller.current_flow, flow);
+      controller.nav_stack_depth++;
+    }
+  }
+
+  flow_id_t previous_flow = controller.current_flow;
   controller.current_flow = flow;
 
   // Clear the params union before entering any new flow
   memset(&controller.show_screen.params, 0, sizeof(controller.show_screen.params));
 
+  // Reset menu selection only when entering menu directly from scan (not from a submenu)
+  if (flow == FLOW_MENU && previous_flow == FLOW_SCAN) {
+    controller.nav.menu.selected_item = fwpb_display_menu_item_DISPLAY_MENU_ITEM_FINGERPRINTS;
+  }
+
   // Call flow's on_enter handler to set up initial screen
   const flow_handler_t* handler = flow_handlers[flow];
   if (handler && handler->on_enter) {
-    handler->on_enter(&controller, data);
+    handler->on_enter(&controller, entry_data);
   }
 
-  // Determine transition based on context
-  fwpb_display_transition transition = fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_LEFT;
-
-  // Special cases for different transitions
-  if (flow == FLOW_MENU) {
-    if ((prev_flow == FLOW_COUNT) || (prev_flow == FLOW_MENU)) {
-      // Entering the menu always slides up.
-      transition = fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_UP;
-    } else {
-      // Returning from a sub-menu always slides right.
-      transition = fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_RIGHT;
-    }
-  } else if ((flow == FLOW_FINGERPRINTS_MENU) && (prev_flow == FLOW_FINGERPRINT_REMOVE)) {
-    // Returning to fingerprints menu from detail screen slides right.
-    transition = fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_RIGHT;
-  } else if (prev_flow == FLOW_MENU) {
-    // Entering submenu from menu always slides left.
-    transition = fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_LEFT;
-  }
-
-  // Show initial screen with appropriate transition
-  display_controller_show_screen(&controller, controller.show_screen.which_params, transition,
+  // Always use standard fade transition (flows can update screen later if needed)
+  display_controller_show_screen(&controller, controller.show_screen.which_params,
+                                 fwpb_display_transition_DISPLAY_TRANSITION_FADE,
                                  TRANSITION_DURATION_STANDARD);
 
   // Query fingerprint status when entering menu
@@ -671,213 +528,99 @@ static void enter_flow(flow_id_t flow, const void* data) {
   }
 }
 
-static void flow_approve(void) {
-  // User pressed Verify - show scan screen waiting for NFC
-  controller.show_screen.which_params = fwpb_display_show_screen_scan_tag;
-
-  // Set appropriate scan context based on current flow
-  switch (controller.current_flow) {
-    case FLOW_TRANSACTION:
-      controller.show_screen.params.scan.action =
-        fwpb_display_params_scan_display_params_scan_action_SIGN;
-      break;
-
-    case FLOW_FIRMWARE_UPDATE:
-      controller.show_screen.params.scan.action =
-        fwpb_display_params_scan_display_params_scan_action_VERIFY;
-      break;
-
-    default:
-      controller.show_screen.params.scan.action =
-        fwpb_display_params_scan_display_params_scan_action_CONFIRM;
-      break;
-  }
-
-  display_controller_show_screen(&controller, fwpb_display_show_screen_scan_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_LEFT,
-                                 TRANSITION_DURATION_STANDARD);
-}
-
-static void flow_cancel(void) {
-  // User pressed Cancel - exit flow
-  if (!in_flow()) {
-    return;
-  }
+// Process flow action results - handles navigation, exit, or no-op
+static void handle_flow_action_result(flow_action_result_t result) {
   const flow_handler_t* handler = flow_handlers[controller.current_flow];
-  if (handler && handler->on_exit) {
-    handler->on_exit(&controller);
-  }
 
-  controller.current_flow = FLOW_COUNT;
-  controller.show_screen.which_params = fwpb_display_show_screen_scan_tag;
-  controller.show_screen.params.scan.action =
-    fwpb_display_params_scan_display_params_scan_action_TAP;
-  display_controller_show_screen(&controller, fwpb_display_show_screen_scan_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_RIGHT,
-                                 TRANSITION_DURATION_STANDARD);
-}
+  switch (result.type) {
+    case FLOW_RESULT_HANDLED:
+      // Flow handled internally, nothing to do
+      break;
 
-static void flow_exit(void) {
-  // Exit flow without cancel (for onboarding, menu)
-  if (!in_flow()) {
-    return;
-  }
-
-  flow_id_t current_flow = controller.current_flow;
-  flow_id_t prev_flow = controller.previous_flow;
-
-  LOGD("flow_exit: current=%d, previous=%d, selected=%d", current_flow, prev_flow,
-       controller.nav.fingerprint_menu.selected_item);
-
-  const flow_handler_t* handler = flow_handlers[controller.current_flow];
-  if (handler && handler->on_exit) {
-    handler->on_exit(&controller);
-  }
-
-  // Check if menu selected a submenu that needs to enter a new flow
-  if (current_flow == FLOW_MENU && controller.nav.menu.submenu_index != 0) {
-    uint8_t submenu = controller.nav.menu.submenu_index;
-    controller.nav.menu.submenu_index = 0;  // Reset
-
-    // Save the current menu selection before entering submenu
-    controller.saved_menu_selection = controller.nav.menu.selected_item;
-
-    switch (submenu) {
-      case fwpb_display_menu_item_DISPLAY_MENU_ITEM_BRIGHTNESS:
-        controller.previous_flow = FLOW_MENU;  // Remember we came from menu
-        enter_flow(FLOW_BRIGHTNESS, NULL);
-        return;
-      case fwpb_display_menu_item_DISPLAY_MENU_ITEM_FINGERPRINTS:
-        controller.previous_flow = FLOW_MENU;  // Remember we came from menu
-        enter_flow(FLOW_FINGERPRINTS_MENU, NULL);
-        return;
-      case fwpb_display_menu_item_DISPLAY_MENU_ITEM_ABOUT:
-        // Enter info flow for About screen
-        controller.nav.info.showing_regulatory = false;
-        controller.previous_flow = FLOW_MENU;  // Remember we came from menu
-        enter_flow(FLOW_INFO, &controller.device_info);
-        return;
-      case fwpb_display_menu_item_DISPLAY_MENU_ITEM_REGULATORY:
-        // Enter info flow for Regulatory screen
-        controller.nav.info.showing_regulatory = true;
-        controller.previous_flow = FLOW_MENU;  // Remember we came from menu
-        enter_flow(FLOW_INFO, NULL);
-        return;
-      case fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE:
-        lock_device();
-        return;
-#ifdef MFGTEST
-      case fwpb_display_menu_item_DISPLAY_MENU_ITEM_TOUCH_TEST:
-        // Show test gesture screen directly (not a flow, just a screen)
-        controller.current_flow = FLOW_COUNT;
-        controller.show_screen.which_params = fwpb_display_show_screen_test_gesture_tag;
-        controller.show_screen.transition = fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_LEFT;
-        controller.show_screen.duration_ms = TRANSITION_DURATION_STANDARD;
-        controller.previous_flow = FLOW_MENU;
-        controller.current_flow = FLOW_MENU;
-        display_controller_show_screen(&controller, fwpb_display_show_screen_test_gesture_tag,
-                                       fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_LEFT,
-                                       TRANSITION_DURATION_STANDARD);
-        return;
-#endif
-      default:
-        break;
-    }
-  }
-
-  // Check if fingerprints menu is exiting (regardless of where we came from)
-  if (current_flow == FLOW_FINGERPRINTS_MENU) {
-    // Check what was selected in the fingerprints menu
-    if (controller.nav.fingerprint_menu.selected_item > 0 &&
-        controller.nav.fingerprint_menu.selected_item <=
-          ARRAY_SIZE(controller.fingerprint_enrolled)) {
-      // A fingerprint slot was selected
-      uint8_t index = controller.nav.fingerprint_menu.selected_item - 1;
-
-      if (controller.fingerprint_enrolled[index]) {
-        // Transition to fingerprint detail screen for enrolled fingerprint
-        controller.previous_flow = FLOW_FINGERPRINTS_MENU;
-        // Pass the fingerprint index directly as a uint8_t
-        uint8_t fingerprint_index = index;
-        enter_flow(FLOW_FINGERPRINT_REMOVE, &fingerprint_index);
-        return;
-      } else {
-        // Start fingerprint enrollment for empty slot
-        LOGD("Starting fingerprint enrollment for slot %d", index + 1);
-        controller.previous_flow = FLOW_FINGERPRINTS_MENU;
-        // Set the slot index before entering enrollment flow
-        controller.nav.fingerprint.slot_index = index;
-        enter_flow(FLOW_FINGERPRINT_MGMT, NULL);
-        return;
+    case FLOW_RESULT_EXIT_FLOW:
+      // Exit current flow and return to caller (or scan if no caller)
+      if (handler && handler->on_exit) {
+        handler->on_exit(&controller);
       }
-    } else {
-      // Back button was selected - return to main menu
-      LOGD("Returning to main menu from fingerprints menu");
-      controller.nav.menu.selected_item = controller.saved_menu_selection;
-      enter_flow(FLOW_MENU, NULL);
-      controller.previous_flow = FLOW_COUNT;  // Clear after entering
-      return;
-    }
-  }
 
-  // Check if we should return to a previous flow from other submenus
-  if (prev_flow == FLOW_MENU && (current_flow == FLOW_INFO || current_flow == FLOW_BRIGHTNESS)) {
-    // Restore the saved menu selection
-    controller.nav.menu.selected_item = controller.saved_menu_selection;
-    // Keep previous_flow set so enter_flow knows we're returning from a submenu
-    enter_flow(FLOW_MENU, NULL);
-    controller.previous_flow = FLOW_COUNT;  // Clear after entering
-    return;
-  }
+      // Pop nav stack and return to caller flow
+      if (controller.nav_stack_depth > 0) {
+        controller.nav_stack_depth--;
+        flow_id_t return_flow = controller.nav_stack[controller.nav_stack_depth].flow;
 
-  // Check if returning from fingerprint detail or enrollment to fingerprints menu
-  if (prev_flow == FLOW_FINGERPRINTS_MENU &&
-      (current_flow == FLOW_FINGERPRINT_MGMT || current_flow == FLOW_FINGERPRINT_REMOVE)) {
-    // Return to fingerprints menu after enrollment or detail view
-    if (current_flow == FLOW_FINGERPRINT_REMOVE) {
-      // Set previous_flow so the menu knows where we came from
-      controller.previous_flow = FLOW_FINGERPRINT_REMOVE;
-      enter_flow(FLOW_FINGERPRINTS_MENU, NULL);
-    } else {
-      // Set previous_flow so the menu knows we're coming from enrollment
-      controller.previous_flow = FLOW_FINGERPRINT_MGMT;
-      enter_flow(FLOW_FINGERPRINTS_MENU, NULL);
-    }
-    // After entering, set it back to MENU for future navigation
-    controller.previous_flow = FLOW_MENU;
-    return;
-  }
+        // Restore menu selection if returning to MENU or FINGERPRINTS_MENU
+        if (return_flow == FLOW_MENU) {
+          controller.nav.menu.selected_item =
+            controller.nav_stack[controller.nav_stack_depth].saved_selection;
+          LOGD("Restored menu selection to %d (exiting flow, stack depth was %d)",
+               controller.nav.menu.selected_item, controller.nav_stack_depth + 1);
+        } else if (return_flow == FLOW_FINGERPRINTS_MENU) {
+          controller.nav.fingerprint_menu.selected_item =
+            controller.nav_stack[controller.nav_stack_depth].saved_selection;
+          LOGD("Restored fingerprint menu selection to %d (exiting flow, stack depth was %d)",
+               controller.nav.fingerprint_menu.selected_item, controller.nav_stack_depth + 1);
+        }
 
-  // Special case: After onboarding, go to fingerprint enrollment
-  if (current_flow == FLOW_ONBOARDING) {
-    LOGD("Onboarding complete -> entering fingerprint enrollment");
-    controller.previous_flow = FLOW_COUNT;  // Clear so fingerprint slides left
-    enter_flow(FLOW_FINGERPRINT_MGMT, NULL);
-    return;
-  }
+        enter_flow(return_flow, NULL);
+      } else {
+        // No caller on stack, return to appropriate idle state based on lock status
+        enter_flow(controller.is_locked ? FLOW_LOCKED : FLOW_SCAN, NULL);
+      }
+      break;
 
-  // Special case: After fingerprint enrollment, go to menu
-  if (current_flow == FLOW_FINGERPRINT_MGMT) {
-    LOGD("Fingerprint enrollment complete -> entering menu");
-    controller.previous_flow = FLOW_COUNT;  // Clear so menu slides left
-    enter_flow(FLOW_MENU, NULL);
-    return;
-  }
+    case FLOW_RESULT_NAVIGATE:
+      // Exit current flow, enter new flow with data
+      if (handler && handler->on_exit) {
+        handler->on_exit(&controller);
+      }
 
-  // Safety check: Never leave the controller in a flow state without a proper flow
-  if (in_flow()) {
-    LOGW("Exiting flow but still in_flow(), resetting");
-  }
+      // Check if enter_flow will push to stack (to avoid pop+push which overwrites)
+      bool will_push = (controller.current_flow == FLOW_MENU && result.target_flow != FLOW_MENU) ||
+                       (controller.current_flow == FLOW_FINGERPRINTS_MENU &&
+                        result.target_flow == FLOW_FINGERPRINT_MGMT);
 
-  controller.previous_flow = FLOW_COUNT;  // Clear previous flow
-  controller.current_flow = FLOW_COUNT;   // Clear current flow
-  controller.show_screen.which_params = fwpb_display_show_screen_scan_tag;
-  controller.show_screen.params.scan.action =
-    fwpb_display_params_scan_display_params_scan_action_TAP;
-  display_controller_show_screen(&controller, fwpb_display_show_screen_scan_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_SLIDE_DOWN,
-                                 TRANSITION_DURATION_STANDARD);
+      // Only pop if enter_flow won't push (to avoid overwriting stack entries)
+      if (!will_push && controller.nav_stack_depth > 0) {
+        controller.nav_stack_depth--;
+        // Restore menu selection from the entry we just popped
+        if (result.target_flow == FLOW_MENU) {
+          uint8_t old_selection = controller.nav.menu.selected_item;
+          controller.nav.menu.selected_item =
+            controller.nav_stack[controller.nav_stack_depth].saved_selection;
+          LOGD("Restored menu selection from %d to %d (stack depth was %d)", old_selection,
+               controller.nav.menu.selected_item, controller.nav_stack_depth + 1);
+        } else if (result.target_flow == FLOW_FINGERPRINTS_MENU) {
+          uint8_t old_selection = controller.nav.fingerprint_menu.selected_item;
+          controller.nav.fingerprint_menu.selected_item =
+            controller.nav_stack[controller.nav_stack_depth].saved_selection;
+          LOGD("Restored fingerprint menu selection from %d to %d (stack depth was %d)",
+               old_selection, controller.nav.fingerprint_menu.selected_item,
+               controller.nav_stack_depth + 1);
+        }
+      }
+
+      // Pass data pointer from result union
+      const void* entry_data = result.has_data ? &result.data : NULL;
+      enter_flow(result.target_flow, entry_data);
+      break;
+  }
 }
+
+// Wrapper for flows to update their own screen (enforces ownership)
+void flow_update_current_screen(display_controller_t* controller,
+                                fwpb_display_transition transition, uint32_t duration_ms) {
+  // Flow can only update its own screen (already set in on_enter via which_params)
+  // Controller validates we're in a flow
+  if (!in_flow()) {
+    LOGE("Attempted to update screen outside of flow");
+    return;
+  }
+
+  display_controller_show_screen(controller, controller->show_screen.which_params, transition,
+                                 duration_ms);
+}
+
+// Legacy flow functions removed - all flows now use on_action() handlers
 
 static void refresh_screen(void) {
   // Re-display current screen with updated params (for page navigation)
@@ -885,7 +628,7 @@ static void refresh_screen(void) {
   fwpb_display_transition transition = fwpb_display_transition_DISPLAY_TRANSITION_NONE;
 
   display_controller_show_screen(&controller, controller.show_screen.which_params, transition,
-                                 TRANSITION_DURATION_QUICK);
+                                 TRANSITION_DURATION_STANDARD);
 }
 
 void display_controller_show_screen(display_controller_t* ctrl, pb_size_t params_tag,
@@ -899,12 +642,15 @@ void display_controller_show_screen(display_controller_t* ctrl, pb_size_t params
     return;
   }
 
+  // LOGI("Showing screen: params_tag=%lu, transition=%d", (unsigned long)params_tag, transition);
+
   // Safety check: Validate that we're in a proper state to show this screen
   bool valid_state = false;
 
   switch (params_tag) {
     case fwpb_display_show_screen_locked_tag:
-      valid_state = ctrl->is_locked;
+      // Allow locked screen when locked OR when in FLOW_LOCKED (for unlock animation)
+      valid_state = ctrl->is_locked || ctrl->current_flow == FLOW_LOCKED;
       break;
     case fwpb_display_show_screen_scan_tag:
       // Scan screen valid when unlocked
@@ -932,15 +678,17 @@ void display_controller_show_screen(display_controller_t* ctrl, pb_size_t params
       // All other screens require being in a flow and accepting input
       valid_state = accepting_input();
       if (!valid_state) {
-        LOGE("Trying to show screen %lu but not accepting_input()", (unsigned long)params_tag);
+        LOGE(
+          "Trying to show screen %lu but not accepting_input() (is_locked=%d, in_flow=%d, "
+          "current_flow=%d)",
+          (unsigned long)params_tag, ctrl->is_locked, in_flow(), ctrl->current_flow);
       }
       break;
   }
 
   // If invalid state, log detailed error and return
   if (!valid_state) {
-    LOGE("Invalid state for screen %lu (is_locked=%d, in_flow=%d)", (unsigned long)params_tag,
-         ctrl->is_locked, in_flow());
+    LOGE("BLOCKED: Invalid state for screen %lu", (unsigned long)params_tag);
     return;
   }
 
@@ -951,6 +699,9 @@ void display_controller_show_screen(display_controller_t* ctrl, pb_size_t params
   ctrl->show_screen.duration_ms = duration_ms;
   // Note: which_params is already set by the caller
 
+  // Set display flags (includes rotation setting from board_id)
+  ctrl->show_screen.flags = s_display_flags;
+
   // Create command with the full show_screen struct
   fwpb_display_command cmd = {.which_command = fwpb_display_command_show_screen_tag,
                               .command = {.show_screen = ctrl->show_screen}};
@@ -958,28 +709,106 @@ void display_controller_show_screen(display_controller_t* ctrl, pb_size_t params
   display_controller_send_command(&cmd);
 }
 
-static bool handle_global_buttons(display_controller_t* ctrl, const button_event_payload_t* event) {
-  // R-long press = lock device (works from any state)
-  if (event->type == BUTTON_PRESS_LONG_STOP && event->button == BUTTON_RIGHT) {
-    lock_device();
-    return true;
+void display_controller_set_rotation(bool rotate_180) {
+  if (rotate_180) {
+    s_display_flags |= fwpb_display_flag_DISPLAY_FLAG_ROTATE_180;
+  } else {
+    s_display_flags &= ~fwpb_display_flag_DISPLAY_FLAG_ROTATE_180;
   }
+}
 
-#ifdef MFGTEST
-  // L-long press = start run-in test (works from any state, mfgtest builds only)
-  if (event->type == BUTTON_PRESS_LONG_STOP && event->button == BUTTON_LEFT) {
-    LOGI("Starting run-in test via long-left button");
-    enter_flow(FLOW_MFG, NULL);
-    return true;
+// ========================================================================
+// Display Action Handlers
+// ========================================================================
+void display_controller_handle_action_approve(void) {
+  const flow_handler_t* handler = flow_handlers[controller.current_flow];
+  if (handler && handler->on_action) {
+    flow_action_result_t result = handler->on_action(
+      &controller, fwpb_display_action_display_action_type_DISPLAY_ACTION_APPROVE, 0);
+    handle_flow_action_result(result);
   }
+}
+
+void display_controller_handle_action_cancel(void) {
+  const flow_handler_t* handler = flow_handlers[controller.current_flow];
+  if (handler && handler->on_action) {
+    flow_action_result_t result = handler->on_action(
+      &controller, fwpb_display_action_display_action_type_DISPLAY_ACTION_CANCEL, 0);
+    handle_flow_action_result(result);
+  }
+}
+
+void display_controller_handle_action_back(void) {
+  const flow_handler_t* handler = flow_handlers[controller.current_flow];
+  if (handler && handler->on_action) {
+    flow_action_result_t result = handler->on_action(
+      &controller, fwpb_display_action_display_action_type_DISPLAY_ACTION_BACK, 0);
+    handle_flow_action_result(result);
+  }
+}
+
+void display_controller_handle_action_exit(void) {
+  display_controller_handle_action_exit_with_data(0);
+}
+
+void display_controller_handle_action_exit_with_data(uint32_t data) {
+  const flow_handler_t* handler = flow_handlers[controller.current_flow];
+  if (handler && handler->on_action) {
+    flow_action_result_t result = handler->on_action(
+      &controller, fwpb_display_action_display_action_type_DISPLAY_ACTION_EXIT, data);
+    handle_flow_action_result(result);
+  }
+}
+
+void display_controller_handle_action_menu(void) {
+  const flow_handler_t* handler = flow_handlers[controller.current_flow];
+  if (handler && handler->on_action) {
+    flow_action_result_t result = handler->on_action(
+      &controller, fwpb_display_action_display_action_type_DISPLAY_ACTION_MENU, 0);
+    handle_flow_action_result(result);
+  }
+}
+
+void display_controller_handle_action_lock_device(void) {
+  lock_device();
+}
+
+void display_controller_handle_action_power_off(void) {
+#ifdef EMBEDDED_BUILD
+  ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF);
+#endif
+  display_controller_handle_action_exit();
+}
+
+void display_controller_handle_action_start_enrollment(void) {
+  LOGI("handle_action_start_enrollment: current_flow=%d", controller.current_flow);
+  if (controller.current_flow != FLOW_FINGERPRINT_MGMT) {
+    LOGI("Not in FINGERPRINT_MGMT flow, entering it");
+    enter_flow(FLOW_FINGERPRINT_MGMT, NULL);
+  } else {
+    LOGI("Already in FINGERPRINT_MGMT flow, triggering enrollment");
+
+#ifdef EMBEDDED_BUILD
+    // Trigger actual biometric enrollment via auth task
+    static SHARED_TASK_DATA auth_start_fingerprint_enrollment_internal_t cmd;
+    cmd.index = controller.nav.fingerprint.slot_index;
+    strncpy(cmd.label, "Finger", sizeof(cmd.label) - 1);
+    ipc_send(auth_port, &cmd, sizeof(cmd), IPC_AUTH_START_FINGERPRINT_ENROLLMENT_INTERNAL);
+    LOGI("Sent IPC to start enrollment at index %d", cmd.index);
 #endif
 
-  // R-single press = menu access (only when unlocked and not in a flow)
-  if ((event->type == BUTTON_PRESS_SINGLE) && (event->button == BUTTON_RIGHT) &&
-      (!ctrl->is_locked && !in_flow())) {
-    enter_flow(FLOW_MENU, NULL);
-    return true;
+    // Also send event to update UI
+    const flow_handler_t* handler = flow_handlers[controller.current_flow];
+    if (handler && handler->on_event) {
+      flow_action_result_t result =
+        handler->on_event(&controller, UI_EVENT_ENROLLMENT_START, NULL, 0);
+      handle_flow_action_result(result);
+    }
   }
+}
 
-  return false;  // Not handled, pass to flow handler
+void display_controller_handle_action_delete_fingerprint(uint8_t fingerprint_index) {
+  if (fingerprint_index < 3) {
+    display_controller_delete_fingerprint(fingerprint_index);
+  }
 }

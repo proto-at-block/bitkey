@@ -14,6 +14,7 @@ import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -78,6 +79,7 @@ class RelationshipsServiceImplTests : FunSpec({
   val accountService = AccountServiceFake()
   val accountConfigService = AccountConfigServiceFake()
   val clock = ClockFake()
+  val syncFrequency = 100.milliseconds
 
   fun TestScope.relationshipsService(backgroundScope: CoroutineScope): RelationshipsServiceImpl {
     relationshipsF8eFake = RelationshipsF8eClientFake(
@@ -96,7 +98,7 @@ class RelationshipsServiceImplTests : FunSpec({
       accountService = accountService,
       appCoroutineScope = backgroundScope,
       clock = clock,
-      relationshipsSyncFrequency = RelationshipsSyncFrequency(100.milliseconds),
+      relationshipsSyncFrequency = RelationshipsSyncFrequency(syncFrequency),
       accountConfigService = accountConfigService
     )
   }
@@ -236,8 +238,9 @@ class RelationshipsServiceImplTests : FunSpec({
       relationshipsF8eFake.endorsedTrustedContacts += tcAliceUnverified
       relationshipsF8eFake.endorsedTrustedContacts += tcBobUnverified
 
-      // App is still in background
-      expectNoEvents()
+      // App is still in background - wait longer than sync frequency to ensure
+      // the ticker has fired and been filtered due to background state
+      awaitNoEvents(timeout = syncFrequency * 2)
 
       appSessionManager.appDidEnterForeground()
       awaitItem()
@@ -281,7 +284,8 @@ class RelationshipsServiceImplTests : FunSpec({
 
     val result = service.retrieveInvitation(
       account = FullAccountMock,
-      invitationCode = "deadbeef,server123"
+      invitationCode = "deadbeef,server123",
+      expectedRole = null
     )
 
     result.shouldBeErrOfType<RetrieveInvitationCodeError.ExpiredInvitationCode>()

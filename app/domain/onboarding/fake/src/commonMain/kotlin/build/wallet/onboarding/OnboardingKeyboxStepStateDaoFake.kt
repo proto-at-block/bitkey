@@ -35,9 +35,9 @@ class OnboardingKeyboxStepStateDaoFake : OnboardingKeyboxStepStateDao {
   }
 
   override suspend fun clear(): Result<Unit, Error> {
-    descriptorBackupStateFlow = MutableStateFlow(Incomplete)
-    cloudBackupStateFlow = MutableStateFlow(Incomplete)
-    notificationPreferencesStateFlow = MutableStateFlow(Incomplete)
+    descriptorBackupStateFlow.emit(Incomplete)
+    cloudBackupStateFlow.emit(Incomplete)
+    notificationPreferencesStateFlow.emit(Incomplete)
     return Ok(Unit)
   }
 }

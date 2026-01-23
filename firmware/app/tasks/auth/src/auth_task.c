@@ -20,10 +20,9 @@
 #include "ui_messaging.h"
 #include "unlock.h"
 
-#define INVALID_FINGERPRINT_INDEX 0xFF
-
 #define RATE_LIMIT_MS      (1000)
 #define RATE_LIMIT_FAIL_MS (1000)
+#define AUTH_EXPIRY_MS     (60000)
 
 typedef struct {
   bool enrollment_in_progress;
@@ -32,45 +31,16 @@ typedef struct {
   char label[BIO_LABEL_MAX_LEN];
 } enrollment_ctx_t;
 
-typedef enum {
-  UNSPECIFIED = 0,
-  BIOMETRICS = 1,
-  UNLOCK_SECRET = 2,
-} unlock_method_t;
-
-typedef struct {
-  secure_bool_t authenticated;
-  secure_bool_t allow_fingerprint_enrollment;
-  // Below state is only valid if authenticated is true. It's purely informational,
-  // and should not be used for any security sensitive operations.
-  unlock_method_t method;
-  bio_template_id_t fingerprint_index;
-} auth_state_t;
-
-// TODO(W-6614): Remove SHARED_TASK_DATA and replace with IPC.
-auth_state_t auth_state SHARED_TASK_DATA = {
-  .authenticated = SECURE_FALSE,
-  .allow_fingerprint_enrollment = SECURE_FALSE,
-  .method = UNSPECIFIED,
-  .fingerprint_index = BIO_TEMPLATE_ID_INVALID,
-};
-
 static struct {
   rtos_thread_t* main_thread_handle;
   rtos_thread_t* matching_thread_handle;
   rtos_queue_t* queue;
-  uint32_t auth_expiry_ms;
-  rtos_timer_t unlock_timer;
-  rtos_mutex_t auth_lock;
   enrollment_ctx_t current_enrollment_ctx;
   bio_enroll_stats_t enroll_stats;
   uint32_t timestamp;
 } auth_priv SHARED_TASK_DATA = {
   .main_thread_handle = NULL,
   .queue = NULL,
-  .auth_expiry_ms = 60000,  // Expire after 60 seconds.
-  .unlock_timer = {0},
-  .auth_lock = {0},
   .current_enrollment_ctx =
     {
       .enrollment_in_progress = false,
@@ -109,7 +79,7 @@ static void finger_down_animation(void) {
   // NOTE: Strictly speaking, we should also check if a red animation is playing, and if so, play a
   // different fade. But in practice, the rate limit for bad fingerprints is high enough that the
   // transition from fading-out red to white doesn't look bad.
-  if (auth_state.authenticated == SECURE_TRUE) {
+  if (is_authenticated() == SECURE_TRUE) {
     UI_SHOW_EVENT(UI_EVENT_FINGER_DOWN_FROM_UNLOCKED);
   } else {
     UI_SHOW_EVENT(UI_EVENT_FINGER_DOWN_FROM_LOCKED);
@@ -136,67 +106,12 @@ static void lock_animation(bool previously_authenticated) {
   }
 }
 
-NO_OPTIMIZE void set_authenticated(secure_bool_t state, bool show_animation) {
-  rtos_mutex_lock(&auth_priv.auth_lock);
-
-  secure_bool_t prev_state = auth_state.authenticated;
-
-  auth_state.authenticated = state;
-
-  SECURE_IF_FAILOUT(state == SECURE_TRUE) {
-    // Unlocked
-    rtos_timer_stop(&auth_priv.unlock_timer);
-    rtos_timer_start(&auth_priv.unlock_timer, auth_priv.auth_expiry_ms);
-    sleep_stop_power_timer();
+// Callback: called when device locks (from lib/auth)
+static void on_lock(bool show_animation) {
+  if (show_animation) {
+    lock_animation(true);
   }
-  else {
-    // Locked
-    if (show_animation) {
-      lock_animation((prev_state == SECURE_TRUE));
-    }
-    rtos_timer_stop(&auth_priv.unlock_timer);
-    sleep_start_power_timer();
-  }
-
-  rtos_mutex_unlock(&auth_priv.auth_lock);
-}
-
-NO_OPTIMIZE secure_bool_t refresh_auth(void) {
-  secure_bool_t authed = is_authenticated();
-  SECURE_IF_FAILOUT(authed == SECURE_TRUE) {
-    // Refresh auth timer
-    rtos_timer_stop(&auth_priv.unlock_timer);
-    rtos_timer_start(&auth_priv.unlock_timer, auth_priv.auth_expiry_ms);
-    return SECURE_TRUE;
-  }
-  return SECURE_FALSE;
-}
-
-NO_OPTIMIZE secure_bool_t is_authenticated(void) {
-#if AUTOMATED_TESTING
-  return SECURE_TRUE;
-#else
-  rtos_mutex_lock(&auth_priv.auth_lock);
-  secure_bool_t result = SECURE_FALSE;
-  SECURE_DO_FAILOUT(auth_state.authenticated == SECURE_TRUE, { result = SECURE_TRUE; });
-  rtos_mutex_unlock(&auth_priv.auth_lock);
-  return result;
-#endif
-}
-
-NO_OPTIMIZE secure_bool_t is_allowing_fingerprint_enrollment(void) {
-  rtos_mutex_lock(&auth_priv.auth_lock);
-  secure_bool_t result = SECURE_FALSE;
-  SECURE_DO_FAILOUT(auth_state.allow_fingerprint_enrollment == SECURE_TRUE,
-                    { result = SECURE_TRUE; });
-  rtos_mutex_unlock(&auth_priv.auth_lock);
-  return result;
-}
-
-void present_grant_for_fingerprint_enrollment(void) {
-  rtos_mutex_lock(&auth_priv.auth_lock);
-  auth_state.allow_fingerprint_enrollment = SECURE_TRUE;
-  rtos_mutex_unlock(&auth_priv.auth_lock);
+  ipc_send_empty(key_manager_port, IPC_KEY_MANAGER_CLEAR_DERIVED_KEY_CACHE);
 }
 
 // ========== Internal fingerprint command handlers ==========
@@ -243,7 +158,8 @@ NO_OPTIMIZE void handle_get_enrolled_fingerprints_internal(ipc_ref_t* UNUSED(mes
 NO_OPTIMIZE void handle_delete_fingerprint_internal(ipc_ref_t* message) {
   auth_delete_fingerprint_internal_t* cmd = (auth_delete_fingerprint_internal_t*)message->object;
 
-  bool success = bio_storage_delete_template(cmd->index);
+  bio_err_t err = bio_storage_delete_template(cmd->index);
+  bool success = (err == BIO_ERR_NONE);
 
   LOGD("[Auth] Deleted fingerprint at slot %d: %s", cmd->index, success ? "success" : "failed");
 
@@ -253,26 +169,6 @@ NO_OPTIMIZE void handle_delete_fingerprint_internal(ipc_ref_t* message) {
   } else {
     UI_SHOW_EVENT(UI_EVENT_FINGERPRINT_DELETE_FAILED);
   }
-}
-
-static void reset_auth_state(void) {
-  auth_state.method = UNSPECIFIED;
-  auth_state.fingerprint_index = BIO_TEMPLATE_ID_INVALID;
-}
-
-NO_OPTIMIZE static void internal_deauthenticate(void) {
-  reset_auth_state();
-  ipc_send_empty(key_manager_port, IPC_KEY_MANAGER_CLEAR_DERIVED_KEY_CACHE);
-}
-
-NO_OPTIMIZE void deauthenticate(void) {
-  set_authenticated(SECURE_FALSE, true);
-  internal_deauthenticate();
-}
-
-void deauthenticate_without_animation(void) {
-  set_authenticated(SECURE_FALSE, false);
-  internal_deauthenticate();
 }
 
 void enroll_failed_animation(void) {
@@ -285,21 +181,14 @@ void enroll_failed_animation(void) {
   }
 }
 
-// Helper method to set the authenticated state plus the unlock method.
-NO_OPTIMIZE static void set_authenticated_via_fingerprint(void) {
-  set_authenticated(SECURE_TRUE, true);
-  auth_state.method = BIOMETRICS;
-  // fingerprint_index is set in the matching thread.
+NO_OPTIMIZE static void set_authenticated_via_fingerprint(uint8_t fingerprint_index) {
+  auth_authenticate_biometrics(fingerprint_index);
 }
 
 NO_OPTIMIZE void handle_match_fail(void) {
   LOGE("Failed when trying to match fingerprint");
   deauthenticate_without_animation();
   rtos_thread_sleep(RATE_LIMIT_FAIL_MS);
-}
-
-NO_OPTIMIZE void unlock_timer_callback(rtos_timer_handle_t UNUSED(timer)) {
-  SECURE_DO({ deauthenticate(); });
 }
 
 NO_OPTIMIZE void handle_start_fingerprint_enrollment(ipc_ref_t* message) {
@@ -450,7 +339,6 @@ void handle_unlock_secret(ipc_ref_t* message) {
                         &rsp->msg.send_unlock_secret_rsp.retry_counter);
   if (err == UNLOCK_OK) {
     UI_SHOW_EVENT(UI_EVENT_AUTH_SUCCESS);
-    auth_state.method = UNLOCK_SECRET;
   }
   rsp->status = unlock_err_to_fwpb_status(err);
 
@@ -615,7 +503,7 @@ void handle_get_unlock_method(ipc_ref_t* message) {
 
   // This endpoint requires auth. So, at this point, we're *should* be guaranteed to have some kind
   // of valid state.
-  if (auth_state.authenticated != SECURE_TRUE) {
+  if (is_authenticated() != SECURE_TRUE) {
     // Double check that we're authenticated. Not a security sensitive check.
     rsp->status = fwpb_status_UNAUTHENTICATED;
     goto out;
@@ -626,11 +514,11 @@ void handle_get_unlock_method(ipc_ref_t* message) {
   rsp->msg.get_unlock_method_rsp.fingerprint_index = BIO_TEMPLATE_ID_INVALID;
 
   // IMPORTANT: Must match unlock_method in wallet.proto
-  rsp->msg.get_unlock_method_rsp.method =
-    (fwpb_get_unlock_method_rsp_unlock_method)auth_state.method;
+  auth_unlock_method_t method = auth_get_unlock_method();
+  rsp->msg.get_unlock_method_rsp.method = (fwpb_get_unlock_method_rsp_unlock_method)method;
 
-  if (auth_state.method == BIOMETRICS) {
-    rsp->msg.get_unlock_method_rsp.fingerprint_index = auth_state.fingerprint_index;
+  if (method == AUTH_METHOD_BIOMETRICS) {
+    rsp->msg.get_unlock_method_rsp.fingerprint_index = auth_get_fingerprint_index();
   }
 
 out:
@@ -814,8 +702,7 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
         grant_protocol_delete_outstanding_request();
 
         // If enrollment was successful, then unlock the device.
-        set_authenticated_via_fingerprint();
-        auth_state.fingerprint_index = used_index;
+        set_authenticated_via_fingerprint(used_index);
 
         // Clear the enrollment rest animation now that enrollment is complete
         UI_SET_IDLE_STATE(UI_EVENT_NO_IDLE);
@@ -833,7 +720,8 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
 
       // Fingerprint matching.
       secure_bool_t matched = SECURE_FALSE;
-      if (bio_authenticate_finger(&matched, &auth_state.fingerprint_index, auth_priv.timestamp) !=
+      bio_template_id_t fingerprint_index = 0;
+      if (bio_authenticate_finger(&matched, &fingerprint_index, auth_priv.timestamp) !=
           SECURE_TRUE) {
         handle_match_fail();
         goto wait_for_up;
@@ -842,7 +730,7 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
       // Only update authentication state if match was okay.
       // Also check that no glitches have been detected since the last run of this thread loop.
       SECURE_DO_FAILOUT((matched == SECURE_TRUE) && (glitch_count == secure_glitch_get_count()), {
-        set_authenticated_via_fingerprint();
+        set_authenticated_via_fingerprint(fingerprint_index);
 
         // Reset retry unlock counter on successful fingerprint match.
         unlock_err_t unlock_err = unlock_reset_retry_counter();
@@ -860,8 +748,7 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
 }
 
 void auth_task_create(bool no_threads) {
-  rtos_mutex_create(&auth_priv.auth_lock);
-  rtos_timer_create_static(&auth_priv.unlock_timer, unlock_timer_callback);
+  auth_init((auth_config_t){.expiry_ms = AUTH_EXPIRY_MS}, (auth_callbacks_t){.on_lock = on_lock});
 
   if (no_threads) {
     // An unfortunate workaround, but: the mfgtest image calls functions that require

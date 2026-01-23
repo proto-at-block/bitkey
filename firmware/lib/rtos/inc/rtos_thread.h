@@ -64,6 +64,7 @@ void rtos_thread_create_static(rtos_thread_t* thread, void (*func)(void*), const
 void rtos_thread_delete(rtos_thread_t* thread);
 void rtos_thread_start_scheduler(void);
 void rtos_thread_sleep(const uint32_t time_ms);
+void rtos_thread_sleep_until(uint32_t* last_wake_time_ms, const uint32_t period_ms);
 uint32_t rtos_thread_systime(void);
 uint64_t rtos_thread_micros(void);
 

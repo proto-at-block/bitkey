@@ -54,6 +54,7 @@ pub use fingerprint::{
 pub use fwup::FwupFinish;
 pub use fwup::FwupMode;
 pub use fwup::FwupStart;
+pub use fwup::FwupStartResult;
 pub use fwup::FwupTransfer;
 pub use generate_keys::find_next_bip84_derivation;
 pub use generate_keys::GetInitialSpendingKey;

@@ -1,10 +1,10 @@
 #include "attributes.h"
 #include "filesystem.h"
 #include "secure_rng.h"
-#include "secutils.h"
 #include "seed_impl.h"
 #include "wallet.h"
 #include "wkek.h"
+#include "wstring.h"
 
 typedef struct {
   uint8_t bytes[SEED_SIZE];

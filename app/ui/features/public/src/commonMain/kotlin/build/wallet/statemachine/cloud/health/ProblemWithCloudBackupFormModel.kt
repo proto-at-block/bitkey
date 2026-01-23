@@ -1,5 +1,6 @@
 package build.wallet.statemachine.cloud.health
 
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -13,7 +14,7 @@ data class ProblemWithCloudBackupFormModel(
   val onClose: () -> Unit,
   val onContinue: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = CloudEventTrackerScreenId.CLOUD_BACKUP_PROBLEM,
     onBack = onClose,
     toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClose)),
     header = FormHeaderModel(

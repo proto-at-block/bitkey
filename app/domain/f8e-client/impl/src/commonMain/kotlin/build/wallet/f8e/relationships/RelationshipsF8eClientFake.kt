@@ -188,6 +188,7 @@ class RelationshipsF8eClientFake(
   override suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
+    expectedRole: TrustedContactRole?,
   ): Result<IncomingInvitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> {
     return Ok(
       IncomingInvitation(

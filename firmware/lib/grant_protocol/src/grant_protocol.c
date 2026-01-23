@@ -9,8 +9,8 @@
 #include "log.h"
 #include "policy.h"
 #include "secure_rng.h"
-#include "secutils.h"
 #include "wallet.h"
+#include "wstring.h"
 
 #include <string.h>
 

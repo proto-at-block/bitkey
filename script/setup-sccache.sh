@@ -18,6 +18,7 @@
 #   SCCACHE_REGION: AWS region
 #   SCCACHE_S3_KEY_PREFIX: Full S3 key prefix (overrides computed value)
 #   SCCACHE_IDLE_TIMEOUT: Server idle timeout in seconds (default: 0)
+#   SCCACHE_IGNORE_SERVER_IO_ERROR: Set to "0" to fail builds on cache errors (default: 1)
 #
 
 set -euo pipefail
@@ -30,7 +31,7 @@ readonly BUCKET_DEFAULT="000000000000-bitkey-actions-ci-cache"
 readonly REGION_DEFAULT="us-west-2"
 
 err() {
-  echo "sccache: $1" >&2
+  echo "sccache: ERROR: $1" >&2
 }
 
 warn() {
@@ -157,16 +158,26 @@ main() {
 
   # Configure S3 backend only in CI environments with credentials.
   # Local builds use disk cache (~/.cache/sccache) instead.
+  local s3_enabled=false
   if [[ "${scope}" != "local" ]] && configure_creds; then
-    set_env_var "SCCACHE_BUCKET" "${bucket}"
-    set_env_var "SCCACHE_REGION" "${region}"
-    set_env_var "SCCACHE_S3_KEY_PREFIX" "${prefix}"
+    # Verify bucket access before enabling S3 cache. Fall back to local cache on permission errors.
+    if aws s3 ls "s3://${bucket}/" --max-items 1 >/dev/null 2>&1; then
+      set_env_var "SCCACHE_BUCKET" "${bucket}"
+      set_env_var "SCCACHE_REGION" "${region}"
+      set_env_var "SCCACHE_S3_KEY_PREFIX" "${prefix}"
+      s3_enabled=true
+    else
+      err "Cannot access S3 bucket ${bucket}. Falling back to local disk cache (no caching benefit on ephemeral CI)."
+    fi
   elif [[ "${scope}" != "local" ]]; then
     warn "AWS credentials not detected. S3 cache disabled. Check CI worker IAM configuration."
   fi
 
   set_env_var "CARGO_INCREMENTAL" "0"
   set_env_var "SCCACHE_IDLE_TIMEOUT" "${SCCACHE_IDLE_TIMEOUT:-0}"
+  # Graceful fallback by default: compile locally on server IO errors instead of failing the build.
+  # Allow override via SCCACHE_IGNORE_SERVER_IO_ERROR (e.g., set to "0" to fail on cache errors).
+  set_env_var "SCCACHE_IGNORE_SERVER_IO_ERROR" "${SCCACHE_IGNORE_SERVER_IO_ERROR:-1}"
 
   # Ensure sccache is available and start the server.
   if ! ensure_sccache; then
@@ -176,10 +187,10 @@ main() {
   set_env_var "RUSTC_WRAPPER" "${RUSTC_WRAPPER:-sccache}"
 
   if start_server; then
-    if [[ "${scope}" == "local" ]]; then
-      echo "sccache: enabled (local disk cache)"
-    else
+    if [[ "${s3_enabled}" == "true" ]]; then
       echo "sccache: enabled (bucket=${bucket}, prefix=${prefix})"
+    else
+      echo "sccache: enabled (local disk cache)"
     fi
   fi
 }

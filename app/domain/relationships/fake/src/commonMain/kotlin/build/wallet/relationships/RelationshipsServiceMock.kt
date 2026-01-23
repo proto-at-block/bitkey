@@ -106,6 +106,7 @@ class RelationshipsServiceMock(
   override suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
+    expectedRole: TrustedContactRole?,
   ): Result<IncomingInvitation, RetrieveInvitationCodeError> {
     return retrieveInvitationResult.andThen { invitation ->
       if (invitation.expiresAt < clock.now()) {

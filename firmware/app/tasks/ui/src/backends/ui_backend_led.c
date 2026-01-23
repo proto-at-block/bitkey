@@ -217,10 +217,6 @@ static void led_backend_clear(void) {
   led_state.animation = NULL;
 }
 
-static const char* led_backend_get_name(void) {
-  return "LED";
-}
-
 static void led_backend_run(void) {
   if (led_state.initialized) {
     run_animation_step();
@@ -236,8 +232,8 @@ static const ui_backend_ops_t led_backend_ops = {
   .show_event_with_data = led_backend_show_event_with_data,
   .set_idle_state = led_backend_set_idle_state,
   .clear = led_backend_clear,
+  .handle_display_action = NULL,
   .run = led_backend_run,
-  .get_name = led_backend_get_name,
 };
 
 // Backend registration function

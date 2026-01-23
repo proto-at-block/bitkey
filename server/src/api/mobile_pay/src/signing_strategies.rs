@@ -26,6 +26,7 @@ use instrumentation::metrics::KeyValue;
 use instrumentation::middleware::CLIENT_REQUEST_CONTEXT;
 use screener::service::Service as ScreenerService;
 use std::sync::Arc;
+use tracing::warn;
 use types::account::entities::{Account, FullAccount, TransactionVerificationPolicy};
 use types::account::identifiers::KeysetId;
 use types::account::spending::SpendingKeyset;
@@ -159,18 +160,13 @@ impl SigningStrategy for MobilePaySigningStrategy {
             .sign_transaction(&self.rpc_uris, &self.signing_method, &self.keyset_id)
             .await?;
 
-        self.emit_success_metric();
-
         let signed_psbt = broadcaster.finalized_psbt();
+        let txid = signed_psbt.unsigned_tx.txid();
 
-        if self
-            .signed_psbt_cache_service
-            .get(signed_psbt.unsigned_tx.txid())
-            .await?
-            .is_none()
-        {
-            // Save the PSBT to cache so if the client retries the request,
-            // we can avoid double-counting Mobile Pay spend limits.
+        let cache_hit = self.signed_psbt_cache_service.get(txid).await?.is_some();
+
+        if !cache_hit {
+            // Persist state before broadcasting; if broadcast fails, we'll roll back.
             self.signed_psbt_cache_service
                 .put(signed_psbt.clone())
                 .await?;
@@ -180,7 +176,36 @@ impl SigningStrategy for MobilePaySigningStrategy {
                 .await?;
         }
 
-        broadcaster.broadcast_transaction(&self.rpc_uris, self.network)?;
+        if let Err(error) = broadcaster.broadcast_transaction(&self.rpc_uris, self.network) {
+            if !cache_hit {
+                // Best-effort rollback so failed broadcasts don't count against limits.
+                if let Err(rollback_err) = self.signed_psbt_cache_service.delete(txid).await {
+                    warn!(
+                        ?txid,
+                        ?rollback_err,
+                        "failed to roll back PSBT cache after broadcast error"
+                    );
+                }
+                if let Err(rollback_err) = self
+                    .daily_spend_record_service
+                    .remove_spending_entry(
+                        &self.today_spending_record.account_id,
+                        self.today_spending_record.date,
+                        &txid,
+                    )
+                    .await
+                {
+                    warn!(
+                        ?txid,
+                        ?rollback_err,
+                        "failed to roll back daily spend record after broadcast error"
+                    );
+                }
+            }
+            return Err(error);
+        }
+
+        self.emit_success_metric();
 
         Ok(signed_psbt)
     }

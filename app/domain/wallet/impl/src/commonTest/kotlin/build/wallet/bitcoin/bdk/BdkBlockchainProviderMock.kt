@@ -14,6 +14,7 @@ import kotlin.time.Duration
 class BdkBlockchainProviderMock(
   turbine: (String) -> Turbine<Any?>,
   var blockchainResult: BdkResult<BdkBlockchain> = Ok(BdkBlockchainMock),
+  var legacyBlockchainResult: BdkResult<BdkBlockchain> = Ok(BdkBlockchainMock),
   var getBlockchainResult: BdkResult<BdkBlockchainHolder> =
     Ok(
       BdkBlockchainHolder(
@@ -23,11 +24,13 @@ class BdkBlockchainProviderMock(
     ),
 ) : BdkBlockchainProvider {
   companion object {
+    private const val DEFAULT_TXID = "default-txid"
+
     val BdkBlockchainMock =
       BdkBlockchainMock(
         blockHeightResult = Ok(1),
         blockHashResult = Ok(BitcoinNetworkType.BITCOIN.chainHash()),
-        broadcastResult = Ok(Unit),
+        broadcastResult = Ok(DEFAULT_TXID),
         feeRateResult = Ok(1f),
         getTxResult = Ok(BdkTransactionMock(output = listOf(BdkTxOutMock)))
       )
@@ -42,10 +45,16 @@ class BdkBlockchainProviderMock(
   }
 
   val blockchainCalls = turbine("blockchain calls")
+  val legacyBlockchainCalls = turbine("legacy blockchain calls")
 
   override suspend fun blockchain(electrumServer: ElectrumServer?): BdkResult<BdkBlockchain> {
     blockchainCalls += electrumServer
     return blockchainResult
+  }
+
+  override suspend fun legacyBlockchain(electrumServer: ElectrumServer?): BdkResult<BdkBlockchain> {
+    legacyBlockchainCalls += electrumServer
+    return legacyBlockchainResult
   }
 
   override suspend fun getBlockchain(
@@ -55,6 +64,7 @@ class BdkBlockchainProviderMock(
 
   fun reset() {
     blockchainResult = Ok(BdkBlockchainMock)
+    legacyBlockchainResult = Ok(BdkBlockchainMock)
     getBlockchainResult =
       Ok(
         BdkBlockchainHolder(

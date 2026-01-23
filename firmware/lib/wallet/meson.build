@@ -15,6 +15,7 @@ deps = [
   log_dep,
   protos_dep,
   bitlog_dep,
+  wstd_dep,
 ]
 includes = ['inc']
 private_includes = ['src']

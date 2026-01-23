@@ -88,6 +88,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun provideNfcSessionRetryAttemptsFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    NfcSessionRetryAttemptsFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun fingerprintResetFeatureFlag(featureFlagDao: FeatureFlagDao) =
     FingerprintResetFeatureFlag(featureFlagDao)
 
@@ -193,6 +198,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun augurFeeComparisonLoggingFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    AugurFeeComparisonLoggingFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun cloudBackupForceReuploadTimestampFeatureFlag(featureFlagDao: FeatureFlagDao) =
     CloudBackupForceReuploadTimestampFeatureFlag(featureFlagDao)
 
@@ -233,6 +243,7 @@ interface FeatureFlagsComponent {
     augurFeesEstimationFeatureFlag: AugurFeesEstimationFeatureFlag,
     keysetRepairFeatureFlag: KeysetRepairFeatureFlag,
     ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag,
+    augurFeeComparisonLoggingFeatureFlag: AugurFeeComparisonLoggingFeatureFlag,
     cloudBackupForceReuploadTimestampFeatureFlag: CloudBackupForceReuploadTimestampFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
@@ -261,6 +272,7 @@ interface FeatureFlagsComponent {
       augurFeesEstimationFeatureFlag,
       keysetRepairFeatureFlag,
       ageRangeVerificationFeatureFlag,
+      augurFeeComparisonLoggingFeatureFlag,
       // these are long-lived feature flags that are not for actively developing features
       // pushing towards the bottom
       utxoMaxConsolidationCountFeatureFlag,

@@ -5,8 +5,8 @@
 #include "log.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
-#include "secutils.h"
 #include "wallet.pb.h"
+#include "wstring.h"
 
 fwpb_wallet_cmd* proto_get_cmd(uint8_t* serialized_cmd, uint32_t length) {
   ASSERT(serialized_cmd);

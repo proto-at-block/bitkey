@@ -1,5 +1,18 @@
 package build.wallet.analytics.events.screen.id
 
+/**
+ * Screen IDs for inheritance-related screens.
+ *
+ * Note: This file uses PascalCase naming (e.g., `StartClaimEducationScreen`) instead of the
+ * standard SCREAMING_SNAKE_CASE convention (e.g., `START_CLAIM_EDUCATION_SCREEN`) used in other
+ * EventTrackerScreenId enums. This is a legacy inconsistency that cannot be changed because:
+ * 1. Screen IDs are sent to analytics as-is (using enum name)
+ * 2. Historical analytics data in Snowflake uses these IDs
+ * 3. Changing the names would break existing dashboards and queries
+ *
+ * New screen IDs added to this file should follow SCREAMING_SNAKE_CASE to align with other files,
+ * but existing values must not be renamed.
+ */
 enum class InheritanceEventTrackerScreenId : EventTrackerScreenId {
   /**
    * Initial screen when starting an inheritance claim to explain the process to the user.

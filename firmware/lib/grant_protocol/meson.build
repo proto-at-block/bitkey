@@ -6,6 +6,7 @@ deps = [
   policy_dep,
   log_dep,
   ipc_dep,
+  wstd_dep,
 ]
 
 grant_lib = library('grant',

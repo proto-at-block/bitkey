@@ -34,4 +34,9 @@ impl Service {
     pub async fn put(&self, psbt: Psbt) -> Result<(), SigningError> {
         Ok(self.repo.persist(&CachedPsbtTxid::try_new(psbt)?).await?)
     }
+
+    #[instrument(skip(self))]
+    pub async fn delete(&self, txid: Txid) -> Result<(), SigningError> {
+        Ok(self.repo.delete(txid).await?)
+    }
 }

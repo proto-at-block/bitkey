@@ -1,24 +1,10 @@
 package build.wallet.ui.app.moneyhome.receive
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +34,7 @@ import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.delay
 
 @Composable
 fun AddressQrCodeScreen(
@@ -87,7 +74,8 @@ fun AddressQrCodeScreen(
                   QrCodeWithAddressCard(
                     onCopyClick = content.onCopyClick,
                     addressDisplayString = content.addressDisplayString,
-                    qrCodeState = content.qrCodeState
+                    qrCodeState = content.qrCodeState,
+                    isRefreshing = content.isRefreshing
                   )
                 }
                 Box(
@@ -142,6 +130,7 @@ private fun QrCodeWithAddressCard(
   onCopyClick: () -> Unit = {},
   addressDisplayString: LabelModel,
   qrCodeState: QrCodeState,
+  isRefreshing: Boolean = false,
 ) {
   val interactionSource = remember { MutableInteractionSource() }
   Card(
@@ -186,7 +175,8 @@ private fun QrCodeWithAddressCard(
       }
 
       AddressLabel(
-        address = addressDisplayString
+        address = addressDisplayString,
+        isRefreshing = isRefreshing
       )
     }
   }
@@ -229,14 +219,85 @@ private fun QrCodeError(modifier: Modifier = Modifier) {
 private fun AddressLabel(
   modifier: Modifier = Modifier,
   address: LabelModel,
+  isRefreshing: Boolean = false,
 ) {
-  Label(
+  // Track animation state
+  var displayedAddress by remember { mutableStateOf(address) }
+  var isAnimating by remember { mutableStateOf(false) }
+
+  // Character pool for randomization (valid Bitcoin address characters)
+  val charPool = remember { ('a'..'z') + ('A'..'Z') + ('0'..'9') }
+
+  // Update displayed address when address changes (but not during animation)
+  LaunchedEffect(address, isAnimating) {
+    if (!isAnimating) {
+      displayedAddress = address
+    }
+  }
+
+  // Run animation while isRefreshing is true
+  LaunchedEffect(isRefreshing, address) {
+    if (isRefreshing) {
+      isAnimating = true
+
+      // Get the address string to randomize
+      val addressString = when (address) {
+        is LabelModel.StringModel -> address.string
+        is LabelModel.StringWithStyledSubstringModel -> address.string
+        else -> {
+          isAnimating = false
+          return@LaunchedEffect
+        }
+      }
+
+      // Skip animation if address is just the loading placeholder "..."
+      if (addressString == "...") {
+        isAnimating = false
+        return@LaunchedEffect
+      }
+
+      val frameDelay = 50L // Update every 50ms
+
+      while (isRefreshing) {
+        // Randomize each character (preserve spaces)
+        val randomized = addressString.map { char ->
+          if (char.isWhitespace()) char else charPool.random()
+        }.joinToString("")
+
+        displayedAddress = when (address) {
+          is LabelModel.StringModel -> LabelModel.StringModel(randomized)
+          is LabelModel.StringWithStyledSubstringModel -> {
+            // Keep the styling structure but with randomized text
+            LabelModel.StringModel(randomized)
+          }
+          else -> address
+        }
+
+        delay(frameDelay)
+      }
+
+      // Animation complete - restore actual address
+      displayedAddress = address
+      isAnimating = false
+    } else {
+      // When not refreshing, ensure we show the actual address
+      displayedAddress = address
+      isAnimating = false
+    }
+  }
+
+  // Height accommodates 3 lines of Body2Mono text (typical for chunked address)
+  Box(
     modifier = modifier,
-    model = address,
-    type = LabelType.Body2Mono,
-    alignment = TextAlign.Center,
-    treatment = LabelTreatment.Primary
-  )
+    contentAlignment = Alignment.Center
+  ) {
+    Label(
+      model = displayedAddress,
+      type = LabelType.Body2Mono,
+      alignment = TextAlign.Center,
+      treatment = LabelTreatment.Primary
+    )
+  }
 }
 
 @Composable

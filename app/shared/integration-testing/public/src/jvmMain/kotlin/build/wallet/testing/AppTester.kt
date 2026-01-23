@@ -3,7 +3,7 @@
 package build.wallet.testing
 
 import build.wallet.bdk.bindings.BdkBlockchainFactory
-import build.wallet.bdk.legacy.BdkBlockchainFactoryImpl
+import build.wallet.bdk.bindings.BdkBlockchainFactoryImpl
 import build.wallet.bdk.legacy.BdkDescriptorFactoryImpl
 import build.wallet.bdk.legacy.BdkDescriptorSecretKeyFactoryImpl
 import build.wallet.bitcoin.BitcoinNetworkType

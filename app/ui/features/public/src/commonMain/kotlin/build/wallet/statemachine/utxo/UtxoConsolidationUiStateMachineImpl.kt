@@ -20,12 +20,11 @@ import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.AmountDisplayText
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.money.formatter.amountDisplayText
-import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Loading
 import build.wallet.statemachine.data.money.convertedOrNull
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachineImpl.State.*
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachineImpl.State.ViewingConfirmation.SheetState.*
 import build.wallet.time.DateTimeFormatter
@@ -45,7 +44,7 @@ class UtxoConsolidationUiStateMachineImpl(
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
   private val utxoConsolidationService: UtxoConsolidationService,
-  private val nfcSessionUiStateMachine: NfcSessionUIStateMachine,
+  private val nfcSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
 ) : UtxoConsolidationUiStateMachine {
   private val consolidationTimeExplanation =
     "We selected a 60-minute transfer target to get you the lowest network fees for consolidation."
@@ -162,7 +161,7 @@ class UtxoConsolidationUiStateMachineImpl(
       }
       is SigningConsolidationWithHardware -> {
         nfcSessionUiStateMachine.model(
-          NfcSessionUIStateMachineProps(
+          NfcConfirmableSessionUIStateMachineProps(
             session = { session, commands ->
               commands.signTransaction(
                 session = session,
@@ -170,17 +169,13 @@ class UtxoConsolidationUiStateMachineImpl(
                 spendingKeyset = currentState.account.keybox.activeSpendingKeyset
               )
             },
-            onSuccess = { result ->
-              if (result is HardwareInteraction.Completed<Psbt>) {
-                state = BroadcastingConsolidationTransaction(
-                  account = currentState.account,
-                  consolidationParams = currentState.consolidationParams,
-                  appAndHardwareSignedPsbt = result.result,
-                  consolidationCostDisplayText = currentState.consolidationCostDisplayText
-                )
-              } else {
-                error("An error occurred.")
-              }
+            onSuccess = { psbt: Psbt ->
+              state = BroadcastingConsolidationTransaction(
+                account = currentState.account,
+                consolidationParams = currentState.consolidationParams,
+                appAndHardwareSignedPsbt = psbt,
+                consolidationCostDisplayText = currentState.consolidationCostDisplayText
+              )
             },
             onCancel = {
               state = ViewingConfirmation(currentState.account, currentState.consolidationParams)

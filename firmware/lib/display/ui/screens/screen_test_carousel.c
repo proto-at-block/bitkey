@@ -55,6 +55,9 @@ static void update_text_display_animated(bool swipe_left) {
 
   // Create new label that will slide in
   text_label = lv_label_create(text_container);
+  if (!text_label) {
+    return;
+  }
   lv_label_set_text(text_label, carousel_texts[current_text_index]);
   lv_obj_set_style_text_color(text_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(text_label, &cash_sans_mono_regular_34, 0);
@@ -175,10 +178,16 @@ lv_obj_t* screen_test_carousel_init(void* ctx) {
 
   // Create the screen with black background
   screen = lv_obj_create(NULL);
+  if (!screen) {
+    return NULL;
+  }
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
   // Create text container for top half (swipeable area)
   text_container = lv_obj_create(screen);
+  if (!text_container) {
+    return NULL;
+  }
   lv_obj_set_size(text_container, lv_pct(100), lv_pct(50));
   lv_obj_align(text_container, LV_ALIGN_TOP_MID, 0, 0);
   lv_obj_set_style_bg_color(text_container, CAROUSEL_BG_COLOR, 0);
@@ -189,6 +198,9 @@ lv_obj_t* screen_test_carousel_init(void* ctx) {
 
   // Create text label inside container
   text_label = lv_label_create(text_container);
+  if (!text_label) {
+    return NULL;
+  }
   lv_label_set_text(text_label, carousel_texts[current_text_index]);
   lv_obj_set_style_text_color(text_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(text_label, &cash_sans_mono_regular_34, 0);
@@ -200,18 +212,30 @@ lv_obj_t* screen_test_carousel_init(void* ctx) {
 
   // Create Prev button at bottom left
   prev_button = lv_button_create(screen);
+  if (!prev_button) {
+    return NULL;
+  }
   lv_obj_set_size(prev_button, 130, 65);
   lv_obj_align(prev_button, LV_ALIGN_BOTTOM_LEFT, 60, -60);
   lv_obj_t* prev_label = lv_label_create(prev_button);
+  if (!prev_label) {
+    return NULL;
+  }
   lv_label_set_text(prev_label, "Prev");
   lv_obj_center(prev_label);
   lv_obj_add_event_cb(prev_button, prev_button_handler, LV_EVENT_SHORT_CLICKED, NULL);
 
   // Create Next button at bottom right
   next_button = lv_button_create(screen);
+  if (!next_button) {
+    return NULL;
+  }
   lv_obj_set_size(next_button, 130, 65);
   lv_obj_align(next_button, LV_ALIGN_BOTTOM_RIGHT, -60, -60);
   lv_obj_t* next_label = lv_label_create(next_button);
+  if (!next_label) {
+    return NULL;
+  }
   lv_label_set_text(next_label, "Next");
   lv_obj_center(next_label);
   lv_obj_add_event_cb(next_button, next_button_handler, LV_EVENT_SHORT_CLICKED, NULL);

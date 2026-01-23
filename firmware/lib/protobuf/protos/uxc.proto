@@ -134,8 +134,8 @@ message uxc_msg_device {
     // Status message sent from Host -> Device on boot.
     uxc_boot_status_msg boot_status_msg = 11;
 
-    // Display response from the UXC.
-    display_response display_rsp = 12;
+    // Display action from the UXC (status updates and user actions).
+    display_action display_action = 12;
 
     // Touch event from the UXC.
     display_touch display_touch = 13;

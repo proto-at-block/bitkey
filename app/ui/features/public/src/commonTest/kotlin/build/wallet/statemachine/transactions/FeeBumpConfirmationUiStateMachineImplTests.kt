@@ -18,19 +18,18 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.ktor.result.HttpError
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateServiceFake
-import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.statemachine.BodyStateMachineMock
-import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.send.*
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpConfirmationModel
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpTransactionSentModel
 import io.kotest.core.spec.style.FunSpec
@@ -65,8 +64,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
           )
       ) {},
     exchangeRateService = ExchangeRateServiceFake(),
-    nfcSessionUIStateMachine = object : NfcSessionUIStateMachine,
-      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc") {},
+    nfcSessionUIStateMachine = NfcConfirmableSessionUiStateMachineMock("nfc"),
     transferInitiatedUiStateMachine = object : TransferInitiatedUiStateMachine,
       BodyStateMachineMock<TransferInitiatedUiProps>(
         "transfer-initiated"
@@ -100,9 +98,9 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
         onConfirmClick()
       }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>>("nfc") {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>("nfc") {
         shouldShowLongRunningOperation.shouldBeTrue()
-        onSuccess(HardwareInteraction.Completed(PsbtMock))
+        onSuccess(PsbtMock)
       }
 
       awaitBody<LoadingSuccessBodyModel>()
@@ -129,8 +127,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
         onConfirmClick()
       }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>>("nfc") {
-        onSuccess(HardwareInteraction.Completed(PsbtMock))
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>("nfc") {
+        onSuccess(PsbtMock)
       }
 
       awaitBody<LoadingSuccessBodyModel>()
@@ -152,13 +150,13 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>>("nfc") {
-        onSuccess(HardwareInteraction.Completed(PsbtMock))
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>("nfc") {
+        onSuccess(PsbtMock)
       }
 
       awaitBody<LoadingSuccessBodyModel>()
 
-      awaitBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         val headerModel = header.shouldNotBeNull()
         headerModel.headline.shouldBe("We couldn’t speed up this transaction")
         headerModel.sublineModel.shouldNotBeNull().string.shouldBe(
@@ -175,13 +173,13 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<HardwareInteraction<Psbt>>>("nfc") {
-        onSuccess(HardwareInteraction.Completed(PsbtMock))
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>("nfc") {
+        onSuccess(PsbtMock)
       }
 
       awaitBody<LoadingSuccessBodyModel>()
 
-      awaitBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         val headerModel = header.shouldNotBeNull()
         headerModel.headline.shouldBe("We couldn’t determine fees for this transaction")
         val retryButton = primaryButton.shouldNotBeNull()
@@ -191,7 +189,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
       awaitBody<LoadingSuccessBodyModel>()
 
-      awaitBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("We couldn’t determine fees for this transaction")
       }
 

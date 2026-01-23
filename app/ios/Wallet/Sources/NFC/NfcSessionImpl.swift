@@ -18,24 +18,22 @@ public class NfcSessionImpl: NSObject, NfcSession {
             throw NfcException.IOSOnlyNotAvailable().asError()
         }
 
+        // Kotlin Int maps to Int32 in Swift, convert to Swift Int
+        let maxRetries = Int(parameters.maxNfcRetryAttempts)
+
         // We need to init first before we can reference self when instantiating the delegate
         // object.
         self.parameters = parameters
         self.delegate = nil
         super.init()
         let delegate = NfcSessionDelegate(
+            params: parameters,
             { [weak self] in parameters.onTagConnected(self) },
-            parameters.onTagDisconnected
+            parameters.onTagDisconnected,
+            maxRetries: maxRetries
         )
 
-        if let session = NFCTagReaderSession(pollingOption: .iso14443, delegate: delegate) {
-            delegate.setInitialSession(session: session)
-            session.alertMessage = parameters.needsAuthentication ? NFCStrings
-                .tapInstructions : NFCStrings.tapInstructionsNoAuthNeeded
-            session.begin()
-        } else {
-            throw NfcException.IOSOnlyNoSession(message: nil, cause: nil).asError()
-        }
+        try createAndStartSession(delegate, parameters)
 
         self.delegate = delegate
     }
@@ -104,7 +102,15 @@ private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
     @Published var tag = SessionReadiness.Waiting
     private let onTagConnected: () -> Void
     private let onTagDisconnected: () -> Void
+    private let params: NfcSessionParameters
     private weak var session: NFCTagReaderSession? = nil
+
+    // Retry mechanism for session invalidation
+    private var retryCount = 0
+    private let maxRetries: Int
+    private let retryableErrorCodes: Set<NFCReaderError.Code> = [
+        .readerSessionInvalidationErrorSessionTerminatedUnexpectedly,
+    ]
 
     public var message: String? {
         get { self.session?.alertMessage }
@@ -114,19 +120,30 @@ private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
         }
     }
 
-    init(_ onTagConnected: @escaping () -> Void, _ onTagDisconnected: @escaping () -> Void) {
+    init(
+        params: NfcSessionParameters,
+        _ onTagConnected: @escaping () -> Void,
+        _ onTagDisconnected: @escaping () -> Void,
+        maxRetries: Int = 3
+    ) {
         self.onTagConnected = onTagConnected
         self.onTagDisconnected = onTagDisconnected
+        self.params = params
+        self.maxRetries = maxRetries
     }
 
-    func setInitialSession(session: NFCTagReaderSession) {
-        guard self.session == nil else { return }
+    func setSession(session: NFCTagReaderSession) {
+        self.session?.invalidate() // Clean up previous session
         self.session = session
     }
 
     func reconnect() {
         self.tag = .Waiting
         self.session?.restartPolling()
+    }
+
+    func resetRetryCount() {
+        self.retryCount = 0
     }
 
     func close() {
@@ -138,14 +155,72 @@ private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
         self.session = session
     }
 
-    public func tagReaderSession(_: NFCTagReaderSession, didInvalidateWithError error: Error) {
-        log(.debug, tag: "NFC") { "Invalidating NFC session: \(error)" }
+    public func tagReaderSession(
+        _ session: NFCTagReaderSession,
+        didInvalidateWithError error: Error
+    ) {
+        // Ignore callbacks from old sessions during retry
+        guard session === self.session else {
+            log(.debug, tag: "NFC") { "Ignoring invalidation from old session" }
+            return
+        }
+
+        log(.debug, tag: "NFC") {
+            "NFC session invalidated: \(error), retry count: \(self.retryCount)"
+        }
+
+        guard let nfcError = error as? NFCReaderError else {
+            // Non-NFC error, finalize immediately
+            finalizeInvalidation(with: error)
+            return
+        }
+
+        // Check if this is a retryable error and we haven't exceeded max retries
+        if retryableErrorCodes.contains(nfcError.code), retryCount < maxRetries {
+            retryCount += 1
+            log(.debug, tag: "NFC") {
+                "Attempting to restart NFC session (attempt \(self.retryCount)/\(self.maxRetries))"
+            }
+
+            // Reset tag state to waiting
+            self.tag = .Waiting
+
+            // Attempt to create a new session
+            do {
+                try createAndStartSession(self, self.params)
+                log(.debug, tag: "NFC") { "Successfully restarted NFC session" }
+                return // Success, don't finalize
+            } catch {
+                log(.debug, tag: "NFC") { "Failed to restart NFC session: \(error)" }
+                // Fall through to finalize with original error
+            }
+        }
+
+        // Either not retryable, exceeded max retries, or restart failed
+        if retryCount >= maxRetries {
+            log(.debug, tag: "NFC") { "Exceeded maximum retry attempts (\(self.maxRetries))" }
+        }
+
+        finalizeInvalidation(with: error)
+    }
+
+    private func finalizeInvalidation(with error: Error) {
         self.session = nil
-        self.tag = .Invalidated(error as! NFCReaderError)
+        // NFCReaderError is a domain-specific NSError. If the error isn't already an
+        // NFCReaderError,
+        // create one with the userCanceled code as a fallback.
+        let nfcError: NFCReaderError = (error as? NFCReaderError) ?? NFCReaderError(
+            _nsError: NSError(
+                domain: NFCErrorDomain,
+                code: NFCReaderError.readerSessionInvalidationErrorUserCanceled.rawValue,
+                userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]
+            )
+        )
+        self.tag = .Invalidated(nfcError)
+        self.resetRetryCount()
 
         // Don't send onTagDisconnected for all errors or else we will try to reconnect again when
-        // the session
-        // was invalidated. TODO: Figure out what situations iOS can be reconnected.
+        // the session was invalidated. TODO: Figure out what situations iOS can be reconnected.
     }
 
     public func tagReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
@@ -169,6 +244,8 @@ private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
                 log(.debug, tag: "NFC") {
                     "Connecting to tag: \(isoTag.identifier.hexEncodedString())"
                 }
+                // Reset retry count on successful connection
+                self.resetRetryCount()
                 self.tag = .Ready(isoTag)
                 self.onTagConnected()
             }
@@ -180,6 +257,21 @@ private enum SessionReadiness {
     case Waiting
     case Ready(_ tag: NFCISO7816Tag)
     case Invalidated(_ error: NFCReaderError)
+}
+
+private func createAndStartSession(
+    _ delegate: NfcSessionDelegate,
+    _ parameters: NfcSessionParameters
+) throws {
+    if let session = NFCTagReaderSession(pollingOption: .iso14443, delegate: delegate) {
+        delegate.setSession(session: session)
+        session.alertMessage = parameters.needsAuthentication ? NFCStrings
+            .tapInstructions : NFCStrings.tapInstructionsNoAuthNeeded
+        session.begin()
+        log(.debug, tag: "NFC") { "Started new NFC session: \(session)" }
+    } else {
+        throw NfcException.IOSOnlyNoSession(message: nil, cause: nil).asError()
+    }
 }
 
 private extension Data {

@@ -1,3 +1,21 @@
+core_common_deps = [
+  rtos_dep,
+  ipc_dep,
+  mempool_dep,
+  proto_helpers_dep,
+  wallet_dep,
+  auth_dep,
+  fs_dep,
+  sysevent_dep,
+  ui_messaging_dep,
+  secure_channel_dep,
+  onboarding_dep,
+  grant_dep,
+  policy_dep,
+  wstd_dep,
+  fwup_dep,
+]
+
 key_manager_platform_configs = {
   'w1' : {
     'srcs' : [
@@ -6,22 +24,7 @@ key_manager_platform_configs = {
       'src/core/key_manager_mpu.c',
       'src/core/crypto_task.c',
     ],
-
-    'deps' : [
-      rtos_dep,
-      ipc_dep,
-      mempool_dep,
-      proto_helpers_dep,
-      wallet_dep,
-      auth_dep,
-      fs_dep,
-      sysevent_dep,
-      ui_messaging_dep,
-      secure_channel_dep,
-      onboarding_dep,
-      grant_dep,
-      policy_dep,
-    ],
+    'deps' : core_common_deps,
   },
   'w3-core' : {
     'srcs' : [
@@ -30,22 +33,7 @@ key_manager_platform_configs = {
       'src/core/key_manager_mpu.c',
       'src/core/crypto_task.c',
     ],
-    'deps' : [
-      rtos_dep,
-      ipc_dep,
-      mempool_dep,
-      proto_helpers_dep,
-      wallet_dep,
-      auth_dep,
-      fs_dep,
-      sysevent_dep,
-      uc_dep,
-      ui_messaging_dep,
-      secure_channel_dep,
-      onboarding_dep,
-      grant_dep,
-      policy_dep,
-    ],
+    'deps' : core_common_deps + [uc_dep],
   },
   'w3-uxc' : {
     'srcs' : [

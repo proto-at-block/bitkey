@@ -1,6 +1,7 @@
 #include "attributes.h"
 #include "ipc.h"
 #include "log.h"
+#include "power.h"
 #include "proto_helpers.h"
 #include "sysinfo_task_impl.h"
 #include "wallet.pb.h"
@@ -37,4 +38,10 @@ void sysinfo_task_request_coproc_metadata(fwpb_wallet_cmd* cmd) {
   rsp->which_msg = fwpb_wallet_rsp_meta_rsp_tag;
   rsp->msg.meta_rsp.rsp_status = fwpb_meta_rsp_meta_rsp_status_ERROR;
   proto_send_rsp(cmd, rsp);
+}
+
+void sysinfo_task_port_prepare_sleep_and_power_down(void) {
+  // W1 has no coprocessor - just power down directly
+  power_set_ldo_low_power_mode();
+  power_set_retain(false);
 }

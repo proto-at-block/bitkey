@@ -2,7 +2,7 @@
 
 #include "assert.h"
 #include "mempool_impl.h"
-#include "secutils.h"
+#include "wstring.h"
 
 static uint8_t* get_first_free_buffer(mempool_region_t* region) {
   for (uint32_t entry = 0; entry < region->count; entry++) {

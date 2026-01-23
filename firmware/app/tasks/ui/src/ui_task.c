@@ -59,6 +59,13 @@ static void service_ipc(void) {
       }
     } break;
 
+    case IPC_UI_DISPLAY_ACTION: {
+      ui_display_action_t* msg = (ui_display_action_t*)message.object;
+      if (msg && ui_priv.backend->handle_display_action) {
+        ui_priv.backend->handle_display_action(msg->action, msg->data);
+      }
+    } break;
+
     default:
       LOGW("UI task received unknown message: %ld", message.tag);
       break;

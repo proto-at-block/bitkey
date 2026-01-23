@@ -87,6 +87,7 @@ deps = [
   helpers_dep,
   log_dep,
   secp256k1_dep,
+  wstd_dep,
 ]
 
 crypto_libs = {}

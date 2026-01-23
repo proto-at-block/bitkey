@@ -6,6 +6,7 @@ import build.wallet.nfc.HardwareProvisionedAppKeyStatusDao
 import build.wallet.nfc.HardwareProvisionedAppKeyStatusDaoFake
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class FirmwareDataServiceFake(
@@ -16,11 +17,16 @@ class FirmwareDataServiceFake(
   val firmwareData = MutableStateFlow(defaultFirmwareData)
   var pendingUpdate: FirmwareData = defaultFirmwareData
 
-  override suspend fun updateFirmwareVersion(fwupData: FwupData): Result<Unit, Error> {
+  override suspend fun updateFirmwareVersion(
+    mcuUpdates: ImmutableList<McuFwupData>,
+  ): Result<Unit, Error> {
     val currentFirmwareData = firmwareData.value
+    // Use first MCU version (for W1, this is the only MCU; for W3, typically CORE)
+    val newVersion = mcuUpdates.firstOrNull()?.version
     val updatedFirmwareData = currentFirmwareData.copy(
-      firmwareDeviceInfo = currentFirmwareData.firmwareDeviceInfo
-        ?.copy(version = fwupData.version),
+      firmwareDeviceInfo = newVersion?.let {
+        currentFirmwareData.firmwareDeviceInfo?.copy(version = it)
+      } ?: currentFirmwareData.firmwareDeviceInfo,
       firmwareUpdateState = UpToDate
     )
     firmwareData.value = updatedFirmwareData

@@ -33,4 +33,10 @@ enum class SendEventTrackerScreenId : EventTrackerScreenId {
 
   /** Success screen when transfer is initiated */
   SEND_INITIATED_SUCCESS,
+
+  /** Educational sheet explaining how to speed up Bitcoin transactions */
+  SEND_SPEED_UP_EDUCATION_SHEET,
+
+  /** Error screen shown when server signing fails and hardware is required */
+  SEND_SERVER_SIGNING_ERROR,
 }

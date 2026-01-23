@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ui.h"
+#include "screens.h"
 
 lv_obj_t* screen_fingerprint_init(void* ctx);
 void screen_fingerprint_destroy(void);

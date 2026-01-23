@@ -1472,6 +1472,18 @@ public expect open class DescriptorSecretKey: Disposable, DescriptorSecretKeyInt
 public interface ElectrumClientInterface {
     
     /**
+     * Gets the block hash at the specified height.
+     */
+    @Throws(ElectrumException::class)
+    public fun `blockHash`(`height`: kotlin.ULong): BlockHash
+    
+    /**
+     * Gets the block header at the specified height.
+     */
+    @Throws(ElectrumException::class)
+    public fun `blockHeader`(`height`: kotlin.ULong): Header
+    
+    /**
      * Subscribes to notifications for new block headers, by sending a blockchain.headers.subscribe call.
      */
     @Throws(ElectrumException::class)
@@ -1541,6 +1553,12 @@ public interface ElectrumClientInterface {
     @Throws(ElectrumException::class)
     public fun `transactionBroadcast`(`tx`: Transaction): Txid
     
+    /**
+     * Fetches a transaction by its txid.
+     */
+    @Throws(ElectrumException::class)
+    public fun `transactionGet`(`txid`: Txid): Transaction
+    
     public companion object
 }
 
@@ -1571,6 +1589,18 @@ public expect open class ElectrumClient: Disposable, ElectrumClientInterface {
     override fun destroy()
     override fun close()
 
+    
+    /**
+     * Gets the block hash at the specified height.
+     */
+    @Throws(ElectrumException::class)
+    public override fun `blockHash`(`height`: kotlin.ULong): BlockHash
+    
+    /**
+     * Gets the block header at the specified height.
+     */
+    @Throws(ElectrumException::class)
+    public override fun `blockHeader`(`height`: kotlin.ULong): Header
     
     /**
      * Subscribes to notifications for new block headers, by sending a blockchain.headers.subscribe call.
@@ -1641,6 +1671,12 @@ public expect open class ElectrumClient: Disposable, ElectrumClientInterface {
      */
     @Throws(ElectrumException::class)
     public override fun `transactionBroadcast`(`tx`: Transaction): Txid
+    
+    /**
+     * Fetches a transaction by its txid.
+     */
+    @Throws(ElectrumException::class)
+    public override fun `transactionGet`(`txid`: Txid): Transaction
     
 
     

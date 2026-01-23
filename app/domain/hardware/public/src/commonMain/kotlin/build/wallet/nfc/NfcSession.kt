@@ -31,6 +31,7 @@ interface NfcSession : AutoCloseable {
    * @param hardwareType: The type of hardware (W1 or W3) to use/simulate
    * @param checkHardwareIsPaired: Function to verify if a challenge signature was made by the paired hardware
    * @param requirePairedHardware: Whether to validate that the hardware being used is the one paired with the account
+   * @param maxNfcRetryAttempts: Maximum number of retry attempts for NFC sessions that are invalidated unexpectedly
    */
   class Parameters(
     val isHardwareFake: Boolean,
@@ -41,6 +42,7 @@ interface NfcSession : AutoCloseable {
     val asyncNfcSigning: Boolean,
     val nfcFlowName: String,
     val requirePairedHardware: RequirePairedHardware,
+    val maxNfcRetryAttempts: Int = 3,
     onTagConnected: (NfcSession?) -> Unit,
     onTagDisconnected: () -> Unit,
   ) {

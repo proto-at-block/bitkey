@@ -144,47 +144,80 @@ lv_obj_t* screen_test_scroll_init(void* ctx) {
   selected_item = NULL;
 
   screen = lv_obj_create(NULL);
+  if (!screen) {
+    return NULL;
+  }
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
   size_label = lv_label_create(screen);
+  if (!size_label) {
+    return NULL;
+  }
   lv_obj_set_style_text_color(size_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(size_label, &cash_sans_mono_regular_20, 0);
   lv_obj_align(size_label, LV_ALIGN_TOP_MID, 0, 35);
   update_size_label();
 
   btn_width_inc = lv_button_create(screen);
+  if (!btn_width_inc) {
+    return NULL;
+  }
   lv_obj_set_size(btn_width_inc, 45, 80);
   lv_obj_align(btn_width_inc, LV_ALIGN_LEFT_MID, 10, -50);
   lv_obj_t* label_width_inc = lv_label_create(btn_width_inc);
+  if (!label_width_inc) {
+    return NULL;
+  }
   lv_label_set_text(label_width_inc, "+W");
   lv_obj_center(label_width_inc);
   lv_obj_add_event_cb(btn_width_inc, width_button_handler, LV_EVENT_SHORT_CLICKED, NULL);
 
   btn_width_dec = lv_button_create(screen);
+  if (!btn_width_dec) {
+    return NULL;
+  }
   lv_obj_set_size(btn_width_dec, 45, 80);
   lv_obj_align(btn_width_dec, LV_ALIGN_LEFT_MID, 10, 40);
   lv_obj_t* label_width_dec = lv_label_create(btn_width_dec);
+  if (!label_width_dec) {
+    return NULL;
+  }
   lv_label_set_text(label_width_dec, "-W");
   lv_obj_center(label_width_dec);
   lv_obj_add_event_cb(btn_width_dec, width_button_handler, LV_EVENT_SHORT_CLICKED, NULL);
 
   btn_height_inc = lv_button_create(screen);
+  if (!btn_height_inc) {
+    return NULL;
+  }
   lv_obj_set_size(btn_height_inc, 45, 80);
   lv_obj_align(btn_height_inc, LV_ALIGN_RIGHT_MID, -10, -50);
   lv_obj_t* label_height_inc = lv_label_create(btn_height_inc);
+  if (!label_height_inc) {
+    return NULL;
+  }
   lv_label_set_text(label_height_inc, "+H");
   lv_obj_center(label_height_inc);
   lv_obj_add_event_cb(btn_height_inc, height_button_handler, LV_EVENT_SHORT_CLICKED, NULL);
 
   btn_height_dec = lv_button_create(screen);
+  if (!btn_height_dec) {
+    return NULL;
+  }
   lv_obj_set_size(btn_height_dec, 45, 80);
   lv_obj_align(btn_height_dec, LV_ALIGN_RIGHT_MID, -10, 40);
   lv_obj_t* label_height_dec = lv_label_create(btn_height_dec);
+  if (!label_height_dec) {
+    return NULL;
+  }
   lv_label_set_text(label_height_dec, "-H");
   lv_obj_center(label_height_dec);
   lv_obj_add_event_cb(btn_height_dec, height_button_handler, LV_EVENT_SHORT_CLICKED, NULL);
 
   list = lv_obj_create(screen);
+  if (!list) {
+    return NULL;
+  }
   lv_obj_set_size(list, 360, 300);
   lv_obj_align(list, LV_ALIGN_CENTER, 0, 20);
   lv_obj_set_style_bg_color(list, LIST_BG_COLOR, 0);
@@ -198,6 +231,9 @@ lv_obj_t* screen_test_scroll_init(void* ctx) {
 
   for (int i = 0; i < TOUCH_ITEM_COUNT; i++) {
     lv_obj_t* item = lv_button_create(list);
+    if (!item) {
+      return NULL;
+    }
     list_items[i] = item;
     lv_obj_set_style_bg_color(item, lv_color_hex(0x333333), 0);
     lv_obj_set_style_border_color(item, lv_color_hex(0x555555), 0);
@@ -208,6 +244,9 @@ lv_obj_t* screen_test_scroll_init(void* ctx) {
     lv_obj_clear_flag(item, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
 
     lv_obj_t* label = lv_label_create(item);
+    if (!label) {
+      return NULL;
+    }
     char buf[32];
     snprintf(buf, sizeof(buf), "row %d row %d row %d", i + 1, i + 1, i + 1);
     lv_label_set_text(label, buf);

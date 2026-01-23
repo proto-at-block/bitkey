@@ -12,11 +12,11 @@ typedef struct gfx_config {
   mcu_gpio_config_t te;                    // Tearing effect pin
   uint16_t display_width;                  // Horizontal resolution
   uint16_t display_height;                 // Vertical resolution
-  bool rotate_180;                         // Rotate display 180 degrees
 } gfx_config_t;
 
 void gfx_init(const gfx_config_t* gfx_config);
 void gfx_set_brightness(uint8_t level);
+void gfx_set_rotation(bool rotate_180);
 
 uint32_t gfx_get_fps(void);            // Flush rate (partial frames/sec)
 uint32_t gfx_get_effective_fps(void);  // Full frame equivalent FPS

@@ -1,5 +1,6 @@
 package build.wallet.statemachine.recovery.conflict.model
 
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
@@ -17,7 +18,7 @@ data class ShowingNoLongerRecoveringBodyModel(
   override val errorData: ErrorData?,
   val onAcknowledge: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = DelayNotifyRecoveryEventTrackerScreenId.RECOVERY_CANCELED_NO_LONGER_RECOVERING,
     onBack = null,
     toolbar = ToolbarModel(),
     header = FormHeaderModel(

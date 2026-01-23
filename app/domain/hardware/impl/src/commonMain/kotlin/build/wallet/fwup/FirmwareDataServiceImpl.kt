@@ -5,6 +5,7 @@ import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
+import build.wallet.firmware.McuRole
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.UpToDate
 import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
@@ -19,6 +20,8 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.recoverIf
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -60,15 +63,15 @@ class FirmwareDataServiceImpl(
       launch {
         combine(
           firmwareDeviceInfoDao.deviceInfo(),
-          fwupDataDaoProvider.get().flatMapLatest { dao -> dao.fwupData() }
-        ) { firmwareDeviceInfoResult, fwupDataResult ->
+          fwupDataDaoProvider.get().flatMapLatest { dao -> dao.mcuFwupData() }
+        ) { firmwareDeviceInfoResult, mcuFwupDataResult ->
           val firmwareDeviceInfo = firmwareDeviceInfoResult.get()
-          val fwupData = fwupDataResult.get()
+          val mcuFwupDataList = mcuFwupDataResult.get()
           FirmwareData(
             firmwareUpdateState =
-              when (fwupData) {
-                null -> UpToDate
-                else -> PendingUpdate(fwupData = fwupData)
+              when {
+                mcuFwupDataList.isNullOrEmpty() -> UpToDate
+                else -> PendingUpdate(mcuUpdates = mcuFwupDataList.toImmutableList())
               },
             firmwareDeviceInfo = firmwareDeviceInfo
           )
@@ -77,17 +80,32 @@ class FirmwareDataServiceImpl(
     }
   }
 
-  override suspend fun updateFirmwareVersion(fwupData: FwupData): Result<Unit, Error> {
+  override suspend fun updateFirmwareVersion(
+    mcuUpdates: ImmutableList<McuFwupData>,
+  ): Result<Unit, Error> {
     return coroutineBinding {
       val firmwareDeviceInfo = firmwareDeviceInfoDao.getDeviceInfo().get()
       if (firmwareDeviceInfo != null) {
-        firmwareDeviceInfoDao.setDeviceInfo(firmwareDeviceInfo.copy(version = fwupData.version))
-          .bind()
+        // Build map of updated MCU versions
+        val updatedVersions = mcuUpdates.associate { it.mcuRole to it.version }
+
+        // Update main version field (CORE version for W1 backwards compatibility)
+        val newVersion = updatedVersions[McuRole.CORE] ?: firmwareDeviceInfo.version
+
+        // Update mcuInfo list with new versions for W3+ devices
+        val updatedMcuInfo = firmwareDeviceInfo.mcuInfo.map { mcu ->
+          updatedVersions[mcu.mcuRole]?.let { mcu.copy(firmwareVersion = it) } ?: mcu
+        }
+
+        firmwareDeviceInfoDao.setDeviceInfo(
+          firmwareDeviceInfo.copy(version = newVersion, mcuInfo = updatedMcuInfo)
+        ).bind()
       } else {
         logError { "Firmware device info null after fwup. This should not happen" }
       }
 
       fwupDataDaoProvider.get().value.clear().bind()
+      fwupDataDaoProvider.get().value.clearAllMcuStates().bind()
     }
   }
 
@@ -98,7 +116,7 @@ class FirmwareDataServiceImpl(
       val firmwareDeviceInfo = firmwareDeviceInfoDao.getDeviceInfo().bind()
       if (firmwareDeviceInfo != null && firmwareDeviceInfo.serial != FakeFirmwareDeviceInfo.serial) {
         // Get and store new FWUP data, if any.
-        val fwupData =
+        val mcuFwupDataList =
           fwupDataFetcher
             .fetchLatestFwupData(
               deviceInfo = firmwareDeviceInfo
@@ -112,11 +130,15 @@ class FirmwareDataServiceImpl(
             )
             .bind()
 
-        when (fwupData) {
+        val dao = fwupDataDaoProvider.get().value
+        when (mcuFwupDataList) {
           // No update needed, clear anything in [FwupDataDao] just in case there's something there
-          null -> fwupDataDaoProvider.get().value.clear().bind()
+          null -> {
+            dao.clearAllMcuFwupData().bind()
+            dao.clear().bind()
+          }
           // There's an update, store it locally to be ready to apply to the HW
-          else -> fwupDataDaoProvider.get().value.setFwupData(fwupData).bind()
+          else -> dao.setMcuFwupData(mcuFwupDataList).bind()
         }
       }
     }

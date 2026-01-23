@@ -15,6 +15,7 @@ ignore = [
     "RUSTSEC-2025-0010", # [W-11080] ring is unmaintained <17 but transitively required by bdk <1.0
     "RUSTSEC-2025-0009", # [W-11810] pre-1.0 BDK uses rust-electrum 0.18.0, which uses rustls 
     "RUSTSEC-2024-0421", # [W-14066] pre-1.0 BDK uses idna 0.5.0
+    "RUSTSEC-2026-0002", # [W-15729] Track RustSec advisory RUSTSEC-2026-0002 for lru
 ]
 
 

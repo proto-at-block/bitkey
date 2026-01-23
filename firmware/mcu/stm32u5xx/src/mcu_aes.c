@@ -7,6 +7,7 @@
 #endif
 #include "assert.h"
 #include "stm32u5xx.h"
+#include "wstring.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -50,9 +51,6 @@ typedef struct {
 static mcu_aes_state_t state = {
   .initialized = false,
 };
-
-// Secutils will get linked in later and provide this function
-extern int memcmp_s(const void* b1, const void* b2, size_t len);
 
 static void _mcu_aes_reset(void);
 static mcu_err_t _mcu_aes_wait_completion(void);

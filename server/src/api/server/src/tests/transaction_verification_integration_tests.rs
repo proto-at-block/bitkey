@@ -174,6 +174,7 @@ async fn update_transaction_verification_policy_test(
             &keys,
             &PutTransactionVerificationPolicyRequest {
                 policy: to_policy.clone(),
+                use_bip_177: false,
             },
         )
         .await;
@@ -247,6 +248,7 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm(
             &keys,
             &PutTransactionVerificationPolicyRequest {
                 policy: threshold_policy.clone(),
+                use_bip_177: false,
             },
         )
         .await;
@@ -272,6 +274,7 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm(
         bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
         signing_keyset_id,
         should_prompt_user: true,
+        use_bip_177: false,
     };
 
     let resp = client
@@ -323,6 +326,7 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
             &keys,
             &PutTransactionVerificationPolicyRequest {
                 policy: threshold_policy.clone(),
+                use_bip_177: false,
             },
         )
         .await;
@@ -343,6 +347,7 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
         bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
         signing_keyset_id: fixture.signing_keyset_id,
         should_prompt_user: true,
+        use_bip_177: false,
     };
 
     let resp = client
@@ -436,6 +441,7 @@ async fn transaction_verification_verification_flow_test(
             &keys,
             &PutTransactionVerificationPolicyRequest {
                 policy: threshold_policy.clone(),
+                use_bip_177: false,
             },
         )
         .await;
@@ -456,6 +462,7 @@ async fn transaction_verification_verification_flow_test(
         bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
         signing_keyset_id: fixture.signing_keyset_id,
         should_prompt_user: true,
+        use_bip_177: false,
     };
 
     let resp = client
@@ -550,6 +557,7 @@ async fn transaction_verification_requires_verification_idempotent(
             &keys,
             &PutTransactionVerificationPolicyRequest {
                 policy: threshold_policy.clone(),
+                use_bip_177: false,
             },
         )
         .await;
@@ -570,6 +578,7 @@ async fn transaction_verification_requires_verification_idempotent(
         bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
         signing_keyset_id: fixture.signing_keyset_id,
         should_prompt_user: true,
+        use_bip_177: false,
     };
 
     let resp = client

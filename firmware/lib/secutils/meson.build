@@ -1,7 +1,6 @@
 srcs = [
   'src/dudero.c',
   'src/secutils.c',
-  'src/secutils_memzero.c',
 ]
 
 # only add RTOS hooks for embedded app

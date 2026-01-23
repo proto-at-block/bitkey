@@ -3,26 +3,6 @@ import firmware
 import Shared
 
 /**
- * Helper class to wrap Swift async closures as Kotlin suspend functions
- */
-private final class NfcSessionSuspendFunction: Shared.KotlinSuspendFunction1 {
-    private let closure: (Shared.NfcSession) async throws -> Shared.HardwareInteraction
-
-    init(_ closure: @escaping (Shared.NfcSession) async throws -> Shared.HardwareInteraction) {
-        self.closure = closure
-    }
-
-    func invoke(p1: Any?) async throws -> Any? {
-        guard let session = p1 as? Shared.NfcSession else {
-            throw NSError(domain: "BitkeyW3Commands", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid session parameter",
-            ])
-        }
-        return try await closure(session)
-    }
-}
-
-/**
  * Provides overrides for W3 implementation of NFC Commands and delegates
  * to an existing implementation otherwise.
  */
@@ -37,12 +17,14 @@ public final class BitkeyW3Commands: NfcCommands {
     public func fwupStart(
         session: NfcSession,
         patchSize: KotlinUInt?,
-        fwupMode: Shared.FwupMode
-    ) async throws -> KotlinBoolean {
+        fwupMode: Shared.FwupMode,
+        mcuRole: Shared.McuRole
+    ) async throws -> Shared.HardwareInteraction {
         return try await delegate.fwupStart(
             session: session,
             patchSize: patchSize,
-            fwupMode: fwupMode
+            fwupMode: fwupMode,
+            mcuRole: mcuRole
         )
     }
 
@@ -51,14 +33,16 @@ public final class BitkeyW3Commands: NfcCommands {
         sequenceId: UInt32,
         fwupData: [KotlinUByte],
         offset: UInt32,
-        fwupMode: Shared.FwupMode
+        fwupMode: Shared.FwupMode,
+        mcuRole: Shared.McuRole
     ) async throws -> KotlinBoolean {
         return try await delegate.fwupTransfer(
             session: session,
             sequenceId: sequenceId,
             fwupData: fwupData,
             offset: offset,
-            fwupMode: fwupMode
+            fwupMode: fwupMode,
+            mcuRole: mcuRole
         )
     }
 
@@ -66,13 +50,15 @@ public final class BitkeyW3Commands: NfcCommands {
         session: NfcSession,
         appPropertiesOffset: UInt32,
         signatureOffset: UInt32,
-        fwupMode: Shared.FwupMode
+        fwupMode: Shared.FwupMode,
+        mcuRole: Shared.McuRole
     ) async throws -> FwupFinishResponseStatus {
         return try await delegate.fwupFinish(
             session: session,
             appPropertiesOffset: appPropertiesOffset,
             signatureOffset: signatureOffset,
-            fwupMode: fwupMode
+            fwupMode: fwupMode,
+            mcuRole: mcuRole
         )
     }
 
@@ -84,18 +70,27 @@ public final class BitkeyW3Commands: NfcCommands {
         return try await delegate.getCoredumpCount(session: session)
     }
 
-    public func getCoredumpFragment(session: NfcSession, offset: Int32) async throws -> Shared
-        .CoredumpFragment
-    {
-        return try await delegate.getCoredumpFragment(session: session, offset: offset)
+    public func getCoredumpFragment(
+        session: NfcSession,
+        offset: Int32,
+        mcuRole: Shared.McuRole
+    ) async throws -> Shared.CoredumpFragment {
+        return try await delegate.getCoredumpFragment(
+            session: session,
+            offset: offset,
+            mcuRole: mcuRole
+        )
     }
 
     public func getDeviceInfo(session: NfcSession) async throws -> Shared.FirmwareDeviceInfo {
         return try await delegate.getDeviceInfo(session: session)
     }
 
-    public func getEvents(session: NfcSession) async throws -> Shared.EventFragment {
-        return try await delegate.getEvents(session: session)
+    public func getEvents(
+        session: NfcSession,
+        mcuRole: Shared.McuRole
+    ) async throws -> Shared.EventFragment {
+        return try await delegate.getEvents(session: session, mcuRole: mcuRole)
     }
 
     public func getFingerprintEnrollmentStatus(
@@ -193,14 +188,15 @@ public final class BitkeyW3Commands: NfcCommands {
         psbt: Psbt,
         spendingKeyset: SpendingKeyset
     ) async throws -> Shared.HardwareInteraction {
-        let suspendFunction = NfcSessionSuspendFunction { newSession in
+        let suspendFunction = NfcSessionSuspendFunction { newSession, _ in
             try await self.delegate.signTransaction(
                 session: newSession,
                 psbt: psbt,
                 spendingKeyset: spendingKeyset
             )
         }
-        return Shared.HardwareInteractionContinuation<Psbt>(tryContinue: suspendFunction) as Shared
+        return Shared
+            .HardwareInteractionRequiresConfirmation<Psbt>(fetchResult: suspendFunction) as Shared
             .HardwareInteraction
     }
 
@@ -218,7 +214,7 @@ public final class BitkeyW3Commands: NfcCommands {
         return try await delegate.version(session: session)
     }
 
-    public func wipeDevice(session: NfcSession) async throws -> KotlinBoolean {
+    public func wipeDevice(session: NfcSession) async throws -> Shared.HardwareInteraction {
         return try await delegate.wipeDevice(session: session)
     }
 
@@ -266,5 +262,12 @@ public final class BitkeyW3Commands: NfcCommands {
         appAuthKey: OkioByteString
     ) async throws -> KotlinBoolean {
         return try await delegate.provisionAppAuthKey(session: session, appAuthKey: appAuthKey)
+    }
+
+    public func getConfirmationResult(
+        session: NfcSession,
+        handles: Shared.ConfirmationHandles
+    ) async throws -> Shared.ConfirmationResult {
+        return try await delegate.getConfirmationResult(session: session, handles: handles)
     }
 }

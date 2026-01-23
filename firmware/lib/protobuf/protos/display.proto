@@ -24,6 +24,8 @@ enum display_menu_item {
   DISPLAY_MENU_ITEM_LOCK_DEVICE = 5;
   DISPLAY_MENU_ITEM_POWER_OFF = 6;
   DISPLAY_MENU_ITEM_TOUCH_TEST = 7;
+  DISPLAY_MENU_ITEM_TOGGLE_SLEEP = 8;
+  DISPLAY_MENU_ITEM_RUN_IN = 9;
 }
 
 // Display result codes
@@ -34,11 +36,18 @@ enum display_result {
   DISPLAY_RESULT_INVALID_PARAM = 3;
 }
 
-// Screen parameter messages
+// Display flags
+enum display_flag {
+  DISPLAY_FLAG_NONE = 0;        // No flags set (default)
+  DISPLAY_FLAG_ROTATE_180 = 1;  // Bit 0: Rotate display 180 degrees
+}
+
+message display_params_empty {
+}
+
 message display_params_menu {
-  display_menu_item selected_item = 1;
-  bool hit_top = 2;
-  bool hit_bottom = 3;
+  bool sleep_disabled = 1;  // MFG only: true if sleep timer is inhibited
+  uint32 selected_item = 2;     // Which menu item should be selected
 }
 
 message display_params_about {
@@ -47,18 +56,11 @@ message display_params_about {
   string serial_number = 3 [(nanopb).max_size = 32];
 }
 
-message display_params_brightness {
-}
-
-message display_params_regulatory {
-  int32 page = 1;
-}
-
 enum display_mfg_test_mode {
   DISPLAY_MFG_TEST_MODE_ANIMATION = 0;
   DISPLAY_MFG_TEST_MODE_NFC_TEST = 1;
   DISPLAY_MFG_TEST_MODE_START_SCREEN = 2;
-  DISPLAY_MFG_TEST_MODE_TOUCH_PROMPT = 3;
+  reserved 3;  // Was TOUCH_PROMPT - removed
   DISPLAY_MFG_TEST_MODE_COUNTDOWN = 4;
   DISPLAY_MFG_TEST_MODE_STATUS = 5;
   DISPLAY_MFG_TEST_MODE_BURNIN_GRID = 6;
@@ -105,31 +107,12 @@ message display_params_money_movement {
 
     // Confirming the amount.
     CONFIRM = 3;
-
-    // RFU.
-    reserved 4 to 9;
   }
 
   string amount_sats = 1 [(nanopb).max_size = 32];
-  string amount_usd = 2 [(nanopb).max_size = 32];
-  string fee_sats = 3 [(nanopb).max_size = 32];
-  string fee_usd = 4 [(nanopb).max_size = 32];
-  string address = 5 [(nanopb).max_size = 256];
-
-  // Current step in the money movement flow.
-  display_params_money_movement_step step = 6;
-
-  uint32 button_selection = 7;
-  uint32 current_page_index = 8;
-  uint32 total_pages = 9;
-  bool is_receive_flow = 10;
-
-  // Current address page.
-  uint32 current_address_page = 11;
-}
-
-message display_params_onboarding {
-  uint32 current_page = 1;
+  string fee_sats = 2 [(nanopb).max_size = 32];
+  string address = 3 [(nanopb).max_size = 256];
+  bool is_receive_flow = 4;
 }
 
 message display_params_success {
@@ -139,9 +122,6 @@ message display_params_success {
 
     // Firmware update successfully.
     FIRMWARE_UPDATED = 1;
-
-    // RFU.
-    reserved 2 to 9;
   }
 
   // Operation status code.
@@ -155,9 +135,6 @@ message display_params_error {
 
     // Firmware update failed.
     FIRMWARE_UPDATE_FAILED = 1;
-
-    // RFU.
-    reserved 2 to 9;
   }
 
   // Operation status code.
@@ -181,9 +158,6 @@ message display_params_scan {
 
     // Tap phone to device.
     TAP = 4;
-
-    // RFU.
-    reserved 5 to 9;
   }
 
   // Action to take on scanning.
@@ -207,74 +181,70 @@ message display_params_fingerprint {
 
     // Enrollment failed.
     ENROLL_FAILED = 4;
-
-    // RFU.
-    reserved 5 to 9;
   }
 
-  // Current fingerprint enrollment page.
-  uint32 current_page = 1;
-
-  // Fingerprint enrollment percentage (0 .. 100).
+  display_params_fingerprint_status status = 1;
   uint32 progress_percent = 2;
-
-  // Current operation status.
-  display_params_fingerprint_status status = 3;
-
-  // Remaining samples for the enrollment.
-  uint32 samples_remaining = 4;
+  uint32 samples_remaining = 3;
+  bool is_required = 4;  // True if enrollment is required (onboarding), false if optional (from menu)
 }
 
 message display_params_locked {
   uint32 battery_percent = 1;
   bool is_charging = 2;
+  bool show_unlocked = 3;
 }
 
 message display_params_menu_fingerprints {
-  uint32 selected_item = 1;
-  repeated bool enrolled = 2 [(nanopb).max_count = 3];
-  repeated string labels = 3 [(nanopb).max_count = 3, (nanopb).max_size = 32];
-  bool hit_top = 4;
-  bool hit_bottom = 5;
-  uint32 authenticated_index = 6;  // Which fingerprint was authenticated (0-2)
-  bool show_authenticated = 7;     // Trigger authentication animation (one-shot, like bounce)
-}
-
-message display_params_fingerprint_remove {
-  uint32 fingerprint_index = 1;
-  uint32 page = 2;
-  uint32 selected_button = 3;
+  repeated bool enrolled = 1 [(nanopb).max_count = 3];
+  repeated string labels = 2 [(nanopb).max_count = 3, (nanopb).max_size = 32];
+  uint32 authenticated_index = 3;  // Which fingerprint was authenticated (0-2)
+  bool show_authenticated = 4;     // Trigger authentication animation (one-shot, like bounce)
+  uint32 initial_slot = 5;         // Initial scroll position (0-2)
 }
 
 message display_params_firmware_update {
   string hash = 1 [(nanopb).max_size = 65];
   string version = 2 [(nanopb).max_size = 32];
-  uint32 current_page = 3;
-  uint32 button_selection = 4;
 }
 
-message display_params_test_gesture {
-  // No parameters needed for test gesture screen
+// Privileged action types
+enum display_privileged_action_type {
+  DISPLAY_PRIVILEGED_ACTION_NONE = 0;
+  DISPLAY_PRIVILEGED_ACTION_WIPE_DEVICE = 1;
 }
 
-message display_params_test_scroll {
-  // No parameters needed for test scroll screen
+// Confirm an address (uses address display widget with pagination)
+message display_params_privileged_action_confirm_address {
+  string address = 1 [(nanopb).max_size = 128];
 }
 
-message display_params_test_pin_pad {
-  // No parameters needed for test pin pad screen
+// Confirm a string value
+message display_params_privileged_action_confirm_string {
+  string value = 1 [(nanopb).max_size = 128];
 }
 
-message display_params_test_carousel {
-  // No parameters needed for test carousel screen
+// Firmware update confirmation
+message display_params_privileged_action_fwup {
+  string hash = 1 [(nanopb).max_size = 65];  // SHA256 hex string
+  string version = 2 [(nanopb).max_size = 32]; // Semantic version
 }
 
-message display_params_test_slider {
-  // No parameters needed for test slider screen
+// Confirm action (e.g., wipe device)
+message display_params_privileged_action_confirm_action {
+  display_privileged_action_type action_type = 1;
 }
 
-message display_params_test_progress {
-  // No parameters needed for test progress screen
+// Main privileged action message
+message display_params_privileged_action {
+  string title = 1 [(nanopb).max_size = 32];
+
+  oneof action {
+    display_params_privileged_action_confirm_address confirm_address = 2;
+    display_params_privileged_action_confirm_string confirm_string = 3;
+    display_params_privileged_action_fwup fwup = 4;
+    display_params_privileged_action_confirm_action confirm_action = 5;
+  }
 }
 
 // Display show screen command
@@ -282,43 +252,43 @@ message display_show_screen {
   display_transition transition = 1;
   uint32 duration_ms = 2;
   uint32 brightness_percent = 3;  // Display brightness (0-100)
+  uint32 flags = 4;  // Bitfield: bit 0 = rotate 180 degrees
 
   oneof params {
-    display_params_menu menu = 4;
-    display_params_about about = 5;
-    display_params_brightness brightness = 6;
-    display_params_regulatory regulatory = 7;
-    display_params_mfg mfg = 8;
-    display_params_money_movement money_movement = 9;
-    display_params_onboarding onboarding = 10;
-    display_params_success success = 11;
-    display_params_error error = 12;
-    display_params_scan scan = 13;
-    display_params_fingerprint fingerprint = 14;
-    display_params_locked locked = 15;
-    display_params_menu_fingerprints menu_fingerprints = 16;
-    display_params_fingerprint_remove fingerprint_remove = 17;
-    display_params_firmware_update firmware_update = 18;
-    display_params_test_gesture test_gesture = 19;
-    display_params_test_scroll test_scroll = 20;
-    display_params_test_pin_pad test_pin_pad = 21;
-    display_params_test_carousel test_carousel = 22;
-    display_params_test_slider test_slider = 23;
-    display_params_test_progress test_progress = 24;
+    display_params_menu menu = 5;
+    display_params_about about = 6;
+    display_params_empty brightness = 7;
+    display_params_empty regulatory = 8;
+    display_params_mfg mfg = 9;
+    display_params_money_movement money_movement = 10;
+    display_params_empty onboarding = 11;
+    display_params_success success = 12;
+    display_params_error error = 13;
+    display_params_scan scan = 14;
+    display_params_fingerprint fingerprint = 15;
+    display_params_locked locked = 16;
+    display_params_menu_fingerprints menu_fingerprints = 17;
+    display_params_firmware_update firmware_update = 19;
+    display_params_empty test_gesture = 20;
+    display_params_empty test_scroll = 21;
+    display_params_empty test_pin_pad = 22;
+    display_params_empty test_carousel = 23;
+    display_params_empty test_slider = 24;
+    display_params_empty test_progress = 25;
+    display_params_privileged_action privileged_action = 26;
   }
+}
+
+// Prepare sleep command
+message display_prepare_sleep {
+  // No parameters needed
 }
 
 // Main display command message
 message display_command {
   oneof command {
     display_show_screen show_screen = 1;
-  }
-}
-
-// Display response message
-message display_response {
-  oneof response {
-    bool ready = 1;  // Display subsystem ready to receive commands
+    display_prepare_sleep prepare_sleep = 2;
   }
 }
 
@@ -372,4 +342,35 @@ message display_touch {
 message display_mfg_touch_test_status {
   // Number of boxes remaining in the touch test.
   uint32 boxes_remaining = 1;
+}
+
+// Display action message.
+message display_action {
+  // Type of action or status update.
+  enum display_action_type {
+    DISPLAY_ACTION_NONE = 0;
+
+    // Status updates
+    DISPLAY_ACTION_READY = 1;              // Display subsystem ready to receive commands
+    DISPLAY_ACTION_SLEEP_READY = 2;        // Display ready for sleep (touch monitor mode active)
+
+    // Universal flow actions
+    DISPLAY_ACTION_APPROVE = 3;            // Approve/confirm current flow
+    DISPLAY_ACTION_CANCEL = 4;             // Cancel current flow
+    DISPLAY_ACTION_BACK = 5;               // Go back one step
+    DISPLAY_ACTION_EXIT = 6;               // Exit current flow entirely
+    DISPLAY_ACTION_MENU = 7;               // Navigate to main menu
+
+    // Specific flow actions
+    DISPLAY_ACTION_LOCK_DEVICE = 8;        // Lock the device
+    DISPLAY_ACTION_POWER_OFF = 9;          // Power off device
+    DISPLAY_ACTION_START_ENROLLMENT = 10;  // Start fingerprint enrollment
+    DISPLAY_ACTION_DELETE_FINGERPRINT = 11;// Delete fingerprint
+  }
+
+  // The action type.
+  display_action_type action = 1;
+
+  // Optional action-specific data (e.g., fingerprint index, menu item, brightness value).
+  uint32 data = 2;
 }

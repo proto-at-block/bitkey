@@ -1,0 +1,42 @@
+---
+description: README
+alwaysApply: true
+---
+
+# AI Rules
+
+Context system for AI coding assistants. Skills follow [agentskills.io](https://agentskills.io), generated via [block/ai-rules](https://github.com/block/ai-rules).
+
+## Principle
+
+**Progressive context disclosure.** Domain context and conventions always loaded. Task-specific skills pull detailed docs on-demand via `@references`.
+
+## Discoverability
+
+Agents find skills and docs through:
+
+1. **Skill descriptions** - Action verbs and trigger phrases in SKILL.md frontmatter
+2. **Doc keywords** - `<!-- keywords: ... -->` HTML comment at top of each doc
+3. **index.md** - Navigation hub at `docs/docs/mobile/index.md`
+
+## Commands
+
+```bash
+ai-rules generate  # Regenerate after changes
+ai-rules status    # Check sync status
+```
+
+## What to Edit
+
+| File | Purpose |
+|------|---------|
+| `docs/docs/mobile/index.md` | Docs navigation hub (source of truth for doc structure) |
+| `docs/docs/mobile/**/*.md` | Architecture docs, patterns, examples |
+| `ai-rules/skills/<name>/SKILL.md` | Task workflows |
+| `ai-rules/core.md` | Bootstrap (domain context, conventions) |
+
+## Generated (don't edit)
+
+- `.generated-ai-rules/` - Compiled rules for AI tools
+- `.claude/skills/`, `.agents/skills/` - Symlinks to skills
+- `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` - Entry points

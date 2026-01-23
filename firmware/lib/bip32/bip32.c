@@ -4,7 +4,7 @@
 #include "bitops.h"
 #include "ecc.h"
 #include "hash.h"
-#include "secutils.h"
+#include "wstring.h"
 
 #include <string.h>
 

@@ -6,7 +6,7 @@
 #include "secure_channel.h"
 #include "secure_channel_common.h"
 #include "secure_rng.h"
-#include "secutils.h"
+#include "wstring.h"
 
 secure_channel_ctx_t secure_channel_ctx SHARED_TASK_DATA = {
   .send_key_buf = {0},

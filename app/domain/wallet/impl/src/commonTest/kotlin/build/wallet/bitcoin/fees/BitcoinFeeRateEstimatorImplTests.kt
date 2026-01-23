@@ -12,27 +12,29 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.AugurFeeComparisonLoggingFeatureFlag
 import build.wallet.feature.flags.AugurFeesEstimationFeatureFlag
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 class BitcoinFeeRateEstimatorImplTests : FunSpec({
-  val bdkBlockchain = BdkBlockchainMock(
+  val bdkBlockchainMock = BdkBlockchainMock(
     blockHeightResult = BdkResult.Ok(1),
     blockHashResult = BdkResult.Ok(BitcoinNetworkType.BITCOIN.chainHash()),
-    broadcastResult = BdkResult.Ok(Unit),
+    broadcastResult = BdkResult.Ok("txid"),
     feeRateResult = BdkResult.Ok(22f),
     getTxResult = BdkResult.Ok(BdkTransactionMock(output = listOf(BdkTxOutMock)))
   )
 
   val bdkBlockchainProvider = BdkBlockchainProviderMock(
     turbines::create,
-    blockchainResult = BdkResult.Ok(bdkBlockchain)
+    blockchainResult = BdkResult.Ok(bdkBlockchainMock)
   )
 
   val featureFlagDao = FeatureFlagDaoFake()
   val augurFeesEstimationFeatureFlag = AugurFeesEstimationFeatureFlag(featureFlagDao)
+  val augurFeeComparisonLoggingFeatureFlag = AugurFeeComparisonLoggingFeatureFlag(featureFlagDao)
   val mempoolHttpClientMock = MempoolHttpClientMock()
   val augurFeesHttpClientMock = AugurFeesHttpClientMock()
 
@@ -40,14 +42,16 @@ class BitcoinFeeRateEstimatorImplTests : FunSpec({
     mempoolHttpClient = mempoolHttpClientMock,
     augurFeesHttpClient = augurFeesHttpClientMock,
     bdkBlockchainProvider = bdkBlockchainProvider,
-    augurFeesEstimationFeatureFlag = augurFeesEstimationFeatureFlag
+    augurFeesEstimationFeatureFlag = augurFeesEstimationFeatureFlag,
+    augurFeeComparisonLoggingFeatureFlag = augurFeeComparisonLoggingFeatureFlag
   )
 
   beforeTest {
     featureFlagDao.reset()
     augurFeesEstimationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    augurFeeComparisonLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
     bdkBlockchainProvider.reset()
-    bdkBlockchainProvider.blockchainResult = BdkResult.Ok(bdkBlockchain)
+    bdkBlockchainProvider.blockchainResult = BdkResult.Ok(bdkBlockchainMock)
     mempoolHttpClientMock.reset()
     augurFeesHttpClientMock.reset()
   }
@@ -177,6 +181,114 @@ class BitcoinFeeRateEstimatorImplTests : FunSpec({
 
     // Should use fallback rate when all sources fail
     feeRate.satsPerVByte.shouldBe(1.0f)
+    bdkBlockchainProvider.blockchainCalls.awaitItem()
+  }
+
+  test("Should return Augur fees when comparison logging enabled and Augur flag enabled") {
+    // Enable both comparison logging and Augur fees
+    augurFeeComparisonLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    augurFeesEstimationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+    val feeRate = feeRateEstimator.estimatedFeeRateForTransaction(
+      networkType = BitcoinNetworkType.BITCOIN,
+      estimatedTransactionPriority = FASTEST
+    )
+
+    // Should return Augur fee rate (three_blocks @ 95% confidence = 10 sats/vB)
+    feeRate.satsPerVByte.shouldBe(10f)
+  }
+
+  test("Should return mempool fees when comparison logging enabled but Augur flag disabled") {
+    // Enable comparison logging but disable Augur fees
+    augurFeeComparisonLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    augurFeesEstimationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
+
+    val feeRate = feeRateEstimator.estimatedFeeRateForTransaction(
+      networkType = BitcoinNetworkType.BITCOIN,
+      estimatedTransactionPriority = FASTEST
+    )
+
+    // Should return mempool fee rate (fastestFee = 5.0 sats/vB)
+    feeRate.satsPerVByte.shouldBe(5.0f)
+  }
+
+  test("Should return Augur rate when mempool fails and comparison logging enabled") {
+    augurFeeComparisonLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    mempoolHttpClientMock.error = Error("mempool error")
+
+    val feeRate = feeRateEstimator.estimatedFeeRateForTransaction(
+      networkType = BitcoinNetworkType.BITCOIN,
+      estimatedTransactionPriority = FASTEST
+    )
+
+    // Should still return Augur fee rate (comparison logging failure doesn't affect result)
+    feeRate.satsPerVByte.shouldBe(10f)
+  }
+
+  test("Should fallback to BDK when both sources fail and comparison logging enabled") {
+    augurFeeComparisonLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    augurFeesHttpClientMock.error = Error("augur error")
+    mempoolHttpClientMock.error = Error("mempool error")
+
+    val feeRate = feeRateEstimator.estimatedFeeRateForTransaction(
+      networkType = BitcoinNetworkType.BITCOIN,
+      estimatedTransactionPriority = FASTEST
+    )
+
+    // Should fallback to BDK (comparison logging fails silently)
+    feeRate.satsPerVByte.shouldBe(22f)
+    bdkBlockchainProvider.blockchainCalls.awaitItem()
+  }
+
+  test("Should return Augur fee rates when comparison logging enabled and Augur flag enabled") {
+    // Enable both comparison logging and Augur fees
+    augurFeeComparisonLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    augurFeesEstimationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+    val feeRates = feeRateEstimator.getEstimatedFeeRates(BitcoinNetworkType.BITCOIN).getOrThrow()
+
+    // Should return Augur fee rates
+    feeRates.fastestFeeRate.satsPerVByte.shouldBe(10f)
+    feeRates.halfHourFeeRate.satsPerVByte.shouldBe(5f)
+    feeRates.hourFeeRate.satsPerVByte.shouldBe(3f)
+  }
+
+  test("Should return mempool fee rates when comparison logging enabled but Augur flag disabled") {
+    // Enable comparison logging but disable Augur fees
+    augurFeeComparisonLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    augurFeesEstimationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
+
+    val feeRates = feeRateEstimator.getEstimatedFeeRates(BitcoinNetworkType.BITCOIN).getOrThrow()
+
+    // Should return mempool fee rates
+    feeRates.fastestFeeRate.satsPerVByte.shouldBe(5.0f)
+    feeRates.halfHourFeeRate.satsPerVByte.shouldBe(3.0f)
+    feeRates.hourFeeRate.satsPerVByte.shouldBe(2.0f)
+  }
+
+  test("Should return Augur fee rates when mempool fails and comparison logging enabled") {
+    augurFeeComparisonLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    mempoolHttpClientMock.error = Error("mempool error")
+
+    val feeRates = feeRateEstimator.getEstimatedFeeRates(BitcoinNetworkType.BITCOIN).getOrThrow()
+
+    // Should still return Augur fee rates (comparison logging failure doesn't affect result)
+    feeRates.fastestFeeRate.satsPerVByte.shouldBe(10f)
+    feeRates.halfHourFeeRate.satsPerVByte.shouldBe(5f)
+    feeRates.hourFeeRate.satsPerVByte.shouldBe(3f)
+  }
+
+  test("Should fallback to BDK for fee rates when both sources fail and comparison logging enabled") {
+    augurFeeComparisonLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    augurFeesHttpClientMock.error = Error("augur error")
+    mempoolHttpClientMock.error = Error("mempool error")
+
+    val feeRates = feeRateEstimator.getEstimatedFeeRates(BitcoinNetworkType.BITCOIN).getOrThrow()
+
+    // Should fallback to BDK (comparison logging fails silently)
+    feeRates.fastestFeeRate.satsPerVByte.shouldBe(22f)
+    feeRates.halfHourFeeRate.satsPerVByte.shouldBe(22f)
+    feeRates.hourFeeRate.satsPerVByte.shouldBe(22f)
     bdkBlockchainProvider.blockchainCalls.awaitItem()
   }
 })

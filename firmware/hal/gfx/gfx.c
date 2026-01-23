@@ -113,6 +113,34 @@ static display_reg_config_t display_init_table[] = {
   {.page = 1, .reg = 0xA1, .data = {0xCF}, .len = 1, .delay_ms = 1, .verify = true},
   {.page = 1, .reg = 0xA2, .data = {0xCD}, .len = 1, .delay_ms = 1, .verify = true},
 
+  // Page 0x0E registers
+  {.page = 0x0E, .reg = 0x0B, .data = {0x00}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x92, .data = {0x7E}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x94, .data = {0xFD}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x95, .data = {0x7C}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x97, .data = {0xFB}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x98, .data = {0x83}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x9A, .data = {0x12}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x9B, .data = {0xA9}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x9D, .data = {0x40}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x9E, .data = {0xC7}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA0, .data = {0x4E}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA1, .data = {0xD5}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA3, .data = {0x6C}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA4, .data = {0x04}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA6, .data = {0xA3}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA7, .data = {0x4A}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA8, .data = {0x00}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA9, .data = {0xF9}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xAA, .data = {0xB1}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xAC, .data = {0x78}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xAD, .data = {0x50}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xAF, .data = {0x38}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xB0, .data = {0x20}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xB2, .data = {0x10}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xB3, .data = {0x08}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xB5, .data = {0x00}, .len = 1, .delay_ms = 1, .verify = true},
+
   // Exit sleep mode first (requires 120ms delay)
   {.page = 0, .reg = CMD_SLPOUT, .data = {0}, .len = 0, .delay_ms = 120, .verify = true},
 
@@ -128,7 +156,7 @@ static display_reg_config_t display_init_table[] = {
   // Set maximum brightness level (Normal and AOD)
   {.page = 0, .reg = CMD_WRDISBV, .data = {0xFF, 0x00}, .len = 2, .delay_ms = 1, .verify = true},
 
-  // Set display orientation + RGB order (0x00 for normal, will be updated if rotate_180)
+  // Set display orientation + RGB order (0x00 for normal, updated at runtime based on board_id)
   {.page = 0, .reg = CMD_MADCTL, .data = {0x00}, .len = 1, .delay_ms = 1, .verify = true},
 
   // Turn on tearing effect signal (mode 0)
@@ -424,14 +452,6 @@ void gfx_init(const gfx_config_t* gfx_config) {
 
   display_reset(gfx_config);
 
-  // Update MADCTL value based on rotation setting
-  for (size_t i = 0; i < display_init_table_size; i++) {
-    if (display_init_table[i].page == 0 && display_init_table[i].reg == CMD_MADCTL) {
-      display_init_table[i].data[0] = gfx_config->rotate_180 ? (MADCTL_MY | MADCTL_MX) : 0x00;
-      break;
-    }
-  }
-
   // Write all registers from table
   write_display_registers();
 
@@ -443,6 +463,13 @@ void gfx_init(const gfx_config_t* gfx_config) {
 
 void gfx_set_brightness(uint8_t level) {
   write_reg(CMD_WRDISBV, (uint8_t[]){level, 0}, 2);
+  rtos_thread_sleep(1);
+}
+
+void gfx_set_rotation(bool rotate_180) {
+  uint8_t madctl_val = rotate_180 ? (MADCTL_MY | MADCTL_MX) : 0x00;
+  set_page(0);
+  write_reg(CMD_MADCTL, &madctl_val, 1);
   rtos_thread_sleep(1);
 }
 

@@ -6,12 +6,13 @@ import bitkey.ui.framework.NavigatorPresenterFake
 import bitkey.ui.verification.TxVerificationPolicyProps
 import bitkey.ui.verification.TxVerificationPolicyStateMachine
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
-import build.wallet.fwup.FwupDataMock
+import build.wallet.fwup.McuFwupDataMock_W1_CORE
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -255,7 +256,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     val secondUpdate = firstUpdate.copy(
       firmwareUpdateState =
         PendingUpdate(
-          fwupData = FwupDataMock.copy(version = "second update")
+          mcuUpdates = immutableListOf(McuFwupDataMock_W1_CORE.copy(version = "second update"))
         )
     )
 

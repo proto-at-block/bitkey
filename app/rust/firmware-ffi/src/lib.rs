@@ -12,16 +12,16 @@ use wca::commands::{
     DeviceInfoMcu, EnrolledFingerprints, EnrollmentDiagnostics, EventFragment,
     FingerprintEnrollmentResult, FingerprintEnrollmentStatus, FingerprintResetFinalize,
     FingerprintResetRequest, FirmwareFeatureFlag, FirmwareFeatureFlagCfg, FirmwareMetadata,
-    FirmwareSlot, FwupFinish, FwupFinishRspStatus, FwupMode, FwupStart, FwupTransfer,
-    GetAuthenticationKey, GetAuthenticationKeyV2, GetCert, GetConfirmationResult, GetCoredumpCount,
-    GetCoredumpFragment, GetDeviceIdentifiers, GetDeviceInfo, GetEnrolledFingerprints, GetEvents,
-    GetFingerprintEnrollmentStatus, GetFirmwareFeatureFlags, GetFirmwareMetadata,
-    GetInitialSpendingKey, GetNextSpendingKey, GetTelemetryIdentifiers, GetUnlockMethod,
-    LockDevice, McuInfo, McuName, McuRole, PartiallySignedTransaction, ProvisionAppAuthKey,
-    QueryAuthentication, SecureBootConfig, SetFingerprintLabel, SetFirmwareFeatureFlags,
-    SignChallenge, SignChallengeV2, SignTransaction, SignVerifyAttestationChallenge, Signature,
-    StartFingerprintEnrollment, TemplateMatchStats, UnlockInfo, Version, WipeState,
-    WipeStateResult,
+    FirmwareSlot, FwupFinish, FwupFinishRspStatus, FwupMode, FwupStart, FwupStartResult,
+    FwupTransfer, GetAuthenticationKey, GetAuthenticationKeyV2, GetCert, GetConfirmationResult,
+    GetCoredumpCount, GetCoredumpFragment, GetDeviceIdentifiers, GetDeviceInfo,
+    GetEnrolledFingerprints, GetEvents, GetFingerprintEnrollmentStatus, GetFirmwareFeatureFlags,
+    GetFirmwareMetadata, GetInitialSpendingKey, GetNextSpendingKey, GetTelemetryIdentifiers,
+    GetUnlockMethod, LockDevice, McuInfo, McuName, McuRole, PartiallySignedTransaction,
+    ProvisionAppAuthKey, QueryAuthentication, SecureBootConfig, SetFingerprintLabel,
+    SetFirmwareFeatureFlags, SignChallenge, SignChallengeV2, SignTransaction,
+    SignVerifyAttestationChallenge, Signature, StartFingerprintEnrollment, TemplateMatchStats,
+    UnlockInfo, Version, WipeState, WipeStateResult,
 };
 use wca::errors::CommandError;
 use wca::fwpb::cert_get_cmd::CertType;
@@ -53,6 +53,7 @@ type SignatureContextState = State<SignatureContext>;
 type EnrolledFingerprintsState = State<EnrolledFingerprints>;
 type UnlockInfoState = State<UnlockInfo>;
 type ConfirmedCommandResultState = State<ConfirmedCommandResult>;
+type FwupStartResultState = State<FwupStartResult>;
 type WipeStateResultState = State<WipeStateResult>;
 
 uniffi::include_scaffolding!("firmware");

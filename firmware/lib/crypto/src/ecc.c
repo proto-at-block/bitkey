@@ -9,6 +9,7 @@
 #include "secp256k1_schnorrsig.h"
 #include "secure_rng.h"
 #include "secutils.h"
+#include "wstring.h"
 
 #include <string.h>
 

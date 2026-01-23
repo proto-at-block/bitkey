@@ -1,10 +1,11 @@
 #include "board_id.h"
 
+#include "attributes.h"
 #include "bitops.h"
 
 #include <stdbool.h>
 
-static struct {
+static SHARED_TASK_BSS struct {
   /**
    * @brief `true` if GPIOs were configured.
    */

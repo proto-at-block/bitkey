@@ -104,6 +104,13 @@ impl DailySpendingRecord {
         &self.spending_entries
     }
 
+    /// Remove a spending entry by transaction ID. Returns true if an entry was removed.
+    pub fn remove_spending_entry(&mut self, txid: &Txid) -> bool {
+        let original_len = self.spending_entries.len();
+        self.spending_entries.retain(|entry| &entry.txid != txid);
+        self.spending_entries.len() < original_len
+    }
+
     /// return a copy of self with an updated internal version number (for optimistic locking)
     pub fn clone_and_bump_version(&self) -> DailySpendingRecord {
         DailySpendingRecord {
@@ -218,5 +225,73 @@ mod tests {
         spending_record.update_with_psbt(&dummy_wallet, &psbt);
 
         assert_eq!(spending_record.spending_entries.len(), 1)
+    }
+
+    fn create_test_transaction(version: i32) -> Transaction {
+        Transaction {
+            version,
+            lock_time: LockTime::ZERO,
+            input: Vec::new(),
+            output: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn remove_spending_entry_returns_true_when_entry_exists() {
+        let transaction = create_test_transaction(0);
+        let txid = transaction.txid();
+        let psbt = Psbt::from_unsigned_tx(transaction).unwrap();
+        let dummy_wallet = DummyWallet::new(vec![]);
+
+        let account_id = AccountId::gen().unwrap();
+        let mut spending_record =
+            DailySpendingRecord::try_new(&account_id, OffsetDateTime::now_utc().date()).unwrap();
+
+        spending_record.update_with_psbt(&dummy_wallet, &psbt);
+        assert_eq!(spending_record.spending_entries.len(), 1);
+
+        let removed = spending_record.remove_spending_entry(&txid);
+
+        assert!(removed);
+        assert_eq!(spending_record.spending_entries.len(), 0);
+    }
+
+    #[test]
+    fn remove_spending_entry_returns_false_when_entry_does_not_exist() {
+        let transaction = create_test_transaction(0);
+        let txid = transaction.txid();
+
+        let account_id = AccountId::gen().unwrap();
+        let mut spending_record =
+            DailySpendingRecord::try_new(&account_id, OffsetDateTime::now_utc().date()).unwrap();
+
+        let removed = spending_record.remove_spending_entry(&txid);
+
+        assert!(!removed);
+    }
+
+    #[test]
+    fn remove_spending_entry_only_removes_matching_entry() {
+        let tx1 = create_test_transaction(1);
+        let tx2 = create_test_transaction(2);
+        let txid1 = tx1.txid();
+        let txid2 = tx2.txid();
+        let psbt1 = Psbt::from_unsigned_tx(tx1).unwrap();
+        let psbt2 = Psbt::from_unsigned_tx(tx2).unwrap();
+        let dummy_wallet = DummyWallet::new(vec![]);
+
+        let account_id = AccountId::gen().unwrap();
+        let mut spending_record =
+            DailySpendingRecord::try_new(&account_id, OffsetDateTime::now_utc().date()).unwrap();
+
+        spending_record.update_with_psbt(&dummy_wallet, &psbt1);
+        spending_record.update_with_psbt(&dummy_wallet, &psbt2);
+        assert_eq!(spending_record.spending_entries.len(), 2);
+
+        let removed = spending_record.remove_spending_entry(&txid1);
+
+        assert!(removed);
+        assert_eq!(spending_record.spending_entries.len(), 1);
+        assert_eq!(spending_record.spending_entries[0].txid, txid2);
     }
 }

@@ -4,6 +4,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.di.Fake
 import build.wallet.firmware.FirmwareDeviceInfoDao
+import build.wallet.firmware.McuRole
 import build.wallet.fwup.FwupMode.Delta
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -20,31 +21,54 @@ class FwupDataDaoFake(
   private val firmwareDeviceInfoFlow = firmwareDeviceInfoDao.deviceInfo()
 
   private var lastOfferedUpdateVersion: String? = null
+  private val mcuSequenceIds = mutableMapOf<McuRole, UInt>()
+  private val mcuFwupData = mutableMapOf<McuRole, McuFwupData>()
 
-  override fun fwupData(): Flow<Result<FwupData?, Error>> {
+  override suspend fun setMcuFwupData(mcuFwupDataList: List<McuFwupData>): Result<Unit, Error> {
+    mcuFwupDataList.forEach { data ->
+      mcuFwupData[data.mcuRole] = data
+    }
+    return Ok(Unit)
+  }
+
+  override suspend fun getMcuFwupData(mcuRole: McuRole): Result<McuFwupData?, Error> {
+    return Ok(mcuFwupData[mcuRole])
+  }
+
+  override suspend fun getAllMcuFwupData(): Result<List<McuFwupData>, Error> {
+    return Ok(mcuFwupData.values.toList())
+  }
+
+  override suspend fun clearAllMcuFwupData(): Result<Unit, Error> {
+    mcuFwupData.clear()
+    return Ok(Unit)
+  }
+
+  override suspend fun clearMcuFwupData(mcuRole: McuRole): Result<Unit, Error> {
+    mcuFwupData.remove(mcuRole)
+    return Ok(Unit)
+  }
+
+  override fun mcuFwupData(): Flow<Result<List<McuFwupData>, Error>> {
     return firmwareDeviceInfoFlow.map { firmwareDeviceInfo ->
       val currentVersion = firmwareDeviceInfo.get()?.version
       if (currentVersion != null) {
         val incrementedVersion = incrementSemver(currentVersion)
 
-        // If we've already offered this incremented version, return null (up-to-date)
+        // If we've already offered this incremented version, return empty (up-to-date)
         if (lastOfferedUpdateVersion == incrementedVersion) {
-          Ok(null)
+          Ok(emptyList())
         } else {
           lastOfferedUpdateVersion = incrementedVersion
-          Ok(createMockUpdateData(incrementedVersion))
+          Ok(listOf(createMockMcuUpdateData(incrementedVersion)))
         }
       } else {
         // No current version, offer a default update
         val defaultVersion = "1.0.1"
         lastOfferedUpdateVersion = defaultVersion
-        Ok(createMockUpdateData(defaultVersion))
+        Ok(listOf(createMockMcuUpdateData(defaultVersion)))
       }
     }
-  }
-
-  override suspend fun setFwupData(fwupData: FwupData): Result<Unit, Error> {
-    return Ok(Unit)
   }
 
   override suspend fun clear(): Result<Unit, Error> {
@@ -52,12 +76,24 @@ class FwupDataDaoFake(
     return Ok(Unit)
   }
 
-  override suspend fun setSequenceId(sequenceId: UInt): Result<Unit, Error> {
+  override suspend fun getMcuSequenceId(mcuRole: McuRole): Result<UInt, Error> {
+    return Ok(
+      mcuSequenceIds[mcuRole]
+        ?: throw NoSuchElementException("No MCU sequence ID found for $mcuRole in the database.")
+    )
+  }
+
+  override suspend fun setMcuSequenceId(
+    mcuRole: McuRole,
+    sequenceId: UInt,
+  ): Result<Unit, Error> {
+    mcuSequenceIds[mcuRole] = sequenceId
     return Ok(Unit)
   }
 
-  override suspend fun getSequenceId(): Result<UInt, Error> {
-    return Ok(0u)
+  override suspend fun clearAllMcuStates(): Result<Unit, Error> {
+    mcuSequenceIds.clear()
+    return Ok(Unit)
   }
 
   private fun incrementSemver(version: String): String {
@@ -76,8 +112,10 @@ class FwupDataDaoFake(
     }
   }
 
-  private fun createMockUpdateData(version: String): FwupData {
-    return FwupData(
+  private fun createMockMcuUpdateData(version: String): McuFwupData {
+    return McuFwupData(
+      mcuRole = McuRole.CORE,
+      mcuName = build.wallet.firmware.McuName.EFR32,
       version = version,
       chunkSize = 0u,
       signatureOffset = 0u,

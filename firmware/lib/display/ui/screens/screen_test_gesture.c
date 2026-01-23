@@ -49,6 +49,15 @@ static log_level_t saved_log_level = LOG_NONE;
 // Processes all screen events
 static void screen_event_handler(lv_event_t* e);
 
+// Restores log level when screen is deleted (handles direct lv_scr_load_anim transitions)
+static void screen_delete_handler(lv_event_t* e) {
+  (void)e;
+  if (saved_log_level != LOG_NONE) {
+    log_set_level(saved_log_level);
+    saved_log_level = LOG_NONE;
+  }
+}
+
 // Track initial press position to suppress long press during movement
 static int32_t press_start_x = 0;
 static int32_t press_start_y = 0;
@@ -157,6 +166,9 @@ static void hide_crosshairs(void) {
 // Helper to create a single-pixel reference dot for robo touch testing
 static lv_obj_t* create_reference_dot(lv_obj_t* parent, int32_t x, int32_t y) {
   lv_obj_t* dot = lv_obj_create(parent);
+  if (!dot) {
+    return NULL;
+  }
   lv_obj_set_size(dot, 1, 1);
   lv_obj_set_pos(dot, x, y);
   lv_obj_set_style_bg_color(dot, lv_color_hex(0x00FF00), 0);
@@ -407,6 +419,9 @@ lv_obj_t* screen_test_gesture_init(void* ctx) {
 
   // Create the screen with black background
   screen = lv_obj_create(NULL);
+  if (!screen) {
+    return NULL;
+  }
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
   // Remove padding so dots can be positioned at absolute edges
@@ -414,12 +429,18 @@ lv_obj_t* screen_test_gesture_init(void* ctx) {
 
   // Create gesture label near the top
   gesture_label = lv_label_create(screen);
+  if (!gesture_label) {
+    return NULL;
+  }
   lv_label_set_text(gesture_label, "");  // Initially empty
   lv_obj_set_style_text_color(gesture_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(gesture_label, &cash_sans_mono_regular_20, 0);
   lv_obj_align(gesture_label, LV_ALIGN_TOP_MID, 0, 20);
 
   coord_label = lv_label_create(screen);
+  if (!coord_label) {
+    return NULL;
+  }
   lv_label_set_text(coord_label, "");
   lv_obj_set_style_text_color(coord_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(coord_label, &cash_sans_mono_regular_20, 0);
@@ -428,6 +449,9 @@ lv_obj_t* screen_test_gesture_init(void* ctx) {
 
   // Create "Test Gestures" label in the center
   title_label = lv_label_create(screen);
+  if (!title_label) {
+    return NULL;
+  }
   lv_label_set_text(title_label, "Test Gestures");
   lv_obj_set_style_text_color(title_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(title_label, &cash_sans_mono_regular_28, 0);
@@ -436,6 +460,9 @@ lv_obj_t* screen_test_gesture_init(void* ctx) {
   // Create crosshair lines (initially hidden)
   // Horizontal line - spans full screen width
   crosshair_h = lv_obj_create(screen);
+  if (!crosshair_h) {
+    return NULL;
+  }
   lv_obj_set_size(crosshair_h, lv_obj_get_width(screen), 1);   // Full screen width, 1px height
   lv_obj_set_style_bg_color(crosshair_h, CROSSHAIR_COLOR, 0);  // Red color
   lv_obj_set_style_bg_opa(crosshair_h, LV_OPA_COVER, 0);
@@ -446,6 +473,9 @@ lv_obj_t* screen_test_gesture_init(void* ctx) {
 
   // Vertical line - spans full screen height
   crosshair_v = lv_obj_create(screen);
+  if (!crosshair_v) {
+    return NULL;
+  }
   lv_obj_set_size(crosshair_v, 1, lv_obj_get_height(screen));  // 1px width, full screen height
   lv_obj_set_style_bg_color(crosshair_v, CROSSHAIR_COLOR, 0);  // Red color
   lv_obj_set_style_bg_opa(crosshair_v, LV_OPA_COVER, 0);
@@ -456,6 +486,9 @@ lv_obj_t* screen_test_gesture_init(void* ctx) {
 
   // Small dot for showing press position
   touch_dot = lv_obj_create(screen);
+  if (!touch_dot) {
+    return NULL;
+  }
   lv_obj_set_size(touch_dot, TOUCH_DOT_SIZE, TOUCH_DOT_SIZE);
   lv_obj_set_style_bg_color(touch_dot, lv_color_white(), 0);
   lv_obj_set_style_bg_opa(touch_dot, LV_OPA_COVER, 0);
@@ -477,16 +510,25 @@ lv_obj_t* screen_test_gesture_init(void* ctx) {
 
   // Create navigation button at the bottom middle
   nav_button = lv_button_create(screen);
+  if (!nav_button) {
+    return NULL;
+  }
   lv_obj_set_size(nav_button, 130, 65);
   lv_obj_align(nav_button, LV_ALIGN_BOTTOM_MID, 0, -20);
 
   // Create "next" label for navigation button
   lv_obj_t* nav_label = lv_label_create(nav_button);
+  if (!nav_label) {
+    return NULL;
+  }
   lv_label_set_text(nav_label, "next");
   lv_obj_center(nav_label);
 
   // Add click event handler to navigation button
   lv_obj_add_event_cb(nav_button, nav_button_event_handler, LV_EVENT_SHORT_CLICKED, NULL);
+
+  // Register delete handler to restore log level when screen is auto-deleted
+  lv_obj_add_event_cb(screen, screen_delete_handler, LV_EVENT_DELETE, NULL);
 
   attach_gesture_handlers(screen);
 

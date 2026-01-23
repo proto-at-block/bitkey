@@ -52,10 +52,11 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
         shouldLock = false,
         skipFirmwareTelemetry = false,
         nfcFlowName = "test",
+        requirePairedHardware = NotRequired,
+        maxNfcRetryAttempts = 3,
         onTagConnected = {},
         onTagDisconnected = {},
-        asyncNfcSigning = false,
-        requirePairedHardware = NotRequired
+        asyncNfcSigning = false
       )
     )
 
@@ -76,10 +77,11 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
         shouldLock = false,
         skipFirmwareTelemetry = false,
         nfcFlowName = "test",
+        requirePairedHardware = Required("challenge".encodeUtf8()) { _, _ -> true },
+        maxNfcRetryAttempts = 3,
         onTagConnected = {},
         onTagDisconnected = {},
-        asyncNfcSigning = false,
-        requirePairedHardware = Required("challenge".encodeUtf8()) { _, _ -> true }
+        asyncNfcSigning = false
       )
     )
 
@@ -99,10 +101,11 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
         shouldLock = false,
         skipFirmwareTelemetry = false,
         nfcFlowName = "test",
+        requirePairedHardware = Required("challenge".encodeUtf8()) { _, _ -> false },
+        maxNfcRetryAttempts = 3,
         onTagConnected = {},
         onTagDisconnected = {},
-        asyncNfcSigning = false,
-        requirePairedHardware = Required("challenge".encodeUtf8()) { _, _ -> false }
+        asyncNfcSigning = false
       )
     )
 

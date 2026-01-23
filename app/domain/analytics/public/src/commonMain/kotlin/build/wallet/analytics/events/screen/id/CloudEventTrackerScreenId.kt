@@ -102,4 +102,13 @@ enum class CloudEventTrackerScreenId : EventTrackerScreenId {
 
   /** Screen for selecting which backup to recover when multiple unencryptable backups are found in cloud storage */
   SELECT_ACCOUNT_BACKUP,
+
+  /** Error screen shown when creating a cloud backup fails during backup repair flow */
+  ERROR_CREATING_CLOUD_BACKUP,
+
+  /** Screen showing there is a problem with the cloud backup that needs attention */
+  CLOUD_BACKUP_PROBLEM,
+
+  /** Warning screen shown before deleting current backup and creating a new account */
+  WARNING_DELETING_CLOUD_BACKUP,
 }

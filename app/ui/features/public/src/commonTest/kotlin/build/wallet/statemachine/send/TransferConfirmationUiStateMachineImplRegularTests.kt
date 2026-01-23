@@ -21,7 +21,6 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.TxVerificationFeatureFlag
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
-import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -30,8 +29,8 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcContinuationSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcContinuationSessionUiStateMachine
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
@@ -80,8 +79,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     ) {}
 
   // Initialize the NfcSessionUIStateMachine
-  val nfcSessionUIStateMachine = object : NfcContinuationSessionUiStateMachine,
-    ScreenStateMachineMock<NfcContinuationSessionUIStateMachineProps<*>>("nfc-regular") {}
+  val nfcSessionUIStateMachine = NfcConfirmableSessionUiStateMachineMock("nfc-regular")
 
   // Define the TransferConfirmationUiProps with callbacks connected to the turbine instances
   @Suppress("DEPRECATION")
@@ -206,7 +204,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcContinuationSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachine.id
       ) {
         shouldShowLongRunningOperation.shouldBeTrue()

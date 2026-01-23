@@ -27,6 +27,7 @@
 #include "wallet.h"
 #include "wallet.pb.h"
 #include "wkek.h"
+#include "wstring.h"
 
 static struct {
   rtos_queue_t* queue;

@@ -74,7 +74,7 @@ extension SignTransaction: IOCommand {
 
 extension WipeState: IOCommand {
     typealias FFIStateType = WipeStateResultState
-    typealias ResultType = Bool
+    typealias ResultType = WipeStateResult
 }
 
 extension LockDevice: IOCommand {
@@ -101,8 +101,8 @@ extension UnsealKey: IOCommand {
 }
 
 extension FwupStart: IOCommand {
-    typealias FFIStateType = BooleanState
-    typealias ResultType = Bool
+    typealias FFIStateType = FwupStartResultState
+    typealias ResultType = FwupStartResult
 }
 
 extension FwupTransfer: IOCommand {
@@ -190,6 +190,11 @@ extension ProvisionAppAuthKey: IOCommand {
     typealias ResultType = Bool
 }
 
+extension GetConfirmationResult: IOCommand {
+    typealias FFIStateType = ConfirmedCommandResultState
+    typealias ResultType = ConfirmedCommandResult
+}
+
 extension IOCommand {
     // These are defined ONCE per monomorphized result type
 
@@ -197,24 +202,6 @@ extension IOCommand {
         switch try self.next(response: response) {
         case let .data(response: response): return .data(response: response)
         case let .result(value: value): return .result(value: value)
-        }
-    }
-
-    func next(_ response: [UInt8]) throws -> IOResult<Bool>
-        where FFIStateType == WipeStateResultState
-    {
-        switch try self.next(response: response) {
-        case let .data(response: response):
-            return .data(response: response)
-        case let .result(value: value):
-            switch value {
-            case let .success(success):
-                return .result(value: success)
-            case .confirmationPending:
-                fatalError(
-                    "Confirmation pending not yet supported - firmware should not return this"
-                )
-            }
         }
     }
 
@@ -360,6 +347,33 @@ extension IOCommand {
 
     func next(_ response: [UInt8]) throws -> IOResult<firmware.DeviceInfo>
         where FFIStateType == DeviceInfoState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<WipeStateResult>
+        where FFIStateType == WipeStateResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<FwupStartResult>
+        where FFIStateType == FwupStartResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<ConfirmedCommandResult>
+        where FFIStateType == ConfirmedCommandResultState
     {
         switch try self.next(response: response) {
         case let .data(response: response): return .data(response: response)

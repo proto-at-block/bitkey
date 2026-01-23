@@ -104,4 +104,7 @@ enum class DelayNotifyRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Screen shown when attempting to cancel an existing recovery during
    * Lost App D&N initiation */
   LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_LOADING,
+
+  /** Screen shown when a recovery attempt has been canceled by another device */
+  RECOVERY_CANCELED_NO_LONGER_RECOVERING,
 }

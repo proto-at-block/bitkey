@@ -48,3 +48,10 @@ void display_power_on(void);
  * @note This method will block until the display has powered off.
  */
 void display_power_off(void);
+
+/**
+ * @brief Sets the display rotation at runtime.
+ *
+ * @param rotate_180  If true, rotate display 180 degrees.
+ */
+void display_set_rotation(bool rotate_180);

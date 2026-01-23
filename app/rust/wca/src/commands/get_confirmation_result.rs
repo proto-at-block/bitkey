@@ -14,6 +14,7 @@ use crate::command_interface::command;
 #[derive(Debug, Clone)]
 pub enum ConfirmedCommandResult {
     WipeState { success: bool },
+    FwupStart { success: bool },
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
@@ -45,6 +46,20 @@ fn get_confirmation_result(
                     }
                     Ok(WipeStateRspStatus::Error) => Err(CommandError::GeneralCommandError),
                     Ok(WipeStateRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
+                    Err(_) => Err(CommandError::InvalidResponse),
+                }
+            }
+            Some(ConfirmationResult::FwupStartResult(fwup_rsp)) => {
+                use crate::fwpb::fwup_start_rsp::FwupStartRspStatus;
+                match FwupStartRspStatus::try_from(fwup_rsp.rsp_status) {
+                    Ok(FwupStartRspStatus::Unspecified) => {
+                        Err(CommandError::UnspecifiedCommandError)
+                    }
+                    Ok(FwupStartRspStatus::Success) => {
+                        Ok(ConfirmedCommandResult::FwupStart { success: true })
+                    }
+                    Ok(FwupStartRspStatus::Error) => Err(CommandError::GeneralCommandError),
+                    Ok(FwupStartRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
                     Err(_) => Err(CommandError::InvalidResponse),
                 }
             }

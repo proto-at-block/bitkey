@@ -59,6 +59,7 @@ import build.wallet.statemachine.partnerships.sell.PartnershipsSellUiStateMachin
 import build.wallet.statemachine.pricechart.BitcoinPriceChartUiProps
 import build.wallet.statemachine.pricechart.BitcoinPriceChartUiStateMachine
 import build.wallet.statemachine.receive.AddressQrCodeUiProps
+import build.wallet.statemachine.receive.AddressQrCodeUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
@@ -81,11 +82,10 @@ import com.github.michaelbull.result.get
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlin.time.Duration
-import build.wallet.statemachine.receive.AddressQrCodeUiStateMachine as AddressQrCodeUiStateMachineV2
 
 @BitkeyInject(ActivityScope::class)
 class MoneyHomeUiStateMachineImpl(
-  private val addressQrCodeUiStateMachineV2: AddressQrCodeUiStateMachineV2,
+  private val addressQrCodeUiStateMachine: AddressQrCodeUiStateMachine,
   private val sendUiStateMachine: SendUiStateMachine,
   private val transactionDetailsUiStateMachine: TransactionDetailsUiStateMachine,
   private val transactionsActivityUiStateMachine: TransactionsActivityUiStateMachine,
@@ -426,7 +426,7 @@ class MoneyHomeUiStateMachineImpl(
     onWebLinkOpened: (String, PartnerInfo, PartnershipTransaction) -> Unit,
     onExit: () -> Unit,
   ): ScreenModel {
-    return addressQrCodeUiStateMachineV2.model(
+    return addressQrCodeUiStateMachine.model(
       props = AddressQrCodeUiProps(
         account = props.account as FullAccount,
         onWebLinkOpened = onWebLinkOpened,

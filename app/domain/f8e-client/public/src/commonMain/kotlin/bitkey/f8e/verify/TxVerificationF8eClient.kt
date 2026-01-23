@@ -21,6 +21,7 @@ interface TxVerificationF8eClient {
    * @param psbt The transaction to be signed in the resulting grant after verification.
    * @param fiatCurrency The fiat currency used to display the transaction amount in the verification UI.
    * @param bitcoinDisplayUnit Used to control the server-verification UI so that it matches the local preferences.
+   * @param useBip177 Whether to use BIP 177 Bitcoin sign (₿) instead of "sats" text.
    */
   suspend fun createVerificationRequest(
     f8eEnvironment: F8eEnvironment,
@@ -29,6 +30,7 @@ interface TxVerificationF8eClient {
     psbt: Psbt,
     fiatCurrency: FiatCurrency,
     bitcoinDisplayUnit: BitcoinDisplayUnit,
+    useBip177: Boolean,
   ): Result<PendingTransactionVerification, Throwable>
 
   /**
@@ -63,6 +65,7 @@ interface TxVerificationF8eClient {
    * @param psbt The transaction to be signed. This must be under the transaction limit amount.
    * @param fiatCurrency irrelevant, but required by the API.
    * @param bitcoinDisplayUnit irrelevant, but required by the API.
+   * @param useBip177 irrelevant, but required by the API.
    */
   suspend fun requestGrant(
     f8eEnvironment: F8eEnvironment,
@@ -71,5 +74,6 @@ interface TxVerificationF8eClient {
     psbt: Psbt,
     fiatCurrency: FiatCurrency,
     bitcoinDisplayUnit: BitcoinDisplayUnit,
+    useBip177: Boolean,
   ): Result<TxVerificationApproval, Throwable>
 }

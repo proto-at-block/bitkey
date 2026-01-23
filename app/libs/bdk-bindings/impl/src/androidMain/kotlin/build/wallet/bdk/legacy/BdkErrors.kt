@@ -9,22 +9,20 @@ import org.bitcoindevkit.BdkException
 import org.bitcoindevkit.BdkException.*
 
 /**
- * Calls the specified function [block] with [this] value as its receiver and returns its
- * encapsulated result if invocation was successful, catching any [BdkException] that was
- * thrown from the [block] function execution and encapsulating it as a [BdkError] failure.
+ * Calls the specified function [block] and returns its encapsulated result if invocation
+ * was successful, catching any [BdkException] that was thrown from the [block] function
+ * execution and encapsulating it as a [BdkError] failure.
  */
-internal inline infix fun <T, V : Any?> T.runCatchingBdkError(block: T.() -> V): BdkResult<V> =
+internal inline fun <V : Any?> runCatchingBdkError(block: () -> V): BdkResult<V> =
   catchingResult { block() }
     .mapError {
       require(it is BdkException)
       it.toBdkError()
     }
-    .let {
-      it.mapBoth(
-        success = { value -> BdkResult.Ok(value) },
-        failure = { error -> BdkResult.Err(error) }
-      )
-    }
+    .mapBoth(
+      success = { value -> BdkResult.Ok(value) },
+      failure = { error -> BdkResult.Err(error) }
+    )
 
 /**
  * Maps [BdkException] from `bdk-android` to KMP [BdkError] type.

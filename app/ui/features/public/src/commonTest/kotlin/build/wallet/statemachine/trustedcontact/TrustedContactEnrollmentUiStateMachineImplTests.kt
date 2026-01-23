@@ -3,10 +3,12 @@ package build.wallet.statemachine.trustedcontact
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.RELATIONSHIP_ALREADY_ESTABLISHED
 import bitkey.f8e.error.code.F8eClientErrorCode
+import bitkey.f8e.error.code.RetrieveTrustedContactInvitationErrorCode.INVITATION_ROLE_MISMATCH
 import bitkey.f8e.error.code.RetrieveTrustedContactInvitationErrorCode.NOT_FOUND
 import bitkey.relationships.Relationships
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
+import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.account.FullAccount
@@ -269,15 +271,18 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
   }
 
   context("retrieve invite failure") {
-    suspend fun StateMachineTester<TrustedContactEnrollmentUiProps, ScreenModel>.progressToRetrievingInvite() {
-      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+    suspend fun StateMachineTester<TrustedContactEnrollmentUiProps, ScreenModel>.progressToRetrievingInvite(
+      enterScreenId: SocialRecoveryEventTrackerScreenId = TC_ENROLLMENT_ENTER_INVITE_CODE,
+      retrieveScreenId: SocialRecoveryEventTrackerScreenId = TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E,
+    ) {
+      awaitBody<FormBodyModel>(enterScreenId) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
           .onValueChange("code", 0..0)
       }
-      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<FormBodyModel>(enterScreenId) {
         clickPrimaryButton()
       }
-      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+      awaitBody<LoadingSuccessBodyModel>(retrieveScreenId) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
     }
@@ -319,6 +324,55 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
           clickPrimaryButton() // Back button
         }
         awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
+      }
+    }
+
+    test("invitation role mismatch - recovery contact") {
+      relationshipsService.retrieveInvitationResult = Err(
+        RetrieveInvitationCodeError.F8ePropagatedError(
+          SpecificClientErrorMock(INVITATION_ROLE_MISMATCH)
+        )
+      )
+      stateMachine.test(props) {
+        progressToRetrievingInvite()
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+          header?.headline?.shouldBe("This code is for a different invitation type")
+          header?.sublineModel?.string?.shouldBe(
+            "Navigate to Settings > Inheritance > Benefactors > Accept invite and try again."
+          )
+          secondaryButton.shouldBeNull() // No retries
+          clickPrimaryButton() // Back button
+        }
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
+      }
+    }
+
+    test("invitation role mismatch - beneficiary") {
+      relationshipsService.retrieveInvitationResult = Err(
+        RetrieveInvitationCodeError.F8ePropagatedError(
+          SpecificClientErrorMock(INVITATION_ROLE_MISMATCH)
+        )
+      )
+      stateMachine.test(
+        props.copy(
+          variant = TrustedContactFeatureVariant.Direct(
+            target = TrustedContactFeatureVariant.Feature.Inheritance
+          )
+        )
+      ) {
+        progressToRetrievingInvite(
+          enterScreenId = TC_BENEFICIARY_ENROLLMENT_ENTER_INVITE_CODE,
+          retrieveScreenId = TC_BENEFICIARY_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E
+        )
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+          header?.headline?.shouldBe("This code is for a different invitation type")
+          header?.sublineModel?.string?.shouldBe(
+            "Navigate to Security Hub > Recovery Contacts > Accept invite and try again."
+          )
+          secondaryButton.shouldBeNull() // No retries
+          clickPrimaryButton() // Back button
+        }
+        awaitBody<FormBodyModel>(TC_BENEFICIARY_ENROLLMENT_ENTER_INVITE_CODE)
       }
     }
 

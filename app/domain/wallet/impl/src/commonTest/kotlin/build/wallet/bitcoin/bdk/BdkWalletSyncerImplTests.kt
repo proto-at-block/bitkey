@@ -62,7 +62,7 @@ class BdkWalletSyncerImplTests : FunSpec({
       walletSyncer.sync(bdkWallet, BITCOIN)
 
       datadogRumMonitor.startResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
-      bdkBlockchainProvider.blockchainCalls.awaitItem().shouldBeNull()
+      bdkBlockchainProvider.legacyBlockchainCalls.awaitItem().shouldBeNull()
       datadogRumMonitor.stopResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
 
       networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
@@ -104,7 +104,7 @@ class BdkWalletSyncerImplTests : FunSpec({
       )
 
       datadogRumMonitor.startResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
-      (bdkBlockchainProvider.blockchainCalls.awaitItem() as ElectrumServer).shouldBe(
+      (bdkBlockchainProvider.legacyBlockchainCalls.awaitItem() as ElectrumServer).shouldBe(
         Blockstream(BITCOIN, isAndroidEmulator = false)
       )
       datadogRumMonitor.stopResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
@@ -126,10 +126,10 @@ class BdkWalletSyncerImplTests : FunSpec({
       )
       electrumServerSettingProvider.setCalls.awaitItem()
 
-      bdkBlockchainProvider.blockchainResult = BdkResult.Err(BdkError.Generic(null, null))
+      bdkBlockchainProvider.legacyBlockchainResult = BdkResult.Err(BdkError.Generic(null, null))
       walletSyncer.sync(bdkWallet, BITCOIN)
       // We did not override to use secondary Electrum server
-      bdkBlockchainProvider.blockchainCalls.awaitItem().shouldBeNull()
+      bdkBlockchainProvider.legacyBlockchainCalls.awaitItem().shouldBeNull()
 
       networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
         .shouldBeTypeOf<NetworkReachabilityProviderMock.UpdateNetworkReachabilityForConnectionParams>()

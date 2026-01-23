@@ -4,6 +4,7 @@ import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.relationships.IncomingInvitation
+import build.wallet.bitkey.relationships.TrustedContactRole
 import com.github.michaelbull.result.Result
 
 interface RetrieveTrustedContactInvitationF8eClient {
@@ -14,5 +15,6 @@ interface RetrieveTrustedContactInvitationF8eClient {
   suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
+    expectedRole: TrustedContactRole?,
   ): Result<IncomingInvitation, F8eError<RetrieveTrustedContactInvitationErrorCode>>
 }

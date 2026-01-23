@@ -25,6 +25,16 @@ use std::sync::Arc;
 #[derive(uniffi::Object)]
 pub struct ElectrumClient(BdkBdkElectrumClient<bdk_electrum::electrum_client::Client>);
 
+// Minimal accessor so extension modules can reach the wrapped BDK electrum client
+// without exposing the tuple field publicly.
+impl ElectrumClient {
+    pub(crate) fn bdk_client(
+        &self,
+    ) -> &BdkBdkElectrumClient<bdk_electrum::electrum_client::Client> {
+        &self.0
+    }
+}
+
 #[uniffi::export]
 impl ElectrumClient {
     /// Creates a new bdk client from a electrum_client::ElectrumApi

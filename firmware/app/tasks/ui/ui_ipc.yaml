@@ -14,3 +14,7 @@ messages:
     - name: ui_set_idle_state_t
       fields:
         - uint32_t idle_state   # ui_event_type_t
+    - name: ui_display_action_t
+      fields:
+        - uint32_t action      # fwpb_display_action_display_action_type
+        - uint32_t data        # Optional data for EXIT/DELETE_FINGERPRINT actions

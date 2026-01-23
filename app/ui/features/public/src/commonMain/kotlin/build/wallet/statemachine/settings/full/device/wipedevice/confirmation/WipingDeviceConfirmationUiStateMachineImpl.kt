@@ -8,12 +8,14 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.logDebug
+import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.ConfirmationHandlerOverride
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.ConfirmationScreen
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.WipingDevice
@@ -32,7 +34,7 @@ import kotlinx.coroutines.flow.firstOrNull
 
 @BitkeyInject(ActivityScope::class)
 class WipingDeviceConfirmationUiStateMachineImpl(
-  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
 ) : WipingDeviceConfirmationUiStateMachine {
@@ -230,25 +232,36 @@ class WipingDeviceConfirmationUiStateMachineImpl(
     onCancel: () -> Unit,
     isDevicePaired: Boolean,
   ): ScreenModel {
-    return nfcSessionUIStateMachine.model(
-      NfcSessionUIStateMachineProps(
-        session = { session, commands ->
-          commands.wipeDevice(session)
-        },
-        onSuccess = {
-          val firmwareSerial = firmwareDeviceInfoDao.deviceInfo().firstOrNull()?.get()?.serial
-            ?: "failed to retrieve serial number"
-          logDebug { "Bitkey wipe successfully with serial number: $firmwareSerial" }
-          if (isDevicePaired) {
-            firmwareDeviceInfoDao.clear()
-            hardwareUnlockInfoService.clear()
+    return nfcConfirmableSessionUiStateMachine.model(
+      NfcConfirmableSessionUIStateMachineProps(
+        session = { session, commands -> commands.wipeDevice(session) },
+        onSuccess = { success: Boolean ->
+          if (success) {
+            val firmwareSerial = firmwareDeviceInfoDao.deviceInfo().firstOrNull()?.get()?.serial
+              ?: "failed to retrieve serial number"
+            logDebug { "Bitkey wipe successfully with serial number: $firmwareSerial" }
+            if (isDevicePaired) {
+              firmwareDeviceInfoDao.clear()
+              hardwareUnlockInfoService.clear()
+            }
+            onSuccess()
+          } else {
+            onCancel()
           }
-          onSuccess()
         },
         onCancel = onCancel,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
         shouldLock = false,
-        eventTrackerContext = NfcEventTrackerScreenIdContext.WIPE_DEVICE
+        eventTrackerContext = NfcEventTrackerScreenIdContext.WIPE_DEVICE,
+        onRequiresConfirmation = { _ ->
+          ConfirmationHandlerOverride.CompleteImmediately(true)
+        },
+        onEmulatedPromptSelected = { option ->
+          when (option.name) {
+            EmulatedPromptOption.APPROVE -> ConfirmationHandlerOverride.CompleteImmediately(true)
+            else -> ConfirmationHandlerOverride.CompleteImmediately(false)
+          }
+        }
       )
     )
   }

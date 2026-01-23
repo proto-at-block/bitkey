@@ -1,5 +1,6 @@
 package build.wallet.statemachine.settings.full.device.fingerprints
 
+import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -24,7 +25,7 @@ private data class PromptingForFingerprintFwUpSheetBodyModel(
   val onCancel: () -> Unit,
   val onUpdate: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = FwupEventTrackerScreenId.FWUP_FINGERPRINT_UPDATE_PROMPT_SHEET,
     onBack = onCancel,
     toolbar = null,
     header = FormHeaderModel(

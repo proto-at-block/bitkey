@@ -80,10 +80,16 @@ lv_obj_t* screen_test_progress_init(void* ctx) {
 
   // Create the screen with black background
   screen = lv_obj_create(NULL);
+  if (!screen) {
+    return NULL;
+  }
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
   // Create progress bar
   progress_bar = lv_bar_create(screen);
+  if (!progress_bar) {
+    return NULL;
+  }
   lv_obj_set_size(progress_bar, 400, 30);
   lv_obj_align(progress_bar, LV_ALIGN_TOP_MID, 0, 90);
   lv_bar_set_range(progress_bar, 0, PROGRESS_MAX);
@@ -95,10 +101,16 @@ lv_obj_t* screen_test_progress_init(void* ctx) {
 
   // Create hold button in the center
   hold_button = lv_button_create(screen);
+  if (!hold_button) {
+    return NULL;
+  }
   lv_obj_set_size(hold_button, 200, 120);
   lv_obj_align(hold_button, LV_ALIGN_CENTER, 0, 0);
 
   lv_obj_t* hold_label = lv_label_create(hold_button);
+  if (!hold_label) {
+    return NULL;
+  }
   lv_label_set_text(hold_label, "HOLD ME");
   lv_obj_center(hold_label);
 
@@ -109,18 +121,30 @@ lv_obj_t* screen_test_progress_init(void* ctx) {
 
   // Create Prev button at bottom left
   prev_button = lv_button_create(screen);
+  if (!prev_button) {
+    return NULL;
+  }
   lv_obj_set_size(prev_button, 130, 65);
   lv_obj_align(prev_button, LV_ALIGN_BOTTOM_LEFT, 60, -60);
   lv_obj_t* prev_label = lv_label_create(prev_button);
+  if (!prev_label) {
+    return NULL;
+  }
   lv_label_set_text(prev_label, "Prev");
   lv_obj_center(prev_label);
   lv_obj_add_event_cb(prev_button, prev_button_handler, LV_EVENT_SHORT_CLICKED, NULL);
 
   // Create Next button at bottom right
   next_button = lv_button_create(screen);
+  if (!next_button) {
+    return NULL;
+  }
   lv_obj_set_size(next_button, 130, 65);
   lv_obj_align(next_button, LV_ALIGN_BOTTOM_RIGHT, -60, -60);
   lv_obj_t* next_label = lv_label_create(next_button);
+  if (!next_label) {
+    return NULL;
+  }
   lv_label_set_text(next_label, "Next");
   lv_obj_center(next_label);
   lv_obj_add_event_cb(next_button, next_button_handler, LV_EVENT_SHORT_CLICKED, NULL);

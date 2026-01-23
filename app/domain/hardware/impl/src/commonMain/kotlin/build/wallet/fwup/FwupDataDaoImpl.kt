@@ -6,8 +6,10 @@ import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.di.Impl
+import build.wallet.firmware.McuName
+import build.wallet.firmware.McuRole
 import build.wallet.logging.logFailure
-import build.wallet.sqldelight.asFlowOfOneOrNull
+import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
@@ -25,36 +27,68 @@ class FwupDataDaoImpl(
 ) : FwupDataDao {
   private suspend fun database() = databaseProvider.database()
 
-  override fun fwupData(): Flow<Result<FwupData?, DbError>> {
+  override suspend fun setMcuFwupData(mcuFwupDataList: List<McuFwupData>): Result<Unit, DbError> {
+    return database()
+      .awaitTransaction {
+        mcuFwupDataList.forEach { mcuFwupData ->
+          fwupDataQueries.setMcuFwupData(
+            mcuRole = mcuFwupData.mcuRole.name,
+            mcuName = mcuFwupData.mcuName.name,
+            version = mcuFwupData.version,
+            chunkSize = mcuFwupData.chunkSize.toLong(),
+            signatureOffset = mcuFwupData.signatureOffset.toLong(),
+            appPropertiesOffset = mcuFwupData.appPropertiesOffset.toLong(),
+            firmware = mcuFwupData.firmware.toByteArray(),
+            signature = mcuFwupData.signature.toByteArray(),
+            fwupMode = mcuFwupData.fwupMode
+          )
+        }
+      }
+      .logFailure { "Failed to set MCU fwup data" }
+  }
+
+  override suspend fun getMcuFwupData(mcuRole: McuRole): Result<McuFwupData?, DbError> {
+    return database()
+      .awaitTransactionWithResult {
+        fwupDataQueries.getMcuFwupData(mcuRole.name).executeAsOneOrNull()?.toMcuFwupData()
+      }
+      .logFailure { "Failed to get MCU fwup data for $mcuRole" }
+  }
+
+  override suspend fun getAllMcuFwupData(): Result<List<McuFwupData>, DbError> {
+    return database()
+      .awaitTransactionWithResult {
+        fwupDataQueries.getAllMcuFwupData().executeAsList().map { it.toMcuFwupData() }
+      }
+      .logFailure { "Failed to get all MCU fwup data" }
+  }
+
+  override suspend fun clearAllMcuFwupData(): Result<Unit, DbError> {
+    return database()
+      .awaitTransaction { fwupDataQueries.clearAllMcuFwupData() }
+      .logFailure { "Failed to clear all MCU fwup data" }
+  }
+
+  override suspend fun clearMcuFwupData(mcuRole: McuRole): Result<Unit, DbError> {
+    return database()
+      .awaitTransaction { fwupDataQueries.clearMcuFwupData(mcuRole.name) }
+      .logFailure { "Failed to clear MCU fwup data for $mcuRole" }
+  }
+
+  override fun mcuFwupData(): Flow<Result<List<McuFwupData>, DbError>> {
     return flow {
       databaseProvider.database()
         .fwupDataQueries
-        .getFwupData()
-        .asFlowOfOneOrNull()
+        .getAllMcuFwupData()
+        .asFlowOfList()
         .map { result ->
           result
-            .map { it?.toFwupData() }
-            .logFailure { "Failed to get fwup data" }
+            .map { entities -> entities.map { it.toMcuFwupData() } }
+            .logFailure { "Failed to get MCU fwup data" }
         }
         .distinctUntilChanged()
         .collect(::emit)
     }
-  }
-
-  override suspend fun setFwupData(fwupData: FwupData): Result<Unit, DbError> {
-    return database()
-      .awaitTransaction {
-        fwupDataQueries.setFwupData(
-          version = fwupData.version,
-          chunkSize = fwupData.chunkSize.toLong(),
-          signatureOffset = fwupData.signatureOffset.toLong(),
-          appPropertiesOffset = fwupData.appPropertiesOffset.toLong(),
-          firmware = fwupData.firmware.toByteArray(),
-          signature = fwupData.signature.toByteArray(),
-          fwupMode = fwupData.fwupMode
-        )
-      }
-      .logFailure { "Failed to set fwup data" }
   }
 
   override suspend fun clear(): Result<Unit, DbError> {
@@ -63,23 +97,36 @@ class FwupDataDaoImpl(
       .logFailure { "Failed to clear fwup data" }
   }
 
-  override suspend fun setSequenceId(sequenceId: UInt): Result<Unit, DbError> {
-    return database()
-      .awaitTransaction { fwupDataQueries.setSequenceId(sequenceId.toLong()) }
-      .logFailure { "Failed to set sequence ID" }
-  }
-
-  override suspend fun getSequenceId(): Result<UInt, DbError> {
+  override suspend fun getMcuSequenceId(mcuRole: McuRole): Result<UInt, DbError> {
     return database()
       .awaitTransactionWithResult {
-        fwupDataQueries.getSequenceId().executeAsOneOrNull()?.toUInt()
-          ?: throw NoSuchElementException("No sequence ID found in the database.")
+        fwupDataQueries.getMcuSequenceId(mcuRole.name).executeAsOneOrNull()?.toUInt()
+          ?: throw NoSuchElementException("No MCU sequence ID found for $mcuRole in the database.")
       }
+  }
+
+  override suspend fun setMcuSequenceId(
+    mcuRole: McuRole,
+    sequenceId: UInt,
+  ): Result<Unit, DbError> {
+    return database()
+      .awaitTransaction {
+        fwupDataQueries.setMcuSequenceId(mcuRole.name, sequenceId.toLong())
+      }
+      .logFailure { "Failed to set MCU sequence ID for $mcuRole" }
+  }
+
+  override suspend fun clearAllMcuStates(): Result<Unit, DbError> {
+    return database()
+      .awaitTransaction { fwupDataQueries.clearAllMcuStates() }
+      .logFailure { "Failed to clear all MCU states" }
   }
 }
 
-private fun FwupDataEntity.toFwupData() =
-  FwupData(
+private fun FwupDataEntity.toMcuFwupData() =
+  McuFwupData(
+    mcuRole = McuRole.valueOf(mcuRole),
+    mcuName = McuName.valueOf(mcuName),
     version = version,
     chunkSize = chunkSize.toUInt(),
     signatureOffset = signatureOffset.toUInt(),

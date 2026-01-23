@@ -1,13 +1,18 @@
+use time::Date;
 use tracing::{event, instrument, Level};
 
+use bdk_utils::bdk::bitcoin::Txid;
 use database::{
     aws_sdk_dynamodb::error::ProvideErrorMetadata,
     ddb::{try_to_attribute_val, try_to_item, DatabaseError, Repository},
 };
+use types::account::identifiers::AccountId;
 
 use crate::daily_spend_record::entities::DailySpendingRecord;
 
 use super::DailySpendRecordRepository;
+
+const MAX_ROLLBACK_RETRIES: usize = 3;
 
 impl DailySpendRecordRepository {
     /// Persist the DailySpendingRecord to the repository. Consumes the record and returns () if OK.
@@ -54,5 +59,39 @@ impl DailySpendRecordRepository {
                 DatabaseError::PersistenceError(self.get_database_object())
             })?;
         Ok(updated_spending_record)
+    }
+
+    /// Remove a spending entry by txid with retry on version conflict.
+    /// Fetches the current record, removes the entry, and persists.
+    #[instrument(skip(self))]
+    pub(crate) async fn remove_spending_entry(
+        &self,
+        account_id: &AccountId,
+        date: Date,
+        txid: &Txid,
+    ) -> Result<(), DatabaseError> {
+        for attempt in 0..MAX_ROLLBACK_RETRIES {
+            let mut record = self.fetch(account_id, date).await?;
+
+            if !record.remove_spending_entry(txid) {
+                // Entry not found, nothing to rollback
+                return Ok(());
+            }
+
+            match self.persist(record).await {
+                Ok(()) => return Ok(()),
+                Err(DatabaseError::PersistenceError(_)) if attempt < MAX_ROLLBACK_RETRIES - 1 => {
+                    event!(
+                        Level::WARN,
+                        ?txid,
+                        attempt,
+                        "version conflict during spending entry rollback, retrying"
+                    );
+                    continue;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Err(DatabaseError::PersistenceError(self.get_database_object()))
     }
 }

@@ -1,5 +1,6 @@
 #include "arithmetic.h"
 #include "assert.h"
+#include "auth.h"
 #include "criterion_test_utils.h"
 #include "fff.h"
 #include "secutils.h"
@@ -12,7 +13,6 @@
 
 static int global_time_ms = 0;
 static bool power_on = true;
-static secure_bool_t authed = SECURE_FALSE;
 static bool removed_files = false;
 
 void rtos_mutex_create(void* UNUSED(mutex)) {}
@@ -28,9 +28,6 @@ uint16_t crypto_rand_short(void) {
 }
 uint32_t clock_get_freq(void) {
   return 1;
-}
-void set_authenticated(secure_bool_t auth, bool UNUSED(show_animation)) {
-  authed = auth;
 }
 
 void unlock_perform_wipe_state(void) {
@@ -59,7 +56,8 @@ typedef struct {
 
 static fake_timer_handle_t unlock_timer_handle = {0};
 static fake_timer_handle_t sleep_timer_handle = {0};
-static rtos_timer_t* timers[2] = {0};
+static fake_timer_handle_t auth_timer_handle = {0};
+static rtos_timer_t* timers[3] = {0};
 
 extern const uint32_t delay_table[];
 extern unlock_delay_status_t delay_status;
@@ -86,6 +84,8 @@ void rtos_timer_create_static(rtos_timer_t* timer, rtos_timer_callback_t callbac
     timer->handle = &sleep_timer_handle;
   } else if (strcmp(timer->name, "unlock") == 0) {
     timer->handle = &unlock_timer_handle;
+  } else if (strcmp(timer->name, "auth") == 0) {
+    timer->handle = &auth_timer_handle;
   } else {
     ASSERT(false);
   }
@@ -160,6 +160,7 @@ static void init(void) {
 
   sleep_init(sleep_power_down_callback);
   sleep_start_power_timer();
+  auth_init((auth_config_t){.expiry_ms = 60000}, (auth_callbacks_t){.on_lock = NULL});
   unlock_init_and_begin_delay();
 }
 
@@ -185,9 +186,9 @@ Test(unlock_test, check_provision_check, .init = init) {
   uint32_t retry_counter;
 
   provision_default();
-  cr_assert_eq(authed, SECURE_FALSE);
+  cr_assert_eq(is_authenticated(), SECURE_FALSE);
   cr_assert_eq(unlock_check_secret(&g_secret, &remaining_duration, &retry_counter), UNLOCK_OK);
-  cr_assert_eq(authed, SECURE_TRUE);
+  cr_assert_eq(is_authenticated(), SECURE_TRUE);
 }
 
 Test(unlock_test, rejects_invalid_secret, .init = init) {

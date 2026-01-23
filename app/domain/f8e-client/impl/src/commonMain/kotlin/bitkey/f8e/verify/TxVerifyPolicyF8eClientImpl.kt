@@ -74,7 +74,8 @@ class TxVerifyPolicyF8eClientImpl(
                     amountFiat = it.fractionalUnitValue.ulongValue(exactRequired = true),
                     currencyCode = it.currency.textCode.code
                   )
-                }
+                },
+              useBip177 = request.useBip177
             )
           )
         }
@@ -131,6 +132,9 @@ private data class PolicyChangeRequest(
   @Unredacted
   val state: VerificationState,
   val threshold: CurrencyThreshold?,
+  @Unredacted
+  @SerialName("use_bip_177")
+  val useBip177: Boolean,
 ) : RedactedRequestBody
 
 @Serializable

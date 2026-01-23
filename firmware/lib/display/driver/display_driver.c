@@ -9,7 +9,7 @@
 
 #define DISPLAY_PWR_RAIL_MIN_DELAY_MS   1     // Minimum delay between power rail transitions
 #define DISPLAY_PWR_RESET_DELAY_MS      10    // Delay after final rail before reset
-#define STALE_COUNT_THRESHOLD           3     // Number of stale reads before forcing release
+#define STALE_COUNT_THRESHOLD           1     // Number of stale reads before forcing release
 #define TOUCH_SCROLL_LIMIT              15    // Scroll limit in pixels
 #define TOUCH_LONG_PRESS_TIME_MS        500   // Long press detection time
 #define TOUCH_LONG_PRESS_REPEAT_TIME_MS 2000  // Long press repeat time
@@ -26,6 +26,7 @@ static lv_color16_t buf1[MAX_BUF_SIZE];
 static lv_color16_t buf2[MAX_BUF_SIZE];
 static lv_draw_buf_t draw_buf1;
 static lv_draw_buf_t draw_buf2;
+static lv_display_t* s_display = NULL;
 
 // ICNA3312 requires even addr writes.
 static void even_rounder_cb(lv_event_t* e) {
@@ -86,11 +87,13 @@ static void touch_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
   touch_get_latest_event(&latest_event);
 
   /* Mapping from touch controller to GUI is inverted*/
-  data->point.x = MAX_DISP_WIDTH - latest_event.coord.x;
+  data->point.x = MAX_DISP_WIDTH - latest_event.coord.x - 1;
   data->point.x = data->point.x < 0 ? 0 : data->point.x;
+  data->point.x = data->point.x >= MAX_DISP_WIDTH ? MAX_DISP_WIDTH - 1 : data->point.x;
 
-  data->point.y = MAX_DISP_HEIGHT - latest_event.coord.y;
+  data->point.y = MAX_DISP_HEIGHT - latest_event.coord.y - 1;
   data->point.y = data->point.y < 0 ? 0 : data->point.y;
+  data->point.y = data->point.y >= MAX_DISP_HEIGHT ? MAX_DISP_HEIGHT - 1 : data->point.y;
 
   // Check if this is the same data we read last time (stale)
   if (latest_event.timestamp_ms == last_timestamp_ms) {
@@ -163,13 +166,10 @@ void display_init(void) {
                    sizeof(buf2));
   // Setup display
   lv_display_t* disp = lv_display_create(disp_width, disp_height);
+  s_display = disp;  // Store for runtime rotation updates
   lv_display_set_draw_buffers(disp, &draw_buf1, &draw_buf2);
   lv_display_set_flush_cb(disp, lvgl_flush_cb);
 
-  // Rotate touch coordinates if display rotation is used
-  if (display_config.gfx_config.rotate_180) {
-    lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_180);
-  }
   // Setup Rounder
   lv_display_add_event_cb(disp, even_rounder_cb, LV_EVENT_INVALIDATE_AREA, NULL);
 
@@ -229,5 +229,16 @@ void display_power_off(void) {
 
   if (display_config.pwr.pwr_1v8_en != (mcu_gpio_config_t*)NULL) {
     mcu_gpio_clear(display_config.pwr.pwr_1v8_en);
+  }
+}
+
+void display_set_rotation(bool rotate_180) {
+  // Update hardware MADCTL register
+  gfx_set_rotation(rotate_180);
+
+  // Update LVGL rotation
+  if (s_display) {
+    lv_display_set_rotation(s_display,
+                            rotate_180 ? LV_DISPLAY_ROTATION_180 : LV_DISPLAY_ROTATION_0);
   }
 }

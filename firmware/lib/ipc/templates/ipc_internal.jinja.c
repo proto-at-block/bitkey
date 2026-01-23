@@ -1,6 +1,8 @@
 #include "assert.h"
+#include "auth.h"
 #include "ipc_impl.h"
 #include "log.h"
+#include "onboarding.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
 #include "secutils.h"
@@ -13,11 +15,6 @@
 SHARED_TASK_DATA ipc_port_obj_t ports[{{num_ports}}] __attribute__((__used__)) = {0};
 SHARED_TASK_DATA uint32_t num_ipc_ports = {{num_ports}};
 
-// NOTE: This breaks the convention of not calling task-owned functions.
-extern void refresh_auth(void);
-extern secure_bool_t is_authenticated(void);
-extern secure_bool_t is_allowing_fingerprint_enrollment(void);
-extern secure_bool_t onboarding_complete(void);
 
 {% for port in ports -%}
 const uint32_t {{port}} = {{loop.index - 1}};
@@ -137,4 +134,4 @@ NO_OPTIMIZE bool ipc_proto_route(uint16_t pb_tag, uint8_t* buffer, uint32_t size
   }
 }
 
-// clang-format on
+  // clang-format on

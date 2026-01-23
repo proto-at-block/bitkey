@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.dev.DebugMenuBodyModel
 import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.components.list.ListGroup
+import build.wallet.ui.components.sheet.Sheet
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
@@ -51,5 +52,10 @@ fun DebugMenuScreen(
         Spacer(Modifier.height(24.dp))
       }
     }
+  }
+  if (model.bottomSheetModel != null) {
+    Sheet(
+      model = model.bottomSheetModel
+    )
   }
 }

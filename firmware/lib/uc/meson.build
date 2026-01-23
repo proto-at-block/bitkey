@@ -1,4 +1,4 @@
-deps = [assert_dep, bitlog_dep, helpers_dep, mempool_dep, nanocobs_dep, protos_dep, rtos_dep]
+deps = [assert_dep, bitlog_dep, helpers_dep, log_dep, mempool_dep, nanocobs_dep, protos_dep, rtos_dep]
 
 srcs = ['src/uc.c', 'src/uc_route.c']
 

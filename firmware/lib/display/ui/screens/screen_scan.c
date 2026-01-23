@@ -1,37 +1,25 @@
 #include "screen_scan.h"
 
 #include "assert.h"
-#include "bottom_menu.h"
 #include "display.pb.h"
 #include "langpack.h"
+#include "orbital_dots_animation.h"
+#include "top_menu.h"
 #include "ui.h"
-#include "wave_animation.h"
 
 #include <string.h>
 
 // Screen configuration
-#define SCREEN_BRIGHTNESS 100
-#define TEXT_FADE_MS      1000
+#define SCREEN_BRIGHTNESS      100
+#define TEXT_CONTAINER_PADDING 12
 
 // Fonts
 #define FONT_TITLE (&cash_sans_mono_regular_36)
 
 static lv_obj_t* screen = NULL;
-static wave_animation_t wave_animation;
-static bottom_menu_t menu_button;
+static orbital_dots_animation_t orbital_dots_animation;
+static top_menu_t menu_button;
 static lv_obj_t* title_label = NULL;
-static lv_anim_t text_fade_anim;
-
-static void text_fade_anim_cb(void* var, int32_t value) {
-  lv_obj_t* label = (lv_obj_t*)var;
-  lv_obj_set_style_text_opa(label, (lv_opa_t)value, 0);
-}
-
-static void text_fade_ready_cb(lv_anim_t* a) {
-  (void)a;
-  // Start wave animation after text fade-in completes
-  wave_animation_start(&wave_animation);
-}
 
 lv_obj_t* screen_scan_init(void* ctx) {
   const fwpb_display_show_screen* show_screen = (const fwpb_display_show_screen*)ctx;
@@ -64,37 +52,58 @@ lv_obj_t* screen_scan_init(void* ctx) {
 
   ASSERT(screen == NULL);
   screen = lv_obj_create(NULL);
+  if (!screen) {
+    return NULL;
+  }
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
-  // Initialize wave_animation structure
-  memset(&wave_animation, 0, sizeof(wave_animation_t));
+  // Initialize orbital_dots_animation structure
+  memset(&orbital_dots_animation, 0, sizeof(orbital_dots_animation_t));
 
-  // Create wave animation widget
-  wave_animation_create(screen, &wave_animation);
+  // Create orbital dots animation widget
+  orbital_dots_animation_create(screen, &orbital_dots_animation);
 
-  // Create bottom menu button
-  memset(&menu_button, 0, sizeof(bottom_menu_t));
-  bottom_menu_create(screen, &menu_button, true);
+  // Title with black background box
+  lv_obj_t* text_container = lv_obj_create(screen);
+  if (!text_container) {
+    return NULL;
+  }
+  lv_obj_set_style_bg_color(text_container, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(text_container, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_width(text_container, 0, 0);
+  lv_obj_set_style_pad_all(text_container, TEXT_CONTAINER_PADDING, 0);
+  lv_obj_clear_flag(text_container, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(text_container, LV_OBJ_FLAG_SCROLLABLE);
 
-  // Title
-  title_label = lv_label_create(screen);
+  title_label = lv_label_create(text_container);
+  if (!title_label) {
+    return NULL;
+  }
   lv_label_set_text(title_label, scan_context);
   lv_obj_set_style_text_color(title_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(title_label, FONT_TITLE, 0);
-  lv_obj_set_style_text_opa(title_label, 0, 0);
-  lv_obj_align(title_label, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_center(title_label);
 
+  // Size container to fit the text
+  lv_obj_set_size(text_container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_align(text_container, LV_ALIGN_CENTER, 0, 0);
+
+  // Show background dots
+  for (int i = 0; i < ORBITAL_DOTS_NUM_BACKGROUND; i++) {
+    if (orbital_dots_animation.bg_dots[i]) {
+      lv_obj_clear_flag(orbital_dots_animation.bg_dots[i], LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+
+  // Set brightness to full immediately
   ui_set_local_brightness(SCREEN_BRIGHTNESS);
 
-  // Create text fade-in animation
-  lv_anim_init(&text_fade_anim);
-  lv_anim_set_var(&text_fade_anim, title_label);
-  lv_anim_set_values(&text_fade_anim, 0, LV_OPA_COVER);
-  lv_anim_set_time(&text_fade_anim, TEXT_FADE_MS);
-  lv_anim_set_exec_cb(&text_fade_anim, text_fade_anim_cb);
-  lv_anim_set_path_cb(&text_fade_anim, lv_anim_path_ease_in_out);
-  lv_anim_set_ready_cb(&text_fade_anim, text_fade_ready_cb);
-  lv_anim_start(&text_fade_anim);
+  // Start orbital dots animation immediately
+  orbital_dots_animation_start(&orbital_dots_animation);
+
+  // Create top menu button (create last so it's on top)
+  memset(&menu_button, 0, sizeof(top_menu_t));
+  top_menu_create(screen, &menu_button, NULL);
 
   return screen;
 }
@@ -104,10 +113,9 @@ void screen_scan_destroy(void) {
     return;
   }
 
-  lv_anim_del(title_label, text_fade_anim_cb);
-  wave_animation_destroy(&wave_animation);
-  memset(&wave_animation, 0, sizeof(wave_animation));
-  bottom_menu_destroy(&menu_button);
+  orbital_dots_animation_destroy(&orbital_dots_animation);
+  memset(&orbital_dots_animation, 0, sizeof(orbital_dots_animation));
+  top_menu_destroy(&menu_button);
   memset(&menu_button, 0, sizeof(menu_button));
   lv_obj_del(screen);
   screen = NULL;

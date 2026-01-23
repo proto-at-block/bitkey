@@ -1,7 +1,7 @@
 #include "onboarding.h"
 
 #include "assert.h"
-#include "bio.h"
+#include "bio_storage.h"
 #include "grant_protocol.h"
 #include "kv.h"
 #include "log.h"

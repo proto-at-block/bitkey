@@ -1,106 +1,10 @@
 {
-  "mcpServers": {
-    "slack": {
-      "args": [
-        "mcp_slack"
-      ],
-      "command": "uvx",
-      "env": {
-        "SLACK_DEFAULT_WORKSPACE_ID": "T05HJ0CKWG5",
-        "SLACK_TOKEN": "${SLACK_TOKEN}"
-      }
-    }
-  },
   "rules": [
     {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-overview.md"
+      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-README.md"
     },
     {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-gradle-build-system.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-hermit-environment.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-ai-rule-writing.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-dao-pattern.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-basics.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-mcp-setup.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-datadog-mcp-usage.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-basics.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-kmp-code-structure.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-goosehints.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-module-structure.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-coroutines.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-ai-code-review.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-factory-pattern.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-bitkey-mobile.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-integration.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-slack-mcp-usage.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-state-machines.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-domain-service-pattern.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-services.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-strong-typing.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-models.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-AGENTS.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-testing-fakes-mocks.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-ui-state-machines-patterns.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-f8e-clients.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-CLAUDE.md"
-    },
-    {
-      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-optional.md"
+      "rulesPaths": "ai-rules/.generated-ai-rules/ai-rules-generated-core.md"
     }
   ],
   "useCursorRules": false

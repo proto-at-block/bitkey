@@ -3,7 +3,7 @@ package build.wallet.bdk.bindings
 data class BdkBlockchainMock(
   var blockHeightResult: BdkResult<Long>,
   var blockHashResult: BdkResult<String>,
-  var broadcastResult: BdkResult<Unit>,
+  var broadcastResult: BdkResult<String>,
   var feeRateResult: BdkResult<Float>,
   var getTxResult: BdkResult<BdkTransaction>,
 ) : BdkBlockchain {
@@ -15,5 +15,5 @@ data class BdkBlockchainMock(
 
   override fun estimateFeeBlocking(targetBlocks: ULong): BdkResult<Float> = feeRateResult
 
-  override fun getTx(txid: String): BdkResult<BdkTransaction> = getTxResult
+  override fun getTxBlocking(txid: String): BdkResult<BdkTransaction> = getTxResult
 }

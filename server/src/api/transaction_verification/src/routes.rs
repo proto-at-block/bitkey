@@ -348,6 +348,9 @@ pub struct InitiateTransactionVerificationRequest {
     pub bitcoin_display_unit: BitcoinDisplayUnit,
     pub signing_keyset_id: KeysetId,
     pub should_prompt_user: bool,
+    /// Whether to use BIP 177 Bitcoin sign (₿) instead of "sats" text.
+    #[serde(default)]
+    pub use_bip_177: bool,
 }
 
 #[instrument(
@@ -416,6 +419,7 @@ async fn initiate_transaction_verification(
             request.bitcoin_display_unit,
             request.should_prompt_user,
             context_key,
+            request.use_bip_177,
         )
         .await?;
     Ok(Json(tx_verification.to_response()))
@@ -536,7 +540,8 @@ pub async fn get_transaction_verification_interface(
         "amountCurrency": to_currency_code.to_string(),
         "recipient": recipient,
         "confirmToken": confirm_token,
-        "cancelToken": cancel_token
+        "cancelToken": cancel_token,
+        "useBip177": tx_verification.use_bip_177
     });
 
     let html =

@@ -7,6 +7,7 @@
 #include "rtos.h"
 #include "seed.h"
 #include "wallet.h"
+#include "wstring.h"
 
 #include <stdatomic.h>
 

@@ -63,12 +63,14 @@ import software.amazon.lastmile.kotlin.inject.anvil.MergeComponent.CreateCompone
  *
  * Important: order of dependencies in [.IosAppComponent] constructor and [create] function has to match.
  */
-@MergeComponent(AppScope::class)
+@MergeComponent(
+  scope = AppScope::class
+)
 @SingleIn(AppScope::class)
 abstract class IosAppComponent internal constructor(
   @get:Provides val appVariant: AppVariant,
   @get:Provides val bdkAddressBuilder: BdkAddressBuilder,
-  @get:Provides val bdkBlockchainFactory: BdkBlockchainFactory,
+  @get:Provides val legacyBdkBlockchainFactory: LegacyBdkBlockchainFactory,
   @get:Provides val bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactory,
   @get:Provides val bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGenerator,
   @get:Provides val bdkMnemonicGenerator: BdkMnemonicGenerator,
@@ -139,7 +141,7 @@ abstract class IosAppComponent internal constructor(
 expect fun create(
   appVariant: AppVariant,
   bdkAddressBuilder: BdkAddressBuilder,
-  bdkBlockchainFactory: BdkBlockchainFactory,
+  legacyBdkBlockchainFactory: LegacyBdkBlockchainFactory,
   bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactory,
   bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGenerator,
   bdkMnemonicGenerator: BdkMnemonicGenerator,

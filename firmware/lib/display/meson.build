@@ -2,11 +2,18 @@ srcs = [
   'ui/ui.c',
   'ui/screens.c',
   'ui/display_send.c',
+  'ui/display_action.c',
   'ui/gesture_tx.c',
-  'ui/widgets/bottom_back.c',
-  'ui/widgets/bottom_menu.c',
+  'ui/widgets/top_back.c',
   'ui/widgets/page_indicator.c',
-  'ui/widgets/wave_animation.c',
+  'ui/widgets/orbital_dots_animation.c',
+  'ui/widgets/mfg_starfield_fps.c',
+  'ui/widgets/mfg_burnin_grid.c',
+  'ui/widgets/mfg_scrolling_h.c',
+  'ui/widgets/top_menu.c',
+  'ui/widgets/hold_ring.c',
+  'ui/widgets/hold_cancel.c',
+  'ui/widgets/address_display.c',
   'ui/screens/screen_about.c',
   'ui/screens/screen_money_movement.c',
   'ui/screens/screen_scan.c',
@@ -16,7 +23,6 @@ srcs = [
   'ui/screens/screen_locked.c',
   'ui/screens/screen_menu.c',
   'ui/screens/screen_menu_fingerprints.c',
-  'ui/screens/screen_fingerprint_remove.c',
   'ui/screens/screen_firmware_update.c',
   'ui/screens/screen_test_gesture.c',
   'ui/screens/screen_test_scroll.c',
@@ -25,7 +31,10 @@ srcs = [
   'ui/screens/screen_test_slider.c',
   'ui/screens/screen_test_progress.c',
   'ui/screens/screen_mfg.c',
+  'ui/screens/screen_mfg_run_in.c',
+  'ui/screens/screen_mfg_touch_test.c',
   'ui/screens/screen_fingerprint.c',
+  'ui/screens/screen_privileged_action.c',
 ]
 
 includes = [
@@ -53,7 +62,7 @@ deps = [
 python = find_program('python3')
 
 # Font sizes we need for CashSansMono
-font_sizes = [20, 22, 24, 28, 30, 34, 36]
+font_sizes = [20, 22, 24, 28, 30, 34, 36, 40, 48]
 
 # Font variants: Regular and Medium
 font_variants = {
@@ -98,18 +107,23 @@ image_pngs_rgb565 = [
 
 # Monochrome images (1-bit indexed)
 image_pngs_i1 = [
+  'ui/images/back_arrow.png',
   'ui/images/brightness.png',
-  'ui/images/cycle_back.png',
   'ui/images/ellipsis_horizontal.png',
   'ui/images/exclamation_circle.png',
   'ui/images/fingerprint.png',
   'ui/images/info_circle.png',
   'ui/images/lock.png',
+  'ui/images/locked.png',
+  'ui/images/unlocked.png',
   'ui/images/paper_ribbon.png',
   'ui/images/power.png',
+  'ui/images/check.png',
+  'ui/images/cross.png',
   'ui/images/bitkey_qr.png',
   'ui/images/bitkey_logo_key.png',
   'ui/images/ce_logo.png',
+  'ui/images/dot.png',
   'ui/images/eac_logo.png',
   'ui/images/fcc_logo.png',
   'ui/images/battery_10.png',
@@ -118,6 +132,9 @@ image_pngs_i1 = [
   'ui/images/battery_75.png',
   'ui/images/battery_100.png',
   'ui/images/battery_charging.png',
+  'ui/images/touch.png',
+  'ui/images/sleep.png',
+  'ui/images/run_in.png',
 ]
 
 foreach img : image_pngs_rgb565

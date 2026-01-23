@@ -1,34 +1,75 @@
 import build.wallet.fwup.FwupMode;
 
+-- Firmware data entity now supports multi-MCU updates (W3)
+-- mcuRole is the primary key to store per-MCU firmware data
 CREATE TABLE fwupDataEntity(
-  rowId                INTEGER NOT NULL PRIMARY KEY,
+  mcuRole              TEXT NOT NULL PRIMARY KEY,
+  mcuName              TEXT NOT NULL,
   version              TEXT NOT NULL,
   chunkSize            INTEGER NOT NULL,
   signatureOffset      INTEGER NOT NULL,
   appPropertiesOffset  INTEGER NOT NULL,
   firmware             BLOB NOT NULL,
   signature            BLOB NOT NULL,
-  fwupMode             TEXT AS FwupMode NOT NULL,
-  currentSequenceId    INTEGER NOT NULL
+  fwupMode             TEXT AS FwupMode NOT NULL
 );
 
+-- Legacy single-MCU operations (W1) - use CORE mcuRole
 setFwupData:
-INSERT OR REPLACE INTO fwupDataEntity(rowId, version, chunkSize, signatureOffset,
-appPropertiesOffset, firmware, signature, fwupMode, currentSequenceId)
--- Use stable row ID to ensure we only ever have a single [FwupData] stored.
-VALUES(0, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT currentSequenceId FROM fwupDataEntity WHERE rowId = 0), 0));
+INSERT OR REPLACE INTO fwupDataEntity(mcuRole, mcuName, version, chunkSize, signatureOffset,
+appPropertiesOffset, firmware, signature, fwupMode)
+-- Use CORE mcuRole for W1 single-MCU firmware updates.
+VALUES('CORE', 'EFR32', ?, ?, ?, ?, ?, ?, ?);
 
 getFwupData:
 SELECT * FROM fwupDataEntity
-WHERE rowid = 0;
-
-setSequenceId:
-UPDATE fwupDataEntity SET currentSequenceId = ?
-WHERE rowId = 0;
-
-getSequenceId:
-SELECT currentSequenceId FROM fwupDataEntity
-WHERE rowId = 0;
+WHERE mcuRole = 'CORE';
 
 clear:
 DELETE FROM fwupDataEntity;
+
+-- Per-MCU state tracking for W3 multi-MCU firmware updates
+CREATE TABLE mcuFwupStateEntity(
+  mcuRole             TEXT NOT NULL PRIMARY KEY,
+  currentSequenceId   INTEGER NOT NULL DEFAULT 0
+);
+
+-- Legacy single-MCU sequence ID operations (W1) - stored in mcuFwupStateEntity with CORE key
+setSequenceId:
+INSERT OR REPLACE INTO mcuFwupStateEntity(mcuRole, currentSequenceId)
+VALUES('CORE', ?);
+
+getSequenceId:
+SELECT currentSequenceId FROM mcuFwupStateEntity
+WHERE mcuRole = 'CORE';
+
+getMcuSequenceId:
+SELECT currentSequenceId FROM mcuFwupStateEntity
+WHERE mcuRole = ?;
+
+setMcuSequenceId:
+INSERT OR REPLACE INTO mcuFwupStateEntity(mcuRole, currentSequenceId)
+VALUES(?, ?);
+
+clearAllMcuStates:
+DELETE FROM mcuFwupStateEntity;
+
+-- Per-MCU firmware data queries
+setMcuFwupData:
+INSERT OR REPLACE INTO fwupDataEntity(mcuRole, mcuName, version, chunkSize, signatureOffset,
+appPropertiesOffset, firmware, signature, fwupMode)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+getMcuFwupData:
+SELECT * FROM fwupDataEntity
+WHERE mcuRole = ?;
+
+getAllMcuFwupData:
+SELECT * FROM fwupDataEntity;
+
+clearAllMcuFwupData:
+DELETE FROM fwupDataEntity;
+
+clearMcuFwupData:
+DELETE FROM fwupDataEntity
+WHERE mcuRole = ?;

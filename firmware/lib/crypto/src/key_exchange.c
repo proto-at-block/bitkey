@@ -4,7 +4,7 @@
 #include "attestation.h"
 #include "ecc.h"
 #include "hkdf.h"
-#include "secutils.h"
+#include "wstring.h"
 
 #include <string.h>
 

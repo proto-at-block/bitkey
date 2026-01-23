@@ -6,6 +6,7 @@ import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.F8eUnreachable
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
 import build.wallet.feature.FeatureFlagDaoFake
@@ -110,7 +111,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   test("metadata is appropriately formatted with update") {
     firmwareDataService.firmwareData.value =
       FirmwareDataUpToDateMock.copy(
-        firmwareUpdateState = PendingUpdate(FwupDataMock)
+        firmwareUpdateState = PendingUpdate(immutableListOf(McuFwupDataMock_W1_CORE))
       )
 
     presenter.test(screen) { navigator ->
@@ -204,7 +205,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock.copy(
       firmwareUpdateState =
         PendingUpdate(
-          fwupData = FwupDataMock.copy(version = version)
+          mcuUpdates = immutableListOf(McuFwupDataMock_W1_CORE.copy(version = version))
         )
     )
     presenter.test(screen) { navigator ->

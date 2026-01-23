@@ -5,6 +5,8 @@ import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
 import build.wallet.firmware.HwKeyConfig.DEV
 import build.wallet.firmware.HwKeyConfig.PROD
 import build.wallet.firmware.HwKeyConfig.UNKNOWN
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 enum class HwKeyConfig {
   DEV,
@@ -12,13 +14,21 @@ enum class HwKeyConfig {
   UNKNOWN,
 }
 
+@Serializable
 enum class McuRole {
+  @SerialName("core")
   CORE,
+
+  @SerialName("uxc")
   UXC,
 }
 
+@Serializable
 enum class McuName {
+  @SerialName("efr32")
   EFR32,
+
+  @SerialName("stm32u5")
   STM32U5,
 }
 

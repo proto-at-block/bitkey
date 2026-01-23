@@ -7,7 +7,7 @@ import build.wallet.bitcoin.transactions.BroadcastDetail
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.logging.*
+import build.wallet.logging.logDebug
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.datetime.Clock
@@ -31,12 +31,12 @@ class BitcoinBlockchainImpl(
           .result
           .bind()
 
-      blockchain.broadcast(bdkPsbt.extractTx()).result.bind()
+      val txid = blockchain.broadcast(bdkPsbt.extractTx()).result.bind()
       logDebug { "Successfully broadcast psbt" }
 
       BroadcastDetail(
         broadcastTime = clock.now(),
-        transactionId = bdkPsbt.txid()
+        transactionId = txid
       )
     }
 

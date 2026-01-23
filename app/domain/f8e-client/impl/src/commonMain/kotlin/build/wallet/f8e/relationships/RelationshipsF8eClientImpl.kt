@@ -175,6 +175,7 @@ class RelationshipsF8eClientImpl(
   override suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
+    expectedRole: TrustedContactRole?,
   ): Result<IncomingInvitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> {
     return f8eHttpClient
       .authenticated()
@@ -182,6 +183,9 @@ class RelationshipsF8eClientImpl(
         get(
           "/api/accounts/${account.accountId.serverId}/recovery/relationship-invitations/$invitationCode"
         ) {
+          expectedRole?.let { role ->
+            parameter("expected_role", role.key)
+          }
           withEnvironment(account.config.f8eEnvironment)
           withAccountId(account.accountId, AuthTokenScope.Recovery)
           withDescription("Retrieve Trusted Contact invitation")

@@ -47,6 +47,7 @@ class TxVerificationF8eClientImpl(
     psbt: Psbt,
     fiatCurrency: FiatCurrency,
     bitcoinDisplayUnit: BitcoinDisplayUnit,
+    useBip177: Boolean,
   ): Result<PendingTransactionVerification, Throwable> {
     return f8eHttpClient.authenticated()
       .bodyResult<CreateVerificationResponse> {
@@ -59,6 +60,7 @@ class TxVerificationF8eClientImpl(
               psbt = psbt.base64,
               currency = fiatCurrency.textCode.code,
               bitcoinDisplayUnit = bitcoinDisplayUnit,
+              useBip177 = useBip177,
               prompt = true,
               signingKeysetId = keysetId
             )
@@ -132,6 +134,7 @@ class TxVerificationF8eClientImpl(
     psbt: Psbt,
     fiatCurrency: FiatCurrency,
     bitcoinDisplayUnit: BitcoinDisplayUnit,
+    useBip177: Boolean,
   ): Result<TxVerificationApproval, Throwable> {
     return f8eHttpClient.authenticated()
       .bodyResult<CreateVerificationResponse> {
@@ -144,6 +147,7 @@ class TxVerificationF8eClientImpl(
               psbt = psbt.base64,
               currency = fiatCurrency.textCode.code,
               bitcoinDisplayUnit = bitcoinDisplayUnit,
+              useBip177 = useBip177,
               prompt = false,
               signingKeysetId = keysetId
             )
@@ -170,6 +174,9 @@ private data class CreateVerificationRequest(
   @Unredacted
   @SerialName("bitcoin_display_unit")
   val bitcoinDisplayUnit: BitcoinDisplayUnit,
+  @Unredacted
+  @SerialName("use_bip_177")
+  val useBip177: Boolean,
   @Unredacted
   @SerialName("should_prompt_user")
   val prompt: Boolean,

@@ -2,7 +2,7 @@ srcs = [
   'proto_helpers.c',
 ]
 
-deps = [assert_dep, log_dep, ipc_dep, protos_dep]
+deps = [assert_dep, log_dep, ipc_dep, protos_dep, wstd_dep]
 includes = ['.']
 
 proto_helpers_lib = library('proto-helpers',

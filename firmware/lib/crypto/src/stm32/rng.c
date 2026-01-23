@@ -4,6 +4,7 @@
 #include "rtos_mutex.h"
 #include "secure_rng.h"
 #include "secutils.h"
+#include "wstring.h"
 
 #include <stdbool.h>
 #include <stddef.h>

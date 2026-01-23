@@ -1,5 +1,6 @@
 package build.wallet.statemachine.cloud.health
 
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
@@ -12,7 +13,7 @@ internal data class ErrorCreatingBackupModel(
   val onClose: () -> Unit,
   val onRetry: () -> Unit,
 ) : FormBodyModel(
-    id = null,
+    id = CloudEventTrackerScreenId.ERROR_CREATING_CLOUD_BACKUP,
     onBack = onClose,
     toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClose)),
     header = FormHeaderModel(

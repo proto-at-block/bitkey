@@ -9,6 +9,7 @@ import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareFeatureFlagCfg
+import build.wallet.firmware.McuRole
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.Grant
@@ -18,6 +19,10 @@ import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcException.CanBeRetried
 import build.wallet.nfc.NfcSession
+import build.wallet.nfc.platform.ConfirmationHandles
+import build.wallet.nfc.platform.ConfirmationResult
+import build.wallet.nfc.platform.EmulatedPromptOption
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
 import okio.ByteString
 
@@ -49,7 +54,9 @@ private class RetryingNfcCommandsImpl(
     session: NfcSession,
     patchSize: UInt?,
     fwupMode: FwupMode,
-  ) = retry { commands.fwupStart(session, patchSize, fwupMode) }
+    mcuRole: McuRole,
+  ): HardwareInteraction<Boolean> =
+    wrapHardwareInteraction(retry { commands.fwupStart(session, patchSize, fwupMode, mcuRole) })
 
   override suspend fun fwupTransfer(
     session: NfcSession,
@@ -57,10 +64,11 @@ private class RetryingNfcCommandsImpl(
     fwupData: List<UByte>,
     offset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ): Boolean {
     // TODO(W-8001): This intentionally does not retry for now.
     // See: https://sq-block.slack.com/archives/C043X6LRLJX/p1713568061850029?thread_ts=1713568055.125989&cid=C043X6LRLJX
-    return commands.fwupTransfer(session, sequenceId, fwupData, offset, fwupMode)
+    return commands.fwupTransfer(session, sequenceId, fwupData, offset, fwupMode, mcuRole)
   }
 
   override suspend fun fwupFinish(
@@ -68,8 +76,9 @@ private class RetryingNfcCommandsImpl(
     appPropertiesOffset: UInt,
     signatureOffset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ) = try {
-    commands.fwupFinish(session, appPropertiesOffset, signatureOffset, fwupMode)
+    commands.fwupFinish(session, appPropertiesOffset, signatureOffset, fwupMode, mcuRole)
   } catch (e: CanBeRetried.TransceiveFailure) {
     // For some iOS devices: If we get a "Tag response error", it might actually be success
     // since the device resets immediately after sending the response and before the
@@ -102,12 +111,16 @@ private class RetryingNfcCommandsImpl(
   override suspend fun getCoredumpFragment(
     session: NfcSession,
     offset: Int,
-  ) = commands.getCoredumpFragment(session, offset)
+    mcuRole: McuRole,
+  ) = commands.getCoredumpFragment(session, offset, mcuRole)
 
   override suspend fun getDeviceInfo(session: NfcSession) =
     retry { commands.getDeviceInfo(session) }
 
-  override suspend fun getEvents(session: NfcSession) = commands.getEvents(session)
+  override suspend fun getEvents(
+    session: NfcSession,
+    mcuRole: McuRole,
+  ) = commands.getEvents(session, mcuRole)
 
   override suspend fun getFirmwareFeatureFlags(session: NfcSession): List<FirmwareFeatureFlagCfg> =
     retry { commands.getFirmwareFeatureFlags(session) }
@@ -174,7 +187,8 @@ private class RetryingNfcCommandsImpl(
     session: NfcSession,
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
-  ) = retry { commands.signTransaction(session, psbt, spendingKeyset) }
+  ): HardwareInteraction<Psbt> =
+    wrapHardwareInteraction(retry { commands.signTransaction(session, psbt, spendingKeyset) })
 
   override suspend fun startFingerprintEnrollment(
     session: NfcSession,
@@ -183,7 +197,8 @@ private class RetryingNfcCommandsImpl(
 
   override suspend fun version(session: NfcSession) = retry { commands.version(session) }
 
-  override suspend fun wipeDevice(session: NfcSession) = retry { commands.wipeDevice(session) }
+  override suspend fun wipeDevice(session: NfcSession): HardwareInteraction<Boolean> =
+    wrapHardwareInteraction(retry { commands.wipeDevice(session) })
 
   override suspend fun getCert(
     session: NfcSession,
@@ -223,6 +238,46 @@ private class RetryingNfcCommandsImpl(
     session: NfcSession,
     appAuthKey: ByteString,
   ) = retry { commands.provisionAppAuthKey(session, appAuthKey) }
+
+  override suspend fun getConfirmationResult(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+  ): ConfirmationResult = retry { commands.getConfirmationResult(session, handles) }
+
+  /**
+   * Transforms a [HardwareInteraction] to ensure RequiresConfirmation uses retry-wrapped commands.
+   *
+   * When the underlying NfcCommands implementation returns a RequiresConfirmation, the callback
+   * captures the unwrapped commands. This function wraps the fetchResult to ensure retry
+   * logic is applied when it is invoked.
+   */
+  private fun <T> wrapHardwareInteraction(
+    interaction: HardwareInteraction<T>,
+  ): HardwareInteraction<T> {
+    return when (interaction) {
+      is HardwareInteraction.Completed -> interaction
+      is HardwareInteraction.RequiresConfirmation -> {
+        HardwareInteraction.RequiresConfirmation { session, commands ->
+          val retryingCommands = RetryingNfcCommandsImpl(commands)
+          retryingCommands.wrapHardwareInteraction(interaction.fetchResult(session, retryingCommands))
+        }
+      }
+      is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
+        HardwareInteraction.ConfirmWithEmulatedPrompt(
+          options = interaction.options.map { option ->
+            EmulatedPromptOption(
+              name = option.name,
+              fetchResult = { session, commands ->
+                val retryingCommands = RetryingNfcCommandsImpl(commands)
+                retryingCommands.wrapHardwareInteraction(option.fetchResult(session, retryingCommands))
+              },
+              onSelect = option.onSelect
+            )
+          }
+        )
+      }
+    }
+  }
 }
 
 private inline fun <T> retry(block: () -> T): T {

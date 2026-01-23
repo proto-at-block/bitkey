@@ -16,6 +16,8 @@ import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.money.BitcoinMoney
+import build.wallet.nfc.platform.ConfirmationHandles
+import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
 import okio.ByteString
@@ -79,7 +81,8 @@ class NfcCommandsMock(
     session: NfcSession,
     patchSize: UInt?,
     fwupMode: FwupMode,
-  ) = true
+    mcuRole: McuRole,
+  ): HardwareInteraction<Boolean> = HardwareInteraction.Completed(true)
 
   override suspend fun fwupTransfer(
     session: NfcSession,
@@ -87,6 +90,7 @@ class NfcCommandsMock(
     fwupData: List<UByte>,
     offset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ) = true
 
   override suspend fun fwupFinish(
@@ -94,6 +98,7 @@ class NfcCommandsMock(
     appPropertiesOffset: UInt,
     signatureOffset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ) = FwupFinishResponseStatus.Success
 
   override suspend fun getAuthenticationKey(session: NfcSession) = HwAuthSecp256k1PublicKeyMock
@@ -103,14 +108,18 @@ class NfcCommandsMock(
   override suspend fun getCoredumpFragment(
     session: NfcSession,
     offset: Int,
-  ) = CoredumpFragment(emptyList(), 0, true, 0)
+    mcuRole: McuRole,
+  ) = CoredumpFragment(emptyList(), 0, true, 0, McuRole.CORE, McuName.EFR32)
 
   override suspend fun getDeviceInfo(session: NfcSession) =
     FirmwareDeviceInfoMock.also {
       getDeviceInfoCalls.add(it)
     }
 
-  override suspend fun getEvents(session: NfcSession) = EventFragment(emptyList(), 0)
+  override suspend fun getEvents(
+    session: NfcSession,
+    mcuRole: McuRole,
+  ) = EventFragment(emptyList(), 0, null)
 
   override suspend fun getFirmwareFeatureFlags(session: NfcSession): List<FirmwareFeatureFlagCfg> =
     firmwareFeatureFlags
@@ -200,7 +209,8 @@ class NfcCommandsMock(
 
   override suspend fun version(session: NfcSession): UShort = 1u
 
-  override suspend fun wipeDevice(session: NfcSession) = false // Can't wipe a fake device!
+  override suspend fun wipeDevice(session: NfcSession): HardwareInteraction<Boolean> =
+    HardwareInteraction.Completed(false)
 
   override suspend fun getCert(
     session: NfcSession,
@@ -245,6 +255,11 @@ class NfcCommandsMock(
     session: NfcSession,
     appAuthKey: ByteString,
   ) = true.also { provisionAppAuthKeyCalls.add(appAuthKey) }
+
+  override suspend fun getConfirmationResult(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+  ): ConfirmationResult = ConfirmationResult.WipeDevice(success = true)
 
   fun setEnrollmentStatus(enrollmentStatus: FingerprintEnrollmentStatus) {
     this.enrollmentResult.status = enrollmentStatus

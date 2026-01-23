@@ -2,6 +2,7 @@ package build.wallet.fwup
 
 import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -10,10 +11,12 @@ import kotlinx.coroutines.flow.StateFlow
  */
 interface FirmwareDataService {
   /**
-   * Apply the [FwupData.version] to the persisted firmware device info and
+   * Apply the MCU firmware versions to the persisted firmware device info and
    * clear any pending fwup updates. Should only be called after a successful fwup.
+   *
+   * @param mcuUpdates List of MCU updates that were applied. For W1, this is a single-element list.
    */
-  suspend fun updateFirmwareVersion(fwupData: FwupData): Result<Unit, Error>
+  suspend fun updateFirmwareVersion(mcuUpdates: ImmutableList<McuFwupData>): Result<Unit, Error>
 
   /**
    * Retrieve the latest firmware data.

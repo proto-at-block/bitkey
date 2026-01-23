@@ -6,91 +6,38 @@
 #include <stdio.h>
 
 // Page definitions
-#define PAGE_INTRO        0
-#define PAGE_SCANNING     1
-#define PAGE_SUCCESS      2
-#define PAGE_FINISH       3  // For provisioned devices
-#define PAGE_APP_DOWNLOAD 4  // For unprovisioned devices
-#define PAGE_QR_CODE      5  // For unprovisioned devices
+#define PAGE_INTRO    0
+#define PAGE_SCANNING 1
+#define PAGE_SUCCESS  2
 
-// Timing for auto-advance (2 seconds = 200 ticks at 10ms/tick)
-#define AUTO_ADVANCE_DELAY_TICKS 200  // 2 seconds at 10ms/tick
+#define AUTO_ADVANCE_DELAY_TICKS 50  // 1 second at 20ms/tick
 
 static UI_TASK_DATA uint32_t auto_advance_timer = 0;
 
-void display_controller_fingerprint_on_enter(display_controller_t* controller, const void* data) {
+void display_controller_fingerprint_on_enter(display_controller_t* controller,
+                                             const void* entry_data) {
   // Initialize fingerprint enrollment state
   controller->nav.fingerprint.current_page = PAGE_INTRO;
   controller->nav.fingerprint.samples_done = 0;
   auto_advance_timer = 0;
 
-  // Extract total sample count
-  if (data) {
-    const enrollment_progress_data_t* progress = (const enrollment_progress_data_t*)data;
+  // Extract total sample count (keep old data extraction for now - not in typed union yet)
+  if (entry_data) {
+    const enrollment_progress_data_t* progress = (const enrollment_progress_data_t*)entry_data;
     controller->nav.fingerprint.total_samples = progress->total_samples;
   }
 
   // Set up screen params for intro page
-  controller->show_screen.params.fingerprint.current_page = PAGE_INTRO;
   controller->show_screen.params.fingerprint.progress_percent = 0;
+  controller->show_screen.params.fingerprint.samples_remaining =
+    controller->nav.fingerprint.total_samples;
   controller->show_screen.params.fingerprint.status =
     fwpb_display_params_fingerprint_display_params_fingerprint_status_NONE;
 
+  // Enrollment is required (no back button) if nav_stack is empty (entered from ONBOARDING)
+  controller->show_screen.params.fingerprint.is_required = (controller->nav_stack_depth == 0);
+
   controller->show_screen.which_params = fwpb_display_show_screen_fingerprint_tag;
-}
-
-flow_action_t display_controller_fingerprint_on_button_press(display_controller_t* controller,
-                                                             const button_event_payload_t* event) {
-  // Page 0 (Intro): L+R button advances to scanning page
-  if (controller->nav.fingerprint.current_page == PAGE_INTRO) {
-    if (event->type == BUTTON_PRESS_SINGLE && event->button == BUTTON_BOTH) {
-      // Move to scanning page
-      controller->nav.fingerprint.current_page = PAGE_SCANNING;
-      controller->show_screen.params.fingerprint.current_page = PAGE_SCANNING;
-      controller->show_screen.params.fingerprint.status =
-        fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_FIRST;
-
-      // Refresh screen to show scanning page
-      display_controller_show_screen(controller, fwpb_display_show_screen_fingerprint_tag,
-                                     fwpb_display_transition_DISPLAY_TRANSITION_NONE,
-                                     TRANSITION_DURATION_NONE);
-
-      // Trigger enrollment
-      return FLOW_ACTION_START_ENROLLMENT;
-    }
-  }
-
-  // Page 1 (Scanning): L+R button cancels enrollment
-  else if (controller->nav.fingerprint.current_page == PAGE_SCANNING) {
-    if (event->type == BUTTON_PRESS_SINGLE && event->button == BUTTON_BOTH) {
-      return FLOW_ACTION_CANCEL;
-    }
-  }
-
-  // Page 4 (App Download): L+R button advances to QR code page
-  else if (controller->nav.fingerprint.current_page == PAGE_APP_DOWNLOAD) {
-    if (event->type == BUTTON_PRESS_SINGLE && event->button == BUTTON_BOTH) {
-      // Move to QR code page
-      controller->nav.fingerprint.current_page = PAGE_QR_CODE;
-      controller->show_screen.params.fingerprint.current_page = PAGE_QR_CODE;
-
-      display_controller_show_screen(controller, fwpb_display_show_screen_fingerprint_tag,
-                                     fwpb_display_transition_DISPLAY_TRANSITION_NONE,
-                                     TRANSITION_DURATION_NONE);
-      return FLOW_ACTION_NONE;
-    }
-  }
-
-  // Page 5 (QR Code): L+R button exits to menu
-  else if (controller->nav.fingerprint.current_page == PAGE_QR_CODE) {
-    if (event->type == BUTTON_PRESS_SINGLE && event->button == BUTTON_BOTH) {
-      return FLOW_ACTION_EXIT;  // Will go to menu
-    }
-  }
-
-  // Pages 2-3: Any button press is ignored (auto-advance handles these)
-
-  return FLOW_ACTION_NONE;
 }
 
 void display_controller_fingerprint_on_exit(display_controller_t* controller) {
@@ -98,44 +45,20 @@ void display_controller_fingerprint_on_exit(display_controller_t* controller) {
   auto_advance_timer = 0;
 }
 
-void display_controller_fingerprint_on_tick(display_controller_t* controller) {
-  // Handle auto-advance for success and finish pages
-  if (controller->nav.fingerprint.current_page == PAGE_SUCCESS ||
-      controller->nav.fingerprint.current_page == PAGE_FINISH) {
+flow_action_result_t display_controller_fingerprint_on_tick(display_controller_t* controller) {
+  // Handle auto-advance for success page
+  if (controller->nav.fingerprint.current_page == PAGE_SUCCESS) {
     auto_advance_timer++;
 
     if (auto_advance_timer >= AUTO_ADVANCE_DELAY_TICKS) {
       auto_advance_timer = 0;
-
-      if (controller->nav.fingerprint.current_page == PAGE_SUCCESS) {
-        // Check if device is provisioned
-        if (controller->has_device_info) {
-          // Provisioned - go to finish page (will auto-advance to scan)
-          controller->nav.fingerprint.current_page = PAGE_FINISH;
-          controller->show_screen.params.fingerprint.current_page = PAGE_FINISH;
-        } else {
-          // Unprovisioned - go to app download page (no auto-advance)
-          controller->nav.fingerprint.current_page = PAGE_APP_DOWNLOAD;
-          controller->show_screen.params.fingerprint.current_page = PAGE_APP_DOWNLOAD;
-          auto_advance_timer = 0;  // Stop auto-advance
-        }
-
-        display_controller_show_screen(controller, fwpb_display_show_screen_fingerprint_tag,
-                                       fwpb_display_transition_DISPLAY_TRANSITION_NONE,
-                                       TRANSITION_DURATION_NONE);
-      } else if (controller->nav.fingerprint.current_page == PAGE_FINISH) {
-        // Advance from finish page to scan screen
-        controller->show_screen.params.scan.action =
-          fwpb_display_params_scan_display_params_scan_action_NONE;
-        display_controller_show_screen(controller, fwpb_display_show_screen_scan_tag,
-                                       fwpb_display_transition_DISPLAY_TRANSITION_NONE,
-                                       TRANSITION_DURATION_NONE);
-
-        // Exit fingerprint flow
-        controller->show_screen.which_params = fwpb_display_show_screen_scan_tag;
-      }
+      // Exit returns to caller automatically (FINGERPRINTS_MENU, ONBOARDING, or SCAN)
+      return flow_result_exit_with_transition(fwpb_display_transition_DISPLAY_TRANSITION_FADE,
+                                              TRANSITION_DURATION_STANDARD);
     }
   }
+
+  return flow_result_handled();
 }
 
 static void display_controller_fingerprint_handle_progress_event(
@@ -160,7 +83,6 @@ static void display_controller_fingerprint_handle_progress_event(
 
       // Move to success page
       controller->nav.fingerprint.current_page = PAGE_SUCCESS;
-      controller->show_screen.params.fingerprint.current_page = PAGE_SUCCESS;
       controller->show_screen.params.fingerprint.progress_percent = 100;
       auto_advance_timer = 0;  // Start auto-advance timer
 
@@ -185,27 +107,22 @@ static void display_controller_fingerprint_handle_progress_event(
   controller->show_screen.params.fingerprint.progress_percent = progress_percent;
 
   // Refresh the screen to show updated progress
-  display_controller_show_screen(controller, fwpb_display_show_screen_fingerprint_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_NONE,
-                                 TRANSITION_DURATION_NONE);
+  flow_update_current_screen(controller, fwpb_display_transition_DISPLAY_TRANSITION_NONE,
+                             TRANSITION_DURATION_NONE);
 }
 
 static void display_controller_fingerprint_handle_complete_event(display_controller_t* controller) {
   // Directly transition to success page
   controller->nav.fingerprint.samples_done = controller->nav.fingerprint.total_samples;
   controller->nav.fingerprint.current_page = PAGE_SUCCESS;
-  controller->show_screen.params.fingerprint.current_page = PAGE_SUCCESS;
   controller->show_screen.params.fingerprint.progress_percent = 100;
 
-  // Only auto-advance if device is provisioned
-  if (controller->has_device_info) {
-    auto_advance_timer = 0;  // Start auto-advance timer
-  }
+  // Start auto-advance timer
+  auto_advance_timer = 0;
 
   // Refresh the screen to show completion
-  display_controller_show_screen(controller, fwpb_display_show_screen_fingerprint_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_NONE,
-                                 TRANSITION_DURATION_NONE);
+  flow_update_current_screen(controller, fwpb_display_transition_DISPLAY_TRANSITION_NONE,
+                             TRANSITION_DURATION_NONE);
 }
 
 static void display_controller_fingerprint_handle_failed_event(display_controller_t* controller) {
@@ -218,15 +135,27 @@ static void display_controller_fingerprint_handle_failed_event(display_controlle
     fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_FAILED;
 
   // Keep current progress but show failure message
-  display_controller_show_screen(controller, fwpb_display_show_screen_fingerprint_tag,
-                                 fwpb_display_transition_DISPLAY_TRANSITION_NONE,
-                                 TRANSITION_DURATION_NONE);
+  flow_update_current_screen(controller, fwpb_display_transition_DISPLAY_TRANSITION_NONE,
+                             TRANSITION_DURATION_NONE);
 }
 
-void display_controller_fingerprint_on_event(display_controller_t* controller,
-                                             ui_event_type_t event, const void* data,
-                                             uint32_t len) {
+flow_action_result_t display_controller_fingerprint_on_event(display_controller_t* controller,
+                                                             ui_event_type_t event,
+                                                             const void* data, uint32_t len) {
   switch (event) {
+    case UI_EVENT_ENROLLMENT_START:
+      // Move from intro page to scanning page
+      if (controller->nav.fingerprint.current_page == PAGE_INTRO) {
+        controller->nav.fingerprint.current_page = PAGE_SCANNING;
+        controller->show_screen.params.fingerprint.status =
+          fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_FIRST;
+        controller->show_screen.params.fingerprint.progress_percent = 0;
+
+        flow_update_current_screen(controller, fwpb_display_transition_DISPLAY_TRANSITION_FADE,
+                                   TRANSITION_DURATION_STANDARD);
+      }
+      break;
+
     case UI_EVENT_ENROLLMENT_PROGRESS_GOOD: {
       const enrollment_progress_data_t* progress = NULL;
       if (data && len == sizeof(enrollment_progress_data_t)) {
@@ -253,4 +182,27 @@ void display_controller_fingerprint_on_event(display_controller_t* controller,
       // Ignore other events
       break;
   }
+
+  return flow_result_handled();
+}
+
+flow_action_result_t display_controller_fingerprint_on_action(
+  display_controller_t* controller, fwpb_display_action_display_action_type action, uint32_t data) {
+  (void)data;
+
+  if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_BACK ||
+      action == fwpb_display_action_display_action_type_DISPLAY_ACTION_CANCEL ||
+      action == fwpb_display_action_display_action_type_DISPLAY_ACTION_EXIT) {
+    // Block BACK/CANCEL during required enrollment (when nav_stack_depth == 0, entered from
+    // ONBOARDING) User must complete enrollment to proceed
+    if (controller->nav_stack_depth == 0) {
+      return flow_result_handled();  // Ignore the action
+    }
+
+    // Optional enrollment (entered from MENU) - allow cancellation
+    return flow_result_exit_with_transition(fwpb_display_transition_DISPLAY_TRANSITION_FADE,
+                                            TRANSITION_DURATION_STANDARD);
+  }
+
+  return flow_result_handled();
 }

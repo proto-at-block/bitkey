@@ -6,6 +6,7 @@ import build.wallet.availability.NetworkReachability.UNREACHABLE
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
+import build.wallet.platform.connectivity.InternetConnectionChecker
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import io.ktor.client.HttpClient
@@ -15,7 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 @BitkeyInject(AppScope::class)
 class NetworkReachabilityProviderImpl(
   private val f8eNetworkReachabilityService: F8eNetworkReachabilityService,
-  private val internetNetworkReachabilityService: InternetNetworkReachabilityService,
+  private val internetConnectionChecker: InternetConnectionChecker,
   private val networkReachabilityEventDao: NetworkReachabilityEventDao,
 ) : NetworkReachabilityProvider {
   private val internetStatusMutableFlow = MutableStateFlow(REACHABLE)
@@ -31,6 +32,10 @@ class NetworkReachabilityProviderImpl(
    * connections send status updates.
    */
   private var f8eEnvironment: F8eEnvironment? = null
+
+  override fun hasInternetConnection(): Boolean {
+    return internetConnectionChecker.isConnected()
+  }
 
   override fun internetReachabilityFlow(): StateFlow<NetworkReachability> =
     internetStatusMutableFlow
@@ -81,20 +86,40 @@ class NetworkReachabilityProviderImpl(
         }
       }
     }
-    // Wait to check for f8e connectivity before updating reachability.
-    // Prevents showing the "some features may not be available" banner when transitioning
-    // to fully online.
-    internetStatusMutableFlow.emit(REACHABLE)
+    // Update internet reachability only if platform-level connectivity agrees.
+    // This prevents race conditions where background HTTP successes override a manually-set
+    // unreachable state (important for testing), and handles edge cases where HTTP succeeds
+    // but platform reports no connectivity (e.g., captive portal).
+    if (internetConnectionChecker.isConnected()) {
+      internetStatusMutableFlow.emit(REACHABLE)
+    }
   }
 
   private suspend fun updateFlowsForUnreachableConnection(
     httpClient: HttpClient?,
     connection: NetworkConnection,
   ) {
+    // Check platform-level network status FIRST to determine if this is a general internet issue
+    // or an F8e-specific issue. This ordering ensures AppFunctionalityService sees InternetUnreachable
+    // before F8eUnreachable when internet is down (important for correct cause attribution).
+    if (!internetConnectionChecker.isConnected()) {
+      // Internet is unreachable - set both flows to UNREACHABLE atomically
+      internetStatusMutableFlow.emit(UNREACHABLE)
+      // If internet is unreachable, F8e is also unreachable
+      if (connection is F8e) {
+        f8eStatusMutableFlow(connection.environment).emit(UNREACHABLE)
+      }
+      f8eEnvironment?.let { f8eStatusMutableFlow(it).emit(UNREACHABLE) }
+      return
+    }
+
+    // Internet is reachable, so this is an F8e-specific issue
+    internetStatusMutableFlow.emit(REACHABLE)
+
     // Update F8e flow if the connection is F8e
     if (connection is F8e && httpClient != null) {
       // First perform a general F8e connection check (not endpoint specific) to double-check that
-      // there’s not an isolated incident with the specific endpoint that experienced a failure,
+      // there's not an isolated incident with the specific endpoint that experienced a failure,
       // and update the reachability based on that check
       f8eNetworkReachabilityService.checkConnection(httpClient, connection.environment)
         .onSuccess { f8eStatusMutableFlow(connection.environment).emit(REACHABLE) }
@@ -105,19 +130,6 @@ class NetworkReachabilityProviderImpl(
       // update the flow to UNREACHABLE.
       f8eStatusMutableFlow(connection.environment).emit(UNREACHABLE)
     }
-
-    // Update internet flow for any connection
-
-    // First perform a general internet check to double-check that there’s not an isolated
-    // incident with the given [NetworkConnection], and update the flow based on the outcome
-    internetNetworkReachabilityService.checkConnection()
-      .onSuccess { internetStatusMutableFlow.emit(REACHABLE) }
-      .onFailure {
-        internetStatusMutableFlow.emit(UNREACHABLE)
-        // If the internet is unreachable, that means F8e is also unreachable, optimize by
-        // updating both here.
-        f8eEnvironment?.let { f8eStatusMutableFlow(it).emit(UNREACHABLE) }
-      }
   }
 
   private fun f8eStatusMutableFlow(

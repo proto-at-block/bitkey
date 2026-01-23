@@ -23,6 +23,8 @@ import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.logging.*
 import build.wallet.nfc.NfcSession
+import build.wallet.nfc.platform.ConfirmationHandles
+import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.NfcCommands
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onFailure
@@ -87,7 +89,8 @@ private class MetricsNfcCommandsImpl(
     session: NfcSession,
     patchSize: UInt?,
     fwupMode: FwupMode,
-  ) = measure("fwupStart") { commands.fwupStart(session, patchSize, fwupMode) }
+    mcuRole: McuRole,
+  ) = measure("fwupStart") { commands.fwupStart(session, patchSize, fwupMode, mcuRole) }
 
   override suspend fun fwupTransfer(
     session: NfcSession,
@@ -95,13 +98,15 @@ private class MetricsNfcCommandsImpl(
     fwupData: List<UByte>,
     offset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ) = measure("fwupTransfer") {
     commands.fwupTransfer(
       session,
       sequenceId,
       fwupData,
       offset,
-      fwupMode
+      fwupMode,
+      mcuRole
     )
   }
 
@@ -110,12 +115,14 @@ private class MetricsNfcCommandsImpl(
     appPropertiesOffset: UInt,
     signatureOffset: UInt,
     fwupMode: FwupMode,
+    mcuRole: McuRole,
   ) = measure("fwupFinish") {
     commands.fwupFinish(
       session,
       appPropertiesOffset,
       signatureOffset,
-      fwupMode
+      fwupMode,
+      mcuRole
     )
   }
 
@@ -128,7 +135,8 @@ private class MetricsNfcCommandsImpl(
   override suspend fun getCoredumpFragment(
     session: NfcSession,
     offset: Int,
-  ) = measure("getCoredumpFragment") { commands.getCoredumpFragment(session, offset) }
+    mcuRole: McuRole,
+  ) = measure("getCoredumpFragment") { commands.getCoredumpFragment(session, offset, mcuRole) }
 
   override suspend fun getDeviceInfo(session: NfcSession) =
     measure("getDeviceInfo") {
@@ -154,8 +162,10 @@ private class MetricsNfcCommandsImpl(
       deviceInfo
     }
 
-  override suspend fun getEvents(session: NfcSession) =
-    measure("getEvents") { commands.getEvents(session) }
+  override suspend fun getEvents(
+    session: NfcSession,
+    mcuRole: McuRole,
+  ) = measure("getEvents") { commands.getEvents(session, mcuRole) }
 
   override suspend fun getFirmwareFeatureFlags(session: NfcSession): List<FirmwareFeatureFlagCfg> =
     measure("getFirmwareFeatureFlags") { commands.getFirmwareFeatureFlags(session) }
@@ -285,5 +295,13 @@ private class MetricsNfcCommandsImpl(
   ): Boolean =
     measure("provisionAppAuthKey") {
       commands.provisionAppAuthKey(session, appAuthKey)
+    }
+
+  override suspend fun getConfirmationResult(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+  ): ConfirmationResult =
+    measure("getConfirmationResult") {
+      commands.getConfirmationResult(session, handles)
     }
 }

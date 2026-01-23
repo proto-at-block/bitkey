@@ -47,19 +47,29 @@ data class FwupNfcBodyModel(
     ) : Status
 
     data class InProgress(
-      override val text: String = "Updating...",
-      // Progress in range 0.0...100.00
-      val fwupProgress: Float,
+      val currentMcuRole: build.wallet.firmware.McuRole? = null, // null for W1 compatibility
+      val mcuIndex: Int = 0, // 0-based index
+      val totalMcus: Int = 1, // 1 for W1, 2+ for W3
+      val fwupProgress: Float, // Progress in range 0.0...100.00
     ) : Status {
+      override val text: String = when {
+        totalMcus == 1 -> "Updating..."
+        else -> "Updating (${mcuIndex + 1}/$totalMcus)..."
+      }
       val progressText = "${fwupProgress.roundToInt()}%"
       val progressPercentage = fwupProgress / 100
     }
 
     data class LostConnection(
-      override val text: String = "Device no longer detected,\nhold device to phone",
-      // Progress in range 0.0...100.00
-      val fwupProgress: Float,
+      val currentMcuRole: build.wallet.firmware.McuRole? = null, // null for W1 compatibility
+      val mcuIndex: Int = 0, // 0-based index
+      val totalMcus: Int = 1, // 1 for W1, 2+ for W3
+      val fwupProgress: Float, // Progress in range 0.0...100.00
     ) : Status {
+      override val text: String = when {
+        totalMcus == 1 -> "Device no longer detected,\nhold device to phone"
+        else -> "Lost connection during update (${mcuIndex + 1}/$totalMcus),\nhold device to phone"
+      }
       val progressPercentage = fwupProgress / 100
     }
 

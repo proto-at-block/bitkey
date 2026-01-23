@@ -1,7 +1,7 @@
 #include "ecc.h"
 #include "secure_channel.h"
 #include "secure_channel_common.h"
-#include "secutils.h"
+#include "wstring.h"
 
 #include <string.h>
 
