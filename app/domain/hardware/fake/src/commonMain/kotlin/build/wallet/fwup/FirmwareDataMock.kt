@@ -24,13 +24,14 @@ val FirmwareDataPendingUpdateMock =
   )
 
 /**
- * Mock FirmwareData with W3 pending update (CORE + UXC MCUs).
+ * Mock FirmwareData with W3 pending update (UXC + CORE MCUs).
+ * Ordered with UXC first, CORE second.
  */
 val FirmwareDataPendingUpdateMock_W3 =
   FirmwareData(
     firmwareUpdateState =
       PendingUpdate(
-        mcuUpdates = immutableListOf(McuFwupDataMock_W3_CORE, McuFwupDataMock_W3_UXC)
+        mcuUpdates = immutableListOf(McuFwupDataMock_W3_UXC, McuFwupDataMock_W3_CORE)
       ),
     firmwareDeviceInfo = FirmwareDeviceInfoMock
   )

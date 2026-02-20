@@ -24,6 +24,7 @@ class AppStateDeleterOptionsUiStateMachineImpl(
   override fun model(props: AppStateDeleterOptionsUiProps): ListGroupModel {
     // Only show "Delete App Key and Backup" to customers, with a warning text.
     return ListGroupModel(
+      header = "Data Management",
       style = ListGroupStyle.DIVIDER,
       items =
         buildImmutableList {
@@ -97,6 +98,28 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                   )
               )
           ).run(::add)
+
+          // Only show in Development and Team builds
+          when (appVariant) {
+            Development, Team -> {
+              ListItemModel(
+                title = "Delete Onboarding App Key",
+                secondaryText = "Delete the persisted app key, so going through onboarding will generate a new one",
+                trailingAccessory =
+                  ButtonAccessory(
+                    model =
+                      ButtonModel(
+                        text = "Delete",
+                        treatment = TertiaryDestructive,
+                        size = Compact,
+                        onClick = StandardClick { props.onDeleteOnboardingAppKeyRequest() },
+                        testTag = "delete-onboarding-app-key"
+                      )
+                  )
+              ).run(::add)
+            }
+            else -> Unit
+          }
         }
     )
   }

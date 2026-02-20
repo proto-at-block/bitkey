@@ -34,11 +34,14 @@ class DependencyLockingCommonGroupConfigurationPlugin : Plugin<Project> {
     project.configurations.configureEach {
       ifMatches {
         nameContains("compilerPlugin")
+        nameContains("kotlinInternal")
+        nameContains("swiftExport")
         nameIs(
           "kotlinBuildToolsApiClasspath",
           "kotlinCompilerClasspath",
           "kotlinKlibCommonizerClasspath",
-          "kotlin-extension"
+          "kotlin-extension",
+          "kotlinBouncyCastleConfiguration"
         )
       } then {
         dependencyLockingGroup.set(commonDependencyLockingGroups.kotlinCompiler)
@@ -60,11 +63,11 @@ class DependencyLockingCommonGroupConfigurationPlugin : Plugin<Project> {
         )
         nameEndsWith("BenchmarkGenerateCP")
         nameContains("PluginClasspath")
+        nameContains("protoSource") // Wire 5.x: protoSource, protoSource2, etc.
         nameIs(
           "androidApis",
           "protoPath",
           "protoProjectDependenciesJvm",
-          "protoSource",
           "nativePlatform",
           "androidTestUtil"
         )

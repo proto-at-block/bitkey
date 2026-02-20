@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-savedstate-android",
+    "components": [
+        {
+            "version": "2.9.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-savedstate-release.aar": "079441c43fa3ff8ea7a02df3b12eec483c3e57583f832cfaff663750527c1421"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

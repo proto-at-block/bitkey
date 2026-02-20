@@ -5,7 +5,7 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
-import build.wallet.bitcoin.wallet.WalletV2ProviderMock
+import build.wallet.bitcoin.wallet.SpendingWalletV2ProviderMock
 import build.wallet.bitcoin.wallet.WatchingWalletProviderMock
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -17,7 +17,7 @@ import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
-import build.wallet.feature.setFlagValue
+import build.wallet.feature.flags.setBdk2Enabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
 import build.wallet.platform.random.UuidGeneratorFake
@@ -35,14 +35,14 @@ class ExportTransactionsServiceImplTests : FunSpec({
   val accountService = AccountServiceFake()
   val watchingWallet = SpendingWalletFake()
   val watchingWalletProvider = WatchingWalletProviderMock(watchingWallet)
-  val walletV2Provider = WalletV2ProviderMock()
+  val spendingWalletV2Provider = SpendingWalletV2ProviderMock()
   val bdk2FeatureFlag = Bdk2FeatureFlag(FeatureFlagDaoFake())
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val uuidGenerator = UuidGeneratorFake()
   val service = ExportTransactionsServiceImpl(
     accountService = accountService,
     watchingWalletProvider = watchingWalletProvider,
-    walletV2Provider = walletV2Provider,
+    spendingWalletV2Provider = spendingWalletV2Provider,
     bdk2FeatureFlag = bdk2FeatureFlag,
     bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
     exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
@@ -54,8 +54,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
     accountService.reset()
     watchingWallet.reset()
     watchingWalletProvider.reset()
-    walletV2Provider.reset()
-    bdk2FeatureFlag.setFlagValue(false)
+    spendingWalletV2Provider.reset()
+    bdk2FeatureFlag.setBdk2Enabled(false)
     accountService.setActiveAccount(FullAccountMock)
 
     val activeKeyset =
@@ -110,12 +110,12 @@ class ExportTransactionsServiceImplTests : FunSpec({
   }
 
   test("export uses V2 wallet provider when BDK2 flag enabled") {
-    bdk2FeatureFlag.setFlagValue(true)
-    walletV2Provider.walletResult = Ok(watchingWallet)
+    bdk2FeatureFlag.setBdk2Enabled(true)
+    spendingWalletV2Provider.walletResult = Ok(watchingWallet)
 
     service.export().shouldBeOk()
 
-    walletV2Provider.requestedDescriptors.test {
+    spendingWalletV2Provider.requestedDescriptors.test {
       val requestedDescriptors = awaitUntil { it.size == 1 }
       requestedDescriptors.first().identifier.shouldBe("WatchingWallet spending-public-keyset-fake-id-1")
     }
@@ -167,7 +167,7 @@ class ExportTransactionsServiceImplTests : FunSpec({
     val testService = ExportTransactionsServiceImpl(
       accountService = accountService,
       watchingWalletProvider = watchingWalletProvider,
-      walletV2Provider = walletV2Provider,
+      spendingWalletV2Provider = spendingWalletV2Provider,
       bdk2FeatureFlag = bdk2FeatureFlag,
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
@@ -206,7 +206,7 @@ class ExportTransactionsServiceImplTests : FunSpec({
     val testService = ExportTransactionsServiceImpl(
       accountService = accountService,
       watchingWalletProvider = watchingWalletProvider,
-      walletV2Provider = walletV2Provider,
+      spendingWalletV2Provider = spendingWalletV2Provider,
       bdk2FeatureFlag = bdk2FeatureFlag,
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),

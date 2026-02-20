@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-ktx",
     "components": [
         {
-            "version": "2.8.7",
+            "version": "2.9.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-ktx-2.8.7.aar": "1acebb50df2f0c07f379d5e23a28f7794f70efb2b6c834acebe8c394784ee6d4"
+                        "lifecycle-viewmodel-ktx-2.9.4.aar": "b7d58bb86bb8e2ccc607d1f8570e714810f7cfb3feba37d375ff1646383435a1"
                     }
                 }
             ],

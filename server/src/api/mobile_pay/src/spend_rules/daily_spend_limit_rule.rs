@@ -4,8 +4,7 @@ use crate::entities::Features;
 use crate::metrics;
 use crate::spend_rules::errors::SpendRuleCheckError;
 use crate::util::total_sats_spent_today;
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk_utils::bdk::database::AnyDatabase;
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::Wallet;
 use bdk_utils::{
     get_total_outflow_for_psbt, ChaincodeDelegationCollaboratorWallet, ChaincodeDelegationPsbt,
@@ -14,7 +13,7 @@ use time::OffsetDateTime;
 use types::account::spending::PrivateMultiSigSpendingKeyset;
 
 pub(crate) struct DailySpendingLimitRule<'a> {
-    wallet: &'a Wallet<AnyDatabase>,
+    wallet: &'a Wallet,
     features: &'a Features,
     spending_history: &'a Vec<&'a SpendingEntry>,
     now_utc: OffsetDateTime,
@@ -22,7 +21,7 @@ pub(crate) struct DailySpendingLimitRule<'a> {
 
 impl<'a> DailySpendingLimitRule<'a> {
     pub fn new(
-        wallet: &'a Wallet<AnyDatabase>,
+        wallet: &'a Wallet,
         features: &'a Features,
         spending_history: &'a Vec<&'a SpendingEntry>,
         now_utc: OffsetDateTime,
@@ -39,10 +38,7 @@ impl<'a> DailySpendingLimitRule<'a> {
 impl Rule for DailySpendingLimitRule<'_> {
     /// Ensure that the total outflows for this PSBT plus the outflows so far today do not exceed
     /// the set spending limit
-    fn check_transaction(
-        &self,
-        psbt: &PartiallySignedTransaction,
-    ) -> Result<(), SpendRuleCheckError> {
+    fn check_transaction(&self, psbt: &Psbt) -> Result<(), SpendRuleCheckError> {
         if !self.features.settings.limit.active {
             return Err(SpendRuleCheckError::SpendLimitInactive);
         }
@@ -78,10 +74,7 @@ pub(crate) struct DailySpendingLimitRuleV2<'a> {
 }
 
 impl Rule for DailySpendingLimitRuleV2<'_> {
-    fn check_transaction(
-        &self,
-        psbt: &PartiallySignedTransaction,
-    ) -> Result<(), SpendRuleCheckError> {
+    fn check_transaction(&self, psbt: &Psbt) -> Result<(), SpendRuleCheckError> {
         if !self.features.settings.limit.active {
             return Err(SpendRuleCheckError::SpendLimitInactive);
         }
@@ -146,14 +139,13 @@ impl<'a> DailySpendingLimitRuleV2<'a> {
 #[cfg(test)]
 mod tests {
     use bdk_utils::bdk::bitcoin::consensus::deserialize;
-    use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
-    use bdk_utils::bdk::bitcoin::ScriptBuf;
-    use bdk_utils::bdk::database::AnyDatabase;
-    use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex, AddressInfo};
-    use bdk_utils::bdk::{BlockTime, FeeRate, TransactionDetails, Wallet};
+    use bdk_utils::bdk::bitcoin::psbt::Psbt;
+    use bdk_utils::bdk::bitcoin::{Amount, FeeRate, ScriptBuf, Txid};
+    use bdk_utils::bdk::{AddressInfo, KeychainKind, Wallet};
     use exchange_rate::currency_conversion::sats_for;
     use exchange_rate::service::Service as ExchangeRateService;
-    use time::{macros::datetime, Duration, OffsetDateTime, UtcOffset};
+    use time::macros::datetime;
+    use time::{Duration, OffsetDateTime, UtcOffset};
     use types::account::money::Money;
     use types::account::spend_limit::SpendingLimit;
     use types::currencies::CurrencyCode::USD;
@@ -162,29 +154,32 @@ mod tests {
     use crate::daily_spend_record::entities::SpendingEntry;
     use crate::entities::{Features, Settings};
     use crate::spend_rules::daily_spend_limit_rule::DailySpendingLimitRule;
+    use crate::spend_rules::test::get_funded_wallet;
     use crate::spend_rules::Rule;
 
-    fn generate_test_wallets_and_address() -> (Wallet<AnyDatabase>, AddressInfo) {
-        let source_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-        let destination_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-        let destination_address = destination_wallet.get_address(AddressIndex::New).unwrap();
+    struct TransactionDetails {
+        txid: Txid,
+        confirmation_time: u64,
+        sent: u64,
+        received: u64,
+    }
+
+    fn generate_test_wallets_and_address() -> (Wallet, AddressInfo) {
+        let source_wallet = get_funded_wallet(0);
+        let mut destination_wallet = get_funded_wallet(1);
+        let destination_address = destination_wallet.next_unused_address(KeychainKind::External);
         (source_wallet, destination_address)
     }
 
-    async fn generate_psbt(
-        source_wallet: &Wallet<AnyDatabase>,
-        recipient: ScriptBuf,
-        m: &Money,
-    ) -> PartiallySignedTransaction {
+    async fn generate_psbt(source_wallet: &mut Wallet, recipient: ScriptBuf, m: &Money) -> Psbt {
         let spend_sat = sats_for(&ExchangeRateService::new(), LocalRateProvider::new(), m)
             .await
             .unwrap();
         let mut builder = source_wallet.build_tx();
         builder
-            .add_recipient(recipient, spend_sat)
-            .fee_rate(FeeRate::from_sat_per_vb(5.0));
-        let (psbt, _) = builder.finish().unwrap();
-        psbt
+            .add_recipient(recipient, Amount::from_sat(spend_sat))
+            .fee_rate(FeeRate::from_sat_per_vb_unchecked(5));
+        builder.finish().unwrap()
     }
 
     async fn generate_fake_transaction_details(
@@ -201,14 +196,9 @@ mod tests {
         let fake_id = [0_u8; 32];
         TransactionDetails {
             txid: deserialize(&fake_id).unwrap(),
-            transaction: None,
             received: 0,
             sent,
-            fee: None,
-            confirmation_time: Some(BlockTime {
-                height: 10,
-                timestamp: timestamp.unix_timestamp() as u64,
-            }),
+            confirmation_time: timestamp.unix_timestamp() as u64,
         }
     }
 
@@ -220,10 +210,8 @@ mod tests {
             .iter()
             .map(|tx| SpendingEntry {
                 txid: tx.txid,
-                timestamp: OffsetDateTime::from_unix_timestamp(
-                    tx.confirmation_time.clone().unwrap().timestamp as i64,
-                )
-                .unwrap(),
+                timestamp: OffsetDateTime::from_unix_timestamp(tx.confirmation_time as i64)
+                    .unwrap(),
                 outflow_amount: tx.sent,
             })
             .collect()
@@ -271,9 +259,9 @@ mod tests {
 
     #[tokio::test]
     async fn daily_spend_limit_rule_allows_conformant_tx() {
-        let (alice_wallet, bob_address) = generate_test_wallets_and_address();
+        let (mut alice_wallet, bob_address) = generate_test_wallets_and_address();
         let psbt = generate_psbt(
-            &alice_wallet,
+            &mut alice_wallet,
             bob_address.address.script_pubkey(),
             &Money {
                 amount: 2_00,
@@ -317,9 +305,9 @@ mod tests {
 
     #[tokio::test]
     async fn daily_spend_limit_rule_doesnt_allow_nonconforming_tx() {
-        let (alice_wallet, bob_address) = generate_test_wallets_and_address();
+        let (mut alice_wallet, bob_address) = generate_test_wallets_and_address();
         let psbt = generate_psbt(
-            &alice_wallet,
+            &mut alice_wallet,
             bob_address.address.script_pubkey(),
             &Money {
                 amount: 2_00,
@@ -362,10 +350,10 @@ mod tests {
 
     #[tokio::test]
     async fn daily_spend_limit_rule_doesnt_allow_with_current_daily_spend() {
-        let (alice_wallet, bob_address) = generate_test_wallets_and_address();
+        let (mut alice_wallet, bob_address) = generate_test_wallets_and_address();
         let midnight_utc = datetime!(2023-03-01 00:00:00 UTC); // Midnight EST
         let psbt = generate_psbt(
-            &alice_wallet,
+            &mut alice_wallet,
             bob_address.address.script_pubkey(),
             &Money {
                 amount: 2_00,
@@ -424,10 +412,10 @@ mod tests {
 
     #[tokio::test]
     async fn daily_spend_limit_rule_for_timezone() {
-        let (alice_wallet, bob_address) = generate_test_wallets_and_address();
+        let (mut alice_wallet, bob_address) = generate_test_wallets_and_address();
         let midnight_est_in_utc = datetime!(2023-01-01 05:00:00 UTC); // Midnight EST
         let psbt = generate_psbt(
-            &alice_wallet,
+            &mut alice_wallet,
             bob_address.address.script_pubkey(),
             &Money {
                 amount: 2_00,

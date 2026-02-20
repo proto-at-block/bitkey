@@ -14,9 +14,11 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.limit.ConfirmingWithHardwareErrorSheetModel
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiState.ConfirmingWithHardwareUiState
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiState.PickingSpendingLimitUiState
+import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
@@ -70,10 +72,8 @@ class SpendingLimitPickerUiStateMachineImpl(
         SpendingLimitPickerModel(
           onBack = props.retreat.onRetreat,
           toolbarModel = toolbarModel,
-          entryMode = EntryMode.Keypad(
-            amountModel = calculatorModel.amountModel,
-            keypadModel = calculatorModel.keypadModel
-          ),
+          amountModel = calculatorModel.amountModel,
+          keypadModel = calculatorModel.keypadModel,
           setLimitButtonEnabled = calculatorModel.primaryAmount.isPositive,
           setLimitButtonLoading = false,
           onSetLimitClick = {
@@ -95,10 +95,8 @@ class SpendingLimitPickerUiStateMachineImpl(
           props = props,
           state = state,
           toolbarModel = toolbarModel,
-          entryMode = EntryMode.Keypad(
-            amountModel = calculatorModel.amountModel,
-            keypadModel = calculatorModel.keypadModel
-          ),
+          amountModel = calculatorModel.amountModel,
+          keypadModel = calculatorModel.keypadModel,
           onBack = {
             uiState = PickingSpendingLimitUiState
           }
@@ -110,7 +108,8 @@ class SpendingLimitPickerUiStateMachineImpl(
   private fun ConfirmingWithHardwareModel(
     props: SpendingLimitPickerUiProps,
     state: ConfirmingWithHardwareUiState,
-    entryMode: EntryMode,
+    amountModel: MoneyAmountEntryModel,
+    keypadModel: KeypadModel,
     toolbarModel: ToolbarModel,
     onBack: () -> Unit,
   ): ScreenModel {
@@ -120,7 +119,8 @@ class SpendingLimitPickerUiStateMachineImpl(
       SpendingLimitPickerModel(
         onBack = props.retreat.onRetreat,
         toolbarModel = toolbarModel,
-        entryMode = entryMode,
+        amountModel = amountModel,
+        keypadModel = keypadModel,
         setLimitButtonEnabled = true,
         setLimitButtonLoading = isLoading,
         onSetLimitClick = {}

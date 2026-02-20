@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-desktop",
+    "components": [
+        {
+            "version": "1.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-desktop-1.9.3.jar": "b5639b2df04087287b5886d47db1ef791c279c1074ee628481726ed90cff03e7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

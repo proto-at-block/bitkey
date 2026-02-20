@@ -18,8 +18,12 @@ data class Psbt(
   val base64: String,
   /** The [fee] associated with the transaction represented as [Fee], which must have currency in [BTC] */
   val fee: Fee,
-  /** The size of the transaction in bytes, without witnesses */
-  val baseSize: Long,
+  /**
+   * The virtual size (vsize) of the transaction in virtual bytes.
+   * For segwit transactions: vsize = ceil(weight / 4).
+   * This is the correct value to use for fee rate calculations.
+   */
+  val vsize: Long,
   /** The number of inputs associated with the transaction */
   val numOfInputs: Int,
   /** Amount of sats to send in transaction */

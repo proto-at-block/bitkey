@@ -36,6 +36,7 @@ import build.wallet.grants.GrantRequest
 import build.wallet.logging.NFC_TAG
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
+import build.wallet.nfc.platform.ChunkData
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
@@ -43,11 +44,7 @@ import build.wallet.nfc.platform.NfcCommands
 import build.wallet.rust.firmware.*
 import build.wallet.rust.firmware.FirmwareSlot.A
 import build.wallet.rust.firmware.FirmwareSlot.B
-import build.wallet.rust.firmware.FwupStartResult
-import build.wallet.rust.firmware.FwupStartResultState
 import build.wallet.rust.firmware.SecureBootConfig
-import build.wallet.rust.firmware.WipeStateResult
-import build.wallet.rust.firmware.WipeStateResultState
 import build.wallet.toByteString
 import build.wallet.toUByteList
 import io.ktor.utils.io.CancellationException
@@ -78,6 +75,7 @@ class BitkeyW1Commands(
     patchSize: UInt?,
     fwupMode: FwupMode,
     mcuRole: McuRole,
+    version: String,
   ): HardwareInteraction<Boolean> {
     val result = executeCommand(
       session = session,
@@ -85,7 +83,8 @@ class BitkeyW1Commands(
         FwupStart(
           patchSize,
           fwupMode.toCoreFwupMode(),
-          mcuRole.toCoreMcuRole()
+          mcuRole.toCoreMcuRole(),
+          version
         )
       },
       getNext = { command, data -> command.next(data) },
@@ -591,16 +590,69 @@ class BitkeyW1Commands(
             ConfirmationResult.WipeDevice(result.success)
           is ConfirmedCommandResult.FwupStart ->
             ConfirmationResult.FwupStart(result.success)
+          is ConfirmedCommandResult.ChunkedDataAvailable ->
+            ConfirmationResult.ChunkedDataAvailable(result.totalSize)
+          is ConfirmedCommandResult.SignActionProof ->
+            throw NfcException.CommandError(message = "W1 hardware does not support SignActionProof")
         }
       }
     )
+
+  override suspend fun getConfirmationResultChunk(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+    chunkIndex: UInt,
+  ): ChunkData =
+    executeCommand(
+      session = session,
+      generateCommand = {
+        GetConfirmationResultChunk(
+          responseHandle = handles.responseHandle,
+          confirmationHandle = handles.confirmationHandle,
+          chunkIndex = chunkIndex
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: ChunkDataState.Data -> state.response },
+      generateResult = { state: ChunkDataState.Result ->
+        ChunkData(
+          chunk = state.value.chunk,
+          isLast = state.value.isLast,
+          remainingSize = state.value.remainingSize
+        )
+      }
+    )
+
+  override suspend fun getAddress(
+    session: NfcSession,
+    addressIndex: UInt,
+  ): String {
+    throw NfcException.CommandError(
+      message = "getAddress is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun verifyKeysAndBuildDescriptor(
+    session: NfcSession,
+    appSpendingKey: ByteString,
+    appSpendingKeyChaincode: ByteString,
+    networkMainnet: Boolean,
+    appAuthKey: ByteString,
+    serverSpendingKey: ByteString,
+    serverSpendingKeyChaincode: ByteString,
+    wsmSignature: ByteString,
+  ): Boolean {
+    throw NfcException.CommandError(
+      message = "verifyKeysAndBuildDescriptor is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
 }
 
 @Suppress(
   "TooGenericExceptionCaught",
   "ThrowsCount"
 ) // TODO: remove when metrics is done by an observer
-private suspend inline fun <
+internal suspend inline fun <
   CommandT : Any,
   StateT,
   reified DataStateT,

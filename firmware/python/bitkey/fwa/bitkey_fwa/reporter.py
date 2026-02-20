@@ -181,28 +181,29 @@ class TestResult(object):
 
         # Print out warnings, but treat as success
         if exception_type == Warning:
-            self.tests.append(TestTuple(self.RESULT_WARNING,
-                              test, str(exception), None))
+            self.tests.append(
+                TestTuple(self.RESULT_WARNING, test, str(exception), None)
+            )
             self.stream.writeln(self.RESULT_WARNING)
             verbose_message = "  {}".format(exception)
         else:
-            self.tests.append(TestTuple(self.RESULT_ERROR,
-                              test, str(exception), self._tb_string(err)))
+            self.tests.append(
+                TestTuple(self.RESULT_ERROR, test, str(exception), self._tb_string(err))
+            )
             self.stream.writeln(self.RESULT_ERROR)
-            verbose_message = "  {}: {}".format(
-                exception_type.__name__, exception)
+            verbose_message = "  {}: {}".format(exception_type.__name__, exception)
 
         if self.verbose:
             self.stream.writeln(verbose_message)
 
     def addFailure(self, test, err):
         exception_type, exception, tb = err
-        self.tests.append(TestTuple(self.RESULT_FAILURE, test,
-                          str(exception), self._tb_string(err)))
+        self.tests.append(
+            TestTuple(self.RESULT_FAILURE, test, str(exception), self._tb_string(err))
+        )
         self.stream.writeln(self.RESULT_FAILURE)
         if self.verbose:
-            self.stream.writeln("  {}: {}".format(
-                exception_type.__name__, exception))
+            self.stream.writeln("  {}: {}".format(exception_type.__name__, exception))
 
     def addSkip(self, test, reason):
         self.tests.append(TestTuple(self.RESULT_SKIPPED, test, reason, None))
@@ -213,11 +214,13 @@ class TestResult(object):
 
     def addExpectedFailure(self, test, err):
         raise NotImplementedError(
-            "Expected Failures results are not supported in firmware analysis testing")
+            "Expected Failures results are not supported in firmware analysis testing"
+        )
 
     def addUnexpectedSuccess(self, test):
         raise NotImplementedError(
-            "Unexpected Success results are not supported in firmware analysis testing")
+            "Unexpected Success results are not supported in firmware analysis testing"
+        )
 
     def printErrors(self):
         self.stream.writeln()
@@ -227,8 +230,7 @@ class TestResult(object):
     def printErrorList(self, flavour, errors):
         for t in errors:
             self.stream.writeln(self.separator1)
-            self.stream.writeln("%s: %s" %
-                                (flavour, self.getDescription(t.test)))
+            self.stream.writeln("%s: %s" % (flavour, self.getDescription(t.test)))
             self.stream.writeln(self.separator2)
             self.stream.writeln("%s" % t.traceback)
 
@@ -283,10 +285,10 @@ class TestResult(object):
             # Skip assert*() traceback levels
             length = self._count_relevant_tb_levels(tb)
             message_lines = traceback.format_exception(
-                exception_type, exception, tb, length)
+                exception_type, exception, tb, length
+            )
         else:
-            message_lines = traceback.format_exception(
-                exception_type, exception, tb)
+            message_lines = traceback.format_exception(exception_type, exception, tb)
 
         return "".join(message_lines)
 

@@ -24,7 +24,7 @@ use bdk_wallet::miniscript::descriptor::DescriptorKeyParseError as BdkDescriptor
 use bdk_wallet::miniscript::psbt::Error as BdkPsbtFinalizeError;
 #[allow(deprecated)]
 use bdk_wallet::signer::SignerError as BdkSignerError;
-use bdk_wallet::tx_builder::AddUtxoError;
+use bdk_wallet::tx_builder::{AddForeignUtxoError, AddUtxoError};
 use bdk_wallet::LoadWithPersistError as BdkLoadWithPersistError;
 use bdk_wallet::{chain, CreateWithPersistError as BdkCreateWithPersistError};
 
@@ -204,6 +204,9 @@ pub enum CreateTxError {
 
     #[error("invalid lock time value")]
     LockTimeConversionError,
+
+    #[error("foreign utxo error: {error_message}")]
+    ForeignUtxo { error_message: String },
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -1037,6 +1040,17 @@ impl From<AddUtxoError> for CreateTxError {
             AddUtxoError::UnknownUtxo(outpoint) => CreateTxError::UnknownUtxo {
                 outpoint: outpoint.to_string(),
             },
+        }
+    }
+}
+
+impl From<AddForeignUtxoError> for CreateTxError {
+    fn from(error: AddForeignUtxoError) -> Self {
+        // AddForeignUtxoError has multiple variants (InvalidTxid, InvalidOutpoint, MissingUtxo).
+        // We collapse them into a single error message since callers typically only need
+        // the message for logging/display rather than programmatic error handling.
+        CreateTxError::ForeignUtxo {
+            error_message: error.to_string(),
         }
     }
 }

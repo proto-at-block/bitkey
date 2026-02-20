@@ -9,6 +9,7 @@
 #pragma once
 
 #include "fwup_addr.h"
+#include "secutils.h"
 #include "wallet.pb.h"
 
 #include <stdbool.h>
@@ -26,11 +27,14 @@
  * @param target_app_slot_size    Size of the @p _target_slot_addr in bytes.
  * @param support_bl_upgrade      `true` if bootloader update should be allowed,
  *                                otherwise `false`.
+ * @param require_confirmation    `SECURE_TRUE` if on-device confirmation should be required
+ *                                for firmware updates, `SECURE_FALSE` otherwise.
  *
  * @note Must be called ONCE before any other firmware update functions are called.
  */
 void fwup_init(void* _target_slot_addr, void* _current_slot_addr, void* _target_slot_signature,
-               uint32_t target_app_slot_size, bool support_bl_upgrade);
+               uint32_t target_app_slot_size, bool support_bl_upgrade,
+               secure_bool_t require_confirmation);
 
 /**
  * @brief Starts a firmware update session.
@@ -88,5 +92,15 @@ void fwup_mark_pending(bool pending);
  * @param pending `true` to mark coproc FWUP as in progress, `false` otherwise.
  */
 void fwup_mark_coproc_pending(bool pending);
+
+/**
+ * @brief Get the firmware update confirmation requirement setting.
+ *
+ * @return `SECURE_TRUE` if confirmation is required, `SECURE_FALSE` otherwise.
+ *
+ * @note This function returns a secure_bool_t to maintain fault injection protection.
+ *       Callers should use SECURE_IF_FAILOUT macro to check the value.
+ */
+NO_OPTIMIZE secure_bool_t fwup_get_require_confirmation(void);
 
 /** @} */

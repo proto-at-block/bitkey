@@ -17,8 +17,13 @@ import build.wallet.debug.cloud.CloudBackupKeysetDeleter
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.notifications.TestNotificationF8eClient
+import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.feature.flags.Bdk2FeatureFlag
+import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.logging.logWarn
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.system.exitProcess
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -35,6 +40,7 @@ import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import com.github.michaelbull.result.onFailure
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 
 @BitkeyInject(ActivityScope::class)
@@ -53,11 +59,13 @@ class DebugMenuListStateMachineImpl(
   private val f8eEnvironmentPickerUiStateMachine: F8eEnvironmentPickerUiStateMachine,
   private val featureFlagsOptionsUiStateMachine: FeatureFlagsOptionsUiStateMachine,
   private val infoOptionsUiStateMachine: InfoOptionsUiStateMachine,
-  private val onboardingAppKeyDeletionUiStateMachine: OnboardingAppKeyDeletionUiStateMachine,
+  private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val onboardingConfigStateMachine: OnboardingConfigStateMachine,
   private val cloudSignUiStateMachine: CloudSignInUiStateMachine,
   private val coachmarkService: CoachmarkService,
   private val testNotificationF8eClient: TestNotificationF8eClient,
+  private val bdk2FeatureFlag: Bdk2FeatureFlag,
+  private val exchangeRateService: ExchangeRateService,
 ) : DebugMenuListStateMachine {
   @Composable
   override fun model(props: DebugMenuListProps): BodyModel {
@@ -66,6 +74,23 @@ class DebugMenuListStateMachineImpl(
     var deleteAppDataRequest: DeleteAppDataRequest? by remember { mutableStateOf(null) }
     var resetCoachmarks by remember { mutableStateOf(false) }
     var debugMenuErrorMessage by remember { mutableStateOf("") }
+    var isDeletingOnboardingAppKey by remember { mutableStateOf(false) }
+
+    // Search filter state
+    var filterText by remember { mutableStateOf("") }
+
+    // Handle onboarding app key deletion
+    if (isDeletingOnboardingAppKey) {
+      LaunchedEffect("delete-onboarding-app-key") {
+        onboardingAppKeyKeystore
+          .clear()
+          .onFailure { error ->
+            logWarn(throwable = error) { "Failed to clear onboarding app key from keystore." }
+            debugMenuErrorMessage = "Failed to delete onboarding app key."
+          }
+        isDeletingOnboardingAppKey = false
+      }
+    }
 
     if (deleteAppDataRequest != null) {
       val interstitial = DeleteEffect(account, deleteAppDataRequest!!) {
@@ -82,70 +107,83 @@ class DebugMenuListStateMachineImpl(
       }
     }
 
+    // Build all groups - ordered by user preference
+    val allGroups = immutableListOfNotNull(
+      // 1. Feature Flags
+      FeatureFlagsOptionsListGroupModel(props.onSetState),
+      // 2. Onboarding
+      onboardingConfigStateMachine.model(Unit),
+      // 3. Debug Options
+      DebugOptionsListGroupModel(
+        account,
+        onActionConfirmationRequest = { actionConfirmation = it },
+        props.onSetState,
+        resetCoachmarks = {
+          resetCoachmarks = true
+          actionConfirmation = null
+        },
+        onCorruptionFailure = { debugMenuErrorMessage = it },
+        onKeysetDeletionFailure = { debugMenuErrorMessage = it }
+      ),
+      // 4. Logs
+      LogsListGroupModel(props.onSetState),
+      // 5. F8e Environment
+      f8eEnvironmentPickerUiStateMachine.model(
+        F8eEnvironmentPickerUiProps(
+          openCustomUrlInput = { customUrl ->
+            props.onSetState(DebugMenuState.ShowingF8eCustomUrl(customUrl))
+          }
+        )
+      ),
+      // 6. Bitcoin network
+      bitcoinNetworkPickerUiStateMachine.model(Unit),
+      // 7. Hardware
+      BitkeyDeviceOptionsListGroupModel(
+        props = props,
+        onActionConfirmationRequest = { actionConfirmation = it }
+      ),
+      // 8. Identifiers
+      infoOptionsUiStateMachine.model(
+        InfoOptionsProps(
+          onPasteboardCopy = props.onPasteboardCopy
+        )
+      ),
+      // 9. Analytics
+      AnalyticsOptionsListGroupModel(props.onSetState),
+      // 10. Data Management (includes onboarding key deletion)
+      KeyboxDeleterOptionsListGroupModel(
+        account = account,
+        onActionConfirmationRequest = { actionConfirmation = it },
+        onDeleteKeybox = { deleteAppDataRequest = it },
+        onDeleteOnboardingAppKey = { isDeletingOnboardingAppKey = true }
+      ),
+      // 11. Keybox Configuration (at the end)
+      accountConfigUiStateMachine.model(
+        AccountConfigProps(
+          onBitcoinWalletClick = {
+            props.navigator.goTo(BitcoinWalletDebugScreen)
+          }
+        )
+      )
+    )
+
+    // Apply filtering if search text is present
+    val filteredGroups = if (filterText.isBlank()) {
+      allGroups
+    } else {
+      allGroups.mapNotNull { group ->
+        filterGroup(group, filterText)
+      }.toImmutableList()
+    }
+
     return DebugMenuBodyModel(
       title = "Debug Menu",
       onBack = props.onClose,
-      groups =
-        immutableListOfNotNull(
-          accountConfigUiStateMachine.model(
-            AccountConfigProps(
-              onBitcoinWalletClick = {
-                props.navigator.goTo(BitcoinWalletDebugScreen)
-              }
-            )
-          ),
-          onboardingConfigStateMachine.model(Unit),
-          bitcoinNetworkPickerUiStateMachine.model(Unit),
-          f8eEnvironmentPickerUiStateMachine.model(
-            F8eEnvironmentPickerUiProps(
-              openCustomUrlInput = { customUrl ->
-                props.onSetState(DebugMenuState.ShowingF8eCustomUrl(customUrl))
-              }
-            )
-          ),
-          infoOptionsUiStateMachine.model(
-            InfoOptionsProps(
-              onPasteboardCopy = props.onPasteboardCopy
-            )
-          ),
-          BitkeyDeviceOptionsListGroupModel(
-            props = props,
-            onActionConfirmationRequest = { actionConfirmation = it }
-          ),
-          LogsListGroupModel(props.onSetState),
-          AnalyticsOptionsListGroupModel(props.onSetState),
-          FeatureFlagsOptionsListGroupModel(props.onSetState),
-          DebugOptionsListGroupModel(
-            account,
-            onActionConfirmationRequest = { actionConfirmation = it },
-            props.onSetState,
-            resetCoachmarks = {
-              resetCoachmarks = true
-              actionConfirmation = null
-            },
-            onCorruptionFailure = { debugMenuErrorMessage = it },
-            onKeysetDeletionFailure = { debugMenuErrorMessage = it }
-          ),
-          KeyboxDeleterOptionsListGroupModel(
-            account = account,
-            onActionConfirmationRequest = { actionConfirmation = it },
-            onDeleteKeybox = { deleteAppDataRequest = it }
-          ),
-          onboardingAppKeyDeletionUiStateMachine.model(
-            props = OnboardingAppKeyDeletionProps(
-              onConfirmationRequested = { accept ->
-                actionConfirmation =
-                  ActionConfirmationRequest(
-                    gatedActionTitle = "Delete Onboarding App Key",
-                    gatedAction = {
-                      accept()
-                      actionConfirmation = null
-                    }
-                  )
-              }
-            )
-          )
-        ),
+      groups = filteredGroups,
+      filterText = filterText,
+      onFilterChange = { filterText = it },
+      collapsedGroupHeaders = props.collapsedGroupHeaders,
+      onToggleGroupCollapse = props.onToggleGroupCollapse,
       alertModel =
         actionConfirmation?.let {
           ActionConfirmationAlert(
@@ -166,6 +204,27 @@ class DebugMenuListStateMachineImpl(
           ).asSheetModalScreen(onClosed = { debugMenuErrorMessage = "" })
         }
     )
+  }
+
+  /**
+   * Filters a ListGroupModel by the search query.
+   * Returns null if no items match, otherwise returns the group with only matching items.
+   */
+  private fun filterGroup(
+    group: ListGroupModel,
+    query: String,
+  ): ListGroupModel? {
+    val lowerQuery = query.lowercase()
+    val matchingItems = group.items.filter { item ->
+      item.title.lowercase().contains(lowerQuery) ||
+        item.secondaryText?.lowercase()?.contains(lowerQuery) == true
+    }
+
+    return if (matchingItems.isEmpty()) {
+      null
+    } else {
+      group.copy(items = matchingItems.toImmutableList())
+    }
   }
 
   @Composable
@@ -236,7 +295,7 @@ class DebugMenuListStateMachineImpl(
           firmwareData = props.firmwareData ?: return null,
           onFirmwareUpdateClick = { updateFirmwareData ->
             props.onSetState(
-              DebugMenuState.UpdatingFirmware(
+              DebugMenuState.ShowingFirmwareUpdateDetails(
                 firmwareData = updateFirmwareData
               )
             )
@@ -283,6 +342,7 @@ class DebugMenuListStateMachineImpl(
     account: Account?,
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
     onDeleteKeybox: (DeleteAppDataRequest) -> Unit,
+    onDeleteOnboardingAppKey: () -> Unit,
   ): ListGroupModel? {
     return appStateDeleterOptionsUiStateMachine.model(
       props =
@@ -351,6 +411,14 @@ class DebugMenuListStateMachineImpl(
               )
             )
           },
+          onDeleteOnboardingAppKeyRequest = {
+            onActionConfirmationRequest(
+              ActionConfirmationRequest(
+                gatedActionTitle = "Delete Onboarding App Key",
+                gatedAction = onDeleteOnboardingAppKey
+              )
+            )
+          },
           showDeleteAppKey = account != null
         )
     )
@@ -366,6 +434,9 @@ class DebugMenuListStateMachineImpl(
     onKeysetDeletionFailure: (String) -> Unit,
   ): ListGroupModel? {
     val scope = rememberStableCoroutineScope()
+    val bdk2FlagValue by remember { bdk2FeatureFlag.flagValue() }.collectAsState()
+    val isBdk2Enabled = bdk2FlagValue.value
+    val bdk2SwitchTitle = if (isBdk2Enabled) "Switch to Legacy BDK" else "Switch to BDK 2"
 
     return when (appVariant) {
       AppVariant.Customer -> null
@@ -394,6 +465,16 @@ class DebugMenuListStateMachineImpl(
                 null
               },
               ListItemModel(
+                title = bdk2SwitchTitle,
+                secondaryText = "Sets flag and closes the app to apply.",
+                onClick = {
+                  scope.launch {
+                    bdk2FeatureFlag.setFlagValue(BooleanFlag(!isBdk2Enabled), overridden = true)
+                    exitProcess(status = 0)
+                  }
+                }
+              ),
+              ListItemModel(
                 title = "Reset Coachmarks",
                 onClick = {
                   onActionConfirmationRequest(
@@ -402,6 +483,15 @@ class DebugMenuListStateMachineImpl(
                       gatedAction = { resetCoachmarks() }
                     )
                   )
+                }
+              ),
+              ListItemModel(
+                title = "Clear Exchange Rates",
+                secondaryText = "Forces rate refresh on next sell flow",
+                onClick = {
+                  scope.launch {
+                    exchangeRateService.clearRates()
+                  }
                 }
               ),
               ListItemModel(
@@ -470,6 +560,12 @@ class DebugMenuListStateMachineImpl(
                     )
                   )
                 }
+              ),
+              ListItemModel(
+                title = "Fake Hardware Seed",
+                secondaryText = "View/share mock hardware seed",
+                trailingAccessory = ListItemAccessory.drillIcon(),
+                onClick = { onSetState(DebugMenuState.ShowingFakeHardwareSeed) }
               )
             ),
           style = ListGroupStyle.DIVIDER
@@ -484,6 +580,7 @@ class DebugMenuListStateMachineImpl(
       AppVariant.Customer -> null
       else ->
         ListGroupModel(
+          header = "Logs",
           style = ListGroupStyle.DIVIDER,
           items =
             immutableListOf(

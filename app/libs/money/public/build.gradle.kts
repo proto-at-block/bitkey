@@ -16,8 +16,8 @@ kotlin {
         api(projects.libs.amountPublic)
         api(projects.libs.ktorClientPublic)
         api(projects.domain.featureFlagPublic)
+        implementation(projects.libs.stdlibPublic)
         implementation(libs.kmp.big.number)
-        implementation(libs.kmp.kotlin.codepoints)
         implementation(libs.kmp.kotlin.datetime)
         implementation(libs.kmp.kotlin.serialization.core)
       }

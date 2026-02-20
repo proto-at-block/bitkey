@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-runtime-compose-android",
     "components": [
         {
-            "version": "2.8.7",
+            "version": "2.9.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-runtime-compose-release.aar": "80bf0a8fe9a79b93a318832bc36900f3ab8bd5931ff9ca0ecd3087100e1f07d8"
+                        "lifecycle-runtime-compose-release.aar": "b6803f906a89fd85c77df343dd4aeeb349125ca79e12d55d68d4cf42f42231f6"
                     }
                 }
             ],

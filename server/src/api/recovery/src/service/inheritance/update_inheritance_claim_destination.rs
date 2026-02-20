@@ -4,8 +4,8 @@ use super::{
     error::ServiceError, fetch_relationships_and_claim, filter_endorsed_relationship, Service,
 };
 
-use bdk_utils::is_addressed_to_wallet;
 use bdk_utils::{bdk::bitcoin::Address, generate_electrum_rpc_uris};
+use bdk_utils::{is_addressed_to_wallet, CHECK_SCRIPT_NUM_CACHED_ADDRESSES};
 use feature_flags::flag::ContextKey;
 use tracing::instrument;
 use types::account::entities::Account;
@@ -68,14 +68,18 @@ impl Service {
                     .active_descriptor_keyset()
                     .ok_or(ServiceError::NoActiveDescriptorKeySet)?;
                 let wallet = descriptor_keyset
-                    .generate_wallet(false, &rpc_uris)
+                    .generate_wallet_with_lookahead(
+                        false,
+                        &rpc_uris,
+                        Some(CHECK_SCRIPT_NUM_CACHED_ADDRESSES),
+                    )
                     .map_err(ServiceError::BdkUtils)?;
 
                 let destination_address_script_pubkey =
                     Address::from_str(input.destination.destination_address())
-                        .map_err(ServiceError::InvalidAddress)?
+                        .map_err(ServiceError::ParseAddress)?
                         .require_network(spending_keyset.network().into())
-                        .map_err(ServiceError::InvalidAddress)?
+                        .map_err(ServiceError::ParseAddress)?
                         .script_pubkey();
                 if !is_addressed_to_wallet(&wallet, &destination_address_script_pubkey)? {
                     return Err(ServiceError::UnownedDestination);

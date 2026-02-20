@@ -11,6 +11,7 @@ import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import bitkey.recovery.DelayNotifyServiceFake
 import bitkey.recovery.DescriptorBackupError
 import bitkey.recovery.DescriptorBackupPreparedData
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock2
 import build.wallet.bitkey.challange.DelayNotifyRecoveryChallengeFake
 import build.wallet.bitkey.challange.SignedChallenge
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
@@ -825,7 +826,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       f8eSpendingKeyset = F8eSpendingKeysetMock,
       sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
+      sealedSsek = SealedSsekFake,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     descriptorBackupService.prepareDescriptorBackupsForRecoveryResult = Ok(
@@ -884,7 +886,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       f8eSpendingKeyset = F8eSpendingKeysetMock,
       sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
+      sealedSsek = SealedSsekFake,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     descriptorBackupService.prepareDescriptorBackupsForRecoveryResult = Ok(
@@ -944,7 +947,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       f8eSpendingKeyset = F8eSpendingKeysetMock,
       sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
+      sealedSsek = SealedSsekFake,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     descriptorBackupService.prepareDescriptorBackupsForRecoveryResult = Ok(
@@ -993,7 +997,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       f8eSpendingKeyset = F8eSpendingKeysetMock,
       sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
+      sealedSsek = SealedSsekFake,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     descriptorBackupService.prepareDescriptorBackupsForRecoveryResult =
@@ -1031,7 +1036,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       f8eSpendingKeyset = F8eSpendingKeysetMock,
       sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
+      sealedSsek = SealedSsekFake,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     descriptorBackupService.prepareDescriptorBackupsForRecoveryResult = Ok(
@@ -1079,7 +1085,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       f8eSpendingKeyset = F8eSpendingKeysetMock,
       sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
+      sealedSsek = SealedSsekFake,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     stateMachine.test(props(recovery)) {
@@ -1125,7 +1132,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       f8eSpendingKeyset = F8eSpendingKeysetMock,
       sealedCsek = SealedCsekFake,
-      sealedSsek = null // Missing sealedSsek should skip descriptor backup flow
+      sealedSsek = null, // Missing sealedSsek should skip descriptor backup flow
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     stateMachine.test(props(recovery)) {
@@ -1167,7 +1175,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       f8eSpendingKeyset = F8eSpendingKeysetMock,
       sealedCsek = SealedCsekFake,
       sealedSsek = SealedSsekFake,
-      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock)
+      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock),
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     stateMachine.test(props(recovery)) {
@@ -1193,7 +1202,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       f8eSpendingKeyset = F8eSpendingKeysetMock,
       sealedCsek = SealedCsekFake,
       sealedSsek = SealedSsekFake,
-      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock) // Multiple keysets to verify they're used
+      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock), // Multiple keysets to verify they're used
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     stateMachine.test(props(recovery)) {
@@ -1225,7 +1235,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       factorToRecover = App,
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       f8eSpendingKeyset = F8eSpendingKeysetMock,
-      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock)
+      keysets = listOf(SpendingKeysetMock, SpendingKeysetMock),
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     stateMachine.test(props(recovery)) {
@@ -1414,7 +1425,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       factorToRecover = App,
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
+      sealedSsek = SealedSsekFake,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     // Set firmware version below the minimum
@@ -1443,7 +1455,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       factorToRecover = App,
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake
+      sealedSsek = SealedSsekFake,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     // Set firmware version equal to the minimum

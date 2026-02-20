@@ -3,6 +3,7 @@ package build.wallet.di
 import android.app.Activity
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.root.AppUiStateMachine
 import build.wallet.ui.theme.ThemePreferenceService
@@ -24,6 +25,7 @@ interface AndroidActivityComponent {
   val appUiStateMachine: AppUiStateMachine
   val inAppBrowserNavigator: InAppBrowserNavigator
   val themePreferenceService: ThemePreferenceService
+  val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag
 
   @Provides
   fun activity(fragmentActivity: FragmentActivity): Activity = fragmentActivity

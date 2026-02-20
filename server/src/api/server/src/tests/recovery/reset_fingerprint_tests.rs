@@ -216,7 +216,10 @@ async fn test_complete_reset_fingerprint(
 
         // expected signature for the pregenerated request
         let expected_signature = Signature::from_str("30450221009c2dde3523854c2ada86df6cdcbecda9c627bcc94fbbd59a40a249aedd424c160220262c54750eabf951cbd0fc5085721a2ba4791302405c0afdf6fd7d02d3500c0a").unwrap();
-        assert_eq!(signature, expected_signature);
+        assert_eq!(
+            Signature::from_str(&signature.to_string()).unwrap(),
+            expected_signature
+        );
     }
 }
 

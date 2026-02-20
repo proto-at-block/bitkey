@@ -1,8 +1,14 @@
 extern crate core;
 use reqwest::header::{COOKIE, SET_COOKIE};
 use serde_with::DisplayFromStr;
+pub use wsm_common::bitcoin::Network;
 pub use wsm_common::derivation::WSMSupportedDomain;
-pub use wsm_common::messages::api::CreatedSigningKey;
+pub use wsm_common::messages::api::{
+    AttestationDocResponse, ContinueDistributedKeygenResponse, ContinueShareRefreshResponse,
+    CreateSelfSovereignBackupResponse, CreatedSigningKey, EvaluatePinResponse,
+    GeneratePartialSignaturesResponse, GetIntegritySigResponse, InitiateDistributedKeygenResponse,
+    InitiateShareRefreshResponse, TransactionVerificationGrant,
+};
 
 use std::fmt::Debug;
 
@@ -15,17 +21,14 @@ use tracing::instrument;
 use url::Url;
 use wsm_common::bitcoin::secp256k1::ecdsa::Signature;
 use wsm_common::bitcoin::secp256k1::PublicKey;
-use wsm_common::bitcoin::Network;
 use wsm_common::messages::api::{
-    ApprovePsbtRequest, ApprovePsbtResponse, AttestationDocResponse,
-    ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
-    ContinueShareRefreshRequest, ContinueShareRefreshResponse, CreateRootKeyRequest,
-    CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse, EvaluatePinRequest,
-    EvaluatePinResponse, GeneratePartialSignaturesRequest, GeneratePartialSignaturesResponse,
-    GetIntegritySigRequest, GetIntegritySigResponse, InitiateDistributedKeygenRequest,
-    InitiateDistributedKeygenResponse, InitiateShareRefreshRequest, InitiateShareRefreshResponse,
-    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse, TransactionVerificationGrant,
+    ApprovePsbtRequest, ApprovePsbtResponse, ContinueDistributedKeygenRequest,
+    ContinueShareRefreshRequest, CreateRootKeyRequest, CreateSelfSovereignBackupRequest,
+    EvaluatePinRequest, GeneratePartialSignaturesRequest, GetIntegritySigRequest,
+    InitiateDistributedKeygenRequest, InitiateShareRefreshRequest, NoiseInitiateBundleRequest,
+    NoiseInitiateBundleResponse, SignPublicKeysRequest, SignPublicKeysResponse,
 };
+use wsm_compat::wsm_pubkey_from_bytes;
 
 pub use wsm_common::messages::{
     TEST_DPUB_SPEND, TEST_XPUB_CONFIG, TEST_XPUB_SPEND, TEST_XPUB_SPEND_ORIGIN,
@@ -600,6 +603,39 @@ impl SigningService for WsmClient {
     }
 }
 
+impl WsmClient {
+    #[instrument(skip(
+        app_auth_pub,
+        hardware_auth_pub,
+        app_spending_pub,
+        hardware_spending_pub,
+        server_spending_pub
+    ))]
+    pub async fn sign_public_keys(
+        &self,
+        app_auth_pub: PublicKey,
+        hardware_auth_pub: PublicKey,
+        app_spending_pub: PublicKey,
+        hardware_spending_pub: PublicKey,
+        server_spending_pub: PublicKey,
+    ) -> Result<SignPublicKeysResponse, Error> {
+        let res = self
+            .client
+            .post(self.endpoint.join("sign-public-keys")?)
+            .json(&SignPublicKeysRequest {
+                app_auth_pub: app_auth_pub.to_string(),
+                hardware_auth_pub: hardware_auth_pub.to_string(),
+                app_spending_pub: app_spending_pub.to_string(),
+                hardware_spending_pub: hardware_spending_pub.to_string(),
+                server_spending_pub: server_spending_pub.to_string(),
+            })
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+}
+
 #[async_trait]
 impl GrantService for WsmClient {
     #[instrument]
@@ -608,9 +644,14 @@ impl GrantService for WsmClient {
         psbt: &str,
         hw_auth_public_key: PublicKey,
     ) -> Result<TransactionVerificationGrant, Error> {
+        let hw_auth_public_key_wsm = wsm_pubkey_from_bytes(&hw_auth_public_key.serialize())
+            .map_err(|_| {
+                Error::Wsm("Failed to convert public key to WSM public key".to_string())
+            })?;
+
         let request = ApprovePsbtRequest {
             psbt: psbt.to_string(),
-            hw_auth_public_key,
+            hw_auth_public_key: hw_auth_public_key_wsm,
         };
 
         let res = self
@@ -629,7 +670,7 @@ impl GrantService for WsmClient {
 mod tests {
     use super::TEST_DPUB_SPEND;
     use crate::{SigningService, WsmClient};
-    use bdk::bitcoin::psbt::PartiallySignedTransaction;
+    use bdk_wallet::bitcoin::psbt::Psbt as PartiallySignedTransaction;
 
     use std::env;
     use std::str::FromStr;
@@ -701,5 +742,54 @@ mod tests {
             "cHNidP8BAF4BAAAAAe+V9DNE5pn2sVr06JWZtHrXzX1vXFqTvR4sTquaEDM4AAAAAAD9////AXinBAAAAAAAIgAgBhkIc237PNE4FqG2aaLKod//lkUN7gtXxBtLnoDlQIIUCQAAAAEAtQIAAAAAAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////8EArAIAP////8CF6gEAAAAAAAiACAlz8chzTZ/VoCaoSX1HuVkecXXazl0KRF/JvCoekZjmgAAAAAAAAAAJmokqiGp7eL2HD9x0d79P6mZ36NpU3VcaQaJeZlitIvr2DaXToz5ASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABASsXqAQAAAAAACIAICXPxyHNNn9WgJqhJfUe5WR5xddrOXQpEX8m8Kh6RmOaIgID18lx1/P8JpWem+fwDoyTbh3qvJWHpJy6XmC8XJkLK1RHMEQCIDPEpXsF2xfXDwsoBCXk4aN3HDw8f+UMuCQYS3Dp6QxoAiBG+GBVaiC+45Y3hcAXYob0soK+0NvEri7n1O256ERykwEBBWlSIQI6Sqko0C7Zf1xGOR1rf/zW7Xt55nHJgsAdhznUwWUvbyECukUTuN8rDSao26u3WfKEg2iZCvaEw7FDTQB7uFY5GxwhA9fJcdfz/CaVnpvn8A6Mk24d6ryVh6Scul5gvFyZCytUU64iBgI6Sqko0C7Zf1xGOR1rf/zW7Xt55nHJgsAdhznUwWUvbxjjH0TLVAAAgAEAAIAAAACAAAAAAAAAAAAiBgK6RRO43ysNJqjbq7dZ8oSDaJkK9oTDsUNNAHu4VjkbHBiMrZuGVAAAgAEAAIAAAACAAAAAAAAAAAAiBgPXyXHX8/wmlZ6b5/AOjJNuHeq8lYeknLpeYLxcmQsrVBgGh56dVAAAgAEAAIAAAACAAAAAAAAAAAAAAQFpUiECnY1cvvifQ4H1AttcYYNVrP0ogisb+3BOttitgFy2lvAhAwLHuYt/Ib2C8c/GlCHl7pTJgB2zh0kDu3FObxffKGg9IQOpX4RYQkCDbZEW72QRPqWjNWfMEw9EvOlb4VH6DB+qRFOuIgICnY1cvvifQ4H1AttcYYNVrP0ogisb+3BOttitgFy2lvAY4x9Ey1QAAIABAACAAAAAgAAAAAABAAAAIgIDAse5i38hvYLxz8aUIeXulMmAHbOHSQO7cU5vF98oaD0YjK2bhlQAAIABAACAAAAAgAAAAAABAAAAIgIDqV+EWEJAg22RFu9kET6lozVnzBMPRLzpW+FR+gwfqkQYBoeenVQAAIABAACAAAAAgAAAAAABAAAAAA=="
         )
             .await;
+    }
+
+    #[tokio::test]
+    #[ignore] // Integration test - requires WSM server with sign-public-keys endpoint deployed
+    async fn test_sign_public_keys() {
+        use crate::PublicKey;
+        use std::str::FromStr;
+
+        let client = WsmClient::new(&get_wsm_endpoint()).unwrap();
+
+        // Create test public keys using known-valid secp256k1 public keys
+        // These are derived from the secp256k1 generator point multiplied by small integers
+        let app_auth_pub = PublicKey::from_str(
+            "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+        )
+        .unwrap();
+        let hardware_auth_pub = PublicKey::from_str(
+            "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
+        )
+        .unwrap();
+        let app_spending_pub = PublicKey::from_str(
+            "02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13",
+        )
+        .unwrap();
+        let hardware_spending_pub = PublicKey::from_str(
+            "022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01",
+        )
+        .unwrap();
+        let server_spending_pub = PublicKey::from_str(
+            "03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe",
+        )
+        .unwrap();
+
+        let response = client
+            .sign_public_keys(
+                app_auth_pub,
+                hardware_auth_pub,
+                app_spending_pub,
+                hardware_spending_pub,
+                server_spending_pub,
+            )
+            .await
+            .unwrap();
+
+        // Verify that we got a signature back
+        assert!(!response.signature.is_empty());
+
+        // Signature should be hex-encoded 64-byte compact signature (128 hex chars)
+        assert_eq!(response.signature.len(), 128);
     }
 }

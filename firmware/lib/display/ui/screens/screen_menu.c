@@ -19,10 +19,11 @@
 #define MENU_ITEM_LOCK_DEVICE  fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE
 #define MENU_ITEM_POWER_OFF    fwpb_display_menu_item_DISPLAY_MENU_ITEM_POWER_OFF
 #ifdef MFGTEST
-#define MENU_ITEM_TOUCH_TEST   fwpb_display_menu_item_DISPLAY_MENU_ITEM_TOUCH_TEST
-#define MENU_ITEM_TOGGLE_SLEEP fwpb_display_menu_item_DISPLAY_MENU_ITEM_TOGGLE_SLEEP
-#define MENU_ITEM_RUN_IN       fwpb_display_menu_item_DISPLAY_MENU_ITEM_RUN_IN
-#define MENU_ITEM_COUNT        9
+#define MENU_ITEM_TOUCH_TEST     fwpb_display_menu_item_DISPLAY_MENU_ITEM_TOUCH_TEST
+#define MENU_ITEM_TOGGLE_SLEEP   fwpb_display_menu_item_DISPLAY_MENU_ITEM_TOGGLE_SLEEP
+#define MENU_ITEM_RUN_IN         fwpb_display_menu_item_DISPLAY_MENU_ITEM_RUN_IN
+#define MENU_ITEM_MONEY_MOVEMENT fwpb_display_menu_item_DISPLAY_MENU_ITEM_MONEY_MOVEMENT
+#define MENU_ITEM_COUNT          10
 #else
 #define MENU_ITEM_COUNT 6
 #endif
@@ -30,15 +31,17 @@
 // Screen configuration
 #define SCREEN_BRIGHTNESS 100
 #define TITLE_Y_OFFSET    80
-#define ICON_SIZE         64
-#define ITEM_LABEL_Y      120
+#define ICON_SIZE         80
+#define ICON_Y_OFFSET     0
+#define ITEM_LABEL_Y      80
 
 // Carousel layout configuration
 #define ITEM_WIDTH            220
 #define OPACITY_SELECTED      LV_OPA_COVER
 #define OPACITY_DIMMED        LV_OPA_40
-#define SCROLL_ANIM_TIME      150
-#define ICON_CIRCLE_SIZE      80
+#define SCROLL_ANIM_TIME      350
+#define ICON_CIRCLE_SIZE      120
+#define ICON_CIRCLE_SIZE_MIN  100       // Smaller size when inactive
 #define ICON_CIRCLE_COLOR     0x404040  // Gray
 #define ICON_CIRCLE_COLOR_MFG 0x803030  // Red for MFG items
 
@@ -67,19 +70,21 @@ extern const lv_img_dsc_t power;
 extern const lv_img_dsc_t touch;
 extern const lv_img_dsc_t sleep;
 extern const lv_img_dsc_t run_in;
+extern const lv_img_dsc_t check;
 #endif
 
 static const menu_item_data_t menu_items[MENU_ITEM_COUNT] = {
+  {LANGPACK_ID_MENU_LOCK, &lock, MENU_ITEM_LOCK_DEVICE},
   {LANGPACK_ID_MENU_FINGERPRINTS, &fingerprint, MENU_ITEM_FINGERPRINTS},
   {LANGPACK_ID_MENU_BRIGHTNESS, &brightness, MENU_ITEM_BRIGHTNESS},
   {LANGPACK_ID_MENU_ABOUT, &info_circle, MENU_ITEM_ABOUT},
   {LANGPACK_ID_MENU_REGULATORY, &paper_ribbon, MENU_ITEM_REGULATORY},
-  {LANGPACK_ID_MENU_LOCK, &lock, MENU_ITEM_LOCK_DEVICE},
   {LANGPACK_ID_MENU_OFF, &power, MENU_ITEM_POWER_OFF},
 #ifdef MFGTEST
   {LANGPACK_ID_MENU_TOUCH_TEST, &touch, MENU_ITEM_TOUCH_TEST},
   {LANGPACK_ID_MENU_SLEEP_ENABLED, &sleep, MENU_ITEM_TOGGLE_SLEEP},
   {LANGPACK_ID_MENU_RUN_IN, &run_in, MENU_ITEM_RUN_IN},
+  {LANGPACK_ID_MENU_MONEY_MOVEMENT, &check, MENU_ITEM_MONEY_MOVEMENT},
 #endif
 };
 
@@ -106,7 +111,7 @@ static langpack_string_id_t get_sleep_toggle_label(void) {
 
 static bool is_mfg_menu_item(fwpb_display_menu_item item_id) {
   return (item_id == MENU_ITEM_TOUCH_TEST || item_id == MENU_ITEM_TOGGLE_SLEEP ||
-          item_id == MENU_ITEM_RUN_IN);
+          item_id == MENU_ITEM_RUN_IN || item_id == MENU_ITEM_MONEY_MOVEMENT);
 }
 #endif
 
@@ -132,17 +137,40 @@ static void update_item_styles_by_position(void) {
 
     // Calculate opacity: full at center, fades to OPACITY_DIMMED away
     lv_opa_t opacity;
+    lv_coord_t circle_size;
     if (distance < ITEM_WIDTH / 2) {
       uint32_t opacity_range = OPACITY_SELECTED - OPACITY_DIMMED;
       uint32_t fade = (distance * opacity_range) / (ITEM_WIDTH / 2);
       opacity = OPACITY_SELECTED - fade;
+
+      // Calculate circle size: grows from ICON_CIRCLE_SIZE_MIN to ICON_CIRCLE_SIZE as item
+      // approaches center
+      uint32_t size_range = ICON_CIRCLE_SIZE - ICON_CIRCLE_SIZE_MIN;
+      uint32_t size_reduction = (distance * size_range) / (ITEM_WIDTH / 2);
+      circle_size = ICON_CIRCLE_SIZE - size_reduction;
     } else {
       opacity = OPACITY_DIMMED;
+      circle_size = ICON_CIRCLE_SIZE_MIN;
     }
 
     lv_obj_set_style_opa(item_icon_circles[i], opacity, 0);
     lv_obj_set_style_opa(item_icons[i], opacity, 0);
-    lv_obj_set_style_text_opa(item_labels[i], opacity, 0);
+
+    // Update circle size
+    lv_obj_set_size(item_icon_circles[i], circle_size, circle_size);
+
+    // Label fades in as item approaches center
+    // Start appearing at ITEM_WIDTH/2 from center, fully visible at center
+    lv_coord_t label_fade_threshold = ITEM_WIDTH / 2;
+    if (distance < label_fade_threshold) {
+      lv_obj_clear_flag(item_labels[i], LV_OBJ_FLAG_HIDDEN);
+      // Calculate label opacity: 0 at threshold, full at center
+      uint32_t label_opacity =
+        ((label_fade_threshold - distance) * LV_OPA_COVER) / label_fade_threshold;
+      lv_obj_set_style_text_opa(item_labels[i], (lv_opa_t)label_opacity, 0);
+    } else {
+      lv_obj_add_flag(item_labels[i], LV_OBJ_FLAG_HIDDEN);
+    }
   }
 }
 
@@ -229,17 +257,6 @@ lv_obj_t* screen_menu_init(void* ctx) {
   }
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
-  // Title
-  title_label = lv_label_create(screen);
-  if (!title_label) {
-    return NULL;
-  }
-  lv_label_set_text(title_label, langpack_get_string(LANGPACK_ID_MENU_TITLE));
-  lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, TITLE_Y_OFFSET);
-  lv_obj_set_style_text_color(title_label, lv_color_hex(COLOR_TITLE), 0);
-  lv_obj_set_style_text_font(title_label, FONT_TITLE, 0);
-  lv_obj_clear_flag(title_label, LV_OBJ_FLAG_CLICKABLE);
-
   // Scroll container
   scroll_container = lv_obj_create(screen);
   if (!scroll_container) {
@@ -257,7 +274,10 @@ lv_obj_t* screen_menu_init(void* ctx) {
   lv_obj_set_scroll_dir(scroll_container, LV_DIR_HOR);
   lv_obj_set_scrollbar_mode(scroll_container, LV_SCROLLBAR_MODE_OFF);
   lv_obj_set_scroll_snap_x(scroll_container, LV_SCROLL_SNAP_CENTER);
-  lv_obj_set_style_anim_time(scroll_container, SCROLL_ANIM_TIME, LV_PART_MAIN);
+  // Using LVGL default anim time (200-400ms based on distance) instead of fixed SCROLL_ANIM_TIME
+  lv_obj_clear_flag(scroll_container, LV_OBJ_FLAG_SCROLL_MOMENTUM);
+  lv_obj_add_flag(scroll_container, LV_OBJ_FLAG_SCROLL_ELASTIC);
+  lv_obj_add_flag(scroll_container, LV_OBJ_FLAG_SCROLL_ONE);
   lv_obj_set_flex_flow(scroll_container, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(scroll_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
@@ -269,7 +289,7 @@ lv_obj_t* screen_menu_init(void* ctx) {
 
   // Create menu items
   for (uint8_t i = 0; i < MENU_ITEM_COUNT; i++) {
-    // Item container
+    // Item container - the unified touch target for each menu item
     item_containers[i] = lv_obj_create(scroll_container);
     if (!item_containers[i]) {
       return NULL;
@@ -279,7 +299,9 @@ lv_obj_t* screen_menu_init(void* ctx) {
     lv_obj_set_style_border_opa(item_containers[i], LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_all(item_containers[i], 0, 0);
     lv_obj_clear_flag(item_containers[i], LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(item_containers[i], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(item_containers[i], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(item_containers[i], menu_item_click_handler, LV_EVENT_CLICKED,
+                        (void*)(uintptr_t)i);
 
     // Icon circle background
     item_icon_circles[i] = lv_obj_create(item_containers[i]);
@@ -299,10 +321,8 @@ lv_obj_t* screen_menu_init(void* ctx) {
     lv_obj_set_style_bg_opa(item_icon_circles[i], LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(item_icon_circles[i], 0, 0);
     lv_obj_set_style_pad_all(item_icon_circles[i], 0, 0);
-    lv_obj_align(item_icon_circles[i], LV_ALIGN_CENTER, 0, -20);
-    lv_obj_add_flag(item_icon_circles[i], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(item_icon_circles[i], menu_item_click_handler, LV_EVENT_CLICKED,
-                        (void*)(uintptr_t)i);
+    lv_obj_align(item_icon_circles[i], LV_ALIGN_CENTER, 0, ICON_Y_OFFSET);
+    lv_obj_clear_flag(item_icon_circles[i], LV_OBJ_FLAG_CLICKABLE);
 
     // Icon
     item_icons[i] = lv_img_create(item_icon_circles[i]);
@@ -313,9 +333,7 @@ lv_obj_t* screen_menu_init(void* ctx) {
     lv_obj_set_width(item_icons[i], ICON_SIZE);
     lv_obj_set_height(item_icons[i], ICON_SIZE);
     lv_obj_align(item_icons[i], LV_ALIGN_CENTER, 0, 0);
-    lv_obj_add_flag(item_icons[i], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(item_icons[i], menu_item_click_handler, LV_EVENT_CLICKED,
-                        (void*)(uintptr_t)i);
+    lv_obj_clear_flag(item_icons[i], LV_OBJ_FLAG_CLICKABLE);
 
     // Label
     item_labels[i] = lv_label_create(item_containers[i]);
@@ -336,10 +354,8 @@ lv_obj_t* screen_menu_init(void* ctx) {
     lv_obj_set_style_text_align(item_labels[i], LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(item_labels[i], lv_color_white(), 0);
     lv_obj_set_style_text_font(item_labels[i], FONT_ITEM, 0);
-    lv_obj_align(item_labels[i], LV_ALIGN_CENTER, 0, ITEM_LABEL_Y);
-    lv_obj_add_flag(item_labels[i], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(item_labels[i], menu_item_click_handler, LV_EVENT_CLICKED,
-                        (void*)(uintptr_t)i);
+    lv_obj_align(item_labels[i], LV_ALIGN_TOP_MID, 0, (LV_VER_RES / 2) + ITEM_LABEL_Y);
+    lv_obj_clear_flag(item_labels[i], LV_OBJ_FLAG_CLICKABLE);
   }
 
   const fwpb_display_show_screen* show_screen = (const fwpb_display_show_screen*)ctx;

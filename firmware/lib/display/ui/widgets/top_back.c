@@ -7,9 +7,9 @@
 // Button configuration
 #define PILL_WIDTH    60
 #define PILL_HEIGHT   36
-#define PILL_RADIUS   12
-#define TOP_MARGIN    20
-#define PILL_BG_COLOR 0x555555   // Grey
+#define PILL_RADIUS   32
+#define TOP_MARGIN    32
+#define PILL_BG_COLOR 0x404040   // Grey (matches menu item circles)
 #define PILL_BG_OPA   LV_OPA_80  // Semi-transparent grey
 
 // External image declaration
@@ -38,6 +38,7 @@ void top_back_create(lv_obj_t* parent, top_back_t* button, lv_event_cb_t custom_
   lv_obj_set_style_pad_all(button->container, 0, 0);
   lv_obj_clear_flag(button->container, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_flag(button->container, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_ext_click_area(button->container, 40);  // Extend touch target beyond visible pill
 
   // Position at top center for round screen
   lv_obj_align(button->container, LV_ALIGN_TOP_MID, 0, TOP_MARGIN);

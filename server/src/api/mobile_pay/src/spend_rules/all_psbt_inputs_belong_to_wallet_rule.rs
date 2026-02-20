@@ -1,7 +1,6 @@
 use bdk_utils::{AttributableWallet, ChaincodeDelegationCollaboratorWallet};
 
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk_utils::bdk::database::AnyDatabase;
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::Wallet;
 use types::account::spending::PrivateMultiSigSpendingKeyset;
 
@@ -10,15 +9,12 @@ use crate::metrics;
 use crate::spend_rules::errors::SpendRuleCheckError;
 
 pub(crate) struct AllPsbtInputsBelongToWalletRule<'a> {
-    wallet: &'a Wallet<AnyDatabase>,
+    wallet: &'a Wallet,
 }
 
 impl Rule for AllPsbtInputsBelongToWalletRule<'_> {
     /// Ensure all the inputs in the PSBT belong to this wallet
-    fn check_transaction(
-        &self,
-        psbt: &PartiallySignedTransaction,
-    ) -> Result<(), SpendRuleCheckError> {
+    fn check_transaction(&self, psbt: &Psbt) -> Result<(), SpendRuleCheckError> {
         if self
             .wallet
             .all_inputs_are_from_self(psbt)
@@ -33,7 +29,7 @@ impl Rule for AllPsbtInputsBelongToWalletRule<'_> {
 }
 
 impl<'a> AllPsbtInputsBelongToWalletRule<'a> {
-    pub fn new(wallet: &'a Wallet<AnyDatabase>) -> Self {
+    pub fn new(wallet: &'a Wallet) -> Self {
         AllPsbtInputsBelongToWalletRule { wallet }
     }
 }
@@ -43,10 +39,7 @@ pub(crate) struct AllPsbtInputsBelongToWalletRuleV2<'a> {
 }
 
 impl Rule for AllPsbtInputsBelongToWalletRuleV2<'_> {
-    fn check_transaction(
-        &self,
-        psbt: &PartiallySignedTransaction,
-    ) -> Result<(), SpendRuleCheckError> {
+    fn check_transaction(&self, psbt: &Psbt) -> Result<(), SpendRuleCheckError> {
         // Build on demand to avoid changing constructor signature to return Result
         let wallet = ChaincodeDelegationCollaboratorWallet::new(
             self.private_keyset.server_pub,
@@ -75,35 +68,42 @@ impl<'a> AllPsbtInputsBelongToWalletRuleV2<'a> {
 #[cfg(test)]
 mod tests {
 
-    use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex};
-    use bdk_utils::bdk::FeeRate;
+    use bdk_utils::bdk::bitcoin::{Amount, FeeRate};
+    use bdk_utils::bdk::KeychainKind;
 
     use crate::spend_rules::all_psbt_inputs_belong_to_wallet_rule::AllPsbtInputsBelongToWalletRule;
+    use crate::spend_rules::test::get_funded_wallet;
     use crate::spend_rules::Rule;
 
     #[test]
     fn invalid_psbt_for_wallet() {
-        let alice_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-        let bob_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-        let bob_address = bob_wallet.get_address(AddressIndex::New).unwrap();
+        let alice_wallet = get_funded_wallet(0);
+        let mut bob_wallet = get_funded_wallet(1);
+        let bob_address = bob_wallet.next_unused_address(KeychainKind::External);
+
         let mut builder = bob_wallet.build_tx();
         builder
-            .add_recipient(bob_address.script_pubkey(), 1_000)
-            .fee_rate(FeeRate::from_sat_per_vb(5.0));
-        let (psbt, _) = builder.finish().unwrap();
+            .add_recipient(bob_address.address.script_pubkey(), Amount::from_sat(1_000))
+            .fee_rate(FeeRate::from_sat_per_vb_unchecked(5));
+        let psbt = builder.finish().unwrap();
+
         let rule = AllPsbtInputsBelongToWalletRule::new(&alice_wallet);
         assert!(rule.check_transaction(&psbt).is_err());
     }
 
     #[test]
     fn valid_psbt_for_wallet() {
-        let alice_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-        let alice_address = alice_wallet.get_address(AddressIndex::New).unwrap();
+        let mut alice_wallet = get_funded_wallet(0);
+        let alice_address = alice_wallet.next_unused_address(KeychainKind::External);
+
         let mut builder = alice_wallet.build_tx();
         builder
-            .add_recipient(alice_address.script_pubkey(), 1_000)
-            .fee_rate(FeeRate::from_sat_per_vb(5.0));
-        let (psbt, _) = builder.finish().unwrap();
+            .add_recipient(
+                alice_address.address.script_pubkey(),
+                Amount::from_sat(1_000),
+            )
+            .fee_rate(FeeRate::from_sat_per_vb_unchecked(5));
+        let psbt = builder.finish().unwrap();
         let rule = AllPsbtInputsBelongToWalletRule::new(&alice_wallet);
         assert!(rule.check_transaction(&psbt).is_ok());
     }

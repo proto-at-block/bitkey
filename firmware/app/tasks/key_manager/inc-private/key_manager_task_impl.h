@@ -29,3 +29,5 @@ void crypto_task_set_parameters(derivation_path_t* derivation_path,
 void key_manager_task_register_listeners(void);
 void key_manager_task_handle_uxc_session_response(ipc_ref_t* message);
 void key_manager_task_handle_uxc_boot(void);
+void key_manager_task_port_handle_get_address(ipc_ref_t* message);
+void key_manager_task_port_handle_verify_keys_and_build_descriptor(ipc_ref_t* message);

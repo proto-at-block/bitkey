@@ -17,40 +17,77 @@ pub fn get_test_access_token() -> String {
     ))
 }
 
-/// Sign a message with the app key
-pub fn sign_with_app_key(message: &str, secret_key: secp256k1::SecretKey) -> String {
+/// Sign a message with the given secret key for testing
+fn sign_message(message: &str, secret_key: secp256k1::SecretKey) -> String {
     let secp = Secp256k1::new();
-    let message = secp256k1::Message::from_slice(&Sha256::digest(message.as_bytes())).unwrap();
-    let sig = secp.sign_ecdsa(&message, &secret_key);
+    let digest = Sha256::digest(message.as_bytes());
+    let msg = secp256k1::Message::from_digest_slice(&digest).unwrap();
+    let sig = secp.sign_ecdsa(&msg, &secret_key);
     sig.to_string()
 }
 
-// Sign a message with the test app key
+/// Sign a message with the app key
+pub fn sign_with_app_key(message: &str, secret_key: secp256k1::SecretKey) -> String {
+    sign_message(message, secret_key)
+}
+
+/// Sign a message with the hardware key
+pub fn sign_with_hw_key(message: &str, secret_key: secp256k1::SecretKey) -> String {
+    sign_message(message, secret_key)
+}
+
+/// Sign a message with the test app key
 pub fn sign_with_test_app_key(message: &str) -> String {
-    sign_with_app_key(
+    sign_message(
         message,
         secp256k1::SecretKey::from_slice(TEST_APP_AUTH_KEY).unwrap(),
     )
 }
 
-/// Sign a message with the hardware key
-/// The real hardware outputs compact signatures, making this different from the sign_with_app_key function
-pub fn sign_with_hw_key(message: &str, secret_key: secp256k1::SecretKey) -> String {
-    let secp = Secp256k1::new();
-    let message = secp256k1::Message::from_slice(&Sha256::digest(message.as_bytes())).unwrap();
-    let sig = secp.sign_ecdsa(&message, &secret_key);
-    sig.to_string()
-}
-
-// Sign a message with the test hardware key
+/// Sign a message with the test hardware key
 pub fn sign_with_test_hw_key(message: &str) -> String {
-    sign_with_hw_key(
+    sign_message(
         message,
         secp256k1::SecretKey::from_slice(TEST_HW_AUTH_KEY).unwrap(),
     )
 }
 
-// tests
+/// Sign a message with recoverable signature for ActionProof testing.
+/// Returns a hex-encoded 65-byte signature (64 bytes compact + 1 byte recovery ID).
+pub fn sign_recoverable(message: &[u8], secret_key: secp256k1::SecretKey) -> String {
+    let secp = Secp256k1::new();
+    let digest = Sha256::digest(message);
+    let msg = secp256k1::Message::from_digest_slice(&digest).unwrap();
+    let sig = secp.sign_ecdsa_recoverable(&msg, &secret_key);
+    let (recovery_id, data) = sig.serialize_compact();
+    let mut bytes = [0u8; 65];
+    bytes[..64].copy_from_slice(&data);
+    bytes[64] = recovery_id.to_i32() as u8;
+    hex::encode(bytes)
+}
+
+/// Get the test hardware key
+pub fn get_test_hw_key() -> secp256k1::SecretKey {
+    secp256k1::SecretKey::from_slice(TEST_HW_AUTH_KEY).unwrap()
+}
+
+/// Get the test app key
+pub fn get_test_app_key() -> secp256k1::SecretKey {
+    secp256k1::SecretKey::from_slice(TEST_APP_AUTH_KEY).unwrap()
+}
+
+/// Get the test hardware public key as a string
+pub fn get_test_hw_pubkey() -> String {
+    let secp = Secp256k1::new();
+    get_test_hw_key().public_key(&secp).to_string()
+}
+
+/// Get the test app public key as a string
+pub fn get_test_app_pubkey() -> String {
+    let secp = Secp256k1::new();
+    get_test_app_key().public_key(&secp).to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::authorizer::{authorize_token_for_path, AuthorizerConfig};

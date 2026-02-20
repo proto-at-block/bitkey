@@ -428,6 +428,7 @@ static void handle_nfc_loopback_cmd(ipc_ref_t* message) {
       const uint32_t timeout_ms = cmd->timeout_ms;
       const uint32_t delay_ms = cmd->delay_ms;
       const uint32_t test = cmd->test;
+      const bool continuous = cmd->continuous;
 
       rsp->rsp_status = fwpb_mfgtest_nfc_loopback_rsp_mfgtest_nfc_loopback_rsp_status_SUCCESS;
 
@@ -445,7 +446,7 @@ static void handle_nfc_loopback_cmd(ipc_ref_t* message) {
           (test == fwpb_mfgtest_nfc_loopback_test_type_NFC_LOOPBACK_TEST_A)
             ? HAL_NFC_MODE_LOOPBACK_A
             : HAL_NFC_MODE_LOOPBACK_B,
-          timeout_ms);
+          timeout_ms, continuous);
         return;
       }
 
@@ -687,6 +688,12 @@ void mfgtest_thread(void* UNUSED(args)) {
         break;
       case IPC_MFGTEST_COPROC_GPIO_RESPONSE:
         mfgtest_task_port_handle_coproc_gpio_response(&message);
+        break;
+      case IPC_PROTO_MFGTEST_TOUCH_DATA_CMD:
+        mfgtest_task_port_handle_touch_data_cmd(&message);
+        break;
+      case IPC_MFGTEST_TOUCH_POINT:
+        mfgtest_task_port_handle_touch_point(&message);
         break;
       default:
         LOGE("unknown message %ld", message.tag);

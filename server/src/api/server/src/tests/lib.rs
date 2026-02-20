@@ -15,16 +15,18 @@ use authn_authz::routes::NoiseInitiateBundleRequest;
 
 use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
 use bdk_utils::bdk::bitcoin::bip32::{
-    ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey,
+    ChildNumber, DerivationPath, Xpriv as ExtendedPrivKey, Xpub as ExtendedPubKey,
 };
 use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
+use bdk_utils::bdk::bitcoin::NetworkKind;
 use bdk_utils::bdk::keys::DescriptorSecretKey;
 use bdk_utils::bdk::miniscript::descriptor::{DescriptorXKey, Wildcard};
+use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 use bdk_utils::bdk::miniscript::ToPublicKey;
-use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex, AddressInfo};
+use bdk_utils::bdk::test_utils::get_funded_wallet_wpkh;
 use bdk_utils::bdk::Wallet as BdkWallet;
-use bdk_utils::bdk::{database::AnyDatabase, miniscript::DescriptorPublicKey};
-use bdk_utils::get_blockchain;
+use bdk_utils::bdk::{AddressInfo, KeychainKind};
+use bdk_utils::{get_bdk_electrum_client, FULL_SCAN_STOP_GAP_AND_BATCH_SIZE};
 use external_identifier::ExternalIdentifier;
 use http::StatusCode;
 use isocountry::CountryCode;
@@ -61,8 +63,8 @@ use crate::Services;
 pub mod wallet_protocol;
 
 pub(crate) fn gen_external_wallet_address() -> AddressInfo {
-    let external_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-    external_wallet.get_address(AddressIndex::New).unwrap()
+    let (mut external_wallet, _) = get_funded_wallet_wpkh();
+    external_wallet.next_unused_address(KeychainKind::External)
 }
 
 pub(crate) fn create_keypair() -> (SecretKey, PublicKey) {
@@ -92,7 +94,7 @@ pub(crate) async fn create_default_account_with_private_wallet(
     context: &mut TestContext,
     client: &TestClient,
     services: &Services,
-) -> (FullAccount, BdkWallet<AnyDatabase>) {
+) -> (FullAccount, BdkWallet) {
     create_default_account_with_predefined_wallet_internal(context, client, services, true, true)
         .await
 }
@@ -101,7 +103,7 @@ pub(crate) async fn create_default_account_with_predefined_wallet(
     context: &mut TestContext,
     client: &TestClient,
     services: &Services,
-) -> (FullAccount, BdkWallet<AnyDatabase>) {
+) -> (FullAccount, BdkWallet) {
     create_default_account_with_predefined_wallet_internal(context, client, services, true, false)
         .await
 }
@@ -110,7 +112,7 @@ pub(crate) async fn create_nontest_account_with_private_wallet(
     context: &mut TestContext,
     client: &TestClient,
     services: &Services,
-) -> (FullAccount, BdkWallet<AnyDatabase>) {
+) -> (FullAccount, BdkWallet) {
     create_default_account_with_predefined_wallet_internal(context, client, services, false, true)
         .await
 }
@@ -119,7 +121,7 @@ pub(crate) async fn create_nontest_account_with_predefined_wallet(
     context: &mut TestContext,
     client: &TestClient,
     services: &Services,
-) -> (FullAccount, BdkWallet<AnyDatabase>) {
+) -> (FullAccount, BdkWallet) {
     create_default_account_with_predefined_wallet_internal(context, client, services, false, false)
         .await
 }
@@ -139,7 +141,7 @@ async fn create_default_account_with_predefined_wallet_internal(
     services: &Services,
     is_test_account: bool,
     is_private_wallet: bool,
-) -> (FullAccount, BdkWallet<AnyDatabase>) {
+) -> (FullAccount, BdkWallet) {
     let network = Network::BitcoinSignet;
 
     let predefined_keys = predefined_descriptor_public_keys();
@@ -206,7 +208,7 @@ async fn create_default_account_with_predefined_wallet_internal(
             })
         };
 
-        let wallet = create_bdk_wallet(
+        let mut wallet = create_bdk_wallet(
             &app_dprv.to_string(),
             &app_dpub.to_string(),
             &hardware_dpub.to_string(),
@@ -214,9 +216,14 @@ async fn create_default_account_with_predefined_wallet_internal(
             network.into(),
         );
 
+        let (stop_gap, batch_size) = FULL_SCAN_STOP_GAP_AND_BATCH_SIZE;
         let rpc_uris = default_electrum_rpc_uris();
-        let blockchain = get_blockchain(network.into(), &rpc_uris).unwrap();
-        wallet.sync(&blockchain, Default::default()).unwrap();
+        let bdk_electrum_client = get_bdk_electrum_client(network.into(), &rpc_uris).unwrap();
+        let request = wallet.start_full_scan();
+        let update = bdk_electrum_client
+            .full_scan(request, stop_gap, batch_size, true)
+            .unwrap();
+        wallet.apply_update(update).unwrap();
 
         (account, wallet)
     } else {
@@ -260,7 +267,7 @@ async fn create_default_account_with_predefined_wallet_internal(
             .await
             .unwrap();
 
-        let wallet = create_bdk_wallet(
+        let mut wallet = create_bdk_wallet(
             &app_dprv.to_string(),
             &app_dpub.to_string(),
             &hardware_dpub.to_string(),
@@ -268,9 +275,15 @@ async fn create_default_account_with_predefined_wallet_internal(
             network.into(),
         );
 
+        let (stop_gap, batch_size) = FULL_SCAN_STOP_GAP_AND_BATCH_SIZE;
         let rpc_uris = default_electrum_rpc_uris();
-        let blockchain = get_blockchain(network.into(), &rpc_uris).unwrap();
-        wallet.sync(&blockchain, Default::default()).unwrap();
+        let bdk_electrum_client = get_bdk_electrum_client(network.into(), &rpc_uris).unwrap();
+        let request = wallet.start_full_scan();
+        let update = bdk_electrum_client
+            .full_scan(request, stop_gap, batch_size, true)
+            .unwrap();
+        wallet.apply_update(update).unwrap();
+
         (account, wallet)
     }
 }
@@ -859,11 +872,18 @@ pub(crate) fn predefined_server_root_xpub(
     network: Network,
     public_key: PublicKey,
 ) -> ExtendedPubKey {
+    let network_kind = match network {
+        Network::BitcoinMain => NetworkKind::Main,
+        Network::BitcoinTest => NetworkKind::Test,
+        Network::BitcoinSignet => NetworkKind::Test,
+        Network::BitcoinRegtest => NetworkKind::Test,
+    };
+
     let ExtendedPrivKey { chain_code, .. } =
-        ExtendedPrivKey::new_master(network.into(), &[0u8; 32]).unwrap();
+        ExtendedPrivKey::new_master(network_kind, &[0u8; 32]).unwrap();
 
     ExtendedPubKey {
-        network: network.into(),
+        network: network_kind,
         depth: 0,
         parent_fingerprint: Default::default(),
         child_number: ChildNumber::from_normal_idx(0).expect("root child number"),

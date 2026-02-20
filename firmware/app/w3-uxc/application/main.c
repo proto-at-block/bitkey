@@ -58,10 +58,24 @@ NO_OPTIMIZE int main(void) {
   mcu_gpio_configure(&boot_status_config, true /* booted */);
 
   serial_init();
-  uc_init((uc_send_callback_t)mcu_usart_write, (void*)&comms_usart_config);
 
   // Initialize sysevent system
   sysevent_init();
+
+  // Initialize UXC comms.
+  // No message encryption on MFG test devices
+#ifdef MFGTEST
+  uc_init((uc_send_callback_t)mcu_usart_write, NULL, (void*)&comms_usart_config);
+  sysevent_set(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED);
+#else
+  uc_crypto_api_t crypto_api = {
+    .gcm_encrypt = &secure_uart_channel_encrypt,
+    .gcm_decrypt = &secure_uart_channel_decrypt,
+    .check_recv_seq = &secure_uart_channel_check_recv_seq_number,
+    .get_send_seq = &secure_uart_channel_get_send_seq_number,
+  };
+  uc_init((uc_send_callback_t)mcu_usart_write, &crypto_api, (void*)&comms_usart_config);
+#endif
 
 #ifndef CONFIG_PROD
   shell_task_create();
@@ -73,6 +87,7 @@ NO_OPTIMIZE int main(void) {
     .secure_random = &crypto_rand_short,
     .cpu_freq = &clock_get_freq,
   });
+
   SECURE_DO_ONCE({ canary_init(); });
 
   // Initialize default language pack (English).
@@ -109,10 +124,16 @@ NO_OPTIMIZE int main(void) {
   mfgtest_task_create();
 
   // Create the FWUP task.
-  fwup_task_create((fwup_task_options_t){.bl_upgrade = true});
+  fwup_task_create((fwup_task_options_t){
+    .bl_upgrade = true,
+    .confirmation = SECURE_FALSE,
+  });
 #else
   // Create the FWUP task.
-  fwup_task_create((fwup_task_options_t){.bl_upgrade = false});
+  fwup_task_create((fwup_task_options_t){
+    .bl_upgrade = false,
+    .confirmation = SECURE_TRUE,
+  });
 #endif
 
   // Mount the filesystem.

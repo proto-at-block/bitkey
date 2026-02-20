@@ -18,19 +18,20 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{extract::State, routing::post, Json, Router};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use bdk::bitcoin::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint};
-use bdk::bitcoin::hashes::sha256;
-use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::psbt::Psbt;
-use bdk::bitcoin::secp256k1::{ecdsa::Signature, All, Message, Secp256k1, SecretKey};
-use bdk::bitcoin::Network;
-use bdk::database::MemoryDatabase;
-use bdk::descriptor::Segwitv0;
-use bdk::keys::{DerivableKey, DescriptorKey, DescriptorSecretKey, ExtendedKey};
-
-use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper, TransactionSigner};
-use bdk::{KeychainKind, SignOptions, Wallet};
-
+use bdk_wallet::bitcoin::bip32::{
+    DerivationPath, Fingerprint, Xpriv as ExtendedPrivKey, Xpub as ExtendedPubKey,
+};
+use bdk_wallet::bitcoin::hashes::sha256;
+use bdk_wallet::bitcoin::hashes::Hash;
+use bdk_wallet::bitcoin::psbt::Psbt as PartiallySignedTransaction;
+use bdk_wallet::bitcoin::psbt::Psbt;
+use bdk_wallet::bitcoin::secp256k1::{ecdsa::Signature, All, Message, Secp256k1, SecretKey};
+use bdk_wallet::bitcoin::Network;
+use bdk_wallet::bitcoin::PublicKey;
+use bdk_wallet::descriptor::Segwitv0;
+use bdk_wallet::keys::{DerivableKey, DescriptorKey, DescriptorSecretKey, ExtendedKey};
+use bdk_wallet::signer::{SignerContext, SignerOrdering, SignerWrapper, TransactionSigner};
+use bdk_wallet::{KeychainKind, SignOptions, Wallet};
 use crypto::frost::dkg::server::continue_dkg;
 use crypto::frost::dkg::{server::initiate_dkg, SharePackage};
 
@@ -61,6 +62,7 @@ use wsm_common::messages::api::NoiseInitiateBundleResponse;
 use wsm_common::messages::api::SignedPsbt;
 use wsm_common::messages::api::{
     ApprovePsbtRequest, ApprovePsbtResponse, AttestationDocResponse, GrantResponse,
+    SignPublicKeysRequest, SignPublicKeysResponse,
 };
 use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenResponse;
 use wsm_common::messages::enclave::EnclaveContinueShareRefreshRequest;
@@ -292,7 +294,7 @@ pub fn sign_with_integrity_key(
     hash_input.extend_from_slice(context);
     hash_input.extend_from_slice(data);
 
-    let message = Message::from_hashed_data::<sha256::Hash>(&hash_input);
+    let message = Message::from_digest(sha256::Hash::hash(&hash_input).to_byte_array());
     Ok(secp.sign_ecdsa(&message, &secret_key))
 }
 
@@ -554,17 +556,19 @@ async fn sign_psbt(
         WsmError::ServerError,
         descriptor_key_to_signer(internal_descriptor_xpriv, signer_context)
     )?;
+    let wallet_create_params = Wallet::create(
+        request.descriptor.clone(),
+        request.change_descriptor.clone(),
+    )
+    .network(network);
+
     let mut wallet = try_with_log_and_error!(
         log_buffer,
         WsmError::ServerError,
-        Wallet::new(
-            request.descriptor.as_str(),
-            Some(request.change_descriptor.as_str()),
-            network,
-            MemoryDatabase::default(),
-        )
+        wallet_create_params.create_wallet_no_persist()
     )?;
 
+    // TODO [W-15826] Deal with deprecated SignerOrdering
     wallet.add_signer(
         KeychainKind::External,
         SignerOrdering(9001),
@@ -1355,6 +1359,71 @@ async fn approve_psbt(
     Ok(Json(ApprovePsbtResponse { approval }))
 }
 
+async fn sign_public_keys(
+    State(route_state): State<RouteState>,
+    Json(request): Json<SignPublicKeysRequest>,
+) -> Result<Json<SignPublicKeysResponse>, WsmError> {
+    let keystore = route_state.keystore.clone();
+    let mut log_buffer = LogBuffer::new();
+
+    let secp = Secp256k1::new();
+    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await?;
+
+    // Parse public keys from strings
+    let app_auth_pub = PublicKey::from_str(&request.app_auth_pub).map_err(|_| {
+        WsmError::BadRequest(
+            "Invalid app auth public key".to_string(),
+            Default::default(),
+        )
+    })?;
+    let hardware_auth_pub = PublicKey::from_str(&request.hardware_auth_pub).map_err(|_| {
+        WsmError::BadRequest(
+            "Invalid hardware auth public key".to_string(),
+            Default::default(),
+        )
+    })?;
+    let app_spending_pub = PublicKey::from_str(&request.app_spending_pub).map_err(|_| {
+        WsmError::BadRequest(
+            "Invalid app spending public key".to_string(),
+            Default::default(),
+        )
+    })?;
+    let hardware_spending_pub =
+        PublicKey::from_str(&request.hardware_spending_pub).map_err(|_| {
+            WsmError::BadRequest(
+                "Invalid hardware spending public key".to_string(),
+                Default::default(),
+            )
+        })?;
+    let server_spending_pub = PublicKey::from_str(&request.server_spending_pub).map_err(|_| {
+        WsmError::BadRequest(
+            "Invalid server spending public key".to_string(),
+            Default::default(),
+        )
+    })?;
+
+    // Concatenate all 5 public keys into a single payload
+    let mut payload = Vec::new();
+    payload.extend_from_slice(&app_auth_pub.to_bytes());
+    payload.extend_from_slice(&hardware_auth_pub.to_bytes());
+    payload.extend_from_slice(&app_spending_pub.to_bytes());
+    payload.extend_from_slice(&hardware_spending_pub.to_bytes());
+    payload.extend_from_slice(&server_spending_pub.to_bytes());
+
+    // Sign the combined payload
+    let signature = sign_with_integrity_key(
+        &secp,
+        &mut log_buffer,
+        &integrity_key,
+        b"SignPublicKeysV1",
+        &payload,
+    )?;
+
+    Ok(Json(SignPublicKeysResponse {
+        signature: hex::encode(signature.serialize_compact()),
+    }))
+}
+
 async fn derive_key(
     State(route_state): State<RouteState>,
     Json(request): Json<EnclaveDeriveKeyRequest>,
@@ -1713,6 +1782,7 @@ impl From<RouteState> for Router {
             .route("/continue-share-refresh", post(continue_share_refresh))
             .route("/approve-grant", post(approve_grant))
             .route("/approve-psbt", post(approve_psbt))
+            .route("/sign-public-keys", post(sign_public_keys))
             .with_state(state)
     }
 }
@@ -1748,8 +1818,8 @@ mod tests {
     use axum::{http, Router};
     use base64::engine::general_purpose::STANDARD as BASE64;
 
-    use bdk::bitcoin::hashes::sha256;
-    use bdk::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
+    use bdk_wallet::bitcoin::hashes::sha256;
+    use bdk_wallet::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
 
     use http_body_util::BodyExt;
     use tower::ServiceExt;
@@ -2055,8 +2125,110 @@ mod tests {
 
         let hash_input = vec![1, 2, 3];
 
-        let message = Message::from_hashed_data::<sha256::Hash>(hash_input.as_ref());
+        let message = Message::from_digest(sha256::Hash::hash(hash_input.as_ref()).to_byte_array());
 
         secp.sign_ecdsa(&message, &secret_key);
+    }
+
+    #[tokio::test]
+    async fn test_sign_public_keys() {
+        use wsm_common::messages::api::{SignPublicKeysRequest, SignPublicKeysResponse};
+
+        let client = get_client();
+        load_test_integrity_key(client.clone()).await;
+
+        // Test public keys as strings (known-valid secp256k1 public keys)
+        let app_auth_pub =
+            "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798".to_string();
+        let hardware_auth_pub =
+            "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9".to_string();
+        let app_spending_pub =
+            "02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13".to_string();
+        let hardware_spending_pub =
+            "022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01".to_string();
+        let server_spending_pub =
+            "03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe".to_string();
+
+        let response = client
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/sign-public-keys")
+                    .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                    .body(Body::from(
+                        serde_json::to_vec(&SignPublicKeysRequest {
+                            app_auth_pub,
+                            hardware_auth_pub,
+                            app_spending_pub,
+                            hardware_spending_pub,
+                            server_spending_pub,
+                        })
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let sign_response: SignPublicKeysResponse = serde_json::from_slice(&body).unwrap();
+
+        // Verify that we got a signature back
+        assert!(!sign_response.signature.is_empty());
+
+        // Signature should be hex-encoded 64-byte compact signature (128 hex chars)
+        assert_eq!(sign_response.signature.len(), 128);
+
+        // Verify it contains only valid hex characters
+        assert!(sign_response
+            .signature
+            .chars()
+            .all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[tokio::test]
+    async fn test_sign_public_keys_without_integrity_key() {
+        use wsm_common::messages::api::SignPublicKeysRequest;
+
+        let client = get_client();
+        // Don't load integrity key
+
+        // Test public keys as strings (known-valid secp256k1 public keys)
+        let app_auth_pub =
+            "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798".to_string();
+        let hardware_auth_pub =
+            "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9".to_string();
+        let app_spending_pub =
+            "02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13".to_string();
+        let hardware_spending_pub =
+            "022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01".to_string();
+        let server_spending_pub =
+            "03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe".to_string();
+
+        let response = client
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/sign-public-keys")
+                    .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                    .body(Body::from(
+                        serde_json::to_vec(&SignPublicKeysRequest {
+                            app_auth_pub,
+                            hardware_auth_pub,
+                            app_spending_pub,
+                            hardware_spending_pub,
+                            server_spending_pub,
+                        })
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // Should return PRECONDITION_REQUIRED because integrity key is not loaded
+        assert_eq!(response.status(), StatusCode::PRECONDITION_REQUIRED);
     }
 }

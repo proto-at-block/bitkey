@@ -7,6 +7,7 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransaction
@@ -151,11 +152,28 @@ class SpendingWalletFake(
     return Ok(lastUnusedAddress)
   }
 
+  private var addressIndex: UInt = 0u
+
+  /**
+   * Returns a "new" address with its derivation index by rotating through [addresses].
+   */
+  override suspend fun getNewAddressInfo(): Result<BitcoinAddressInfo, Error> {
+    walletLock.withLock {
+      lastUnusedAddress = rotatedAddress()
+      addressIndex++
+    }
+    return Ok(BitcoinAddressInfo(address = lastUnusedAddress, index = addressIndex))
+  }
+
   /**
    * Peeks at an address at a specific index without updating the wallet state.
    */
   override suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error> {
     return Ok(addresses.first())
+  }
+
+  override suspend fun revealAddress(index: UInt): Result<BitcoinAddress, Error> {
+    return peekAddress(index)
   }
 
   private fun rotatedAddress(): BitcoinAddress {

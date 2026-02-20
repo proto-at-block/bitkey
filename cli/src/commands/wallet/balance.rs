@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bdk::blockchain::{log_progress, ElectrumBlockchain};
+use bdk_electrum::{electrum_client::Client as ElectrumClient, BdkElectrumClient};
 use rustify::blocking::clients::reqwest::Client;
 
 use crate::{
@@ -8,19 +8,21 @@ use crate::{
     entities::{Account, SignerHistory},
 };
 
-pub fn balance(client: &Client, db: &sled::Db, blockchain: ElectrumBlockchain) -> Result<()> {
+pub fn balance(
+    client: &Client,
+    db: &sled::Db,
+    blockchain: &BdkElectrumClient<ElectrumClient>,
+) -> Result<()> {
     let account = Account::from_cache(client, db)?;
-    let wallet = SignerHistory::from_database(db)?
+    let mut wallet = SignerHistory::from_database(db)?
         .active
         .wallet(&account, db, None)?;
 
-    wallet.sync(
-        &blockchain,
-        bdk::SyncOptions {
-            progress: Some(Box::new(log_progress())),
-        },
-    )?;
-    println!("balance: {}", wallet.get_balance()?);
+    let request = wallet.start_full_scan();
+    let update = blockchain.full_scan(request, 100, 10, true)?;
+    wallet.apply_update(update)?;
+
+    println!("balance: {}", wallet.balance());
 
     Ok(())
 }

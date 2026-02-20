@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use account::service::FetchAccountInput;
 use axum::body::Body;
 use bdk_utils::{
-    bdk::bitcoin::{hashes::sha256, key::Secp256k1, secp256k1::Message},
-    signature::sign_message,
+    bdk::bitcoin::key::Secp256k1,
+    signature::{message_to_digest, sign_message},
 };
 
 use http::{Method, StatusCode};
@@ -252,9 +252,7 @@ async fn test_rotate_authentication_keys_with_inheritance_claim(
     let (new_auth_app_seckey, new_auth_app_pubkey) =
         (new_auth_keys.app.secret_key, new_auth_keys.app.public_key);
     let app_signature = {
-        let message = Message::from_hashed_data::<sha256::Hash>(
-            beneficiary_account_id.to_string().as_bytes(),
-        );
+        let message = message_to_digest(&beneficiary_account_id.to_string());
         secp.sign_ecdsa(&message, &new_auth_app_seckey).to_string()
     };
     let keys = context
@@ -263,9 +261,7 @@ async fn test_rotate_authentication_keys_with_inheritance_claim(
     let (existing_auth_hardware_seckey, existing_auth_hardware_pubkey) =
         (keys.hw.secret_key, keys.hw.public_key);
     let hardware_signature = {
-        let message = Message::from_hashed_data::<sha256::Hash>(
-            beneficiary_account_id.to_string().as_bytes(),
-        );
+        let message = message_to_digest(&beneficiary_account_id.to_string());
         secp.sign_ecdsa(&message, &existing_auth_hardware_seckey)
             .to_string()
     };
@@ -274,9 +270,7 @@ async fn test_rotate_authentication_keys_with_inheritance_claim(
         new_auth_keys.recovery.public_key,
     );
     let recovery_signature = {
-        let message = Message::from_hashed_data::<sha256::Hash>(
-            beneficiary_account_id.to_string().as_bytes(),
-        );
+        let message = message_to_digest(&beneficiary_account_id.to_string());
         secp.sign_ecdsa(&message, &new_auth_recovery_seckey)
             .to_string()
     };

@@ -195,7 +195,8 @@ class BitkeyDatabaseProviderImpl(
           serverSpendingKeyAdapter = F8eSpendingKeysetColumnAdapter,
           lostFactorAdapter = EnumColumnAdapter(),
           sealedCsekAdapter = ByteStringColumnAdapter,
-          sealedSsekAdapter = ByteStringColumnAdapter
+          sealedSsekAdapter = ByteStringColumnAdapter,
+          originalAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter()
         ),
       emailTouchpointEntityAdapter =
         EmailTouchpointEntity.Adapter(

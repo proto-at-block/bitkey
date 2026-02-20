@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.material:material",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "material-metadata-1.8.1.jar": "14628710ae6ae58067d58d15e77b992568db3370401d07df13ae35002aca7926"
+                        "material-1.0.0.aar": "5b1efb82311098418e9f61c5d3aa95d8e44fc36319d23a2901232fbe7f147d8b"
                     }
                 }
             ],

@@ -1,6 +1,6 @@
 package build.wallet.statemachine
 
-import androidx.compose.material.Text
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
@@ -14,6 +14,6 @@ data class BodyModelMock<PropsT : Any>(
 ) : BodyModel() {
   @Composable
   override fun render(modifier: Modifier) {
-    Text(this.toString())
+    BasicText(this.toString())
   }
 }

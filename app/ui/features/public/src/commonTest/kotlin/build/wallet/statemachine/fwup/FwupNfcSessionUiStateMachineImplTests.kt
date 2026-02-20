@@ -1,6 +1,7 @@
 package build.wallet.statemachine.fwup
 
 import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.context.FwupMcuEventTrackerContext
@@ -46,7 +47,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
   val nfcTransactor = NfcTransactorMock(turbines::create)
   val firmwareDataService = FirmwareDataServiceFake()
   val accountConfigService = AccountConfigServiceFake()
-  val fwupDataDaoProvider = FwupDataDaoProviderMock(turbines::create)
+  val fwupDataDao = FwupDataDaoMock(turbines::create)
   val signatureVerifierTurbine = turbines.create<VerifyEcdsaCall>("verifyEcdsa calls")
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val nfcSessionRetryAttemptsFeatureFlag = NfcSessionRetryAttemptsFeatureFlag(FeatureFlagDaoFake())
@@ -62,7 +63,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       deviceInfoProvider = deviceInfoProvider,
       nfcReaderCapability = NfcReaderCapabilityMock(),
       nfcTransactor = nfcTransactor,
-      fwupDataDaoProvider = fwupDataDaoProvider,
+      fwupDataDao = fwupDataDao,
       firmwareDataService = firmwareDataService,
       accountConfigService = accountConfigService,
       keyboxDao = keyboxDao,
@@ -250,6 +251,9 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
   // W3 Two-Tap Confirmation Flow Tests
 
   test("W3 confirmation flow - shows hardware confirmation screen") {
+    // Configure as W3 hardware
+    accountConfigService.setHardwareType(HardwareType.W3)
+
     // Simulate W3 two-tap flow by returning RequiresConfirmation with a mock fetchResult
     val mockFetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean> =
       { _, _ -> HardwareInteraction.Completed(true) }
@@ -260,7 +264,10 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
         status.shouldBeTypeOf<Searching>()
       }
 
-      nfcTransactor.transactCalls.awaitItem()
+      // First tap: shouldLock = false for W3 initial transaction (user needs to confirm on device)
+      val initialParams = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      initialParams.shouldLock.shouldBe(false)
 
       // Verify the HardwareConfirmationUiStateMachine is shown (via BodyModelMock)
       awaitBodyMock<HardwareConfirmationUiProps>(id = "hardware-confirmation") {
@@ -272,6 +279,9 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 confirmation flow - onConfirm starts new NFC session for continuation") {
+    // Configure as W3 hardware
+    accountConfigService.setHardwareType(HardwareType.W3)
+
     val mockFetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean> =
       { _, _ -> HardwareInteraction.Completed(true) }
 
@@ -281,7 +291,10 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
         status.shouldBeTypeOf<Searching>()
       }
 
-      nfcTransactor.transactCalls.awaitItem()
+      // First tap: shouldLock = false (W3 initial transaction)
+      val initialParams = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      initialParams.shouldLock.shouldBe(false)
 
       // Get the confirmation screen and invoke onConfirm
       awaitBodyMock<HardwareConfirmationUiProps>(id = "hardware-confirmation") {
@@ -293,8 +306,11 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
         status.shouldBeTypeOf<Searching>()
       }
 
-      // A new NFC transaction should be started for the continuation
-      nfcTransactor.transactCalls.awaitItem()
+      // Second tap: shouldLock = true (continuation transaction)
+      val continuationParams = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      continuationParams.shouldLock.shouldBe(true)
+      continuationParams.nfcFlowName.shouldBe("fwup-confirmation")
 
       // The new transaction also completes (with RequiresConfirmation again since mock
       // is still set to that), emitting another confirmation screen
@@ -303,6 +319,9 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 confirmation flow - onBack cancels the flow") {
+    // Configure as W3 hardware
+    accountConfigService.setHardwareType(HardwareType.W3)
+
     val mockFetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean> =
       { _, _ -> HardwareInteraction.Completed(true) }
 
@@ -312,7 +331,10 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
         status.shouldBeTypeOf<Searching>()
       }
 
-      nfcTransactor.transactCalls.awaitItem()
+      // First tap: shouldLock = false (W3 initial transaction)
+      val initialParams = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      initialParams.shouldLock.shouldBe(false)
 
       // Get the confirmation screen and invoke onBack
       awaitBodyMock<HardwareConfirmationUiProps>(id = "hardware-confirmation") {
@@ -321,6 +343,161 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
       // onBack should trigger the props.onBack callback
       onBackCalls.awaitItem()
+    }
+  }
+
+  // W3 Sequential MCU Update Tests
+
+  test("W3 sequential update - UXC then CORE completes successfully") {
+    // Configure as W3 hardware
+    accountConfigService.setHardwareType(HardwareType.W3)
+    firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock_W3
+    nfcTransactor.transactResult = Ok(FwupTransactionResult.Completed)
+
+    stateMachine.test(props) {
+      // Initial searching state for UXC (first MCU)
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      // First NFC transaction (UXC MCU) - completes instantly
+      nfcTransactor.transactCalls.awaitItem()
+
+      // After first MCU completes, show intermediate screen prompting for next MCU
+      awaitBody<FwupNextComponentReadyModel> {
+        completedIndex.shouldBe(1)
+        totalMcus.shouldBe(2)
+        onContinue()
+      }
+
+      // Second NFC transaction (CORE MCU) starts after user taps continue
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+      nfcTransactor.transactCalls.awaitItem()
+
+      // After both MCUs complete, should show success
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+        status.text.shouldBe("Successfully updated")
+      }
+
+      // Verify completion event is tracked (only once for entire flow)
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
+
+      // Verify firmware version is updated with W3 CORE version
+      firmwareDataService.firmwareData.value.firmwareDeviceInfo?.version.shouldBe(
+        McuFwupDataMock_W3_CORE.version
+      )
+
+      onDoneCalls.awaitItem()
+    }
+  }
+
+  test("W3 sequential update - both MCUs are processed in order") {
+    // Configure as W3 hardware
+    accountConfigService.setHardwareType(HardwareType.W3)
+    firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock_W3
+    nfcTransactor.transactResult = Ok(FwupTransactionResult.Completed)
+
+    stateMachine.test(props) {
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      // First NFC transaction (UXC MCU)
+      val uxcParams = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      uxcParams.nfcFlowName.shouldBe("fwup")
+
+      // After first MCU completes, show intermediate screen prompting for next MCU
+      awaitBody<FwupNextComponentReadyModel> {
+        onContinue()
+      }
+
+      // Second NFC transaction (CORE MCU) starts after user taps continue
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+      val coreParams = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      coreParams.nfcFlowName.shouldBe("fwup")
+
+      // After both MCUs complete, success
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
+      onDoneCalls.awaitItem()
+    }
+  }
+
+  // W3 Partial Failure Tests
+
+  test("W3 update - failure during UXC MCU calls onError with UXC context") {
+    // Configure as W3 hardware
+    accountConfigService.setHardwareType(HardwareType.W3)
+    firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock_W3
+    nfcTransactor.transactResult = Err(NfcException.CommandError())
+
+    stateMachine.test(props) {
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      // UXC transaction fails (first MCU)
+      nfcTransactor.transactCalls.awaitItem()
+
+      // Should track failure with UXC context
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(ACTION_APP_FWUP_MCU_UPDATE_FAILED, context = FwupMcuEventTrackerContext.UXC)
+      )
+
+      // Should call onError
+      onErrorCalls.awaitItem().shouldBeTypeOf<NfcException.CommandError>()
+    }
+  }
+
+  test("W3 update - failure during CORE MCU after UXC succeeds calls onError with CORE context") {
+    // Configure as W3 hardware
+    accountConfigService.setHardwareType(HardwareType.W3)
+    firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock_W3
+
+    // Queue results upfront: UXC succeeds, then CORE fails
+    nfcTransactor.queueTransactResults(
+      listOf(
+        Ok(FwupTransactionResult.Completed), // UXC
+        Err(NfcException.CommandError()) // CORE
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      // UXC transaction succeeds (first MCU)
+      nfcTransactor.transactCalls.awaitItem()
+
+      // After first MCU completes, show intermediate screen prompting for next MCU
+      awaitBody<FwupNextComponentReadyModel> {
+        onContinue()
+      }
+
+      // CORE transaction starts after user taps continue
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+      nfcTransactor.transactCalls.awaitItem()
+
+      // Should track failure with CORE context
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(ACTION_APP_FWUP_MCU_UPDATE_FAILED, context = FwupMcuEventTrackerContext.CORE)
+      )
+
+      // Should call onError
+      onErrorCalls.awaitItem().shouldBeTypeOf<NfcException.CommandError>()
     }
   }
 })

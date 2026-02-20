@@ -24,7 +24,6 @@ kotlin {
         api(projects.domain.coachmarkPublic)
         api(compose.runtime)
         api(compose.foundation)
-        api(compose.material)
         api(compose.material3)
         api(compose.components.resources)
         implementation(libs.kmp.coil.compose)

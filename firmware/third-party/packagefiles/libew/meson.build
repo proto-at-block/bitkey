@@ -12,3 +12,7 @@ libew_dep = declare_dependency(
   include_directories: libew_includes,
   link_whole: libew_lib,
 )
+
+libew_headers_dep = declare_dependency(
+  include_directories: libew_includes,
+)

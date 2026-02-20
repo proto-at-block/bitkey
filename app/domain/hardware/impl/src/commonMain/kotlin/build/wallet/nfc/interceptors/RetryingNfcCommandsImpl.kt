@@ -5,11 +5,7 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.crypto.SealedData
-import build.wallet.firmware.EnrolledFingerprints
-import build.wallet.firmware.FingerprintHandle
-import build.wallet.firmware.FirmwareCertType
-import build.wallet.firmware.FirmwareFeatureFlagCfg
-import build.wallet.firmware.McuRole
+import build.wallet.firmware.*
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.Grant
@@ -19,11 +15,7 @@ import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcException.CanBeRetried
 import build.wallet.nfc.NfcSession
-import build.wallet.nfc.platform.ConfirmationHandles
-import build.wallet.nfc.platform.ConfirmationResult
-import build.wallet.nfc.platform.EmulatedPromptOption
-import build.wallet.nfc.platform.HardwareInteraction
-import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.*
 import okio.ByteString
 
 private const val MAX_NFC_COMMAND_RETRIES = 5
@@ -55,8 +47,13 @@ private class RetryingNfcCommandsImpl(
     patchSize: UInt?,
     fwupMode: FwupMode,
     mcuRole: McuRole,
+    version: String,
   ): HardwareInteraction<Boolean> =
-    wrapHardwareInteraction(retry { commands.fwupStart(session, patchSize, fwupMode, mcuRole) })
+    wrapHardwareInteraction(
+      retry {
+        commands.fwupStart(session, patchSize, fwupMode, mcuRole, version)
+      }
+    )
 
   override suspend fun fwupTransfer(
     session: NfcSession,
@@ -244,6 +241,42 @@ private class RetryingNfcCommandsImpl(
     handles: ConfirmationHandles,
   ): ConfirmationResult = retry { commands.getConfirmationResult(session, handles) }
 
+  // Idempotent: firmware returns the same chunk for the same chunk_index.
+  // Safe to retry if NFC transmission fails after firmware responds.
+  override suspend fun getConfirmationResultChunk(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+    chunkIndex: UInt,
+  ): ChunkData = retry { commands.getConfirmationResultChunk(session, handles, chunkIndex) }
+
+  override suspend fun getAddress(
+    session: NfcSession,
+    addressIndex: UInt,
+  ): String = retry { commands.getAddress(session, addressIndex) }
+
+  override suspend fun verifyKeysAndBuildDescriptor(
+    session: NfcSession,
+    appSpendingKey: ByteString,
+    appSpendingKeyChaincode: ByteString,
+    networkMainnet: Boolean,
+    appAuthKey: ByteString,
+    serverSpendingKey: ByteString,
+    serverSpendingKeyChaincode: ByteString,
+    wsmSignature: ByteString,
+  ): Boolean =
+    retry {
+      commands.verifyKeysAndBuildDescriptor(
+        session,
+        appSpendingKey,
+        appSpendingKeyChaincode,
+        networkMainnet,
+        appAuthKey,
+        serverSpendingKey,
+        serverSpendingKeyChaincode,
+        wsmSignature
+      )
+    }
+
   /**
    * Transforms a [HardwareInteraction] to ensure RequiresConfirmation uses retry-wrapped commands.
    *
@@ -260,6 +293,14 @@ private class RetryingNfcCommandsImpl(
         HardwareInteraction.RequiresConfirmation { session, commands ->
           val retryingCommands = RetryingNfcCommandsImpl(commands)
           retryingCommands.wrapHardwareInteraction(interaction.fetchResult(session, retryingCommands))
+        }
+      }
+      is HardwareInteraction.RequiresTransfer -> {
+        HardwareInteraction.RequiresTransfer { session, commands, onProgress ->
+          val retryingCommands = RetryingNfcCommandsImpl(commands)
+          retryingCommands.wrapHardwareInteraction(
+            interaction.transferAndFetch(session, retryingCommands, onProgress)
+          )
         }
       }
       is HardwareInteraction.ConfirmWithEmulatedPrompt -> {

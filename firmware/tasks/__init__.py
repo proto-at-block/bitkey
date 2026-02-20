@@ -11,7 +11,7 @@ from .lib.config import get_default_platform, get_defaults, update_config
 from bitkey import fw_version
 
 from . import (build, install, generate, fwup, lfs,
-               release, test, memfault, status)
+               release, test, memfault, status, snapshot)
 
 from .mcu import (chipinfo, flash, debug, monitor, secinfo)
 from .simulator import ui_sim
@@ -155,6 +155,7 @@ ns.add_collection(test)
 ns.add_collection(memfault)
 ns.add_collection(status)
 ns.add_collection(release)
+ns.add_collection(snapshot)
 
 # Configure every task to act as a shell command (will print colours, allow interactive CLI)
 config = Config(

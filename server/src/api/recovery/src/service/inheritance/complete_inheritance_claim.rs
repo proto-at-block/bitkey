@@ -148,7 +148,7 @@ impl Service {
         self.mark_completed(
             claim,
             InheritanceCompletionMethod::WithPsbt {
-                txid: signed_psbt.unsigned_tx.txid(),
+                txid: signed_psbt.unsigned_tx.compute_txid(),
             },
         )
         .await

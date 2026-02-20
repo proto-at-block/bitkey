@@ -1,9 +1,6 @@
 package build.wallet.bitcoin.bdk
 
 import build.wallet.bdk.bindings.BdkOutPoint
-import build.wallet.bdk.bindings.BdkScript
-import build.wallet.bdk.bindings.BdkTxIn
-import build.wallet.bdk.bindings.BdkTxOut
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BlockTime
@@ -21,10 +18,7 @@ import kotlinx.datetime.Instant
 import uniffi.bdk.Address
 import uniffi.bdk.ChainPosition
 import uniffi.bdk.LocalOutput
-import uniffi.bdk.Script
 import uniffi.bdk.TxDetails
-import uniffi.bdk.TxIn
-import uniffi.bdk.TxOut
 import uniffi.bdk.Wallet
 
 @BitkeyInject(AppScope::class)
@@ -160,39 +154,6 @@ class BdkTransactionMapperV2Impl(
     } catch (e: Exception) {
       logWarn(throwable = e) { "Failed to parse recipient address from script" }
       null
-    }
-  }
-
-  /**
-   * Converts BDK v2's [TxIn] to our legacy [BdkTxIn] type.
-   */
-  private fun TxIn.toBdkTxIn(): BdkTxIn {
-    return BdkTxIn(
-      outpoint = BdkOutPoint(
-        txid = previousOutput.txid.toString(),
-        vout = previousOutput.vout
-      ),
-      sequence = sequence,
-      witness = witness.map { bytes -> bytes.map { it.toUByte() } }
-    )
-  }
-
-  /**
-   * Converts BDK v2's [TxOut] to our legacy [BdkTxOut] type.
-   */
-  private fun TxOut.toBdkTxOut(): BdkTxOut {
-    return BdkTxOut(
-      value = value.toSat(),
-      scriptPubkey = scriptPubkey.toBdkScript()
-    )
-  }
-
-  /**
-   * Converts BDK v2's [Script] to our legacy [BdkScript] type.
-   */
-  private fun Script.toBdkScript(): BdkScript {
-    return object : BdkScript {
-      override val rawOutputScript: List<UByte> = toBytes().map { it.toUByte() }
     }
   }
 }

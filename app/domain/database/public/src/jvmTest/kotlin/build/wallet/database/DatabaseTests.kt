@@ -41,7 +41,7 @@ private suspend fun createDatabaseAtVersion(version: Long): SqlDriver {
  * each version. This is necessary because SQLite allows some table
  * alterations on empty tables that should not be allowed in our migrations.
  */
-@Suppress("ThrowsCount")
+@Suppress("ThrowsCount", "SuspendFunSwallowedCancellation") // Test utility - cancellation handling not critical
 private suspend fun DbSpecDsl.migrateAndInstallFixtures(version: Long) {
   (1..version).forEach { targetVersion ->
     withClue("Migration to database version <$targetVersion>") {
@@ -139,6 +139,7 @@ suspend fun TestScope.usingDatabaseWithFixtures(version: Long, test: suspend DbS
  * Migrate a database from its current version to the target version without installing fixtures.
  * This allows you to control the data yourself.
  */
+@Suppress("SuspendFunSwallowedCancellation") // Test utility - cancellation handling not critical
 suspend fun DbSpecDsl.migrateDatabase(
   toVersion: Long,
   fromVersion: Long = 0,

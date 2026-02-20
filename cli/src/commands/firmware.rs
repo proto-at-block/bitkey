@@ -136,6 +136,7 @@ fn upload<R: Read + Seek>(mut transactor: PCSCTransactor, mut zip: ZipArchive<R>
             data: read_from_zip(&mut zip, &application.signature.name)?,
             offset: manifest.fwup_bundle.parameters.signature_offset,
         },
+        version: manifest.fwup_bundle.version.clone(),
     };
 
     println!(

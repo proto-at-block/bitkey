@@ -5,7 +5,10 @@ import { DatadogProvider } from "@cdktf/provider-datadog/lib/provider";
 import { FromagerieMonitors } from "./monitors/server";
 import { WsmApiMonitors } from "./monitors/wsm";
 import { AnalyticsMonitors } from "./monitors/analytics";
+import { Bdk1Monitors } from "./monitors/bdk1";
+import { Bdk2Monitors } from "./monitors/bdk2";
 import { CustomerFeedbackMonitors } from "./monitors/customerFeedback";
+import { Bdk2Dashboard } from "./dashboards/bdk2";
 import { Environment } from "./monitors/common/environments";
 import { InheritanceMonitors } from "./monitors/inheritance";
 import { RecoveryRelationshipMonitors } from "./monitors/recoveryRelationship";
@@ -23,6 +26,7 @@ import { SecurityAlertMonitors } from "./monitors/securityAlerts";
 import { AgeRestrictionMonitors } from "./monitors/ageRestriction";
 import { WorkerMonitors } from "./monitors/worker";
 import { ShopApiStuckOrdersJobMonitors } from "./monitors/web/shop-api-stuck-orders-job";
+import { CloudStorageMonitors } from "./monitors/cloudStorage";
 
 class MonitorsStack extends TerraformStack {
   constructor(scope: Construct, id: string) {
@@ -41,6 +45,12 @@ class MonitorsStack extends TerraformStack {
 
     new AnalyticsMonitors(this, Environment.STAGING)
     new AnalyticsMonitors(this, Environment.PRODUCTION)
+
+    new Bdk1Monitors(this, Environment.STAGING)
+    new Bdk1Monitors(this, Environment.PRODUCTION)
+    new Bdk2Monitors(this, Environment.STAGING)
+    new Bdk2Monitors(this, Environment.PRODUCTION)
+    new Bdk2Dashboard(this)
 
     new PartnershipsMonitors(this, Environment.STAGING)
     new PartnershipsMonitors(this, Environment.PRODUCTION)
@@ -92,6 +102,9 @@ class MonitorsStack extends TerraformStack {
 
     new CustomerFeedbackMonitors(this, Environment.STAGING)
     new CustomerFeedbackMonitors(this, Environment.PRODUCTION)
+
+    new CloudStorageMonitors(this, Environment.STAGING)
+    new CloudStorageMonitors(this, Environment.PRODUCTION)
   }
 }
 

@@ -1,6 +1,7 @@
 package build.wallet.onboarding
 
 import bitkey.account.AccountConfigService
+import bitkey.account.HardwareType
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CreateAccountClientErrorCode
 import bitkey.f8e.error.code.CreateAccountClientErrorCode.APP_AUTH_PUBKEY_IN_USE
@@ -191,15 +192,20 @@ class OnboardFullAccountServiceImpl(
       onboardingKeyboxHardwareKeysDao.clear()
 
       // Tell the server that onboarding has been completed.
-      onboardingF8eClient
-        .completeOnboarding(
-          f8eEnvironment = keybox.config.f8eEnvironment,
-          fullAccountId = keybox.fullAccountId
-        )
-        .bind()
+      // For W1 devices, use the V1 endpoint and record fallback completion here.
+      // For W3 devices, V2 endpoint is called during the BuildHardwareDescriptor step,
+      // and fallback completion is recorded there as well.
+      if (keybox.config.hardwareType != HardwareType.W3) {
+        onboardingF8eClient
+          .completeOnboarding(
+            f8eEnvironment = keybox.config.f8eEnvironment,
+            fullAccountId = keybox.fullAccountId
+          )
+          .bind()
 
-      // Since we have completed onboarding, prevent the fallback worker from running.
-      onboardingCompletionService.recordFallbackCompletion()
+        // Since we have completed onboarding, prevent the fallback worker from running.
+        onboardingCompletionService.recordFallbackCompletion()
+      }
 
       // Add getting started tasks for the new keybox
       val gettingStartedTasks = listOf(

@@ -26,6 +26,8 @@ messages:
       auth: never
     - name: fwpb_mfgtest_charger_cmd
       auth: never
+    - name: fwpb_mfgtest_touch_data_cmd
+      auth: never
   structs:
     - name: mfgtest_runin_complete_internal_t
       fields:
@@ -47,3 +49,8 @@ messages:
         - uint16_t y
         - uint16_t boxes_remaining
     - name: mfgtest_coproc_gpio_response_t
+    - name: mfgtest_touch_point_t
+      fields:
+        - uint16_t x
+        - uint16_t y
+        - uint32_t timestamp_ms

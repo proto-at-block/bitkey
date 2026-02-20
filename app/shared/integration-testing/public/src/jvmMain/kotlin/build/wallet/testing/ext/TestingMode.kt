@@ -1,5 +1,6 @@
 package build.wallet.testing.ext
 
+import build.wallet.feature.flags.setBdk2Enabled
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -28,6 +29,29 @@ fun FunSpec.testForLegacyAndPrivateWallet(
   test("$name [private]")
     .config(tags = tags) {
       this.block(launchNewApp())
+    }
+}
+
+/*
+ * Helper to run the same test in both BDK1 and BDK2 modes.
+ */
+fun FunSpec.testForBdk1AndBdk2(
+  name: String,
+  isIsolatedTest: Boolean = false,
+  isFlakyTest: Boolean = false,
+  block: suspend TestScope.(app: AppTester) -> Unit,
+) {
+  val tags = setOf(IsolatedTest).takeIf { isIsolatedTest }.orEmpty()
+    .union(setOf(FlakyTest).takeIf { isFlakyTest }.orEmpty())
+
+  test("$name [BDK1]")
+    .config(tags = tags) {
+      this.block(launchAppForTestingMode(TestingMode.BDK1))
+    }
+
+  test("$name [BDK2]")
+    .config(tags = tags) {
+      this.block(launchAppForTestingMode(TestingMode.BDK2))
     }
 }
 
@@ -70,6 +94,14 @@ fun FunSpec.testWithTwoApps(
  */
 enum class AppMode { Legacy, Private }
 
+/**
+ * Defines the BDK mode used for integration tests.
+ */
+enum class TestingMode(val enabled: Boolean) {
+  BDK1(false),
+  BDK2(true),
+}
+
 /*
  * Launches an app in the specified mode.
  */
@@ -78,3 +110,9 @@ private suspend fun TestScope.launchAppForMode(mode: AppMode): AppTester =
     AppMode.Legacy -> launchLegacyWalletApp()
     AppMode.Private -> launchNewApp()
   }
+
+private suspend fun TestScope.launchAppForTestingMode(mode: TestingMode): AppTester {
+  val app = launchNewApp()
+  app.bdk2FeatureFlag.setBdk2Enabled(mode.enabled)
+  return app
+}

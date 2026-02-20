@@ -21,7 +21,7 @@ class FirmwareDataServiceFake(
     mcuUpdates: ImmutableList<McuFwupData>,
   ): Result<Unit, Error> {
     val currentFirmwareData = firmwareData.value
-    // Use first MCU version (for W1, this is the only MCU; for W3, typically CORE)
+    // Use first MCU version (for W1, this is the only MCU; for W3, typically UXC)
     val newVersion = mcuUpdates.firstOrNull()?.version
     val updatedFirmwareData = currentFirmwareData.copy(
       firmwareDeviceInfo = newVersion?.let {

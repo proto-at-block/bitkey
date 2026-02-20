@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-runtime-compose-desktop",
+    "components": [
+        {
+            "version": "2.9.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-runtime-compose-desktop-2.9.4.jar": "d25c083df93da718a1876a3293bd15f7dc7a811e998735943bce590683a57835"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

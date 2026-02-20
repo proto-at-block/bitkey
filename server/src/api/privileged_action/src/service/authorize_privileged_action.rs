@@ -1,6 +1,9 @@
 use std::{future::Future, pin::Pin};
 
+use action_proof::{Action, Field};
+use authn_authz::authorization::{Authorization, AuthorizationRequirements};
 use authn_authz::key_claims::KeyClaims;
+use authn_authz::Signers;
 use derive_builder::Builder;
 use errors::ApiError;
 use notification::{
@@ -17,9 +20,9 @@ use notification::{
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use time::Duration;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 use types::{
-    account::{identifiers::AccountId, AccountType},
+    account::{entities::Touchpoint, identifiers::AccountId, AccountType},
     privileged_action::{
         definition::{
             AuthorizationStrategyDefinition, DelayAndNotifyDefinition,
@@ -37,6 +40,48 @@ use types::{
         shared::PrivilegedActionType,
     },
 };
+
+/// Context for ActionProof validation in `HardwareProofOfPossession` flows.
+///
+/// All routes using `HardwareProofOfPossession` strategy MUST provide this context.
+/// Routes using other strategies (DelayAndNotify, OutOfBand) pass `None` - the
+/// context is never used by those code paths.
+///
+/// Routes derive the validation context from their inputs (e.g., touchpoint data)
+/// and pass it to the privileged action service for authorization.
+#[derive(Debug, Clone)]
+pub struct ValidationContext {
+    pub action: Action,
+    pub field: Field,
+    pub value: Option<String>,
+    /// The current value being replaced (for update operations)
+    pub current: Option<String>,
+}
+
+impl ValidationContext {
+    /// Creates a ValidationContext from an action and touchpoint.
+    /// All touchpoint types require hardware auth.
+    pub fn from_touchpoint(action: Action, touchpoint: &Touchpoint) -> Self {
+        let (field, value) = match touchpoint {
+            Touchpoint::Email { email_address, .. } => {
+                (Field::RecoveryEmail, Some(email_address.clone()))
+            }
+            Touchpoint::Phone { phone_number, .. } => {
+                (Field::RecoveryPhone, Some(phone_number.clone()))
+            }
+            Touchpoint::Push { .. } => {
+                // Push touchpoints require hardware auth (no value to bind)
+                (Field::RecoveryPushNotifications, None)
+            }
+        };
+        ValidationContext {
+            action,
+            field,
+            value,
+            current: None,
+        }
+    }
+}
 
 use super::{error::ServiceError, gen_token, Service};
 
@@ -90,26 +135,22 @@ where
     }
 }
 
-/// Authentication context for privileged action authorization.
-/// This enum makes authentication explicit when required vs when it's not needed.
-#[derive(Debug, Clone)]
-pub enum AuthenticationContext<'a> {
-    /// Authentication is provided via key claims (for HardwareProofOfPossession strategy)
+/// Authorization context for privileged action authorization.
+/// This enum makes authorization explicit when required vs when it's not needed.
+#[derive(Debug)]
+pub enum AuthorizationContext<'a> {
+    /// Direct KeyClaims authorization
     KeyClaims(&'a KeyClaims),
-    /// Standard authentication flow (for DelayAndNotify, OutOfBand, or Continue operations)
+    /// Authorization (ActionProof or legacy KeyClaims).
+    /// ActionProof validation is done using the validation_context provided by the route.
+    Authorization(&'a Authorization),
+    /// Standard flow (for DelayAndNotify, OutOfBand, or Continue operations)
     Standard,
 }
 
-impl AuthenticationContext<'_> {
-    /// Extracts the KeyClaims if authentication is required.
-    /// Returns an error if authentication via keyclaims was required but not provided.
-    pub fn require_key_claims(&self) -> Result<&KeyClaims, ServiceError> {
-        match self {
-            AuthenticationContext::KeyClaims(key_claims) => Ok(key_claims),
-            AuthenticationContext::Standard => {
-                Err(ServiceError::AuthenticationRequiredButNotProvided)
-            }
-        }
+impl<'a> From<&'a Authorization> for AuthorizationContext<'a> {
+    fn from(auth: &'a Authorization) -> Self {
+        AuthorizationContext::Authorization(auth)
     }
 }
 
@@ -125,18 +166,24 @@ impl AuthenticationContext<'_> {
 /// # Fields
 /// * `account_id` - The account identifier for which the privileged action is being requested
 /// * `privileged_action_definition` - Definition of the privileged action with its requirements
-/// * `authentication` - Authentication context indicating if/what authentication is provided
+/// * `authorization` - Authorization context indicating if/what authorization is provided
 /// * `privileged_action_request` - The actual request containing action-specific parameters
 /// * `request_validator` - Validator that contains handlers for different authorization paths, checked before the authorization is checked
+/// * `validation_context` - Context for ActionProof validation (e.g., touchpoint data).
+///   Required for `HardwareProofOfPossession` strategy - the service uses
+///   `AuthorizationRequirements::new().check(&auth)` for signature verification.
+///   Routes using other strategies (DelayAndNotify, OutOfBand) pass `None` since those
+///   code paths never access the context.
 pub struct AuthorizePrivilegedActionInput<'a, ReqT, ErrT>
 where
     ErrT: Into<ApiError>,
 {
     pub account_id: &'a AccountId,
     pub privileged_action_definition: &'a PrivilegedActionDefinition,
-    pub authentication: AuthenticationContext<'a>,
+    pub authorization: AuthorizationContext<'a>,
     pub privileged_action_request: &'a PrivilegedActionRequest<ReqT>,
     pub request_validator: PrivilegedActionRequestValidator<ReqT, ErrT>,
+    pub validation_context: Option<ValidationContext>,
 }
 
 // A call to `authorize_privileged_action` can return one of the following:
@@ -212,59 +259,54 @@ impl Service {
                     ) => {
                         self.initiate_hardware_proof_of_possession(
                             &hardware_proof_of_possession_definition,
-                            input.authentication.require_key_claims()?,
+                            &input.authorization,
+                            input.validation_context.as_ref(),
+                            initial_request.clone(),
+                            input
+                                .request_validator
+                                .on_initiate_hardware_proof_of_possession,
+                            account.get_common_fields().onboarding_complete,
+                        )
+                        .await?;
+                        Ok(AuthorizePrivilegedActionOutput::Authorized(initial_request))
+                    }
+                    AuthorizationStrategyDefinition::DelayAndNotify(
+                        delay_and_notify_definition,
+                    ) => Ok(self
+                        .initiate_delay_and_notify(
+                            input.account_id,
+                            account_type,
+                            account.get_common_fields().properties.is_test_account,
+                            privileged_action_definition.privileged_action_type,
+                            &delay_and_notify_definition,
                             initial_request.clone(),
                             input.request_validator.on_initiate_delay_and_notify,
                             account.get_common_fields().onboarding_complete,
                         )
-                        .await?;
-                        return Ok(AuthorizePrivilegedActionOutput::Authorized(initial_request));
-                    }
-                    AuthorizationStrategyDefinition::DelayAndNotify(
-                        delay_and_notify_definition,
-                    ) => {
-                        let output = self
-                            .initiate_delay_and_notify(
-                                input.account_id,
-                                account_type,
-                                account.get_common_fields().properties.is_test_account,
-                                privileged_action_definition.privileged_action_type,
-                                &delay_and_notify_definition,
-                                initial_request.clone(),
-                                input.request_validator.on_initiate_delay_and_notify,
-                                account.get_common_fields().onboarding_complete,
-                            )
-                            .await?
-                            .map_or(
-                                AuthorizePrivilegedActionOutput::Authorized(initial_request),
-                                |r| AuthorizePrivilegedActionOutput::Pending(r),
-                            );
-
-                        return Ok(output);
-                    }
-                    AuthorizationStrategyDefinition::OutOfBand(out_of_band_definition) => {
-                        let output = self
-                            .initiate_out_of_band(
-                                input.account_id,
-                                &out_of_band_definition,
-                                privileged_action_definition.privileged_action_type,
-                                initial_request.clone(),
-                                input.request_validator.on_initiate_out_of_band,
-                            )
-                            .await?
-                            .map_or(
-                                AuthorizePrivilegedActionOutput::Authorized(initial_request),
-                                |r| AuthorizePrivilegedActionOutput::Pending(r),
-                            );
-
-                        return Ok(output);
-                    }
+                        .await?
+                        .map_or(
+                            AuthorizePrivilegedActionOutput::Authorized(initial_request),
+                            AuthorizePrivilegedActionOutput::Pending,
+                        )),
+                    AuthorizationStrategyDefinition::OutOfBand(out_of_band_definition) => Ok(self
+                        .initiate_out_of_band(
+                            input.account_id,
+                            &out_of_band_definition,
+                            privileged_action_definition.privileged_action_type,
+                            initial_request.clone(),
+                            input.request_validator.on_initiate_out_of_band,
+                        )
+                        .await?
+                        .map_or(
+                            AuthorizePrivilegedActionOutput::Authorized(initial_request),
+                            AuthorizePrivilegedActionOutput::Pending,
+                        )),
                 }
             }
             PrivilegedActionRequest::Continue(continue_request) => {
                 match privileged_action_definition.authorization_strategy {
                     AuthorizationStrategyDefinition::HardwareProofOfPossession(_) => {
-                        return Err(ServiceError::CannotContinueDefinedAuthorizationStrategyType);
+                        Err(ServiceError::CannotContinueDefinedAuthorizationStrategyType)
                     }
                     AuthorizationStrategyDefinition::DelayAndNotify(_) => {
                         let initial_request: ReqT = self
@@ -275,7 +317,7 @@ impl Service {
                                 continue_request.clone(),
                             )
                             .await?;
-                        return Ok(AuthorizePrivilegedActionOutput::Authorized(initial_request));
+                        Ok(AuthorizePrivilegedActionOutput::Authorized(initial_request))
                     }
                     AuthorizationStrategyDefinition::OutOfBand(_) => {
                         let initial_request: ReqT = self
@@ -285,7 +327,7 @@ impl Service {
                                 continue_request.clone(),
                             )
                             .await?;
-                        return Ok(AuthorizePrivilegedActionOutput::Authorized(initial_request));
+                        Ok(AuthorizePrivilegedActionOutput::Authorized(initial_request))
                     }
                 }
             }
@@ -300,18 +342,26 @@ impl Service {
     ///
     /// # Parameters
     /// * `hardware_proof_of_possession_definition` - Configuration for hardware proof verification
-    /// * `key_proof` - The key claims containing signature information from authentication factors
+    /// * `authorization` - The authorization context (KeyClaims or Authorization)
+    /// * `validation_context` - Context for ActionProof validation (e.g., touchpoint data).
+    ///   Required when using `Authorization` - passing `None` returns `MissingValidationContext` error.
     /// * `initial_request` - The original request payload
     /// * `on_initiate_hardware_proof_of_possession` - Optional callback function to execute during validation
     /// * `onboarding_complete` - Whether the account has completed onboarding
     ///
     /// # Returns
     /// * `Result<(), ServiceError>` - Success if validation passes
-    #[instrument(skip(self, initial_request, on_initiate_hardware_proof_of_possession))]
+    #[instrument(skip(
+        self,
+        validation_context,
+        initial_request,
+        on_initiate_hardware_proof_of_possession
+    ))]
     async fn initiate_hardware_proof_of_possession<ReqT, ErrT>(
         &self,
         hardware_proof_of_possession_definition: &HardwareProofOfPossessionDefinition,
-        key_proof: &KeyClaims,
+        authorization: &AuthorizationContext<'_>,
+        validation_context: Option<&ValidationContext>,
         initial_request: ReqT,
         on_initiate_hardware_proof_of_possession: Option<
             Box<dyn FnOnce(ReqT) -> Pin<Box<dyn Future<Output = Result<(), ErrT>> + Send>> + Send>,
@@ -322,7 +372,32 @@ impl Service {
         ReqT: Clone,
         ErrT: Into<ApiError>,
     {
-        let is_signed_by_both_factors = key_proof.app_signed && key_proof.hw_signed;
+        // Compute is_signed_by_both_factors based on auth type
+        let is_signed_by_both_factors = match authorization {
+            AuthorizationContext::KeyClaims(key_proof) => {
+                key_proof.app_signed && key_proof.hw_signed
+            }
+            AuthorizationContext::Authorization(auth) => {
+                // Require validation context - None is a programming error for HW routes
+                let ctx = validation_context.ok_or(ServiceError::MissingValidationContext)?;
+
+                // Use the centralized AuthorizationRequirements.check(&auth) entry point.
+                match AuthorizationRequirements::new(ctx.action, ctx.field)
+                    .value_opt(ctx.value.as_ref())
+                    .current_opt(ctx.current.as_ref())
+                    .signers(Signers::All)
+                    .check(auth)
+                {
+                    Ok(authorized) => authorized.hw_signed() && authorized.app_signed(),
+                    Err(e) => {
+                        event!(Level::WARN, error = %e, "Action proof verification failed");
+                        false
+                    }
+                }
+            }
+            AuthorizationContext::Standard => false,
+        };
+
         let skip_during_onboarding = hardware_proof_of_possession_definition.skip_during_onboarding;
 
         // Authorization is successful if:
@@ -341,7 +416,7 @@ impl Service {
                 .map_err(Into::into)?;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     /// Initiates a delay-and-notify privileged action flow.

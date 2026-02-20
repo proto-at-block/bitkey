@@ -80,6 +80,7 @@ srcs = [
   'src/key_management.c',
   'src/key_exchange.c',
   'src/ripemd160.c',
+  'src/wsm_integrity_key.c',
 ]
 
 deps = [

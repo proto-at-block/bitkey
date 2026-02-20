@@ -12,11 +12,12 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #define FWUP_TASK_PRIORITY   (RTOS_THREAD_PRIORITY_NORMAL)
 #define FWUP_TASK_STACK_SIZE (2048u)
 #define FWUP_TASK_QUEUE_SIZE (2u)
-#define FWUP_FINISH_RESET_MS (2000u)
+#define FWUP_FINISH_RESET_MS (500u)
 
 static void fwup_thread(void* args);
 static void _fwup_task_handle_fwup_start(fwpb_uxc_msg_host* msg);
@@ -25,7 +26,8 @@ static void _fwup_task_handle_fwup_finish(fwpb_uxc_msg_host* msg);
 
 void fwup_task_create(fwup_task_options_t options) {
   fwup_init((uint32_t*)fwup_target_slot_address(), (uint32_t*)fwup_current_slot_address(),
-            (uint32_t*)fwup_target_slot_signature_address(), fwup_slot_size(), options.bl_upgrade);
+            (uint32_t*)fwup_target_slot_signature_address(), fwup_slot_size(), options.bl_upgrade,
+            options.confirmation);
 
   rtos_queue_t* queue =
     rtos_queue_create(fwup_task_queue, fwpb_uxc_msg_host*, FWUP_TASK_QUEUE_SIZE);
@@ -91,33 +93,41 @@ static void _fwup_task_handle_fwup_transfer(fwpb_uxc_msg_host* msg) {
 }
 
 static void _fwup_task_handle_fwup_finish(fwpb_uxc_msg_host* msg) {
+  fwpb_fwup_finish_cmd fwup_finish_cmd;
   fwpb_uxc_msg_device* rsp = uc_alloc_send_proto();
   ASSERT(rsp != NULL);
   rsp->which_msg = fwpb_uxc_msg_device_fwup_finish_rsp_tag;
 
-  bool success;
-  if (msg->msg.fwup_finish_cmd.mode == fwpb_fwup_mode_FWUP_MODE_DELTA_ONESHOT) {
+  // Copy the command as the FWUP application may take some time.
+  memcpy(&fwup_finish_cmd, &msg->msg.fwup_finish_cmd, sizeof(fwup_finish_cmd));
+  uc_free_recv_proto(msg);
+
+  if (fwup_finish_cmd.mode == fwpb_fwup_mode_FWUP_MODE_DELTA_ONESHOT) {
     // Respond immediately, then apply.
     rsp->msg.fwup_finish_rsp.rsp_status =
       fwpb_fwup_finish_rsp_fwup_finish_rsp_status_WILL_APPLY_PATCH;
 
     (void)uc_send(rsp);
 
-    rsp = uc_alloc_send_proto();
-    success = fwup_finish(&msg->msg.fwup_finish_cmd, &rsp->msg.fwup_finish_rsp);
+    // Give the Core a chance to receive the message and render any new
+    // displays. We do this before we apply the FWUP, as applying the patch
+    // will take some time.
+    rtos_thread_sleep(FWUP_FINISH_RESET_MS);
 
-    uc_free_recv_proto(msg);
-    uc_free_send_proto(rsp);
+    fwpb_fwup_finish_rsp fwup_finish_rsp;
+
+    // We intentionally ignore the contents of fwup_finish_rsp here. The UXC has
+    // already responded with WILL_APPLY_PATCH and will reset unconditionally
+    // after fwup_finish completes; any detailed result handling is done on Core.
+    (void)fwup_finish(&fwup_finish_cmd, &fwup_finish_rsp);
+    mcu_reset_with_reason(MCU_RESET_FWUP);
   } else {
-    success = fwup_finish(&msg->msg.fwup_finish_cmd, &rsp->msg.fwup_finish_rsp);
-    uc_free_recv_proto(msg);
+    // We do not care about the result on the UXC, as the Core will handle
+    // the failure in the response.
+    (void)fwup_finish(&fwup_finish_cmd, &rsp->msg.fwup_finish_rsp);
+
     (void)uc_send(rsp);
+    rtos_thread_sleep(FWUP_FINISH_RESET_MS);
+    mcu_reset_with_reason(MCU_RESET_FWUP);
   }
-
-  // Intentionally ignoring the return value here as UI is driven by the
-  // core.
-  (void)success;
-
-  rtos_thread_sleep(FWUP_FINISH_RESET_MS);
-  mcu_reset_with_reason(MCU_RESET_FWUP);
 }

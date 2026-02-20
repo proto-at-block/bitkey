@@ -33,6 +33,7 @@ void captouch_thread(void* UNUSED(args)) {
     // This triggers on both rising and falling edges.
     if (exti_wait(&power_config.cap_touch_detect, RTOS_EVENT_GROUP_TIMEOUT_MAX, true)) {
       UI_SHOW_EVENT(UI_EVENT_CAPTOUCH);
+      sysevent_set(SYSEVENT_CAPTOUCH);
 
       if (start_time == 0) {
         // Finger down.

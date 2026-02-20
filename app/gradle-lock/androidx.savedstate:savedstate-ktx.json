@@ -2,11 +2,11 @@
     "module-identifier": "androidx.savedstate:savedstate-ktx",
     "components": [
         {
-            "version": "1.2.1",
+            "version": "1.3.3",
             "variants": [
                 {
                     "artifacts": {
-                        "savedstate-ktx-1.2.1.aar": "8553f87e7136c24ec5243560f48f1c32cba56daa77722f89589a5cafcb8f7894"
+                        "savedstate-ktx-1.3.3.aar": "c4df27ba3fef3674da4c5cae64f43ff251f8f9b7507c6597e95a5b7f64860c6c"
                     }
                 }
             ],

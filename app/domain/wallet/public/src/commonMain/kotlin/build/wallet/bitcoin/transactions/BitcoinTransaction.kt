@@ -106,7 +106,7 @@ data class BitcoinTransaction(
   fun truncatedRecipientAddress(): String {
     if (recipientAddress == null) {
       // This should be unexpected, so handle with an empty string and log if it ever occurs.
-      logError { "Missing recipient address for transaction $id" }
+      logError { "Missing recipient address for transaction" }
       return ""
     }
 
@@ -116,7 +116,7 @@ data class BitcoinTransaction(
   fun chunkedRecipientAddress(): String {
     if (recipientAddress == null) {
       // This should be unexpected, so handle with an empty string and log if it ever occurs.
-      logError { "Missing recipient address for transaction $id" }
+      logError { "Missing recipient address for transaction" }
       return ""
     }
 
@@ -162,7 +162,7 @@ data class BitcoinTransaction(
 fun BitcoinTransaction.toSpeedUpTransactionDetails(): SpeedUpTransactionDetails? {
   // This should be unexpected, so we handle with returning null and log and error if it occurs.
   if (recipientAddress == null || fee == null) {
-    logError { "Missing recipient address or fee information for transaction $id" }
+    logError { "Missing recipient address or fee information for transaction" }
     return null
   }
 

@@ -32,6 +32,7 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.immutableMapOf
 import kotlinx.collections.immutable.toImmutableMap
@@ -49,7 +50,69 @@ class FeeSelectionUiStateMachineImpl(
 ) : FeeSelectionUiStateMachine {
   @Composable
   override fun model(props: FeeSelectionUiProps): BodyModel {
-    var uiState: FeeOptionsUiState by remember { mutableStateOf(LoadingTransactionInfoUiState) }
+    var uiState: FeeOptionsUiState by remember {
+      mutableStateOf(
+        if (props.preBuiltPsbts != null) {
+          // Compute initial state synchronously from pre-built PSBTs
+          val psbts = props.preBuiltPsbts
+          val feesMap = mutableMapOf<EstimatedTransactionPriority, build.wallet.bitcoin.fees.Fee>()
+
+          psbts.fastest?.let { feesMap[FASTEST] = it.fee }
+          psbts.thirtyMinutes?.let { feesMap[THIRTY_MINUTES] = it.fee }
+          feesMap[EstimatedTransactionPriority.SIXTY_MINUTES] = psbts.sixtyMinutes.fee
+
+          val fees = feesMap.toImmutableMap()
+
+          val transactionBaseAmount = when (props.sendAmount) {
+            is ExactAmount -> props.sendAmount.money
+            is SendAll -> {
+              // For SendAll, use the amount from the sixty minutes PSBT
+              BitcoinMoney.sats(psbts.sixtyMinutes.amountSats.toBigInteger())
+            }
+          }
+
+          // Default to THIRTY_MINUTES for the initial state
+          // LaunchedEffect below will update it based on preference
+          val defaultPriority = THIRTY_MINUTES
+
+          if (props.preselectedPriority != null) {
+            ProceedingWithPreselectedFeeUiState(
+              transactionBaseAmount = transactionBaseAmount,
+              fees = fees,
+              selectedPriority = props.preselectedPriority
+            )
+          } else {
+            SelectingFeeUiState(transactionBaseAmount, fees, defaultPriority)
+          }
+        } else {
+          LoadingTransactionInfoUiState
+        }
+      )
+    }
+
+    // Update the selected priority based on preference for pre-built PSBTs
+    LaunchedEffect("priority-preference", props.preBuiltPsbts) {
+      if (props.preBuiltPsbts != null && uiState is SelectingFeeUiState) {
+        val selectingState = uiState as SelectingFeeUiState
+        val fees = selectingState.fees
+
+        val preferredPriority =
+          transactionPriorityPreference.get().let { priority ->
+            if (fees.values.distinct().size == 1) {
+              FASTEST
+            } else if (priority != null && fees.keys.contains(priority)) {
+              priority
+            } else {
+              THIRTY_MINUTES
+            }
+          }
+
+        // Update state if the preferred priority is different from the default
+        if (preferredPriority != selectingState.selectedPriority) {
+          uiState = selectingState.copy(selectedPriority = preferredPriority)
+        }
+      }
+    }
 
     return uiState.let { state ->
       when (state) {

@@ -68,21 +68,22 @@ object RotateAuthKeyScreens {
     val context: AuthKeyRotationEventTrackerScreenIdContext,
     val onRetry: () -> Unit,
     val onContactSupport: () -> Unit,
+    val onClose: () -> Unit,
   ) : FormBodyModel(
       id = id,
       eventTrackerContext = context,
-      onBack = null,
-      toolbar = ToolbarModel(),
+      onBack = onClose,
+      toolbar = ToolbarModel(
+        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClose)
+      ),
       header = FormHeaderModel(
         icon = Icon.LargeIconWarningFilled,
         headline = "Account out of sync",
         subline =
           """
-            There was a problem connecting to Bitkey services, and your account may be out of sync,
-            please try again.
+            There was a problem connecting to Bitkey services, and your account may be out of sync, please try again.
             
-            If that still doesn't work, you may need to recover another way, using your Bitkey
-            hardware － try reaching out to support.
+            If that still doesn't work, you may need to recover another way, using your Bitkey hardware － try reaching out to support.
           """.trimIndent()
       ),
       primaryButton = ButtonModel(

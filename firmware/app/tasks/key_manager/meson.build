@@ -4,6 +4,7 @@ core_common_deps = [
   mempool_dep,
   proto_helpers_dep,
   wallet_dep,
+  psbt_dep,
   auth_dep,
   fs_dep,
   sysevent_dep,
@@ -23,6 +24,7 @@ key_manager_platform_configs = {
       'src/w1/key_manager_task_port.c',
       'src/core/key_manager_mpu.c',
       'src/core/crypto_task.c',
+      'src/core/psbt_signing.c',
     ],
     'deps' : core_common_deps,
   },
@@ -32,8 +34,9 @@ key_manager_platform_configs = {
       'src/w3-core/key_manager_task_port.c',
       'src/core/key_manager_mpu.c',
       'src/core/crypto_task.c',
+      'src/core/psbt_signing.c',
     ],
-    'deps' : core_common_deps + [uc_dep],
+    'deps' : core_common_deps + [uc_dep, libew_dep],
   },
   'w3-uxc' : {
     'srcs' : [

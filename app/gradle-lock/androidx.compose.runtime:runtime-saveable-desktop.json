@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-saveable-desktop",
+    "components": [
+        {
+            "version": "1.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-saveable-desktop-1.9.3.jar": "df9907a3e672c3fa9da7e880313679cdb07e80a7f3141f54ac1ec8149d0c5be6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

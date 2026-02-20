@@ -35,6 +35,7 @@ screener = { workspace = true }
 secure_site = { workspace = true }
 userpool = { workspace = true }
 wsm-common = { workspace = true }
+wsm-compat = { workspace = true }
 wsm-rust-client = { workspace = true }
 
 [dev-dependencies]

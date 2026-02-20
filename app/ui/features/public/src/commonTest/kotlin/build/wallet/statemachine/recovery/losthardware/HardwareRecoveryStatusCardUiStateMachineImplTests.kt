@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.losthardware
 
 import app.cash.turbine.plusAssign
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -65,7 +66,8 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
       appGlobalAuthKeyHwSignature = FullAccountMock.keybox.appGlobalAuthKeyHwSignature,
       factorToRecover = Hardware,
       sealedCsek = "sealed-csek".encodeUtf8(),
-      sealedSsek = null
+      sealedSsek = null,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock
     )
     stateMachine.test(props) {
       awaitItem().shouldBeNull()
@@ -85,7 +87,8 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
       serverRecovery = LostHardwareServerRecoveryMock.copy(
         delayStartTime = clock.now(),
         delayEndTime = clock.now() // Delay period is complete
-      )
+      ),
+      originalAppGlobalAuthKey = null
     )
     recoveryStatusService.reset()
     recoveryStatusService.recoveryStatus.value = initiatedRecovery
@@ -112,7 +115,8 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
       serverRecovery = LostHardwareServerRecoveryMock.copy(
         delayStartTime = Instant.DISTANT_PAST,
         delayEndTime = someInstant + 5.days
-      )
+      ),
+      originalAppGlobalAuthKey = null
     )
     recoveryStatusService.recoveryStatus.value = initiatedRecovery
 

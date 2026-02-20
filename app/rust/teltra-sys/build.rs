@@ -19,7 +19,8 @@ fn main() {
     let memfault_includes_dir =
         firmware_dir.join("third-party/memfault-firmware-sdk/components/include");
 
-    let output_dir = teltra_dir.join("build");
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let output_dir = out_dir.join("teltra-build");
 
     // Build the C lib.
 
@@ -28,9 +29,11 @@ fn main() {
     let mut make_cmd = make();
     make_cmd
         .current_dir(teltra_dir)
+        .arg("-f")
         .arg(makefile)
         .arg("clean")
         .arg("all")
+        .arg(format!("BUILD_DIR={}", output_dir.display()))
         .env("RUST_TARGET", &target);
 
     let make_output = make_cmd.output().expect("Failed to run make");
@@ -66,9 +69,8 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
 
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
-        .write_to_file(out_path.join("bindings.rs"))
+        .write_to_file(out_dir.join("bindings.rs"))
         .expect("Couldn't write bindings!");
 
     // Make everything visible to cargo.

@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.FeatureFlagValue.DoubleFlag
 import build.wallet.feature.FeatureFlagValue.StringFlag
 import build.wallet.testing.shouldBeOk
@@ -15,6 +16,18 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
 
 class FeatureFlagServiceImplTests : FunSpec({
+  class UpdateOnLaunchFlag(
+    featureFlagDao: FeatureFlagDao,
+  ) : FeatureFlag<BooleanFlag>(
+      identifier = "update-on-launch-flag",
+      title = "Update On Launch Flag",
+      description = "Updates apply only on app launch.",
+      defaultFlagValue = BooleanFlag(false),
+      updateBehavior = FeatureFlagUpdateBehavior.UpdateOnLaunch,
+      featureFlagDao = featureFlagDao,
+      type = BooleanFlag::class
+    )
+
   val featureFlagDao = FeatureFlagDaoFake()
   val featureFlagSyncer = FeatureFlagSyncerMock(turbines::create)
   val stringFlag = StringFlagMobileTestFeatureFlag(featureFlagDao = featureFlagDao)
@@ -74,5 +87,24 @@ class FeatureFlagServiceImplTests : FunSpec({
     stringFlag.flagValue().value.value.shouldBe("")
     doubleFlag.flagValue().value.value.shouldBe(0.0)
     featureFlagSyncer.syncCalls.awaitItem()
+  }
+
+  test("update-on-launch flags stop updating after initial sync") {
+    val updateOnLaunchFlag = UpdateOnLaunchFlag(featureFlagDao)
+    val testService = FeatureFlagServiceImpl(
+      featureFlags = listOf(updateOnLaunchFlag),
+      featureFlagSyncer = featureFlagSyncer
+    )
+
+    createBackgroundScope().launch {
+      testService.executeWork()
+    }
+
+    featureFlagSyncer.initializeSyncLoopCalls.awaitItem()
+    featureFlagSyncer.syncCalls.awaitItem()
+
+    updateOnLaunchFlag.setFlagValue(BooleanFlag(true))
+    // not updated
+    updateOnLaunchFlag.flagValue().value.value.shouldBe(false)
   }
 })

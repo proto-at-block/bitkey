@@ -85,11 +85,13 @@ class BitcoinTransactionFeeEstimatorImpl(
           }
           .bind()
 
-      // calculate the vsize of the transaction *after* witnesses have signed the transaction
-      // follows the formula outlined here:
-      // https://bitcoin.stackexchange.com/questions/87275/how-to-calculate-segwit-transaction-fee-in-bytes
-      val totalSize = (psbt.numOfInputs * WITNESS_SIZE_BYTES) + psbt.baseSize
-      val weight = (3 * psbt.baseSize) + totalSize
+      // Estimate the vsize of the transaction *after* witnesses have signed the transaction.
+      // The PSBT is unsigned, so psbt.vsize has minimal witness data and approximates base_size.
+      // We add the expected witness size to estimate the final signed vsize.
+      // Formula reference: https://bitcoin.stackexchange.com/questions/87275/how-to-calculate-segwit-transaction-fee-in-bytes
+      val unsignedVsize = psbt.vsize // Approximates base_size since witnesses are minimal
+      val totalSize = (psbt.numOfInputs * WITNESS_SIZE_BYTES) + unsignedVsize
+      val weight = (3 * unsignedVsize) + totalSize
       val vsize = ceil(weight / 4.0)
 
       // Return the map

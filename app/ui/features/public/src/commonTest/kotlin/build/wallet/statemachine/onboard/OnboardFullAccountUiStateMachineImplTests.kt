@@ -26,6 +26,8 @@ import build.wallet.onboarding.OnboardAccountStep.NotificationPreferences
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.OnboardFullAccountUiProps
 import build.wallet.statemachine.account.create.full.OnboardFullAccountUiStateMachineImpl
+import build.wallet.statemachine.account.create.full.onboard.BuildHardwareDescriptorUiProps
+import build.wallet.statemachine.account.create.full.onboard.BuildHardwareDescriptorUiStateMachine
 import build.wallet.statemachine.account.create.full.onboard.OnboardDescriptorBackupUiProps
 import build.wallet.statemachine.account.create.full.onboard.OnboardDescriptorBackupUiStateMachine
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiProps
@@ -69,6 +71,12 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       OnboardDescriptorBackupUiStateMachine,
       ScreenStateMachineMock<OnboardDescriptorBackupUiProps>(
         id = "onboard-descriptor-backup"
+      ) {
+    },
+    buildHardwareDescriptorUiStateMachine = object :
+      BuildHardwareDescriptorUiStateMachine,
+      ScreenStateMachineMock<BuildHardwareDescriptorUiProps>(
+        id = "build-hardware-descriptor"
       ) {
     }
   )

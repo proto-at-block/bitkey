@@ -9,6 +9,7 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
+import build.wallet.cloud.backup.AllFullAccountBackupMocks
 import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.XCiphertext
@@ -25,11 +26,13 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.*
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.InitiatingLostAppRecoveryData.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
+import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiProps
+import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiStateMachine
 import build.wallet.statemachine.recovery.inprogress.RecoverYourAppKeyBodyModel
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
@@ -62,6 +65,12 @@ class InitiatingLostAppRecoveryUiStateMachineImplTests : FunSpec({
         id = "recovery-notification-verification"
       ) {}
 
+  val fullAccountCloudBackupRestorationUiStateMachine =
+    object : FullAccountCloudBackupRestorationUiStateMachine,
+      ScreenStateMachineMock<FullAccountCloudBackupRestorationUiProps>(
+        id = "full-account-cloud-backup-restoration"
+      ) {}
+
   val accountConfigService = AccountConfigServiceFake()
   val ssekDao = SsekDaoFake()
   val descriptorBackupService = DescriptorBackupServiceFake()
@@ -71,6 +80,7 @@ class InitiatingLostAppRecoveryUiStateMachineImplTests : FunSpec({
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
     enableNotificationsUiStateMachine = enableNotificationsUiStateMachine,
     recoveryNotificationVerificationUiStateMachine = recoveryNotificationVerificationUiStateMachine,
+    fullAccountCloudBackupRestorationUiStateMachine = fullAccountCloudBackupRestorationUiStateMachine,
     accountConfigService = accountConfigService,
     ssekDao = ssekDao,
     descriptorBackupService = descriptorBackupService
@@ -104,6 +114,26 @@ class InitiatingLostAppRecoveryUiStateMachineImplTests : FunSpec({
       awaitBody<RecoverYourAppKeyBodyModel> {
         onBack.shouldNotBeNull()
         onStartRecovery.shouldNotBeNull()
+      }
+    }
+  }
+
+  test("shows cloud backup restoration when attempting cloud recovery") {
+    val backup = AllFullAccountBackupMocks.first()
+    val props = InitiatingLostAppRecoveryUiProps(
+      initiatingLostAppRecoveryData = AttemptingCloudRecoveryLostAppRecoveryDataData(
+        cloudBackups = listOf(backup),
+        rollback = { rollbackCalls += Unit },
+        onRecoverAppKey = { completeCalls += Unit },
+        goToLiteAccountCreation = { retreatCalls += Unit }
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<FullAccountCloudBackupRestorationUiProps>(
+        id = fullAccountCloudBackupRestorationUiStateMachine.id
+      ) {
+        backups.shouldBe(listOf(backup))
       }
     }
   }

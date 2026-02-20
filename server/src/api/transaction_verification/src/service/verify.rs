@@ -9,6 +9,7 @@ use types::{
     },
     transaction_verification::router::TransactionVerificationGrantView,
 };
+use wsm_compat::{bdk_pubkey_from_wsm, bdk_signature_from_wsm};
 
 impl Service {
     #[instrument(skip(self))]
@@ -50,13 +51,18 @@ impl Service {
             .await
             .map_err(TransactionVerificationError::from)?;
 
+        let hw_auth_public_key = bdk_pubkey_from_wsm(&grant.hw_auth_public_key)
+            .map_err(|_| TransactionVerificationError::InvalidTransactionVerificationGrantData)?;
+        let signature = bdk_signature_from_wsm(&grant.signature)
+            .map_err(|_| TransactionVerificationError::InvalidTransactionVerificationGrantData)?;
+
         // Create the signed hardware grant view
         let signed_hw_grant = TransactionVerificationGrantView {
             version: grant.version,
-            hw_auth_public_key: grant.hw_auth_public_key,
+            hw_auth_public_key,
             reverse_hash_chain: grant.reverse_hash_chain,
             commitment: grant.commitment,
-            signature: grant.signature,
+            signature,
         };
 
         // Update the transaction verification status to success with the signed grant

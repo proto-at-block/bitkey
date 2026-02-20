@@ -5,7 +5,7 @@ import build.wallet.coachmark.CoachmarkIdentifier;
 CREATE TABLE coachmarkEntity(
   id            TEXT AS CoachmarkIdentifier NOT NULL PRIMARY KEY,
   viewed        INTEGER AS Boolean NOT NULL,
-  expiration    INTEGER AS Instant NOT NULL
+  expiration    INTEGER AS Instant
 );
 
 createCoachmark:

@@ -4,15 +4,19 @@ import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.address.BitcoinAddressServiceFake
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoderMock
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClientMock
 import build.wallet.f8e.partnerships.RedirectUrlType
 import build.wallet.ktor.result.HttpError
+import build.wallet.nfc.NfcCommandsMock
+import build.wallet.nfc.NfcSessionFake
 import build.wallet.partnerships.*
 import build.wallet.platform.clipboard.ClipItem.PlainText
 import build.wallet.platform.clipboard.ClipboardMock
@@ -20,8 +24,12 @@ import build.wallet.platform.haptics.HapticsMock
 import build.wallet.platform.links.DeepLinkHandlerMock
 import build.wallet.platform.sharing.SharingManagerMock
 import build.wallet.platform.sharing.SharingManagerMock.SharedText
+import build.wallet.statemachine.BodyModelMock
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineFake
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.statemachine.qr.QrCodeServiceFake
 import build.wallet.statemachine.qr.QrCodeState
@@ -39,6 +47,7 @@ import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.milliseconds
@@ -48,6 +57,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
   val sharingManager = SharingManagerMock(turbines::create)
   val bitcoinAddressService = BitcoinAddressServiceFake()
+  val bitcoinInvoiceUrlEncoder = BitcoinInvoiceUrlEncoderMock()
   val themePreferenceService = ThemePreferenceServiceFake()
   val qrCodeService = QrCodeServiceFake()
   val getTransferPartnerListF8eClient = GetTransferPartnerListF8eClientMock(turbines::create)
@@ -63,12 +73,18 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   val deepLinkHandler = DeepLinkHandlerMock(turbines::create)
   val haptics = HapticsMock()
   val eventTracker = EventTrackerMock(turbines::create)
+  val nfcCommands = NfcCommandsMock(turbines::create)
+  val nfcSession = NfcSessionFake()
+  val nfcSessionUIStateMachine = NfcSessionUIStateMachineFake(
+    nfcSession = nfcSession,
+    nfcCommands = nfcCommands
+  )
 
   val stateMachine = AddressQrCodeUiStateMachineImpl(
     clipboard = clipboard,
     restoreCopyAddressStateDelay = RestoreCopyAddressStateDelay(10.milliseconds),
     sharingManager = sharingManager,
-    bitcoinInvoiceUrlEncoder = BitcoinInvoiceUrlEncoderMock(),
+    bitcoinInvoiceUrlEncoder = bitcoinInvoiceUrlEncoder,
     bitcoinAddressService = bitcoinAddressService,
     qrCodeService = qrCodeService,
     getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
@@ -77,15 +93,16 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     deepLinkHandler = deepLinkHandler,
     haptics = haptics,
     eventTracker = eventTracker,
-    addressQrCodeLoadingDuration = AddressQrCodeLoadingDuration(0.milliseconds)
+    addressQrCodeLoadingDuration = AddressQrCodeLoadingDuration(0.milliseconds),
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine
   )
 
   val onBackCalls = turbines.create<Unit>("back calls")
   val onWebLinkOpenedCalls = turbines.create<Triple<String, PartnerInfo, PartnershipTransaction>>("web link opened calls")
 
-  fun props() =
+  fun props(account: build.wallet.bitkey.account.FullAccount = FullAccountMock) =
     AddressQrCodeUiProps(
-      account = FullAccountMock,
+      account = account,
       onBack = {
         onBackCalls += Unit
       },
@@ -102,6 +119,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     getTransferRedirectF8eClient.reset()
     partnershipTransactionsService.reset()
     deepLinkHandler.reset()
+    nfcCommands.reset()
   }
 
   test("show screen with address and QR code w/ light mode") {
@@ -112,6 +130,14 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
         with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
           addressDisplayString.string.shouldBe("...")
           qrCodeState.shouldBe(QrCodeState.Loading)
+        }
+      }
+
+      // QR code ready (still in loading state, showing QR but animating text)
+      awaitBody<AddressQrCodeBodyModel> {
+        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
+          addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
+          qrCodeState.shouldBeInstanceOf<QrCodeState.Success>()
         }
       }
 
@@ -159,6 +185,14 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
         }
       }
 
+      // QR code ready (still in loading state, showing QR but animating text)
+      awaitBody<AddressQrCodeBodyModel> {
+        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
+          addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
+          qrCodeState.shouldBeInstanceOf<QrCodeState.Success>()
+        }
+      }
+
       // Address loaded - partners may still be loading
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
@@ -197,6 +231,9 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading address and QR code (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel> {}
 
+      // QR code ready (still in loading state, showing QR but animating text)
+      awaitBody<AddressQrCodeBodyModel> {}
+
       // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
@@ -222,7 +259,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
           .addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
 
         val newAddress = BitcoinAddress("new1ksdjfksljfdsklj1234")
-        bitcoinAddressService.result = Ok(newAddress)
+        bitcoinAddressService.addressInfoResult = Ok(BitcoinAddressInfo(address = newAddress, index = 1u))
 
         toolbarModel.trailingAccessory
           .shouldNotBeNull()
@@ -236,10 +273,68 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
           .addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
       }
 
+      // QR code ready for new address
+      awaitBody<AddressQrCodeBodyModel> {
+        content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
+          .addressDisplayString.string.shouldBe("new1 ksdj fksl jfds klj1 234")
+      }
+
       // New address loaded (partners already loaded, no need to reload)
       awaitBody<AddressQrCodeBodyModel> {
         content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
           .addressDisplayString.string.shouldBe("new1 ksdj fksl jfds klj1 234")
+
+        val newerAddress = BitcoinAddress("new2ksdjfksljfdsklj5678")
+        bitcoinAddressService.addressInfoResult = Ok(BitcoinAddressInfo(address = newerAddress, index = 2u))
+
+        toolbarModel.trailingAccessory
+          .shouldNotBeNull()
+          .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
+          .model.onClick()
+      }
+
+      // Loading newer address and QR code
+      awaitBody<AddressQrCodeBodyModel> {
+        content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
+          .addressDisplayString.string.shouldBe("new1 ksdj fksl jfds klj1 234")
+      }
+
+      // QR code ready for newer address
+      awaitBody<AddressQrCodeBodyModel> {
+        content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
+          .addressDisplayString.string.shouldBe("new2 ksdj fksl jfds klj5 678")
+      }
+
+      // Newer address loaded
+      awaitBody<AddressQrCodeBodyModel> {
+        content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
+          .addressDisplayString.string.shouldBe("new2 ksdj fksl jfds klj5 678")
+
+        val newestAddress = BitcoinAddress("new3ksdjfksljfdsklj9012")
+        bitcoinAddressService.addressInfoResult = Ok(BitcoinAddressInfo(address = newestAddress, index = 3u))
+
+        toolbarModel.trailingAccessory
+          .shouldNotBeNull()
+          .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
+          .model.onClick()
+      }
+
+      // Loading newest address and QR code
+      awaitBody<AddressQrCodeBodyModel> {
+        content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
+          .addressDisplayString.string.shouldBe("new2 ksdj fksl jfds klj5 678")
+      }
+
+      // QR code ready for newest address
+      awaitBody<AddressQrCodeBodyModel> {
+        content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
+          .addressDisplayString.string.shouldBe("new3 ksdj fksl jfds klj9 012")
+      }
+
+      // Newest address loaded
+      awaitBody<AddressQrCodeBodyModel> {
+        content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
+          .addressDisplayString.string.shouldBe("new3 ksdj fksl jfds klj9 012")
       }
     }
   }
@@ -247,6 +342,9 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   test("copy address to clipboard") {
     stateMachine.test(props()) {
       // Loading address (partners load in parallel)
+      awaitItem()
+
+      // QR code ready (still in loading state, showing QR but animating text)
       awaitItem()
 
       // Wait for partner loading to start
@@ -293,6 +391,9 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading address (partners load in parallel)
       awaitItem()
 
+      // QR code ready (still in loading state, showing QR but animating text)
+      awaitItem()
+
       // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
@@ -332,6 +433,9 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading address (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel>()
 
+      // QR code ready (still in loading state, showing QR but animating text)
+      awaitBody<AddressQrCodeBodyModel>()
+
       // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
@@ -368,6 +472,9 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   test("redirect to partner when partner clicked") {
     stateMachine.test(props()) {
       // Loading address (partners load in parallel)
+      awaitBody<AddressQrCodeBodyModel>()
+
+      // QR code ready (still in loading state, showing QR but animating text)
       awaitBody<AddressQrCodeBodyModel>()
 
       // Wait for partner loading to start
@@ -443,6 +550,9 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading address (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel>()
 
+      // QR code ready (still in loading state, showing QR but animating text)
+      awaitBody<AddressQrCodeBodyModel>()
+
       // Wait for partner loading to start
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
@@ -497,6 +607,9 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading address (partners load in parallel but will fail)
       awaitBody<AddressQrCodeBodyModel>()
 
+      // QR code ready (still in loading state, showing QR but animating text)
+      awaitBody<AddressQrCodeBodyModel>()
+
       // Wait for partner loading to start (will fail)
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
@@ -516,6 +629,9 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props()) {
       // Loading address (partners load in parallel)
+      awaitBody<AddressQrCodeBodyModel>()
+
+      // QR code ready (still in loading state, showing QR but animating text)
       awaitBody<AddressQrCodeBodyModel>()
 
       // Wait for partner loading to start
@@ -560,4 +676,101 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       }
     }
   }
+
+  test("W1 account does not show verify on device button") {
+    stateMachine.test(props(account = FullAccountMock)) {
+      awaitPartnersLoaded(getTransferPartnerListF8eClient, eventTracker)
+
+      // Partners loaded
+      awaitBody<AddressQrCodeBodyModel> {
+        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
+          showVerifyOnDeviceButton.shouldBe(false)
+          onVerifyOnDeviceClick.shouldBe(null)
+        }
+      }
+    }
+  }
+
+  test("W3 account shows verify on device button") {
+    stateMachine.test(props(account = FullAccountW3Mock)) {
+      awaitPartnersLoaded(getTransferPartnerListF8eClient, eventTracker)
+
+      // Partners loaded
+      awaitBody<AddressQrCodeBodyModel> {
+        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
+          showVerifyOnDeviceButton.shouldBe(true)
+          onVerifyOnDeviceClick.shouldNotBeNull()
+        }
+      }
+    }
+  }
+
+  test("W3 verify on device button triggers NFC session") {
+    stateMachine.test(props(account = FullAccountW3Mock)) {
+      awaitPartnersLoaded(getTransferPartnerListF8eClient, eventTracker)
+
+      // Partners loaded, click verify on device button
+      awaitBody<AddressQrCodeBodyModel> {
+        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
+          showVerifyOnDeviceButton.shouldBe(true)
+          onVerifyOnDeviceClick.shouldNotBeNull()
+          onVerifyOnDeviceClick!!.invoke()
+        }
+      }
+
+      // NFC session is shown (fake returns BodyModelMock)
+      awaitBody<BodyModelMock<*>> {
+        id.shouldBe("nfc-session")
+      }
+
+      // After NFC session completes (onSuccess called), return to address loaded state
+      awaitBody<AddressQrCodeBodyModel> {
+        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
+          addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
+        }
+      }
+    }
+  }
+
+  test("QR code encodes Bitcoin invoice URI, not plain address") {
+    stateMachine.test(props()) {
+      awaitPartnersLoaded(getTransferPartnerListF8eClient, eventTracker)
+
+      // Partners loaded
+      awaitBody<AddressQrCodeBodyModel> {
+        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
+          addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
+        }
+      }
+
+      val qrCodeData = qrCodeService.lastGeneratedQrCodeData
+      qrCodeData.shouldNotBeNull()
+
+      qrCodeData.shouldBe("bitcoin:${someBitcoinAddress.address}")
+
+      qrCodeData.shouldNotBe(someBitcoinAddress.address)
+    }
+  }
 })
+
+/**
+ * Helper to await partner loading sequence without assertions on the events.
+ * Use this when you don't need to verify the specific analytics event contents.
+ */
+private suspend fun StateMachineTester<AddressQrCodeUiProps, BodyModel>.awaitPartnersLoaded(
+  getTransferPartnerListF8eClient: GetTransferPartnerListF8eClientMock,
+  eventTracker: EventTrackerMock,
+) {
+  // Loading address (partners load in parallel)
+  awaitBody<AddressQrCodeBodyModel>()
+
+  // QR code ready (still in loading state, showing QR but animating text)
+  awaitBody<AddressQrCodeBodyModel>()
+
+  // Wait for partner loading to start
+  getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
+
+  // Consume analytics events tracked when partners loaded
+  eventTracker.eventCalls.awaitItem()
+  eventTracker.eventCalls.awaitItem()
+}

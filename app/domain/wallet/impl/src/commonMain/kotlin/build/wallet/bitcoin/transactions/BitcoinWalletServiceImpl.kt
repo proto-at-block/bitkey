@@ -13,11 +13,13 @@ import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeePolicy
+import build.wallet.bitcoin.fees.FeeRatesByPriority
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceImpl.Balances.LoadedBalance
 import build.wallet.bitcoin.utxo.Utxos
 import build.wallet.bitcoin.wallet.CoinSelectionStrategy
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.bitcoin.wallet.SpendingWalletV2Impl
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
@@ -214,8 +216,10 @@ class BitcoinWalletServiceImpl(
   override suspend fun broadcast(
     psbt: Psbt,
     estimatedTransactionPriority: EstimatedTransactionPriority,
-  ): Result<BroadcastDetail, Error> =
-    coroutineBinding {
+  ): Result<BroadcastDetail, Error> {
+    val isBdk2 = spendingWallet.value is SpendingWalletV2Impl
+
+    return coroutineBinding {
       val broadcastDetail = bitcoinBlockchain.broadcast(psbt = psbt).bind()
 
       // When we successfully broadcast the transaction, store the transaction details and
@@ -236,12 +240,19 @@ class BitcoinWalletServiceImpl(
       sync().bind()
 
       broadcastDetail
-    }.logFailure { "Error broadcasting transaction" }
+    }.logFailure {
+      if (isBdk2) {
+        "BDK2 broadcast failed"
+      } else {
+        "Error broadcasting transaction"
+      }
+    }
+  }
 
   override suspend fun createPsbtsForSendAmount(
     sendAmount: BitcoinTransactionSendAmount,
     recipientAddress: BitcoinAddress,
-  ): Result<Map<EstimatedTransactionPriority, Psbt>, Error> =
+  ): Result<PsbtsForSendAmount, Error> =
     coroutineBinding {
       val wallet = spendingWallet.value
       ensureNotNull(wallet) { Error("No spending wallet found.") }
@@ -255,6 +266,70 @@ class BitcoinWalletServiceImpl(
       val feeRates = feeRateEstimator.getEstimatedFeeRates(wallet.networkType)
         .bind()
 
+      when (sendAmount) {
+        is BitcoinTransactionSendAmount.ExactAmount -> createExactAmountPsbts(
+          wallet = wallet,
+          recipientAddress = recipientAddress,
+          sendAmount = sendAmount,
+          feeRates = feeRates
+        ).bind()
+        is BitcoinTransactionSendAmount.SendAll -> createSendAllPsbts(
+          wallet = wallet,
+          recipientAddress = recipientAddress,
+          feeRates = feeRates
+        ).bind()
+      }
+    }
+
+  private suspend fun createSendAllPsbts(
+    wallet: SpendingWallet,
+    recipientAddress: BitcoinAddress,
+    feeRates: FeeRatesByPriority,
+  ) = coroutineBinding {
+    val sixtyMinutesPsbt = wallet.createSignedPsbt(
+      constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
+        recipientAddress = recipientAddress,
+        amount = BitcoinTransactionSendAmount.SendAll,
+        feePolicy = FeePolicy.Rate(feeRate = feeRates.hourFeeRate),
+        coinSelectionStrategy = CoinSelectionStrategy.Default
+      )
+    ).mapError { Error("Error creating PSBT for 60 minutes") }
+      .bind()
+
+    val thirtyMinutesPsbt = wallet.createSignedPsbt(
+      constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
+        recipientAddress = recipientAddress,
+        amount = BitcoinTransactionSendAmount.SendAll,
+        feePolicy = FeePolicy.Rate(feeRate = feeRates.halfHourFeeRate),
+        coinSelectionStrategy = CoinSelectionStrategy.Default
+      )
+    ).mapError { Error("Error creating PSBT for 30 minutes") }
+      .bind()
+
+    val fastestPsbt = wallet.createSignedPsbt(
+      constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
+        recipientAddress = recipientAddress,
+        amount = BitcoinTransactionSendAmount.SendAll,
+        feePolicy = FeePolicy.Rate(feeRate = feeRates.fastestFeeRate),
+        coinSelectionStrategy = CoinSelectionStrategy.Default
+      )
+    ).mapError { Error("Error creating PSBT for fastest") }
+      .bind()
+
+    PsbtsForSendAmount(
+      fastest = fastestPsbt,
+      thirtyMinutes = thirtyMinutesPsbt,
+      sixtyMinutes = sixtyMinutesPsbt
+    )
+  }
+
+  private suspend fun createExactAmountPsbts(
+    wallet: SpendingWallet,
+    recipientAddress: BitcoinAddress,
+    sendAmount: BitcoinTransactionSendAmount.ExactAmount,
+    feeRates: FeeRatesByPriority,
+  ): Result<PsbtsForSendAmount, Error> =
+    coroutineBinding {
       // Build the slowest psbt we support
       val sixtyMinutesPsbt = wallet.createSignedPsbt(
         constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
@@ -278,7 +353,11 @@ class BitcoinWalletServiceImpl(
           coinSelectionStrategy = CoinSelectionStrategy.Preselected(sixtyMinutesPsbt.inputs)
         )
       ).getOrElse {
-        return@coroutineBinding mapOf(EstimatedTransactionPriority.SIXTY_MINUTES to sixtyMinutesPsbt)
+        return@coroutineBinding PsbtsForSendAmount(
+          fastest = null,
+          thirtyMinutes = null,
+          sixtyMinutes = sixtyMinutesPsbt
+        )
       }
 
       // Build the fastest psbt using the outpoints of the previous psbt
@@ -290,16 +369,17 @@ class BitcoinWalletServiceImpl(
           coinSelectionStrategy = CoinSelectionStrategy.Preselected(thirtyMinutesPsbt.inputs)
         )
       ).getOrElse {
-        return@coroutineBinding mapOf(
-          EstimatedTransactionPriority.SIXTY_MINUTES to sixtyMinutesPsbt,
-          EstimatedTransactionPriority.THIRTY_MINUTES to thirtyMinutesPsbt
+        return@coroutineBinding PsbtsForSendAmount(
+          fastest = null,
+          thirtyMinutes = thirtyMinutesPsbt,
+          sixtyMinutes = sixtyMinutesPsbt
         )
       }
 
-      mapOf(
-        EstimatedTransactionPriority.SIXTY_MINUTES to sixtyMinutesPsbt,
-        EstimatedTransactionPriority.THIRTY_MINUTES to thirtyMinutesPsbt,
-        EstimatedTransactionPriority.FASTEST to fastestPsbt
+      PsbtsForSendAmount(
+        fastest = fastestPsbt,
+        thirtyMinutes = thirtyMinutesPsbt,
+        sixtyMinutes = sixtyMinutesPsbt
       )
     }
 

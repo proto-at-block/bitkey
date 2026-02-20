@@ -203,8 +203,32 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun preBuiltPsbtFlowFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    PreBuiltPsbtFlowFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun cloudBackupForceReuploadTimestampFeatureFlag(featureFlagDao: FeatureFlagDao) =
     CloudBackupForceReuploadTimestampFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun w3OnboardingFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    W3OnboardingFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun iosCloudKitBackupFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    IosCloudKitBackupFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun designSystemUpdatesFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    DesignSystemUpdatesFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun vaultsFeatureFlag(featureFlagDao: FeatureFlagDao) = VaultsFeatureFlag(featureFlagDao)
 
   @Provides
   fun featureFlags(
@@ -220,6 +244,7 @@ interface FeatureFlagsComponent {
     mobileRealTimeMetricsFeatureFlag: MobileRealTimeMetricsFeatureFlag,
     usSmsFeatureFlag: UsSmsFeatureFlag,
     checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
+    nfcSessionRetryAttemptsFeatureFlag: NfcSessionRetryAttemptsFeatureFlag,
     fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
     fingerprintResetMinFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
@@ -244,10 +269,16 @@ interface FeatureFlagsComponent {
     keysetRepairFeatureFlag: KeysetRepairFeatureFlag,
     ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag,
     augurFeeComparisonLoggingFeatureFlag: AugurFeeComparisonLoggingFeatureFlag,
+    preBuiltPsbtFlowFeatureFlag: PreBuiltPsbtFlowFeatureFlag,
     cloudBackupForceReuploadTimestampFeatureFlag: CloudBackupForceReuploadTimestampFeatureFlag,
+    w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
+    iosCloudKitBackupFeatureFlag: IosCloudKitBackupFeatureFlag,
+    designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
+    vaultsFeatureFlag: VaultsFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       bdk2FeatureFlag,
+      preBuiltPsbtFlowFeatureFlag,
       softwareWalletIsEnabledFeatureFlag,
       expectedTransactionsPhase2FeatureFlag,
       mobileRealTimeMetricsFeatureFlag,
@@ -258,6 +289,7 @@ interface FeatureFlagsComponent {
       atRiskNotificationsFeatureFlag,
       chaincodeDelegationFeatureFlag,
       onboardingCompletionFailsafeFeatureFlag,
+      w3OnboardingFeatureFlag,
       txVerificationFeatureFlag,
       appUpdateModalFeatureFlag,
       privateWalletMigrationFeatureFlag,
@@ -273,18 +305,20 @@ interface FeatureFlagsComponent {
       keysetRepairFeatureFlag,
       ageRangeVerificationFeatureFlag,
       augurFeeComparisonLoggingFeatureFlag,
-      // these are long-lived feature flags that are not for actively developing features
-      // pushing towards the bottom
+      iosCloudKitBackupFeatureFlag,
       utxoMaxConsolidationCountFeatureFlag,
       sellBitcoinMinAmountFeatureFlag,
       sellBitcoinMaxAmountFeatureFlag,
       coachmarksGlobalFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
+      nfcSessionRetryAttemptsFeatureFlag,
       firmwareCommsLoggingFeatureFlag,
       asyncNfcSigningFeatureFlag,
       bip177FeatureFlag,
       cloudBackupHealthLoggingFeatureFlag,
-      cloudBackupForceReuploadTimestampFeatureFlag
+      cloudBackupForceReuploadTimestampFeatureFlag,
+      designSystemUpdatesFeatureFlag,
+      vaultsFeatureFlag
     )
   }
 }

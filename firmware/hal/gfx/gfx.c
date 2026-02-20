@@ -41,6 +41,7 @@ static rtos_mutex_t fps_mutex = {0};
 #define MAX_QSPI_READ_BYTES 4
 #define QUAD_BUFFER_SIZE    (MAX_QSPI_READ_BYTES * 4)
 
+// Page 0 command definitions
 #define CMD_SWRESET     0x01
 #define CMD_SLPOUT      0x11
 #define CMD_ALLPON      0x23
@@ -55,6 +56,27 @@ static rtos_mutex_t fps_mutex = {0};
 #define CMD_WRDISBV     0x51
 #define CMD_WRCTRLD     0x53
 #define CMD_SETDSPIMODE 0xC4
+// Display ID register addresses (page 0)
+#define DISPLAY_REG_MANUFACTURER_ID 0xDA
+#define DISPLAY_REG_DISPLAY_ID      0xDB
+#define DISPLAY_REG_REVISION_ID     0xDC
+
+// Display hardware revisions
+typedef enum {
+  DISPLAY_HW_EVT_PDVT,  // Factory default, OTP not programmed
+  DISPLAY_HW_DVT,       // OTP programmed by Tianma
+  DISPLAY_HW_UNKNOWN
+} display_hw_revision_t;
+
+// EVT/PDVT
+#define DISPLAY_ID_EVT_PDVT_MFR 0x00
+#define DISPLAY_ID_EVT_PDVT_DIS 0x80
+#define DISPLAY_ID_EVT_PDVT_REV 0x00
+
+// DVT (programmed by Tianma)
+#define DISPLAY_ID_DVT_MFR 0x02
+#define DISPLAY_ID_DVT_DIS 0x82  // Bit 7 unchangeable per datasheet
+#define DISPLAY_ID_DVT_REV 0x01
 
 // MADCTL (Memory Data Access Control) register bits:
 #define MADCTL_MY  (1 << 7)  // Page Address Order (0=top-to-bottom, 1=bottom-to-top)
@@ -80,90 +102,78 @@ typedef struct {
   bool verify;        // Whether to read back and verify (single-byte only)
 } display_reg_config_t;
 
-// Initialization register table
-static display_reg_config_t display_init_table[] = {
+// OTP configuration table (only for EVT/PDVT displays without programmed OTP)
+static display_reg_config_t display_otp_config_table[] = {
   // Page 6 registers
-  {.page = 6, .reg = 0x3E, .data = {0xE2}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x06, .reg = 0x3E, .data = {0xE2}, .len = 0x01, .delay_ms = 1, .verify = true},
 
-  // Page 1 registers (GOUT configuration)
-  {.page = 1, .reg = 0x04, .data = {0x04}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x05, .data = {0x01}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x06, .data = {0x0F}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x0E, .data = {0x10}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x0F, .data = {0x01}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x10, .data = {0x01}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x11, .data = {0x99}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x41, .data = {0x03}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x42, .data = {0x47}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x43, .data = {0x03}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x45, .data = {0x47}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x46, .data = {0x03}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x4C, .data = {0x04}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x4D, .data = {0x01}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x4E, .data = {0x20}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x50, .data = {0x01}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x51, .data = {0x20}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x57, .data = {0x02}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x58, .data = {0x01}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x59, .data = {0x20}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x5B, .data = {0x01}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x5C, .data = {0x20}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x8B, .data = {0x0C}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0x8C, .data = {0x0B}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0xA1, .data = {0xCF}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 1, .reg = 0xA2, .data = {0xCD}, .len = 1, .delay_ms = 1, .verify = true},
+  // Page 0x0E registers (OTP settings missing on EVT displays, configured here instead)
+  {.page = 0x0E, .reg = 0x0B, .data = {0x00}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x92, .data = {0x7E}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x94, .data = {0xFD}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x95, .data = {0x7C}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x97, .data = {0xFB}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x98, .data = {0x83}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x9A, .data = {0x12}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x9B, .data = {0xA9}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x9D, .data = {0x40}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0x9E, .data = {0xC7}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA0, .data = {0x4E}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA1, .data = {0xD5}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA3, .data = {0x6C}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA4, .data = {0x04}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA6, .data = {0xA3}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA7, .data = {0x4A}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA8, .data = {0x00}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xA9, .data = {0xF9}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xAA, .data = {0xB1}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xAC, .data = {0x78}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xAD, .data = {0x50}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xAF, .data = {0x38}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xB0, .data = {0x20}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xB2, .data = {0x10}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xB3, .data = {0x08}, .len = 0x01, .delay_ms = 1, .verify = true},
+  {.page = 0x0E, .reg = 0xB5, .data = {0x00}, .len = 0x01, .delay_ms = 1, .verify = true},
+};
 
-  // Page 0x0E registers
-  {.page = 0x0E, .reg = 0x0B, .data = {0x00}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0x92, .data = {0x7E}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0x94, .data = {0xFD}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0x95, .data = {0x7C}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0x97, .data = {0xFB}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0x98, .data = {0x83}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0x9A, .data = {0x12}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0x9B, .data = {0xA9}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0x9D, .data = {0x40}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0x9E, .data = {0xC7}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xA0, .data = {0x4E}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xA1, .data = {0xD5}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xA3, .data = {0x6C}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xA4, .data = {0x04}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xA6, .data = {0xA3}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xA7, .data = {0x4A}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xA8, .data = {0x00}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xA9, .data = {0xF9}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xAA, .data = {0xB1}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xAC, .data = {0x78}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xAD, .data = {0x50}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xAF, .data = {0x38}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xB0, .data = {0x20}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xB2, .data = {0x10}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xB3, .data = {0x08}, .len = 1, .delay_ms = 1, .verify = true},
-  {.page = 0x0E, .reg = 0xB5, .data = {0x00}, .len = 1, .delay_ms = 1, .verify = true},
+static const size_t display_otp_config_table_size =
+  sizeof(display_otp_config_table) / sizeof(display_otp_config_table[0]);
 
+// Common initialization register table (for all display revisions)
+static display_reg_config_t display_init_table[] = {
   // Exit sleep mode first (requires 120ms delay)
-  {.page = 0, .reg = CMD_SLPOUT, .data = {0}, .len = 0, .delay_ms = 120, .verify = true},
+  {.page = 0x00, .reg = CMD_SLPOUT, .data = {0x00}, .len = 0x00, .delay_ms = 120, .verify = true},
 
   // Set SPI Write RAM Enable
-  {.page = 0, .reg = CMD_SETDSPIMODE, .data = {0x80}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x00,
+   .reg = CMD_SETDSPIMODE,
+   .data = {0x80},
+   .len = 0x01,
+   .delay_ms = 1,
+   .verify = true},
 
   // Set interface pixel format to RGB565 (16-bit)
-  {.page = 0, .reg = CMD_COLMOD, .data = {0x55}, .len = 1, .delay_ms = 1, .verify = false},
+  {.page = 0x00, .reg = CMD_COLMOD, .data = {0x55}, .len = 0x01, .delay_ms = 1, .verify = false},
 
   // Enable brightness control and backlight control
-  {.page = 0, .reg = CMD_WRCTRLD, .data = {0x24}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x00, .reg = CMD_WRCTRLD, .data = {0x24}, .len = 0x01, .delay_ms = 1, .verify = true},
 
   // Set maximum brightness level (Normal and AOD)
-  {.page = 0, .reg = CMD_WRDISBV, .data = {0xFF, 0x00}, .len = 2, .delay_ms = 1, .verify = true},
+  {.page = 0x00,
+   .reg = CMD_WRDISBV,
+   .data = {0xFF, 0x00},
+   .len = 0x02,
+   .delay_ms = 1,
+   .verify = true},
 
   // Set display orientation + RGB order (0x00 for normal, updated at runtime based on board_id)
-  {.page = 0, .reg = CMD_MADCTL, .data = {0x00}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x00, .reg = CMD_MADCTL, .data = {0x00}, .len = 0x01, .delay_ms = 1, .verify = true},
 
   // Turn on tearing effect signal (mode 0)
-  {.page = 0, .reg = CMD_TEON, .data = {0x00}, .len = 1, .delay_ms = 1, .verify = true},
+  {.page = 0x00, .reg = CMD_TEON, .data = {0x00}, .len = 0x01, .delay_ms = 1, .verify = true},
 
   // Turn on display (requires 5ms delay)
-  {.page = 0, .reg = CMD_DISPON, .data = {0}, .len = 0, .delay_ms = 5, .verify = true},
+  {.page = 0x00, .reg = CMD_DISPON, .data = {0x00}, .len = 0x00, .delay_ms = 5, .verify = true},
 };
 
 static const size_t display_init_table_size =
@@ -342,12 +352,12 @@ static void display_reset(const gfx_config_t* gfx_config) {
   rtos_thread_sleep(ICNA_RESET_DELAY_MS);
 }
 
-// Batch write registers from initialization table
-static void write_display_registers(void) {
+// Write registers from a configuration table
+static void write_register_table(const display_reg_config_t* table, size_t table_size) {
   uint8_t last_page = 0xFF;
 
-  for (size_t i = 0; i < display_init_table_size; i++) {
-    const display_reg_config_t* cfg = &display_init_table[i];
+  for (size_t i = 0; i < table_size; i++) {
+    const display_reg_config_t* cfg = &table[i];
 
     // Switch page if needed
     if (cfg->page != last_page) {
@@ -370,8 +380,9 @@ static void write_display_registers(void) {
   }
 }
 
-// Batch verify registers from initialization table
-static void verify_display_registers(void) {
+// Verify registers from a configuration table
+static void verify_register_table(const display_reg_config_t* table, size_t table_size,
+                                  const char* table_name) {
   uint8_t last_page = 0xFF;
   uint32_t pass_count = 0;
   uint32_t fail_count = 0;
@@ -382,8 +393,8 @@ static void verify_display_registers(void) {
   rtos_thread_sleep(1);
 
   // Verify all registers marked for verification
-  for (size_t i = 0; i < display_init_table_size; i++) {
-    const display_reg_config_t* cfg = &display_init_table[i];
+  for (size_t i = 0; i < table_size; i++) {
+    const display_reg_config_t* cfg = &table[i];
 
     // Skip non-verify registers or multi-byte writes
     if (!cfg->verify || cfg->len != 1) {
@@ -404,12 +415,12 @@ static void verify_display_registers(void) {
         // LOGI("P%d Reg 0x%02X: 0x%02X", cfg->page, cfg->reg, read_val);
       } else {
         fail_count++;
-        LOGE("P%d Reg 0x%02X: wrote 0x%02X, read 0x%02X", cfg->page, cfg->reg, cfg->data[0],
-             read_val);
+        LOGE("%s: P%d Reg 0x%02X: wrote 0x%02X, read 0x%02X", table_name, cfg->page, cfg->reg,
+             cfg->data[0], read_val);
       }
     } else {
       fail_count++;
-      LOGE("P%d Reg 0x%02X: read failed", cfg->page, cfg->reg);
+      LOGE("%s: P%d Reg 0x%02X: read failed", table_name, cfg->page, cfg->reg);
     }
   }
 
@@ -417,6 +428,57 @@ static void verify_display_registers(void) {
   set_page(0x01);
   write_reg(0xFD, (uint8_t[]){0x00, 0x00, 0x00}, 3);  // Disable read
   rtos_thread_sleep(1);
+
+  if (fail_count > 0) {
+    LOGW("%s verification: %lu passed, %lu failed", table_name, pass_count, fail_count);
+  }
+}
+
+static display_hw_revision_t read_display_hw_revision(void) {
+  // Enable read mode
+  set_page(0x01);
+  write_reg(0xFD, (uint8_t[]){0x00, 0x81, 0x00}, 3);
+  rtos_thread_sleep(1);
+
+  // Switch to page 0 where ID registers are located
+  set_page(0x00);
+
+  // Read ID registers
+  uint8_t manufacturer_id = 0xFF;
+  uint8_t display_id = 0xFF;
+  uint8_t revision_id = 0xFF;
+
+  bool success = true;
+  success &= read_reg(DISPLAY_REG_MANUFACTURER_ID, &manufacturer_id, 1);
+  success &= read_reg(DISPLAY_REG_DISPLAY_ID, &display_id, 1);
+  success &= read_reg(DISPLAY_REG_REVISION_ID, &revision_id, 1);
+
+  // Disable read mode
+  set_page(0x01);
+  write_reg(0xFD, (uint8_t[]){0x00, 0x00, 0x00}, 3);
+  rtos_thread_sleep(1);
+
+  display_hw_revision_t hw_rev = DISPLAY_HW_UNKNOWN;
+
+  if (success) {
+    // Identify hardware revision
+    if (manufacturer_id == DISPLAY_ID_EVT_PDVT_MFR && display_id == DISPLAY_ID_EVT_PDVT_DIS &&
+        revision_id == DISPLAY_ID_EVT_PDVT_REV) {
+      hw_rev = DISPLAY_HW_EVT_PDVT;
+      LOGI("Display hardware: EVT/PDVT");
+    } else if (manufacturer_id == DISPLAY_ID_DVT_MFR && display_id == DISPLAY_ID_DVT_DIS &&
+               revision_id == DISPLAY_ID_DVT_REV) {
+      hw_rev = DISPLAY_HW_DVT;
+      LOGI("Display hardware: DVT");
+    } else {
+      LOGW("Display hardware: Unknown revision (MFR=0x%02X, ID=0x%02X, REV=0x%02X)",
+           manufacturer_id, display_id, revision_id);
+    }
+  } else {
+    LOGE("Failed to read display ID registers");
+  }
+
+  return hw_rev;
 }
 
 void gfx_init(const gfx_config_t* gfx_config) {
@@ -452,11 +514,28 @@ void gfx_init(const gfx_config_t* gfx_config) {
 
   display_reset(gfx_config);
 
-  // Write all registers from table
-  write_display_registers();
+  // Read display hardware revision to determine init sequence
+  display_hw_revision_t hw_rev = read_display_hw_revision();
 
-  // Verify all registers in batch
-  verify_display_registers();
+  // Write OTP config for EVT/PDVT displays (DVT displays have OTP already programmed)
+  // For unknown hardware, apply OTP config as a safe fallback
+  bool otp_written = false;
+  if (hw_rev == DISPLAY_HW_EVT_PDVT || hw_rev == DISPLAY_HW_UNKNOWN) {
+    if (hw_rev == DISPLAY_HW_UNKNOWN) {
+      LOGW("Unknown display revision, applying OTP config as fallback");
+    }
+    write_register_table(display_otp_config_table, display_otp_config_table_size);
+    otp_written = true;
+  }
+
+  // Write common initialization registers for all displays
+  write_register_table(display_init_table, display_init_table_size);
+
+  // Verify registers
+  if (otp_written) {
+    verify_register_table(display_otp_config_table, display_otp_config_table_size, "OTP config");
+  }
+  verify_register_table(display_init_table, display_init_table_size, "Init");
 
   set_page(0);  // Return to page 0
 }

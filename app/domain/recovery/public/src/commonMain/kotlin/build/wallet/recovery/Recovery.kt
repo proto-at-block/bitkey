@@ -48,6 +48,14 @@ sealed interface Recovery {
     val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature
 
     /**
+     * The original app global auth key from the keybox before recovery was initiated.
+     * Only set for Lost Hardware recovery since there's an existing keybox.
+     * Null for Lost App recovery (no pre-existing keybox) and for ServerDependentRecovery
+     * states (keybox still has the original key, so we can read it directly from there).
+     */
+    val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?
+
+    /**
      * A local recovery that has yet to complete on the server so its success depends
      * on server cooperation. The server could stop cooperating at any point meaning the
      * local attempt will fail.
@@ -73,6 +81,7 @@ sealed interface Recovery {
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         override val serverRecovery: ServerRecovery,
+        override val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
       ) : ServerDependentRecovery
     }
 
@@ -97,6 +106,7 @@ sealed interface Recovery {
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
         val sealedSsek: SealedSsek?,
+        override val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
       ) : ServerIndependentRecovery
 
       /**
@@ -113,6 +123,7 @@ sealed interface Recovery {
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
         val sealedSsek: SealedSsek?,
+        override val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
       ) : ServerIndependentRecovery
 
       /**
@@ -130,6 +141,7 @@ sealed interface Recovery {
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
         val sealedSsek: SealedSsek?,
+        override val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
       ) : ServerIndependentRecovery
 
       /**
@@ -148,6 +160,7 @@ sealed interface Recovery {
         val sealedCsek: SealedCsek,
         val sealedSsek: SealedSsek?,
         val keysets: List<SpendingKeyset>,
+        override val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
       ) : ServerIndependentRecovery
 
       /**
@@ -166,6 +179,7 @@ sealed interface Recovery {
         val sealedCsek: SealedCsek,
         val sealedSsek: SealedSsek?,
         val keysets: List<SpendingKeyset>,
+        override val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
       ) : ServerIndependentRecovery
 
       /**
@@ -184,6 +198,7 @@ sealed interface Recovery {
         val sealedCsek: SealedCsek,
         val sealedSsek: SealedSsek?,
         val keysets: List<SpendingKeyset>,
+        override val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
       ) : ServerIndependentRecovery
 
       /**
@@ -200,6 +215,7 @@ sealed interface Recovery {
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         val keysets: List<SpendingKeyset>,
+        override val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
       ) : ServerIndependentRecovery
 
       /**
@@ -216,6 +232,7 @@ sealed interface Recovery {
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         val keysets: List<SpendingKeyset>,
+        override val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
       ) : ServerIndependentRecovery
     }
   }

@@ -18,6 +18,7 @@ use recovery::repository::RecoveryRepository;
 use serde::{Deserialize, Serialize};
 use tracing::{error, event, instrument, Level};
 use types::account::{
+    bitcoin::to_wsm_bitcoin_network,
     entities::{
         v2::{
             FullAccountAuthKeysInputV2, SpendingKeysetInputV2, UpgradeLiteAccountAuthKeysInputV2,
@@ -161,8 +162,12 @@ pub async fn create_account_v2(
     // Generate a server key in WSM
     let keyset_id = KeysetId::new(id_generator.gen_spending_keyset_id())
         .map_err(RouteError::InvalidIdentifier)?;
+
     let key = wsm_client
-        .create_root_key(&keyset_id.to_string(), request.spend.network)
+        .create_root_key(
+            &keyset_id.to_string(),
+            to_wsm_bitcoin_network(request.spend.network),
+        )
         .await
         .map_err(|e| {
             let msg = "Failed to create new key in WSM";
@@ -339,7 +344,10 @@ pub async fn upgrade_account_v2(
     let keyset_id = KeysetId::new(id_generator.gen_spending_keyset_id())
         .map_err(RouteError::InvalidIdentifier)?;
     let key = wsm_client
-        .create_root_key(&keyset_id.to_string(), request.spend.network)
+        .create_root_key(
+            &keyset_id.to_string(),
+            to_wsm_bitcoin_network(request.spend.network),
+        )
         .await
         .map_err(|e| {
             let msg = "Failed to create new key in WSM";
@@ -496,7 +504,10 @@ pub async fn create_keyset_v2(
 
     let spending_keyset_id = KeysetId::gen().map_err(RouteError::InvalidIdentifier)?;
     let key = wsm_client
-        .create_root_key(&spending_keyset_id.to_string(), request.network)
+        .create_root_key(
+            &spending_keyset_id.to_string(),
+            to_wsm_bitcoin_network(request.network),
+        )
         .await
         .map_err(|e| {
             let msg = "Failed to create new key in WSM";

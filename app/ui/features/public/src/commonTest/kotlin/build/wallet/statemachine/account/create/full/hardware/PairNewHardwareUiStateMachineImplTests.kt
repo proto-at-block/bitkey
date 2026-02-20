@@ -10,6 +10,9 @@ import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.W3OnboardingFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockMethod
 import build.wallet.nfc.transaction.PairingTransactionProviderFake
@@ -51,13 +54,20 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
 
-  val stateMachine = PairNewHardwareUiStateMachineImpl(
-    eventTracker = eventTracker,
-    pairingTransactionProvider = pairingTransactionProvider,
-    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-    helpCenterUiStateMachine = helpCenterUiStateMachine,
-    hardwareUnlockInfoService = hardwareUnlockInfoService
-  )
+  val featureFlagDao = FeatureFlagDaoFake()
+  val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
+
+  fun createStateMachine() =
+    PairNewHardwareUiStateMachineImpl(
+      eventTracker = eventTracker,
+      pairingTransactionProvider = pairingTransactionProvider,
+      nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+      helpCenterUiStateMachine = helpCenterUiStateMachine,
+      hardwareUnlockInfoService = hardwareUnlockInfoService,
+      w3OnboardingFeatureFlag = w3OnboardingFeatureFlag
+    )
+
+  val stateMachine = createStateMachine()
 
   val onSuccessCalls = turbines.create<FingerprintEnrolled>("on success calls")
 
@@ -89,6 +99,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     hardwareUnlockInfoService.clear()
+    featureFlagDao.reset()
   }
 
   test("pairing new wallet ui -- success") {
@@ -527,6 +538,98 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       }
 
       onExitCalls.awaitItem()
+    }
+  }
+
+  // W3 Onboarding Flow Tests
+
+  test("W3 onboarding -- shows activation instructions V2 screen when flag is enabled") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitBody<PairNewHardwareBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+        header.headline.shouldBe("Let's get set up")
+      }
+    }
+  }
+
+  test("W3 onboarding -- tapping continue goes directly to NFC") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitBody<PairNewHardwareBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+        primaryButton.onClick()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(fingerprintEnrolled)
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_FINGERPRINT_COMPLETE))
+
+      onSuccessCalls.awaitItem().shouldBe(fingerprintEnrolled)
+    }
+  }
+
+  test("W3 onboarding -- no screen button routes to legacy activation flow") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitBody<PairNewHardwareBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+        secondaryButton.shouldNotBeNull().onClick()
+      }
+
+      // Should now show the legacy activation instructions
+      awaitBody<PairNewHardwareBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
+      }
+    }
+  }
+
+  test("W3 onboarding -- back from activation instructions V2 exits") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitBody<PairNewHardwareBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      onExitCalls.awaitItem()
+    }
+  }
+
+  test("W3 onboarding -- flag disabled shows legacy activation instructions") {
+    w3OnboardingFeatureFlag.setFlagValue(false)
+    val legacyStateMachine = createStateMachine()
+
+    legacyStateMachine.test(props) {
+      awaitBody<PairNewHardwareBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
+      }
     }
   }
 })

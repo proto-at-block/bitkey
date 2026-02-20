@@ -21,6 +21,7 @@ import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.*
+import build.wallet.nfc.platform.ChunkData
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
@@ -82,6 +83,7 @@ class BitkeyW1CommandsFake(
     patchSize: UInt?,
     fwupMode: FwupMode,
     mcuRole: McuRole,
+    version: String,
   ): HardwareInteraction<Boolean> = HardwareInteraction.Completed(true)
 
   override suspend fun fwupTransfer(
@@ -370,6 +372,38 @@ class BitkeyW1CommandsFake(
     handles: ConfirmationHandles,
   ): ConfirmationResult {
     throw NfcException.CommandError(message = "W1 does not support confirmation protocol")
+  }
+
+  override suspend fun getConfirmationResultChunk(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+    chunkIndex: UInt,
+  ): ChunkData {
+    throw NfcException.CommandError(message = "W1 does not support confirmation protocol")
+  }
+
+  override suspend fun getAddress(
+    session: NfcSession,
+    addressIndex: UInt,
+  ): String {
+    throw NfcException.CommandError(
+      message = "getAddress is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun verifyKeysAndBuildDescriptor(
+    session: NfcSession,
+    appSpendingKey: ByteString,
+    appSpendingKeyChaincode: ByteString,
+    networkMainnet: Boolean,
+    appAuthKey: ByteString,
+    serverSpendingKey: ByteString,
+    serverSpendingKeyChaincode: ByteString,
+    wsmSignature: ByteString,
+  ): Boolean {
+    throw NfcException.CommandError(
+      message = "verifyKeysAndBuildDescriptor is not supported on W1 hardware. This is a W3-only feature."
+    )
   }
 
   private fun EnrolledFingerprints.insertOrUpdateFingerprintHandle(

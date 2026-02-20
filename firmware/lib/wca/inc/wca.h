@@ -14,6 +14,12 @@
 #define WCA_INS_PROTO_CONT   (0x77)
 #define WCA_INS_GET_RESPONSE (0x78)
 
+// APDU size constraints (see README.md for details)
+// APDU_OVERHEAD = CLA (1) + INS (1) + P1 (1) + P2 (1) + Lc (1 or 3)
+#define WCA_MAX_BUFFER_SIZE (512)
+#define WCA_APDU_OVERHEAD   (7)
+#define WCA_MAX_PROTO_SIZE  (WCA_MAX_BUFFER_SIZE - WCA_APDU_OVERHEAD)
+
 typedef bool (*wca_sem_take_t)(void);
 typedef bool (*wca_sem_give_t)(void);
 typedef struct {

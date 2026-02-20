@@ -24,7 +24,19 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "5.0.0-alpha.14",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okhttp-5.0.0-alpha.14.jar": "f0e3ffcbba6744ab4918a55aa32ff4f408fcd21e45ab8bd5f7883a1793b2a253"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
                 "gradle-plugins[bitkey]"
             ]
         }

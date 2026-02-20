@@ -19,7 +19,7 @@ void display_controller_menu_on_enter(display_controller_t* controller, const vo
 #ifdef MFGTEST
   // Populate sleep state for MFG builds
   uint32_t timeout = sleep_get_configured_timeout();
-  controller->show_screen.params.menu.sleep_disabled = (timeout >= UINT32_MAX);
+  controller->show_screen.params.menu.sleep_disabled = (timeout == SLEEP_INHIBIT_INFINITE);
 #endif
 }
 
@@ -93,7 +93,7 @@ flow_action_result_t display_controller_menu_on_action(
             controller->show_screen.params.menu.sleep_disabled = false;
           } else {
             // Currently enabled, disable it
-            sleep_inhibit(UINT32_MAX);
+            sleep_inhibit(SLEEP_INHIBIT_INFINITE);
             controller->show_screen.params.menu.sleep_disabled = true;
           }
 
@@ -108,6 +108,21 @@ flow_action_result_t display_controller_menu_on_action(
       case fwpb_display_menu_item_DISPLAY_MENU_ITEM_RUN_IN:
         // Start run-in test
         return flow_result_navigate(FLOW_MFG, fwpb_display_transition_DISPLAY_TRANSITION_FADE);
+
+      case fwpb_display_menu_item_DISPLAY_MENU_ITEM_MONEY_MOVEMENT:
+        // Start money movement test flow with mock data
+        controller->nav.money_movement.is_receive_flow = false;
+        memset(&controller->nav.money_movement.send_data, 0,
+               sizeof(controller->nav.money_movement.send_data));
+        strncpy(controller->nav.money_movement.send_data.amount_sats, ".00250000",
+                sizeof(controller->nav.money_movement.send_data.amount_sats) - 1);
+        strncpy(controller->nav.money_movement.send_data.fee_sats, ".00000450",
+                sizeof(controller->nav.money_movement.send_data.fee_sats) - 1);
+        strncpy(controller->nav.money_movement.send_data.address,
+                "bc1qxy2kgd0hv83bszrp2jnpqre4m6dqv9t6y5k2wlh1234567890abcdefg",
+                sizeof(controller->nav.money_movement.send_data.address) - 1);
+        return flow_result_navigate(FLOW_TRANSACTION,
+                                    fwpb_display_transition_DISPLAY_TRANSITION_FADE);
 #endif
 
       default:

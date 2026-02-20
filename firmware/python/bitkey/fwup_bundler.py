@@ -3,9 +3,8 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
-
 from shutil import copy
+from typing import List, Optional
 
 import jinja2
 import semver
@@ -51,6 +50,8 @@ class DeltaBundle:
     a2b: Patch
     b2a: Patch
     zip_file: Path
+    a2b_patches: Optional[List[Patch]] = None
+    b2a_patches: Optional[List[Patch]] = None
 
     @property
     def max_size(self):
@@ -388,7 +389,7 @@ class FwupBundler:
         b2a_patches = [p for i, p in enumerate(all_patches) if i % 2 == 1]
         max_a2b = max(a2b_patches, key=lambda p: p.size)
         max_b2a = max(b2a_patches, key=lambda p: p.size)
-        return DeltaBundle(max_a2b, max_b2a, Path(str(bundle_dir) + ".zip"))
+        return DeltaBundle(max_a2b, max_b2a, Path(str(bundle_dir) + ".zip"), a2b_patches, b2a_patches)
 
     def _generate_patch_and_copy_sig_for_mcu(self, from_slot, to_slot, patch_name, info, output_dir, params, key_pem, mcu_config) -> Patch:
         """Generate patch for specific MCU."""

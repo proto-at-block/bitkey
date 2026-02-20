@@ -6,6 +6,12 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.ui.app.dev.FirmwareMetadataScreen
 
+data class McuInfoModel(
+  val role: String,
+  val name: String,
+  val firmwareVersion: String,
+)
+
 data class FirmwareMetadataModel(
   val activeSlot: String,
   val gitId: String,
@@ -15,6 +21,7 @@ data class FirmwareMetadataModel(
   val timestamp: String,
   val hash: String,
   val hwRevision: String,
+  val mcuInfo: List<McuInfoModel> = emptyList(),
 )
 
 data class FirmwareMetadataBodyModel(

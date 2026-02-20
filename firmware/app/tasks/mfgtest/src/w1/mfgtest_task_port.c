@@ -2,6 +2,7 @@
 
 #include "assert.h"
 #include "log.h"
+#include "mfgtest.pb.h"
 #include "proto_helpers.h"
 #include "wallet.pb.h"
 
@@ -64,4 +65,21 @@ void mfgtest_task_port_handle_coproc_gpio_response(ipc_ref_t* message) {
   // Should never be called on W1.
   (void)message;
   ASSERT(false);
+}
+
+void mfgtest_task_port_handle_touch_data_cmd(ipc_ref_t* message) {
+  fwpb_wallet_cmd* wallet_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
+  wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_touch_data_rsp_tag;
+
+  fwpb_mfgtest_touch_data_rsp* rsp = &wallet_rsp->msg.mfgtest_touch_data_rsp;
+  rsp->rsp_status = fwpb_mfgtest_touch_data_rsp_mfgtest_touch_data_rsp_status_FAILED;
+
+  LOGE("Touch data commands not supported on W1");
+  proto_send_rsp(wallet_cmd, wallet_rsp);
+}
+
+void mfgtest_task_port_handle_touch_point(ipc_ref_t* message) {
+  // Should never be called on W1 - no touch support.
+  (void)message;
 }

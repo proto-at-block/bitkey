@@ -16,6 +16,7 @@ kotlin {
         implementation(projects.domain.hardwarePublic)
         implementation(projects.domain.featureFlagPublic)
         implementation(projects.domain.databasePublic)
+        implementation(projects.rust.actionProofFfi)
       }
     }
 

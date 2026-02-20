@@ -5,7 +5,7 @@
 /**
  * @brief Maximum number of proto message tag callbacks that can be registered.
  */
-#define UC_ROUTE_MAX_NUM_REGISTRATIONS 15u
+#define UC_ROUTE_MAX_NUM_REGISTRATIONS 17u
 
 /**
  * @brief Routes a proto to the task that is registered to listen for it.

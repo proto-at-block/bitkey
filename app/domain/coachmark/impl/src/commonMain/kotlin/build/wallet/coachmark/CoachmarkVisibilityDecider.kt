@@ -2,6 +2,8 @@ package build.wallet.coachmark
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
+import build.wallet.feature.isEnabled
 import kotlinx.datetime.Clock
 
 /**
@@ -12,6 +14,7 @@ import kotlinx.datetime.Clock
 class CoachmarkVisibilityDecider(
   val clock: Clock,
   private val bip177CoachmarkPolicy: Bip177CoachmarkPolicy,
+  private val privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
 ) {
   /**
    * Returns whether a coachmark is eligible to be created based on feature flags.
@@ -20,21 +23,26 @@ class CoachmarkVisibilityDecider(
   suspend fun shouldCreate(coachmarkId: CoachmarkIdentifier): Boolean =
     when (coachmarkId) {
       CoachmarkIdentifier.Bip177Coachmark -> bip177CoachmarkPolicy.shouldCreate()
+      CoachmarkIdentifier.PrivateWalletHomeCoachmark -> privateWalletMigrationFeatureFlag.isEnabled()
       else -> true
     }
 
   /**
    * Determines if an existing coachmark should be visible: must be eligible by flags,
    * not viewed, and not expired relative to the current clock.
+   * A null expiration means the coachmark never expires.
    */
   suspend fun shouldShow(coachmark: Coachmark): Boolean {
     val featureFlagged = when (coachmark.id) {
       CoachmarkIdentifier.Bip177Coachmark -> bip177CoachmarkPolicy.shouldShow()
+      CoachmarkIdentifier.PrivateWalletHomeCoachmark -> privateWalletMigrationFeatureFlag.isEnabled()
       else -> {
         // Not all coachmarks have associated feature flags
         true
       }
     }
-    return coachmark.expiration > clock.now() && !coachmark.viewed && featureFlagged
+    val notExpired = coachmark.expiration?.let { it > clock.now() } ?: true
+
+    return notExpired && !coachmark.viewed && featureFlagged
   }
 }

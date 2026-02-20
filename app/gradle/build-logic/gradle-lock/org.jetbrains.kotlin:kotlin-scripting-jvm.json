@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-scripting-jvm",
     "components": [
         {
-            "version": "2.0.20",
+            "version": "2.2.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-scripting-jvm-2.0.20.jar": "b0bb500f6333b4b16c8eb69ea394ef684f33453f8d3431034a8907a9f18db6f1"
+                        "kotlin-scripting-jvm-2.2.20.jar": "a91fb9049634a32ba6d3d2e91a0cb9983e0aa4e71c0c2e1b283838a8e061631f"
                     }
                 }
             ],

@@ -91,7 +91,7 @@ pub fn generate_message(
     let message_hash = sha256::Hash::from_engine(message_engine);
 
     // Create message from hash
-    let message = Message::from_slice(&message_hash.to_byte_array())
+    let message = Message::from_digest_slice(&message_hash.to_byte_array())
         .context("Failed to create message from hash")?;
 
     Ok(message)
@@ -116,7 +116,7 @@ mod tests {
     ) -> (Input, SecretKey, PublicKey, Vec<u8>) {
         let (priv_key, pub_key) = secp.generate_keypair(rng);
         let msg_slice: [u8; 32] = random();
-        let msg = Message::from_slice(&msg_slice).unwrap();
+        let msg = Message::from_digest_slice(&msg_slice).unwrap();
         let sig = bitcoin::ecdsa::Signature::sighash_all(secp.sign_ecdsa(&msg, &priv_key));
 
         let bdk_pk = bitcoin::PublicKey {
@@ -155,7 +155,7 @@ mod tests {
 
         // Create a proper bitcoin signature
         let msg_slice: [u8; 32] = random();
-        let msg = Message::from_slice(&msg_slice).unwrap();
+        let msg = Message::from_digest_slice(&msg_slice).unwrap();
         let sig = bitcoin::ecdsa::Signature::sighash_all(secp.sign_ecdsa(&msg, &priv_key));
 
         let bdk_pk = bitcoin::PublicKey {
@@ -180,7 +180,7 @@ mod tests {
         let (priv_key2, pub_key2) = secp.generate_keypair(&mut rng);
 
         let msg_slice: [u8; 32] = random();
-        let msg = Message::from_slice(&msg_slice).unwrap();
+        let msg = Message::from_digest_slice(&msg_slice).unwrap();
 
         let sig1 = bitcoin::ecdsa::Signature::sighash_all(secp.sign_ecdsa(&msg, &priv_key1));
         let sig2 = bitcoin::ecdsa::Signature::sighash_all(secp.sign_ecdsa(&msg, &priv_key2));

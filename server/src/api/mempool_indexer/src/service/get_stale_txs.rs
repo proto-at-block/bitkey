@@ -55,13 +55,12 @@ impl Service {
                 .collect::<Vec<Vec<TransactionRecord>>>();
 
             for tx_records_batch in chunks {
-                let tx_ids = tx_records_batch.iter().map(|r| r.txid.to_string()).collect::<Vec<String>>().join(", ");
                 if let Ok(updated_tx_records) = self.repo.update_expiry(tx_records_batch).await {
                     yield updated_tx_records;
                 } else {
                     event!(
                         Level::ERROR,
-                        "Failed to persist tx record for batch with tx ids: {tx_ids}",
+                        "Failed to persist tx record batch",
                     );
                 }
         }

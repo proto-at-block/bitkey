@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.okio:okio-fakefilesystem-jvm",
     "components": [
         {
-            "version": "3.7.0",
+            "version": "3.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "okio-fakefilesystem-jvm-3.7.0.jar": "3f2084c61902372eef323e2e5a8e5a60ce1e4836dce8bb8bc51abe1d7dbddeee"
+                        "okio-fakefilesystem-jvm-3.9.1.jar": "a26b07aa8d4f6a8dc33d6d28d2d416ab4ab7e37db78e2c15fb4b104f8f9fbbb4"
                     }
                 }
             ],

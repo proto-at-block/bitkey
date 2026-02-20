@@ -19,7 +19,6 @@ kotlin {
   sourceSets {
     all {
       languageSettings {
-        optIn("androidx.compose.material.ExperimentalMaterialApi")
         optIn("androidx.compose.material3.ExperimentalMaterial3Api")
         optIn("org.jetbrains.compose.resources.ExperimentalResourceApi")
       }
@@ -72,6 +71,7 @@ kotlin {
         api(projects.domain.walletPublic)
         api(projects.domain.walletmigrationPublic)
         api(projects.domain.workerPublic)
+        api(projects.libs.chaincodeDelegationPublic)
         api(projects.shared.priceChartPublic)
         api(projects.domain.securityCenterPublic)
         api(projects.domain.privilegedActionsPublic)
@@ -150,6 +150,7 @@ kotlin {
         implementation(projects.domain.inheritanceFake)
         implementation(projects.domain.txVerificationFake)
         implementation(projects.libs.cloudStorePublic)
+        implementation(projects.libs.chaincodeDelegationFake)
         // TODO: remove dependency on :impl.
         implementation(projects.libs.amountImpl) {
           because("Depends on DoubleFormatterImpl")
@@ -175,6 +176,7 @@ kotlin {
         implementation(projects.domain.walletFake)
         implementation(projects.domain.privilegedActionsFake)
         implementation(projects.shared.integrationTestingPublic)
+        implementation(projects.libs.memfaultFake)
         implementation(projects.libs.moneyTesting)
         implementation(projects.libs.stateMachineTesting)
         implementation(projects.libs.encryptionFake)
@@ -194,15 +196,15 @@ testCodeEliminator {
 
 buildLogic {
   ksp {
-    val androidUiLayout = projects.android.uiAppPublic.dependencyProject.layout
-    val xcFrameworkProject = projects.shared.xcFramework.dependencyProject
+    val androidUiProject = project(projects.android.uiAppPublic.path)
+    val xcFrameworkProject = project(projects.shared.xcFramework.path)
     arg(
       "swiftTestCaseOutputDirectory",
       rootDir.resolve("ios/Wallet/Tests/SnapshotTests/generated").absolutePath
     )
     arg(
       "kotlinTestCaseOutputDirectory",
-      androidUiLayout.projectDirectory.dir("_build/generated/snapshots").asFile.absolutePath
+      androidUiProject.layout.projectDirectory.dir("_build/generated/snapshots").asFile.absolutePath
     )
     arg(
       "kotlinIosOutputDirectory",

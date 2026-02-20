@@ -16,6 +16,9 @@ import build.wallet.bitkey.keybox.SoftwareAccountMock
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.money.currency.USD
 import build.wallet.platform.app.AppSessionManagerFake
+import build.wallet.platform.config.AppVariant
+import build.wallet.testing.shouldBeErrOfType
+import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -64,6 +67,7 @@ class ExchangeRateServiceImplTests : FunSpec({
       exchangeRateF8eClient = exchangeRateF8eClient,
       accountService = accountService,
       accountConfigService = accountConfigService,
+      appVariant = AppVariant.Development,
       clock = ClockFake(now = Instant.fromEpochSeconds(500)),
       exchangeRateSyncFrequency = ExchangeRateSyncFrequency(syncFrequency),
       appScope = testScope
@@ -176,5 +180,37 @@ class ExchangeRateServiceImplTests : FunSpec({
     testScope.runCurrent()
 
     exchangeRateService.exchangeRates.value.shouldContainExactly(exchangeRate1)
+  }
+
+  test("syncRates returns fetched rates on success") {
+    val expectedRates = listOf(exchangeRate1)
+    exchangeRateF8eClient.exchangeRates.value = Ok(expectedRates)
+
+    val result = exchangeRateService.syncRates()
+    testScope.runCurrent()
+
+    // Verify returned rates match what was fetched
+    result.shouldBeOk().shouldContainExactly(exchangeRate1)
+    // Verify rates are also stored locally
+    exchangeRateService.exchangeRates.value.shouldContainExactly(exchangeRate1)
+  }
+
+  test("syncRates returns error when F8e client fails") {
+    exchangeRateF8eClient.exchangeRates.value = Err(UnhandledException(Exception("network error")))
+
+    exchangeRateService.syncRates().shouldBeErrOfType<Error>()
+  }
+
+  test("syncRates returns empty list for lite accounts without syncing") {
+    accountService.accountState.value = Ok(ActiveAccount(LiteAccountMock))
+    exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
+
+    val result = exchangeRateService.syncRates()
+    testScope.runCurrent()
+
+    // Returns empty list for lite accounts (they don't need rates)
+    result.shouldBeOk().shouldBeEmpty()
+    // No rates stored locally
+    exchangeRateService.exchangeRates.value.shouldBeEmpty()
   }
 })

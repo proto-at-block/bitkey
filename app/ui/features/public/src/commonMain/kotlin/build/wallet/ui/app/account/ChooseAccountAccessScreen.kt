@@ -7,11 +7,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement.SpaceBetween
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -44,7 +44,7 @@ fun ChooseAccountAccessScreen(
       .background(WalletTheme.colors.surfaceMarigold),
     verticalArrangement = SpaceBetween
   ) {
-    Icon(
+    Image(
       modifier = Modifier
         .resId("logo")
         .padding(vertical = 52.dp)
@@ -57,7 +57,7 @@ fun ChooseAccountAccessScreen(
         ),
       painter = painterResource(Res.drawable.bitkey_full_logo),
       contentDescription = "Bitkey Logo",
-      tint = WalletTheme.colors.surfaceCorian
+      colorFilter = ColorFilter.tint(WalletTheme.colors.surfaceCorian)
     )
     BoxWithConstraints(
       modifier = Modifier

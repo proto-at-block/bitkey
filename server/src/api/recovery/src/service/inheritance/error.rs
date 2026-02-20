@@ -18,7 +18,7 @@ pub enum ServiceError {
     #[error(transparent)]
     Account(#[from] AccountError),
     #[error(transparent)]
-    InvalidAddress(#[from] bdk_utils::bdk::bitcoin::address::Error),
+    ParseAddress(#[from] bdk_utils::bdk::bitcoin::address::ParseError),
     #[error("Trusted contact's alias cannot be blank")]
     BlankTrustedContactAlias,
     #[error("Trusted contact has no roles assigned")]
@@ -120,7 +120,7 @@ impl From<ServiceError> for ApiError {
             | ServiceError::InvalidClaimStateForRecreation
             | ServiceError::PendingClaimNotFound
             | ServiceError::IncompatibleAccountType
-            | ServiceError::InvalidAddress(_)
+            | ServiceError::ParseAddress(_)
             | ServiceError::ClaimDelayNotComplete
             | ServiceError::UnownedDestination
             | ServiceError::ShortenDelayForNonTestAccount

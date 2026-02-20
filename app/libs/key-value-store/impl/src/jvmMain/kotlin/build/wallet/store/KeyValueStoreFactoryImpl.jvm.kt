@@ -2,6 +2,7 @@ package build.wallet.store
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import build.wallet.platform.data.FileManager
 import com.github.michaelbull.result.getOrThrow
 import com.russhwolf.settings.PropertiesSettings
@@ -18,7 +19,7 @@ import java.util.*
 
 @BitkeyInject(AppScope::class)
 class KeyValueStoreFactoryImpl(
-  private val fileManager: FileManager,
+  @Impl private val fileManager: FileManager,
 ) : KeyValueStoreFactory {
   private val settings = mutableMapOf<String, SuspendSettings>()
   private val lock = Mutex()

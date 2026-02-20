@@ -53,6 +53,11 @@ class ExchangeRateDaoFake : ExchangeRateDao {
   override suspend fun historicalExchangeRatesAtTime(time: Instant): List<ExchangeRate>? =
     historicalExchangeRates.value[time]
 
+  override suspend fun clear(): Result<Unit, Error> {
+    allExchangeRates.value = emptyList()
+    return Ok(Unit)
+  }
+
   fun reset() {
     allExchangeRates.value = emptyList()
     historicalExchangeRates.value = emptyMap()

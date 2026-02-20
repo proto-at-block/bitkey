@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.errorprone:error_prone_annotations",
+    "components": [
+        {
+            "version": "2.27.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "error_prone_annotations-2.27.0.jar": "24c923372c58e35d0b9f16a028929bb9aedc77521867c274f2bd0735df5ba1f5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
+        }
+    ]
+}

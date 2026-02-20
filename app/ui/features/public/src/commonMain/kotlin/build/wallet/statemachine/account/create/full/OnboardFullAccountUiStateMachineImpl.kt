@@ -3,9 +3,7 @@ package build.wallet.statemachine.account.create.full
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILED
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_DESCRIPTOR_BACKUP_FAILURE
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
 import build.wallet.cloud.backup.isFullAccount
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -13,11 +11,10 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.onboarding.OnboardAccountService
 import build.wallet.onboarding.OnboardAccountStep
-import build.wallet.onboarding.OnboardAccountStep.CloudBackup
-import build.wallet.onboarding.OnboardAccountStep.DescriptorBackup
-import build.wallet.onboarding.OnboardAccountStep.NotificationPreferences
-import build.wallet.statemachine.account.create.full.OnboardFullAccountUiStateMachineImpl.State
+import build.wallet.onboarding.OnboardAccountStep.*
 import build.wallet.statemachine.account.create.full.OnboardFullAccountUiStateMachineImpl.State.*
+import build.wallet.statemachine.account.create.full.onboard.BuildHardwareDescriptorUiProps
+import build.wallet.statemachine.account.create.full.onboard.BuildHardwareDescriptorUiStateMachine
 import build.wallet.statemachine.account.create.full.onboard.OnboardDescriptorBackupUiProps
 import build.wallet.statemachine.account.create.full.onboard.OnboardDescriptorBackupUiStateMachine
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiProps
@@ -38,6 +35,7 @@ class OnboardFullAccountUiStateMachineImpl(
   private val notificationPreferencesSetupUiStateMachine:
     NotificationPreferencesSetupUiStateMachine,
   private val onboardDescriptorBackupUiStateMachine: OnboardDescriptorBackupUiStateMachine,
+  private val buildHardwareDescriptorUiStateMachine: BuildHardwareDescriptorUiStateMachine,
 ) : OnboardFullAccountUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -128,6 +126,22 @@ class OnboardFullAccountUiStateMachineImpl(
               )
             )
           }
+          is BuildHardwareDescriptor -> {
+            buildHardwareDescriptorUiStateMachine.model(
+              props = BuildHardwareDescriptorUiProps(
+                fullAccount = props.fullAccount,
+                onComplete = {
+                  state = CompletingOnboardingStep(currentState.step)
+                },
+                onBackupFailed = { error ->
+                  state = ErrorHandlingOnboardingStep(
+                    step = currentState.step,
+                    error = error
+                  )
+                }
+              )
+            )
+          }
           is DescriptorBackup -> {
             onboardDescriptorBackupUiStateMachine.model(
               props = OnboardDescriptorBackupUiProps(
@@ -161,6 +175,19 @@ class OnboardFullAccountUiStateMachineImpl(
           is NotificationPreferences -> {
             ErrorFormBodyModel(
               title = "Error setting up notifications",
+              subline = "Please retry.",
+              primaryButton = ButtonDataModel(
+                text = "Retry",
+                onClick = {
+                  state = HandlingOnboardingStep(step = currentState.step)
+                }
+              ),
+              eventTrackerScreenId = null
+            ).asRootScreen()
+          }
+          is BuildHardwareDescriptor -> {
+            ErrorFormBodyModel(
+              title = "Error building hardware descriptor",
               subline = "Please retry.",
               primaryButton = ButtonDataModel(
                 text = "Retry",
@@ -215,6 +242,7 @@ class OnboardFullAccountUiStateMachineImpl(
           is CloudBackup -> SAVE_CLOUD_BACKUP_LOADING
           is NotificationPreferences -> SAVE_NOTIFICATIONS_LOADING
           is DescriptorBackup -> NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING
+          is BuildHardwareDescriptor -> LOADING_ONBOARDING_STEP
         }
         LoadingBodyModel(id = screenId).asRootScreen()
       }

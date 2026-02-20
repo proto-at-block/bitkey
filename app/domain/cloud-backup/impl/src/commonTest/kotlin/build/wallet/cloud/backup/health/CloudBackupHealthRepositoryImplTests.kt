@@ -539,7 +539,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
     test("marks backup as stale when timestamp is older than flag threshold") {
       val healthRepository = createHealthRepository()
-      
+
       // Set up matching backups (would normally be healthy)
       val backup = CloudBackupV3WithFullAccountMock
       cloudBackupDao.set(fullAccount.accountId.serverId, backup)
@@ -556,16 +556,16 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
       // Should report as stale backup due to timestamp
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.StaleBackup>()
-      
+
       // Should log the reason
-      logWriter.logs.any { 
+      logWriter.logs.any {
         it.message.contains("older than force reupload threshold")
       }.shouldBe(true)
     }
 
     test("reports backup as healthy when timestamp is newer than flag threshold") {
       val healthRepository = createHealthRepository()
-      
+
       // Set up matching backups
       val backup = CloudBackupV3WithFullAccountMock
       cloudBackupDao.set(fullAccount.accountId.serverId, backup)
@@ -586,7 +586,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
     test("ignores feature flag when value is empty") {
       val healthRepository = createHealthRepository()
-      
+
       // Set up matching backups
       val backup = CloudBackupV3WithFullAccountMock
       cloudBackupDao.set(fullAccount.accountId.serverId, backup)
@@ -607,7 +607,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
     test("handles invalid timestamp format gracefully") {
       val healthRepository = createHealthRepository()
-      
+
       // Set up matching backups
       val backup = CloudBackupV3WithFullAccountMock
       cloudBackupDao.set(fullAccount.accountId.serverId, backup)
@@ -624,7 +624,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
       // Should report as healthy, invalid timestamp is ignored
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
-      
+
       // Should log the error
       logWriter.logs.any {
         it.message.contains("Invalid timestamp format")
@@ -633,7 +633,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
     test("force reupload takes precedence over backup match check") {
       val healthRepository = createHealthRepository()
-      
+
       // Set up matching backups that would normally be healthy
       val backup = CloudBackupV3WithFullAccountMock
       cloudBackupDao.set(fullAccount.accountId.serverId, backup)

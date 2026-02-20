@@ -1,6 +1,6 @@
 package bitkey.ui.framework
 
-import androidx.compose.material.Text
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
@@ -31,6 +31,6 @@ data class NavigatorModelFake(
 ) : BodyModel() {
   @Composable
   override fun render(modifier: Modifier) {
-    Text(initialScreen.toString())
+    BasicText(initialScreen.toString())
   }
 }

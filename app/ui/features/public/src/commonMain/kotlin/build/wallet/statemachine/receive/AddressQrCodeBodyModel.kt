@@ -40,6 +40,10 @@ data class AddressQrCodeBodyModel(
       val onShareClick: () -> Unit,
       val loadingPartnerId: String? = null,
       val isRefreshing: Boolean = false,
+      /** Whether to show the verify on device button (W3 hardware only) */
+      val showVerifyOnDeviceButton: Boolean = false,
+      /** Callback when verify on device button is clicked */
+      val onVerifyOnDeviceClick: (() -> Unit)? = null,
     ) : Content {
       constructor(
         address: String?,
@@ -52,6 +56,8 @@ data class AddressQrCodeBodyModel(
         onShareClick: () -> Unit,
         loadingPartnerId: String? = null,
         isRefreshing: Boolean = false,
+        showVerifyOnDeviceButton: Boolean = false,
+        onVerifyOnDeviceClick: (() -> Unit)? = null,
       ) : this(
         // Chunk the address into 4-letter size groups and then color all the odd
         // substrings ON60 (and the even substrings will be colored with primary color)
@@ -74,7 +80,9 @@ data class AddressQrCodeBodyModel(
         onCopyClick = onCopyClick,
         onShareClick = onShareClick,
         loadingPartnerId = loadingPartnerId,
-        isRefreshing = isRefreshing
+        isRefreshing = isRefreshing,
+        showVerifyOnDeviceButton = showVerifyOnDeviceButton,
+        onVerifyOnDeviceClick = onVerifyOnDeviceClick
       )
     }
 

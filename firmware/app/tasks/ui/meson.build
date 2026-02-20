@@ -4,11 +4,11 @@ common_srcs = [
 
 common_deps = [
   assert_dep,
-  rtos_dep,
-  sysevent_dep,
-  log_dep,
-  secutils_dep,
   ipc_dep,
+  log_dep,
+  rtos_dep,
+  secutils_dep,
+  sysevent_dep,
   ui_messaging_dep,
 ]
 

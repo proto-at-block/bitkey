@@ -1,4 +1,5 @@
-use bitcoin::secp256k1::{PublicKey, ThirtyTwoByteHash};
+use bitcoin::hashes::Hash;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::{bip32::DerivationPath, secp256k1::ecdsa::Signature};
 use next_gen::generator;
 
@@ -18,8 +19,8 @@ pub(crate) fn derive_and_sign_sighash(
     async_sign: bool,
 ) -> Result<Signature, CommandError> {
     let sighash = match sighash {
-        Sighash::Legacy(sighash) => sighash.into_32(),
-        Sighash::SegwitV0(sighash) => sighash.into_32(),
+        Sighash::Legacy(sighash) => sighash.to_byte_array(),
+        Sighash::SegwitV0(sighash) => sighash.to_byte_array(),
     }
     .to_vec();
 

@@ -33,6 +33,7 @@ server/resources/lambda/bootstrap
 valid-dependencies/**/target
 
 .*.swp
+*.swo
 
 .ninja_log
 
@@ -53,9 +54,9 @@ node_modules
 cli/wallet.db/*
 
 # AI Tooling
-AGENTS.local.md
-/CLAUDE.local.md
 **/.claude/settings.local.json
+AGENTS.local.md
+**/.gradle-logs/
 
 # SPM
 .swiftpm

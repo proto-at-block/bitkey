@@ -5,6 +5,7 @@ import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransaction
@@ -61,10 +62,20 @@ interface WatchingWallet {
   suspend fun getNewAddress(): Result<BitcoinAddress, Error>
 
   /**
+   * Generates a new address for the wallet, returning both the address and its derivation index.
+   */
+  suspend fun getNewAddressInfo(): Result<BitcoinAddressInfo, Error>
+
+  /**
    * Returns the address at a specific index without incrementing the wallet's internal counter.
    * This is useful when you need to generate an address at a known index.
    */
   suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error>
+
+  /**
+   * Reveals the address at a specific index and persists any wallet state changes if needed.
+   */
+  suspend fun revealAddress(index: UInt): Result<BitcoinAddress, Error>
 
   /**
    * Returns the last unused address of the wallet.

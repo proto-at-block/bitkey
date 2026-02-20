@@ -1,0 +1,20 @@
+[package]
+edition = { workspace = true }
+name = "action-proof-ffi"
+publish = { workspace = true }
+version = { workspace = true }
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib", "staticlib"]
+name = "actionproof"
+
+[dependencies]
+action-proof = { path = "../../../core/action-proof" }
+thiserror = { workspace = true }
+uniffi = { workspace = true }
+
+[build-dependencies]
+uniffi = { workspace = true, features = ["build"] }

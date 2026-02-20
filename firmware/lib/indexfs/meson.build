@@ -13,6 +13,7 @@ deps = [
   assert_dep,
   log_dep,
   mcu_dep,
+  secutils_dep,
 ]
 
 indexfs_lib = library('indexfs',

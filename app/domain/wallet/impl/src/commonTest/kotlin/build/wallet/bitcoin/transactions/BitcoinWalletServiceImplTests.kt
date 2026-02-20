@@ -346,7 +346,7 @@ class BitcoinWalletServiceImplTests : FunSpec({
     }
   }
 
-  test("building psbts for all transaction priorities") {
+  test("building psbts for exact amount - all priorities succeed") {
     createBackgroundScope().launch {
       service.executeWork()
     }
@@ -362,14 +362,16 @@ class BitcoinWalletServiceImplTests : FunSpec({
         money = BitcoinMoney.sats(1_000_000)
       )
 
-      service.createPsbtsForSendAmount(sendAmount, someBitcoinAddress)
+      val psbts = service.createPsbtsForSendAmount(sendAmount, someBitcoinAddress)
         .shouldBeOk()
-        .size
-        .shouldBe(3)
+
+      psbts.fastest.shouldNotBeNull()
+      psbts.thirtyMinutes.shouldNotBeNull()
+      psbts.sixtyMinutes.shouldNotBeNull()
     }
   }
 
-  test("building psbts for all transaction priorities errors if psbts not created") {
+  test("building psbts for exact amount - errors if sixty minutes psbt not created") {
     createBackgroundScope().launch {
       service.executeWork()
     }
@@ -389,6 +391,28 @@ class BitcoinWalletServiceImplTests : FunSpec({
 
       service.createPsbtsForSendAmount(sendAmount, someBitcoinAddress)
         .shouldBeErr(Error("Error creating PSBT for 60 minutes"))
+    }
+  }
+
+  test("building psbts for send all - all priorities succeed") {
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    service.transactionsData().test {
+      wallet.initializeCalls.awaitItem()
+      wallet.launchPeriodicSyncCalls.awaitItem()
+      wallet.syncCalls.awaitItem()
+      awaitUntil { it != null }
+
+      val psbts = service.createPsbtsForSendAmount(
+        sendAmount = BitcoinTransactionSendAmount.SendAll,
+        recipientAddress = someBitcoinAddress
+      ).shouldBeOk()
+
+      psbts.fastest.shouldNotBeNull()
+      psbts.thirtyMinutes.shouldNotBeNull()
+      psbts.sixtyMinutes.shouldNotBeNull()
     }
   }
 })

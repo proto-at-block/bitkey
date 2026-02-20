@@ -101,7 +101,9 @@ fun AddressQrCodeScreen(
                   onCopyClick = content.onCopyClick,
                   copyButtonIcon = content.copyButtonIcon,
                   copyButtonLabelText = content.copyButtonLabelText,
-                  loadingPartnerId = content.loadingPartnerId
+                  loadingPartnerId = content.loadingPartnerId,
+                  showVerifyOnDeviceButton = content.showVerifyOnDeviceButton,
+                  onVerifyOnDeviceClick = content.onVerifyOnDeviceClick
                 )
               }
 
@@ -310,69 +312,108 @@ private fun CircularActionButtons(
   copyButtonIcon: Icon,
   copyButtonLabelText: String,
   loadingPartnerId: String? = null,
+  showVerifyOnDeviceButton: Boolean = false,
+  onVerifyOnDeviceClick: (() -> Unit)? = null,
 ) {
-  // Use horizontal scroll when there's more than 1 partner
-  val shouldScroll = partners.size > 1
-
-  if (shouldScroll) {
-    Row(
-      modifier = modifier
-        .horizontalScroll(rememberScrollState()),
-      horizontalArrangement = Arrangement.spacedBy(24.dp),
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      // This inherits its spacing from the horizontalArrangement applied on this Row
-      Spacer(modifier = Modifier)
-
-      ActionButton(
-        icon = Icon.SmallIconShare,
-        text = "Share",
-        onClick = onShareClick
+  Column(
+    modifier = modifier,
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
+    // Verify on device description - only shown for W3 hardware
+    if (showVerifyOnDeviceButton) {
+      Label(
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        text = "Verify this address on your Bitkey device",
+        type = LabelType.Body4Regular,
+        alignment = TextAlign.Center,
+        treatment = LabelTreatment.Secondary
       )
-
-      ActionButton(
-        icon = copyButtonIcon,
-        text = copyButtonLabelText,
-        onClick = onCopyClick
-      )
-
-      partners.forEach { partner ->
-        PartnerActionButton(
-          logoUrl = partner.logoUrl,
-          name = partner.name,
-          onClick = { onPartnerClick(partner) },
-          isLoading = partner.partnerId.value == loadingPartnerId
-        )
-      }
-
-      // This inherits its spacing from the horizontalArrangement applied on this Row
-      Spacer(modifier = Modifier)
     }
-  } else {
-    Row(
-      modifier = modifier.padding(horizontal = 20.dp),
-      horizontalArrangement = Arrangement.SpaceEvenly,
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      ActionButton(
-        icon = Icon.SmallIconShare,
-        text = "Share",
-        onClick = onShareClick
-      )
 
-      ActionButton(
-        icon = copyButtonIcon,
-        text = copyButtonLabelText,
-        onClick = onCopyClick
-      )
+    // Use horizontal scroll when there's more than 1 partner
+    val shouldScroll = partners.size > 1
 
-      partners.forEach { partner ->
-        PartnerActionButton(
-          logoUrl = partner.logoUrl,
-          name = partner.name,
-          onClick = { onPartnerClick(partner) },
-          isLoading = partner.partnerId.value == loadingPartnerId
+    if (shouldScroll) {
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        // This inherits its spacing from the horizontalArrangement applied on this Row
+        Spacer(modifier = Modifier)
+
+        ActionButton(
+          icon = Icon.SmallIconShare,
+          text = "Share",
+          onClick = onShareClick
         )
+
+        ActionButton(
+          icon = copyButtonIcon,
+          text = copyButtonLabelText,
+          onClick = onCopyClick
+        )
+
+        // Verify on device button - only shown for W3 hardware
+        if (showVerifyOnDeviceButton && onVerifyOnDeviceClick != null) {
+          ActionButton(
+            icon = Icon.SmallIconBitkey,
+            text = "Verify",
+            onClick = onVerifyOnDeviceClick
+          )
+        }
+
+        partners.forEach { partner ->
+          PartnerActionButton(
+            logoUrl = partner.logoUrl,
+            name = partner.name,
+            onClick = { onPartnerClick(partner) },
+            isLoading = partner.partnerId.value == loadingPartnerId
+          )
+        }
+
+        // This inherits its spacing from the horizontalArrangement applied on this Row
+        Spacer(modifier = Modifier)
+      }
+    } else {
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        ActionButton(
+          icon = Icon.SmallIconShare,
+          text = "Share",
+          onClick = onShareClick
+        )
+
+        ActionButton(
+          icon = copyButtonIcon,
+          text = copyButtonLabelText,
+          onClick = onCopyClick
+        )
+
+        // Verify on device button - only shown for W3 hardware
+        if (showVerifyOnDeviceButton && onVerifyOnDeviceClick != null) {
+          ActionButton(
+            icon = Icon.SmallIconBitkey,
+            text = "Verify",
+            onClick = onVerifyOnDeviceClick
+          )
+        }
+
+        partners.forEach { partner ->
+          PartnerActionButton(
+            logoUrl = partner.logoUrl,
+            name = partner.name,
+            onClick = { onPartnerClick(partner) },
+            isLoading = partner.partnerId.value == loadingPartnerId
+          )
+        }
       }
     }
   }

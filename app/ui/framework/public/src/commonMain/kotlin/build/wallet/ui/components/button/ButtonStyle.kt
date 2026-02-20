@@ -18,6 +18,7 @@ import build.wallet.ui.model.button.ButtonModel.Size.Regular
 import build.wallet.ui.model.button.ButtonModel.Size.Short
 import build.wallet.ui.model.button.ButtonModel.Treatment.*
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.theme.WalletTheme.colors
 import build.wallet.ui.tokens.LabelType
@@ -51,74 +52,80 @@ fun WalletTheme.buttonStyle(
   cornerRadius: Dp = 16.dp,
   enabled: Boolean = true,
 ): ButtonStyle {
-  val textColor = textColor(treatment = treatment)
-  val textStyle =
-    buttonTextStyle(
-      type =
-        when (treatment) {
-          Tertiary, TertiaryNoUnderline, TertiaryNoUnderlineWhite -> LabelType.Label2
-          else -> LabelType.Label1
-        },
-      underline =
-        treatment == Tertiary ||
-          treatment == TertiaryPrimary ||
-          treatment == TertiaryDestructive,
-      textColor = textColor
-    )
-  val isTextButton =
-    treatment == TertiaryDestructive ||
-      treatment == Tertiary ||
-      treatment == TertiaryNoUnderline ||
-      treatment == TertiaryNoUnderlineWhite
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val effectiveCornerRadius = if (isDesignSystemV2Enabled) 80.dp else cornerRadius
+  val isTextButton = treatment.isTextButton()
+
   return ButtonStyle(
-    textStyle = textStyle,
-    shape = RoundedCornerShape(cornerRadius),
-    backgroundColor =
-      if (enabled) {
-        treatment.normalBackgroundColor()
-      } else {
-        treatment.disabledBackgroundColor()
-      },
+    textStyle = treatment.toTextStyle(),
+    shape = RoundedCornerShape(effectiveCornerRadius),
+    backgroundColor = treatment.backgroundColor(enabled),
     iconColor = iconColor(treatment),
     iconSize = treatment.leadingIconSize,
     isTextButton = isTextButton,
     fillWidth = size == Footer,
-    height =
-      when (size) {
-        Compact -> 32.dp
-        Floating -> 64.dp
-        Footer, Regular -> 52.dp
-        FitContent -> null
-        Short -> 40.dp
-      },
-    minWidth =
-      when (size) {
-        Regular ->
-          if (isTextButton) {
-            0.dp
-          } else {
-            140.dp
-          }
-        else -> Dp.Unspecified
-      },
-    verticalPadding =
-      when (size) {
-        Compact -> 4.dp
-        Floating -> 20.dp
-        else -> 8.dp
-      },
-    horizontalPadding =
-      if (isTextButton) {
-        0.dp
-      } else {
-        when (size) {
-          Regular, Footer, FitContent, Short -> 16.dp
-          Compact -> 12.dp
-          Floating -> 22.dp
-        }
-      }
+    height = size.toHeight(),
+    minWidth = size.toMinWidth(isTextButton),
+    verticalPadding = size.toVerticalPadding(),
+    horizontalPadding = size.toHorizontalPadding(isTextButton)
   )
 }
+
+private fun ButtonModel.Treatment.isTextButton(): Boolean =
+  this == TertiaryDestructive ||
+    this == Tertiary ||
+    this == TertiaryNoUnderline ||
+    this == TertiaryNoUnderlineWhite
+
+@Composable
+private fun ButtonModel.Treatment.toTextStyle(): TextStyle {
+  val textColor = textColor(treatment = this)
+  return buttonTextStyle(
+    type = when (this) {
+      Tertiary, TertiaryNoUnderline, TertiaryNoUnderlineWhite -> LabelType.Label2
+      else -> LabelType.Label1
+    },
+    underline = this == Tertiary || this == TertiaryPrimary || this == TertiaryDestructive,
+    textColor = textColor
+  )
+}
+
+@Composable
+private fun ButtonModel.Treatment.backgroundColor(enabled: Boolean): Color =
+  if (enabled) normalBackgroundColor() else disabledBackgroundColor()
+
+private fun ButtonModel.Size.toHeight(): Dp? =
+  when (this) {
+    Compact -> 32.dp
+    Floating -> 64.dp
+    Footer, Regular -> 52.dp
+    FitContent -> null
+    Short -> 40.dp
+  }
+
+private fun ButtonModel.Size.toMinWidth(isTextButton: Boolean): Dp =
+  when (this) {
+    Regular -> if (isTextButton) 0.dp else 140.dp
+    else -> Dp.Unspecified
+  }
+
+private fun ButtonModel.Size.toVerticalPadding(): Dp =
+  when (this) {
+    Compact -> 4.dp
+    Floating -> 20.dp
+    else -> 8.dp
+  }
+
+private fun ButtonModel.Size.toHorizontalPadding(isTextButton: Boolean): Dp =
+  if (isTextButton) {
+    0.dp
+  } else {
+    when (this) {
+      Regular, Footer, FitContent, Short -> 16.dp
+      Compact -> 12.dp
+      Floating -> 22.dp
+    }
+  }
 
 @Composable
 @ReadOnlyComposable

@@ -43,6 +43,27 @@ just install-docker
 just install-aws-creds
 just install-coreutils
 just install-swiftformat
+
+echo ""
+echo "Checking Xcode installation..."
+if ! command -v xcodebuild &> /dev/null; then
+  echo "⚠️  Xcode is not installed. iOS builds will fail."
+  echo "   Install Xcode from the App Store or developer.apple.com/download."
+else
+  xcode_path="$(xcode-select -p 2>/dev/null || true)"
+  if [ "$xcode_path" = "/Library/Developer/CommandLineTools" ]; then
+    echo "⚠️  Xcode Command Line Tools are selected."
+    echo "   Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
+  else
+    echo "✅ Xcode selected: $xcode_path"
+  fi
+  if ! xcrun --sdk iphonesimulator --show-sdk-path &> /dev/null; then
+    echo "⚠️  iOS simulator SDK not found. Install a runtime in Xcode > Settings > Platforms."
+  fi
+  if ! xcrun simctl list runtimes | grep -q "iOS"; then
+    echo "⚠️  No iOS simulator runtimes installed. Install via Xcode > Settings > Platforms."
+  fi
+fi
 echo ""
 echo "Running setup tasks..."
 just submodules 2>&1 | grep -v "^Updating git submodules"
@@ -58,4 +79,3 @@ else
   echo ""
   exit 1
 fi
-

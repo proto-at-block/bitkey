@@ -1,8 +1,5 @@
 use anyhow::Result;
-use bdk::{
-    miniscript::{Descriptor, DescriptorPublicKey},
-    KeychainKind, Wallet,
-};
+use bdk_wallet::{descriptor::ExtendedDescriptor, KeychainKind, Wallet};
 use rustify::blocking::clients::reqwest::Client;
 
 use crate::{
@@ -30,21 +27,15 @@ pub fn status(client: &Client, db: &sled::Db) -> Result<()> {
 
         let wallet = signers.active.wallet(&account, db, None)?;
         println!("Wallet:");
-        println!("{}", indent(&pretty_print_wallet(wallet)));
+        println!("{}", indent(&pretty_print_wallet(&wallet)));
     }
 
     Ok(())
 }
 
-fn pretty_print_wallet(wallet: Wallet<sled::Tree>) -> String {
-    let spending = wallet
-        .public_descriptor(KeychainKind::External)
-        .expect("no public descriptor")
-        .expect("corrupt change descriptor");
-    let change = wallet
-        .public_descriptor(KeychainKind::Internal)
-        .expect("no public descriptor")
-        .expect("corrupt change descriptor");
+fn pretty_print_wallet(wallet: &Wallet) -> String {
+    let spending = wallet.public_descriptor(KeychainKind::External);
+    let change = wallet.public_descriptor(KeychainKind::Internal);
 
     format!(
         "Spending:\n{}\nChange:\n{}",
@@ -53,7 +44,7 @@ fn pretty_print_wallet(wallet: Wallet<sled::Tree>) -> String {
     )
 }
 
-fn pretty_print_descriptor(descriptor: Descriptor<DescriptorPublicKey>) -> String {
+fn pretty_print_descriptor(descriptor: &ExtendedDescriptor) -> String {
     descriptor
         .to_string()
         .split(',')

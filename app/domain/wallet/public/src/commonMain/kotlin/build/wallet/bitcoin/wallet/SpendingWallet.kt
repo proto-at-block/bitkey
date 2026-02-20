@@ -1,8 +1,10 @@
 package build.wallet.bitcoin.wallet
 
+import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkTxIn
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
@@ -73,10 +75,30 @@ interface SpendingWallet : WatchingWallet {
      * @param txid - The transaction ID of the transaction to bump the fee of.
      * @param feeRate - The new fee rate to use.
      */
-    data class BumpFee(
+    data class FeeBump(
       val txid: String,
       val feeRate: FeeRate,
     ) : PsbtConstructionMethod
+
+    /**
+     * Manual fee bump for transactions requiring output shrinking.
+     *
+     * Used for sweeps and single-UTXO consolidations where BDK's BumpFeeTxBuilder
+     * cannot add inputs to cover the fee increase - instead, the output is reduced.
+     *
+     * @property originalInputs The inputs from the original transaction.
+     * @property outputScript The script for the single output (shrinking target).
+     * @property absoluteFee The exact fee amount.
+     */
+    data class ManualFeeBump(
+      val originalInputs: List<BdkTxIn>,
+      val outputScript: BdkScript,
+      val absoluteFee: Fee,
+    ) : PsbtConstructionMethod {
+      init {
+        require(originalInputs.isNotEmpty()) { "Original inputs cannot be empty" }
+      }
+    }
   }
 }
 

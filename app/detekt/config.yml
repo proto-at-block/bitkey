@@ -182,7 +182,7 @@ complexity:
 coroutines:
   active: true
   GlobalCoroutineUsage:
-    active: false
+    active: true
   InjectDispatcher:
     active: false
     dispatcherNames:
@@ -194,7 +194,7 @@ coroutines:
   SleepInsteadOfDelay:
     active: true
   SuspendFunSwallowedCancellation:
-    active: false
+    active: true
   SuspendFunWithCoroutineScopeReceiver:
     active: false
   SuspendFunWithFlowReturnType:
@@ -586,6 +586,7 @@ style:
     imports:
       - "io.ktor.client.request.setBody"
       - "io.ktor.client.call.body"
+      - "androidx.compose.material3.Text"
   ForbiddenMethodCall:
     active: true
     methods:
@@ -844,4 +845,12 @@ TwitterCompose:
   ViewModelForwarding:
     active: true
   ViewModelInjection:
+    active: true
+
+# Custom Bitkey detekt rules
+bitkey:
+  active: true
+  NoFocusedKotestTests:
+    active: true
+  NoUnrememberedCollectAsState:
     active: true

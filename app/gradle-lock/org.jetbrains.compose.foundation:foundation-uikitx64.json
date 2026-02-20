@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.foundation:foundation-uikitx64",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-uikitX64Main-1.8.1.klib": "452c24f6891ecc45e5fbd1202ff31b04f8b71a1b325b9ced162ad66c3e59b331"
+                        "foundation-uikitX64Main-1.9.1.klib": "0346ffcac4ee14dbe2928a7c4ef93d24b52b5ee3bb7932b5395f3d023d134fa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "foundation-uikitx64-1.8.1-metadata.jar": "41921eac81aa678d3700b340576b0280f42064081f84526bb6f4d5cd09a4a1ca"
+                        "foundation-uikitx64-1.9.1-metadata.jar": "dfbf3b0da3d7fe32d024390a3ea02cb8d466915cbf354725ae4af7a62b9d7549"
                     }
                 }
             ],

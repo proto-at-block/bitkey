@@ -2,7 +2,6 @@ package build.wallet.f8e.debug
 
 import app.cash.turbine.test
 import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.plugins.FailF8eRequestsPlugin
 import build.wallet.ktor.result.HttpError
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -16,6 +15,8 @@ class NetworkDebugFunctionalTests : FunSpec({
     val app = launchNewApp()
     val f8eNetworkReachabilityService = app.f8eNetworkReachabilityService
     val networkingDebugService = app.networkingDebugService
+    // Use the configured F8E environment (from F8E_ENVIRONMENT env var)
+    val f8eEnvironment = app.initialF8eEnvironment
     val client = HttpClient {
       install(FailF8eRequestsPlugin) {
         this.networkingDebugService = app.networkingDebugService
@@ -23,7 +24,7 @@ class NetworkDebugFunctionalTests : FunSpec({
     }
 
     // Check that f8e requests are successful by default
-    f8eNetworkReachabilityService.checkConnection(client, F8eEnvironment.Local).shouldBeOk()
+    f8eNetworkReachabilityService.checkConnection(client, f8eEnvironment).shouldBeOk()
 
     // Configure the app to fail all f8e requests
     networkingDebugService.setFailF8eRequests(value = true)
@@ -32,7 +33,7 @@ class NetworkDebugFunctionalTests : FunSpec({
     }
 
     // Check that f8e requests are failing
-    f8eNetworkReachabilityService.checkConnection(client, F8eEnvironment.Local)
+    f8eNetworkReachabilityService.checkConnection(client, f8eEnvironment)
       .shouldBeErrOfType<HttpError>()
 
     // Configure the app to not fail f8e requests
@@ -42,6 +43,6 @@ class NetworkDebugFunctionalTests : FunSpec({
     }
 
     // Check that f8e requests are successful again
-    f8eNetworkReachabilityService.checkConnection(client, F8eEnvironment.Local).shouldBeOk()
+    f8eNetworkReachabilityService.checkConnection(client, f8eEnvironment).shouldBeOk()
   }
 })

@@ -1,0 +1,10 @@
+import build.wallet.crypto.PublicKey;
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+
+-- Add originalAppGlobalAuthKey column to localRecoveryAttemptEntity.
+-- This stores the original app global auth key from the keybox before recovery,
+-- needed for Lost Hardware recovery to regenerate TC certificates after auth key rotation.
+-- Null for Lost App recovery since there's no pre-existing keybox.
+ALTER TABLE localRecoveryAttemptEntity ADD COLUMN originalAppGlobalAuthKey TEXT AS PublicKey<AppGlobalAuthKey>;
+
+PRAGMA foreign_key_check;

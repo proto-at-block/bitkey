@@ -9,7 +9,7 @@ class CoachmarkDaoFake : CoachmarkDao {
 
   override suspend fun insertCoachmark(
     id: CoachmarkIdentifier,
-    expiration: Instant,
+    expiration: Instant?,
   ): Result<Unit, Error> {
     coachmarks = coachmarks + Coachmark(id, false, expiration)
     return Ok(Unit)

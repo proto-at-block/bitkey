@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bouncycastle:bcutil-jdk18on",
+    "components": [
+        {
+            "version": "1.80",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcutil-jdk18on-1.80.jar": "22eca687f7955411f456af33e6ea8e68fc73cd80cb8b32aa5f7a8b1827d7c678"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

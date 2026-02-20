@@ -4,10 +4,15 @@ import bitkey.account.AccountConfigServiceFake
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.SpecificClientErrorMock
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.NO_RECOVERY_EXISTS
+import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.auth.AuthTokensServiceFake
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.HwAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.keybox.AppKeyBundleMock
+import build.wallet.bitkey.keybox.HwKeyBundleMock
+import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbQueryError
@@ -22,6 +27,7 @@ import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
+import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
@@ -29,8 +35,10 @@ import build.wallet.testing.shouldBeOkOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.instanceOf
+import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.http.HttpStatusCode.Companion.InternalServerError
 import okio.ByteString.Companion.encodeUtf8
 
@@ -150,6 +158,31 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
 
     // Consume the device token event
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+  }
+
+  test("initiateRecovery passes null for originalAppGlobalAuthKey") {
+    val completedAuth = CompletedAuth.WithDirectKeys(
+      accountId = FullAccountIdMock,
+      authTokens = AccountAuthTokensMock,
+      hwAuthKey = HwAuthPublicKeyMock,
+      destinationAppKeys = AppKeyBundleMock,
+      existingHwSpendingKeys = listOf(SpendingKeysetMock.hardwareKey)
+    )
+    val hardwareKeysForRecovery = HardwareKeysForRecovery(
+      newKeyBundle = HwKeyBundleMock,
+      newAppGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+      hwProofOfPossession = HwFactorProofOfPossession("")
+    )
+
+    val result = service.initiateRecovery(completedAuth, hardwareKeysForRecovery)
+    result.shouldBeOk()
+
+    // Verify originalAppGlobalAuthKey is null for Lost App recovery
+    val progressCall = recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
+    progressCall.shouldBeTypeOf<CreatedPendingKeybundles>().originalAppGlobalAuthKey.shouldBeNull()
+
+    // Consume the setActiveServerRecovery call
+    recoveryDao.setActiveServerRecoveryCalls.awaitItem()
   }
 
   context("descriptor backups matrix for private wallet root xpub") {

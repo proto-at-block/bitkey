@@ -10,7 +10,7 @@ import yaml
 import invoke as inv
 from typing import Optional
 
-from tasks.lib.paths import (CONFIG_FILE, CONFIG_FILE_TASKS, PLATFORM_FILE)
+from tasks.lib.paths import CONFIG_FILE, CONFIG_FILE_TASKS, PLATFORM_FILE
 
 # This hack is needed for pyinvoke version >=2.1.1
 # fmt: off
@@ -51,12 +51,19 @@ def update_config(config):
 def move_config():
     if CONFIG_FILE_TASKS.exists():
         shutil.move(CONFIG_FILE_TASKS, CONFIG_FILE)
-        click.echo(click.style(
-            f"invoke.json file detected in {CONFIG_FILE_TASKS.parent}", fg='yellow'))
-        click.echo(click.style(
-            f"invoke.json moved to {CONFIG_FILE.parent}", fg='green'))
-        click.echo("You can now re-run the command: " +
-                   click.style(f"inv {' '.join(sys.argv[1:])}", fg="blue"))
+        click.echo(
+            click.style(
+                f"invoke.json file detected in {CONFIG_FILE_TASKS.parent}", fg="yellow"
+            )
+        )
+        click.echo(
+            click.style(
+                f"invoke.json moved to {CONFIG_FILE.parent}", fg="green")
+        )
+        click.echo(
+            "You can now re-run the command: "
+            + click.style(f"inv {' '.join(sys.argv[1:])}", fg="blue")
+        )
         exit()
 
 
@@ -66,10 +73,13 @@ def update_config():
     # Check and exit when bad invoke versions are found
     workaround = inv_workaround_needed()
     if workaround:
-        click.echo(click.style(f"invoke version {inv.__version__} is not supported, please update with:",
-                               fg="red"))
-        click.echo(click.style(f"pip install -r requirements.txt",
-                               fg="blue"))
+        click.echo(
+            click.style(
+                f"invoke version {inv.__version__} is not supported, please update with:",
+                fg="red",
+            )
+        )
+        click.echo(click.style(f"pip install -r requirements.txt", fg="blue"))
         exit(1)
 
     # Move config files from directories supported by the bad invoke versions
@@ -97,20 +107,28 @@ def remove_invalid_config():
                 with open(config, "r") as f:
                     json.load(f)
             except json.JSONDecodeError:
-                click.echo(click.style(f"{config} has an invalid format, removing {config}...",
-                                       fg="yellow"))
+                click.echo(
+                    click.style(
+                        f"{config} has an invalid format, removing {config}...",
+                        fg="yellow",
+                    )
+                )
+                # Print the contents before removing
+                with open(config, "r") as f:
+                    click.echo(click.style(
+                        f"Config contents:\n{f.read()}", fg="cyan"))
                 config.unlink(True)
 
 
 def fix_config_file():
     """Updates the old versions of config files to the latest format"""
     if CONFIG_FILE.exists():
-        with open(CONFIG_FILE, 'r+') as f:
+        with open(CONFIG_FILE, "r+") as f:
             data = json.load(f)
 
             # Removes the '.signed' part of target strings
-            if 'target' in data and isinstance(data['target'], str):
-                data['target'] = data['target'].replace('.signed', '')
+            if "target" in data and isinstance(data["target"], str):
+                data["target"] = data["target"].replace(".signed", "")
 
                 f.seek(0)
                 json.dump(data, f, indent=4)
@@ -122,12 +140,12 @@ def check_config() -> bool:
         return True
 
     def prompt(message) -> str:
-        click.echo(f'{message} ', nl=False)
+        click.echo(f"{message} ", nl=False)
         c = click.getchar()
         click.echo(c)
         return c
 
-    if prompt('No invoke.json found, would you like to create one? [Yn]') == 'n':
+    if prompt("No invoke.json found, would you like to create one? [Yn]") == "n":
         return False
 
     platform = get_default_platform()
@@ -137,33 +155,33 @@ def check_config() -> bool:
 
     target = Target(defaults[platform].get("target")).elf
 
-    click.echo(click.style('Configuring using these defaults:', fg='green'))
-    click.echo('\tPlatform: ' + click.style(platform, fg='blue'))
-    click.echo('\tTarget:   ' + click.style(target, fg='blue'))
+    click.echo(click.style("Configuring using these defaults:", fg="green"))
+    click.echo("\tPlatform: " + click.style(platform, fg="blue"))
+    click.echo("\tTarget:   " + click.style(target, fg="blue"))
 
-    if sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/cu.*')
+    if sys.platform.startswith("darwin"):
+        ports = glob.glob("/dev/cu.*")
     else:
-        raise EnvironmentError('Unsupported platform')
+        raise EnvironmentError("Unsupported platform")
 
-    click.echo(click.style(
-        'Available serial ports:', fg='green'))
+    click.echo(click.style("Available serial ports:", fg="green"))
 
     availble_ports = []
     for port in ports:
         try:
             s = serial.Serial(port)
             s.close()
-            click.echo(f'\t{len(availble_ports)}: ' +
-                       click.style(f'{port}', fg='blue'))
+            click.echo(f"\t{len(availble_ports)}: " +
+                       click.style(f"{port}", fg="blue"))
             availble_ports.append(port)
         except (OSError, serial.SerialException):
             pass
 
-    port_idx = int(prompt('Enter the number of the port to use:'))
-    if 0 >= port_idx > len(availble_ports):
+    port_idx = int(prompt("Enter the number of the port to use:"))
+    if 0 >= port_idx or port_idx >= len(availble_ports):
         click.echo(click.style(
-            'Port \'{port_idx}\' is not valid, exiting.', fg='red'))
+            f"Port '{port_idx}' is not valid, exiting.", fg="red"))
+        return False
 
     config = {
         "platform": platform,
@@ -173,9 +191,10 @@ def check_config() -> bool:
 
     write_config(config)
 
-    click.echo(click.style(
-        'Config file has been created.', fg='green'))
-    click.echo("You can now run the command: " +
-               click.style(f"inv {' '.join(sys.argv[1:])}", fg="blue"))
+    click.echo(click.style("Config file has been created.", fg="green"))
+    click.echo(
+        "You can now run the command: "
+        + click.style(f"inv {' '.join(sys.argv[1:])}", fg="blue")
+    )
 
     return False

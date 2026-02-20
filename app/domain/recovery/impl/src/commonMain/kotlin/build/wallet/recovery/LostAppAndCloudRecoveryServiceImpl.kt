@@ -143,7 +143,8 @@ class LostAppAndCloudRecoveryServiceImpl(
               appKeyBundle = completedAuth.destinationAppKeys,
               hwKeyBundle = hardwareKeysForRecovery.newKeyBundle,
               lostFactor = App,
-              appGlobalAuthKeyHwSignature = hardwareKeysForRecovery.newAppGlobalAuthKeyHwSignature
+              appGlobalAuthKeyHwSignature = hardwareKeysForRecovery.newAppGlobalAuthKeyHwSignature,
+              originalAppGlobalAuthKey = null // No original auth key for Lost App recovery since there's no pre-existing keybox.
             )
           )
           .logFailure { "Failed to set local recovery progress when initiating DN recovery for Lost App." }

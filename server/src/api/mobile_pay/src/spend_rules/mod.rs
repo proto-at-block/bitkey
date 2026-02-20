@@ -6,8 +6,7 @@ use tracing::instrument;
 use types::account::entities::Account;
 use types::account::spending::PrivateMultiSigSpendingKeyset;
 
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk_utils::bdk::database::AnyDatabase;
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::Wallet;
 
 use feature_flags::service::Service as FeatureFlagsService;
@@ -40,10 +39,7 @@ mod all_psbt_outputs_belong_to_wallet_rule;
 pub mod errors;
 
 pub trait Rule {
-    fn check_transaction(
-        &self,
-        psbt: &PartiallySignedTransaction,
-    ) -> Result<(), SpendRuleCheckError>;
+    fn check_transaction(&self, psbt: &Psbt) -> Result<(), SpendRuleCheckError>;
 }
 
 #[derive(Display)]
@@ -63,7 +59,7 @@ pub enum SpendRuleSet<'a> {
 impl<'a> SpendRuleSet<'a> {
     pub fn mobile_pay(
         account: &'a Account,
-        source_wallet: &'a Wallet<AnyDatabase>,
+        source_wallet: &'a Wallet,
         features: &'a Features,
         spending_history: &'a Vec<&'a SpendingEntry>,
         screener_service: Arc<ScreenerService>,
@@ -133,8 +129,8 @@ impl<'a> SpendRuleSet<'a> {
 
     pub fn legacy_sweep(
         account: &'a Account,
-        source_wallet: &'a Wallet<AnyDatabase>,
-        destination_wallet: &'a Wallet<AnyDatabase>,
+        source_wallet: &'a Wallet,
+        destination_wallet: &'a Wallet,
         screener_service: Arc<ScreenerService>,
         feature_flags_service: FeatureFlagsService,
         context_key: Option<ContextKey>,
@@ -179,7 +175,7 @@ impl<'a> SpendRuleSet<'a> {
 
     pub fn migration_sweep(
         account: &'a Account,
-        source_wallet: &'a Wallet<AnyDatabase>,
+        source_wallet: &'a Wallet,
         destination_keyset: &'a PrivateMultiSigSpendingKeyset,
         screener_service: Arc<ScreenerService>,
         feature_flags_service: FeatureFlagsService,
@@ -204,7 +200,7 @@ impl<'a> SpendRuleSet<'a> {
     pub fn inheritance_downgrade_sweep(
         account: &'a Account,
         source_keyset: &'a PrivateMultiSigSpendingKeyset,
-        destination_wallet: &'a Wallet<AnyDatabase>,
+        destination_wallet: &'a Wallet,
         screener_service: Arc<ScreenerService>,
         feature_flags_service: FeatureFlagsService,
         context_key: Option<ContextKey>,
@@ -225,10 +221,7 @@ impl<'a> SpendRuleSet<'a> {
     }
 
     #[instrument(skip(self, psbt))]
-    pub fn check_spend_rules(
-        &self,
-        psbt: &PartiallySignedTransaction,
-    ) -> Result<(), Vec<SpendRuleCheckError>> {
+    pub fn check_spend_rules(&self, psbt: &Psbt) -> Result<(), Vec<SpendRuleCheckError>> {
         let rules = match self {
             SpendRuleSet::MobilePay { rules } | SpendRuleSet::Sweep { rules } => rules,
             #[cfg(test)]
@@ -250,11 +243,49 @@ impl<'a> SpendRuleSet<'a> {
 
 #[cfg(test)]
 pub mod test {
+    use std::collections::BTreeMap;
+    use std::str::FromStr;
+
+    use bdk_utils::bdk::bitcoin::psbt::Psbt;
+    use bdk_utils::bdk::KeychainKind;
+    use bdk_utils::bdk::{Update, Wallet};
+
     use crate::spend_rules::errors::SpendRuleCheckError;
     use crate::spend_rules::{Rule, SpendRuleSet};
-    use bdk_utils::bdk::bitcoin::psbt::Psbt;
     use rstest::rstest;
-    use std::str::FromStr;
+
+    fn gen_descriptor(idx: u32) -> (String, String) {
+        let receive_descriptor = format!("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/{idx}/{}/*)", 0);
+        let change_descriptor = format!("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/{idx}/{}/*)", 1);
+        (receive_descriptor, change_descriptor)
+    }
+
+    pub(crate) fn get_funded_wallet(wallet_idx: u32) -> Wallet {
+        let (receive, change) = gen_descriptor(wallet_idx);
+        let mut wallet = bdk_utils::bdk::test_utils::get_funded_wallet(&receive, &change).0;
+
+        // Derive more addresses to be able to apply the update
+        wallet
+            .reveal_addresses_to(KeychainKind::External, 1000)
+            .for_each(drop);
+        wallet
+            .reveal_addresses_to(KeychainKind::Internal, 1000)
+            .for_each(drop);
+
+        let mut last_active_indices = BTreeMap::new();
+
+        for (keychain, _) in wallet.keychains() {
+            if let Some(index) = wallet.spk_index().last_revealed_index(keychain) {
+                last_active_indices.insert(keychain, index);
+            }
+        }
+        let update = Update {
+            last_active_indices,
+            ..Update::default()
+        };
+        wallet.apply_update(update).expect("Failed to apply update");
+        wallet
+    }
 
     pub struct TestRule {
         pub fail_with_error: Option<SpendRuleCheckError>,

@@ -26,6 +26,7 @@ class FeatureFlagsOptionsUiStateMachineImpl(
       Emergency, Customer -> null
       Development, Alpha, Team ->
         ListGroupModel(
+          header = "Feature Flags",
           style = ListGroupStyle.DIVIDER,
           items =
             immutableListOf(

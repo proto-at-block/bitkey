@@ -1,5 +1,6 @@
 #pragma once
 
+#include "aes.h"
 #include "mempool.h"
 #include "rtos.h"
 #include "uc.h"
@@ -52,7 +53,7 @@
 /**
  * @brief Maximum number of messages for each of send and receive buffers.
  */
-#define UC_MSG_MAX_NUM 2u
+#define UC_MSG_MAX_NUM 3u
 
 /**
  * @brief Size of a message header in bytes.
@@ -66,9 +67,9 @@ _Static_assert(14u == UC_MSG_HDR_SIZE, "Header size cannot change.");
 /**
  * @brief Overhead for encrypting a message, including signature.
  *
- * @todo TODO(W-14107): Specify real padding.
+ * @note iv + tag + sequence number
  */
-#define UC_ENCRYPTION_PADDING 47u
+#define UC_ENCRYPTION_PADDING (AES_GCM_IV_LENGTH + AES_GCM_TAG_LENGTH + sizeof(uint32_t))
 
 /**
  * @brief Overhead for transmitting a message (header + AES encryption).
@@ -115,6 +116,15 @@ _Static_assert((UC_RETRANSMIT_TIMEOUT_MS > UC_ACK_TIMEOUT_MS),
  * @brief Size of the buffer used COBS encoding a message for sending.
  */
 #define UC_COBS_WR_ENC_BUFFER_SIZE UC_COBS_OVERHEAD(UC_MSG_SIZE(UC_CFG_WR_BUFFER_SIZE))
+
+/**
+ * @brief Some implementations cannot exactly decrypt in place and require the output
+ * buffer be offset from the input buffer
+ *
+ * @note SL SE docs state that that the output of decrypt must trail the input by 8 bytes if it
+ * overlaps.
+ */
+#define UC_DECRYPT_OFFSET 8
 
 _Static_assert(UC_CFG_RD_BUFFER_SIZE >= sizeof(UC_CFG_DEC_PROTO_TYPE),
                "Proto can no longer fit in buffer.");
@@ -366,6 +376,11 @@ typedef struct {
    * @brief Callback to invoke to send data.
    */
   uc_send_callback_t send_cb;
+
+  /**
+   * @brief Encryption and replay protection callbacks.
+   */
+  uc_crypto_api_t crypto;
 
   /**
    * @brief Context pointer to pass to the registered callbacks.

@@ -27,8 +27,9 @@ class BitcoinTransactionBumpabilityCheckerImpl(
       return false
     }
 
-    // A sweep is only bumpable if allow_shrinking is enabled, since there are no other inputs
-    // we can pull in to pay the fees.
+    // A sweep is only bumpable if output shrinking conditions are met, since there are no other
+    // inputs we can pull in to pay the fees. With BDK2, we use manual PSBT construction to handle
+    // the output shrinking.
     if (sweepChecker.isSweep(transaction, walletUnspentOutputs)) {
       return feeBumpAllowShrinkingChecker.transactionSupportsAllowShrinking(
         transaction = transaction,
@@ -40,9 +41,10 @@ class BitcoinTransactionBumpabilityCheckerImpl(
       Incoming -> false
       Outgoing -> true
       UtxoConsolidation -> {
-        // UTXO Consolidations are very similar to sweeps and also require allow_shrinking in order
+        // UTXO Consolidations are very similar to sweeps and also require output shrinking in order
         // to pay for the fee bump if there are no other UTXOs available to pull in, unless we've
-        // received more funds since the consolidation
+        // received more funds since the consolidation. With BDK2, we use manual PSBT construction
+        // to handle the output shrinking.
         walletUnspentOutputs.size > 1 ||
           feeBumpAllowShrinkingChecker.transactionSupportsAllowShrinking(
             transaction = transaction,

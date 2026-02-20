@@ -6,9 +6,9 @@ use account::service::{
     tests::{TestAuthenticationKeys, TestKeypair},
     FetchAccountInput,
 };
-use bdk_utils::bdk::bitcoin::hashes::sha256;
-use bdk_utils::bdk::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
+use bdk_utils::bdk::bitcoin::secp256k1::{Secp256k1, SecretKey};
 use bdk_utils::bdk::miniscript::DescriptorPublicKey;
+use bdk_utils::signature::message_to_digest;
 use http::StatusCode;
 use onboarding::routes::CreateAccountRequest;
 use recovery::entities::{RecoveryDestination, RecoveryStatus, RecoveryType};
@@ -155,14 +155,14 @@ async fn test_rotate_authentication_keys(
     let (new_auth_app_seckey, new_auth_app_pubkey) = create_keypair();
     let app_signature = override_app_signature.unwrap_or_else(|| {
         let secp = Secp256k1::new();
-        let message = Message::from_hashed_data::<sha256::Hash>(account_id.to_string().as_bytes());
+        let message = message_to_digest(account_id.to_string().as_ref());
         secp.sign_ecdsa(&message, &new_auth_app_seckey).to_string()
     });
     let new_auth_hardware_seckey = override_auth_hardware_sk.unwrap_or(keys.hw.secret_key);
     let new_auth_hardware_pubkey = new_auth_hardware_seckey.public_key(&secp);
     let hardware_signature = {
         let secp = Secp256k1::new();
-        let message = Message::from_hashed_data::<sha256::Hash>(account_id.to_string().as_bytes());
+        let message = message_to_digest(account_id.to_string().as_ref());
         secp.sign_ecdsa(&message, &new_auth_hardware_seckey)
             .to_string()
     };
@@ -170,7 +170,7 @@ async fn test_rotate_authentication_keys(
     let (new_auth_recovery_seckey, new_auth_recovery_pubkey) = create_keypair();
     let recovery_signature = override_recovery_signature.unwrap_or_else(|| {
         let secp = Secp256k1::new();
-        let message = Message::from_hashed_data::<sha256::Hash>(account_id.to_string().as_bytes());
+        let message = message_to_digest(account_id.to_string().as_ref());
         secp.sign_ecdsa(&message, &new_auth_recovery_seckey)
             .to_string()
     });

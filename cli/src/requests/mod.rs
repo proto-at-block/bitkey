@@ -3,12 +3,12 @@ pub mod helper;
 pub mod middleware;
 
 use anyhow::Result;
-use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::secp256k1::ecdsa::Signature;
-use bdk::bitcoin::secp256k1::PublicKey;
-use bdk::bitcoin::Network;
-use bdk::descriptor::DescriptorPublicKey;
-use bdk::miniscript::serde::{Deserialize, Serialize};
+use bdk_wallet::bitcoin::psbt::Psbt;
+use bdk_wallet::bitcoin::secp256k1::ecdsa::Signature;
+use bdk_wallet::bitcoin::secp256k1::PublicKey;
+use bdk_wallet::bitcoin::Network;
+use bdk_wallet::descriptor::DescriptorPublicKey;
+use bdk_wallet::miniscript::serde::{Deserialize, Serialize};
 use rustify_derive::Endpoint;
 use time::serde::rfc3339;
 use time::{OffsetDateTime, UtcOffset};
@@ -108,7 +108,7 @@ pub struct SignTransactionRequest {
     #[endpoint(skip)]
     pub account_id: AccountId,
     #[serde(with = "serde_string")]
-    pub psbt: PartiallySignedTransaction,
+    pub psbt: Psbt,
     pub settings: Settings,
 }
 
@@ -155,7 +155,7 @@ pub enum CurrencyCode {
 #[derive(Deserialize, Debug)]
 pub struct SignTransactionResponse {
     #[serde(with = "serde_string")]
-    pub tx: PartiallySignedTransaction,
+    pub tx: Psbt,
 }
 
 #[derive(Debug, Endpoint, Serialize)]
@@ -269,13 +269,13 @@ pub struct SignDelayNotifyWalletTransactionRequest {
     #[endpoint(skip)]
     pub account_id: AccountId,
     #[serde(with = "serde_string")]
-    pub psbt: PartiallySignedTransaction,
+    pub psbt: Psbt,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct SignDelayNotifyResponse {
     #[serde(with = "serde_string")]
-    pub tx: PartiallySignedTransaction,
+    pub tx: Psbt,
 }
 
 #[derive(Debug, Endpoint, Serialize)]

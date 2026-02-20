@@ -9,6 +9,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlin.reflect.KClass
 
 /**
+ * The behavior of how updates to a feature flag should be applied while the app is running.
+ * - LiveUpdates: The flag value is updated immediately.
+ * - UpdateOnLaunch: The flag value is updated when the app is launched.
+ */
+enum class FeatureFlagUpdateBehavior {
+  LiveUpdates,
+  UpdateOnLaunch,
+}
+
+/**
  * The base feature flag class that specific feature flags inherit.
  *
  * It provides common functionality for all flags, including caching the flag value and
@@ -23,6 +33,8 @@ open class FeatureFlag<T : FeatureFlagValue>(
   val description: String,
   /** The default value for the flag before it is initialized from the persistent store.  */
   val defaultFlagValue: T,
+  /** How updates to this flag should be applied while the app is running. */
+  val updateBehavior: FeatureFlagUpdateBehavior = FeatureFlagUpdateBehavior.LiveUpdates,
   /** The persistent store to read and write values to and from. */
   private val featureFlagDao: FeatureFlagDao,
   /** The type of this flag. */
@@ -44,7 +56,9 @@ open class FeatureFlag<T : FeatureFlagValue>(
    * Writes to this value also get written to the persistent store.
    */
   suspend fun setFlagValue(value: T) {
-    valueFlow.emit(value)
+    if (updateBehavior == FeatureFlagUpdateBehavior.LiveUpdates) {
+      valueFlow.emit(value)
+    }
     persistFlagValue(value)
   }
 

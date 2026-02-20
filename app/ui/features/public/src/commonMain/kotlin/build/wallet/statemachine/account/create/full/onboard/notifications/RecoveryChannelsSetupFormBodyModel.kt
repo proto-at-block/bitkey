@@ -19,7 +19,6 @@ import build.wallet.ui.model.icon.IconTint.On30
 import build.wallet.ui.model.icon.IconTint.Primary
 import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
-import build.wallet.ui.model.toolbar.ToolbarModel
 
 data class RecoveryChannelsSetupFormBodyModel(
   val pushItem: RecoveryChannelsSetupFormItemModel,
@@ -30,7 +29,7 @@ data class RecoveryChannelsSetupFormBodyModel(
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SETUP,
     onBack = null, // Do not allow users to go back to cloud backup step
-    toolbar = ToolbarModel(),
+    toolbar = null,
     header = FormHeaderModel(
       headline = "Set up critical alerts",
       subline = "You will only receive alerts about recovery attempts, inheritance, and privacy updates."

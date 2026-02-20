@@ -1,4 +1,4 @@
-deps = [assert_dep, bitlog_dep, helpers_dep, log_dep, mempool_dep, nanocobs_dep, protos_dep, rtos_dep]
+deps = [assert_dep, bitlog_dep, crypto_dep, helpers_dep, log_dep, mempool_dep, nanocobs_dep, protos_dep, secutils_dep, rtos_dep]
 
 srcs = ['src/uc.c', 'src/uc_route.c']
 
@@ -36,7 +36,7 @@ uc_host_test = executable('uc-host-test',
   'src/uc_test.c',
   c_args : ['-DUC_HOST_MODE=1'],
   include_directories : ['inc', 'inc-private'],
-  dependencies : [fff_dep, test_deps, uc_device_dep],
+  dependencies : [crypto_deps['posix'], fff_dep, test_deps, uc_device_dep],
 )
 test('uc host test', uc_host_test)
 
@@ -44,6 +44,6 @@ uc_device_test = executable('uc-device-test',
   'src/uc_test.c',
   c_args : ['-DUC_HOST_MODE=0'],
   include_directories : ['inc', 'inc-private'],
-  dependencies : [fff_dep, test_deps, uc_device_dep],
+  dependencies : [crypto_deps['posix'], fff_dep, test_deps, uc_device_dep],
 )
 test('uc device test', uc_device_test)

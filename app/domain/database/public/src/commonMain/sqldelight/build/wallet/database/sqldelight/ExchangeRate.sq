@@ -22,3 +22,6 @@ WHERE fromCurrency == ? AND toCurrency == ?;
 allExchangeRates:
 SELECT * FROM exchangeRateEntity;
 
+clear:
+DELETE FROM exchangeRateEntity;
+

@@ -1,7 +1,6 @@
 package build.wallet.ui.components.loading
 
 import androidx.compose.foundation.Image
-import androidx.compose.material.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -26,11 +25,11 @@ fun LoadingIndicator(
 ) {
   if (LocalIsPreviewTheme.current) {
     // NOTE: Display static loader image for preview/snapshot tests
-    Icon(
+    Image(
       modifier = modifier,
       painter = painterResource(Res.drawable.loader_static),
       contentDescription = null,
-      tint = color
+      colorFilter = if (color != Color.Unspecified) ColorFilter.tint(color) else null
     )
   } else {
     val painter = LoadingIndicatorPainter(
@@ -86,11 +85,11 @@ fun LoadingBadge(
 ) {
   if (LocalIsPreviewTheme.current) {
     // NOTE: Display static loader image for preview/snapshot tests
-    Icon(
+    Image(
       modifier = modifier,
       painter = painterResource(Res.drawable.loading_badge_static),
       contentDescription = null,
-      tint = color
+      colorFilter = if (color != Color.Unspecified) ColorFilter.tint(color) else null
     )
   } else {
     val painter = LoadingBadgePainter()

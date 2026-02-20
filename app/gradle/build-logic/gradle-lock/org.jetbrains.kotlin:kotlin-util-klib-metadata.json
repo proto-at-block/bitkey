@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-util-klib-metadata",
+    "components": [
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-util-klib-metadata-2.2.20.jar": "bee4901ca53a5a21c0db645901d2b070aff682402417dd5788e0e3593645713b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
+        }
+    ]
+}

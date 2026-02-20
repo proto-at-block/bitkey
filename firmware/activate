@@ -1,2 +1,10 @@
 #!/bin/bash
-. bin/activate-hermit
+# Activate hermit environment and configure clangd for LSP support
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Activate hermit first
+. "${SCRIPT_DIR}/bin/activate-hermit"
+
+# Generate .clangd config
+inv build.clangd

@@ -36,9 +36,18 @@ static void update_screen_params(display_controller_t* controller) {
 
 void display_controller_money_movement_on_enter(display_controller_t* controller,
                                                 const void* entry_data) {
-  (void)entry_data;
-
-  // Transaction data was already stored by scan flow before navigation
+  // Extract transaction data from entry parameters
+  if (entry_data) {
+    const flow_transaction_entry_data_t* entry = (const flow_transaction_entry_data_t*)entry_data;
+    controller->nav.money_movement.is_receive_flow = entry->is_receive_flow;
+    if (entry->is_receive_flow) {
+      memcpy(&controller->nav.money_movement.receive_data, &entry->data.receive,
+             sizeof(receive_transaction_data_t));
+    } else {
+      memcpy(&controller->nav.money_movement.send_data, &entry->data.send,
+             sizeof(send_transaction_data_t));
+    }
+  }
 
   update_screen_params(controller);
 
@@ -63,22 +72,21 @@ flow_action_result_t display_controller_money_movement_on_event(display_controll
   (void)len;
   (void)event;
 
-  // Transaction events are handled by scan flow before navigation
-  // Data is already stored in static variables before we're entered
+  // Transaction events handled by display controller before flow entry
   return flow_result_handled();
 }
 
 flow_action_result_t display_controller_money_movement_on_action(
   display_controller_t* controller, fwpb_display_action_display_action_type action, uint32_t data) {
-  (void)data;
   (void)controller;
+  (void)data;
 
   if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_APPROVE) {
-    // Verify & Sign
+    // User completed the scan page - exit flow
     return flow_result_exit_with_transition(fwpb_display_transition_DISPLAY_TRANSITION_FADE,
                                             TRANSITION_DURATION_STANDARD);
   } else if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_CANCEL) {
-    // Cancel transaction
+    // Cancel transaction - return to previous screen (menu or scan)
     return flow_result_exit_with_transition(fwpb_display_transition_DISPLAY_TRANSITION_FADE,
                                             TRANSITION_DURATION_STANDARD);
   } else if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_MENU) {

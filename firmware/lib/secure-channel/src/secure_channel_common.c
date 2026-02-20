@@ -125,9 +125,9 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
 }
 
 secure_channel_err_t secure_channel_cipher(secure_channel_ctx_t* secure_channel_ctx,
-                                           secure_channel_cipher_op_t op, uint8_t* data_in,
-                                           uint8_t* data_out, uint32_t data_len, uint8_t* nonce,
-                                           uint8_t* mac) {
+                                           secure_channel_cipher_op_t op, uint8_t const* data_in,
+                                           uint8_t* data_out, uint32_t data_len, uint8_t const* aad,
+                                           uint32_t aad_len, uint8_t* nonce, uint8_t* mac) {
   ASSERT(secure_channel_ctx);
   ASSERT(data_in && data_out && nonce && mac);
 
@@ -147,12 +147,12 @@ secure_channel_err_t secure_channel_cipher(secure_channel_ctx_t* secure_channel_
       if (!crypto_random(nonce, AES_GCM_IV_LENGTH)) {
         goto out;
       }
-      ok = aes_gcm_encrypt(data_in, data_out, data_len, nonce, mac, NULL, 0,
+      ok = aes_gcm_encrypt(data_in, data_out, data_len, nonce, mac, aad, aad_len,
                            &secure_channel_ctx->session_send_key);
       break;
     }
     case SECURE_CHANNEL_DECRYPT: {
-      ok = aes_gcm_decrypt(data_in, data_out, data_len, nonce, mac, NULL, 0,
+      ok = aes_gcm_decrypt(data_in, data_out, data_len, nonce, mac, aad, aad_len,
                            &secure_channel_ctx->session_recv_key);
       break;
     }

@@ -161,7 +161,7 @@ impl SigningStrategy for MobilePaySigningStrategy {
             .await?;
 
         let signed_psbt = broadcaster.finalized_psbt();
-        let txid = signed_psbt.unsigned_tx.txid();
+        let txid = signed_psbt.unsigned_tx.compute_txid();
 
         let cache_hit = self.signed_psbt_cache_service.get(txid).await?.is_some();
 
@@ -181,7 +181,6 @@ impl SigningStrategy for MobilePaySigningStrategy {
                 // Best-effort rollback so failed broadcasts don't count against limits.
                 if let Err(rollback_err) = self.signed_psbt_cache_service.delete(txid).await {
                     warn!(
-                        ?txid,
                         ?rollback_err,
                         "failed to roll back PSBT cache after broadcast error"
                     );
@@ -196,7 +195,6 @@ impl SigningStrategy for MobilePaySigningStrategy {
                     .await
                 {
                     warn!(
-                        ?txid,
                         ?rollback_err,
                         "failed to roll back daily spend record after broadcast error"
                     );

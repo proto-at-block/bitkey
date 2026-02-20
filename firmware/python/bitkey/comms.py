@@ -47,7 +47,8 @@ class NFCTransaction:
         # Use nfcpy's built-in terminate parameter for timeout support
         if self.global_timeout is not None and self.global_timeout > 0:
             started = time.monotonic()
-            def terminate(): return time.monotonic() - started > self.global_timeout
+            def terminate():
+                return time.monotonic() - started > self.global_timeout
             self.tag = self.clf.connect(
                 rdwr=self.rdwr_options, terminate=terminate)
             if not self.tag:
@@ -106,8 +107,19 @@ class NFCTransaction:
         # If we get here, assume it's already a valid format and pass through.
         return f'usb:{port_spec}'
 
-    def transceive(self, payload, timeout=None):
+    def transceive(self, payload: Union[bytes, List[int]], timeout: Optional[int] = None) -> bytes:
+        """Performs an NFC transaction with the underlying NFC tag.
+
+        This method will retry communication with the NFC tag up to the defined
+        ``retry_max`` specified in the ``NfcTransaction`` instance.
+
+        :param payload: data to transmit to the tag.
+        :param timeout: optional timeout (int) per transaction attempt.
+        :returns: ``None``
+        """
         per_transceive_timeout = timeout if timeout is not None else self.transceive_timeout
+        err = None
+        timed_out: bool = True
 
         # Set up global timeout tracking using monotonic clock
         start_time = time.monotonic()
@@ -117,17 +129,25 @@ class NFCTransaction:
             if self.global_timeout is not None:
                 elapsed = time.monotonic() - start_time
                 if elapsed >= self.global_timeout:
-                    raise IOError(
+                    raise TimeoutError(
                         f"Global timeout ({self.global_timeout}s) exceeded after {attempt} attempts")
 
             try:
                 return self.tag.transceive(bytes(payload), timeout=per_transceive_timeout)
-            except nfc.tag.tt4.Type4TagCommandError:
-                print("NFC error, retrying...")
+            except nfc.tag.tt4.Type4TagCommandError as _err:
+                if _err.errno == nfc.tag.TIMEOUT_ERROR:
+                    logger.info(f"Timed out during NFC transceive ({attempt=}), retrying...")
+                else:
+                    err = _err
+                    print(f"NFC error during transceive, retrying...")
+                    timed_out = False
                 self._connect()
                 self._resume()
                 continue
-        raise IOError("nfc retry error")
+
+        if timed_out:
+            raise TimeoutError("Timed out communicating with NFC tag")
+        raise IOError(f"NFC retry error: error={err}")
 
     def close(self):
         self.clf.close()

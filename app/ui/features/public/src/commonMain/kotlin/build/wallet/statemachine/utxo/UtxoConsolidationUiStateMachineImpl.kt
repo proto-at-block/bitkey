@@ -3,7 +3,7 @@ package build.wallet.statemachine.utxo
 import androidx.compose.runtime.*
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
-import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UTXO_CONSOLIDATION_SIGN_TRANSACTION
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.toFormattedString
@@ -23,8 +23,8 @@ import build.wallet.money.formatter.amountDisplayText
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Loading
 import build.wallet.statemachine.data.money.convertedOrNull
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachine
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachineImpl.State.*
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachineImpl.State.ViewingConfirmation.SheetState.*
 import build.wallet.time.DateTimeFormatter
@@ -44,7 +44,7 @@ class UtxoConsolidationUiStateMachineImpl(
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
   private val utxoConsolidationService: UtxoConsolidationService,
-  private val nfcSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
+  private val signTransactionNfcSessionUiStateMachine: SignTransactionNfcSessionUiStateMachine,
 ) : UtxoConsolidationUiStateMachine {
   private val consolidationTimeExplanation =
     "We selected a 60-minute transfer target to get you the lowest network fees for consolidation."
@@ -160,14 +160,11 @@ class UtxoConsolidationUiStateMachineImpl(
         )
       }
       is SigningConsolidationWithHardware -> {
-        nfcSessionUiStateMachine.model(
-          NfcConfirmableSessionUIStateMachineProps(
-            session = { session, commands ->
-              commands.signTransaction(
-                session = session,
-                psbt = currentState.consolidationParams.appSignedPsbt,
-                spendingKeyset = currentState.account.keybox.activeSpendingKeyset
-              )
+        signTransactionNfcSessionUiStateMachine.model(
+          SignTransactionNfcSessionUiProps(
+            psbt = currentState.consolidationParams.appSignedPsbt,
+            onBack = {
+              state = ViewingConfirmation(currentState.account, currentState.consolidationParams)
             },
             onSuccess = { psbt: Psbt ->
               state = BroadcastingConsolidationTransaction(
@@ -177,12 +174,7 @@ class UtxoConsolidationUiStateMachineImpl(
                 consolidationCostDisplayText = currentState.consolidationCostDisplayText
               )
             },
-            onCancel = {
-              state = ViewingConfirmation(currentState.account, currentState.consolidationParams)
-            },
-            screenPresentationStyle = ScreenPresentationStyle.Root,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.UTXO_CONSOLIDATION_SIGN_TRANSACTION,
-            shouldShowLongRunningOperation = true
+            eventTrackerContext = UTXO_CONSOLIDATION_SIGN_TRANSACTION
           )
         )
       }

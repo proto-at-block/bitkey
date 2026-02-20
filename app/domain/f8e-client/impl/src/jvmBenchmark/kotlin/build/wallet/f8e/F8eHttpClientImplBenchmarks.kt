@@ -4,10 +4,12 @@ import app.cash.turbine.Turbine
 import bitkey.datadog.DatadogSpan
 import bitkey.datadog.DatadogTracer
 import bitkey.datadog.TracerHeaders
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.analytics.events.PlatformInfoProviderMock
 import build.wallet.auth.AppAuthKeyMessageSignerMock
 import build.wallet.auth.AuthTokensServiceFake
+import build.wallet.auth.SignedAccessTokenCacheFake
 import build.wallet.availability.NetworkReachabilityProviderMock
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -22,6 +24,7 @@ import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.platform.config.AppVariant.Development
+import build.wallet.platform.connectivity.InternetConnectionCheckerFake
 import build.wallet.platform.data.MimeType
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.settings.CountryCodeGuesserMock
@@ -46,6 +49,7 @@ open class F8eHttpClientImplBenchmarks {
   private val fakeKeyboxDao = KeyboxDaoMock({ Turbine() }, KeyboxMock)
   private val authTokensService = AuthTokensServiceFake()
   private val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock { Turbine() }
+  private val signedAccessTokenCache = SignedAccessTokenCacheFake()
 
   private val engine =
     MockEngine {
@@ -110,6 +114,7 @@ open class F8eHttpClientImplBenchmarks {
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       countryCodeGuesser = CountryCodeGuesserMock(),
       networkReachabilityProvider = unauthedNetworkReachabilityProvider,
+      internetConnectionChecker = InternetConnectionCheckerFake(),
       networkingDebugService = NetworkingDebugServiceFake(),
       engine = engine
     )
@@ -119,14 +124,17 @@ open class F8eHttpClientImplBenchmarks {
       appVariant = Development,
       platformInfoProvider = PlatformInfoProviderMock(),
       authTokensService = authTokensService,
+      accountService = AccountServiceFake(),
       datadogTracer = datadogTracer,
       deviceInfoProvider = deviceInfoProvider,
       keyboxDao = fakeKeyboxDao,
       appAuthKeyMessageSigner = fakeAppAuthKeyMessageSigner,
+      signedAccessTokenCache = signedAccessTokenCache,
       appInstallationDao = AppInstallationDaoMock(),
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       countryCodeGuesser = CountryCodeGuesserMock(),
       networkReachabilityProvider = authedNetworkReachabilityProvider,
+      internetConnectionChecker = InternetConnectionCheckerFake(),
       networkingDebugService = NetworkingDebugServiceFake(),
       engine = engine,
       clock = ClockFake()

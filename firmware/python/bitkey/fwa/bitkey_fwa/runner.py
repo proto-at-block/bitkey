@@ -1,19 +1,26 @@
-import sys
-import io
-import os
-import unittest
-import json
 import copy
-
+import io
+import json
+import os
+import sys
+import unittest
 from pathlib import Path
 from typing import Optional
 
-from . import discovery, firmware_tests, fwut, reporter
+from . import constants, discovery, firmware_tests, fwut, reporter
 from .fwut import root_fw_dir
 
 
-def _run_tests(tests: unittest.TestSuite, input: Path, output: Optional[Path], signer_env: Optional[str], dry_run: bool, verbose: bool,
-               stream: io.TextIOWrapper = sys.stdout) -> bool:
+def _run_tests(
+    tests: unittest.TestSuite,
+    input: Path,
+    output: Optional[Path],
+    signer_env: str,
+    stack_name: Optional[str],
+    dry_run: bool,
+    verbose: bool,
+    stream: io.TextIOWrapper = sys.stdout,
+) -> bool:
     """Execute the given tests for the given input and parameters"""
     if stream is None:
         stream = open(os.devnull, "w")
@@ -22,6 +29,7 @@ def _run_tests(tests: unittest.TestSuite, input: Path, output: Optional[Path], s
     fwut.FirmwareUnderTest.load(input)
 
     fwut.FirmwareUnderTest.signer_env = signer_env
+    fwut.FirmwareUnderTest.stack_name = stack_name
     fwut.FirmwareUnderTest.dry_run = dry_run
 
     # Translate true/false to the weird unittest verbosity system
@@ -31,7 +39,8 @@ def _run_tests(tests: unittest.TestSuite, input: Path, output: Optional[Path], s
 
     # Run the tests
     runner = unittest.TextTestRunner(
-        stream=stream, verbosity=verbosity, resultclass=reporter.TestResult)
+        stream=stream, verbosity=verbosity, resultclass=reporter.TestResult
+    )
     result = runner.run(tests)
     report = reporter.generate_report(result)
 
@@ -49,8 +58,14 @@ def _run_tests(tests: unittest.TestSuite, input: Path, output: Optional[Path], s
     return result.wasSuccessful()
 
 
-def run_analysis(input: Path, output: Optional[Path], signer_env: Optional[str],
-                 dry_run: bool, verbose: bool) -> bool:
+def run_analysis(
+    input: Path,
+    output: Optional[Path],
+    signer_env: constants.SIGNER_ENVS,
+    stack_name: Optional[str],
+    dry_run: bool,
+    verbose: bool,
+) -> bool:
     """Execute firmware analysis.
 
     NOTE: The original file name, as produced by the bitkey build system, must be preserved.
@@ -58,6 +73,8 @@ def run_analysis(input: Path, output: Optional[Path], signer_env: Optional[str],
     Args:
         input: Path to the file to analyze
         output: Path to store test results
+        signer_env: Signer environment
+        stack_name: Stack name
         dry_run: Set to True to only print the tests that would be performed and skip execution
         verbose: Verbose console output
 
@@ -74,9 +91,11 @@ def run_analysis(input: Path, output: Optional[Path], signer_env: Optional[str],
         input=input,
         output=output,
         signer_env=signer_env,
+        stack_name=stack_name,
         dry_run=dry_run,
         verbose=verbose,
     )
+
 
 def run_bulk_analysis(stream: io.TextIOWrapper = sys.stdout):
     """Execute analysis over all supported artifacts in the root fw dir.
@@ -94,11 +113,18 @@ def run_bulk_analysis(stream: io.TextIOWrapper = sys.stdout):
     loader = discovery.get_firmware_test_loader()
     tests = loader.discover(firmware_tests.directory, pattern="fwtest*.py")
 
-    artifacts = root_fw_dir.glob("build/firmware/app/*/*/*.elf")
+    glob_pattern = "build/firmware/**/app/**/**/*.elf"
+    artifacts = root_fw_dir.glob(glob_pattern)
     to_analyze = [a for a in artifacts if not any(b in a.name for b in denylist)]
     total = len(to_analyze)
 
     print("Performing bulk firmware analysis.")
+    if total == 0:
+        print(
+            f"ERROR: No firmware artifacts found (pattern: {glob_pattern}).",
+            file=sys.stderr,
+        )
+        return False
 
     results = []
     for count, (filename) in enumerate(to_analyze):
@@ -108,7 +134,8 @@ def run_bulk_analysis(stream: io.TextIOWrapper = sys.stdout):
             tests=copy.deepcopy(tests),
             input=input,
             output=None,  # Will create based on input file name
-            signer_env=None,
+            signer_env=constants.SIGNER_PERSONAL,
+            stack_name=None,
             dry_run=False,
             verbose=False,
             stream=stream,

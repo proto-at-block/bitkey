@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
+import build.wallet.ui.typography.font.cashSansFontFamily
+import build.wallet.ui.typography.font.cashSansMonoFontFamily
 import build.wallet.ui.typography.font.foundersGroteskFontFamily
 import build.wallet.ui.typography.font.robotoMonoFontFamily
 
@@ -247,3 +250,259 @@ fun LabelType.style(baseStyle: TextStyle) =
       letterSpacing = (0).sp
     )
   }
+
+/**
+ * New design system style tokens using Cash Sans fonts.
+ * Use this when the DesignSystemUpdatesFeatureFlag is enabled.
+ * Uses Regular weight throughout (Cash Sans Regular).
+ */
+@Composable
+fun LabelType.styleV2(baseStyle: TextStyle) =
+  when (this) {
+    LabelType.Header1 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 64.sp,
+        lineHeight = 48.sp,
+        letterSpacing = (0).sp
+      )
+    LabelType.Display1 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 64.sp,
+        lineHeight = 76.sp,
+        letterSpacing = (-1.43).sp
+      )
+    LabelType.Display2 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 48.sp,
+        lineHeight = 56.sp,
+        letterSpacing = (-2.5).sp
+      )
+    LabelType.Display3 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 32.sp,
+        lineHeight = 46.sp,
+        letterSpacing = (-1.07).sp
+      )
+    LabelType.Title1 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 30.sp,
+        lineHeight = 36.sp,
+        letterSpacing = (-0.65).sp
+      )
+    LabelType.Title2 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+        letterSpacing = (-0.35).sp
+      )
+    LabelType.Title3 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 20.sp,
+        lineHeight = 26.sp,
+        letterSpacing = (-0.35).sp
+      )
+    LabelType.Body1Regular ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 20.sp,
+        lineHeight = 30.sp,
+        letterSpacing = (-0.33).sp
+      )
+    LabelType.Body1Medium ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 20.sp,
+        lineHeight = 30.sp,
+        letterSpacing = (-0.33).sp
+      )
+    LabelType.Body1Bold ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 20.sp,
+        lineHeight = 30.sp,
+        letterSpacing = (-0.33).sp
+      )
+    LabelType.Body2Regular ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (-0.25).sp
+      )
+    LabelType.Body2Medium ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (-0.25).sp
+      )
+    LabelType.Body2Bold ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (-0.22).sp
+      )
+    LabelType.Body2Mono ->
+      baseStyle.copy(
+        fontFamily = cashSansMonoFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (0).sp
+      )
+    LabelType.Body2Link ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        lineHeight = 20.sp,
+        letterSpacing = (-0.22).sp
+      )
+    LabelType.Body3Regular ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 22.sp,
+        letterSpacing = (-0.2).sp
+      )
+    LabelType.Body3Medium ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 22.sp,
+        letterSpacing = (-0.2).sp
+      )
+    LabelType.Body3Bold ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 22.sp,
+        letterSpacing = (-0.2).sp
+      )
+    LabelType.Body3Link ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 22.sp,
+        letterSpacing = (-0.2).sp
+      )
+    LabelType.Body3Mono ->
+      baseStyle.copy(
+        fontFamily = cashSansMonoFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 22.sp,
+        letterSpacing = (0).sp
+      )
+    LabelType.Body4Regular ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = (-0.13).sp
+      )
+    LabelType.Body4Medium ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = (-0.13).sp
+      )
+    LabelType.Label1 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (-0.18).sp
+      )
+    LabelType.Label1Bold ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 14.sp,
+        letterSpacing = (0).sp
+      )
+    LabelType.Label2 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (-0.09).sp
+      )
+    LabelType.Label3 ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 14.sp,
+        letterSpacing = (-0.04).sp
+      )
+    LabelType.Keypad ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 24.sp,
+        lineHeight = 48.sp,
+        letterSpacing = (-0.47).sp
+      )
+    LabelType.CalloutTitle ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (0).sp
+      )
+    LabelType.CalloutSubtitle ->
+      baseStyle.copy(
+        fontFamily = cashSansFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (0).sp
+      )
+  }
+
+/**
+ * Returns the appropriate style based on the DesignSystemUpdatesFeatureFlag.
+ * Automatically switches between [style] (V1/Inter) and [styleV2] (V2/Cash Sans).
+ */
+@Composable
+fun LabelType.currentStyle(baseStyle: TextStyle): TextStyle {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  return if (isDesignSystemV2Enabled) {
+    styleV2(baseStyle)
+  } else {
+    style(baseStyle)
+  }
+}

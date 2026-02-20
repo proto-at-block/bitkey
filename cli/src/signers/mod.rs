@@ -3,7 +3,7 @@ pub(crate) mod seed;
 
 use std::sync::Arc;
 
-use bdk::{
+use bdk_wallet::{
     bitcoin::secp256k1::{ecdsa::Signature, PublicKey},
     miniscript::DescriptorPublicKey,
     signer::TransactionSigner,

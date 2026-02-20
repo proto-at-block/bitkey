@@ -69,8 +69,8 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
       }
       awaitLoadingScreen(DELETING_FULL_ACCOUNT)
       deleteFullAccountService.deleteAccountCalls.awaitItem()
-      onboardingKeyboxStepStateDao.stateForStep(DescriptorBackup).first().shouldBe(Incomplete)
       rollbackCalls.awaitItem()
+      onboardingKeyboxStepStateDao.stateForStep(DescriptorBackup).first().shouldBe(Incomplete)
     }
   }
 

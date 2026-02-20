@@ -4,12 +4,16 @@ import bitkey.auth.AccessToken
 import bitkey.auth.AccountAuthTokens
 import bitkey.auth.AuthTokenScope
 import bitkey.auth.RefreshToken
+import build.wallet.account.AccountServiceFake
+import build.wallet.account.AccountStatus
 import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
+import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -26,8 +30,9 @@ import kotlin.time.Duration.Companion.seconds
 
 class BitkeyAuthProviderTests : FunSpec({
   val authTokensService = AuthTokensServiceFake()
+  val accountService = AccountServiceFake()
   val clock = ClockFake()
-  val provider = BitkeyAuthProvider(authTokensService, clock)
+  val provider = BitkeyAuthProvider(authTokensService, accountService, clock)
 
   val httpResponse = HttpResponseMock(
     status = HttpStatusCode.OK,
@@ -40,6 +45,7 @@ class BitkeyAuthProviderTests : FunSpec({
 
   beforeTest {
     authTokensService.reset()
+    accountService.reset()
   }
 
   test("no auth header added when no tokens exist") {
@@ -183,6 +189,150 @@ class BitkeyAuthProviderTests : FunSpec({
 
   test("refreshToken returns false when no tokens exist") {
     provider.refreshToken(httpResponse).shouldBeFalse()
+  }
+
+  // Stale account ID validation tests
+
+  test("token refresh blocked when request account ID doesn't match current account") {
+    // Set up an active account with a different ID than the request
+    val activeAccount = FullAccountMock.copy(
+      accountId = FullAccountId("active-account-id")
+    )
+    accountService.accountState.value = Ok(AccountStatus.ActiveAccount(activeAccount))
+
+    // Set up expiring tokens for a different (stale) account
+    val staleAccountId = FullAccountId("stale-account-id")
+    val tokens = AccountAuthTokens(
+      accessToken = AccessToken("access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = clock.now().plus(5.seconds), // About to expire
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
+    )
+    authTokensService.setTokens(
+      accountId = staleAccountId,
+      tokens = tokens,
+      scope = AuthTokenScope.Global
+    )
+
+    // Configure refresh to return new tokens (but it should never be called)
+    authTokensService.refreshAccessTokenTokens = AccountAuthTokens(
+      accessToken = AccessToken("new-access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = clock.now().plus(5.minutes),
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
+    )
+
+    val request = createRequestBuilder(staleAccountId)
+    provider.addRequestHeaders(request, null)
+
+    // Token refresh should be blocked for stale account - no auth header added
+    request.headers[HttpHeaders.Authorization].shouldBeNull()
+  }
+
+  test("token refresh allowed when account IDs match") {
+    // Set up an active account
+    val activeAccount = FullAccountMock.copy(
+      accountId = FullAccountId("active-account-id")
+    )
+    accountService.accountState.value = Ok(AccountStatus.ActiveAccount(activeAccount))
+
+    // Set up expiring tokens for the same account
+    val tokens = AccountAuthTokens(
+      accessToken = AccessToken("access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = clock.now().plus(5.seconds), // About to expire
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
+    )
+    authTokensService.setTokens(
+      accountId = activeAccount.accountId,
+      tokens = tokens,
+      scope = AuthTokenScope.Global
+    )
+
+    // Configure refresh to return new tokens
+    val refreshedTokens = AccountAuthTokens(
+      accessToken = AccessToken("new-access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = clock.now().plus(5.minutes),
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
+    )
+    authTokensService.refreshAccessTokenTokens = refreshedTokens
+
+    val request = createRequestBuilder(activeAccount.accountId)
+    provider.addRequestHeaders(request, null)
+
+    // Token refresh should succeed for matching account
+    request.headers[HttpHeaders.Authorization].shouldBe("Bearer new-access-token")
+  }
+
+  test("token refresh allowed when no current account (recovery flows)") {
+    // No active account
+    accountService.accountState.value = Ok(AccountStatus.NoAccount)
+
+    // Set up expiring tokens for some account
+    val accountId = FullAccountId("some-account-id")
+    val tokens = AccountAuthTokens(
+      accessToken = AccessToken("access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = clock.now().plus(5.seconds), // About to expire
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
+    )
+    authTokensService.setTokens(
+      accountId = accountId,
+      tokens = tokens,
+      scope = AuthTokenScope.Global
+    )
+
+    // Configure refresh to return new tokens
+    val refreshedTokens = AccountAuthTokens(
+      accessToken = AccessToken("new-access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = clock.now().plus(5.minutes),
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
+    )
+    authTokensService.refreshAccessTokenTokens = refreshedTokens
+
+    val request = createRequestBuilder(accountId)
+    provider.addRequestHeaders(request, null)
+
+    // Token refresh should succeed when no current account (recovery scenario)
+    request.headers[HttpHeaders.Authorization].shouldBe("Bearer new-access-token")
+  }
+
+  test("refresh token refresh blocked when account ID doesn't match current account") {
+    // Set up an active account with a different ID than the request
+    val activeAccount = FullAccountMock.copy(
+      accountId = FullAccountId("active-account-id")
+    )
+    accountService.accountState.value = Ok(AccountStatus.ActiveAccount(activeAccount))
+
+    // Set up tokens with expiring refresh token for a different (stale) account
+    val staleAccountId = FullAccountId("stale-account-id")
+    val tokens = AccountAuthTokens(
+      accessToken = AccessToken("access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = clock.now().plus(5.minutes),
+      refreshTokenExpiresAt = clock.now().plus(5.seconds) // About to expire
+    )
+    authTokensService.setTokens(
+      accountId = staleAccountId,
+      tokens = tokens,
+      scope = AuthTokenScope.Global
+    )
+
+    // Configure refresh to return new tokens (but it should never be called)
+    authTokensService.refreshRefreshTokenTokens = AccountAuthTokens(
+      accessToken = AccessToken("new-access-token"),
+      refreshToken = RefreshToken("new-refresh-token"),
+      accessTokenExpiresAt = clock.now().plus(5.minutes),
+      refreshTokenExpiresAt = clock.now().plus(30.days)
+    )
+
+    val request = createRequestBuilder(staleAccountId)
+    provider.addRequestHeaders(request, null)
+
+    // Token refresh should be blocked for stale account - no auth header added
+    request.headers[HttpHeaders.Authorization].shouldBeNull()
   }
 })
 

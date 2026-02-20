@@ -8,9 +8,11 @@ import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactory
 import build.wallet.bitcoin.lightning.LightningInvoiceParser
 import build.wallet.chaincode.delegation.ChaincodeDelegationServerKeyGenerator
+import build.wallet.chaincode.delegation.ChaincodeExtractor
 import build.wallet.chaincode.delegation.PsbtUtils
 import build.wallet.chaincode.delegation.PublicKeyUtils
 import build.wallet.cloud.store.CloudFileStore
+import build.wallet.cloud.store.CloudKitQueryRunner
 import build.wallet.crypto.NoiseInitiator
 import build.wallet.crypto.Spake2
 import build.wallet.crypto.WsmVerifier
@@ -79,6 +81,7 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val bdkTxBuilderFactory: BdkTxBuilderFactory,
   @get:Provides val bdkWalletFactory: BdkWalletFactory,
   @get:Provides val cloudFileStore: CloudFileStore,
+  @get:Provides val cloudKitQueryRunner: CloudKitQueryRunner,
   @get:Provides val cryptoBox: CryptoBox,
   @get:Provides val datadogRumMonitor: DatadogRumMonitor,
   @get:Provides val datadogTracer: DatadogTracer,
@@ -111,6 +114,7 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val xNonceGenerator: XNonceGenerator,
   @get:Provides val noiseInitiator: NoiseInitiator,
   @get:Provides val p256Box: P256Box,
+  @get:Provides val chaincodeExtractor: ChaincodeExtractor,
   @get:Provides val chaincodeDelegationServerKeyGenerator: ChaincodeDelegationServerKeyGenerator,
   @get:Provides val publicKeyUtils: PublicKeyUtils,
   @get:Provides val ageRangeService: IosAgeRangeService,
@@ -150,6 +154,7 @@ expect fun create(
   bdkTxBuilderFactory: BdkTxBuilderFactory,
   bdkWalletFactory: BdkWalletFactory,
   cloudFileStore: CloudFileStore,
+  cloudKitQueryRunner: CloudKitQueryRunner,
   cryptoBox: CryptoBox,
   datadogRumMonitor: DatadogRumMonitor,
   datadogTracer: DatadogTracer,
@@ -182,6 +187,7 @@ expect fun create(
   xNonceGenerator: XNonceGenerator,
   noiseInitiator: NoiseInitiator,
   p256Box: P256Box,
+  chaincodeExtractor: ChaincodeExtractor,
   chaincodeDelegationServerKeyGenerator: ChaincodeDelegationServerKeyGenerator,
   publicKeyUtils: PublicKeyUtils,
   ageRangeService: IosAgeRangeService,

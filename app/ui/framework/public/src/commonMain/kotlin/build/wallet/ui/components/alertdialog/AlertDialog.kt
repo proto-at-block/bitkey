@@ -1,17 +1,14 @@
 package build.wallet.ui.components.alertdialog
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialogDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -33,7 +30,6 @@ import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.LabelType.Title2
-import androidx.compose.material3.BasicAlertDialog as MaterialBasicAlertDialog
 
 @Composable
 fun AlertDialog(
@@ -120,7 +116,6 @@ private fun ButtonAlertDialogContent(
 /**
  * This component is not designed for production use. It's only used in the debug menu.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InputAlertDialog(
   modifier: Modifier = Modifier,
@@ -130,18 +125,23 @@ fun InputAlertDialog(
     mutableStateOf(model.value)
   }
 
-  MaterialBasicAlertDialog(
-    modifier = modifier
-      .clip(AlertDialogDefaults.shape)
-      .background(WalletTheme.colors.containerBackground)
-      .padding(24.dp),
+  Dialog(
     onDismissRequest = { model.onDismiss.invoke() }
   ) {
     Column(
-      modifier =
-        Modifier
-          .fillMaxWidth()
-          .verticalScroll(rememberScrollState())
+      modifier = modifier
+        .background(
+          color = WalletTheme.colors.containerBackground,
+          shape = RoundedCornerShape(16.dp)
+        )
+        .border(
+          width = 1.dp,
+          color = WalletTheme.colors.foreground10,
+          shape = RoundedCornerShape(16.dp)
+        )
+        .padding(24.dp)
+        .fillMaxWidth()
+        .verticalScroll(rememberScrollState())
     ) {
       Label(text = model.title, type = LabelType.Body1Medium)
       model.subline?.let { Label(text = it, type = LabelType.Body3Regular) }
@@ -158,21 +158,28 @@ fun InputAlertDialog(
         trailingButtonModel = null
       )
       Spacer(modifier = Modifier.height(16.dp))
-      Row(modifier = Modifier.align(Alignment.End)) {
-        TextButton(modifier = Modifier.resId("dismiss-alert"), onClick = {
-          model.onCancel()
-        }) {
-          Text(
-            text = "Cancel".uppercase()
+      Row(
+        modifier = Modifier.align(Alignment.End),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Button(
+          modifier = Modifier.resId("dismiss-alert"),
+          model = ButtonModel(
+            text = "Cancel".uppercase(),
+            treatment = ButtonModel.Treatment.TertiaryNoUnderline,
+            size = ButtonModel.Size.FitContent,
+            onClick = StandardClick { model.onCancel() }
           )
-        }
-        TextButton(modifier = Modifier.resId("confirm-alert"), onClick = {
-          model.onConfirm(inputValue)
-        }) {
-          Text(
-            text = "Confirm".uppercase()
+        )
+        Button(
+          modifier = Modifier.resId("confirm-alert"),
+          model = ButtonModel(
+            text = "Confirm".uppercase(),
+            treatment = ButtonModel.Treatment.TertiaryNoUnderline,
+            size = ButtonModel.Size.FitContent,
+            onClick = StandardClick { model.onConfirm(inputValue) }
           )
-        }
+        )
       }
     }
   }

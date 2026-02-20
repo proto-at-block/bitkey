@@ -7,7 +7,7 @@ use crate::{
     fwpb::{
         fwup_finish_rsp::FwupFinishRspStatus, fwup_start_rsp::FwupStartRspStatus,
         fwup_transfer_rsp::FwupTransferRspStatus, wallet_rsp::Msg, FwupFinishCmd, FwupFinishRsp,
-        FwupStartCmd, FwupStartRsp, FwupTransferCmd, FwupTransferRsp, Status,
+        FwupStartCmd, FwupStartRsp, FwupTransferCmd, FwupTransferRsp, Semver, Status,
     },
     wca::decode_and_check,
 };
@@ -43,18 +43,32 @@ impl From<FwupMode> for fwpb::FwupMode {
     }
 }
 
+/// Parses a version string like "1.2.3" into a Semver proto message.
+fn parse_version(version: &str) -> Semver {
+    let parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
+
+    Semver {
+        major: parts.first().copied().unwrap_or(0),
+        minor: parts.get(1).copied().unwrap_or(0),
+        patch: parts.get(2).copied().unwrap_or(0),
+    }
+}
+
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn fwup_start(
     patch_size: Option<u32>,
     fwup_mode: FwupMode,
     mcu_role: McuRole,
+    version: String,
 ) -> Result<FwupStartResult, CommandError> {
     let m: fwpb::FwupMode = fwup_mode.into();
     let mr: fwpb::McuRole = mcu_role.into();
+    let version_semver = parse_version(&version);
     let apdu: apdu::Command = FwupStartCmd {
         mode: m as i32,
         patch_size: patch_size.unwrap_or(0),
         mcu_role: mr.into(),
+        version: Some(version_semver),
     }
     .try_into()?;
 
@@ -154,7 +168,7 @@ fn fwup_finish(
     }
 }
 
-command!(FwupStart = fwup_start -> FwupStartResult, patch_size: Option<u32>, fwup_mode: FwupMode, mcu_role: McuRole);
+command!(FwupStart = fwup_start -> FwupStartResult, patch_size: Option<u32>, fwup_mode: FwupMode, mcu_role: McuRole, version: String);
 command!(FwupTransfer = fwup_transfer -> bool,
     sequence_id: u32,
     fwup_data: Vec<u8>,
@@ -192,7 +206,7 @@ mod tests {
 
     #[test]
     fn fwup_start_success() -> Result<(), CommandError> {
-        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core);
+        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string());
         command.next(Vec::default())?;
 
         let response = make_response(WalletRsp {
@@ -216,7 +230,7 @@ mod tests {
 
     #[test]
     fn fwup_start_confirmation_pending() -> Result<(), CommandError> {
-        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core);
+        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string());
         command.next(Vec::default())?;
 
         let response_handle = vec![0x01, 0x02, 0x03, 0x04];
@@ -249,7 +263,7 @@ mod tests {
 
     #[test]
     fn fwup_start_error() {
-        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core);
+        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string());
         command.next(Vec::default()).unwrap();
 
         let response = make_response(WalletRsp {

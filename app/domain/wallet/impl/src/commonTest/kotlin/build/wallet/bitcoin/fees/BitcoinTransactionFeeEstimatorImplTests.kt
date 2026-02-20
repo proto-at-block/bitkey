@@ -42,7 +42,7 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
       Ok(
         PsbtMock.copy(
           fee = Fee(BitcoinMoney.sats(200)),
-          baseSize = 2000,
+          vsize = 2000,
           numOfInputs = 1,
           amountSats = 100UL
         )
@@ -56,7 +56,7 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
         amount = BitcoinTransactionSendAmount.ExactAmount(BitcoinMoney.zero())
       ).unwrap()
 
-    // *Note* size is hardcoded to be 2000
+    // *Note* vsize is hardcoded to be 2000
     // Fee rates are fastest -> 3, thirty mins -> 2, sixty mins -> 1
     // We assume a total size of 2000 + 253 for a weight of (3 * 2000) + 2253 = 8253
     // This gives us a vsize of 2064, and each fee is this value times the fee rate

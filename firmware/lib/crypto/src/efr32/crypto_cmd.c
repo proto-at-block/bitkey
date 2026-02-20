@@ -14,6 +14,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Some crypto tests are not enabled by default due to firmware size constraints.
+// Setting the value of one of the defines below to 1 will enable that test.
+#define CRYPTO_CMD_ECC_TEST_EN        0
+#define CRYPTO_CMD_GCM_TEST_EN        0
+#define CRYPTO_CMD_CURVE25519_TEST_EN 0
+
 static struct {
   arg_lit_t* schnorr;
   arg_int_t* ecc;
@@ -24,7 +30,7 @@ static struct {
   arg_end_t* end;
 } crypto_cmd_args;
 
-void schnorr_test(void) {
+static void _schnorr_test(void) {
   crypto_ecc_secp256k1_init();
 
   key_handle_t key = {0};
@@ -71,7 +77,7 @@ out:
   dumphex(sig, sizeof(sig));
 }
 
-void attestation_test(void) {
+static void _attestation_test(void) {
   uint8_t challenge[16] = {0};
   memset(challenge, 'a', sizeof(challenge));
   uint8_t signature[64] = {0};
@@ -86,7 +92,8 @@ void attestation_test(void) {
   dumphex(signature, sizeof(signature));
 }
 
-void crypto_test_curve25519(void) {
+#if defined(CRYPTO_CMD_CURVE25519_TEST_EN) && CRYPTO_CMD_CURVE25519_TEST_EN
+static void _curve25519_test(void) {
   uint8_t our_privkey_buf[EC_PRIVKEY_SIZE_X25519] = {
     0x05, 0x09, 0xa7, 0x09, 0x3b, 0x48, 0x38, 0xc8, 0xf7, 0x84, 0x97, 0x7b, 0x95, 0x18, 0x21, 0xe8,
     0x2f, 0x22, 0x55, 0xd3, 0xc0, 0x13, 0x93, 0xe0, 0xa2, 0xe6, 0x69, 0x1d, 0x0d, 0x3e, 0xa3, 0xcb,
@@ -138,8 +145,10 @@ void crypto_test_curve25519(void) {
 
   LOGI("25519_ecdh_test PASS");
 }
+#endif
 
-void ecc_test(key_algorithm_t alg) {
+#if defined(CRYPTO_CMD_ECC_TEST_EN) && CRYPTO_CMD_ECC_TEST_EN
+static void _ecc_test(key_algorithm_t alg) {
   uint8_t message[32] = {0};
   memset(message, 'a', sizeof(message));
 
@@ -194,8 +203,9 @@ void ecc_test(key_algorithm_t alg) {
   printf("Signature 2: ");
   dumphex(signature, sizeof(signature));
 }
+#endif
 
-void randomness_test(void) {
+static void _randomness_test(void) {
   dudero_ctx_t ctx;
   dudero_stream_init(&ctx);
   for (size_t i = 0; i < 256; i++) {
@@ -221,17 +231,29 @@ static void cmd_crypto_run(int argc, char** argv) {
     return;
 
   if (crypto_cmd_args.schnorr->header.found) {
-    schnorr_test();
+    _schnorr_test();
   } else if (crypto_cmd_args.attestation->header.found) {
-    attestation_test();
+    _attestation_test();
   } else if (crypto_cmd_args.ecc->header.found) {
-    ecc_test(crypto_cmd_args.ecc->value);
+#if defined(CRYPTO_CMD_ECC_TEST_EN) && CRYPTO_CMD_ECC_TEST_EN
+    _ecc_test(crypto_cmd_args.ecc->value);
+#else
+    LOGE("ecc test not enabled (CRYPTO_CMD_ECC_TEST_EN=0)");
+#endif
   } else if (crypto_cmd_args.gcm->header.found) {
+#if defined(CRYPTO_CMD_GCM_TEST_EN) && CRYPTO_CMD_GCM_TEST_EN
     crypto_test_gcm();
+#else
+    LOGE("gcm test not enabled (CRYPTO_CMD_GCM_TEST_EN=0)");
+#endif
   } else if (crypto_cmd_args.rng->header.found) {
-    randomness_test();
+    _randomness_test();
   } else if (crypto_cmd_args.curve25519->header.found) {
-    crypto_test_curve25519();
+#if defined(CRYPTO_CMD_CURVE25519_TEST_EN) && CRYPTO_CMD_CURVE25519_TEST_EN
+    _curve25519_test();
+#else
+    LOGE("curve25519 test not enabled (CRYPTO_CMD_CURVE25519_TEST_EN=0)");
+#endif
   }
 }
 

@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-runtime-desktop",
     "components": [
         {
-            "version": "2.8.7",
+            "version": "2.9.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-runtime-desktop-2.8.7.jar": "10bfe53bb2752f967751a5102cdb785eeea54e1d4df6bde88fb0f50b0a49156c"
+                        "lifecycle-runtime-desktop-2.9.4.jar": "2fb49f76d1021792fb359e0a9246c1509f2f5b555f0a46591d24d58deb68bd5c"
                     }
                 }
             ],

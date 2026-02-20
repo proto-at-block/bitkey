@@ -2,19 +2,6 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-native-utils",
     "components": [
         {
-            "version": "2.0.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-native-utils-2.0.20.jar": "c166f2051e91d199e960ffc7b2764485c1510cd17674dd7b8ce3c2fcd06a872b"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[build-logic]"
-            ]
-        },
-        {
             "version": "2.1.20",
             "variants": [
                 {
@@ -25,6 +12,19 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
+            ]
+        },
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-native-utils-2.2.20.jar": "5017774a2aea41ff8712137116cd4d8003fe9aba1200c106e65730feb5bb7442"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
             ]
         }
     ]

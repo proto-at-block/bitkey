@@ -5,6 +5,7 @@ import build.wallet.firmware.McuRole
 import build.wallet.fwup.FwupManifestParser.FwupSlot.A
 import build.wallet.fwup.FwupManifestParser.FwupSlot.B
 import build.wallet.fwup.FwupManifestParser.ParseFwupManifestSuccess
+import build.wallet.fwup.ParseFwupManifestError.NoUpdateNeeded
 import build.wallet.fwup.ParseFwupManifestError.ParsingError
 import build.wallet.fwup.ParseFwupManifestError.UnknownManifestVersion
 import build.wallet.testing.shouldBeErrOfType
@@ -130,11 +131,12 @@ class FwupManifestParserTests :
       """.trimMargin()
 
     test("Update from A slot to B slot") {
-      val result = fwup.parseFwupManifest(goodJson, "0.0.0", A, FwupMode.Normal)
+      val result = fwup.parseFwupManifest(goodJson, "0.0.0", A)
       result.shouldBe(
         Ok(
           ParseFwupManifestSuccess.SingleMcu(
             firmwareVersion = "1.2.5",
+            fwupMode = FwupMode.Normal,
             binaryFilename = "w1a-proto-0-app-b-dev.signed.bin",
             signatureFilename = "w1a-proto-0-app-b-dev.detached_signature",
             chunkSize = 452U,
@@ -152,21 +154,22 @@ class FwupManifestParserTests :
     // }
 
     test("Unknown manifest version") {
-      val result = fwup.parseFwupManifest(wrongManifestVersionJson, "1.2.5", A, FwupMode.Normal)
+      val result = fwup.parseFwupManifest(wrongManifestVersionJson, "1.2.5", A)
       result.shouldBe(Err(UnknownManifestVersion))
     }
 
     test("Missing signature files") {
-      val result = fwup.parseFwupManifest(missingSignatureFilesJson, "1.2.5", A, FwupMode.Normal)
+      val result = fwup.parseFwupManifest(missingSignatureFilesJson, "1.2.5", A)
       result.shouldBeErrOfType<ParsingError>()
     }
 
     test("Delta A to B") {
-      val result = fwup.parseFwupManifest(goodDeltaJson, "1.0.1", A, FwupMode.Delta)
+      val result = fwup.parseFwupManifest(goodDeltaJson, "1.0.1", A)
       result.shouldBe(
         Ok(
           ParseFwupManifestSuccess.SingleMcu(
             firmwareVersion = "1.0.30",
+            fwupMode = FwupMode.Delta,
             binaryFilename = "w1a-dvt-a-to-b.signed.patch",
             signatureFilename = "w1a-dvt-app-b-dev.detached_signature",
             chunkSize = 452U,
@@ -178,11 +181,12 @@ class FwupManifestParserTests :
     }
 
     test("Delta B to A") {
-      val result = fwup.parseFwupManifest(goodDeltaJson, "1.0.1", B, FwupMode.Delta)
+      val result = fwup.parseFwupManifest(goodDeltaJson, "1.0.1", B)
       result.shouldBe(
         Ok(
           ParseFwupManifestSuccess.SingleMcu(
             firmwareVersion = "1.0.30",
+            fwupMode = FwupMode.Delta,
             binaryFilename = "w1a-dvt-b-to-a.signed.patch",
             signatureFilename = "w1a-dvt-app-a-dev.detached_signature",
             chunkSize = 452U,
@@ -193,17 +197,13 @@ class FwupManifestParserTests :
       )
     }
 
-    test("Parsing normal manifest when trying to delta fwup") {
-      val result = fwup.parseFwupManifest(goodJson, "1.0.1", A, FwupMode.Delta)
-      result.shouldBeErrOfType<ParsingError>()
-    }
-
     test("Update from A slot to B slot with V2 manifest") {
-      val result = fwup.parseFwupManifest(goodV2Json, "0.0.0", A, FwupMode.Normal)
+      val result = fwup.parseFwupManifest(goodV2Json, "0.0.0", A)
       result.shouldBe(
         Ok(
           ParseFwupManifestSuccess.MultiMcu(
             firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Normal,
             mcuUpdates = mapOf(
               McuRole.CORE to ParseFwupManifestSuccess.McuUpdate(
                 mcuName = McuName.EFR32,
@@ -228,11 +228,12 @@ class FwupManifestParserTests :
     }
 
     test("Update from B slot to A slot with V2 manifest") {
-      val result = fwup.parseFwupManifest(goodV2Json, "0.0.0", B, FwupMode.Normal)
+      val result = fwup.parseFwupManifest(goodV2Json, "0.0.0", B)
       result.shouldBe(
         Ok(
           ParseFwupManifestSuccess.MultiMcu(
             firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Normal,
             mcuUpdates = mapOf(
               McuRole.CORE to ParseFwupManifestSuccess.McuUpdate(
                 mcuName = McuName.EFR32,
@@ -257,11 +258,12 @@ class FwupManifestParserTests :
     }
 
     test("Delta A to B with V2 manifest") {
-      val result = fwup.parseFwupManifest(goodV2DeltaJson, "1.0.0", A, FwupMode.Delta)
+      val result = fwup.parseFwupManifest(goodV2DeltaJson, "1.0.0", A)
       result.shouldBe(
         Ok(
           ParseFwupManifestSuccess.MultiMcu(
             firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Delta,
             mcuUpdates = mapOf(
               McuRole.CORE to ParseFwupManifestSuccess.McuUpdate(
                 mcuName = McuName.EFR32,
@@ -286,11 +288,12 @@ class FwupManifestParserTests :
     }
 
     test("Delta B to A with V2 manifest") {
-      val result = fwup.parseFwupManifest(goodV2DeltaJson, "1.0.0", B, FwupMode.Delta)
+      val result = fwup.parseFwupManifest(goodV2DeltaJson, "1.0.0", B)
       result.shouldBe(
         Ok(
           ParseFwupManifestSuccess.MultiMcu(
             firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Delta,
             mcuUpdates = mapOf(
               McuRole.CORE to ParseFwupManifestSuccess.McuUpdate(
                 mcuName = McuName.EFR32,
@@ -307,6 +310,223 @@ class FwupManifestParserTests :
                 chunkSize = 256U,
                 signatureOffset = 350000U,
                 appPropertiesOffset = 1024U
+              )
+            )
+          )
+        )
+      )
+    }
+
+    test("V2 manifest with per-MCU versions - only CORE needs update") {
+      // Bundle version is 2.0.0, CORE is at 1.0.0 (needs update), UXC is at 2.0.0 (up-to-date)
+      val mcuVersions = mapOf(
+        McuRole.CORE to "1.0.0",
+        McuRole.UXC to "2.0.0"
+      )
+      val result = fwup.parseFwupManifest(goodV2Json, "1.0.0", A, mcuVersions)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess.MultiMcu(
+            firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Normal,
+            mcuUpdates = mapOf(
+              McuRole.CORE to ParseFwupManifestSuccess.McuUpdate(
+                mcuName = McuName.EFR32,
+                binaryFilename = "main-app-b.signed.bin",
+                signatureFilename = "main-app-b.detached_signature",
+                chunkSize = 512U,
+                signatureOffset = 700000U,
+                appPropertiesOffset = 2048U
+              )
+            )
+          )
+        )
+      )
+    }
+
+    test("V2 manifest with per-MCU versions - only UXC needs update") {
+      // Bundle version is 2.0.0, CORE is at 2.0.0 (up-to-date), UXC is at 1.0.0 (needs update)
+      val mcuVersions = mapOf(
+        McuRole.CORE to "2.0.0",
+        McuRole.UXC to "1.0.0"
+      )
+      val result = fwup.parseFwupManifest(goodV2Json, "1.0.0", A, mcuVersions)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess.MultiMcu(
+            firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Normal,
+            mcuUpdates = mapOf(
+              McuRole.UXC to ParseFwupManifestSuccess.McuUpdate(
+                mcuName = McuName.STM32U5,
+                binaryFilename = "se-app-b.signed.bin",
+                signatureFilename = "se-app-b.detached_signature",
+                chunkSize = 256U,
+                signatureOffset = 350000U,
+                appPropertiesOffset = 1024U
+              )
+            )
+          )
+        )
+      )
+    }
+
+    test("V2 manifest with per-MCU versions - all MCUs up-to-date returns NoUpdateNeeded") {
+      // Bundle version is 2.0.0, both MCUs are at 2.0.0
+      val mcuVersions = mapOf(
+        McuRole.CORE to "2.0.0",
+        McuRole.UXC to "2.0.0"
+      )
+      val result = fwup.parseFwupManifest(goodV2Json, "1.0.0", A, mcuVersions)
+      result.shouldBe(Err(NoUpdateNeeded))
+    }
+
+    test("V2 delta manifest with per-MCU versions - only CORE needs update") {
+      // to_version is 2.0.0, CORE is at 1.0.0 (needs update), UXC is at 2.0.0 (up-to-date)
+      val mcuVersions = mapOf(
+        McuRole.CORE to "1.0.0",
+        McuRole.UXC to "2.0.0"
+      )
+      val result = fwup.parseFwupManifest(goodV2DeltaJson, "1.0.0", A, mcuVersions)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess.MultiMcu(
+            firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Delta,
+            mcuUpdates = mapOf(
+              McuRole.CORE to ParseFwupManifestSuccess.McuUpdate(
+                mcuName = McuName.EFR32,
+                binaryFilename = "main-a-to-b.signed.patch",
+                signatureFilename = "main-app-b.detached_signature",
+                chunkSize = 512U,
+                signatureOffset = 700000U,
+                appPropertiesOffset = 2048U
+              )
+            )
+          )
+        )
+      )
+    }
+
+    test("V2 delta manifest with per-MCU versions - only UXC needs update") {
+      // to_version is 2.0.0, CORE is at 2.0.0 (up-to-date), UXC is at 1.0.0 (needs update)
+      val mcuVersions = mapOf(
+        McuRole.CORE to "2.0.0",
+        McuRole.UXC to "1.0.0"
+      )
+      val result = fwup.parseFwupManifest(goodV2DeltaJson, "1.0.0", A, mcuVersions)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess.MultiMcu(
+            firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Delta,
+            mcuUpdates = mapOf(
+              McuRole.UXC to ParseFwupManifestSuccess.McuUpdate(
+                mcuName = McuName.STM32U5,
+                binaryFilename = "se-a-to-b.signed.patch",
+                signatureFilename = "se-app-b.detached_signature",
+                chunkSize = 256U,
+                signatureOffset = 350000U,
+                appPropertiesOffset = 1024U
+              )
+            )
+          )
+        )
+      )
+    }
+
+    test("V2 delta manifest with per-MCU versions - all MCUs up-to-date returns NoUpdateNeeded") {
+      // to_version is 2.0.0, both MCUs are at 2.0.0
+      val mcuVersions = mapOf(
+        McuRole.CORE to "2.0.0",
+        McuRole.UXC to "2.0.0"
+      )
+      val result = fwup.parseFwupManifest(goodV2DeltaJson, "1.0.0", A, mcuVersions)
+      result.shouldBe(Err(NoUpdateNeeded))
+    }
+
+    test("V2 manifest falls back to currentVersion when MCU not in map") {
+      // Only CORE version provided, UXC should fall back to currentVersion (0.0.0)
+      val mcuVersions = mapOf(
+        McuRole.CORE to "2.0.0" // up-to-date
+      )
+      val result = fwup.parseFwupManifest(goodV2Json, "0.0.0", A, mcuVersions)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess.MultiMcu(
+            firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Normal,
+            mcuUpdates = mapOf(
+              // CORE is up-to-date so not included
+              McuRole.UXC to ParseFwupManifestSuccess.McuUpdate(
+                mcuName = McuName.STM32U5,
+                binaryFilename = "se-app-b.signed.bin",
+                signatureFilename = "se-app-b.detached_signature",
+                chunkSize = 256U,
+                signatureOffset = 350000U,
+                appPropertiesOffset = 1024U
+              )
+            )
+          )
+        )
+      )
+    }
+
+    test("V2 manifest falls back to currentVersion when currentMcuVersions is empty map") {
+      // Empty map (not null) should fall back to currentVersion for all MCUs
+      val mcuVersions = emptyMap<McuRole, String>()
+      val result = fwup.parseFwupManifest(goodV2Json, "0.0.0", A, mcuVersions)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess.MultiMcu(
+            firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Normal,
+            mcuUpdates = mapOf(
+              McuRole.CORE to ParseFwupManifestSuccess.McuUpdate(
+                mcuName = McuName.EFR32,
+                binaryFilename = "main-app-b.signed.bin",
+                signatureFilename = "main-app-b.detached_signature",
+                chunkSize = 512U,
+                signatureOffset = 700000U,
+                appPropertiesOffset = 2048U
+              ),
+              McuRole.UXC to ParseFwupManifestSuccess.McuUpdate(
+                mcuName = McuName.STM32U5,
+                binaryFilename = "se-app-b.signed.bin",
+                signatureFilename = "se-app-b.detached_signature",
+                chunkSize = 256U,
+                signatureOffset = 350000U,
+                appPropertiesOffset = 1024U
+              )
+            )
+          )
+        )
+      )
+    }
+
+    test("V2 manifest with distinct currentVersion - per-MCU versions take precedence") {
+      // currentVersion is 1.5.0, but per-MCU versions differ
+      // CORE is at 1.0.0 (needs update), UXC is at 2.0.0 (up-to-date)
+      // This verifies per-MCU version checking takes precedence over currentVersion
+      val mcuVersions = mapOf(
+        McuRole.CORE to "1.0.0",
+        McuRole.UXC to "2.0.0"
+      )
+      val result = fwup.parseFwupManifest(goodV2Json, "1.5.0", A, mcuVersions)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess.MultiMcu(
+            firmwareVersion = "2.0.0",
+            fwupMode = FwupMode.Normal,
+            mcuUpdates = mapOf(
+              // Only CORE needs update (based on its specific version, not currentVersion)
+              McuRole.CORE to ParseFwupManifestSuccess.McuUpdate(
+                mcuName = McuName.EFR32,
+                binaryFilename = "main-app-b.signed.bin",
+                signatureFilename = "main-app-b.detached_signature",
+                chunkSize = 512U,
+                signatureOffset = 700000U,
+                appPropertiesOffset = 2048U
               )
             )
           )

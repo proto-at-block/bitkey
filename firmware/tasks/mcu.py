@@ -37,7 +37,7 @@ def chipinfo(c, chip: Optional[str] = None):
 def flash(c, target=None, image=None, platform=None, erase=False, force=False, no_backup=False, jlink=None):
     """Flashes the firmware"""
     if not no_backup:
-        backup = do_backup(c, None)
+        do_backup(c, None, jlink_serial=jlink)
 
     platform = platform or c.platform
     if not target:

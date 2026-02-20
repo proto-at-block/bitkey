@@ -10,7 +10,7 @@ def run_cscope(dir_path: str) -> None:
     """
     Runs cscope on the given directory. The function does not return anything.
     This generates cscope files that can be parsed later.
-    
+
     Args:
         dir_path (str): The directory path.
     """
@@ -20,19 +20,17 @@ def run_cscope(dir_path: str) -> None:
 
 
 def get_function_macro_counts(
-    dir_path: str,
-    macros: List[str],
-    sources: Optional[List[str]] = None
+    dir_path: str, macros: List[str], sources: Optional[List[str]] = None
 ) -> Dict[str, int]:
     """
     Returns the number of times secutils_fixed_true is used per function.
     This only outputs non zero occurences of secutils_fixed_true.
-    
+
     Args:
         dir_path (str): The directory path.
         macros (List[str]): The list of macro names.
         sources (List[str]): Optional list of filenames to filter to.
-    
+
     Returns:
         Dict[str, int]: A dictionary that maps function names to the number of times secutils_fixed_true is used in that function.
     """
@@ -40,8 +38,10 @@ def get_function_macro_counts(
     secutils_count = defaultdict(int)
 
     for macro_name in macros:
-        result = subprocess.run(["cscope", "-RLd", "-3", macro_name], capture_output=True, text=True)
-        lines = result.stdout.split('\n')
+        result = subprocess.run(
+            ["cscope", "-RLd", "-3", macro_name], capture_output=True, text=True
+        )
+        lines = result.stdout.split("\n")
         for line in lines:
             fields = line.split()
             if len(fields) > 1:

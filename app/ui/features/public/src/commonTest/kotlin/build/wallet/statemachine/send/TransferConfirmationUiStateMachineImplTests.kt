@@ -24,7 +24,7 @@ import build.wallet.limit.MobilePayServiceMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -50,7 +50,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
   appSignedPsbt: Psbt,
   appAndHwSignedPsbt: Psbt,
   stateMachine: TransferConfirmationUiStateMachineImpl,
-  nfcSessionUIStateMachineId: String,
+  signTransactionNfcSessionUIStateMachineId: String,
   txVerificationServiceFake: TxVerificationServiceFake,
   verificationFlag: TxVerificationFeatureFlag,
 ) {
@@ -156,8 +156,8 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
-        id = nfcSessionUIStateMachineId
+      awaitBodyMock<SignTransactionNfcSessionUiProps>(
+        id = signTransactionNfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
       }
@@ -385,8 +385,8 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
-        id = nfcSessionUIStateMachineId
+      awaitBodyMock<SignTransactionNfcSessionUiProps>(
+        id = signTransactionNfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
       }
@@ -479,8 +479,8 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
-        id = nfcSessionUIStateMachineId
+      awaitBodyMock<SignTransactionNfcSessionUiProps>(
+        id = signTransactionNfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
       }
@@ -698,8 +698,8 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
-        id = nfcSessionUIStateMachineId
+      awaitBodyMock<SignTransactionNfcSessionUiProps>(
+        id = signTransactionNfcSessionUIStateMachineId
       )
     }
 
@@ -756,8 +756,8 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       // SigningWithHardware (succeeds)
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
-        id = nfcSessionUIStateMachineId
+      awaitBodyMock<SignTransactionNfcSessionUiProps>(
+        id = signTransactionNfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
       }

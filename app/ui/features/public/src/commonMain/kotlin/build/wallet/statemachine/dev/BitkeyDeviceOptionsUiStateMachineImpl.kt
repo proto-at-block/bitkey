@@ -52,6 +52,7 @@ class BitkeyDeviceOptionsUiStateMachineImpl(
       }
 
     return ListGroupModel(
+      header = "Hardware",
       style = ListGroupStyle.DIVIDER,
       items =
         immutableListOfNotNull(

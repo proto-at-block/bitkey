@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-savedstate-iosx64",
+    "components": [
+        {
+            "version": "2.9.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-savedstate-iosX64Main-2.9.4.klib": "f6e87da097b63c87bc81b4fd97b23e5eac0bcfe8fcd24d43954f1e34b428b280"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-savedstate-iosx64-2.9.4-metadata.jar": "fdccff04585a3f496fd88dfd12c3c6f61cf611bc87581cd83c20537dbdb4bb4e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

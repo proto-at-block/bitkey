@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -35,6 +37,7 @@ fun FirmwareMetadataScreen(
     modifier = modifier
       .background(WalletTheme.colors.background)
       .fillMaxSize()
+      .verticalScroll(rememberScrollState())
       .padding(horizontal = 20.dp)
   ) {
     Toolbar(
@@ -104,6 +107,23 @@ fun FirmwareMetadataScreen(
           sideText = metadata.hwRevision
         )
       }
+
+      if (metadata.mcuInfo.isNotEmpty()) {
+        Spacer(Modifier.height(24.dp))
+        Card {
+          metadata.mcuInfo.forEachIndexed { index, mcu ->
+            if (index > 0) {
+              Divider()
+            }
+            ListItem(
+              title = "${mcu.role} MCU (${mcu.name})",
+              sideText = mcu.firmwareVersion
+            )
+          }
+        }
+      }
+
+      Spacer(Modifier.height(24.dp))
     }
   }
 }

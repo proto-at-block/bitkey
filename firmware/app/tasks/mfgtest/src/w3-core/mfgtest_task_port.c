@@ -9,17 +9,50 @@
 #include "log.h"
 #include "mfgtest_task_impl.h"
 #include "proto_helpers.h"
+#include "rtos_thread.h"
 #include "uc.h"
 #include "uc_route.h"
 #include "ui_messaging.h"
 #include "uxc.pb.h"
 #include "wallet.pb.h"
+#include "wca.h"
 
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 
+// Verify touch data response fits in a single APDU to avoid fragmentation issues.
+// The max_count of 25 touch points in mfgtest.proto was chosen to keep this under the limit.
+_Static_assert(fwpb_mfgtest_touch_data_rsp_size <= WCA_MAX_PROTO_SIZE,
+               "mfgtest_touch_data_rsp exceeds max WCA proto size - reduce max_count in proto");
+
 extern mfgtest_priv_t mfgtest_priv;
+
+// Touch data collection buffer
+#define MFGTEST_TASK_PORT_TOUCH_DATA_BUFFER_MAX_POINTS 500
+
+typedef enum {
+  MFGTEST_TASK_PORT_TOUCH_DATA_MODE_CIRCULAR = 0,
+  MFGTEST_TASK_PORT_TOUCH_DATA_MODE_STOP_WHEN_FULL = 1
+} mfgtest_task_port_touch_data_mode_t;
+
+typedef struct {
+  uint16_t x;
+  uint16_t y;
+  uint32_t timestamp_ms;
+} mfgtest_task_port_touch_data_point_t;
+
+static struct {
+  mfgtest_task_port_touch_data_point_t points[MFGTEST_TASK_PORT_TOUCH_DATA_BUFFER_MAX_POINTS];
+  uint32_t head;
+  uint32_t tail;
+  uint32_t count;
+  uint32_t dropped;
+  mfgtest_task_port_touch_data_mode_t mode;
+  bool active;
+  bool paused;
+  bool full;
+} mfgtest_task_port_touch_data_buffer = {0};
 
 static void _mfgtest_task_port_handle_coproc_gpio_response(void* proto, void* UNUSED(context)) {
   // Pass through pointer. MfgTest task will handle free'ing the data.
@@ -288,4 +321,206 @@ void mfgtest_task_port_handle_coproc_gpio_response(ipc_ref_t* message) {
   wallet_rsp->msg.mfgtest_gpio_rsp.output = msg_device->msg.mfgtest_gpio_rsp.output;
   uc_free_recv_proto(msg_device);
   proto_send_rsp(NULL, wallet_rsp);
+}
+
+// Touch data buffer helper functions
+
+static void _mfgtest_task_port_touch_data_start(mfgtest_task_port_touch_data_mode_t mode) {
+  rtos_thread_enter_critical();
+  mfgtest_task_port_touch_data_buffer.head = 0;
+  mfgtest_task_port_touch_data_buffer.tail = 0;
+  mfgtest_task_port_touch_data_buffer.count = 0;
+  mfgtest_task_port_touch_data_buffer.dropped = 0;
+  mfgtest_task_port_touch_data_buffer.mode = mode;
+  mfgtest_task_port_touch_data_buffer.active = true;
+  mfgtest_task_port_touch_data_buffer.paused = false;
+  mfgtest_task_port_touch_data_buffer.full = false;
+  rtos_thread_exit_critical();
+}
+
+static void _mfgtest_task_port_touch_data_stop(void) {
+  rtos_thread_enter_critical();
+  mfgtest_task_port_touch_data_buffer.active = false;
+  mfgtest_task_port_touch_data_buffer.paused = false;
+  mfgtest_task_port_touch_data_buffer.head = 0;
+  mfgtest_task_port_touch_data_buffer.tail = 0;
+  mfgtest_task_port_touch_data_buffer.count = 0;
+  mfgtest_task_port_touch_data_buffer.dropped = 0;
+  mfgtest_task_port_touch_data_buffer.full = false;
+  rtos_thread_exit_critical();
+}
+
+static bool _mfgtest_task_port_touch_data_is_active(void) {
+  rtos_thread_enter_critical();
+  bool active = mfgtest_task_port_touch_data_buffer.active;
+  rtos_thread_exit_critical();
+  return active;
+}
+
+static uint32_t _mfgtest_task_port_touch_data_get_dropped_count(void) {
+  rtos_thread_enter_critical();
+  uint32_t dropped = mfgtest_task_port_touch_data_buffer.dropped;
+  rtos_thread_exit_critical();
+  return dropped;
+}
+
+static void _mfgtest_task_port_touch_data_add(uint16_t x, uint16_t y, uint32_t timestamp_ms) {
+  rtos_thread_enter_critical();
+
+  if (!mfgtest_task_port_touch_data_buffer.active || mfgtest_task_port_touch_data_buffer.paused) {
+    rtos_thread_exit_critical();
+    return;
+  }
+
+  if (mfgtest_task_port_touch_data_buffer.count >= MFGTEST_TASK_PORT_TOUCH_DATA_BUFFER_MAX_POINTS) {
+    if (mfgtest_task_port_touch_data_buffer.mode ==
+        MFGTEST_TASK_PORT_TOUCH_DATA_MODE_STOP_WHEN_FULL) {
+      mfgtest_task_port_touch_data_buffer.full = true;
+    } else {
+      // CIRCULAR mode: drop oldest point
+      mfgtest_task_port_touch_data_buffer.tail = (mfgtest_task_port_touch_data_buffer.tail + 1) %
+                                                 MFGTEST_TASK_PORT_TOUCH_DATA_BUFFER_MAX_POINTS;
+      mfgtest_task_port_touch_data_buffer.count--;
+      mfgtest_task_port_touch_data_buffer.dropped++;
+    }
+  }
+
+  if (mfgtest_task_port_touch_data_buffer.count < MFGTEST_TASK_PORT_TOUCH_DATA_BUFFER_MAX_POINTS) {
+    mfgtest_task_port_touch_data_buffer.points[mfgtest_task_port_touch_data_buffer.head].x = x;
+    mfgtest_task_port_touch_data_buffer.points[mfgtest_task_port_touch_data_buffer.head].y = y;
+    mfgtest_task_port_touch_data_buffer.points[mfgtest_task_port_touch_data_buffer.head]
+      .timestamp_ms = timestamp_ms;
+    mfgtest_task_port_touch_data_buffer.head = (mfgtest_task_port_touch_data_buffer.head + 1) %
+                                               MFGTEST_TASK_PORT_TOUCH_DATA_BUFFER_MAX_POINTS;
+    mfgtest_task_port_touch_data_buffer.count++;
+  }
+
+  rtos_thread_exit_critical();
+}
+
+static bool _mfgtest_task_port_touch_data_populate_response(fwpb_mfgtest_touch_data_rsp* rsp) {
+  if (rsp == NULL) {
+    return false;
+  }
+
+  rtos_thread_enter_critical();
+
+  if (!mfgtest_task_port_touch_data_buffer.active) {
+    rtos_thread_exit_critical();
+    return false;
+  }
+
+  // Pause collection during fetch
+  mfgtest_task_port_touch_data_buffer.paused = true;
+
+  // Fetch points directly into proto (max 25 per proto definition)
+  uint32_t max_points = sizeof(rsp->points) / sizeof(rsp->points[0]);
+  uint32_t fetched = 0;
+
+  while (fetched < max_points && mfgtest_task_port_touch_data_buffer.count > 0) {
+    rsp->points[fetched].x =
+      mfgtest_task_port_touch_data_buffer.points[mfgtest_task_port_touch_data_buffer.tail].x;
+    rsp->points[fetched].y =
+      mfgtest_task_port_touch_data_buffer.points[mfgtest_task_port_touch_data_buffer.tail].y;
+    rsp->points[fetched].timestamp_ms =
+      mfgtest_task_port_touch_data_buffer.points[mfgtest_task_port_touch_data_buffer.tail]
+        .timestamp_ms;
+    mfgtest_task_port_touch_data_buffer.tail = (mfgtest_task_port_touch_data_buffer.tail + 1) %
+                                               MFGTEST_TASK_PORT_TOUCH_DATA_BUFFER_MAX_POINTS;
+    mfgtest_task_port_touch_data_buffer.count--;
+    fetched++;
+  }
+
+  // Clear full flag if we fetched points
+  if (fetched > 0 && mfgtest_task_port_touch_data_buffer.full) {
+    mfgtest_task_port_touch_data_buffer.full = false;
+  }
+
+  // Populate response fields
+  rsp->points_count = fetched;
+  rsp->points_remaining = mfgtest_task_port_touch_data_buffer.count;
+  rsp->collection_active = true;
+  rsp->buffer_full = mfgtest_task_port_touch_data_buffer.full;
+  rsp->dropped_count = mfgtest_task_port_touch_data_buffer.dropped;
+  rsp->rsp_status = fwpb_mfgtest_touch_data_rsp_mfgtest_touch_data_rsp_status_SUCCESS;
+
+  // Resume collection
+  mfgtest_task_port_touch_data_buffer.paused = false;
+
+  rtos_thread_exit_critical();
+  return true;
+}
+
+// IPC handler for touch points from UI task
+void mfgtest_task_port_handle_touch_point(ipc_ref_t* message) {
+  mfgtest_touch_point_t* point = (mfgtest_touch_point_t*)message->object;
+  _mfgtest_task_port_touch_data_add(point->x, point->y, point->timestamp_ms);
+}
+
+void mfgtest_task_port_handle_touch_data_cmd(ipc_ref_t* message) {
+  fwpb_wallet_cmd* wallet_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
+
+  wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_touch_data_rsp_tag;
+
+  fwpb_mfgtest_touch_data_cmd* cmd = &wallet_cmd->msg.mfgtest_touch_data_cmd;
+  fwpb_mfgtest_touch_data_rsp* rsp = &wallet_rsp->msg.mfgtest_touch_data_rsp;
+
+  switch (cmd->cmd_id) {
+    case fwpb_mfgtest_touch_data_cmd_mfgtest_touch_data_cmd_id_START: {
+      mfgtest_task_port_touch_data_mode_t mode =
+        (cmd->buffer_mode ==
+         fwpb_mfgtest_touch_data_cmd_mfgtest_touch_data_buffer_mode_STOP_WHEN_FULL)
+          ? MFGTEST_TASK_PORT_TOUCH_DATA_MODE_STOP_WHEN_FULL
+          : MFGTEST_TASK_PORT_TOUCH_DATA_MODE_CIRCULAR;
+      _mfgtest_task_port_touch_data_start(mode);
+      rsp->rsp_status = fwpb_mfgtest_touch_data_rsp_mfgtest_touch_data_rsp_status_SUCCESS;
+      rsp->collection_active = true;
+      rsp->points_count = 0;
+      rsp->points_remaining = 0;
+      rsp->buffer_full = false;
+      rsp->dropped_count = 0;
+      break;
+    }
+
+    case fwpb_mfgtest_touch_data_cmd_mfgtest_touch_data_cmd_id_FETCH: {
+      if (!_mfgtest_task_port_touch_data_populate_response(rsp)) {
+        rsp->rsp_status = fwpb_mfgtest_touch_data_rsp_mfgtest_touch_data_rsp_status_NOT_STARTED;
+        rsp->collection_active = false;
+        rsp->points_count = 0;
+        rsp->points_remaining = 0;
+        rsp->buffer_full = false;
+        rsp->dropped_count = 0;
+      }
+      break;
+    }
+
+    case fwpb_mfgtest_touch_data_cmd_mfgtest_touch_data_cmd_id_STOP: {
+      if (!_mfgtest_task_port_touch_data_is_active()) {
+        rsp->rsp_status = fwpb_mfgtest_touch_data_rsp_mfgtest_touch_data_rsp_status_NOT_STARTED;
+        rsp->collection_active = false;
+        break;
+      }
+
+      uint32_t dropped = _mfgtest_task_port_touch_data_get_dropped_count();
+      _mfgtest_task_port_touch_data_stop();
+
+      rsp->rsp_status = fwpb_mfgtest_touch_data_rsp_mfgtest_touch_data_rsp_status_SUCCESS;
+      rsp->collection_active = false;
+      rsp->points_count = 0;
+      rsp->points_remaining = 0;
+      rsp->buffer_full = false;
+      rsp->dropped_count = dropped;
+
+      break;
+    }
+
+    case fwpb_mfgtest_touch_data_cmd_mfgtest_touch_data_cmd_id_UNSPECIFIED:
+    default:
+      LOGE("Unknown touch data cmd_id: %d", cmd->cmd_id);
+      rsp->rsp_status = fwpb_mfgtest_touch_data_rsp_mfgtest_touch_data_rsp_status_FAILED;
+      break;
+  }
+
+  proto_send_rsp(wallet_cmd, wallet_rsp);
 }

@@ -120,19 +120,19 @@ impl From<&bitcoin::bip32::DerivationPath> for fwpb::DerivationPath {
     }
 }
 
-impl From<bitcoin::network::constants::Network> for fwpb::BtcNetwork {
-    fn from(value: bitcoin::network::constants::Network) -> Self {
+impl From<bitcoin::network::Network> for fwpb::BtcNetwork {
+    fn from(value: bitcoin::network::Network) -> Self {
         match value {
-            bitcoin::network::constants::Network::Bitcoin => Self::Bitcoin,
-            bitcoin::network::constants::Network::Testnet => Self::Testnet,
-            bitcoin::network::constants::Network::Regtest => Self::Regtest,
-            bitcoin::network::constants::Network::Signet => Self::Signet,
+            bitcoin::network::Network::Bitcoin => Self::Bitcoin,
+            bitcoin::network::Network::Testnet => Self::Testnet,
+            bitcoin::network::Network::Regtest => Self::Regtest,
+            bitcoin::network::Network::Signet => Self::Signet,
             _ => unimplemented!("Unsupported network"),
         }
     }
 }
 
-impl From<fwpb::BtcNetwork> for bitcoin::network::constants::Network {
+impl From<fwpb::BtcNetwork> for bitcoin::network::Network {
     fn from(value: fwpb::BtcNetwork) -> Self {
         match value {
             fwpb::BtcNetwork::Bitcoin => Self::Bitcoin,

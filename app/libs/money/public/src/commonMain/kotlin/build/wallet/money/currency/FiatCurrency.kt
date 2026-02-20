@@ -1,9 +1,8 @@
 package build.wallet.money.currency
 
+import bitkey.primitives.appendCodePoint
+import bitkey.primitives.codePointSequence
 import build.wallet.money.currency.code.IsoCurrencyTextCode
-import de.cketti.codepoints.deluxe.appendCodePoint
-import de.cketti.codepoints.deluxe.codePointSequence
-import de.cketti.codepoints.deluxe.toCodePoint
 
 data class FiatCurrency(
   override val textCode: IsoCurrencyTextCode,
@@ -28,10 +27,10 @@ data class FiatCurrency(
       // Offset between uppercase ASCII and regional indicator symbols
       val asciiToIndicatorOffset = 127397
       return StringBuilder().apply {
-        alpha2Code.codePointSequence().forEach {
+        alpha2Code.codePointSequence().forEach { codePoint ->
           // We get the ascii value of the [alpha2Code] and convert it to the regional indicator value
           // which combined will reference the flag emoji. See https://blog.emojipedia.org/emoji-flags-explained/
-          appendCodePoint((it.value + asciiToIndicatorOffset).toCodePoint())
+          appendCodePoint(codePoint + asciiToIndicatorOffset)
         }
       }.toString()
     }

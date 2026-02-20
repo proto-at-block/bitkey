@@ -66,10 +66,7 @@ private fun ThreadPolicy.Builder.reportErrorOnViolation(): ThreadPolicy.Builder 
 }
 
 private fun logStrictModeViolation(throwable: Throwable) {
-  logWarn(
-    tag = STRICT_MODE_TAG,
-    throwable = throwable
-  ) {
+  logVerbose(tag = STRICT_MODE_TAG) {
     "Strict mode violation: $throwable"
   }
 }

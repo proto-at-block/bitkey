@@ -2,8 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use bdk_utils::bdk::bitcoin::{
     address::NetworkUnchecked,
-    secp256k1::{rand::rngs::StdRng, rand::SeedableRng, Secp256k1},
-    Address, PublicKey,
+    secp256k1::{
+        rand::{rngs::StdRng, SeedableRng},
+        Secp256k1,
+    },
+    Address, CompressedPublicKey, KnownHrp, PublicKey,
 };
 use http::StatusCode;
 use notification::address_repo::AddressAndKeysetId;
@@ -12,7 +15,6 @@ use notification::routes::{SendTestPushData, SetNotificationsTriggersRequest};
 use notification::service::FetchForAccountInput;
 use notification::NotificationPayloadType;
 use onboarding::routes::{AccountAddDeviceTokenRequest, CompleteOnboardingRequest};
-use types::account::bitcoin::Network;
 use types::account::entities::TouchpointPlatform;
 use types::account::identifiers::AccountId;
 use types::consent::{Consent, NotificationConsentAction};
@@ -532,18 +534,24 @@ async fn test_address_cleanup_when_money_movement_disabled() {
     let pubkey_1 = PublicKey::new(secp.generate_keypair(&mut rng).1);
     let pubkey_2 = PublicKey::new(secp.generate_keypair(&mut rng).1);
 
-    let addr_string_1 = Address::p2wpkh(&pubkey_1, Network::BitcoinSignet.into())
-        .unwrap()
-        .to_string();
+    let addr_string_1 = Address::p2wpkh(
+        &CompressedPublicKey::try_from(pubkey_1)
+            .expect("Failed to convert public key to compressed public key"),
+        KnownHrp::Testnets,
+    )
+    .to_string();
     let unchecked_address_1: Address<NetworkUnchecked> = addr_string_1.parse().unwrap();
     let address_1 = AddressAndKeysetId::new(
         unchecked_address_1,
         types::account::identifiers::KeysetId::gen().unwrap(),
     );
 
-    let addr_string_2 = Address::p2wpkh(&pubkey_2, Network::BitcoinSignet.into())
-        .unwrap()
-        .to_string();
+    let addr_string_2 = Address::p2wpkh(
+        &CompressedPublicKey::try_from(pubkey_2)
+            .expect("Failed to convert public key to compressed public key"),
+        KnownHrp::Testnets,
+    )
+    .to_string();
     let unchecked_address_2: Address<NetworkUnchecked> = addr_string_2.parse().unwrap();
     let address_2 = AddressAndKeysetId::new(
         unchecked_address_2,

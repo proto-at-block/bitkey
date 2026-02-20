@@ -3,7 +3,7 @@ use std::sync::Arc;
 use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
 
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::bitcoin::Network;
 use types::account::entities::Account;
 
@@ -20,10 +20,7 @@ pub(crate) struct AddressScreeningRule<'a> {
 }
 
 impl Rule for AddressScreeningRule<'_> {
-    fn check_transaction(
-        &self,
-        psbt: &PartiallySignedTransaction,
-    ) -> Result<(), SpendRuleCheckError> {
+    fn check_transaction(&self, psbt: &Psbt) -> Result<(), SpendRuleCheckError> {
         self.screener_service.screen_psbt_outputs_for_sanctions(
             psbt,
             self.network,
@@ -58,9 +55,9 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use bdk_utils::bdk::bitcoin::ScriptBuf;
-    use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex};
-    use bdk_utils::bdk::FeeRate;
+    use crate::spend_rules::test::get_funded_wallet;
+    use bdk_utils::bdk::bitcoin::{Amount, FeeRate, ScriptBuf};
+    use bdk_utils::bdk::KeychainKind;
     use screener::screening::{SanctionsScreenerError, SANCTION_TEST_FLAG_KEY};
     use secp256k1::rand::rngs::OsRng;
     use secp256k1::{Secp256k1, SecretKey};
@@ -115,9 +112,9 @@ mod tests {
     #[tokio::test]
     async fn invalid_psbt_for_sending_to_blocked_address() {
         // Setup
-        let alice_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-        let bob_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-        let bob_address = bob_wallet.get_address(AddressIndex::New).unwrap();
+        let alice_wallet = get_funded_wallet(0);
+        let mut bob_wallet = get_funded_wallet(1);
+        let bob_address = bob_wallet.next_unused_address(KeychainKind::External);
 
         // Creates test sanctions service with bob's address in the blocklist
         let screener_service = Arc::new(TestSanctionsService {
@@ -133,9 +130,9 @@ mod tests {
         // Build transaction
         let mut builder = bob_wallet.build_tx();
         builder
-            .add_recipient(bob_address.script_pubkey(), 1_000)
-            .fee_rate(FeeRate::from_sat_per_vb(5.0));
-        let (psbt, _) = builder.finish().unwrap();
+            .add_recipient(bob_address.script_pubkey(), Amount::from_sat(1_000))
+            .fee_rate(FeeRate::from_sat_per_vb(5).expect("Invalid fee rate"));
+        let psbt = builder.finish().expect("Failed to build transaction");
         let account = test_account();
         let rule = AddressScreeningRule::new(
             screener_service,
@@ -154,9 +151,9 @@ mod tests {
     #[tokio::test]
     async fn invalid_psbt_for_sending_to_blocked_address_by_flag() {
         // Setup
-        let alice_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-        let bob_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-        let bob_address = bob_wallet.get_address(AddressIndex::New).unwrap();
+        let alice_wallet = get_funded_wallet(0);
+        let mut bob_wallet = get_funded_wallet(1);
+        let bob_address = bob_wallet.next_unused_address(KeychainKind::External);
 
         let screener_service = Arc::new(TestSanctionsService {
             should_block_transaction: false,
@@ -173,9 +170,9 @@ mod tests {
         // Build transaction
         let mut builder = bob_wallet.build_tx();
         builder
-            .add_recipient(bob_address.script_pubkey(), 1_000)
-            .fee_rate(FeeRate::from_sat_per_vb(5.0));
-        let (psbt, _) = builder.finish().unwrap();
+            .add_recipient(bob_address.address.script_pubkey(), Amount::from_sat(1_000))
+            .fee_rate(FeeRate::from_sat_per_vb_unchecked(5));
+        let psbt = builder.finish().unwrap();
         let account = test_account();
         let rule = AddressScreeningRule::new(
             screener_service,
@@ -202,15 +199,15 @@ mod tests {
                 .to_service()
                 .await
                 .unwrap();
-        let alice_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-        let bob_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-        let bob_address = bob_wallet.get_address(AddressIndex::New).unwrap();
+        let alice_wallet = get_funded_wallet(0);
+        let mut bob_wallet = get_funded_wallet(1);
+        let bob_address = bob_wallet.next_unused_address(KeychainKind::External);
 
         let mut builder = bob_wallet.build_tx();
         builder
-            .add_recipient(bob_address.script_pubkey(), 1_000)
-            .fee_rate(FeeRate::from_sat_per_vb(5.0));
-        let (psbt, _) = builder.finish().unwrap();
+            .add_recipient(bob_address.address.script_pubkey(), Amount::from_sat(1_000))
+            .fee_rate(FeeRate::from_sat_per_vb_unchecked(5));
+        let psbt = builder.finish().unwrap();
         let account = test_account();
         let rule = AddressScreeningRule::new(
             screener_service,
@@ -237,17 +234,17 @@ mod tests {
                 .to_service()
                 .await
                 .unwrap();
-        let alice_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-        let bob_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
+        let alice_wallet = get_funded_wallet(0);
+        let mut bob_wallet = get_funded_wallet(1);
 
         // Create a Psbt with an output containing an invalid script pub key
         let invalid_segwitv0_script =
             ScriptBuf::from_hex("001161458e330389cd0437ee9fe3641d70cc18").unwrap();
         let mut builder = bob_wallet.build_tx();
         builder
-            .add_recipient(invalid_segwitv0_script, 1_000)
-            .fee_rate(FeeRate::from_sat_per_vb(5.0));
-        let (psbt, _) = builder.finish().unwrap();
+            .add_recipient(invalid_segwitv0_script, Amount::from_sat(1_000))
+            .fee_rate(FeeRate::from_sat_per_vb_unchecked(5));
+        let psbt = builder.finish().unwrap();
         let account = test_account();
         let rule = AddressScreeningRule::new(
             screener_service,

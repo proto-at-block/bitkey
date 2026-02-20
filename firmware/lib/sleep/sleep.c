@@ -19,6 +19,9 @@ static struct {
 };
 
 static uint32_t get_timeout_ms(void) {
+  if (sleep_ctx.inhibit_duration_ms == SLEEP_INHIBIT_INFINITE) {
+    return SLEEP_INHIBIT_INFINITE;
+  }
   return POWER_TIMEOUT_MS + sleep_ctx.inhibit_duration_ms;
 }
 
@@ -97,4 +100,15 @@ uint32_t sleep_get_configured_timeout(void) {
   uint32_t timeout_ms = get_timeout_ms();
   rtos_mutex_unlock(&sleep_ctx.lock);
   return timeout_ms;
+}
+
+void sleep_start_power_timer_with_timeout(uint32_t timeout_ms) {
+  rtos_mutex_lock(&sleep_ctx.lock);
+
+  sleep_ctx.timer_running = true;
+  sleep_ctx.inhibit_duration_ms = 0;  // Clear inhibit when using absolute timeout
+  rtos_timer_stop(&sleep_ctx.power_timer);
+  rtos_timer_start(&sleep_ctx.power_timer, timeout_ms);
+
+  rtos_mutex_unlock(&sleep_ctx.lock);
 }

@@ -21,4 +21,7 @@ enum class FwupEventTrackerScreenId : EventTrackerScreenId {
 
   /** Sheet prompting user to update firmware to add additional fingerprints */
   FWUP_FINGERPRINT_UPDATE_PROMPT_SHEET,
+
+  /** Screen shown between MCU updates prompting user to start the next component */
+  FWUP_NEXT_COMPONENT_READY,
 }

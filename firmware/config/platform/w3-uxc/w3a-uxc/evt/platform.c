@@ -237,13 +237,13 @@ const touch_config_t touch_config = {.interface = {.i2c =
                                              &(mcu_gpio_config_t){
                                                .port = GPIOD,
                                                .pin = 14,
-                                               .mode = MCU_GPIO_MODE_OUTPUT,
+                                               .mode = MCU_GPIO_MODE_INPUT,
                                              },
                                            .pwr_avdd_en =
                                              &(mcu_gpio_config_t){
                                                .port = GPIOD,
                                                .pin = 15,
-                                               .mode = MCU_GPIO_MODE_OUTPUT,
+                                               .mode = MCU_GPIO_MODE_INPUT,
                                              },
                                          },
                                        .interrupt =
@@ -255,6 +255,7 @@ const touch_config_t touch_config = {.interface = {.i2c =
                                            .speed = MCU_GPIO_SPEED_LOW,
                                            .pupd = MCU_GPIO_PULL_UP,
                                          },
+                                       .reset_active_high = false,
                                        .reset =
                                          &(mcu_gpio_config_t){
                                            .port = GPIOD,

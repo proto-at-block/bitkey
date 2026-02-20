@@ -82,6 +82,7 @@ private suspend fun logRequestBody(
 
     @Suppress("DEPRECATION") // pending ktor migration to kotlinx-io
     val channel = ByteChannel()
+    @Suppress("GlobalCoroutineUsage") // Mirrors ktor-logging pattern for fire-and-forget logging; no structured scope available in HTTP pipeline
     GlobalScope.launch(Dispatchers.Unconfined) {
       val text = channel.tryReadText(charset) ?: "[request body omitted]"
       requestLog.appendLine(text)
@@ -216,6 +217,7 @@ private suspend fun OutgoingContent.observe(log: ByteWriteChannel): OutgoingCont
 // OutgoingContent into a ByteReadChannel to allow logging and
 // completing the request.
 @OptIn(DelicateCoroutinesApi::class)
+@Suppress("GlobalCoroutineUsage") // Mirrors ktor-logging pattern; no structured scope available for channel conversion
 private fun OutgoingContent.WriteChannelContent.toReadChannel(): ByteReadChannel =
   GlobalScope.writer(Dispatchers.IO) {
     writeTo(channel)

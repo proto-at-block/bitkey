@@ -19,6 +19,10 @@ object SensitiveDataValidator {
       matcher = Regex("\\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}\\b", IGNORE_CASE).asLogMatcher()
     ),
     SimpleIndicator(
+      name = "Bitcoin transaction ID",
+      matcher = Regex("\\b[a-f0-9]{64}\\b", IGNORE_CASE).asLogMatcher()
+    ),
+    SimpleIndicator(
       name = "BIP-39 phrase",
       // 12 words or more that don't contain common words.
       matcher = Regex("(?:\\b(?!(?:done|expected|finished|cannot|onto|unexpected|while|without|fail|the|and|was|his|with|for|had|not|her|which|from|but|him|she|were|are|their|who|would|said)\\b)[A-Za-z]{3,}\\b(?:[^A-Za-z]|$)){12}").asLogMatcher()

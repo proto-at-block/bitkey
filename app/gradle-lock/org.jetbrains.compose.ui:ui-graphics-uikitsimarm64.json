@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-graphics-uikitsimarm64",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-graphics-uikitSimArm64Main-1.8.1.klib": "bdd51d43a1ffc9f37168348ba1c37b9aed66c430559df3203e246ed461375d25"
+                        "ui-graphics-uikitSimArm64Main-1.9.1.klib": "7b144dac4b41ac76f135f8164aebd3d8faad609e306ab68f45cc7085ef0b594b"
                     }
                 },
                 {
                     "artifacts": {
-                        "ui-graphics-uikitsimarm64-1.8.1-metadata.jar": "adc952a69c3cd70cc4aa79da4c55cbf5bb05f4ba7cc1fd9fef9e1368aa196d1c"
+                        "ui-graphics-uikitsimarm64-1.9.1-metadata.jar": "afc4833c02da6587f7530cda53747b28738f002fe4f41892e2a1deda97e9a8d5"
                     }
                 }
             ],

@@ -1,9 +1,11 @@
 package build.wallet.statemachine.receive
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.ADDRESS_VERIFICATION
 import build.wallet.analytics.v1.Action
-import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitcoin.invoice.BitcoinInvoice
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoder
@@ -28,6 +30,9 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
 import build.wallet.statemachine.core.Icon.SmallIconCopy
+import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.statemachine.qr.QrCodeService
 import build.wallet.statemachine.qr.QrCodeState
@@ -35,13 +40,14 @@ import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.Error
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
 import build.wallet.statemachine.root.AddressQrCodeLoadingDuration
 import build.wallet.statemachine.root.RestoreCopyAddressStateDelay
-import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
+import kotlin.time.TimeSource
 import build.wallet.platform.links.AppRestrictions as PlatformAppRestrictions
 
 @BitkeyInject(ActivityScope::class)
@@ -59,6 +65,7 @@ class AddressQrCodeUiStateMachineImpl(
   private val haptics: Haptics,
   private val eventTracker: EventTracker,
   private val addressQrCodeLoadingDuration: AddressQrCodeLoadingDuration,
+  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
 ) : AddressQrCodeUiStateMachine {
   @Composable
   override fun model(props: AddressQrCodeUiProps): BodyModel {
@@ -91,29 +98,50 @@ class AddressQrCodeUiStateMachineImpl(
 
     when (val currentState = state) {
       is State.LoadingAddressUiState -> {
-        LaunchedEffect("loading-address") {
-          withMinimumDelay(addressQrCodeLoadingDuration.value) {
+        if (currentState.pendingQrCode == null) {
+          // Phase 1: Generate address and QR code
+          LaunchedEffect("loading-address") {
+            val startMark = TimeSource.Monotonic.markNow()
+
             coroutineBinding {
-              val address = bitcoinAddressService.generateAddress().bind()
-              val qrCodeResult = qrCodeService.generateQrCode(address.address)
+              val addressInfo = bitcoinAddressService.generateAddressInfo().bind()
+              val addressInvoice = bitcoinInvoiceUrlEncoder.encode(
+                invoice = BitcoinInvoice(address = addressInfo.address)
+              )
+              val qrCodeResult = qrCodeService.generateQrCode(addressInvoice)
                 .logFailure { "Error generating QR code." }
                 .bind()
-              address to qrCodeResult
-            }
-          }.onSuccess { (address, qrCodeBitmap) ->
-            val qrCodeState = QrCodeState.Success(qrCodeBitmap)
+              addressInfo to qrCodeResult
+            }.onSuccess { (addressInfo, qrCodeMatrix) ->
+              val qrCodeState = QrCodeState.Success(qrCodeMatrix)
+              val operationDuration = startMark.elapsedNow()
 
+              state = State.LoadingAddressUiState(
+                addressInfo = addressInfo,
+                copyStatus = State.CopyStatus.Ready,
+                chunkedAddress = addressInfo.address.chunkedAddress(),
+                qrCodeState = qrCodeState,
+                pendingQrCode = State.PendingQrCode(
+                  addressInfo = addressInfo,
+                  operationDuration = operationDuration
+                )
+              )
+            }.onFailure {
+              state = State.ErrorLoadingAddressUiState
+            }
+          }
+        } else {
+          // Phase 2: Wait for text animation delay
+          LaunchedEffect("animate-text") {
+            val remainingDelay = (addressQrCodeLoadingDuration.value - currentState.pendingQrCode.operationDuration)
+              .coerceAtLeast(Duration.ZERO)
+            delay(remainingDelay)
             state = State.AddressLoadedUiState(
-              address = address,
-              copyStatus = State.CopyStatus.Ready,
-              addressInvoice = bitcoinInvoiceUrlEncoder.encode(
-                invoice = BitcoinInvoice(address = address)
-              ),
-              chunkedAddress = address.chunkedAddress(),
-              qrCodeState = qrCodeState
+              addressInfo = currentState.pendingQrCode.addressInfo,
+              copyStatus = currentState.copyStatus,
+              chunkedAddress = currentState.chunkedAddress,
+              qrCodeState = currentState.qrCodeState
             )
-          }.onFailure {
-            state = State.ErrorLoadingAddressUiState
           }
         }
       }
@@ -135,7 +163,7 @@ class AddressQrCodeUiStateMachineImpl(
                 fullAccountId = props.account.keybox.fullAccountId,
                 f8eEnvironment = props.account.keybox.config.f8eEnvironment,
                 partner = currentState.partnerInfo.partnerId.value,
-                address = currentState.address
+                address = currentState.addressInfo.address
               ).bind()
 
             val localTransaction = partnershipTransactionsService.create(
@@ -147,8 +175,7 @@ class AddressQrCodeUiStateMachineImpl(
             localTransaction to redirectResult
           }.onFailure { error ->
             state = State.PartnerRedirectError(
-              address = currentState.address,
-              addressInvoice = currentState.addressInvoice,
+              addressInfo = currentState.addressInfo,
               qrCodeState = currentState.qrCodeState,
               chunkedAddress = currentState.chunkedAddress,
               copyStatus = currentState.copyStatus,
@@ -177,8 +204,7 @@ class AddressQrCodeUiStateMachineImpl(
               }
             }
             state = State.AddressLoadedUiState(
-              address = currentState.address,
-              addressInvoice = currentState.addressInvoice,
+              addressInfo = currentState.addressInfo,
               qrCodeState = currentState.qrCodeState,
               chunkedAddress = currentState.chunkedAddress,
               copyStatus = currentState.copyStatus
@@ -197,7 +223,7 @@ class AddressQrCodeUiStateMachineImpl(
           onRefreshClick = {},
           content =
             QrCode(
-              address = currentState.address?.address,
+              address = currentState.addressInfo?.address?.address,
               partners = partners,
               qrCodeState = currentState.qrCodeState,
               onPartnerClick = { /* Disabled during address loading */ },
@@ -213,23 +239,26 @@ class AddressQrCodeUiStateMachineImpl(
         AddressQrCodeBodyModel(
           onBack = props.onBack,
           onRefreshClick = {
-            state = State.LoadingAddressUiState(
-              address = currentState.address,
-              addressInvoice = currentState.addressInvoice,
-              qrCodeState = currentState.qrCodeState,
-              chunkedAddress = currentState.chunkedAddress,
-              copyStatus = currentState.copyStatus
-            )
+            // the currentState in the lambda was getting cached somehow and giving incorrect values
+            // on execution. We grab the state on every execution to circumvent this
+            val currentStateSnapshot = state
+            if (currentStateSnapshot is State.AddressLoadedUiState) {
+              state = State.LoadingAddressUiState(
+                addressInfo = currentStateSnapshot.addressInfo,
+                qrCodeState = currentStateSnapshot.qrCodeState,
+                chunkedAddress = currentStateSnapshot.chunkedAddress,
+                copyStatus = currentStateSnapshot.copyStatus
+              )
+            }
           },
           content =
             QrCode(
-              address = currentState.address.address,
+              address = currentState.addressInfo.address.address,
               qrCodeState = currentState.qrCodeState,
               partners = partners,
               onPartnerClick = { partner ->
                 state = State.LoadingPartnerRedirect(
-                  address = currentState.address,
-                  addressInvoice = currentState.addressInvoice,
+                  addressInfo = currentState.addressInfo,
                   qrCodeState = currentState.qrCodeState,
                   chunkedAddress = currentState.chunkedAddress,
                   copyStatus = currentState.copyStatus,
@@ -239,18 +268,36 @@ class AddressQrCodeUiStateMachineImpl(
               copyButtonIcon = currentState.copyStatus.icon(),
               copyButtonLabelText = currentState.copyStatus.labelText(),
               onCopyClick = {
-                scope.launch {
-                  haptics.vibrate(HapticsEffect.MediumClick)
+                // the currentState in the lambda was getting cached somehow and giving incorrect values
+                // on execution. We grab the state on every execution to circumvent this
+                val currentStateSnapshot = state
+                if (currentStateSnapshot is State.AddressLoadedUiState) {
+                  scope.launch {
+                    haptics.vibrate(HapticsEffect.MediumClick)
+                    clipboard.setItem(item = PlainText(data = currentStateSnapshot.addressInfo.address.address))
+                    state = currentStateSnapshot.copy(copyStatus = State.CopyStatus.Copied)
+                  }
                 }
-                clipboard.setItem(item = PlainText(data = currentState.address.address))
-                state = currentState.copy(copyStatus = State.CopyStatus.Copied)
               },
               onShareClick = {
                 sharingManager.shareText(
-                  text = currentState.address.address,
+                  text = currentState.addressInfo.address.address,
                   title = "Bitcoin Address",
                   completion = null
                 )
+              },
+              showVerifyOnDeviceButton = props.account.config.hardwareType == HardwareType.W3,
+              onVerifyOnDeviceClick = if (props.account.config.hardwareType == HardwareType.W3) {
+                {
+                  state = State.VerifyingOnDevice(
+                    addressInfo = currentState.addressInfo,
+                    qrCodeState = currentState.qrCodeState,
+                    chunkedAddress = currentState.chunkedAddress,
+                    copyStatus = currentState.copyStatus
+                  )
+                }
+              } else {
+                null
               }
             )
         )
@@ -271,37 +318,17 @@ class AddressQrCodeUiStateMachineImpl(
       is State.LoadingPartnerRedirect ->
         AddressQrCodeBodyModel(
           onBack = props.onBack,
-          onRefreshClick = {
-            state = State.LoadingAddressUiState(
-              address = currentState.address,
-              addressInvoice = currentState.addressInvoice,
-              qrCodeState = currentState.qrCodeState,
-              chunkedAddress = currentState.chunkedAddress,
-              copyStatus = currentState.copyStatus
-            )
-          },
+          onRefreshClick = { /* Disable during loading */ },
           content =
             QrCode(
-              address = currentState.address.address,
+              address = currentState.addressInfo.address.address,
               qrCodeState = currentState.qrCodeState,
               partners = partners,
               onPartnerClick = { /* Disable during loading */ },
               copyButtonIcon = currentState.copyStatus.icon(),
               copyButtonLabelText = currentState.copyStatus.labelText(),
-              onCopyClick = {
-                scope.launch {
-                  haptics.vibrate(HapticsEffect.MediumClick)
-                }
-                clipboard.setItem(item = PlainText(data = currentState.address.address))
-                state = currentState.copy(copyStatus = State.CopyStatus.Copied)
-              },
-              onShareClick = {
-                sharingManager.shareText(
-                  text = currentState.address.address,
-                  title = "Bitcoin Address",
-                  completion = null
-                )
-              },
+              onCopyClick = { /* Disable during loading */ },
+              onShareClick = { /* Disable during loading */ },
               loadingPartnerId = currentState.partnerInfo.partnerId.value
             )
         )
@@ -310,8 +337,7 @@ class AddressQrCodeUiStateMachineImpl(
         AddressQrCodeBodyModel(
           onBack = {
             state = State.AddressLoadedUiState(
-              address = currentState.address,
-              addressInvoice = currentState.addressInvoice,
+              addressInfo = currentState.addressInfo,
               qrCodeState = currentState.qrCodeState,
               chunkedAddress = currentState.chunkedAddress,
               copyStatus = currentState.copyStatus
@@ -324,12 +350,41 @@ class AddressQrCodeUiStateMachineImpl(
               subline = "Please try again later."
             )
         )
+
+      is State.VerifyingOnDevice ->
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            session = { session, commands ->
+              // Call getAddress with the same index used to generate the displayed address
+              commands.getAddress(session, currentState.addressInfo.index)
+            },
+            onSuccess = {
+              // Return to address loaded state after NFC completes
+              state = State.AddressLoadedUiState(
+                addressInfo = currentState.addressInfo,
+                qrCodeState = currentState.qrCodeState,
+                chunkedAddress = currentState.chunkedAddress,
+                copyStatus = currentState.copyStatus
+              )
+            },
+            onCancel = {
+              // Return to address loaded state on cancel
+              state = State.AddressLoadedUiState(
+                addressInfo = currentState.addressInfo,
+                qrCodeState = currentState.qrCodeState,
+                chunkedAddress = currentState.chunkedAddress,
+                copyStatus = currentState.copyStatus
+              )
+            },
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            eventTrackerContext = ADDRESS_VERIFICATION
+          )
+        ).body
     }
   }
 
   private sealed class State {
-    open val address: BitcoinAddress? = null
-    open val addressInvoice: String? = null
+    open val addressInfo: BitcoinAddressInfo? = null
     open val qrCodeState: QrCodeState = QrCodeState.Loading
     open val chunkedAddress: String? = null
     open val copyStatus: CopyStatus = CopyStatus.Ready
@@ -338,46 +393,58 @@ class AddressQrCodeUiStateMachineImpl(
      * Indicates that we are currently generating a new address, and re-rendering a QR code.
      */
     data class LoadingAddressUiState(
-      override val address: BitcoinAddress? = null,
-      override val addressInvoice: String? = null,
+      override val addressInfo: BitcoinAddressInfo? = null,
       override val qrCodeState: QrCodeState = QrCodeState.Loading,
       override val chunkedAddress: String? = null,
       override val copyStatus: CopyStatus = CopyStatus.Ready,
+      val pendingQrCode: PendingQrCode? = null,
     ) : State()
+
+    data class PendingQrCode(
+      val addressInfo: BitcoinAddressInfo,
+      val operationDuration: Duration = Duration.ZERO,
+    )
 
     /**
      * Indicates that we have generated an appropriate receiving address and are rendering it in a
      * QR code.
      *
-     * @property [address] - receiving address that will be encoded in a QR code.
+     * @property [addressInfo] - receiving address info (address and index) that will be encoded in a QR code.
      */
     data class AddressLoadedUiState(
-      override val address: BitcoinAddress,
-      override val addressInvoice: String,
+      override val addressInfo: BitcoinAddressInfo,
       override val qrCodeState: QrCodeState,
-      override val chunkedAddress: String? = address.chunkedAddress(),
+      override val chunkedAddress: String? = addressInfo.address.chunkedAddress(),
       override val copyStatus: CopyStatus,
     ) : State()
 
     data object ErrorLoadingAddressUiState : State()
 
     data class LoadingPartnerRedirect(
-      override val address: BitcoinAddress,
-      override val addressInvoice: String,
+      override val addressInfo: BitcoinAddressInfo,
       override val qrCodeState: QrCodeState,
-      override val chunkedAddress: String? = address.chunkedAddress(),
+      override val chunkedAddress: String? = addressInfo.address.chunkedAddress(),
       override val copyStatus: CopyStatus,
       val partnerInfo: PartnerInfo,
     ) : State()
 
     data class PartnerRedirectError(
-      override val address: BitcoinAddress,
-      override val addressInvoice: String,
+      override val addressInfo: BitcoinAddressInfo,
       override val qrCodeState: QrCodeState,
-      override val chunkedAddress: String? = address.chunkedAddress(),
+      override val chunkedAddress: String? = addressInfo.address.chunkedAddress(),
       override val copyStatus: CopyStatus,
       val partnerInfo: PartnerInfo,
       val error: Throwable,
+    ) : State()
+
+    /**
+     * Indicates that we are verifying the address on the hardware device via NFC.
+     */
+    data class VerifyingOnDevice(
+      override val addressInfo: BitcoinAddressInfo,
+      override val qrCodeState: QrCodeState,
+      override val chunkedAddress: String? = addressInfo.address.chunkedAddress(),
+      override val copyStatus: CopyStatus,
     ) : State()
 
     enum class CopyStatus {

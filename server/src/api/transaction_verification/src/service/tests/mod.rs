@@ -9,7 +9,7 @@ use account::service::tests::{
     construct_test_account_service, create_full_account_for_test, generate_test_authkeys,
 };
 use account::service::FetchAccountInput;
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use database::ddb::{Config as DDBConfig, Repository};
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::service::Service as FeatureFlagsService;

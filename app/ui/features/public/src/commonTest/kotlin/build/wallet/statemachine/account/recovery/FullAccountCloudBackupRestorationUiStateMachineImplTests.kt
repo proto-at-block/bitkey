@@ -5,6 +5,7 @@ import bitkey.auth.AccountAuthTokens
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.auth.AuthTokenScope.Recovery
 import bitkey.auth.RefreshToken
+import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED
@@ -143,11 +144,13 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
           FingerprintResetMinFirmwareVersionFeatureFlag(FeatureFlagDaoFake())
 
         val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
+        val appInstallationDao = AppInstallationDaoMock()
         val selectCloudBackupUiStateMachine = object : SelectCloudBackupUiStateMachine,
           ScreenStateMachineMock<SelectCloudBackupUiProps>("select-cloud-backup-fake") {}
         val stateMachineActiveDeviceFlagOn =
           FullAccountCloudBackupRestorationUiStateMachineImpl(
             appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
+            appInstallationDao = appInstallationDao,
             backupRestorer = backupRestorer,
             eventTracker = eventTracker,
             deviceTokenManager = deviceTokenManager,
@@ -194,6 +197,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
           csekDao.reset()
           provisionAppAuthKeyTransactionProvider.reset()
           firmwareDeviceInfoDao.reset()
+          appInstallationDao.reset()
           backupRestorer.restoration = AccountRestorationMock.copy(
             cloudBackupForLocalStorage = backup as CloudBackup
           )

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.savedstate:savedstate-compose-iosarm64",
+    "components": [
+        {
+            "version": "1.3.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "savedstate-compose-iosArm64Main-1.3.3.klib": "11a355e6d774a03cb7b9755dca65250fa78c1624e4714e35e2d7198545ebe1f1"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "savedstate-compose-iosarm64-1.3.3-metadata.jar": "6c929dff974ae921031a3e2db8366f4908f54c4aa3a2002e707400a3ba95d0ac"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

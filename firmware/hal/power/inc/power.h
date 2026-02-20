@@ -250,4 +250,17 @@ void power_read_charger_register(uint8_t index, uint8_t* offset_out, uint8_t* va
  */
 void power_set_ldo_low_power_mode(void);
 
+/**
+ * @brief Disables the LDO completely to save battery during storage.
+ *
+ * @details This should only be called during manufacturing packout.
+ * Sets LDO_PM = 0x00 (low power) and LDO_EN = 0x00 (AUTO: LDO only enables
+ * when nENLDO asserts or CHGIN is valid). During power-off/storage these
+ * signals are inactive, so the LDO remains effectively disabled.
+ *
+ * @warning After calling this, the device should be powered off immediately.
+ * The LDO will automatically restore to normal mode on next boot.
+ */
+void power_disable_ldo(void);
+
 /** @} */

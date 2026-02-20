@@ -5,7 +5,7 @@ from .paths import CONFIG_DIR
 
 
 class Platforms:
-    EXCLUDED_PLATFORMS = ['tasks']
+    EXCLUDED_PLATFORMS = ['tasks', 'ui-snapshot']
 
     def __init__(self) -> None:
         cfg = CONFIG_DIR.joinpath("platforms.yaml")

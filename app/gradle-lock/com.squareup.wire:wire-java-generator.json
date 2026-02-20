@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-java-generator",
     "components": [
         {
-            "version": "4.9.11",
+            "version": "5.3.5",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-java-generator-4.9.11.jar": "5c428d5a04043fb64105129f529ed66fd2cab8687c170cffc33af58b7e2ee0e6"
+                        "wire-java-generator-5.3.5.jar": "e38d92c3e370cb997f7712dd1a3ae6f9b16bfe05284115ee5b798e1458aa9a51"
                     }
                 }
             ],

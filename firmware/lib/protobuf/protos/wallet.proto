@@ -81,9 +81,14 @@ message coredump_fragment {
   int32 coredumps_remaining = 4;
 }
 
+// Bitlog event fragment. Logs are encoded into bytestreams that split across
+// a number of event fragments.
 message event_fragment {
-  bytes data = 1 [(nanopb).max_size = 451]; // max 41 events per fragment
-  int32 remaining_size = 2; // Size of events still remaining
+  // Bitlog event data bytes. There is at most 41 events per fragment.
+  bytes data = 1 [(nanopb).max_size = 451];
+
+  // Size (bytes) of events still remaining.
+  int32 remaining_size = 2;
 }
 
 // Requests the metadata of a target MCU.
@@ -158,7 +163,7 @@ message meta_rsp {
     // Command failed.
     ERROR = 2;
 
-    // RFU.
+    // Reserved (unused).
     reserved 3 to 9;
   }
 
@@ -319,6 +324,10 @@ message fwup_start_cmd {
 
   // Target MCU to send the message to.
   mcu_role mcu_role = 3;
+
+  // Version of the firmware being transferred.
+  // Firmware will display this and verify it matches the signed metadata after transfer.
+  semver version = 4;
 }
 
 // Response to the firmware update start command (`fwup_start_cmd`).
@@ -337,7 +346,7 @@ message fwup_start_rsp {
     // Operation failed as device has not been unlocked.
     UNAUTHENTICATED = 3;
 
-    // RFU
+    // Reserved (unused).
     reserved 4 to 9;
   }
 
@@ -396,7 +405,7 @@ message fwup_finish_rsp {
     // Operation failed as device has not been unlocked.
     UNAUTHENTICATED = 6;
 
-    // RFU.
+    // Reserved (unused).
     reserved 7 to 9;
   }
 
@@ -445,12 +454,115 @@ message fwup_transfer_rsp {
     // Operation failed as device has not been unlocked.
     UNAUTHENTICATED = 4;
 
-    // RFU.
+    // Reserved (unused).
     reserved 5 to 9;
   }
 
   // Status code in response to the FWUP transfer command.
   fwup_transfer_rsp_status rsp_status = 1;
+}
+
+// W3 transaction signing - Start signing session
+message sign_start_cmd {
+  // Size of the PSBT in bytes
+  uint32 psbt_size = 1;
+}
+
+message sign_start_rsp {
+  // Command status response codes.
+  enum sign_start_rsp_status {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Signing session started successfully.
+    SUCCESS = 1;
+
+    // Error starting signing session.
+    ERROR = 2;
+
+    // Operation failed as device has not been unlocked.
+    UNAUTHENTICATED = 3;
+
+    // Reserved (unused).
+    reserved 4 to 9;
+  }
+
+  // Status code in response to the sign start command.
+  sign_start_rsp_status rsp_status = 1;
+}
+
+// W3 transaction signing - Transfer PSBT chunk
+message sign_transfer_cmd {
+  // Monotonically increasing sequence ID for chunk ordering.
+  uint32 sequence_id = 1;
+
+  // PSBT chunk data bytes.
+  bytes chunk_data = 2 [(nanopb).max_size = 452];
+}
+
+message sign_transfer_rsp {
+  // Note: Uses the new-style global status code for response status.
+  // SEQUENCE_ERROR maps to INVALID_STATE in the global status enum.
+}
+
+
+// Result message for sign transaction confirmation
+message sign_transaction_rsp {
+  // Command status response codes.
+  enum sign_transaction_rsp_status {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // User confirmed, signing successful.
+    SUCCESS = 1;
+
+    // User denied the transaction.
+    DENIED = 2;
+
+    // Error during signing.
+    ERROR = 3;
+
+    // Operation failed as device has not been unlocked.
+    UNAUTHENTICATED = 4;
+
+    // Reserved (unused).
+    reserved 5 to 9;
+  }
+
+  // Status code in response to the confirmation.
+  sign_transaction_rsp_status rsp_status = 1;
+
+  // Note: The actual signed PSBT data is retrieved via get_confirmation_result_chunk_cmd,
+  // which returns the data in 452-byte chunks.
+}
+
+// Signals that chunked data is available after confirmation.
+// Returned from get_confirmation_result when the operation produces large output data.
+message chunked_data_info {
+  // Total size of the data in bytes
+  uint32 total_size = 1;
+}
+
+// Generic command to fetch chunked data after confirmation.
+// Used to retrieve large result data in 452-byte chunks.
+message get_confirmation_result_chunk_cmd {
+  bytes response_handle = 1 [(nanopb).max_size = 32];
+  bytes confirmation_handle = 2 [(nanopb).max_size = 32];
+  // Zero-based chunk index. Firmware returns the same chunk for the same index,
+  // enabling idempotent retry if NFC transmission fails.
+  uint32 chunk_index = 3;
+}
+
+// Response containing a chunk of data from a confirmed operation.
+message get_confirmation_result_chunk_rsp {
+  // Chunk of data bytes.
+  bytes chunk = 1 [(nanopb).max_size = 452];
+
+  // True if this is the last chunk of data.
+  bool is_last = 2;
+
+  // Size (bytes) of data still remaining after this chunk (always non-negative).
+  uint32 remaining_size = 3;
 }
 
 // Resets the MCU.
@@ -465,6 +577,21 @@ message fuel_rsp {
   uint32 repsoc = 1;
   uint32 vcell = 2;
   bool valid = 3;
+}
+
+message ship_state_cmd {
+  bool shutdown_after = 1;
+  uint32 shutdown_timeout_ms = 2;
+}
+
+message ship_state_rsp {
+  enum ship_state_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+  }
+
+  ship_state_rsp_status rsp_status = 1;
 }
 
 message coredump_get_cmd {
@@ -494,21 +621,39 @@ message coredump_get_rsp {
   mcu_name mcu_name = 5;
 }
 
+// Requests Bitlogs from the target MCU.
 message events_get_cmd {
+  // MCU role of the target.
   mcu_role mcu_role = 1;
 }
 
+// Response to the request for events from the MCU.
 message events_get_rsp {
+  // Enumeration of possible command statuses.
   enum events_get_rsp_status {
+    // Unused.
     UNSPECIFIED = 0;
+
+    // Command was successful.
     SUCCESS = 1;
+
+    // Command failed due to an error.
     ERROR = 2;
+
+    // Reserved (unused).
     reserved 3 to 9;
   }
 
+  // Status code in response to the command.
   events_get_rsp_status rsp_status = 1;
+
+  // Bitlog data format version.
   uint32 version = 2;
+
+  // Encoded Bitlog event data.
   event_fragment fragment = 3;
+
+  // MCU role of the responding chip.
   mcu_role mcu_role = 4;
 }
 
@@ -606,9 +751,12 @@ message cert_get_cmd {
     BATCH_CERT = 1;
     DEVICE_SE_CERT = 2;
     DEVICE_HOST_CERT = 3;
+    DEVICE_SECURE_CHANNEL_CERT = 4;
   }
 
   cert_type kind = 1;
+  // For DEVICE_SECURE_CHANNEL_CERT: specifies which certificate to export.
+  string cert_id = 2 [(nanopb).max_size = 32];
 }
 
 message cert_get_rsp {
@@ -729,7 +877,7 @@ message device_info_rsp {
     // Error reading charge information from the fuel gauge.
     BATTERY_ERROR = 5;
 
-    // RFU
+    // Reserved (unused).
     reserved 6 to 9;
   }
 
@@ -867,6 +1015,50 @@ message provision_app_auth_pubkey_cmd {
 message provision_app_auth_pubkey_rsp {
 }
 
+// A command used to generate and display an address on the hardware device.
+// The hardware uses its stored descriptor to derive the address at the given index.
+message get_address_cmd {
+  // The address index for derivation (0, 1, 2, etc.)
+  uint32 address_index = 1;
+}
+
+// The response for `get_address_cmd`
+// Note: Uses the global status code for response status.
+message get_address_rsp {
+  // The derived address string
+  string address = 1 [(nanopb).max_size = 128];
+}
+
+// Verifies the integrity signature over app spending, app auth, hw spending, hw auth, server spending keys
+// and builds the wallet descriptor.
+// If the signature is valid, the keys will be provisioned to the HW along with server chaincodes
+// This command is only available on W3 devices (not W1).
+message verify_keys_and_build_descriptor_cmd {
+  // App spending public key (33-byte compressed secp256k1)
+  bytes app_spending_key = 1 [(nanopb).max_size = 33];
+
+  // App spending key chaincode (32 bytes)
+  bytes app_spending_key_chaincode = 2 [(nanopb).max_size = 32];
+
+  // Network type: true = mainnet, false = testnet
+  bool network_mainnet = 3;
+
+  // App authentication public key (33-byte compressed secp256k1)
+  bytes app_auth_key = 4 [(nanopb).max_size = 33];
+
+  // Server spending public key (33-byte compressed secp256k1)
+  bytes server_spending_key = 5 [(nanopb).max_size = 33];
+
+  // Server spending key chaincode (32 bytes)
+  bytes server_spending_key_chaincode = 6 [(nanopb).max_size = 32];
+
+  // WSM signature over the keys (64-byte compact ECDSA signature)
+  bytes wsm_signature = 7 [(nanopb).max_size = 64];
+}
+
+message verify_keys_and_build_descriptor_rsp {
+}
+
 enum status {
   UNSPECIFIED = 0;
   SUCCESS = 1;
@@ -901,7 +1093,23 @@ message get_confirmation_result_rsp {
   oneof result {
     wipe_state_rsp wipe_state_result = 1;
     fwup_start_rsp fwup_start_result = 2;
+    get_address_rsp get_address_result = 3;
+    chunked_data_info chunked_data_available = 4;
+    sign_action_proof_rsp sign_action_proof_result = 5;
   }
+}
+
+message sign_action_proof_cmd {
+  uint32 version = 1;
+  string action = 2 [(nanopb).max_size = 32];
+  string field = 3 [(nanopb).max_size = 32];
+  string value = 4 [(nanopb).max_size = 128];
+  string current = 5 [(nanopb).max_size = 128];
+  string bindings = 6 [(nanopb).max_size = 256];
+}
+
+message sign_action_proof_rsp {
+  bytes signature = 1 [(nanopb).max_size = 65];
 }
 
 message wallet_cmd {
@@ -972,6 +1180,14 @@ message wallet_cmd {
     mfgtest_touch_test_cmd mfgtest_touch_test_cmd = 66;
     mfgtest_charger_cmd mfgtest_charger_cmd = 67;
     get_confirmation_result_cmd get_confirmation_result_cmd = 68;
+    get_address_cmd get_address_cmd = 69;
+    verify_keys_and_build_descriptor_cmd verify_keys_and_build_descriptor_cmd = 70;
+    sign_start_cmd sign_start_cmd = 71;
+    sign_transfer_cmd sign_transfer_cmd = 72;
+    get_confirmation_result_chunk_cmd get_confirmation_result_chunk_cmd = 73;
+    ship_state_cmd ship_state_cmd = 74;
+    mfgtest_touch_data_cmd mfgtest_touch_data_cmd = 75;
+    sign_action_proof_cmd sign_action_proof_cmd = 76;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
@@ -1047,6 +1263,14 @@ message wallet_rsp {
     mfgtest_touch_test_rsp mfgtest_touch_test_rsp = 66;
     mfgtest_charger_rsp mfgtest_charger_rsp = 67;
     get_confirmation_result_rsp get_confirmation_result_rsp = 68;
+    get_address_rsp get_address_rsp = 69;
+    verify_keys_and_build_descriptor_rsp verify_keys_and_build_descriptor_rsp = 70;
+    sign_start_rsp sign_start_rsp = 71;
+    sign_transfer_rsp sign_transfer_rsp = 72;
+    get_confirmation_result_chunk_rsp get_confirmation_result_chunk_rsp = 73;
+    ship_state_rsp ship_state_rsp = 74;
+    mfgtest_touch_data_rsp mfgtest_touch_data_rsp = 75;
+    sign_action_proof_rsp sign_action_proof_rsp = 76;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations

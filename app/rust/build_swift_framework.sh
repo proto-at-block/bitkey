@@ -177,16 +177,14 @@ find_root
 RUST_BUILD_DIRECTORY=$RUST_ROOT/_build/rust
 BUILD_TARGET=$RUST_BUILD_DIRECTORY/target
 
-if [ -n "${CI:-}" ]; then
-  if [ "${IOS_SIMULATOR_ONLY:-false}" = "true" ]; then
-    echo "Building iOS simulator target only"
-    framework ios-sim $(find_sim_triple)
-    xcframework ios-sim
-  else
-    echo "Building iOS device target only"
-    framework ios aarch64-apple-ios
-    xcframework ios
-  fi
+if [ "${IOS_SIMULATOR_ONLY:-false}" = "true" ]; then
+  echo "Building iOS simulator target only"
+  framework ios-sim $(find_sim_triple)
+  xcframework ios-sim
+elif [ -n "${CI:-}" ]; then
+  echo "Building iOS device target only"
+  framework ios aarch64-apple-ios
+  xcframework ios
 else
   echo "Building iOS device and simulator targets"
   framework ios aarch64-apple-ios

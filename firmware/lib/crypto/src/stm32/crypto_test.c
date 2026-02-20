@@ -3,7 +3,13 @@
 #include "assert.h"
 #include "attributes.h"
 #include "crypto_test_drbg.h"
+// Enable wycheproof tests by setting CRYPTO_ENABLE_WYCHEPROOF_TESTS=1
+#ifndef CRYPTO_ENABLE_WYCHEPROOF_TESTS
+#define CRYPTO_ENABLE_WYCHEPROOF_TESTS 0
+#endif
+#if CRYPTO_ENABLE_WYCHEPROOF_TESTS
 #include "crypto_test_ecdsa.h"
+#endif
 #include "crypto_test_ecdsa_p256_keygen.h"
 #include "crypto_test_ecdsa_p256_signing.h"
 #include "dudero.h"
@@ -159,6 +165,7 @@ static NO_OPTIMIZE bool crypto_test_ecdsa_sign(void) {
   return true;
 }
 
+#if CRYPTO_ENABLE_WYCHEPROOF_TESTS
 static NO_OPTIMIZE bool crypto_test_ecdsa_p256_verify(void) {
   mcu_pka_curve_params_t curve;
   crypto_test_failure_t failure = CRYPTO_TEST_FAILURE_NONE;
@@ -233,6 +240,7 @@ static NO_OPTIMIZE bool crypto_test_ecdsa_p256_verify(void) {
 
   return (failure == CRYPTO_TEST_FAILURE_NONE);
 }
+#endif  // CRYPTO_ENABLE_WYCHEPROOF_TESTS
 
 static NO_OPTIMIZE bool crypto_test_ecdsa_p256_sign_verify(void) {
   // Test message to sign
@@ -508,16 +516,22 @@ static NO_OPTIMIZE bool crypto_test_ecdsa_p256_signing_vectors(void) {
 
 void crypto_test_ecdsa(void) {
   unsigned int success = 0;
+  unsigned int total = 6;
 
   success += crypto_test_ecdsa_verify() ? 1 : 0;
   success += crypto_test_ecdsa_sign() ? 1 : 0;
+#if CRYPTO_ENABLE_WYCHEPROOF_TESTS
   success += crypto_test_ecdsa_p256_verify() ? 1 : 0;
+  total++;
+#else
+  LOGI("Skipping wycheproof ECDSA tests. Enable with CRYPTO_ENABLE_WYCHEPROOF_TESTS");
+#endif
   success += crypto_test_ecdsa_p256_sign_verify() ? 1 : 0;
   success += crypto_test_scalar_validation() ? 1 : 0;
   success += crypto_test_ecdsa_p256_keygen_vectors() ? 1 : 0;
   success += crypto_test_ecdsa_p256_signing_vectors() ? 1 : 0;
 
-  LOGI("Crypto ECDSA Test Suite: %u / 7 Passed", success);
+  LOGI("Crypto ECDSA Test Suite: %u / %u Passed", success, total);
 }
 
 void crypto_test_random(void) {

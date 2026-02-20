@@ -8,6 +8,7 @@
 #include "log.h"
 #include "mcu_reset.h"
 #include "proto_helpers.h"
+#include "rtos_thread.h"
 #include "secutils.h"
 #include "ui_messaging.h"
 
@@ -28,7 +29,8 @@ static struct {
 
 void fwup_task_create(fwup_task_options_t options) {
   fwup_init((uint32_t*)fwup_target_slot_address(), (uint32_t*)fwup_current_slot_address(),
-            (uint32_t*)fwup_target_slot_signature_address(), fwup_slot_size(), options.bl_upgrade);
+            (uint32_t*)fwup_target_slot_signature_address(), fwup_slot_size(), options.bl_upgrade,
+            options.confirmation);
 
   fwup_priv.queue = rtos_queue_create(fwup_queue, ipc_ref_t, 4);
   ASSERT(fwup_priv.queue);
@@ -50,18 +52,16 @@ static NO_OPTIMIZE void fwup_thread(void* UNUSED(args)) {
 
     switch (message.tag) {
       case IPC_PROTO_FWUP_START_CMD: {
-        // TODO(W-4580)
-        UI_SHOW_EVENT(UI_EVENT_FWUP_START);
-
-        if (!fwup_task_handle_start_cmd(&message)) {
-          UI_SHOW_EVENT(UI_EVENT_LED_CLEAR);
-        }
+        fwup_task_handle_start_cmd(&message);
       } break;
       case IPC_PROTO_FWUP_TRANSFER_CMD:
         fwup_task_handle_transfer_cmd(&message);
         break;
       case IPC_PROTO_FWUP_FINISH_CMD: {
         fwup_task_handle_finish_cmd(&message);
+      } break;
+      case IPC_FWUP_CONFIRMATION_RESULT: {
+        fwup_handle_confirmation_result(&message);
       } break;
       case IPC_FWUP_START_COPROC_RSP: {
         fwup_task_handle_coproc_fwup_start(&message);
@@ -84,16 +84,7 @@ static bool fwup_task_handle_start_cmd(ipc_ref_t* message) {
     return fwup_task_send_coproc_fwup_start_cmd(cmd);
   }
 
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-  rsp->which_msg = fwpb_wallet_rsp_fwup_start_rsp_tag;
-
-  bool result = fwup_start(&cmd->msg.fwup_start_cmd, &rsp->msg.fwup_start_rsp);
-
-  fwup_mark_pending(result);
-
-  proto_send_rsp(cmd, rsp);
-
-  return result;
+  return fwup_task_port_handle_start_cmd(message);
 }
 
 static void fwup_task_handle_transfer_cmd(ipc_ref_t* message) {

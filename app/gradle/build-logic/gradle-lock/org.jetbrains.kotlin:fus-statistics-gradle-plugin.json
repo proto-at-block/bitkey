@@ -13,6 +13,19 @@
             "dependency-locking-groups": [
                 "build-classpath"
             ]
+        },
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "fus-statistics-gradle-plugin-2.2.20-gradle813.jar": "3a69595b6c75fbf92d320168745c698ff7114b8607841050d48498823006e871"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
         }
     ]
 }

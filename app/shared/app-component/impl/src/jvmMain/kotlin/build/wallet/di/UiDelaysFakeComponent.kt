@@ -4,7 +4,6 @@ import build.wallet.statemachine.root.*
 import build.wallet.time.MinimumLoadingDuration
 import me.tatarka.inject.annotations.Provides
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -46,5 +45,5 @@ interface UiDelaysFakeComponent {
 
   @Provides
   fun provideRemainingRecoveryDelayWordsUpdateFrequency() =
-    RemainingRecoveryDelayWordsUpdateFrequency(1.milliseconds)
+    RemainingRecoveryDelayWordsUpdateFrequency(1.seconds)
 }

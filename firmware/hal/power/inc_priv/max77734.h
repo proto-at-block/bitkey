@@ -9,6 +9,7 @@
 void max77734_init(const power_ldo_config_t* ldo_config);
 bool max77734_validate(void);
 void max77734_set_ldo_low_power_mode(void);
+void max77734_disable_ldo(void);
 void max77734_irq_enable(exti_config_t* irq);
 bool max77734_irq_wait(exti_config_t* irq, uint32_t timeout_ms);
 void max77734_irq_clear(void);

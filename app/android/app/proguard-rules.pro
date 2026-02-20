@@ -16,6 +16,7 @@
 -keep class com.sun.jna.** { *; }
 -keep interface build.wallet.nfc.transaction.NfcTransaction { *; }
 -keep class org.bitcoindevkit.** { *; }
+-keep class uniffi.bdk.** { *; }
 
 # These should hypothetically be kept already by rules added by the serialization lib, but some models were still failing
 -keep @kotlinx.serialization.Serializable class *
@@ -34,6 +35,8 @@
 
 # These rules preserve line numbers to assist in stack trace interpreting later while keeping file names obfuscated
 -keepattributes SourceFile,LineNumberTable
+# Required for JNA @Structure.FieldOrder on UniFFI bindings.
+-keepattributes RuntimeVisibleAnnotations
 -renamesourcefileattribute SourceFile
 
 # Needed for Emergency Exit Kit PDF generation (by virtue of com.tom_roush.pdfbox dependency)

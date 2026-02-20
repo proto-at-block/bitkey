@@ -32,5 +32,13 @@ kotlin {
         implementation(libs.kmp.settings)
       }
     }
+
+    val iosTest by getting {
+      dependencies {
+        implementation(projects.libs.cloudStoreFake)
+        implementation(projects.domain.featureFlagFake)
+        implementation(projects.libs.testingPublic)
+      }
+    }
   }
 }

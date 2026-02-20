@@ -2,19 +2,6 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-tooling-core",
     "components": [
         {
-            "version": "2.0.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-tooling-core-2.0.20.jar": "5b6f148548fe9e074df51f4225344433bf0375ac5b39ffcd3d7bd7d7f602d629"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[build-logic]"
-            ]
-        },
-        {
             "version": "2.1.20",
             "variants": [
                 {
@@ -25,6 +12,19 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
+            ]
+        },
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-tooling-core-2.2.20.jar": "74014ec4f3ef78ce7da7e3e6964f2c526a3121d5c58fef8ca2979e5f344582f4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
             ]
         }
     ]

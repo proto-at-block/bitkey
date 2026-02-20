@@ -3,6 +3,7 @@ package build.wallet.bitcoin.wallet
 import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.bdk.*
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
@@ -99,8 +100,24 @@ class SpendingWalletImpl(
     return getAddress(BdkAddressIndex.New)
   }
 
+  override suspend fun getNewAddressInfo(): Result<BitcoinAddressInfo, Error> {
+    return bdkWallet
+      .getAddress(BdkAddressIndex.New).result
+      .map { bdkAddressInfo ->
+        BitcoinAddressInfo(
+          address = BitcoinAddress(bdkAddressInfo.address.asString()),
+          index = bdkAddressInfo.index.toUInt()
+        )
+      }
+      .logFailure { "Error getting new address with index for wallet." }
+  }
+
   override suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error> {
     return getAddress(BdkAddressIndex.Peek(index))
+  }
+
+  override suspend fun revealAddress(index: UInt): Result<BitcoinAddress, Error> {
+    return peekAddress(index)
   }
 
   override suspend fun getLastUnusedAddress(): Result<BitcoinAddress, Error> {
@@ -204,10 +221,16 @@ class SpendingWalletImpl(
           feePolicy = constructionType.feePolicy
         ).bind()
 
-        is BumpFee -> createFeeBumpedPsbt(
+        is FeeBump -> createFeeBumpedPsbt(
           txid = constructionType.txid,
           feeRate = constructionType.feeRate
         ).bind()
+
+        is ManualFeeBump -> {
+          // ManualFeeBump is only supported in SpendingWalletV2Impl (BDK2)
+          // Legacy BDK handles output shrinking via allow_shrinking in createFeeBumpedPsbt
+          Err(Error("ManualFeeBump is not supported in legacy SpendingWalletImpl")).bind()
+        }
       }
 
       signPsbt(unsignedPsbt).bind()
@@ -366,7 +389,7 @@ private suspend fun BdkPartiallySignedTransaction.toPsbt(
             id = txid(),
             base64 = serialize(),
             fee = Fee(amount = BitcoinMoney.sats(feeSats)),
-            baseSize = extractTx().size().toLong(),
+            vsize = extractTx().vsize().toLong(),
             numOfInputs = extractTx().input().size,
             amountSats = amountSats,
             inputs = extractTx().input().toSet(),

@@ -1,16 +1,13 @@
 package build.wallet.ui.app.moneyhome.receive
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
@@ -18,6 +15,7 @@ import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.loading.LoadingBadge
+import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -49,19 +47,20 @@ fun PartnerActionButton(
     modifier = modifier,
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
-    FilledIconButton(
+    Box(
       modifier = Modifier
         .size(64.dp)
-        .alpha(if (enabled) 1f else 0.5f),
-      onClick = onClick,
-      enabled = enabled && !isLoading,
-      shape = CircleShape,
-      colors = IconButtonDefaults.filledIconButtonColors(
-        containerColor = WalletTheme.colors.foreground10,
-        contentColor = WalletTheme.colors.foreground,
-        disabledContainerColor = WalletTheme.colors.foreground10.copy(alpha = 0.5f),
-        disabledContentColor = WalletTheme.colors.foreground30
-      )
+        .alpha(if (enabled) 1f else 0.5f)
+        .clip(CircleShape)
+        .scalingClickable(
+          enabled = enabled && !isLoading,
+          onClick = onClick
+        )
+        .background(
+          color = WalletTheme.colors.foreground10,
+          shape = CircleShape
+        ),
+      contentAlignment = Alignment.Center
     ) {
       if (isLoading) {
         LoadingBadge(

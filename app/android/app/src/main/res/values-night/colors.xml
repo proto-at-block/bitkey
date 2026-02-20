@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base Colors (required by system/dependencies) -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Bitkey Brand Colors from StyleDictionary (Dark Mode) -->
+    <color name="bitkey_primary">#FF008096</color>
+    <color name="bitkey_secondary">#FF262626</color>
+</resources>

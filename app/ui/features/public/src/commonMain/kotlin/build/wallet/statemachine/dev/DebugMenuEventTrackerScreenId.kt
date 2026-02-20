@@ -8,4 +8,7 @@ enum class DebugMenuEventTrackerScreenId : EventTrackerScreenId {
 
   /** Error screen shown when a debug menu operation fails */
   DEBUG_MENU_ERROR,
+
+  /** Screen for viewing and importing fake hardware seed */
+  FAKE_HARDWARE_SEED,
 }

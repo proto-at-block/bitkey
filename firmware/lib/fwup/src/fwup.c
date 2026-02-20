@@ -31,13 +31,18 @@ void fwup_mark_coproc_pending(bool pending) {
   fwup_coproc_pending = pending;
 }
 
+NO_OPTIMIZE secure_bool_t fwup_get_require_confirmation(void) {
+  return fwup_priv.require_confirmation;
+}
+
 static bool is_delta_update(fwpb_fwup_mode mode) {
   return (mode == fwpb_fwup_mode_FWUP_MODE_DELTA_INLINE ||
           mode == fwpb_fwup_mode_FWUP_MODE_DELTA_ONESHOT);
 }
 
 void fwup_init(void* _target_slot_addr, void* _current_slot_addr, void* _target_slot_signature,
-               uint32_t target_app_slot_size, bool _support_bl_upgrade) {
+               uint32_t target_app_slot_size, bool _support_bl_upgrade,
+               secure_bool_t _require_confirmation) {
   fwup_priv.perf.erase = perf_create(PERF_ELAPSED, fwup_erase);
   fwup_priv.perf.write = perf_create(PERF_ELAPSED, fwup_write);
   fwup_priv.perf.transfer = perf_create(PERF_INTERVAL, fwup_transfer);
@@ -48,6 +53,7 @@ void fwup_init(void* _target_slot_addr, void* _current_slot_addr, void* _target_
   fwup_priv.app_slot_size = target_app_slot_size;
   fwup_priv.target_slot_signature = _target_slot_signature;
   fwup_priv.support_bl_upgrade = _support_bl_upgrade;
+  fwup_priv.require_confirmation = _require_confirmation;
 }
 
 bool fwup_start(fwpb_fwup_start_cmd* cmd, fwpb_fwup_start_rsp* rsp_out) {

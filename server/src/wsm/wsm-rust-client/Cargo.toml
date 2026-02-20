@@ -21,9 +21,10 @@ url = { workspace = true }
 
 # path dependencies
 wsm-common = { workspace = true }
+wsm-compat = { workspace = true }
 
 [dev-dependencies]
-bdk = { workspace = true, features = ["electrum", "std"] }
+bdk_wallet = { workspace = true, features = ["keys-bip39"] }
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 [lints]

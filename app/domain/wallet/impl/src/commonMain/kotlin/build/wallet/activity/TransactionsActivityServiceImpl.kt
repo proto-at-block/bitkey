@@ -8,7 +8,7 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinWalletService
-import build.wallet.bitcoin.wallet.WalletV2Provider
+import build.wallet.bitcoin.wallet.SpendingWalletV2Provider
 import build.wallet.bitcoin.wallet.WatchingWallet
 import build.wallet.bitcoin.wallet.WatchingWalletDescriptor
 import build.wallet.bitcoin.wallet.WatchingWalletProvider
@@ -47,7 +47,7 @@ class TransactionsActivityServiceImpl(
   private val bitcoinWalletService: BitcoinWalletService,
   private val accountService: AccountService,
   private val watchingWalletProvider: WatchingWalletProvider,
-  private val walletV2Provider: WalletV2Provider,
+  private val spendingWalletV2Provider: SpendingWalletV2Provider,
   private val bitcoinMultiSigDescriptorBuilder: BitcoinMultiSigDescriptorBuilder,
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val appScope: CoroutineScope,
@@ -201,7 +201,7 @@ class TransactionsActivityServiceImpl(
           val descriptor = it.toWalletDescriptor(account.config.bitcoinNetworkType)
           async(Dispatchers.IO) {
             val walletResult = if (bdk2FeatureFlag.isEnabled()) {
-              walletV2Provider.getWallet(descriptor)
+              spendingWalletV2Provider.getWallet(descriptor)
             } else {
               watchingWalletProvider.getWallet(descriptor)
             }

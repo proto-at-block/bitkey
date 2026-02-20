@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-savedstate",
+    "components": [
+        {
+            "version": "2.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-savedstate-2.9.5.jar": "8f469bd07f195cd63cfac400f1459c7deb116f28dbd357aed4a6464d4ae3481c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

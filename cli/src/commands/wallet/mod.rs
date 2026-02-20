@@ -1,4 +1,5 @@
 pub use balance::balance;
+use bdk_wallet::bitcoin::Amount;
 pub use drain::drain;
 pub use hardware_send::hardware_send;
 pub use receive::receive;
@@ -21,13 +22,13 @@ mod status;
 mod transactions;
 mod utxos;
 
-pub(crate) fn psbt_from<D: bdk::database::BatchDatabase>(
-    wallet: &bdk::Wallet<D>,
-    recipient: bdk::bitcoin::Address,
+pub(crate) fn psbt_from(
+    wallet: &mut bdk_wallet::Wallet,
+    recipient: bdk_wallet::bitcoin::Address,
     amount: u64,
-) -> Result<bdk::bitcoin::psbt::PartiallySignedTransaction, bdk::Error> {
+) -> Result<bdk_wallet::bitcoin::psbt::Psbt, bdk_wallet::error::CreateTxError> {
     let mut builder = wallet.build_tx();
-    builder.add_recipient(recipient.script_pubkey(), amount);
-    let (psbt, _) = builder.finish()?;
+    builder.add_recipient(recipient.script_pubkey(), Amount::from_sat(amount));
+    let psbt = builder.finish()?;
     Ok(psbt)
 }

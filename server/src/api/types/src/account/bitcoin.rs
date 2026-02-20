@@ -1,5 +1,6 @@
 use bdk_utils::bdk::bitcoin::Network as BitcoinNetwork;
 use serde::{Deserialize, Serialize};
+use wsm_rust_client::Network as WsmBitcoinNetwork;
 
 #[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Network {
@@ -34,5 +35,15 @@ impl From<BitcoinNetwork> for Network {
             BitcoinNetwork::Regtest => Network::BitcoinRegtest,
             _ => panic!("network not supported"),
         }
+    }
+}
+
+pub fn to_wsm_bitcoin_network(network: BitcoinNetwork) -> WsmBitcoinNetwork {
+    match network {
+        BitcoinNetwork::Bitcoin => WsmBitcoinNetwork::Bitcoin,
+        BitcoinNetwork::Testnet => WsmBitcoinNetwork::Testnet,
+        BitcoinNetwork::Signet => WsmBitcoinNetwork::Signet,
+        BitcoinNetwork::Regtest => WsmBitcoinNetwork::Regtest,
+        _ => unimplemented!(),
     }
 }

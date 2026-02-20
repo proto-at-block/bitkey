@@ -12,5 +12,5 @@ workspace = true
 [dependencies]
 bitcoin = { workspace = true }
 crypto = { workspace = true }
-lightning-invoice = "0.29.0"
+lightning-invoice = { version = "=0.33.2", features = ["std"] }
 thiserror = { workspace = true }

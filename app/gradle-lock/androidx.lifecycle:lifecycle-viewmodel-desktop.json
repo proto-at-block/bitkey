@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-desktop",
     "components": [
         {
-            "version": "2.8.7",
+            "version": "2.9.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-desktop-2.8.7.jar": "21ec0e77dc02ed0d6bfe6f3cba7f43e25400446d89ded8568ee165437e0c1922"
+                        "lifecycle-viewmodel-desktop-2.9.4.jar": "98f816be6869407c87d46058756f97780fa6c6cf61acdba97216f413731af15d"
                     }
                 }
             ],

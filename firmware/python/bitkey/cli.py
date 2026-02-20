@@ -1,11 +1,12 @@
 import functools
+import os
 import pathlib
 import subprocess
 import sys
 import tempfile
 import time
 from binascii import hexlify
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Optional
 
 import click
 from bitkey_proto import mfgtest_pb2 as mfgtest_pb
@@ -61,7 +62,8 @@ def add_mcu_option(callback: Callable) -> Callable:
     '--product',
     default='w1',
     type=click.Choice(['W1', 'W3'], case_sensitive=False),
-    help='Optional product name'
+    help='Product name (defaults to W1; use -p w3 for W3 devices)',
+    show_default=True
 )
 @click.option('--timeout', type=click.FLOAT, default=None, help="Global timeout in seconds for device operations (default: unlimited)")
 @click.option('--transceive-timeout', type=click.FLOAT, default=None, help="Per-transceive timeout in seconds (default: 0.25)")
@@ -145,20 +147,33 @@ def mfgtest_fingerprint_calibrate(ctx):
 
 @cli.command()
 @click.pass_context
-def mfgtest_fingerprint_image_run(ctx):
-    progress = None
+def mfgtest_fingerprint_image_run(ctx: click.Context) -> None:
+    """Capture a fingerprint image.
 
-    def update(total, sent):
+    Image is output as a bytestring to the console.
+    """
+    progress: Optional[tqdm] = None
+
+    def update(total: int, sent: int) -> None:
+        """Updates the progress bar based on the fingerprint capture.
+
+        :param total: total number of bytes for the capture image.
+        :param sent: current number of bytes received.
+        :returns: ``None``
+        """
         nonlocal progress
         if progress is None:
             progress = tqdm(total=total)
         else:
             progress.update(sent)
 
-    image = ctx.obj.mfgtest_fingerprint_image_capture_run(
-        update_callback=update)
-    progress.close()
-    click.echo(hexlify(bytearray(image)))
+    try:
+        image = ctx.obj.mfgtest_fingerprint_image_capture_run(
+            update_callback=update)
+        progress.close()
+        click.echo(hexlify(bytearray(image)))
+    except TimeoutError:
+        ctx.fail("Timed out waiting for fingerprint or communicating with tag.")
 
 
 @cli.command()
@@ -274,8 +289,9 @@ def mfgtest_runin_get_data(ctx):
 @click.argument("test_type", type=click.Choice(["a", "b"], case_sensitive=False))
 @click.option("-t", "--timeout", type=int, default=5000, help="Timeout (ms) for card detection.")
 @click.option("-d", "--delay", type=int, default=1000, help="Delay (ms) before starting the tap test.")
+@click.option("--continuous", is_flag=True, default=False, help="Keep NFC active and restart polling after each card detection.")
 @click.pass_context
-def mfgtest_tap_test_start(ctx: click.Context, test_type: str, delay: int, timeout: int) -> None:
+def mfgtest_tap_test_start(ctx: click.Context, test_type: str, delay: int, timeout: int, continuous: bool) -> None:
     """Starts a tap test over NFC. Test is started after the specified delay."""
     nfc_test = getattr(
         mfgtest_pb.mfgtest_nfc_loopback_test_type, f"NFC_LOOPBACK_TEST_{test_type.upper()}", None)
@@ -283,7 +299,7 @@ def mfgtest_tap_test_start(ctx: click.Context, test_type: str, delay: int, timeo
         click.secho(f"Invalid test specified: {test_type}", fg="red")
     else:
         res = ctx.obj.mfgtest_tap_test_start(
-            nfc_test=nfc_test, delay=delay, timeout=timeout)
+            nfc_test=nfc_test, delay=delay, timeout=timeout, continuous=continuous)
         status = res.mfgtest_nfc_loopback_rsp.rsp_status
         if status == res.mfgtest_nfc_loopback_rsp.mfgtest_nfc_loopback_rsp_status.SUCCESS:
             click.secho(f"Test started successfully.", fg="green")
@@ -336,7 +352,7 @@ def fuel(ctx):
 
 @cli.command()
 @click.option('--action', type=click.Choice(["READ", "SET", "CLEAR"]), required=True)
-@click.option('--port', type=click.Choice(["PORT_A", "PORT_B", "PORT_C", "PORT_D"]), required=True)
+@click.option('--port', type=click.Choice(mfgtest_pb.mfgtest_gpio_cmd.mfgtest_gpio_port.keys()), required=True)
 @click.option('--pin', type=click.INT, required=True)
 @add_mcu_option
 @click.pass_context
@@ -552,29 +568,73 @@ def mfgtest_charger_registers(ctx: click.Context) -> None:
 
 
 @cli.command()
+@click.option('--no-shutdown', is_flag=True, help="Don't shutdown after entering ship state")
+@click.option('--timeout', type=int, default=5000, help="Shutdown timeout in ms (default: 5000)")
+@click.pass_context
+def ship_state(ctx: click.Context, no_shutdown: bool, timeout: int) -> None:
+    """Prepare device for packout by disabling touch-to-wake.
+
+    This command disables the LDO powering the touch controller to conserve
+    battery during warehouse storage. Saves approximately 4.5µA.
+
+    By default, the device will shutdown after 5 seconds. Use --no-shutdown
+    to disable LDO without shutting down (for testing).
+
+    WARNING: After running this command, the device will wake if:
+    - The capacitive touch sensor is pressed (connected to nENLDO)
+    - USB is plugged in (CHGIN signal)
+    Ensure the device is not touched after packout to prevent accidental wake.
+    """
+    shutdown_after = not no_shutdown
+    success = ctx.obj.ship_state(
+        shutdown_after=shutdown_after, timeout_ms=timeout)
+
+    if success:
+        if shutdown_after:
+            click.secho(
+                f"Ship state entered. Device will shutdown in {timeout}ms", fg="green")
+            click.secho(
+                "WARNING: Do not touch device or plug in USB", fg="yellow")
+        else:
+            click.secho(
+                "LDO disabled (ship state active, no shutdown)", fg="green")
+    else:
+        click.secho("✗ Failed to enter ship state", fg="red")
+        sys.exit(1)
+
+
+@cli.command()
+@add_mcu_option
 @click.option("--out", required=False, type=click.Path(exists=False, path_type=pathlib.Path), help="Output directory")
 @click.option('--get-all', is_flag=True, help="Get all coredumps")
 @click.option('--operation', type=click.Choice(wallet_pb.coredump_get_cmd.coredump_get_type.keys()))
 @click.pass_context
-def coredump(ctx, out: pathlib.Path, get_all: bool, operation: str):
+def coredump(ctx: click.Context, out: pathlib.Path, get_all: bool, operation: str, mcu: str) -> None:
     wallet = ctx.obj
 
     if operation == 'COUNT':
-        click.echo(coredump_api.count(wallet))
+        click.echo(coredump_api.count(wallet, mcu=mcu))
     elif get_all:
-        coredump_api.fetch_all(wallet, out)
+        coredump_api.fetch_all(wallet, out, mcu=mcu)
     else:
-        coredump_api.fetch_one(wallet, out)
+        coredump_api.fetch_one(wallet, out, mcu=mcu)
 
 
 @cli.command()
+@add_mcu_option
 @click.pass_context
-def events(ctx):
+def events(ctx: click.Context, mcu: str):
+    """Retrieves bitlog events from the target MCU."""
     wallet = ctx.obj
-    events = []
+    events: List[int] = []
+
     while True:
-        result = wallet.events().events_get_rsp
-        assert result.rsp_status == result.events_get_rsp_status.SUCCESS
+        result = wallet.events(mcu=mcu).events_get_rsp
+        status: int = result.rsp_status
+        if status != result.events_get_rsp_status.SUCCESS:
+            name: str = wallet_pb.events_get_rsp.events_get_rsp_status.Name(
+                status)
+            ctx.fail(f"Error while retrieving logs: {name}")
         e = result.fragment
         events.extend(e.data)
         if e.remaining_size == 0:
@@ -722,6 +782,26 @@ def derive(ctx, network, path):
 
 
 @cli.command()
+@click.option('--index', type=click.INT, required=True, help="Address index for derivation (0, 1, 2, ...)")
+@click.pass_context
+def get_address(ctx, index):
+    """Get a Bitcoin address at the specified index (W3 only).
+
+    Derives a P2WSH 2-of-3 multisig address from the stored descriptor
+    and displays it on the W3 hardware screen.
+
+    Requires verify_keys_and_build_descriptor to be called first during onboarding.
+    """
+    wallet = ctx.obj
+    res = wallet.get_address(index)
+    if res.status == wallet_pb.status.SUCCESS:
+        print(f"Address at index {index}: {res.get_address_rsp.address}")
+    else:
+        print(f"Error: {wallet_pb.status.Name(res.status)}")
+        print_proto(res)
+
+
+@cli.command()
 @click.option('--digest', type=Sha256Hash, required=True)
 @click.option('--path', type=DerivationPath, required=True)
 @click.option('--async-sign/--no-async-sign', type=bool, required=False, default=False)
@@ -811,6 +891,83 @@ def set_fingerprint_label(ctx, index, label):
 def cancel_fingerprint_enrollment(ctx):
     wallet = ctx.obj
     print_proto(wallet.cancel_fingerprint_enrollment())
+
+
+@cli.command()
+@click.option('--mode', type=click.Choice(
+    mfgtest_pb.mfgtest_touch_data_cmd.mfgtest_touch_data_buffer_mode.keys()),
+    default='CIRCULAR', help='Buffer mode: CIRCULAR (drop oldest) or STOP_WHEN_FULL')
+@click.pass_context
+def mfgtest_touch_data_enable(ctx, mode):
+    """Enable touch data collection.
+
+    Buffers touch points on device. By default (CIRCULAR), oldest points are dropped
+    when the buffer is full. Use --mode STOP_WHEN_FULL to reject new points instead.
+    """
+    response = ctx.obj.mfgtest_touch_data('START', buffer_mode=mode)
+    rsp = response.mfgtest_touch_data_rsp
+
+    if rsp.rsp_status == mfgtest_pb.mfgtest_touch_data_rsp.SUCCESS:
+        click.echo("ENABLED")
+    else:
+        status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(rsp.rsp_status)
+        click.echo(f"ERROR: {status_name}")
+
+
+@cli.command()
+@click.option('-o', '--output', type=click.File('w'), help='Save touch points to file (CSV format)')
+@click.pass_context
+def mfgtest_touch_data_fetch(ctx, output):
+    """Fetch all buffered touch points."""
+    result = ctx.obj.mfgtest_touch_data_fetch_all()
+
+    if result.error:
+        click.echo(f"ERROR: {result.error}")
+        return
+
+    if output:
+        output.write(f"x,y,timestamp_ms{os.linesep}")
+        for x, y, ts in result.points:
+            output.write(f"{x},{y},{ts}{os.linesep}")
+        click.echo(f"Saved {len(result.points)} points to {output.name}")
+    else:
+        click.echo("x,y,timestamp_ms")
+        for x, y, ts in result.points:
+            click.echo(f"{x},{y},{ts}")
+        click.echo(f"TOTAL: {len(result.points)}")
+
+    if result.buffer_full:
+        click.echo("BUFFER_FULL: true")
+    if result.dropped_count > 0:
+        click.echo(f"DROPPED: {result.dropped_count}")
+
+
+@cli.command()
+@click.option('--all', 'fetch_all', is_flag=True, help='Fetch all remaining points before disabling')
+@click.pass_context
+def mfgtest_touch_data_disable(ctx, fetch_all):
+    """Disable touch data collection."""
+    if fetch_all:
+        result = ctx.obj.mfgtest_touch_data_fetch_all()
+        if result.error:
+            click.echo(f"ERROR: {result.error}")
+            return
+        click.echo("x,y,timestamp_ms")
+        for x, y, ts in result.points:
+            click.echo(f"{x},{y},{ts}")
+        if result.points:
+            click.echo(f"TOTAL: {len(result.points)}")
+
+    response = ctx.obj.mfgtest_touch_data('STOP')
+    rsp = response.mfgtest_touch_data_rsp
+
+    if rsp.rsp_status == mfgtest_pb.mfgtest_touch_data_rsp.SUCCESS:
+        click.echo("DISABLED")
+    elif rsp.rsp_status == mfgtest_pb.mfgtest_touch_data_rsp.NOT_STARTED:
+        click.echo("ERROR: NOT_ENABLED")
+    else:
+        status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(rsp.rsp_status)
+        click.echo(f"ERROR: {status_name}")
 
 
 if __name__ == "__main__":

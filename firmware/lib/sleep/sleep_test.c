@@ -171,3 +171,29 @@ Test(sleep_test, inhibit_restarts_from_current_time, .init = init) {
   advance_time_ms(2);  // At 110001ms - should fire
   cr_assert(power_down_called);
 }
+
+Test(sleep_test, inhibit_infinite, .init = init) {
+  // SLEEP_INHIBIT_INFINITE should prevent overflow and return UINT32_MAX directly
+  sleep_inhibit(SLEEP_INHIBIT_INFINITE);
+  cr_assert_eq(sleep_get_configured_timeout(), SLEEP_INHIBIT_INFINITE);
+
+  // Start timer - should use SLEEP_INHIBIT_INFINITE as duration
+  sleep_start_power_timer();
+  cr_assert_eq(g_timer->handle.duration, SLEEP_INHIBIT_INFINITE);
+  cr_assert(g_timer->handle.active);
+
+  // Verify timer stays active and doesn't fire within reasonable time
+  advance_time_ms(POWER_TIMEOUT_MS * 100);  // Advance 100 minutes
+  cr_assert_eq(power_down_called, false);
+  cr_assert(g_timer->handle.active);
+
+  // Clear inhibit should restore normal timeout
+  sleep_clear_inhibit();
+  cr_assert_eq(sleep_get_configured_timeout(), POWER_TIMEOUT_MS);
+  cr_assert_eq(g_timer->handle.duration, POWER_TIMEOUT_MS);
+
+  // Stop timer and verify inhibit is cleared
+  sleep_stop_power_timer();
+  cr_assert_eq(sleep_get_configured_timeout(), POWER_TIMEOUT_MS);
+  cr_assert_eq(g_timer->handle.active, false);
+}

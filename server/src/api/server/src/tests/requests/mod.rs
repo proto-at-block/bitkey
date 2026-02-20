@@ -14,6 +14,12 @@ pub(crate) struct Response<T> {
     pub body_string: String,
 }
 
+impl<T> Response<T> {
+    pub(crate) async fn body_as_string(&self) -> String {
+        self.body_string.clone()
+    }
+}
+
 #[derive(Debug)]
 pub(super) enum CognitoAuthentication {
     Wallet {

@@ -12,5 +12,5 @@ import kotlinx.datetime.Instant
 data class Coachmark(
   val id: CoachmarkIdentifier,
   val viewed: Boolean,
-  val expiration: Instant,
+  val expiration: Instant?,
 )

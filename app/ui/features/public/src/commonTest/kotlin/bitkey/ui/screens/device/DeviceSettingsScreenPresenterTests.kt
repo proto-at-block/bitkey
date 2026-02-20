@@ -5,6 +5,7 @@ import bitkey.ui.framework.test
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.F8eUnreachable
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock2
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
@@ -120,7 +121,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
           shouldBeInstanceOf<DeviceStatusCard>()
           statusCallout.shouldNotBeNull().apply {
             title.shouldBe("Update available")
-            subtitle.shouldNotBeNull().string.shouldBe("1.2.3")
+            subtitle.shouldNotBeNull().string.shouldBe(McuFwupDataMock_W1_CORE.version)
           }
         }
       }
@@ -215,7 +216,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
           shouldBeInstanceOf<DeviceStatusCard>()
           statusCallout.shouldNotBeNull().apply {
             title.shouldBe("Update available")
-            subtitle.shouldNotBeNull().string.shouldBe("1.2.3")
+            subtitle.shouldNotBeNull().string.shouldBe(version)
             onClick.shouldNotBeNull().invoke()
           }
         }
@@ -601,7 +602,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         serverRecovery = build.wallet.f8e.recovery.LostHardwareServerRecoveryMock.copy(
           delayStartTime = clock.now(),
           delayEndTime = delayEndTime
-        )
+        ),
+        originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
       )
     recoveryStatusService.recoveryStatus.value = initiatedRecovery
 
@@ -633,7 +635,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         serverRecovery = build.wallet.f8e.recovery.LostHardwareServerRecoveryMock.copy(
           delayStartTime = clock.now(),
           delayEndTime = clock.now() // Delay period is complete
-        )
+        ),
+        originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
       )
     recoveryStatusService.recoveryStatus.value = initiatedRecovery
 
@@ -663,7 +666,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         appGlobalAuthKeyHwSignature = FullAccountMock.keybox.appGlobalAuthKeyHwSignature,
         factorToRecover = build.wallet.bitkey.factor.PhysicalFactor.Hardware,
         sealedCsek = "sealed-csek".encodeUtf8(),
-        sealedSsek = null
+        sealedSsek = null,
+        originalAppGlobalAuthKey = null
       )
     recoveryStatusService.recoveryStatus.value = rotatedAuthKeys
 
@@ -694,7 +698,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         factorToRecover = build.wallet.bitkey.factor.PhysicalFactor.Hardware,
         sealedCsek = "sealed-csek".encodeUtf8(),
         sealedSsek = null,
-        f8eSpendingKeyset = FullAccountMock.keybox.activeSpendingKeyset.f8eSpendingKeyset
+        f8eSpendingKeyset = FullAccountMock.keybox.activeSpendingKeyset.f8eSpendingKeyset,
+        originalAppGlobalAuthKey = null
       )
     recoveryStatusService.recoveryStatus.value = createdSpendingKeys
 

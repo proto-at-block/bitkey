@@ -12,16 +12,21 @@ use onboarding::{
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use rstest::rstest;
 use time::Duration;
-use types::account::entities::{
-    v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2, UpgradeLiteAccountAuthKeysInputV2},
-    DescriptorBackup, DescriptorBackupsSet, Factor,
+use types::account::{
+    bitcoin::Network as AccountNetwork,
+    entities::{
+        v2::{
+            FullAccountAuthKeysInputV2, SpendingKeysetInputV2, UpgradeLiteAccountAuthKeysInputV2,
+        },
+        DescriptorBackup, DescriptorBackupsSet, Factor,
+    },
 };
 
 use crate::tests::{
     gen_services,
     lib::{
-        create_full_account_v2, create_lite_account, create_new_authkeys, create_pubkey,
-        generate_delay_and_notify_recovery,
+        create_email_touchpoint, create_full_account, create_full_account_v2, create_lite_account,
+        create_new_authkeys, create_pubkey, generate_delay_and_notify_recovery,
     },
     requests::{axum::TestClient, Response},
 };
@@ -379,4 +384,314 @@ async fn test_create_account_key_validation(
     #[case] expected_error: Option<ApiError>,
 ) {
     create_account_v2_key_validation_test(key_reuses, expected_error).await
+}
+
+#[tokio::test]
+#[ignore] // Requires WSM server with sign-public-keys endpoint deployed
+async fn test_complete_onboarding_v2_success() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create account with private keyset
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add and activate email touchpoint using service layer
+    create_email_touchpoint(&bootstrap.services, &account.account_id, true).await;
+
+    // Add descriptor backup
+    let backup_response = client
+        .update_descriptor_backups(
+            &account.account_id.to_string(),
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id: account.keyset_id.clone(),
+                    sealed_descriptor: "sealed_descriptor".to_string(),
+                    sealed_server_root_xpub: "sealed_xpub".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(backup_response.status_code, StatusCode::OK);
+
+    // Complete onboarding v2
+    let onboarding_response = client
+        .complete_onboarding_v2(
+            &account.account_id.to_string(),
+            &onboarding::routes::CompleteOnboardingRequestV2 {},
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(onboarding_response.status_code, StatusCode::OK);
+
+    let body = onboarding_response.body.unwrap();
+
+    // Verify all auth keys are returned
+    assert!(!body.app_auth_pub.is_empty());
+    assert!(!body.hardware_auth_pub.is_empty());
+    assert_eq!(body.app_auth_pub, keys.app.public_key.to_string());
+    assert_eq!(body.hardware_auth_pub, keys.hw.public_key.to_string());
+
+    // Verify all spending keys are returned
+    assert!(!body.app_spending_pub.is_empty());
+    assert!(!body.hardware_spending_pub.is_empty());
+    assert!(!body.server_spending_pub.is_empty());
+    assert_eq!(body.app_spending_pub, spending_app_pub.to_string());
+    assert_eq!(body.hardware_spending_pub, spending_hw_pub.to_string());
+
+    // Verify signature is returned and valid hex
+    assert!(!body.signature.is_empty());
+    assert_eq!(body.signature.len(), 128);
+    assert!(body.signature.chars().all(|c| c.is_ascii_hexdigit()));
+
+    // Test idempotency - calling again should succeed
+    let onboarding_response2 = client
+        .complete_onboarding_v2(
+            &account.account_id.to_string(),
+            &onboarding::routes::CompleteOnboardingRequestV2 {},
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(onboarding_response2.status_code, StatusCode::OK);
+
+    let body2 = onboarding_response2.body.unwrap();
+    // Keys should be the same, signature may differ (ECDSA is non-deterministic)
+    assert_eq!(body.app_auth_pub, body2.app_auth_pub);
+    assert_eq!(body.hardware_auth_pub, body2.hardware_auth_pub);
+    assert_eq!(body.app_spending_pub, body2.app_spending_pub);
+    assert_eq!(body.hardware_spending_pub, body2.hardware_spending_pub);
+    assert_eq!(body.server_spending_pub, body2.server_spending_pub);
+}
+
+#[tokio::test]
+async fn test_complete_onboarding_v2_missing_descriptor_backup() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create account with private keyset
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add and activate email touchpoint using service layer
+    create_email_touchpoint(&bootstrap.services, &account.account_id, true).await;
+
+    // Try to complete onboarding without descriptor backup
+    let onboarding_response = client
+        .complete_onboarding_v2(
+            &account.account_id.to_string(),
+            &onboarding::routes::CompleteOnboardingRequestV2 {},
+            Some(&keys),
+        )
+        .await;
+
+    // Should fail with bad request
+    assert_eq!(onboarding_response.status_code, StatusCode::BAD_REQUEST);
+    let error_body = onboarding_response.body_as_string().await;
+    assert!(error_body.contains("descriptor backup"));
+}
+
+#[tokio::test]
+#[ignore] // Requires WSM server with sign-public-keys endpoint deployed
+async fn test_complete_onboarding_v2_test_account_missing_email_allowed() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create TEST account with private keyset
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add descriptor backup
+    let backup_response = client
+        .update_descriptor_backups(
+            &account.account_id.to_string(),
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id: account.keyset_id.clone(),
+                    sealed_descriptor: "sealed_descriptor".to_string(),
+                    sealed_server_root_xpub: "sealed_xpub".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(backup_response.status_code, StatusCode::OK);
+
+    // Complete onboarding without email - should SUCCEED for test accounts
+    let onboarding_response = client
+        .complete_onboarding_v2(
+            &account.account_id.to_string(),
+            &onboarding::routes::CompleteOnboardingRequestV2 {},
+            Some(&keys),
+        )
+        .await;
+
+    // Should succeed for test accounts even without email
+    assert_eq!(onboarding_response.status_code, StatusCode::OK);
+    let body = onboarding_response.body.unwrap();
+
+    // Verify all keys are returned
+    assert!(!body.app_auth_pub.is_empty());
+    assert!(!body.hardware_auth_pub.is_empty());
+    assert!(!body.app_spending_pub.is_empty());
+    assert!(!body.hardware_spending_pub.is_empty());
+    assert!(!body.server_spending_pub.is_empty());
+
+    // Verify signature is returned and valid hex
+    assert!(!body.signature.is_empty());
+    assert_eq!(body.signature.len(), 128);
+    assert!(body.signature.chars().all(|c| c.is_ascii_hexdigit()));
+}
+
+#[tokio::test]
+async fn test_complete_onboarding_v2_production_account_missing_email_fails() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create PRODUCTION account with private keyset
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: false, // Production account
+    };
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add descriptor backup
+    let backup_response = client
+        .update_descriptor_backups(
+            &account.account_id.to_string(),
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id: account.keyset_id.clone(),
+                    sealed_descriptor: "sealed_descriptor".to_string(),
+                    sealed_server_root_xpub: "sealed_xpub".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(backup_response.status_code, StatusCode::OK);
+
+    // Try to complete onboarding without email
+    let onboarding_response = client
+        .complete_onboarding_v2(
+            &account.account_id.to_string(),
+            &onboarding::routes::CompleteOnboardingRequestV2 {},
+            Some(&keys),
+        )
+        .await;
+
+    // Should fail with bad request for production accounts
+    assert_eq!(onboarding_response.status_code, StatusCode::BAD_REQUEST);
+    let error_body = onboarding_response.body_as_string().await;
+    assert!(error_body.contains("email"));
+}
+
+#[tokio::test]
+#[ignore] // Requires WSM server with sign-public-keys endpoint deployed
+async fn test_complete_onboarding_v2_legacy_keyset_success() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create a full account with legacy keyset (using v1 which creates legacy keysets)
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    // Add and activate email touchpoint using service layer
+    let keys = context.get_authentication_keys_for_account_id(&account.id);
+    create_email_touchpoint(&bootstrap.services, &account.id, true).await;
+
+    // Complete onboarding with legacy keyset (no descriptor backup required for legacy)
+    let onboarding_response = client
+        .complete_onboarding_v2(
+            &account.id.to_string(),
+            &onboarding::routes::CompleteOnboardingRequestV2 {},
+            keys.as_ref(),
+        )
+        .await;
+
+    // Should succeed - legacy keysets are now supported
+    assert_eq!(onboarding_response.status_code, StatusCode::OK);
+
+    let body = onboarding_response.body.unwrap();
+
+    // Verify all keys are returned
+    assert!(!body.app_auth_pub.is_empty());
+    assert!(!body.hardware_auth_pub.is_empty());
+    assert!(!body.app_spending_pub.is_empty());
+    assert!(!body.hardware_spending_pub.is_empty());
+    assert!(!body.server_spending_pub.is_empty());
+
+    // Verify signature is returned and valid hex
+    assert!(!body.signature.is_empty());
+    assert_eq!(body.signature.len(), 128);
+    assert!(body.signature.chars().all(|c| c.is_ascii_hexdigit()));
 }

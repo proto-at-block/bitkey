@@ -20,6 +20,7 @@ PROJECT_ROOT = os.path.join(HERE, "..", "..")
 AUTH_GROUP_NEVER = "protos_that_never_require_auth"
 AUTH_GROUP_ALWAYS = "protos_that_always_require_auth"
 AUTH_GROUP_AFTER_ONBOARDING = "protos_that_require_auth_after_onboarding"
+AUTH_GROUP_BEFORE_ONBOARDING = "protos_that_require_not_onboarded"
 
 
 ENV = jinja2.Environment(
@@ -105,6 +106,8 @@ def add_to_auth_group(proto, gen):
         gen[AUTH_GROUP_ALWAYS].append(proto["name"])
     elif group == "after_onboarding":
         gen[AUTH_GROUP_AFTER_ONBOARDING].append(proto["name"])
+    elif group == "before_onboarding":
+        gen[AUTH_GROUP_BEFORE_ONBOARDING].append(proto["name"])
 
 
 def _generate_to_dir(output_dir, ignore_cache=False):
@@ -125,6 +128,7 @@ def _generate_to_dir(output_dir, ignore_cache=False):
            AUTH_GROUP_NEVER: [],
            AUTH_GROUP_ALWAYS: [],
            AUTH_GROUP_AFTER_ONBOARDING: [],
+           AUTH_GROUP_BEFORE_ONBOARDING: [],
            }
     proto_headers = []
     for proto in _collect_protos():

@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use bitcoin::{
     hashes::sha256,
+    hashes::Hash as _,
     secp256k1::{ecdsa::Signature, Error as Secp256k1Error, Message, PublicKey, Secp256k1},
 };
 use thiserror::Error;
@@ -28,7 +29,7 @@ impl SignatureVerifier {
     ) -> Result<(), SignatureVerifierError> {
         let pubkey = PublicKey::from_slice(pubkey)?;
         let secp = Secp256k1::verification_only();
-        let message = Message::from_hashed_data::<sha256::Hash>(message);
+        let message = Message::from_digest(sha256::Hash::hash(message).to_byte_array());
         let sig = self.0.lock().unwrap();
 
         Ok(secp.verify_ecdsa(&message, &sig, &pubkey)?)
@@ -48,7 +49,7 @@ mod tests {
         rand::thread_rng().fill_bytes(&mut random_bytes);
         let secret_key = SecretKey::from_slice(&random_bytes).unwrap();
         let message = b"hello world";
-        let hashed_message = Message::from_hashed_data::<sha256::Hash>(message);
+        let hashed_message = Message::from_digest(sha256::Hash::hash(message).to_byte_array());
         let secp = Secp256k1::new();
 
         let signature = secp
@@ -98,7 +99,7 @@ mod tests {
         let mut random_bytes = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut random_bytes);
         let secret_key = SecretKey::from_slice(&random_bytes).unwrap();
-        let hashed_message = Message::from_hashed_data::<sha256::Hash>(&message);
+        let hashed_message = Message::from_digest(sha256::Hash::hash(&message).to_byte_array());
         let secp = Secp256k1::new();
 
         let signature = secp.sign_ecdsa(&hashed_message, &secret_key);
@@ -114,7 +115,8 @@ mod tests {
         let mut random_bytes = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut random_bytes);
         let secret_key = SecretKey::from_slice(&random_bytes).unwrap();
-        let hashed_message = Message::from_hashed_data::<sha256::Hash>(b"hello world");
+        let hashed_message =
+            Message::from_digest(sha256::Hash::hash(b"hello world").to_byte_array());
         let secp = Secp256k1::new();
 
         let signature = secp.sign_ecdsa(&hashed_message, &secret_key);
@@ -131,7 +133,7 @@ mod tests {
         let mut random_bytes = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut random_bytes);
         let secret_key = SecretKey::from_slice(&random_bytes).unwrap();
-        let hashed_message = Message::from_hashed_data::<sha256::Hash>(&message);
+        let hashed_message = Message::from_digest(sha256::Hash::hash(&message).to_byte_array());
         let secp = Secp256k1::new();
 
         let signature = secp.sign_ecdsa(&hashed_message, &secret_key);

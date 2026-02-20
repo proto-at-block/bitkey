@@ -1,6 +1,10 @@
 ## KotlinMultiplatformRustPlugin
 
-This plugin compiles Rust and generates Kotlin bindings for Rust using Unifii.
+This plugin compiles Rust and generates Kotlin bindings using UniFFI. It powers
+the legacy Rust bindings flow for Android/JVM (see
+`docs/docs/mobile/architecture/rust-uniffi-bindings.md`).
+
+For Kotlin/Native iOS bindings we use the gobley KMP flow instead of this plugin.
 
 The plugin declares the `rust` Gradle extension, which is used to configure the compilation and targets. 
 The DSL is similar to the one used by the KMP plugin - with each KMP target having a dedicated configuration block specifying supported platforms and containing target-specific configuration.

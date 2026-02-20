@@ -55,7 +55,7 @@ class AppTester(
   appComponent: JvmAppComponent,
   activityComponent: JvmActivityComponent,
   internal val blockchainControl: BlockchainControl,
-  internal val initialF8eEnvironment: F8eEnvironment,
+  val initialF8eEnvironment: F8eEnvironment,
   val initialBitcoinNetworkType: BitcoinNetworkType,
   val isUsingSocRecFakes: Boolean,
   val appMode: AppMode,

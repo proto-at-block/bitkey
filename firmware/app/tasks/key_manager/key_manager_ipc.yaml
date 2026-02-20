@@ -26,6 +26,10 @@ messages:
       auth: never
     - name: fwpb_provision_app_auth_pubkey_cmd
       auth: always
+    - name: fwpb_get_address_cmd
+      auth: after_onboarding
+    - name: fwpb_verify_keys_and_build_descriptor_cmd
+      auth: after_onboarding
   structs:
     - name: key_manager_remove_wallet_state_t
     - name: key_manager_clear_derived_key_cache_t

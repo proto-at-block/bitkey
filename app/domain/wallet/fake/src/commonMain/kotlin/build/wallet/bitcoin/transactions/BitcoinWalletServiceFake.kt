@@ -47,11 +47,19 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
     )
   }
 
+  var createPsbtsForSendAmountResult: Result<PsbtsForSendAmount, Error>? = null
+
   override suspend fun createPsbtsForSendAmount(
     sendAmount: BitcoinTransactionSendAmount,
     recipientAddress: BitcoinAddress,
-  ): Result<Map<EstimatedTransactionPriority, Psbt>, Error> {
-    return Ok(emptyMap())
+  ): Result<PsbtsForSendAmount, Error> {
+    return createPsbtsForSendAmountResult ?: Ok(
+      PsbtsForSendAmount(
+        fastest = PsbtMock,
+        thirtyMinutes = PsbtMock,
+        sixtyMinutes = PsbtMock
+      )
+    )
   }
 
   fun reset() {
@@ -59,5 +67,6 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
     broadcastError = null
     broadcastedPsbts.value = emptyList()
     spendingWallet.value = null
+    createPsbtsForSendAmountResult = null
   }
 }

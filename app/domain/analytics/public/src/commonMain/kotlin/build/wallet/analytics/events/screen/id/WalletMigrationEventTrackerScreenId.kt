@@ -37,6 +37,9 @@ enum class WalletMigrationEventTrackerScreenId : EventTrackerScreenId {
   /** Private wallet migration sweep failed */
   PRIVATE_WALLET_MIGRATION_SWEEP_FAILED,
 
+  /** Warning screen shown on W3 when there are multiple transactions to sign during migration */
+  PRIVATE_WALLET_MIGRATION_SWEEP_MULTIPLE_TRANSACTIONS_WARNING,
+
   /** Sheet shown when UTXO consolidation is required before private wallet migration */
   PRIVATE_WALLET_MIGRATION_UTXO_CONSOLIDATION_REQUIRED,
 

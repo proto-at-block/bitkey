@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use bdk::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
+use bdk_wallet::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
 use sha2::{Digest, Sha256};
 use wsm_common::bitcoin::secp256k1::ecdsa::Signature;
 use wsm_common::bitcoin::secp256k1::PublicKey;
@@ -62,7 +62,7 @@ impl GrantCreator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bdk::bitcoin::secp256k1::{PublicKey, Secp256k1};
+    use bdk_wallet::bitcoin::secp256k1::{PublicKey, Secp256k1};
     use rand::{rngs::StdRng, SeedableRng};
     use std::str::FromStr;
     use wsm_grant::fp_reset::GRANT_REQUEST_SIG_PREFIX;

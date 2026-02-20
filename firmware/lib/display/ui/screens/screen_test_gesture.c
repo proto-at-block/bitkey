@@ -3,6 +3,7 @@
 #include "log.h"
 #include "lvgl/lvgl.h"
 #include "printf.h"
+#include "rtos.h"
 #include "screens/screen_test_scroll.h"
 
 #include <stdio.h>
@@ -141,7 +142,7 @@ static void update_crosshairs(int32_t x, int32_t y) {
     lv_obj_clear_flag(crosshair_v, LV_OBJ_FLAG_HIDDEN);
 
     // Only show coordinates in manual mode, not in robo touch mode
-    if (!robo_touch_mode && (coord_label != NULL)) {
+    if ((!robo_touch_mode) && (coord_label != NULL)) {
       char coord_text[24];
       snprintf(coord_text, sizeof(coord_text), "x:%ld y:%ld", x, y);
       lv_label_set_text(coord_label, coord_text);
@@ -398,12 +399,13 @@ static void screen_event_handler(lv_event_t* e) {
   lv_event_stop_processing(e);
 
   // Log coordinates and event code to UART (if enabled)
+  uint32_t touch_ts = lv_indev_get_data_timestamp(indev);
   if (gesture_occurred) {
     LOG_FP("X=%ld, Y=%ld, e=%d g=%d ts=%lu", (long)point.x, (long)point.y, (int)code,
-           lv_indev_get_gesture_dir(indev), (unsigned long)lv_tick_get());
+           lv_indev_get_gesture_dir(indev), (unsigned long)touch_ts);
   } else {
     LOG_FP("X=%ld, Y=%ld, e=%d g=- ts=%lu", (long)point.x, (long)point.y, (int)code,
-           (unsigned long)lv_tick_get());
+           (unsigned long)touch_ts);
   }
 }
 

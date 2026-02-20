@@ -4,13 +4,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.Res
@@ -192,11 +190,10 @@ private fun SelectedPointDetails(
         }
       }
     }
-    Icon(
+    Image(
       imageVector = vectorResource(Res.drawable.bitcoin_orange),
       contentDescription = null,
-      modifier = Modifier.size(48.dp),
-      tint = Color.Unspecified
+      modifier = Modifier.size(48.dp)
     )
   }
 }

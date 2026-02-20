@@ -12,6 +12,14 @@ test-wallet command: _install-bdk-cli
 test-electrum-nodes:
     ./script/test-electrum-nodes.py
 
+# Regenerate AI agent context files from .ai/ sources
+ai-context-generate:
+    ./tools/ai-context/ai-context-generate.sh
+
+# Check if AI context files are up-to-date (for CI)
+ai-context-check:
+    ./tools/ai-context/ai-context-check.sh
+
 _install-bdk-cli:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -20,3 +28,7 @@ _install-bdk-cli:
     echo "Installing bdk-cli"
     cargo install bdk-cli --features electrum
     fi
+
+# Remove build artifacts older than 7 days
+clean:
+    ./script/clean.sh

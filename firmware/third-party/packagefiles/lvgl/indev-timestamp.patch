@@ -1,0 +1,36 @@
+diff --git a/src/indev/lv_indev.c b/src/indev/lv_indev.c
+index 8b5f3d3..a1b2c4d 100644
+--- a/src/indev/lv_indev.c
++++ b/src/indev/lv_indev.c
+@@ -414,6 +414,13 @@ void * lv_indev_get_driver_data(const lv_indev_t * indev)
+     return indev->driver_data;
+ }
+ 
++uint32_t lv_indev_get_data_timestamp(const lv_indev_t * indev)
++{
++    if(indev == NULL) return 0;
++
++    return indev->timestamp;
++}
++
+ bool lv_indev_get_press_moved(const lv_indev_t * indev)
+ {
+     if(indev == NULL) return false;
+diff --git a/src/indev/lv_indev.h b/src/indev/lv_indev.h
+index d6c60c4..b9e6f58 100644
+--- a/src/indev/lv_indev.h
++++ b/src/indev/lv_indev.h
+@@ -240,6 +240,13 @@ void * lv_indev_get_user_data(const lv_indev_t * indev);
+  */
+ void * lv_indev_get_driver_data(const lv_indev_t * indev);
+ 
++/**
++ * Get the timestamp from the most recent input device read
++ * @param indev pointer to an input device
++ * @return timestamp in milliseconds, or 0 if not available or indev is NULL
++ */
++uint32_t lv_indev_get_data_timestamp(const lv_indev_t * indev);
++
+ /**
+  * Get whether indev is moved while pressed
+  * @param indev pointer to an input device

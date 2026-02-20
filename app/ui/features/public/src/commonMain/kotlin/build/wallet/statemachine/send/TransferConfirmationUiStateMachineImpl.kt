@@ -7,9 +7,6 @@ import bitkey.verification.ConfirmationState
 import bitkey.verification.TxVerificationApproval
 import bitkey.verification.TxVerificationService
 import bitkey.verification.VerificationRequiredError
-import build.wallet.account.AccountService
-import build.wallet.account.getAccount
-import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.TxVerificationEventTrackerScreenId
 import build.wallet.availability.AppFunctionalityService
@@ -22,7 +19,6 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
 import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.bitkey.factor.SigningFactor.F8e
 import build.wallet.bitkey.factor.SigningFactor.Hardware
@@ -42,17 +38,16 @@ import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.send.TransferConfirmationUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.*
 import build.wallet.statemachine.send.fee.FeeOptionListProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachine
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetails
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -68,13 +63,12 @@ import kotlinx.collections.immutable.toImmutableMap
 @BitkeyInject(ActivityScope::class)
 class TransferConfirmationUiStateMachineImpl(
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
-  private val nfcSessionUIStateMachine: NfcConfirmableSessionUiStateMachine,
+  private val signTransactionNfcSessionUiStateMachine: SignTransactionNfcSessionUiStateMachine,
   private val transactionPriorityPreference: TransactionPriorityPreference,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val bitcoinWalletService: BitcoinWalletService,
   private val mobilePayService: MobilePayService,
   private val appFunctionalityService: AppFunctionalityService,
-  private val accountService: AccountService,
   private val accountConfigService: bitkey.account.AccountConfigService,
   private val txVerificationService: TxVerificationService,
   private val txVerificationFeatureFlag: TxVerificationFeatureFlag,
@@ -183,28 +177,41 @@ class TransferConfirmationUiStateMachineImpl(
           eventTrackerShouldTrack = false
         ).asModalScreen()
       is CreatingAppSignedPsbtUiState ->
-        CreatingAppSignedPsbt(
-          props = props,
-          selectedPriority = selectedPriority,
-          onAppSignSuccess = { psbts ->
-            appSignedPsbts = psbts
-            val psbt = psbts[selectedPriority]
-              ?: error("This callback should not be invoked without selected priority, this shouldn’t happen")
-            uiState = CheckVerificationUiState(psbt)
-          },
-          onAppSignError = { cause ->
-            logError(throwable = cause) { "Unable to sign PSBT" }
-            uiState = ReceivedBdkErrorUiState
-          },
-          onPsbtCreateError = { error ->
-            logError(throwable = error) { "Unable to create PSBT: $error" }
-            uiState =
-              when (error) {
-                is InsufficientFunds -> ReceivedInsufficientFundsErrorUiState
-                else -> ReceivedBdkErrorUiState
-              }
-          }
-        )
+        if (props.preBuiltPsbts != null) {
+          UsePreBuiltPsbts(
+            props = props,
+            selectedPriority = selectedPriority,
+            onSuccess = { psbts ->
+              appSignedPsbts = psbts
+              val psbt = psbts[selectedPriority]
+                ?: error("This callback should not be invoked without selected priority, this shouldn't happen")
+              uiState = CheckVerificationUiState(psbt)
+            }
+          )
+        } else {
+          CreatingAppSignedPsbt(
+            props = props,
+            selectedPriority = selectedPriority,
+            onAppSignSuccess = { psbts ->
+              appSignedPsbts = psbts
+              val psbt = psbts[selectedPriority]
+                ?: error("This callback should not be invoked without selected priority, this shouldn’t happen")
+              uiState = CheckVerificationUiState(psbt)
+            },
+            onAppSignError = { cause ->
+              logError(throwable = cause) { "Unable to sign PSBT" }
+              uiState = ReceivedBdkErrorUiState
+            },
+            onPsbtCreateError = { error ->
+              logError(throwable = error) { "Unable to create PSBT: $error" }
+              uiState =
+                when (error) {
+                  is InsufficientFunds -> ReceivedInsufficientFundsErrorUiState
+                  else -> ReceivedBdkErrorUiState
+                }
+            }
+          )
+        }
       is CheckVerificationUiState, is RequestHardwareGrantUiState -> LoadingBodyModel(
         onBack = props.onBack,
         id = null,
@@ -284,32 +291,21 @@ class TransferConfirmationUiStateMachineImpl(
           }
         ).asModalScreen()
       is SigningWithHardwareUiState ->
-        nfcSessionUIStateMachine.model(
-          NfcConfirmableSessionUIStateMachineProps(
-            session = { session, commands ->
-              // TODO: refactor NFC APIs to use Result
-              val account = accountService.getAccount<FullAccount>().getOrThrow()
-              commands.signTransaction(
-                session = session,
-                psbt = state.appSignedPsbt,
-                spendingKeyset = account.keybox.activeSpendingKeyset
-              )
-            },
-            onCancel = {
+        signTransactionNfcSessionUiStateMachine.model(
+          SignTransactionNfcSessionUiProps(
+            psbt = state.appSignedPsbt,
+            onBack = {
               uiState = ViewingTransferConfirmationUiState(
                 appSignedPsbt = state.appSignedPsbt
               )
             },
-            onSuccess = { psbt ->
-              uiState =
-                BroadcastingTransactionUiState(
-                  twoOfThreeSignedPsbt = psbt,
-                  cosigner = Hardware
-                )
-            },
-            screenPresentationStyle = Modal,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION,
-            shouldShowLongRunningOperation = true
+            onSuccess = { signedPsbt ->
+              uiState = BroadcastingTransactionUiState(
+                twoOfThreeSignedPsbt = signedPsbt,
+                cosigner = Hardware
+              )
+            }
+            // onError uses default - shows NFC-specific error UI internally
           )
         )
       is ViewingTransferConfirmationUiState ->
@@ -415,6 +411,37 @@ class TransferConfirmationUiStateMachineImpl(
           }
         }
     }
+  }
+
+  @Composable
+  private fun UsePreBuiltPsbts(
+    props: TransferConfirmationUiProps,
+    selectedPriority: EstimatedTransactionPriority,
+    onSuccess: (Map<EstimatedTransactionPriority, Psbt>) -> Unit,
+  ): ScreenModel {
+    val preBuiltPsbts = props.preBuiltPsbts
+      ?: error("Pre-built PSBTs must be provided when calling this function")
+
+    // Pre-built PSBTs are already app-signed, so we can use them directly
+    val appSignedPsbts = EstimatedTransactionPriority.entries.mapNotNull { priority ->
+      preBuiltPsbts[priority]?.let { psbt ->
+        priority to psbt
+      }
+    }.toMap()
+
+    // Only continue if we have a PSBT for the selected priority
+    SideEffect {
+      if (appSignedPsbts.containsKey(selectedPriority)) {
+        onSuccess(appSignedPsbts)
+      }
+    }
+
+    return LoadingBodyModel(
+      title = "Loading transaction...",
+      onBack = props.onBack,
+      id = SendEventTrackerScreenId.SEND_CREATING_PSBT_LOADING,
+      eventTrackerShouldTrack = false
+    ).asModalFullScreen()
   }
 
   @Composable

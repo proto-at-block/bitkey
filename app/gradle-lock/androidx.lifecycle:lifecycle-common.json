@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-common",
     "components": [
         {
-            "version": "2.8.7",
+            "version": "2.9.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-common-metadata-2.8.7.jar": "e26c6d7d04a490c6fdaa1415ac95797a7dcc7444be3f3ab3d9acad87dae4921c"
+                        "lifecycle-common-metadata-2.9.4.jar": "c7a6e835da0712d15efeae0d72df91e6631042df4fcf0f9c20ceca740638c685"
                     }
                 }
             ],

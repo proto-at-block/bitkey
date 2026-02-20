@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -16,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.inter_semibold
+import build.wallet.ui.components.label.Label
 import build.wallet.ui.model.coachmark.CoachmarkLabelTreatment
 import build.wallet.ui.model.list.CoachmarkLabelModel
 import build.wallet.ui.theme.WalletTheme
@@ -39,7 +39,7 @@ fun CoachmarkLabel(model: CoachmarkLabelModel) {
         }
       ).padding(horizontal = 8.dp, vertical = 3.dp)
   ) {
-    Text(
+    Label(
       text = model.text,
       style = TextStyle(
         fontSize = 12.sp,

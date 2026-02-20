@@ -57,8 +57,8 @@ pub enum WorkerError {
     MetricsRegisterCallback,
     #[error("Incorrect touchpoint type")]
     IncorrectTouchpointType,
-    #[error("Electrum client error: {0}")]
-    ElectrumClientError(#[from] bdk_utils::bdk::electrum_client::Error),
+    #[error(transparent)]
+    ElectrumClientError(#[from] bdk_utils::electrum::electrum_client::Error),
     #[error("Failed to grind coins for Signet test wallet: {0}")]
     CoinGrinderError(String),
     #[error("Couldn't retrieve mempool data due to error: {0}")]

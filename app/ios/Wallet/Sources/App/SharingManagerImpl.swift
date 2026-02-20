@@ -14,7 +14,11 @@ class SharingManagerImpl: SharingManager {
                 completion?(KotlinBoolean(bool: completed))
             }
         }
-        topViewController()?.present(ac, animated: true)
+        // Inherit theme from the root view controller (which respects app's theme preference)
+        if let presenter = topViewController() {
+            ac.overrideUserInterfaceStyle = presenter.overrideUserInterfaceStyle
+            presenter.present(ac, animated: true)
+        }
     }
 
     func shareData(
@@ -52,7 +56,11 @@ class SharingManagerImpl: SharingManager {
                 // Cleanup: Remove the temporary file after sharing
                 try? FileManager.default.removeItem(at: tempFileURL)
             }
-            topViewController()?.present(ac, animated: true)
+            // Inherit theme from the root view controller (which respects app's theme preference)
+            if let presenter = topViewController() {
+                ac.overrideUserInterfaceStyle = presenter.overrideUserInterfaceStyle
+                presenter.present(ac, animated: true)
+            }
         } catch {
             log(.error, error: error) { "Error sharing file." }
             completion?(false)

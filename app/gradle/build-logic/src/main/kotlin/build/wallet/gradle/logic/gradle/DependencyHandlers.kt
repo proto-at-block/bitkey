@@ -55,6 +55,7 @@ internal fun DependencyHandler.addDependency(
   return when (val dep = dependency.unwrappedProvider()) {
     is MinimalExternalModuleDependency -> requireNotNull(add(configurationName, dep.versionedAlias))
     is Project, is ProjectDependency -> requireNotNull(add(configurationName, dep))
+    is String -> requireNotNull(add(configurationName, dep))
     else -> error("Unsupported $configurationName dependency type ${dep::class.simpleName}: $dep.")
   }
 }

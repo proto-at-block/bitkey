@@ -28,16 +28,11 @@ internal class AutomaticKotlinOptInPlugin : Plugin<Project> {
       "org.jetbrains.kotlinx:kotlinx-serialization-core",
       "org.jetbrains.kotlinx:kotlinx-serialization-json"
     ),
-    "androidx.compose.material.ExperimentalMaterialApi" to "androidx.compose.material:material",
     "androidx.compose.material3.ExperimentalMaterial3Api" to "androidx.compose.material3:material3",
-    "androidx.compose.foundation.ExperimentalFoundationApi" to listOf(
-      "androidx.compose.foundation:foundation",
-      "androidx.compose.material:material"
-    ),
+    "androidx.compose.foundation.ExperimentalFoundationApi" to "androidx.compose.foundation:foundation",
     "androidx.compose.animation.ExperimentalAnimationApi" to listOf(
       "androidx.compose.animation:animation",
-      "androidx.compose.foundation:foundation",
-      "androidx.compose.material:material"
+      "androidx.compose.foundation:foundation"
     ),
     "androidx.compose.ui.ExperimentalComposeUiApi" to "androidx.compose.ui:ui",
     "io.kotest.common.ExperimentalKotest" to listOf(

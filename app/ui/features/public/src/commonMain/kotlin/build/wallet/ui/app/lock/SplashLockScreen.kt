@@ -39,10 +39,10 @@ fun SplashLockScreen(
         .padding(horizontal = 20.dp, vertical = 52.dp)
         .height(25.dp)
     ) {
-      androidx.compose.material3.Icon(
+      androidx.compose.foundation.Image(
         painter = painterResource(Res.drawable.bitkey_full_logo),
         contentDescription = "Bitkey Logo",
-        tint = Color.White.copy(alpha = 0.5F)
+        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.White.copy(alpha = 0.5F))
       )
     }
     Column(

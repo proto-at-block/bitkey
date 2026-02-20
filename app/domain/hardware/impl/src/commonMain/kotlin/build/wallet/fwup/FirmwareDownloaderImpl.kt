@@ -2,6 +2,7 @@ package build.wallet.fwup
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.fwup.FirmwareDownloadError.DownloadError
 import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
@@ -21,10 +22,11 @@ import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 
+@Impl
 @BitkeyInject(AppScope::class)
 class FirmwareDownloaderImpl(
   private val memfaultClient: MemfaultClient,
-  private val fileManager: FileManager,
+  @Impl private val fileManager: FileManager,
 ) : FirmwareDownloader {
   companion object {
     const val FWUP_BUNDLE_FILENAME = "fwup-bundle.zip"
@@ -48,13 +50,24 @@ class FirmwareDownloaderImpl(
     deviceInfo: FirmwareDeviceInfo,
   ): Result<Unit, FirmwareDownloadError> {
     return coroutineBinding {
+      // Use the minimum MCU version if available, otherwise fall back to deviceInfo.version
+      // This ensures we query for updates if ANY MCU needs updating.
+      // When mcuInfo is empty (older single-MCU devices), use deviceInfo.version as fallback.
+      // This is consistent with FwupDataFetcherImpl, which passes deviceInfo.version as
+      // currentVersion to the parser when mcuInfo is empty.
+      val queryVersion = deviceInfo.mcuInfo
+        .takeIf { it.isNotEmpty() }
+        ?.minByOrNull { semverToInt(it.firmwareVersion) }
+        ?.firmwareVersion
+        ?: deviceInfo.version
+
       // Get the latest bundle URL, if there is one
       val fwupBundleUrl =
         memfaultClient.queryForFwupBundle(
           deviceSerial = deviceInfo.serial,
           hardwareVersion = deviceInfo.fwupHwVersion(),
           softwareType = FWUP_SOFTWARE_TYPE,
-          currentVersion = deviceInfo.version
+          currentVersion = queryVersion
         )
           .logMemfaultNetworkFailure { "Failed to query for firmware" }
           .mapError { QueryError(it) }

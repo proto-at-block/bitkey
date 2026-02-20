@@ -39,7 +39,7 @@ base_deps = [
   mpu_regions_dep,
   protos_dep,
   ringbuf_dep,
-  secure_channel_dep,
+  secure_channel_deps['w3-uxc'],
   telemetry_storage_dep,
   uc_device_dep,
 
@@ -69,6 +69,7 @@ dev_tools_deps = [
   # Commands
   canary_cmd_dep,
   crypto_cmd_deps['stm32u5xx'],
+  secure_channel_cmd_deps['w3-uxc'],
 ]
 
 dev_variant_deps = base_deps + display_deps + touch_deps + dev_tools_deps
@@ -97,7 +98,7 @@ foreach hardware : w3_uxc_hardware_configs.keys()
 
       if build_env == 'prod'
         deps = prod_variant_deps
-      elif build_env == 'mfgtest-dev'
+      elif build_env == 'mfgtest-dev' or build_env == 'mfgtest-prod'
         deps = mfgtest_variant_deps
       else
         deps = dev_variant_deps

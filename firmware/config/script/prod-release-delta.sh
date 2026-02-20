@@ -4,7 +4,7 @@ set -euo pipefail
 
 usage() {
   cat <<EOF
-Usage: $0 [--dry-run] VERSION HW_REV SIGNED_DIR ORG_TOKEN
+Usage: $0 [--dry-run] VERSION HW_REV PRODUCT SIGNED_DIR ORG_TOKEN [SW_TYPE]
 
 Creates delta releases from signed images downloaded from the new firmware signer.
 
@@ -14,15 +14,19 @@ Options:
 Arguments:
   VERSION      Target version (e.g., 1.0.101)
   HW_REV       Hardware revision (e.g., dvt)
+  PRODUCT      Product name (e.g., w1a, w3a)
   SIGNED_DIR   Directory containing signed tar.gz files from the signer
                Expected files:
-                 sha256:*_____w1a_____a_____VERSION-signed.tar.gz
-                 sha256:*_____w1a_____b_____VERSION-signed.tar.gz
+                 sha256:*_____<product>_____a_____VERSION-signed.tar.gz
+                 sha256:*_____<product>_____b_____VERSION-signed.tar.gz
   ORG_TOKEN    Memfault organization token
+  SW_TYPE      Optional software type (defaults to 'prod')
 
 Example:
-  $0 1.0.101 dvt ~/Development/btc-fw-signer \$MEMFAULT_ORG_TOKEN
-  $0 --dry-run 1.0.101 dvt ~/Development/btc-fw-signer \$MEMFAULT_ORG_TOKEN
+  $0 1.0.101 dvt w1a ~/Development/btc-fw-signer \$MEMFAULT_ORG_TOKEN
+  $0 --dry-run 1.0.101 dvt w1a ~/Development/btc-fw-signer \$MEMFAULT_ORG_TOKEN
+  $0 --dry-run 1.0.101 dvt w1a ~/Development/btc-fw-signer \$MEMFAULT_ORG_TOKEN dev
+  $0 --dry-run 1.0.101 dvt w1a ~/Development/btc-fw-signer \$MEMFAULT_ORG_TOKEN prod
 EOF
   exit 1
 }
@@ -33,18 +37,23 @@ if [ "${1:-}" = "--dry-run" ]; then
   shift
 fi
 
-if [ "$#" -ne 4 ]; then
+if [[ "$#" -ne 5 && "$#" -ne 6 ]]; then
   usage
 fi
 
 VERSION=$1
 HW_REV=$2
-SIGNED_DIR=$3
-ORG_TOKEN=$4
+PRODUCT=$3
+SIGNED_DIR=$4
+ORG_TOKEN=$5
 
-SW_TYPE=prod
+if [ "$#" -eq 5 ]; then
+  SW_TYPE=prod
+else
+  SW_TYPE=$6
+fi
 
-if [ -z "${DELTA_PATCH_SIGNING_KEY_PROD:-}" ]; then
+if [ "${SW_TYPE}" = "prod" ] && [ -z "${DELTA_PATCH_SIGNING_KEY_PROD:-}" ]; then
   echo "ERROR: DELTA_PATCH_SIGNING_KEY_PROD environment variable must be set"
   echo "This key is used to sign the delta patches."
   exit 1
@@ -53,7 +62,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-echo "=== Prod Delta Release for $VERSION ==="
+echo "=== ${SW_TYPE} Delta Release for $VERSION ==="
 if [ "$DRY_RUN" = true ]; then
   echo "*** DRY RUN MODE - No uploads will be performed ***"
 fi
@@ -72,18 +81,18 @@ trap cleanup EXIT
 echo ""
 echo "=== Extracting signed images ==="
 
-SLOT_A_TARBALL=$(find "$SIGNED_DIR" -name "*_____w1a_____a_____${VERSION}-signed.tar.gz" | head -1)
-SLOT_B_TARBALL=$(find "$SIGNED_DIR" -name "*_____w1a_____b_____${VERSION}-signed.tar.gz" | head -1)
+SLOT_A_TARBALL=$(find "$SIGNED_DIR" -name "*_____${PRODUCT}_____a_____${VERSION}-signed.tar.gz" | head -1)
+SLOT_B_TARBALL=$(find "$SIGNED_DIR" -name "*_____${PRODUCT}_____b_____${VERSION}-signed.tar.gz" | head -1)
 
 if [ -z "$SLOT_A_TARBALL" ]; then
   echo "ERROR: Could not find slot A tarball for version $VERSION in $SIGNED_DIR"
-  echo "Expected pattern: *_____w1a_____a_____${VERSION}-signed.tar.gz"
+  echo "Expected pattern: *_____${PRODUCT}_____a_____${VERSION}-signed.tar.gz"
   exit 1
 fi
 
 if [ -z "$SLOT_B_TARBALL" ]; then
   echo "ERROR: Could not find slot B tarball for version $VERSION in $SIGNED_DIR"
-  echo "Expected pattern: *_____w1a_____b_____${VERSION}-signed.tar.gz"
+  echo "Expected pattern: *_____${PRODUCT}_____b_____${VERSION}-signed.tar.gz"
   exit 1
 fi
 
@@ -100,43 +109,37 @@ echo ""
 echo "=== Uploading symbols to Memfault ==="
 
 SHA=$(cd "$REPO_ROOT" && git rev-parse HEAD)
+SLOTS=("a" "b")
+for SLOT in "${SLOTS[@]}"; do
+  IMAGES="${TO_VERSION_DIR}/${PRODUCT}*-${HW_REV}-app-${SLOT}-${SW_TYPE}.signed.elf"
+  for IMAGE in $IMAGES; do
+    if [ -f "${IMAGE}" ]; then
+      if [[ "${PRODUCT}" == "w1a" || "${PRODUCT}" == "w1" ]]; then
+        SOFTWARE_TYPE="${HW_REV}-app-${SLOT}-${SW_TYPE}"
+      else
+        SUFFIX="-${HW_REV}-app-${SLOT}-${SW_TYPE}.signed.elf"
+        FILENAME="${IMAGE##*/}"
+        SOFTWARE_TYPE="${FILENAME%.signed.elf}"
+      fi
+      if [ "$DRY_RUN" = true ]; then
+        echo "[DRY RUN] Would upload symbols for app-${SLOT}: ${IMAGE} (${SOFTWARE_TYPE})"
+      else
+        echo "Uploading symbols for ${SOFTWARE_TYPE}..."
 
-APP_A_ELF="$TO_VERSION_DIR/w1a-$HW_REV-app-a-$SW_TYPE.signed.elf"
-APP_B_ELF="$TO_VERSION_DIR/w1a-$HW_REV-app-b-$SW_TYPE.signed.elf"
-
-if [ -f "$APP_A_ELF" ]; then
-  if [ "$DRY_RUN" = true ]; then
-    echo "[DRY RUN] Would upload symbols for app-a: $APP_A_ELF"
-  else
-    echo "Uploading symbols for app-a..."
-    memfault --org-token "$ORG_TOKEN" \
-      --org block-wallet --project w1a \
-      upload-mcu-symbols \
-      --software-type "$HW_REV-app-a-$SW_TYPE" \
-      --software-version "$VERSION" \
-      --revision "$SHA" \
-      "$APP_A_ELF"
-  fi
-else
-  echo "WARNING: $APP_A_ELF not found, skipping symbol upload for app-a"
-fi
-
-if [ -f "$APP_B_ELF" ]; then
-  if [ "$DRY_RUN" = true ]; then
-    echo "[DRY RUN] Would upload symbols for app-b: $APP_B_ELF"
-  else
-    echo "Uploading symbols for app-b..."
-    memfault --org-token "$ORG_TOKEN" \
-      --org block-wallet --project w1a \
-      upload-mcu-symbols \
-      --software-type "$HW_REV-app-b-$SW_TYPE" \
-      --software-version "$VERSION" \
-      --revision "$SHA" \
-      "$APP_B_ELF"
-  fi
-else
-  echo "WARNING: $APP_B_ELF not found, skipping symbol upload for app-b"
-fi
+        # Note: Due to memfault limitations, we always upload to the w1a project.
+        memfault \
+          --org-token "${ORG_TOKEN}" \
+          --org block-wallet \
+          --project w1a \
+          upload-mcu-symbols \
+          --software-type "${SOFTWARE_TYPE}" \
+          --software-version "${VERSION}" \
+          --revision "${SHA}" \
+          "${IMAGE}"
+      fi
+    fi
+  done
+done
 
 echo ""
 echo "=== Generating delta releases ==="
@@ -149,7 +152,8 @@ DELTA_ARGS=(
   --hw-revision "$HW_REV"
   --bearer-token "$ORG_TOKEN"
   --revision "$SHA"
-  --image-type prod
+  --image-type "$SW_TYPE"
+  --product "$PRODUCT"
 )
 
 if [ "$DRY_RUN" = true ]; then

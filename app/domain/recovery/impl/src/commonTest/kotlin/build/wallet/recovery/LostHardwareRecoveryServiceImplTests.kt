@@ -4,7 +4,10 @@ import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.SpecificClientErrorMock
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.NO_RECOVERY_EXISTS
 import build.wallet.account.AccountServiceFake
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
+import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbQueryError
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
@@ -14,11 +17,14 @@ import build.wallet.ktor.result.HttpError.ServerError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
+import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.shouldBeOkOfType
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.http.HttpStatusCode.Companion.InternalServerError
 
 class LostHardwareRecoveryServiceImplTests : FunSpec({
@@ -76,5 +82,23 @@ class LostHardwareRecoveryServiceImplTests : FunSpec({
 
     recoveryDao.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
+  }
+
+  test("initiate persists originalAppGlobalAuthKey from account keybox") {
+    val result = service.initiate(
+      destinationAppKeyBundle = AppKeyBundleMock,
+      destinationHardwareKeyBundle = HwKeyBundleMock,
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
+    )
+
+    result.shouldBeOk()
+
+    // Verify the originalAppGlobalAuthKey was captured from the account's keybox
+    val progressCall = recoveryDao.setLocalRecoveryProgressCalls.awaitItem()
+    progressCall.shouldBeTypeOf<CreatedPendingKeybundles>().originalAppGlobalAuthKey
+      .shouldBe(FullAccountMock.keybox.activeAppKeyBundle.authKey)
+
+    // Consume the setActiveServerRecovery call
+    recoveryDao.setActiveServerRecoveryCalls.awaitItem()
   }
 })

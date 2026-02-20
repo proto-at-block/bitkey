@@ -1,5 +1,6 @@
 package build.wallet.ui.components.icon
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,7 +31,6 @@ import io.github.alexzhirkevich.compottie.LottieCompositionSpec
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
 import io.github.alexzhirkevich.compottie.rememberLottiePainter
 import org.jetbrains.compose.resources.ExperimentalResourceApi
-import androidx.compose.material3.Icon as MaterialIcon
 import coil3.size.Size as CoilSize
 
 @OptIn(ExperimentalResourceApi::class)
@@ -40,6 +40,7 @@ fun UrlImage(
   image: IconImage.UrlImage,
   iconSize: IconSize,
   contentDescription: String?,
+  imageTint: Color? = null,
   imageAlpha: Float? = null,
 ) {
   val loadingAnimationComposition by rememberLottieComposition {
@@ -57,6 +58,7 @@ fun UrlImage(
     modifier = modifier.size(iconSize.dp),
     imageUrl = image.url,
     imageSize = Size(iconSize.value.toFloat(), iconSize.value.toFloat()),
+    imageTint = imageTint,
     imageAlpha = imageAlpha,
     imageContentDescription = contentDescription,
     fallbackPainter = image.fallbackIcon.painter(),
@@ -134,11 +136,15 @@ fun UrlImage(
       LoadingIndicator(modifier = Modifier.size(loadingSize.dp))
 
     is AsyncImagePainter.State.Success ->
-      MaterialIcon(
+      Image(
         modifier = modifier.alpha(imageAlpha ?: 1f),
         painter = asyncImagePainter,
         contentDescription = imageContentDescription,
-        tint = imageTint
+        colorFilter = if (imageTint != Color.Unspecified) {
+          ColorFilter.tint(imageTint)
+        } else {
+          null
+        }
       )
 
     is AsyncImagePainter.State.Empty,

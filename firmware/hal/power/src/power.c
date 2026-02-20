@@ -387,6 +387,10 @@ void power_set_ldo_low_power_mode(void) {
   max77734_set_ldo_low_power_mode();
 }
 
+void power_disable_ldo(void) {
+  max77734_disable_ldo();
+}
+
 NO_OPTIMIZE static void charger_boost_callback(rtos_timer_handle_t UNUSED(timer)) {
   max77734_set_max_charge_cv(false);
 }

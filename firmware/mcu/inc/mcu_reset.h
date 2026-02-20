@@ -4,8 +4,15 @@
 
 #include <stdint.h>
 
+/**
+ * @brief Possible reasons why the device reset.
+ */
 typedef enum {
+  /**
+   * @brief Unused.
+   */
   MCU_RESET_UNKNOWN = 0,
+
   MCU_RESET_INVALID_SIGNATURE,
   MCU_RESET_FATAL,
   MCU_RESET_INVALID_PROPERTIES,
@@ -20,6 +27,15 @@ typedef enum {
   MCU_RESET_TAMPER,
   MCU_RESET_ECC_ERROR,
   MCU_RESET_FLASH_BANK_SWAP,
+
+  /**
+   * @brief Device reset due to USB being plugged in while trying to power off.
+   */
+  MCU_RESET_POWER_DOWN_USB_PLUGGED,
+
+  /**
+   * @brief Unused (reset value is capped to `uint8_t`).
+   */
   MCU_RESET_MAX = 255,
 } mcu_reset_reason_t;
 

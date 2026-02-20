@@ -8,22 +8,12 @@
 #include "mcu_i2c.h"
 #include "rtos.h"
 #include "touch_ft3169.h"
+#include "touch_internal.h"
+#include "touch_priv.h"
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-/**
- * @brief Private touch state structure.
- */
-typedef struct {
-  touch_config_t config;          /**< Touch configuration. */
-  exti_config_t exti_config;      /**< Interrupt configuration. */
-  uint8_t flow_work_cnt_last;     /**< Last flow work counter value. */
-  uint8_t flow_work_hold_cnt;     /**< Number of consecutive identical flow counts. */
-  touch_event_t last_touch_event; /**< Cached coordinates for active touch. */
-  uint32_t last_esd_check_ms;     /**< Timestamp of last ESD check. */
-} touch_priv_t;
 
 touch_priv_t _touch_priv = {0};
 
@@ -31,14 +21,10 @@ static bool _touch_check_chip_id(void);
 static bool _touch_fetch_touch_data(ft3169_touch_data_t* data, size_t data_size);
 static bool _touch_handle_fw_recovery(const ft3169_touch_data_t* data);
 static bool _touch_hw_reset(void);
-static bool _touch_i2c_read(uint8_t reg_addr, uint8_t* rx_buf, size_t rx_len);
 static bool _touch_i2c_transfer(mcu_i2c_transfer_seq_t* seq);
-static bool _touch_i2c_write(uint8_t reg_addr, uint8_t* tx_buf, size_t tx_len);
-static bool _touch_read_reg(uint8_t reg_addr, uint8_t* value);
 static bool _touch_reset_device(void);
 static bool _touch_set_mode(uint8_t mode);
 static bool _touch_decode_data(const ft3169_touch_data_t* data, touch_event_t* event);
-static bool _touch_write_reg(uint8_t reg_addr, uint8_t value);
 
 void touch_init(const touch_config_t* config) {
   ASSERT(config != NULL);
@@ -60,8 +46,8 @@ void touch_init(const touch_config_t* config) {
   }
 
   if (_touch_priv.config.gpio.reset != NULL) {
-    // Configure reset GPIO.
-    mcu_gpio_configure(_touch_priv.config.gpio.reset, false);
+    // Reset the touch controller.
+    mcu_gpio_configure(_touch_priv.config.gpio.reset, _touch_priv.config.gpio.reset_active_high);
   }
 
   // Enable 1v8 power to the touch controller before enabling interrupts.
@@ -77,18 +63,8 @@ void touch_init(const touch_config_t* config) {
   rtos_thread_sleep(10);
 
   if (_touch_priv.config.gpio.reset != NULL) {
-    // Configure reset GPIO deasserted (active low).
-    mcu_gpio_configure(_touch_priv.config.gpio.reset, false);
-  }
-
-  // Enable 1v8 power to the touch controller before enabling interrupts.
-  if (_touch_priv.config.gpio.pwr.pwr_1v8_en != NULL) {
-    mcu_gpio_configure(_touch_priv.config.gpio.pwr.pwr_1v8_en, true);
-  }
-
-  // Enable AVDD power to the touch controller.
-  if (_touch_priv.config.gpio.pwr.pwr_avdd_en != NULL) {
-    mcu_gpio_configure(_touch_priv.config.gpio.pwr.pwr_avdd_en, true);
+    // Enable the touch controller
+    mcu_gpio_configure(_touch_priv.config.gpio.reset, !_touch_priv.config.gpio.reset_active_high);
   }
 
   if (_touch_priv.config.gpio.interrupt != NULL) {
@@ -121,9 +97,9 @@ bool touch_enable(void) {
 
 bool touch_disable(void) {
   // Per FT3169 datasheet figure 3-6
-  // Assert reset (active low) and hold.
+  // Assert reset and hold.
   if (_touch_priv.config.gpio.reset != NULL) {
-    mcu_gpio_clear(_touch_priv.config.gpio.reset);
+    mcu_gpio_output_set(_touch_priv.config.gpio.reset, _touch_priv.config.gpio.reset_active_high);
   }
 
   return true;
@@ -154,8 +130,8 @@ bool touch_get_coordinates(touch_event_t* event) {
     return false;
   }
 
-  // Save the latest touch event information.
-  touch_set_latest_event(event);
+  // Push to the circular buffer for LVGL processing.
+  touch_push_event(event);
 
   return true;
 }
@@ -186,11 +162,11 @@ static bool _touch_set_mode(uint8_t mode) {
 
   // Bits 6:4 for the mode selection.
   uint8_t device_mode = (mode << 4u);
-  return _touch_i2c_write(FT3169_REG_MODE_SWITCH, &device_mode, sizeof(device_mode));
+  return touch_i2c_write(FT3169_REG_MODE_SWITCH, &device_mode, sizeof(device_mode));
 }
 
 static bool _touch_fetch_touch_data(ft3169_touch_data_t* data, size_t data_size) {
-  return _touch_i2c_read(FT3169_REG_GESTURE, (uint8_t*)data, data_size);
+  return touch_i2c_read(FT3169_REG_GESTURE, (uint8_t*)data, data_size);
 }
 
 static bool _touch_handle_fw_recovery(const ft3169_touch_data_t* data) {
@@ -204,9 +180,6 @@ static bool _touch_handle_fw_recovery(const ft3169_touch_data_t* data) {
 static bool _touch_decode_data(const ft3169_touch_data_t* data, touch_event_t* event) {
   const uint8_t raw_points = data->num_points & 0x0F;
 
-  if (raw_points == 0) {
-    return false;
-  }
   event->timestamp_ms = rtos_thread_systime();
 
   switch (data->touch[0].touch_xh.event_flag) {
@@ -221,19 +194,47 @@ static bool _touch_decode_data(const ft3169_touch_data_t* data, touch_event_t* e
       break;
     case FT3169_EVENT_INVALID:
     case FT3169_EVENT_NO_EVENT:
-      return false;
-      break;
     default:
-      return false;
+      // No valid event - only fail if no touch points either
+      if (raw_points == 0) {
+        return false;
+      }
+      // Has touch points but unknown event - treat as contact
+      event->event_type = TOUCH_EVENT_CONTACT;
+      break;
   }
 
-  event->coord.x = FT3169_TOUCH_COORD_X(&data->touch[0]);
-  event->coord.y = FT3169_TOUCH_COORD_Y(&data->touch[0]);
+  if (raw_points > 0) {
+    event->coord.x = FT3169_TOUCH_COORD_X(&data->touch[0]);
+    event->coord.y = FT3169_TOUCH_COORD_Y(&data->touch[0]);
+    _touch_priv.last_touch_event.coord = event->coord;
+  } else if (event->event_type == TOUCH_EVENT_TOUCH_UP) {
+    event->coord = _touch_priv.last_touch_event.coord;
+  } else {
+    return false;
+  }
 
   return true;
 }
 
-static bool _touch_i2c_write(uint8_t reg_addr, uint8_t* tx_buf, size_t tx_len) {
+static bool _touch_i2c_transfer(mcu_i2c_transfer_seq_t* seq) {
+  if (_touch_priv.config.interface_type != TOUCH_INTERFACE_I2C) {
+    return false;
+  }
+
+  for (uint8_t attempt = 0; attempt < FT3169_I2C_MAX_RETRIES; attempt++) {
+    const mcu_i2c_err_t result =
+      mcu_i2c_transfer(&_touch_priv.config.interface.i2c.device, seq, FT3169_I2C_TIMEOUT_MS);
+    if (result == MCU_I2C_TRANSFER_DONE) {
+      return true;
+    }
+    rtos_thread_sleep(1);
+  }
+
+  return false;
+}
+
+bool touch_i2c_write(uint8_t reg_addr, uint8_t* tx_buf, size_t tx_len) {
   if (_touch_priv.config.interface_type != TOUCH_INTERFACE_I2C) {
     return false;
   }
@@ -256,7 +257,7 @@ static bool _touch_i2c_write(uint8_t reg_addr, uint8_t* tx_buf, size_t tx_len) {
   return _touch_i2c_transfer(&seq);
 }
 
-static bool _touch_i2c_read(uint8_t reg_addr, uint8_t* rx_buf, size_t rx_len) {
+bool touch_i2c_read(uint8_t reg_addr, uint8_t* rx_buf, size_t rx_len) {
   if (_touch_priv.config.interface_type != TOUCH_INTERFACE_I2C) {
     return false;
   }
@@ -279,46 +280,52 @@ static bool _touch_i2c_read(uint8_t reg_addr, uint8_t* rx_buf, size_t rx_len) {
   return _touch_i2c_transfer(&seq);
 }
 
-static bool _touch_i2c_transfer(mcu_i2c_transfer_seq_t* seq) {
+bool touch_i2c_write_cmd(uint8_t cmd) {
   if (_touch_priv.config.interface_type != TOUCH_INTERFACE_I2C) {
     return false;
   }
 
-  for (uint8_t attempt = 0; attempt < FT3169_I2C_MAX_RETRIES; attempt++) {
-    const mcu_i2c_err_t result =
-      mcu_i2c_transfer(&_touch_priv.config.interface.i2c.device, seq, FT3169_I2C_TIMEOUT_MS);
-    if (result == MCU_I2C_TRANSFER_DONE) {
-      return true;
-    }
-    rtos_thread_sleep(1);
-  }
+  mcu_i2c_transfer_seq_t seq = {
+    .flags = MCU_I2C_FLAG_WRITE,
+    .buf =
+      {
+        {
+          .data = &cmd,
+          .len = sizeof(cmd),
+        },
+        {
+          .data = NULL,
+          .len = 0,
+        },
+      },
+  };
 
-  return false;
+  return _touch_i2c_transfer(&seq);
 }
 
-static bool _touch_write_reg(uint8_t reg_addr, uint8_t value) {
-  return _touch_i2c_write(reg_addr, &value, sizeof(value));
+bool touch_write_reg(uint8_t reg_addr, uint8_t value) {
+  return touch_i2c_write(reg_addr, &value, sizeof(value));
 }
 
-static bool _touch_read_reg(uint8_t reg_addr, uint8_t* value) {
-  return _touch_i2c_read(reg_addr, value, sizeof(*value));
+bool touch_read_reg(uint8_t reg_addr, uint8_t* value) {
+  return touch_i2c_read(reg_addr, value, sizeof(*value));
 }
 
 static bool _touch_check_chip_id(void) {
   ft3169_chip_id_t chip_id = {0};
-  if (_touch_read_reg(FT3169_REG_CHIP_ID, &chip_id.id_high) &&
-      _touch_read_reg(FT3169_REG_CHIP_ID2, &chip_id.id_low) && chip_id.id_high == FT3169_CHIP_IDH &&
-      chip_id.id_low == FT3169_CHIP_IDL) {
+  if (touch_read_reg(FT3169_REG_CHIP_ID, &chip_id.id_high) &&
+      touch_read_reg(FT3169_REG_CHIP_ID2, &chip_id.id_low) &&
+      (chip_id.id_high == FT3169_CHIP_IDH) && (chip_id.id_low == FT3169_CHIP_IDL)) {
     return true;
   }
 
-  if (!_touch_write_reg(FT3169_REG_BOOT_START, FT3169_BOOT_TRIGGER_VALUE)) {
+  if (!touch_write_reg(FT3169_REG_BOOT_START, FT3169_BOOT_TRIGGER_VALUE)) {
     return false;
   }
 
   rtos_thread_sleep(FT3169_BOOT_ID_DELAY_MS);
 
-  if (!_touch_i2c_read(FT3169_CMD_READ_ID, (uint8_t*)&chip_id, sizeof(chip_id))) {
+  if (!touch_i2c_read(FT3169_CMD_READ_ID, (uint8_t*)&chip_id, sizeof(chip_id))) {
     return false;
   }
 
@@ -327,9 +334,9 @@ static bool _touch_check_chip_id(void) {
 
 static bool _touch_hw_reset(void) {
   if (_touch_priv.config.gpio.reset != NULL) {
-    mcu_gpio_clear(_touch_priv.config.gpio.reset);
+    mcu_gpio_output_set(_touch_priv.config.gpio.reset, _touch_priv.config.gpio.reset_active_high);
     rtos_thread_sleep(FT3169_RESET_PULSE_MS);
-    mcu_gpio_set(_touch_priv.config.gpio.reset);
+    mcu_gpio_output_set(_touch_priv.config.gpio.reset, !_touch_priv.config.gpio.reset_active_high);
   }
 
   rtos_thread_sleep(FT3169_INIT_TIME_MS);
@@ -358,23 +365,27 @@ static bool _touch_reset_device(void) {
 bool touch_enter_monitor_mode(void) {
   bool status = true;
   /* Enter Gesture Mode */
-  status &= _touch_write_reg(FT3169_REG_GESTURE_EN, FT3169_GESTURE_ENABLE);
+  status &= touch_write_reg(FT3169_REG_GESTURE_EN, FT3169_GESTURE_ENABLE);
   /* Set Gesture to Wake From Monitor Mode */
-  status &= _touch_write_reg(FT3169_REG_GESTURE_MASK, FT3169_GESTURE_MASK_DOUBLE_CLICK);
+  status &= touch_write_reg(FT3169_REG_GESTURE_MASK, FT3169_GESTURE_MASK_TAP);
   /* Set Power Mode to Monitor Mode*/
-  status &= _touch_write_reg(FT3169_REG_POWER_MODE, FT3169_POWER_MODE_MONITOR);
+  status &= touch_write_reg(FT3169_REG_POWER_MODE, FT3169_POWER_MODE_MONITOR);
   return status;
 }
 
 bool touch_exit_monitor_mode(void) {
   bool status = true;
   /* Disable Gesture Mode */
-  status &= _touch_write_reg(FT3169_REG_GESTURE_EN, 0x00);
+  status &= touch_write_reg(FT3169_REG_GESTURE_EN, FT3169_GESTURE_DISABLE);
   /* Clear Gesture Mask */
-  status &= _touch_write_reg(FT3169_REG_GESTURE_MASK, 0x00);
+  status &= touch_write_reg(FT3169_REG_GESTURE_MASK, FT3169_GESTURE_DISABLE);
   /* Set Power Mode to Active */
-  status &= _touch_write_reg(FT3169_REG_POWER_MODE, FT3169_POWER_MODE_ACTIVE);
+  status &= touch_write_reg(FT3169_REG_POWER_MODE, FT3169_POWER_MODE_ACTIVE);
   return status;
+}
+
+bool touch_hw_reset(void) {
+  return _touch_hw_reset();
 }
 
 void touch_set_latest_event(const touch_event_t* event) {
@@ -391,6 +402,52 @@ void touch_get_latest_event(touch_event_t* event) {
   rtos_thread_exit_critical();
 }
 
+void touch_push_event(const touch_event_t* event) {
+  ASSERT(event != NULL);
+  rtos_thread_enter_critical();
+
+  touch_event_buffer_t* buf = &_touch_priv.event_buffer;
+
+  // Store event at head position
+  buf->events[buf->head] = *event;
+  buf->head = (buf->head + 1) % TOUCH_EVENT_BUFFER_SIZE;
+
+  if (buf->count < TOUCH_EVENT_BUFFER_SIZE) {
+    buf->count++;
+  } else {
+    // Buffer full - advance tail to drop oldest event
+    buf->tail = (buf->tail + 1) % TOUCH_EVENT_BUFFER_SIZE;
+  }
+
+  rtos_thread_exit_critical();
+}
+
+bool touch_pop_event(touch_event_t* event) {
+  ASSERT(event != NULL);
+  rtos_thread_enter_critical();
+
+  touch_event_buffer_t* buf = &_touch_priv.event_buffer;
+
+  if (buf->count == 0) {
+    rtos_thread_exit_critical();
+    return false;
+  }
+
+  *event = buf->events[buf->tail];
+  buf->tail = (buf->tail + 1) % TOUCH_EVENT_BUFFER_SIZE;
+  buf->count--;
+
+  rtos_thread_exit_critical();
+  return true;
+}
+
+uint8_t touch_event_buffer_count(void) {
+  rtos_thread_enter_critical();
+  uint8_t count = _touch_priv.event_buffer.count;
+  rtos_thread_exit_critical();
+  return count;
+}
+
 /* This function needs to be called every 1 second per
 - FT3169 sample code Porting Guide EN.pdf section 3.4
 - Sample Code "sample code-for-FT3169(pw=ft3169) fts_esdcheck_process function"
@@ -401,12 +458,12 @@ static void _touch_check_esd(void) {
   }
 
   uint8_t flow_cnt = 0;
-  if (!_touch_read_reg(FT3169_REG_FLOW_WORK_CNT, &flow_cnt)) {
+  if (!touch_read_reg(FT3169_REG_FLOW_WORK_CNT, &flow_cnt)) {
     return;
   }
 
   uint8_t reg_value = 0;
-  if (!_touch_read_reg(FT3169_REG_MODE_SWITCH, &reg_value)) {
+  if (!touch_read_reg(FT3169_REG_MODE_SWITCH, &reg_value)) {
     return;
   }
 
@@ -433,6 +490,11 @@ static void _touch_check_esd(void) {
 }
 
 void touch_process_esd_check(void) {
+  // Skip ESD check during firmware upgrade
+  if (_touch_priv.fwup_in_progress) {
+    return;
+  }
+
   // Check if at least 1 second has passed since the last ESD check
   uint32_t current_time_ms = rtos_thread_systime();
 
@@ -440,4 +502,12 @@ void touch_process_esd_check(void) {
     _touch_priv.last_esd_check_ms = current_time_ms;
     _touch_check_esd();
   }
+}
+
+void touch_set_fwup_in_progress(bool in_progress) {
+  _touch_priv.fwup_in_progress = in_progress;
+}
+
+bool touch_get_fwup_in_progress(void) {
+  return _touch_priv.fwup_in_progress;
 }

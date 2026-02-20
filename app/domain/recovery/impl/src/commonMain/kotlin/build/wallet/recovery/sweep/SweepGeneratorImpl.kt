@@ -18,6 +18,9 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.toSpendingKeysets
+import build.wallet.feature.flags.Bdk2FeatureFlag
+import build.wallet.feature.isEnabled
+import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
@@ -42,6 +45,8 @@ class SweepGeneratorImpl(
   private val uuidGenerator: UuidGenerator,
   private val chaincodeDelegationTweakService: ChaincodeDelegationTweakService,
   private val descriptorBackupService: DescriptorBackupService,
+  private val appSpendingWalletProvider: AppSpendingWalletProvider,
+  private val bdk2FeatureFlag: Bdk2FeatureFlag,
 ) : SweepGenerator {
   override suspend fun generateSweep(
     keybox: Keybox,
@@ -256,8 +261,8 @@ class SweepGeneratorImpl(
    * wallet. Therefore, it cannot populate any derivation path information about the sweep output to
    * the destination wallet.
    *
-   *  So, in order to be able to compute tweaks, we always assume it will be the first receive address
-   *  at index 0 (i.e. /0/0 )
+   *  So, in order to be able to compute tweaks, we always use the first receive address
+   *  at index 0 (i.e. /0/0 ) and ensure it's revealed to the destination wallet.
    *
    *  For non-private keysets, we can just generate a new address
    */
@@ -265,18 +270,37 @@ class SweepGeneratorImpl(
     destinationKeyset: SpendingKeyset,
     destinationWallet: WatchingWallet,
   ): BitcoinAddress {
-    val destinationAddress = if (destinationKeyset.isPrivateWallet) {
-      destinationWallet
-        .peekAddress(0u)
-        .mapError(::FailedToGenerateDestinationAddress)
-        .bind()
+    return if (destinationKeyset.isPrivateWallet) {
+      if (bdk2FeatureFlag.isEnabled()) {
+        appSpendingWalletProvider
+          .getSpendingWallet(destinationKeyset)
+          .mapError(::FailedToGenerateDestinationAddress)
+          .bind()
+          .revealAddress(0u)
+          .mapError(::FailedToGenerateDestinationAddress)
+          .bind()
+      } else {
+        destinationWallet
+          .revealAddress(0u)
+          .mapError(::FailedToGenerateDestinationAddress)
+          .bind()
+      }
     } else {
-      destinationWallet
-        .getNewAddress()
-        .mapError(::FailedToGenerateDestinationAddress)
-        .bind()
+      if (bdk2FeatureFlag.isEnabled()) {
+        appSpendingWalletProvider
+          .getSpendingWallet(destinationKeyset)
+          .mapError(::FailedToGenerateDestinationAddress)
+          .bind()
+          .getNewAddress()
+          .mapError(::FailedToGenerateDestinationAddress)
+          .bind()
+      } else {
+        destinationWallet
+          .getNewAddress()
+          .mapError(::FailedToGenerateDestinationAddress)
+          .bind()
+      }
     }
-    return destinationAddress
   }
 
   private data class SignableKeyset(

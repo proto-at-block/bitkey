@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bouncycastle:bcpkix-jdk18on",
+    "components": [
+        {
+            "version": "1.80",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcpkix-jdk18on-1.80.jar": "4f4ba6a92617ea19dc183f0fa5db492eee426fdde2a0a2d6c94777ffd1af6413"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

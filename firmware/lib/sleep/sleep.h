@@ -20,6 +20,9 @@
 /** @brief Base power timeout when locked (ms). */
 #define POWER_TIMEOUT_MS (60000)
 
+/** @brief Infinite timeout value for sleep inhibit (never power off). */
+#define SLEEP_INHIBIT_INFINITE (UINT32_MAX)
+
 /** @brief Callback invoked when the power timer expires. */
 typedef void (*sleep_timer_callback_t)(void*);
 
@@ -66,3 +69,11 @@ void sleep_clear_inhibit(void);
  * @return Total timeout in milliseconds.
  */
 uint32_t sleep_get_configured_timeout(void);
+
+/**
+ * @brief Start the power timer with an absolute timeout value.
+ * @param timeout_ms Absolute timeout in milliseconds (bypasses base + inhibit calculation).
+ * @note This is for debug/CLI use. Normal code should use sleep_start_power_timer() +
+ * sleep_inhibit().
+ */
+void sleep_start_power_timer_with_timeout(uint32_t timeout_ms);

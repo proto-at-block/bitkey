@@ -9,7 +9,7 @@ from bitkey.fwa.bitkey_fwa.constants import (
     PRODUCT_W3A_CORE,
     PRODUCT_W3A_UXC,
     SIGNER_DEVELOPMENT,
-    SIGNER_LOCALSTACK,
+    SIGNER_PERSONAL,
     SIGNER_PRODUCTION,
     SIGNER_STAGING,
 )
@@ -42,22 +42,21 @@ DEV_CERT_VERSIONS = {
 }
 
 # The version number of the signing cert for each environment per product
-# localstack app cert will need to be generated for each user
 APP_CERT_ENV_VERSIONS = {
     PRODUCT_W1A: {
-        SIGNER_LOCALSTACK: 1,
+        SIGNER_PERSONAL: 2,
         SIGNER_DEVELOPMENT: 1,
         SIGNER_STAGING: 1,
         SIGNER_PRODUCTION: 2,
     },
     PRODUCT_W3A_CORE: {
-        SIGNER_LOCALSTACK: 1,
+        SIGNER_PERSONAL: 2,
         SIGNER_DEVELOPMENT: 1,
         SIGNER_STAGING: 1,
         SIGNER_PRODUCTION: 1,
     },
     PRODUCT_W3A_UXC: {
-        SIGNER_LOCALSTACK: 1,
+        SIGNER_PERSONAL: 1,
         SIGNER_DEVELOPMENT: 1,
         SIGNER_STAGING: 1,
         SIGNER_PRODUCTION: 1,

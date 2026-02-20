@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:abi-tools-api",
+    "components": [
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "abi-tools-api-2.2.20.jar": "f1c866eac5dc088f3fd081100843409bf4f1612bbb998fbaa1f685325cae0d55"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

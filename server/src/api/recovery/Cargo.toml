@@ -46,6 +46,7 @@ screener = { workspace = true }
 types = { workspace = true, features = ["recovery"] }
 userpool = { workspace = true }
 wsm-common = { workspace = true }
+wsm-compat = { workspace = true }
 wsm-grant = { workspace = true }
 wsm-rust-client = { workspace = true }
 

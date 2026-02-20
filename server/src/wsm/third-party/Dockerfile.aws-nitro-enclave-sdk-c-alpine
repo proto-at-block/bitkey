@@ -93,11 +93,8 @@ WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.2.1 https://github.com/aws/aws-nitro-enclaves-nsm-api.git
 WORKDIR aws-nitro-enclaves-nsm-api
 RUN git checkout cfcf7a29587f5bc9338a2535221af84492f949c5
-COPY --link rust-toolchain.toml aws-nitro-enclaves-nsm-api/rust-toolchain.toml
-RUN <<EOF
-    cd aws-nitro-enclaves-nsm-api
-    cargo build --release -p nsm-lib
-EOF
+COPY --link rust-toolchain.toml rust-toolchain.toml
+RUN cargo build --release -p nsm-lib
 RUN mv target/release/libnsm.a /usr/lib
 RUN mv target/release/nsm.h /usr/include
 
@@ -115,7 +112,7 @@ RUN cmake --build build --target test
 WORKDIR ${REALWORKDIR}
 
 # kmstool-enclave
-FROM alpine:3.21.0@sha256:21dc6063fd678b478f57c0e13f47560d0ea4eeba26dfc947b2a4f81f686b9f45 AS kmstool-enclave
+FROM alpine:3.21.6@sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709 AS kmstool-enclave
 COPY --from=builder /usr/bin/kmstool_enclave /kmstool_enclave
 ARG REGION
 ARG ENDPOINT
@@ -124,10 +121,10 @@ ENV ENDPOINT=${ENDPOINT}
 CMD ["/kmstool_enclave"]
 
 # kmstool-instance
-FROM alpine:3.21.0@sha256:21dc6063fd678b478f57c0e13f47560d0ea4eeba26dfc947b2a4f81f686b9f45  AS kmstool-instance
+FROM alpine:3.21.6@sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709  AS kmstool-instance
 COPY --from=builder /usr/bin/kmstool_instance /kmstool_instance
 CMD ["/kmstool_instance"]
 
 # kmstool-enclave-cli
-FROM alpine:3.21.0@sha256:21dc6063fd678b478f57c0e13f47560d0ea4eeba26dfc947b2a4f81f686b9f45  AS kmstool-enclave-cli
+FROM alpine:3.21.6@sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709  AS kmstool-enclave-cli
 COPY --from=builder /usr/bin/kmstool_enclave_cli /kmstool_enclave_cli

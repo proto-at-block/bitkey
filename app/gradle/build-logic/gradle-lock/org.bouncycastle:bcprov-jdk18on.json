@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bouncycastle:bcprov-jdk18on",
+    "components": [
+        {
+            "version": "1.80",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcprov-jdk18on-1.80.jar": "e8ad209f8c58d291a37ca9750e9e9fac60596956c983e49dd8282381dd8b3249"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

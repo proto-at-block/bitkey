@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-saveable-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-saveable-iosSimulatorArm64Main-1.9.3.klib": "040cb4cc3034f47f79bb1bb77dab3fcbf67dcbf3a8b9e19dc8d44395ebb4981e"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime-saveable-iossimulatorarm64-1.9.3-metadata.jar": "8d317e469b229e65d91a4b0177dde57a674c4468b2641f30b899fffd9456da2d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

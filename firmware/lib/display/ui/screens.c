@@ -10,6 +10,7 @@
 #include "screens/screen_mfg.h"
 #include "screens/screen_money_movement.h"
 #include "screens/screen_onboarding.h"
+#include "screens/screen_power_off.h"
 #include "screens/screen_privileged_action.h"
 #include "screens/screen_regulatory.h"
 #include "screens/screen_scan.h"
@@ -103,6 +104,12 @@ const screen_t screen_privileged_action = {
   .update = screen_privileged_action_update,
 };
 
+const screen_t screen_power_off = {
+  .init = screen_power_off_init,
+  .destroy = screen_power_off_destroy,
+  .update = screen_power_off_update,
+};
+
 #ifdef MFGTEST
 const screen_t screen_test_gesture = {
   .init = screen_test_gesture_init,
@@ -155,6 +162,7 @@ static const screen_entry_t registry[] = {
   {fwpb_display_show_screen_fingerprint_tag, &screen_fingerprint},
   {fwpb_display_show_screen_firmware_update_tag, &screen_firmware_update},
   {fwpb_display_show_screen_privileged_action_tag, &screen_privileged_action},
+  {fwpb_display_show_screen_power_off_tag, &screen_power_off},
 #ifdef MFGTEST
   {fwpb_display_show_screen_test_gesture_tag, &screen_test_gesture},
   {fwpb_display_show_screen_test_scroll_tag, &screen_test_scroll},

@@ -15,16 +15,16 @@ FingerprintTitle: "FINGERPRINT"
 FingerprintFinishTitle: "FINISH"
 FingerprintIntro: "Let's set up your fingerprint."
 FingerprintButton: "Get started"
-FingerprintSuccess: "Success"
+FingerprintSuccess: "Fingerprint saved"
 FingerprintFinish: "Scan Bitkey with your phone to finish saving."
 FingerprintAppDownload: "Now let's download the Bitkey app."
 FingerprintQR: "Get QR code"
 
 # Fingerprint enrollment page.
-FingerprintEnrollFirst: "Tap the sensor on the back."
+FingerprintEnrollFirst: "Tap fingerprint sensor"
 FingerprintEnrollError: "Try again"
 FingerprintEnrollFail: "Enrollment failed - please try again"
-FingerprintEnrollRepeat: "Lift and repeat %lu more times."
+FingerprintEnrollRepeat: "Lift and repeat %lu times."
 
 # Fingerprint removal page.
 FingerprintRemoveTitle: "CONFIRM"
@@ -34,19 +34,13 @@ FingerprintRemoveRemoved: "Removed"
 
 # Scan page.
 ScanTitle: "Scan to start"
-ScanTap: "Tap to phone"
+ScanTap: "Scan with phone"
 ScanSign: "Scan to sign"
 ScanVerify: "Scan to verify"
 ScanConfirm: "Scan to confirm"
 
 # Fingerprint menu page.
-FingerprintMenuAdd: "Add Fingerprint %d"
-
-# Onboarding page.
-OnboardingTitle: "HELLO"
-OnboardingWelcome: "Welcome to Bitkey. Tap to navigate, swipe to explore."
-OnboardingFingerprint: "Let's set up your fingerprint to get started."
-OnboardingGetStarted: "Get started"
+FingerprintMenuAdd: "Add fingerprint"
 
 # Regulatory page.
 RegulatoryTitle: "REGULATORY"
@@ -61,6 +55,7 @@ MoneyMovementFee: "FEE"
 MoneyMovementHold: "HOLD"
 MoneyMovementBTCSuffix: " BTC"
 MoneyMovementScanToFinish: "SCAN WITH PHONE TO FINISH"
+MoneyMovementConfirmed: "CONFIRMED"
 
 # Hold Cancel Widget
 HoldCancelCancel: "CANCEL"
@@ -68,16 +63,17 @@ HoldCancelCancelled: "CANCELLED"
 
 # Menu Items
 MenuBack: ""
-MenuFingerprints: "FINGERPRINTS"
-MenuBrightness: "BRIGHTNESS"
-MenuAbout: "ABOUT"
-MenuRegulatory: "REGULATORY"
-MenuLock: "LOCK DEVICE"
-MenuOff: "POWER OFF"
-MenuTouchTest: "TOUCH TEST"
-MenuSleepEnabled: "SLEEP: ENABLED"
-MenuSleepDisabled: "SLEEP: DISABLED"
-MenuRunIn: "RUN-IN TEST"
+MenuFingerprints: "Fingerprints"
+MenuBrightness: "Brightness"
+MenuAbout: "About"
+MenuRegulatory: "Regulatory"
+MenuLock: "Lock Device"
+MenuOff: "Power Off"
+MenuTouchTest: "Touch Test"
+MenuSleepEnabled: "Sleep: Enabled"
+MenuSleepDisabled: "Sleep: Disabled"
+MenuRunIn: "Run-In Test"
+MenuMoneyMovement: "Money Movement"
 MenuTitle: "SETTINGS"
 
 # Privileged Actions
@@ -96,6 +92,9 @@ FirmwareUpdateInProgress: "Update in progress..."
 FirmwareUpdateHashTitle: "SHA-256"
 FirmwareUpdateFinishTitle: "FINISH"
 FirmwareUpdateUpdatingTitle: "UPDATING"
+FirmwareUpdateTitle: "FIRMWARE UPDATE"
+FirmwareUpdateMcuCore: "MCU: CORE"
+FirmwareUpdateMcuUxc: "MCU: UXC"
 
 # Fingerprint Menu
 FingerprintMenuTitle: "FINGERPRINTS"

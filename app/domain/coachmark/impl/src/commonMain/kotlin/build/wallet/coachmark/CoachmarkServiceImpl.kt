@@ -8,11 +8,11 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.platform.config.AppVariant
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
-import kotlin.time.Duration.Companion.days
 
 @BitkeyInject(AppScope::class)
 class CoachmarkServiceImpl(
@@ -22,14 +22,16 @@ class CoachmarkServiceImpl(
   private val coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
   private val eventTracker: EventTracker,
   private val clock: Clock,
+  private val appVariant: AppVariant,
 ) : CoachmarkService {
   override suspend fun coachmarksToDisplay(
     coachmarkIds: Set<CoachmarkIdentifier>,
   ): Result<List<CoachmarkIdentifier>, Error> =
     coroutineBinding {
       // If the global coachmark kill switch feature flag is enabled, short circuit and return an empty list
-      if (coachmarksGlobalFeatureFlag.isEnabled()) {
-        return@coroutineBinding emptyList<CoachmarkIdentifier>()
+      // Also, if the app is an EEK, don't display any coachmarks
+      if (coachmarksGlobalFeatureFlag.isEnabled() || appVariant == AppVariant.Emergency) {
+        return@coroutineBinding emptyList()
       }
 
       val accountStatus = accountService
@@ -85,8 +87,7 @@ class CoachmarkServiceImpl(
 
   private suspend fun createCoachmark(coachmarkId: CoachmarkIdentifier): Result<Unit, Error> =
     coroutineBinding {
-      // expiration date is 2 weeks from creation
-      val expiresAt = clock.now() + 14.days
+      val expiresAt = coachmarkId.expiration?.let { clock.now() + it }
       coachmarkDao.insertCoachmark(coachmarkId, expiresAt)
     }
 }

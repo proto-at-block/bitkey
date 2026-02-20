@@ -12,10 +12,10 @@
 
 #include <stdbool.h>
 
-// Top menu widget - displays three dots in a pill button at top center
+// Top menu widget - displays ellipsis icon in a pill button at top center
 typedef struct {
   lv_obj_t* container;  // Pill-shaped container
-  lv_obj_t* dots[3];    // Three dot objects
+  lv_obj_t* icon;       // Ellipsis icon image
   bool is_initialized;
 } top_menu_t;
 

@@ -11,14 +11,23 @@ internal abstract class DependencyLockingConfigurationConfig
   @Inject
   constructor(
     objects: ObjectFactory,
-    configuration: Configuration,
   ) {
     val isLocked: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
 
     val dependencyLockingGroup: Property<DependencyLockingGroupConfig> =
       objects.property(DependencyLockingGroupConfig::class.java)
 
-    init {
+    // Track whether this config was initialized with an unresolved configuration
+    private var configurationForPinning: Configuration? = null
+
+    /**
+     * Initialize with a configuration that can have dependencies pinned.
+     * Must be called before the configuration is resolved.
+     * In Gradle 9+, configurations become immutable earlier, so we only
+     * register callbacks for configurations that aren't yet resolved.
+     */
+    internal fun initWithConfiguration(configuration: Configuration) {
+      configurationForPinning = configuration
       configuration.withDependencies {
         dependencyLockingGroup.orNull?.pinDependenciesIn(configuration)
       }

@@ -1,11 +1,10 @@
 use crate::service::{CreateAccountAndKeysetsInput, Service};
 use bdk_utils::bdk::bitcoin::bip32::{
-    DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint,
+    DerivationPath, Fingerprint, Xpriv as ExtendedPrivKey, Xpub as ExtendedPubKey,
 };
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::secp256k1::rand::{thread_rng, Rng};
 use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, SecretKey};
-use bdk_utils::bdk::database::{AnyDatabase, MemoryDatabase};
 use bdk_utils::bdk::descriptor::DescriptorPublicKey;
 use bdk_utils::bdk::keys::{DescriptorSecretKey, KeyMap};
 use bdk_utils::bdk::miniscript::descriptor::{DescriptorXKey, Wildcard};
@@ -142,7 +141,7 @@ pub fn create_descriptor_keys(network: Network) -> (DescriptorSecretKey, Descrip
     )
 }
 
-pub fn create_legacy_spend_keyset(network: Network) -> (SpendingKeyset, Wallet<AnyDatabase>) {
+pub fn create_legacy_spend_keyset(network: Network) -> (SpendingKeyset, Wallet) {
     let (app_xprv, app_xpub) = create_descriptor_keys(network);
     let (_, hardware_xpub) = create_descriptor_keys(network);
     let (_, server_xpub) = create_descriptor_keys(network);
@@ -179,7 +178,7 @@ pub fn create_bdk_wallet(
     hw_xpub: &str,
     server_xpub: &str,
     network: bitcoin::Network,
-) -> Wallet<AnyDatabase> {
+) -> Wallet {
     let app = DescriptorPublicKey::from_str(app_xpub).unwrap();
     let hw = DescriptorPublicKey::from_str(hw_xpub).unwrap();
     let server = DescriptorPublicKey::from_str(server_xpub).unwrap();
@@ -198,12 +197,12 @@ pub fn create_bdk_wallet(
     let receive_descriptor = keyset.receiving().into_multisig_descriptor().unwrap();
     let change_descriptor = keyset.change().into_multisig_descriptor().unwrap();
 
-    Wallet::new(
+    Wallet::create(
         (receive_descriptor, receive_keymap),
-        Some((change_descriptor, change_keymap)),
-        network,
-        AnyDatabase::Memory(MemoryDatabase::new()),
+        (change_descriptor, change_keymap),
     )
+    .network(network)
+    .create_wallet_no_persist()
     .unwrap()
 }
 
@@ -288,7 +287,7 @@ fn create_keys(network: Network) -> (Fingerprint, ExtendedPrivKey, ExtendedPubKe
     let mut rng = thread_rng();
     let seed: [u8; 32] = rng.gen();
     let derivation_path = DerivationPath::from_str(DEFAULT_DERIVATION_PATH_STR).unwrap();
-    let sk = ExtendedPrivKey::new_master(network.to_owned().into(), &seed).unwrap();
+    let sk = ExtendedPrivKey::new_master(bitcoin::Network::from(network), &seed).unwrap();
     let derived_sk = sk.derive_priv(&secp, &derivation_path).unwrap();
     (
         sk.fingerprint(&secp),

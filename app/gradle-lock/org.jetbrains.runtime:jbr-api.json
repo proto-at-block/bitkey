@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.runtime:jbr-api",
+    "components": [
+        {
+            "version": "1.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jbr-api-1.5.0.jar": "657ede7d7f8e175c909b23caa10fcd4d4a511304fd938aa9cc8457b4378950d5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

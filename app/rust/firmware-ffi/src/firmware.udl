@@ -40,6 +40,12 @@ interface WipeState {
   WipeStateResultState next(sequence<u8> response);
 };
 
+interface SignActionProof {
+  constructor(u32 version, string action, string field, string? value, string? current, string bindings);
+  [Throws=CommandError]
+  SignActionProofResultState next(sequence<u8> response);
+};
+
 interface SealKey {
   [Throws=CommandError]
   constructor(sequence<u8> unsealed_key);
@@ -66,7 +72,7 @@ interface GetDeviceIdentifiers {
 };
 
 interface FwupStart {
-  constructor(u32? patch_size, FwupMode fwup_mode, McuRole mcu_role);
+  constructor(u32? patch_size, FwupMode fwup_mode, McuRole mcu_role, string version);
   [Throws=CommandError]
   FwupStartResultState next(sequence<u8> response);
 };
@@ -233,6 +239,36 @@ interface GetConfirmationResult {
   ConfirmedCommandResultState next(sequence<u8> response);
 };
 
+interface GetAddress {
+  constructor(u32 address_index);
+  [Throws=CommandError]
+  GetAddressResultState next(sequence<u8> response);
+};
+
+interface VerifyKeysAndBuildDescriptor {
+  constructor(sequence<u8> app_spending_key, sequence<u8> app_spending_key_chaincode, boolean network_mainnet, sequence<u8> app_auth_key, sequence<u8> server_spending_key, sequence<u8> server_spending_key_chaincode, sequence<u8> wsm_signature);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface SignStart {
+  constructor(u32 psbt_size);
+  [Throws=CommandError]
+  SignStartResultState next(sequence<u8> response);
+};
+
+interface SignTransfer {
+  constructor(u32 sequence_id, sequence<u8> chunk_data);
+  [Throws=CommandError]
+  SignTransferResultState next(sequence<u8> response);
+};
+
+interface GetConfirmationResultChunk {
+  constructor(sequence<u8> response_handle, sequence<u8> confirmation_handle, u32 chunk_index);
+  [Throws=CommandError]
+  ChunkDataState next(sequence<u8> response);
+};
+
 [Enum]
 interface BooleanState {
   Data(sequence<u8> response);
@@ -363,6 +399,8 @@ interface ConfirmedCommandResultState {
 interface ConfirmedCommandResult {
   WipeState(boolean success);
   FwupStart(boolean success);
+  ChunkedDataAvailable(u32 total_size);
+  SignActionProof(sequence<u8> signature);
 };
 
 [Enum]
@@ -378,6 +416,18 @@ interface WipeStateResult {
 };
 
 [Enum]
+interface SignActionProofResultState {
+  Data(sequence<u8> response);
+  Result(SignActionProofResult value);
+};
+
+[Enum]
+interface SignActionProofResult {
+  Success(sequence<u8> signature);
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
 interface FwupStartResultState {
   Data(sequence<u8> response);
   Result(FwupStartResult value);
@@ -387,6 +437,51 @@ interface FwupStartResultState {
 interface FwupStartResult {
   Success(boolean value);
   ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface GetAddressResultState {
+  Data(sequence<u8> response);
+  Result(GetAddressResult value);
+};
+
+dictionary GetAddressResult {
+  string address;
+};
+
+[Enum]
+interface SignStartResultState {
+  Data(sequence<u8> response);
+  Result(SignStartResult value);
+};
+
+[Enum]
+interface SignStartResult {
+  Success();
+};
+
+[Enum]
+interface SignTransferResultState {
+  Data(sequence<u8> response);
+  Result(SignTransferResult value);
+};
+
+[Enum]
+interface SignTransferResult {
+  Success();
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface ChunkDataState {
+  Data(sequence<u8> response);
+  Result(ChunkData value);
+};
+
+dictionary ChunkData {
+  sequence<u8> chunk;
+  boolean is_last;
+  u32 remaining_size;
 };
 
 enum FingerprintEnrollmentStatus {
@@ -419,6 +514,7 @@ enum CommandError {
   "GeneralCommandError",
   "SigningError",
   "Unauthenticated",
+  "UserDenied",
   "Unimplemented",
   "ECDSASigningError",
   "DescriptorKeyParseError",
@@ -615,6 +711,7 @@ enum CertType {
   "BatchCert",
   "DeviceSeCert",
   "DeviceHostCert",
+  "DeviceSecureChannelCert",
 };
 
 enum EllipticCurve {

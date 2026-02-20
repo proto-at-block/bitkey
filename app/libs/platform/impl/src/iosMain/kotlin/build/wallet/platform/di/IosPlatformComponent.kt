@@ -1,6 +1,7 @@
 package build.wallet.platform.di
 
 import build.wallet.di.AppScope
+import build.wallet.di.Impl
 import build.wallet.di.SingleIn
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVersion
@@ -28,6 +29,7 @@ interface IosPlatformComponent {
     return AppVersion("$version.$build")
   }
 
+  @Impl
   @Provides
   fun provideFileManager(
     fileDirectoryProvider: FileDirectoryProvider,

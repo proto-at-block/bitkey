@@ -62,13 +62,6 @@ typedef struct {
   uint16_t boxes_remaining;  // Number of touch test boxes remaining
 } mfgtest_touch_test_status_payload_t;
 
-// Payload for UI_EVENT_FWUP_START
-typedef struct {
-  char digest[256];  // Firmware update digest/hash
-  uint32_t version;  // Firmware version
-  uint32_t size;     // Update size in bytes
-} firmware_update_data_t;
-
 // Payload for UI_EVENT_BATTERY_SOC
 typedef struct {
   uint8_t battery_percent;  // Battery SOC (0-100)
@@ -133,6 +126,7 @@ typedef enum {
   UI_EVENT_ENROLLMENT_FAILED,
 
   // Firmware update events
+  UI_EVENT_FWUP_CONFIRMATION,
   UI_EVENT_FWUP_START,
   UI_EVENT_FWUP_PROGRESS,
   UI_EVENT_FWUP_COMPLETE,
@@ -159,6 +153,7 @@ typedef enum {
   // Other events
   UI_EVENT_WIPE_STATE,
   UI_EVENT_ERROR,
+  UI_EVENT_POWER_OFF,
 
   // Button events
   UI_EVENT_BUTTON,

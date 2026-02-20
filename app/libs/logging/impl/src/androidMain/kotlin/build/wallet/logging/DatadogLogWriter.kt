@@ -53,9 +53,10 @@ class DatadogLogWriter(
     }
 
     val defaultAttributes =
-      mapOf(
-        "tag" to safeTag
-      )
+      buildMap {
+        put("tag", safeTag)
+        logWriterContextStore.get().appSessionId?.let { put("app_session_id", it) }
+      }
     when (severity) {
       Severity.Verbose ->
         datadogLogger.v(

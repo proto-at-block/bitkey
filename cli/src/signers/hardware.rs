@@ -4,9 +4,9 @@ use std::{
     sync::Arc,
 };
 
-use bdk::{
+use bdk_wallet::{
     bitcoin::{
-        psbt::PartiallySignedTransaction,
+        psbt::Psbt,
         secp256k1::{ecdsa::Signature, All, PublicKey, Secp256k1},
         Network,
     },
@@ -27,6 +27,7 @@ use super::{Authentication, Spending};
 
 #[derive(Deserialize, Serialize, PartialEq, Eq)]
 pub(crate) struct HardwareSigner {
+    network: Network,
     authentication: PublicKey,
     #[serde(with = "serde_helpers::string")]
     spending: DescriptorPublicKey,
@@ -35,6 +36,7 @@ pub(crate) struct HardwareSigner {
 impl HardwareSigner {
     pub(crate) fn new(network: Network, context: &impl Transactor) -> Result<Self, PairingError> {
         Ok(Self {
+            network,
             authentication: context.get_authentication_key()?,
             spending: context.get_initial_spending_key(network)?,
         })
@@ -65,11 +67,7 @@ impl Spending for HardwareSigner {
         seen: impl IntoIterator<Item = DescriptorPublicKey>,
         context: &impl Transactor,
     ) -> Result<Self, TransactorError> {
-        let network = match self.spending {
-            DescriptorPublicKey::XPub(ref xpub) => xpub.xkey.network,
-            _ => unimplemented!(),
-        };
-        let spending = context.get_next_spending_key(Vec::from_iter(seen), network)?;
+        let spending = context.get_next_spending_key(Vec::from_iter(seen), self.network)?;
         Ok(Self { spending, ..*self })
     }
 
@@ -113,7 +111,7 @@ impl SignerCommon for HardwareBDKSigner {
 impl TransactionSigner for HardwareBDKSigner {
     fn sign_transaction(
         &self,
-        psbt: &mut PartiallySignedTransaction,
+        psbt: &mut Psbt,
         _: &SignOptions,
         _: &Secp256k1<All>,
     ) -> Result<(), SignerError> {

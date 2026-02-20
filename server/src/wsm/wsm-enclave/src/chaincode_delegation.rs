@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display, str::FromStr};
 
-use bdk::{
+use bdk_wallet::{
     bitcoin::{
         ecdsa,
         key::Secp256k1,
@@ -127,10 +127,10 @@ impl ChaincodeDelegateSigner {
                 .unwrap_or(EcdsaSighashType::All);
 
             psbt_input.partial_sigs.insert(
-                bdk::bitcoin::PublicKey::new(tweaked_custodian_public_key),
+                bdk_wallet::bitcoin::PublicKey::new(tweaked_custodian_public_key),
                 ecdsa::Signature {
-                    sig: signature,
-                    hash_ty: sighash_type,
+                    signature,
+                    sighash_type,
                 },
             );
         }
@@ -288,7 +288,7 @@ impl ChaincodeDelegateSigner {
         })?;
 
         let sighash = sighash_cache
-            .segwit_signature_hash(
+            .p2wsh_signature_hash(
                 input_index,
                 witness_script,
                 witness_utxo.value,
@@ -312,13 +312,16 @@ pub struct WalletProprietaryKeys {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bdk::bitcoin::{
+    use bdk_wallet::bitcoin::{
+        absolute::LockTime,
+        bip32::{DerivationPath, Fingerprint},
         psbt::{Input as PsbtInput, Psbt},
         secp256k1::{rand, All, Message, PublicKey, Scalar, Secp256k1, SecretKey},
         sighash::{EcdsaSighashType, SighashCache},
-        OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Witness,
+        transaction::Version,
+        Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
     };
-    use bdk::miniscript::Descriptor;
+    use bdk_wallet::miniscript::Descriptor;
     use std::{collections::BTreeMap, str::FromStr};
 
     struct TestSetup {
@@ -387,22 +390,22 @@ mod tests {
 
             // Create a dummy transaction
             let tx = Transaction {
-                version: 2,
-                lock_time: bdk::bitcoin::locktime::absolute::LockTime::ZERO,
+                version: Version::TWO,
+                lock_time: LockTime::ZERO,
                 input: vec![TxIn {
                     previous_output: OutPoint::null(),
                     script_sig: ScriptBuf::new(),
-                    sequence: bdk::bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
+                    sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
                     witness: Witness::new(),
                 }],
                 output: vec![TxOut {
-                    value: 100000,
+                    value: Amount::from_sat(100000),
                     script_pubkey: ScriptBuf::new(),
                 }],
             };
 
             let witness_utxo = TxOut {
-                value: 200000,
+                value: Amount::from_sat(200000),
                 script_pubkey,
             };
 
@@ -414,10 +417,7 @@ mod tests {
                     let mut derivation = BTreeMap::new();
                     derivation.insert(
                         tweaked_app_key,
-                        (
-                            bdk::bitcoin::bip32::Fingerprint::default(),
-                            bdk::bitcoin::bip32::DerivationPath::master(),
-                        ),
+                        (Fingerprint::default(), DerivationPath::master()),
                     );
                     derivation
                 },
@@ -440,7 +440,7 @@ mod tests {
             // Add app signature
             let mut sighash_cache = SighashCache::new(&tx);
             let sighash = sighash_cache
-                .segwit_signature_hash(
+                .p2wsh_signature_hash(
                     0,
                     psbt_input.witness_script.as_ref().unwrap(),
                     psbt_input.witness_utxo.as_ref().unwrap().value,
@@ -452,10 +452,10 @@ mod tests {
             let app_sig = self.secp.sign_ecdsa(&sighash_msg, &tweaked_app_secret_key);
 
             psbt_input.partial_sigs.insert(
-                bdk::bitcoin::PublicKey::new(tweaked_app_key),
+                bdk_wallet::bitcoin::PublicKey::new(tweaked_app_key),
                 ecdsa::Signature {
-                    sig: app_sig,
-                    hash_ty: EcdsaSighashType::All,
+                    signature: app_sig,
+                    sighash_type: EcdsaSighashType::All,
                 },
             );
 
@@ -748,7 +748,7 @@ mod tests {
     }
 
     mod signature_validation_tests {
-        use bdk::bitcoin::PublicKey;
+        use bdk_wallet::bitcoin::PublicKey;
         use rand::SeedableRng;
 
         use super::*;
@@ -767,10 +767,10 @@ mod tests {
             psbt.inputs[0].partial_sigs.insert(
                 PublicKey::new(pubkey),
                 ecdsa::Signature {
-                    sig: setup
+                    signature: setup
                         .secp
                         .sign_ecdsa(&Message::from_slice(&[0; 32]).unwrap(), &seckey),
-                    hash_ty: EcdsaSighashType::All,
+                    sighash_type: EcdsaSighashType::All,
                 },
             );
 
@@ -797,10 +797,10 @@ mod tests {
             let fake_sig = setup.secp.sign_ecdsa(&fake_msg, &fake_key);
 
             psbt.inputs[0].partial_sigs.insert(
-                bdk::bitcoin::PublicKey::new(tweaked_app_key),
+                bdk_wallet::bitcoin::PublicKey::new(tweaked_app_key),
                 ecdsa::Signature {
-                    sig: fake_sig,
-                    hash_ty: EcdsaSighashType::All,
+                    signature: fake_sig,
+                    sighash_type: EcdsaSighashType::All,
                 },
             );
 

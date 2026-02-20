@@ -5,10 +5,10 @@ function, which is later used at runtime to determine if a test should be skippe
 is used to perform this check when a function is called.
 """
 
-import unittest
-import functools
-import fnmatch
 import collections
+import fnmatch
+import functools
+import unittest
 from typing import Callable, Optional
 
 from . import constants, fwut
@@ -51,8 +51,7 @@ def skip_unless_firmware_applies(function: Callable) -> Optional[bool]:
             failed_filter_types.append(filter_type)
 
     if failed_filter_types:
-        raise unittest.SkipTest("Wrong {}".format(
-            ", ".join(failed_filter_types)))
+        raise unittest.SkipTest("Wrong {}".format(", ".join(failed_filter_types)))
 
 
 def warn_only(function: Callable):
@@ -83,7 +82,8 @@ class FilteredFunction(object):
         """Creates a decorator with given filter arguments"""
         if len(args) < 1:
             raise ValueError(
-                "Filtered function decorator requires at least one argument")
+                "Filtered function decorator requires at least one argument"
+            )
         self.args = args
 
         # Valid value for the filter?
@@ -91,7 +91,8 @@ class FilteredFunction(object):
         for arg in self.args:
             if arg not in constants.FILTER_TYPES[filter_type]:
                 raise ValueError(
-                    f"Invalid argument '{arg}' for decorator '{filter_type}'")
+                    f"Invalid argument '{arg}' for decorator '{filter_type}'"
+                )
 
     def __call__(self, function: Callable) -> Callable:
         """Adds metadata to the function based on the configured filter, and wraps the function if needed."""
@@ -127,8 +128,7 @@ class FilteredFunction(object):
         Returns:
             String constant for the filter type
         """
-        raise NotImplementedError(
-            "Derived class did not specify its filter type")
+        raise NotImplementedError("Derived class did not specify its filter type")
 
 
 class product(FilteredFunction):

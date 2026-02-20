@@ -1,6 +1,6 @@
 package bitkey.ui.framework
 
-import androidx.compose.material.Text
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import build.wallet.statemachine.core.BodyModel
@@ -15,6 +15,6 @@ data class NavigatingBodyModelFake(
 
   @Composable
   override fun render(modifier: Modifier) {
-    Text(this.toString())
+    BasicText(this.toString())
   }
 }

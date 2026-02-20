@@ -26,6 +26,7 @@ class AppContext {
         self.sharingManager = SharingManagerImpl()
         let datadogRumMonitor = DatadogRumMonitorImpl()
         let cloudFileStore = CloudFileStoreImpl(iCloudDriveFileStore: iCloudDriveFileStore())
+        let cloudKitQueryRunner = CloudKitQueryRunnerImpl()
         let datadogTracer = DatadogTracerImpl()
         let secp256k1KeyGenerator = Secp256k1KeyGeneratorImpl()
         let noiseInitiator = NoiseInitiatorImpl(
@@ -50,6 +51,7 @@ class AppContext {
             bdkTxBuilderFactory: BdkTxBuilderFactoryImpl(),
             bdkWalletFactory: BdkWalletFactoryImpl(),
             cloudFileStore: cloudFileStore,
+            cloudKitQueryRunner: cloudKitQueryRunner,
             cryptoBox: CryptoBoxImpl(),
             datadogRumMonitor: datadogRumMonitor,
             datadogTracer: datadogTracer,
@@ -88,6 +90,7 @@ class AppContext {
             xNonceGenerator: XNonceGeneratorImpl(),
             noiseInitiator: noiseInitiator,
             p256Box: P256BoxImpl(),
+            chaincodeExtractor: ChaincodeExtractorImpl(),
             chaincodeDelegationServerKeyGenerator: ChaincodeDelegationServerKeyGeneratorImpl(),
             publicKeyUtils: PublicKeyUtilsImpl(),
             ageRangeService: IosAgeRangeServiceImpl(window: window)

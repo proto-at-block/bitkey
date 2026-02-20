@@ -11,13 +11,12 @@ import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeLessThan
 import build.wallet.nfc.platform.HardwareInteraction
-import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
+import build.wallet.testing.ext.testForBdk1AndBdk2
 import build.wallet.testing.fakeTransact
 import build.wallet.testing.shouldBeOk
-import build.wallet.testing.tags.TestTag.FlakyTest
 import com.github.michaelbull.result.getOrThrow
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.toBigInteger
@@ -33,9 +32,7 @@ import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
 
 class AppSpendingWalletFunctionalTests : FunSpec({
-
-  test("wallet for active spending keyset").config(tags = setOf(FlakyTest)) {
-    val app = launchNewApp()
+  testForBdk1AndBdk2("wallet for active spending keyset", isFlakyTest = true) { app ->
     val account = app.onboardFullAccountWithFakeHardware()
     val wallet = app.getActiveWallet()
 
@@ -127,10 +124,7 @@ class AppSpendingWalletFunctionalTests : FunSpec({
             duration = 30.seconds
             interval = 1.seconds
             initialDelay = 1.seconds
-            listener = {
-                k,
-                throwable,
-              ->
+            listener = { k, throwable ->
               logTesting {
                 "Still waiting for transaction to propagate... $throwable of type ${throwable::class}"
               }

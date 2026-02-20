@@ -1,6 +1,10 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
 import bitkey.ui.framework.test
+import bitkey.ui.screens.securityhub.SecurityHubBodyModel
+import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
+import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
@@ -16,12 +20,23 @@ import build.wallet.f8e.relationships.endorseTrustedContacts
 import build.wallet.f8e.relationships.getRelationships
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.nfc.FakeHardwareKeyStore
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
+import build.wallet.statemachine.cloud.CloudSignInModelFake
+import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyScreens
+import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
+import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionBodyModel
+import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
+import build.wallet.statemachine.recovery.sweep.ZeroBalancePromptBodyModel
+import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
+import build.wallet.statemachine.ui.robots.awaitLoadingScreen
+import build.wallet.statemachine.ui.robots.clickBitkeyDevice
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -45,7 +60,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
-import org.junit.jupiter.api.fail
 import kotlin.time.Duration.Companion.seconds
 
 private const val PROTECTED_CUSTOMER_ALIAS = "alice"
@@ -240,7 +254,7 @@ class SocRecE2eFunctionalTests : FunSpec({
         .filterNotNull()
         .collect { backup ->
           if (backup.socRecDataAvailable) {
-            fail { "Trusted Contact with tampered certificate should not have been backed up" }
+            fail("Trusted Contact with tampered certificate should not have been backed up")
           }
         }
     }
@@ -590,6 +604,82 @@ class SocRecE2eFunctionalTests : FunSpec({
     verifyKeyCertificatesAreRefreshed(customerApp)
 
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
+  }
+
+  testWithTwoApps(
+    "lost hardware D&N re-verifies TC certs correctly after app kill during cloud backup",
+    app1Factory = { mode -> launchAppForModeWithoutWorkers(mode) },
+    app2Factory = { _, mode -> launchAppForModeWithoutWorkers(mode) }
+  ) { initialCustomerApp, tcApp ->
+    var customerApp = initialCustomerApp
+
+    // 1. Setup: Onboard customer with TC
+    customerApp.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
+    )
+    val invite = customerApp.createTcInvite("bob")
+    tcApp.onboardLiteAccountFromInvitation(
+      invite.inviteCode,
+      PROTECTED_CUSTOMER_ALIAS,
+      CloudStoreAccountFake.TrustedContactFake
+    )
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+
+    // 2. Wipe hardware and start Lost HW recovery, then kill app at cloud backup step
+    customerApp.fakeNfcCommands.wipeDevice()
+    customerApp.appUiStateMachine.test(
+      Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      // Navigate to device settings
+      awaitUntilBody<MoneyHomeBodyModel>().onSecurityHubTabClick()
+      awaitUntilBody<SecurityHubBodyModel>().clickBitkeyDevice()
+
+      // Initiate recovery
+      awaitUntilBody<DeviceSettingsFormBodyModel>().onReplaceDevice()
+      awaitUntilBody<HardwareReplacementInstructionsModel>().onContinue()
+      awaitUntilBody<NewDeviceReadyQuestionBodyModel>().clickPrimaryButton()
+      awaitUntilBody<PairNewHardwareBodyModel>(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
+        .clickPrimaryButton()
+      awaitUntilBody<PairNewHardwareBodyModel>(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
+        .clickPrimaryButton()
+      awaitUntilBody<PairNewHardwareBodyModel>(PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS)
+        .clickPrimaryButton()
+
+      // Complete D&N delay and wait for auth rotation
+      awaitUntilBody<DelayAndNotifyNewKeyReady>().onCompleteRecovery()
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+
+      // Stop at cloud backup instructions - state is DdkBackedUp, auth keys rotated
+      // TC cert regeneration has completed once, but state is not yet BackedUpToCloud
+      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    // 3. Kill and relaunch app - will resume from DdkBackedUp state
+    // On restart, TC cert regeneration runs again using persisted originalAppGlobalAuthKey
+    customerApp = customerApp.relaunchApp()
+
+    // 4. Complete recovery
+    customerApp.appUiStateMachine.test(
+      Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      // Should resume at cloud backup (TC certs re-verified using persisted originalAppGlobalAuthKey)
+      awaitUntilBody<SaveBackupInstructionsBodyModel>().onBackupClick()
+      awaitUntilBody<CloudSignInModelFake>()
+        .signInSuccess(CloudStoreAccountFake.ProtectedCustomerFake)
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+      awaitUntilBody<ZeroBalancePromptBodyModel>().onDone()
+      awaitUntilBody<MoneyHomeBodyModel>()
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    // 5. Verify TC certs are correctly refreshed with new keys
+    // This confirms the fix works: originalAppGlobalAuthKey was used for TC cert verification
+    verifyKeyCertificatesAreRefreshed(customerApp)
   }
 
   testWithTwoApps(

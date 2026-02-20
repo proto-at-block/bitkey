@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-klib-commonizer-embeddable",
     "components": [
         {
-            "version": "2.0.20",
+            "version": "2.2.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-klib-commonizer-embeddable-2.0.20.jar": "6731c2564b973971835825490140b7ad9eb726d938fe0cef4ebef2ec592deb03"
+                        "kotlin-klib-commonizer-embeddable-2.2.20.jar": "5de13b49bf1d44109915ea75b638966693695df40cd5b21e6e12aeeb67dc2924"
                     }
                 }
             ],

@@ -6,14 +6,18 @@
 
 void display_controller_privileged_action_on_enter(display_controller_t* controller,
                                                    const void* entry_data) {
-  (void)entry_data;
+  // Extract privileged action data from entry parameters
+  if (entry_data) {
+    const fwpb_display_params_privileged_action* entry =
+      (const fwpb_display_params_privileged_action*)entry_data;
+    memcpy(&controller->nav.privileged_action.params, entry,
+           sizeof(fwpb_display_params_privileged_action));
+  }
 
-  // Data already stored in nav union by scan flow before navigation
   // Copy to show_screen params for display
   memcpy(&controller->show_screen.params.privileged_action,
          &controller->nav.privileged_action.params, sizeof(fwpb_display_params_privileged_action));
 
-  // Set screen type
   controller->show_screen.which_params = fwpb_display_show_screen_privileged_action_tag;
 }
 
@@ -36,7 +40,7 @@ flow_action_result_t display_controller_privileged_action_on_event(display_contr
   (void)data;
   (void)len;
 
-  // All data comes via entry_data, no events needed
+  // All data provided via entry_data at flow entry
   return flow_result_handled();
 }
 

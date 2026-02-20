@@ -23,6 +23,7 @@ public_includes = include_directories('inc')
 deps = [
   assert_dep,
   auth_dep,
+  confirmation_dep,
   log_dep,
   protos_dep,
   uc_dep,

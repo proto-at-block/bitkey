@@ -2,7 +2,7 @@ mod types;
 
 use crate::types::FfiNetwork;
 use bitcoin::{
-    bip32::{ExtendedPrivKey, ExtendedPubKey, Fingerprint},
+    bip32::{Fingerprint, Xpriv as ExtendedPrivKey, Xpub as ExtendedPubKey},
     psbt::Psbt,
     secp256k1::ecdsa::Signature,
     Network,
@@ -35,6 +35,21 @@ use frost::{
 };
 use lightning_support::invoice::{Invoice, InvoiceError, Sha256};
 use miniscript::{descriptor::DescriptorSecretKey, DescriptorPublicKey};
+use std::str::FromStr;
 use wsm_integrity::{WsmContext, WsmIntegrityVerifier, WsmIntegrityVerifierError};
+
+pub fn extract_xpub_chaincode(xpub: &str) -> Result<Vec<u8>, XpubChaincodeError> {
+    let extended_pubkey =
+        ExtendedPubKey::from_str(xpub).map_err(|e| XpubChaincodeError::InvalidXpub {
+            reason: e.to_string(),
+        })?;
+    Ok(extended_pubkey.chain_code.to_bytes().to_vec())
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum XpubChaincodeError {
+    #[error("Invalid xpub: {reason}")]
+    InvalidXpub { reason: String },
+}
 
 uniffi::include_scaffolding!("core");

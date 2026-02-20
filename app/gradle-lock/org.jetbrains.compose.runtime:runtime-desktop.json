@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.runtime:runtime-desktop",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-desktop-1.8.1.jar": "8f7a91e0b05f92130856309c4e69bcc1095434b57f02f2e5d3e31134432262b6"
+                        "runtime-desktop-1.9.1.jar": "05f5570c0a7ea8addd6fe9507a70f293efa7f1450d8b9b16dc3c8fee21cc6127"
                     }
                 }
             ],

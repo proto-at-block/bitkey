@@ -8,7 +8,6 @@ import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.UtxoConsolidation
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
-import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
 import build.wallet.bitcoin.wallet.SpendingWalletMock
@@ -18,14 +17,15 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.ktor.result.HttpError
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateServiceFake
+import build.wallet.nfc.NfcException
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.send.*
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachineMock
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
@@ -64,7 +64,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
           )
       ) {},
     exchangeRateService = ExchangeRateServiceFake(),
-    nfcSessionUIStateMachine = NfcConfirmableSessionUiStateMachineMock("nfc"),
+    signTransactionNfcSessionUiStateMachine = SignTransactionNfcSessionUiStateMachineMock("sign-txn-nfc"),
     transferInitiatedUiStateMachine = object : TransferInitiatedUiStateMachine,
       BodyStateMachineMock<TransferInitiatedUiProps>(
         "transfer-initiated"
@@ -98,8 +98,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
         onConfirmClick()
       }
 
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>("nfc") {
-        shouldShowLongRunningOperation.shouldBeTrue()
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
         onSuccess(PsbtMock)
       }
 
@@ -127,7 +126,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
         onConfirmClick()
       }
 
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>("nfc") {
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
         onSuccess(PsbtMock)
       }
 
@@ -150,7 +149,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
 
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>("nfc") {
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
         onSuccess(PsbtMock)
       }
 
@@ -173,7 +172,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
 
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>("nfc") {
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
         onSuccess(PsbtMock)
       }
 
@@ -194,6 +193,126 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
       }
 
       bitcoinWalletService.broadcastedPsbts.value shouldBe listOf(PsbtMock, PsbtMock)
+    }
+  }
+
+  test("NFC signing error is handled internally by NFC state machine") {
+    stateMachine.test(props) {
+      awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
+
+      // The NFC state machine handles errors internally
+      // Verify that the onError callback returns false, indicating external handling is not requested
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
+        val errorHandled = onError(NfcException.CommandError("Failed to sign"))
+        errorHandled.shouldBe(false)
+
+        // The NFC state machine would handle the error internally and show its own error UI
+        // From the parent state machine's perspective, we remain in the SigningWithHardware state
+        // User can exit by tapping back
+        onBack()
+      }
+
+      // After backing out, we return to the confirmation screen
+      awaitBody<TransferConfirmationScreenModel> {
+        requiresHardware.shouldBeTrue()
+      }
+    }
+  }
+
+  test("NFC signing back navigation returns to confirmation screen") {
+    stateMachine.test(props) {
+      awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
+
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
+        psbt.shouldBe(PsbtMock)
+        onBack()
+      }
+
+      awaitBody<TransferConfirmationScreenModel> {
+        requiresHardware.shouldBeTrue()
+      }
+    }
+  }
+
+  test("W3 two-tap flow completes successfully for outgoing transaction") {
+    // The W3 two-tap flow is handled internally by SignTransactionNfcSessionUiStateMachine.
+    // From this state machine's perspective, it just receives onSuccess with the final signed PSBT.
+    stateMachine.test(props) {
+      awaitBody<TransferConfirmationScreenModel> {
+        onConfirmClick()
+      }
+
+      // SignTransactionNfcSessionUiStateMachine handles the W3 flow internally
+      // (two NFC taps with hardware confirmation in between) and calls onSuccess
+      // when the full flow is complete
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
+        psbt.shouldBe(PsbtMock)
+        onSuccess(PsbtMock)
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      bitcoinWalletService.broadcastedPsbts.test {
+        awaitUntil(listOf(PsbtMock))
+      }
+
+      awaitBodyMock<TransferInitiatedUiProps>("transfer-initiated") {
+        onDone()
+      }
+    }
+  }
+
+  test("W3 two-tap flow completes successfully for utxo consolidation") {
+    stateMachine.test(
+      props.copy(
+        speedUpTransactionDetails = props.speedUpTransactionDetails.copy(
+          transactionType = UtxoConsolidation
+        )
+      )
+    ) {
+      awaitBody<UtxoConsolidationSpeedUpConfirmationModel> {
+        onConfirmClick()
+      }
+
+      // SignTransactionNfcSessionUiStateMachine handles the W3 flow internally
+      // and calls onSuccess when complete
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
+        psbt.shouldBe(PsbtMock)
+        onSuccess(PsbtMock)
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      bitcoinWalletService.broadcastedPsbts.test {
+        awaitUntil(listOf(PsbtMock))
+      }
+
+      awaitBody<UtxoConsolidationSpeedUpTransactionSentModel> {
+        onDone()
+      }
+    }
+  }
+
+  test("W3 flow - NFC error during signing is handled internally") {
+    stateMachine.test(props) {
+      awaitBody<TransferConfirmationScreenModel> { onConfirmClick() }
+
+      // The W3 NFC signing flow handles errors internally
+      // Verify that the onError callback returns false, indicating external handling is not requested
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
+        val errorHandled = onError(NfcException.CanBeRetried.TagLost())
+        errorHandled.shouldBe(false)
+
+        // The NFC state machine would handle the error internally and show its own error UI
+        // From the parent state machine's perspective, we remain in the SigningWithHardware state
+        // User can exit by tapping back
+        onBack()
+      }
+
+      // After backing out, we return to the confirmation screen
+      awaitBody<TransferConfirmationScreenModel> {
+        requiresHardware.shouldBeTrue()
+      }
     }
   }
 })

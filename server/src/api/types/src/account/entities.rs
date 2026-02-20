@@ -153,6 +153,13 @@ impl Touchpoint {
             _ => None,
         }
     }
+
+    pub fn id(&self) -> Option<&TouchpointId> {
+        match self {
+            Touchpoint::Email { id, .. } | Touchpoint::Phone { id, .. } => Some(id),
+            Touchpoint::Push { .. } => None,
+        }
+    }
 }
 
 impl From<&Touchpoint> for NotificationChannel {
@@ -605,10 +612,10 @@ impl Account {
     }
 
     pub fn get_touchpoint_by_id(&self, touchpoint_id: TouchpointId) -> Option<&Touchpoint> {
-        self.get_common_fields().touchpoints.iter().find(|t| {
-            matches!(t, Touchpoint::Phone { id, .. } if *id == touchpoint_id)
-                || matches!(t, Touchpoint::Email { id, .. } if *id == touchpoint_id)
-        })
+        self.get_common_fields()
+            .touchpoints
+            .iter()
+            .find(|t| t.id() == Some(&touchpoint_id))
     }
 
     pub fn get_push_touchpoint(&self) -> Option<&Touchpoint> {

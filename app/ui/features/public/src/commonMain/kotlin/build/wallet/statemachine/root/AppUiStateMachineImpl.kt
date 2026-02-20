@@ -8,8 +8,6 @@ import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
-import build.wallet.availability.AgeRangeVerificationResult
-import build.wallet.availability.AgeRangeVerificationService
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
@@ -29,8 +27,6 @@ import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform
 import build.wallet.platform.links.AppStoreUrlProvider
 import build.wallet.platform.links.DeepLinkHandler
-import build.wallet.statemachine.account.ChooseAccountAccessUiProps
-import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
 import build.wallet.statemachine.account.create.full.CreateAccountUiProps
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
@@ -39,21 +35,16 @@ import build.wallet.statemachine.account.full.FullAccountUiProps
 import build.wallet.statemachine.account.full.FullAccountUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.data.keybox.*
-import build.wallet.statemachine.data.keybox.NoActiveAccountData.*
+import build.wallet.statemachine.data.keybox.AccountData
+import build.wallet.statemachine.data.keybox.AccountDataProps
+import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.home.full.HomeUiProps
 import build.wallet.statemachine.home.full.HomeUiStateMachine
 import build.wallet.statemachine.home.lite.LiteHomeUiProps
 import build.wallet.statemachine.home.lite.LiteHomeUiStateMachine
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiProps
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachine
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiStateMachine
-import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachine
-import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineProps
-import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
-import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
 import build.wallet.worker.AppWorkerExecutor
 import com.github.michaelbull.result.Ok
@@ -70,20 +61,16 @@ class AppUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val navigatorPresenter: NavigatorPresenter,
   private val eventTracker: EventTracker,
-  private val lostAppRecoveryUiStateMachine: LostAppRecoveryUiStateMachine,
   private val homeUiStateMachine: HomeUiStateMachine,
   private val liteHomeUiStateMachine: LiteHomeUiStateMachine,
   private val fullAccountUiStateMachine: FullAccountUiStateMachine,
-  private val chooseAccountAccessUiStateMachine: ChooseAccountAccessUiStateMachine,
   private val createAccountUiStateMachine: CreateAccountUiStateMachine,
   private val accountDataStateMachine: AccountDataStateMachine,
-  private val noActiveAccountDataStateMachine: NoActiveAccountDataStateMachine,
+  private val noActiveAccountUiStateMachine: NoActiveAccountUiStateMachine,
   private val loadAppService: LoadAppService,
-  private val accessCloudBackupUiStateMachine: AccessCloudBackupUiStateMachine,
   private val createLiteAccountUiStateMachine: CreateLiteAccountUiStateMachine,
   private val liteAccountCloudBackupRestorationUiStateMachine:
     LiteAccountCloudBackupRestorationUiStateMachine,
-  private val emergencyExitKitRecoveryUiStateMachine: EmergencyExitKitRecoveryUiStateMachine,
   private val appWorkerExecutor: AppWorkerExecutor,
   private val accountService: AccountService,
   private val datadogRumMonitor: DatadogRumMonitor,
@@ -93,7 +80,6 @@ class AppUiStateMachineImpl(
   private val appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
   private val appStoreUrlProvider: AppStoreUrlProvider,
   private val deepLinkHandler: DeepLinkHandler,
-  private val ageRangeVerificationService: AgeRangeVerificationService,
 ) : AppUiStateMachine {
   /**
    * The last screen model emitted, if any.
@@ -180,18 +166,14 @@ class AppUiStateMachineImpl(
           }
         )
       )
-      is State.NoActiveAccount -> noActiveAccountDataStateMachine.model(
-        props = NoActiveAccountDataProps(
+      is State.NoActiveAccount -> noActiveAccountUiStateMachine.model(
+        props = NoActiveAccountUiProps(
           goToLiteAccountCreation = {
             uiState = State.CreatingLiteAccount(
               inviteCode = null,
               startIntent = StartIntent.BeTrustedContact
             )
-          }
-        )
-      ).let {
-        NoActiveAccountDataScreenModel(
-          accountData = it,
+          },
           onSoftwareWalletCreated = { swAccount ->
             uiState = State.ViewingSoftwareAccount(
               account = swAccount,
@@ -214,7 +196,7 @@ class AppUiStateMachineImpl(
             )
           }
         )
-      }
+      )
       is State.ViewingFullAccount -> {
         var shouldShowWelcomeScreen by remember { mutableStateOf(state.isNewlyCreatedAccount) }
         if (shouldShowWelcomeScreen) {
@@ -461,79 +443,6 @@ class AppUiStateMachineImpl(
   }
 
   @Composable
-  private fun NoActiveAccountDataScreenModel(
-    accountData: NoActiveAccountData,
-    onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
-    onStartLiteAccountRecovery: (CloudBackup) -> Unit,
-    onStartLiteAccountCreation: (String?, StartIntent) -> Unit,
-    onCreateFullAccount: () -> Unit,
-    onViewFullAccount: (FullAccount) -> Unit,
-  ): ScreenModel {
-    // this mimics the legacy behavior of auto switching when going from NoActiveAccountData to
-    // AccountData. This should be removed once DSMs are removed and there is proper routing
-    val account = rememberActiveAccount()
-    if (account.get() is FullAccount) {
-      onViewFullAccount(account.get() as FullAccount)
-    }
-
-    return when (accountData) {
-      is CheckingRecovery -> AppLoadingScreenModel()
-
-      is GettingStartedData -> {
-        // Age range verification for App Store Accountability Act compliance (Texas SB2420).
-        // Checks platform age signals before allowing account creation.
-        val result by produceState<AgeRangeVerificationResult?>(initialValue = null) {
-          value = ageRangeVerificationService.verifyAgeRange()
-        }
-        when (result) {
-          null -> AppLoadingScreenModel()
-          AgeRangeVerificationResult.Denied ->
-            AgeRestrictedBodyModel(deviceInfoProvider.getDeviceInfo().devicePlatform)
-              .asRootScreen()
-          AgeRangeVerificationResult.Allowed ->
-            ChooseAccountAccessScreenModel(
-              chooseAccountAccessData = accountData,
-              onSoftwareWalletCreated = onSoftwareWalletCreated,
-              onCreateFullAccount = onCreateFullAccount
-            )
-        }
-      }
-
-      is RecoveringAccountData -> lostAppRecoveryUiStateMachine.model(
-        LostAppRecoveryUiProps(
-          recoveryData = accountData.lostAppRecoveryData
-        )
-      )
-
-      is RecoveringAccountWithEmergencyExitKit -> emergencyExitKitRecoveryUiStateMachine.model(
-        EmergencyExitKitRecoveryUiStateMachineProps(
-          onExit = accountData.onExit
-        )
-      )
-
-      is RecoveringFromOrphanedKeysData ->
-        RecoveringFromOrphanedKeysScreenModel(accountData)
-
-      is CheckingCloudBackupData -> accessCloudBackupUiStateMachine.model(
-        AccessCloudBackupUiProps(
-          startIntent = accountData.intent,
-          inviteCode = accountData.inviteCode,
-          onExit = accountData.onExit,
-          onStartCloudRecovery = accountData.onStartCloudRecovery,
-          onStartLiteAccountRecovery = onStartLiteAccountRecovery,
-          onStartLostAppRecovery = accountData.onStartLostAppRecovery,
-          onStartLiteAccountCreation = onStartLiteAccountCreation,
-          onImportEmergencyExitKit = accountData.onImportEmergencyExitKit,
-          showErrorOnBackupMissing = when (accountData.intent) {
-            StartIntent.RestoreBitkey -> true
-            StartIntent.BeTrustedContact, StartIntent.BeBeneficiary -> false
-          }
-        )
-      )
-    }
-  }
-
-  @Composable
   private fun AppLoadingScreenModel(): ScreenModel {
     // Determine which loading screen to show for overall app loading based on
     // what is currently on the screen. We only want the splash screen to show
@@ -564,63 +473,6 @@ class AppUiStateMachineImpl(
       bitkeyWordMarkAnimationDelay = 700.milliseconds,
       bitkeyWordMarkAnimationDuration = 500.milliseconds
     ).asScreen(presentationStyle = ScreenPresentationStyle.FullScreen)
-
-  @Composable
-  private fun ChooseAccountAccessScreenModel(
-    chooseAccountAccessData: GettingStartedData,
-    onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
-    onCreateFullAccount: () -> Unit,
-  ): ScreenModel =
-    chooseAccountAccessUiStateMachine.model(
-      props = ChooseAccountAccessUiProps(
-        chooseAccountAccessData = chooseAccountAccessData,
-        onSoftwareWalletCreated = onSoftwareWalletCreated,
-        onCreateFullAccount = onCreateFullAccount
-      )
-    )
-
-  @Composable
-  private fun RecoveringFromOrphanedKeysScreenModel(
-    data: RecoveringFromOrphanedKeysData,
-  ): ScreenModel {
-    return when (data.uiState) {
-      OrphanedKeyRecoveryUiState.ShowingPrompt -> ErrorFormBodyModel(
-        title = "Recover Your Wallet",
-        subline = "We found keys from a previous installation",
-        primaryButton = ButtonDataModel(text = "Recover My Wallet", onClick = data.onRecover),
-        secondaryButton = ButtonDataModel(text = "Start Fresh", onClick = data.onExit),
-        onBack = data.onExit,
-        eventTrackerScreenId = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_PROMPT
-      ).asRootScreen()
-
-      OrphanedKeyRecoveryUiState.Recovering -> LoadingSuccessBodyModel(
-        id = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_LOADING,
-        state = LoadingSuccessBodyModel.State.Loading,
-        message = "Recovering your wallet..."
-      ).asRootScreen()
-
-      OrphanedKeyRecoveryUiState.RestoringAccount -> LoadingSuccessBodyModel(
-        id = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_LOADING,
-        state = LoadingSuccessBodyModel.State.Loading,
-        message = "Restoring Account..."
-      ).asRootScreen()
-
-      OrphanedKeyRecoveryUiState.Success -> LoadingSuccessBodyModel(
-        id = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_SUCCESS,
-        state = LoadingSuccessBodyModel.State.Success,
-        message = "Wallet recovered!"
-      ).asRootScreen()
-
-      OrphanedKeyRecoveryUiState.Error -> ErrorFormBodyModel(
-        title = "Recovery Failed",
-        subline = "Unable to recover your wallet. Please try again or contact support.",
-        primaryButton = ButtonDataModel(text = "Try Again", onClick = data.onRetry),
-        secondaryButton = ButtonDataModel(text = "Cancel", onClick = data.onExit),
-        onBack = data.onExit,
-        eventTrackerScreenId = GeneralEventTrackerScreenId.EMERGENCY_RECOVERY_ORPHANED_KEYS_ERROR
-      ).asRootScreen()
-    }
-  }
 
   /**
    * Logs screen transitions as breadcrumbstate.

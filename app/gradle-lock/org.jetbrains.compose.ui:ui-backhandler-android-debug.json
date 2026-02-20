@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-backhandler-android-debug",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-backhandler-debug.aar": "3707d8b5c2c06d6c702a78a1822b08892637044e2cfe59f2cf81d7834ad0ee6a"
+                        "ui-backhandler-debug.aar": "dbbcd638c9ebb9e97f61f2bf130408e56c6ce5d001dc5f5e70845ce09357c929"
                     }
                 }
             ],

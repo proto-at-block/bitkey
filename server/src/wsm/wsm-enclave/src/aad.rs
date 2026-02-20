@@ -1,4 +1,4 @@
-use bdk::bitcoin::Network;
+use bdk_wallet::bitcoin::Network;
 use serde::Serialize;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
@@ -52,7 +52,7 @@ impl Aad {
 
 #[cfg(test)]
 mod tests {
-    use bdk::bitcoin::Network;
+    use bdk_wallet::bitcoin::Network;
 
     use super::Aad;
 

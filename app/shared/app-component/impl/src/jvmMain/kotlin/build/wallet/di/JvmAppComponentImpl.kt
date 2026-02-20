@@ -1,5 +1,6 @@
 package build.wallet.di
 
+import app.cash.turbine.Turbine
 import bitkey.recovery.fundslost.FundsLostRiskService
 import bitkey.recovery.fundslost.FundsLostRiskServiceFake
 import bitkey.recovery.fundslost.FundsLostRiskServiceImpl
@@ -8,9 +9,14 @@ import build.wallet.bdk.bindings.BdkBlockchainFactory
 import build.wallet.bdk.bindings.BdkBlockchainFactoryImpl
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.cloud.store.*
+import build.wallet.coroutines.flow.TickerFlowFactory
+import build.wallet.coroutines.flow.TickerFlowFactoryImpl
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.firmware.*
+import build.wallet.memfault.MemfaultClient
+import build.wallet.memfault.MemfaultClientImpl
+import build.wallet.memfault.MemfaultClientMock
 import build.wallet.money.exchange.ExchangeRateF8eClient
 import build.wallet.money.exchange.ExchangeRateF8eClientFake
 import build.wallet.money.exchange.ExchangeRateF8eClientImpl
@@ -43,6 +49,7 @@ import kotlin.time.Duration.Companion.seconds
     CoroutinesComponent::class,
     CloudKeyValueStoreImpl::class,
     ExchangeRateF8eClientImpl::class,
+    MemfaultClientImpl::class,
     RecoverySyncFrequencyComponent::class,
     UiDelaysComponent::class,
     FundsLostRiskServiceImpl::class
@@ -81,6 +88,9 @@ abstract class JvmAppComponentImpl(
   fun recoverySyncFrequency() = RecoverySyncFrequency(5.seconds)
 
   @Provides
+  fun tickerFlowFactory(): TickerFlowFactory = TickerFlowFactoryImpl()
+
+  @Provides
   @SingleIn(AppScope::class) // SharingManagerFake is stateful.
   fun provideSharingManagerFake(): SharingManagerFake = SharingManagerFake()
 
@@ -115,4 +125,16 @@ abstract class JvmAppComponentImpl(
   @Provides
   @SingleIn(AppScope::class)
   fun provideAtRiskServiceSyncWorker(): FundsLostRiskSyncWorker = FundsLostRiskServiceFake()
+
+  // Use mock Memfault client to avoid real HTTP calls and enable FWUP testing
+  @Provides
+  @SingleIn(AppScope::class)
+  fun provideMemfaultClientMock(): MemfaultClientMock =
+    MemfaultClientMock { name ->
+      // Create a no-op turbine for integration tests
+      Turbine(name = name)
+    }
+
+  @Provides
+  fun provideMemfaultClient(mock: MemfaultClientMock): MemfaultClient = mock
 }

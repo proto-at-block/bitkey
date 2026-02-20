@@ -5,11 +5,14 @@ import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.SpendingWalletDescriptor
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
+import build.wallet.bitcoin.wallet.SpendingWalletV2Provider
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingPrivateKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.Bdk2FeatureFlag
+import build.wallet.feature.isEnabled
 import com.github.michaelbull.result.getOrThrow
 
 /**
@@ -20,6 +23,8 @@ import com.github.michaelbull.result.getOrThrow
 @BitkeyInject(AppScope::class)
 class FakeHardwareSpendingWalletProvider(
   private val spendingWalletProvider: SpendingWalletProvider,
+  private val spendingWalletV2Provider: SpendingWalletV2Provider,
+  private val bdk2FeatureFlag: Bdk2FeatureFlag,
   private val descriptorBuilder: BitcoinMultiSigDescriptorBuilder,
   private val fakeHardwareKeyStore: FakeHardwareKeyStore,
 ) {
@@ -28,7 +33,12 @@ class FakeHardwareSpendingWalletProvider(
    * private key from fake hardware key store will be used to create wallet descriptor.
    */
   suspend fun get(spendingKeyset: SpendingKeyset): SpendingWallet {
-    return spendingWalletProvider.getWallet(walletDescriptor(spendingKeyset)).getOrThrow()
+    val descriptor = walletDescriptor(spendingKeyset)
+    return if (bdk2FeatureFlag.isEnabled()) {
+      spendingWalletV2Provider.getWallet(descriptor).getOrThrow()
+    } else {
+      spendingWalletProvider.getWallet(descriptor).getOrThrow()
+    }
   }
 
   private suspend fun walletDescriptor(keyset: SpendingKeyset): SpendingWalletDescriptor {

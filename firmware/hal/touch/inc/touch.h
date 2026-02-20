@@ -51,6 +51,7 @@ typedef struct {
   struct {
     mcu_gpio_config_t* interrupt; /**< Interrupt GPIO (Controller -> Host). */
     mcu_gpio_config_t* reset;     /**< Reset GPIO (Host -> Controller). */
+    bool reset_active_high;       /**< If true, reset is active-high (PDVT). */
     struct {
       mcu_gpio_config_t* pwr_1v8_en;  /**< 1v8 power rail. */
       mcu_gpio_config_t* pwr_avdd_en; /**< AVDD power rail. */
@@ -176,6 +177,36 @@ void touch_set_latest_event(const touch_event_t* event);
 void touch_get_latest_event(touch_event_t* event);
 
 /**
+ * @brief Pushes a touch event to the circular buffer.
+ *
+ * @details Stores the touch event in a circular buffer for later retrieval.
+ * If the buffer is full, the oldest event is overwritten to ensure the most
+ * recent touch data is always available. This function is thread-safe.
+ *
+ * @param[in] event  Pointer to touch event structure to store.
+ */
+void touch_push_event(const touch_event_t* event);
+
+/**
+ * @brief Pops the oldest touch event from the circular buffer.
+ *
+ * @details Retrieves and removes the oldest touch event from the buffer.
+ * Events are returned in FIFO order (oldest first). This function is
+ * thread-safe.
+ *
+ * @param[out] event  Pointer to touch event structure to fill.
+ * @return `true` if an event was retrieved, `false` if buffer was empty.
+ */
+bool touch_pop_event(touch_event_t* event);
+
+/**
+ * @brief Returns the number of events currently in the buffer.
+ *
+ * @return Number of buffered touch events.
+ */
+uint8_t touch_event_buffer_count(void);
+
+/**
  * @brief Puts the touch controller in low power state
  *
  * @details Getting out of monitor mode is either done by hardware reset, or,
@@ -209,4 +240,99 @@ bool touch_exit_monitor_mode(void);
  * @note This is safe to call frequently - it only does work when needed.
  */
 void touch_process_esd_check(void);
+
+/**
+ * @brief Perform touch controller firmware upgrade if needed.
+ *
+ * @details Checks the firmware version in the touch controller against the
+ * embedded firmware image. If the versions differ or the controller firmware
+ * is invalid, performs an upgrade.
+ *
+ * @note This function may take several seconds to complete.
+ * @note The touch controller will be reset after upgrade.
+ *
+ * @return `true` if upgrade succeeded or was not needed, `false` on failure.
+ */
+bool touch_fwup_upgrade(void);
+
+/**
+ * @brief Force touch controller firmware upgrade regardless of version.
+ *
+ * @details Performs a firmware upgrade regardless of the current version
+ * in the touch controller. Use this when you want to ensure the firmware
+ * is re-flashed.
+ *
+ * @note This function may take several seconds to complete.
+ * @note The touch controller will be reset after upgrade.
+ *
+ * @return `true` if upgrade succeeded, `false` on failure.
+ */
+bool touch_fwup_force_upgrade(void);
+
+/**
+ * @brief Get the current firmware version from the touch controller.
+ *
+ * @return Firmware version byte, or 0 on error.
+ */
+uint8_t touch_fwup_get_version(void);
+
+/**
+ * @brief Get the firmware version embedded in the firmware image.
+ *
+ * @return Embedded firmware version byte.
+ */
+uint8_t touch_fwup_get_embedded_version(void);
+
+/**
+ * @brief Request a firmware upgrade to be performed by the touch task.
+ *
+ * @details This function sets a flag that will be checked by the touch task.
+ * The actual upgrade is performed asynchronously in the touch task context,
+ * avoiding message timeout issues when called from other tasks.
+ *
+ * @param[in] force  If true, force upgrade regardless of version. If false,
+ *                   only upgrade if versions differ.
+ */
+void touch_fwup_request_upgrade(bool force);
+
+/**
+ * @brief Process any pending firmware upgrade request.
+ *
+ * @details This function should be called periodically from the touch task.
+ * If an upgrade was requested via touch_fwup_request_upgrade(), this function
+ * will perform the upgrade.
+ *
+ * @return true if an upgrade was performed (success or failure), false if
+ *         no upgrade was pending.
+ */
+bool touch_fwup_process_pending(void);
+
+/**
+ * @brief Perform a hardware reset of the touch controller.
+ *
+ * @details Toggles the reset GPIO line to force a hardware reset
+ * of the touch controller. Use this after firmware upgrade or
+ * when the controller is unresponsive.
+ *
+ * @return `true` if reset was performed, `false` if reset GPIO not configured.
+ */
+bool touch_hw_reset(void);
+
+/**
+ * @brief Set the firmware upgrade in progress flag.
+ *
+ * @details When set to true, certain operations like ESD check will be skipped
+ * to avoid interfering with the firmware upgrade process.
+ *
+ * @param[in] in_progress  True if firmware upgrade is in progress.
+ */
+void touch_set_fwup_in_progress(bool in_progress);
+
+/**
+ * @brief Get the firmware upgrade in progress flag.
+ *
+ * @return True if firmware upgrade is in progress.
+ */
+bool touch_get_fwup_in_progress(void);
+
 /** @} */

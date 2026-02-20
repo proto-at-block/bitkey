@@ -1,6 +1,10 @@
 package build.wallet.onboarding
 
 import bitkey.account.AccountConfigService
+import bitkey.account.HardwareType
+import build.wallet.account.AccountService
+import build.wallet.account.getActiveOrOnboardingAccountOrNull
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
@@ -12,6 +16,7 @@ import kotlinx.coroutines.flow.first
 @BitkeyInject(AppScope::class)
 class OnboardAccountServiceImpl(
   private val accountConfigService: AccountConfigService,
+  private val accountService: AccountService,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
   private val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao,
@@ -46,6 +51,17 @@ class OnboardAccountServiceImpl(
         return@coroutineBinding NotificationPreferences
       }
 
+      // Check if BuildHardwareDescriptor step is needed (only for W3 hardware)
+      val account = accountService.getActiveOrOnboardingAccountOrNull<FullAccount>().bind()
+      val isW3Hardware = account?.config?.hardwareType == HardwareType.W3
+      if (isW3Hardware) {
+        val buildHardwareDescriptorStepState =
+          onboardingKeyboxStepStateDao.stateForStep(OnboardingKeyboxStep.BuildHardwareDescriptor).first()
+        if (buildHardwareDescriptorStepState == OnboardingKeyboxStepState.Incomplete) {
+          return@coroutineBinding BuildHardwareDescriptor
+        }
+      }
+
       onboardingCompletionService.recordCompletion()
 
       // No more onboarding steps to complete
@@ -57,6 +73,7 @@ class OnboardAccountServiceImpl(
       is DescriptorBackup -> completeDescriptorBackupStep()
       is CloudBackup -> completeCloudBackupStep()
       is NotificationPreferences -> completeNotificationPreferencesStep()
+      is BuildHardwareDescriptor -> completeBuildHardwareDescriptorStep()
     }
   }
 
@@ -66,6 +83,7 @@ class OnboardAccountServiceImpl(
         is DescriptorBackup -> OnboardingKeyboxStep.DescriptorBackup
         is CloudBackup -> OnboardingKeyboxStep.CloudBackup
         is NotificationPreferences -> OnboardingKeyboxStep.NotificationPreferences
+        is BuildHardwareDescriptor -> OnboardingKeyboxStep.BuildHardwareDescriptor
       }
 
       onboardingKeyboxStepStateDao
@@ -114,5 +132,14 @@ class OnboardAccountServiceImpl(
         OnboardingKeyboxStepState.Complete
       )
       .logFailure { "Error completing notification preferences onboarding step." }
+  }
+
+  private suspend fun completeBuildHardwareDescriptorStep(): Result<Unit, Throwable> {
+    return onboardingKeyboxStepStateDao
+      .setStateForStep(
+        OnboardingKeyboxStep.BuildHardwareDescriptor,
+        OnboardingKeyboxStepState.Complete
+      )
+      .logFailure { "Error completing build hardware descriptor onboarding step." }
   }
 }

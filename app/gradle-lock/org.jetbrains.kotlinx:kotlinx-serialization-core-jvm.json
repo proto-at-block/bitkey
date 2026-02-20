@@ -15,16 +15,15 @@
             ]
         },
         {
-            "version": "1.7.3",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-serialization-core-jvm-1.7.3.jar": "f0adde45864144475385cf4aa7e0b7feb27f61fcf9472665ed98cc971b06b1eb"
+                        "kotlinx-serialization-core-jvm-1.8.1.jar": "3565b6d4d789bf70683c45566944287fc1d8dc75c23d98bd87d01059cc76f2b3"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "gradle-plugins[bdk-ffi]",
                 "gradle-plugins[bitkey]"
             ]
         }

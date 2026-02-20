@@ -53,4 +53,18 @@ void mfgtest_task_port_handle_touch_cmd(ipc_ref_t* message);
  */
 void mfgtest_task_port_handle_coproc_gpio_response(ipc_ref_t* message);
 
+/**
+ * @brief Handles a touch data collection command from the host.
+ *
+ * @param message IPC message containing the host message proto.
+ */
+void mfgtest_task_port_handle_touch_data_cmd(ipc_ref_t* message);
+
+/**
+ * @brief Handles a touch point IPC message from the UI task.
+ *
+ * @param message IPC message containing touch point data.
+ */
+void mfgtest_task_port_handle_touch_point(ipc_ref_t* message);
+
 /** @} */

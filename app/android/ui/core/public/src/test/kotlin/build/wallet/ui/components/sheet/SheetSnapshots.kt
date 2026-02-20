@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color.Companion.Red
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.ui.components.button.Button
@@ -48,9 +47,11 @@ private fun FakeSheetContent() {
 }
 
 @Composable
-private fun sheetState() =
-  SheetState(
-    initialValue = Expanded,
-    density = LocalDensity.current,
-    skipPartiallyExpanded = true
+private fun sheetState(): SheetState {
+  return SheetState(
+    skipPartiallyExpanded = true,
+    positionalThreshold = { 0.0f },
+    velocityThreshold = { 0.0f },
+    initialValue = Expanded
   )
+}

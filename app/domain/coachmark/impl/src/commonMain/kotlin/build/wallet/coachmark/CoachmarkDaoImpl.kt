@@ -18,7 +18,7 @@ class CoachmarkDaoImpl(
 ) : CoachmarkDao {
   override suspend fun insertCoachmark(
     id: CoachmarkIdentifier,
-    expiration: Instant,
+    expiration: Instant?,
   ): Result<Unit, DbError> =
     databaseProvider.database()
       .coachmarksQueries

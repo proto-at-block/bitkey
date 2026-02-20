@@ -2,19 +2,6 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-datetime-jvm",
     "components": [
         {
-            "version": "0.5.0",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlinx-datetime-jvm-0.5.0.jar": "bff0d35072d4fafb608052c0875597a0c3bc703ee795246250910f9caff85863"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
-            ]
-        },
-        {
             "version": "0.6.1",
             "variants": [
                 {
@@ -24,7 +11,8 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath"
+                "build-classpath",
+                "gradle-plugins[bitkey]"
             ]
         }
     ]

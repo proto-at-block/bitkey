@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::Result;
-use bdk::bitcoin::secp256k1::PublicKey;
+use bdk_wallet::bitcoin::secp256k1::PublicKey;
 use rustify::blocking::clients::reqwest::Client;
 
 use crate::requests::helper::EndpointExt;

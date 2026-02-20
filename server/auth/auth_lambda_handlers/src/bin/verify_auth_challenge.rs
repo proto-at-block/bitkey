@@ -1,6 +1,6 @@
 use lambda_runtime::{service_fn, Error, LambdaEvent};
 use secp256k1::ecdsa::Signature;
-use secp256k1::hashes::sha256;
+use secp256k1::hashes::{sha256, Hash};
 use secp256k1::{Message, PublicKey, Secp256k1};
 use serde_json::{json, Value};
 use std::str::FromStr;
@@ -79,7 +79,8 @@ async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
         .to_string();
 
     let secp = Secp256k1::new();
-    let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_bytes());
+    let digest = sha256::Hash::hash(challenge.as_bytes());
+    let message = Message::from_digest(digest.to_byte_array());
     let answer_correct = if let Ok(signature) = Signature::from_str(&challenge_answer) {
         if secp.verify_ecdsa(&message, &signature, &public_key).is_ok() {
             true

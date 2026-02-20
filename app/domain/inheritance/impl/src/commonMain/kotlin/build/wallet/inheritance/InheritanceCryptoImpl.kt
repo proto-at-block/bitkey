@@ -4,6 +4,7 @@ import bitkey.serialization.json.decodeFromStringResult
 import bitkey.serialization.json.encodeToStringResult
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
+import build.wallet.bitkey.inheritance.InheritanceContactHashData
 import build.wallet.bitkey.inheritance.InheritanceKeyset
 import build.wallet.bitkey.inheritance.InheritanceMaterial
 import build.wallet.bitkey.inheritance.InheritanceMaterialHashData
@@ -32,12 +33,19 @@ class InheritanceCryptoImpl(
   ): Result<InheritanceMaterialHashData, Error> {
     val contacts = relationships.getEndorsedInheritanceContacts()
       ?: return Err(Error("Inheritance Contacts unavailable."))
-    val sortedContacts = contacts.sortedBy { it.id.value }
+    val contactHashData = contacts.map { contact ->
+      InheritanceContactHashData(
+        id = contact.id,
+        identityKey = contact.identityKey
+      )
+    }.toSet()
     return coroutineBinding {
       InheritanceMaterialHashData(
         networkType = keybox.config.bitcoinNetworkType,
         spendingKey = keybox.activeAppKeyBundle.spendingKey,
-        contacts = sortedContacts
+        hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
+        f8eSpendingKeyset = keybox.activeSpendingKeyset.f8eSpendingKeyset,
+        contacts = contactHashData
       )
     }
   }

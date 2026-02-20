@@ -1,4 +1,5 @@
 use bitcoin::hashes::sha256;
+use bitcoin::hashes::Hash as _;
 use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::{
     Error as BitcoinError, Message, Secp256k1, SecretKey as BitcoinSecretKey,
@@ -44,7 +45,8 @@ impl SecretKey {
     pub fn sign_message(&self, message: Vec<u8>) -> Signature {
         // ECDSA signatures when messages are not hashed are considered insecure
         // https://www.rfc-editor.org/rfc/rfc6979#section-2.4
-        let message = Message::from_hashed_data::<sha256::Hash>(&message);
+        let digest = sha256::Hash::hash(&message).to_byte_array();
+        let message = Message::from_digest(digest);
 
         Secp256k1::signing_only().sign_ecdsa(&message, &self.inner())
     }
@@ -62,7 +64,7 @@ impl SecretKey {
 mod tests {
     use super::*;
     use bitcoin::{
-        bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint},
+        bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub as ExtendedPubKey},
         Network,
     };
     use miniscript::descriptor::{DescriptorXKey, Wildcard};
@@ -77,12 +79,13 @@ mod tests {
         let message = b"hello world";
         let signature = secret_key.sign_message(message.to_vec());
         let secp = Secp256k1::verification_only();
-        let hashed_message = Message::from_hashed_data::<sha256::Hash>(message);
+        let hashed_message = Message::from_digest(sha256::Hash::hash(message).to_byte_array());
         assert!(secp
             .verify_ecdsa(&hashed_message, &signature, &secret_key.as_public())
             .is_ok());
         let invalid_message = b"helloworld!";
-        let hashed_invalid_message = Message::from_hashed_data::<sha256::Hash>(invalid_message);
+        let hashed_invalid_message =
+            Message::from_digest(sha256::Hash::hash(invalid_message).to_byte_array());
         assert!(secp
             .verify_ecdsa(&hashed_invalid_message, &signature, &secret_key.as_public())
             .is_err());
@@ -106,7 +109,7 @@ mod tests {
         let secret_key = SecretKey::new(random_bytes.to_vec()).unwrap();
         let signature = secret_key.sign_message(message.clone());
         let secp = Secp256k1::verification_only();
-        let hashed_message = Message::from_hashed_data::<sha256::Hash>(&message);
+        let hashed_message = Message::from_digest(sha256::Hash::hash(&message).to_byte_array());
 
         assert!(secp
             .verify_ecdsa(&hashed_message, &signature, &secret_key.as_public())
@@ -127,7 +130,7 @@ mod tests {
         let public_key = secret_key.as_public();
 
         let xpub = ExtendedPubKey {
-            network: Network::Bitcoin,
+            network: Network::Bitcoin.into(),
             depth: 0,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),

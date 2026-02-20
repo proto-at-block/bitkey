@@ -5,10 +5,10 @@ use authn_authz::routes::{
     AuthRequestKey, AuthenticateWithHardwareRequest, AuthenticationRequest,
     ChallengeResponseParameters, GetTokensRequest,
 };
-use bdk_utils::bdk::bitcoin::hashes::sha256;
-use bdk_utils::bdk::bitcoin::secp256k1::{Message, Secp256k1};
+use bdk_utils::bdk::bitcoin::secp256k1::Secp256k1;
 use bdk_utils::bdk::bitcoin::Network;
 use bdk_utils::bdk::miniscript::DescriptorPublicKey;
+use bdk_utils::signature::message_to_digest;
 use http::StatusCode;
 use onboarding::routes::CreateAccountRequest;
 use rstest::rstest;
@@ -172,7 +172,7 @@ async fn auth_with_hw_test(
         let auth_resp = actual_response.body.unwrap();
         let challenge = auth_resp.challenge;
         let secp = Secp256k1::new();
-        let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_ref());
+        let message = message_to_digest(challenge.as_ref());
         let signature = secp.sign_ecdsa(&message, &keys.hw.secret_key);
         let request = GetTokensRequest {
             challenge: Some(ChallengeResponseParameters {
@@ -323,7 +323,7 @@ async fn auth_with_recovery_authkey_test(
         let auth_resp = response_body.unwrap();
         let challenge = auth_resp.challenge;
         let secp = Secp256k1::new();
-        let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_ref());
+        let message = message_to_digest(challenge.as_ref());
         let signature = secp.sign_ecdsa(&message, &recovery_privkey);
 
         let request = GetTokensRequest {

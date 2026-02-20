@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.Density
 import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
+import build.wallet.feature.FeatureFlagValue
 import build.wallet.platform.device.DeviceInfo
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.sensor.Accelerometer
@@ -25,6 +26,7 @@ import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.ui.components.screen.*
 import build.wallet.ui.compose.LocalHaptics
 import build.wallet.ui.model.UiModelContentScreen
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.ThemePreferenceService
 import build.wallet.ui.theme.WalletTheme
@@ -32,6 +34,7 @@ import build.wallet.ui.theme.systemTheme
 import cafe.adriel.voyager.core.stack.StackEvent.*
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.ScreenTransitionContent
+import kotlinx.coroutines.flow.StateFlow
 import cafe.adriel.voyager.core.screen.Screen as VoyagerScreen
 
 /**
@@ -44,6 +47,7 @@ fun App(
   accelerometer: Accelerometer?,
   themePreferenceService: ThemePreferenceService?,
   haptics: Haptics?,
+  designSystemUpdatesEnabled: StateFlow<FeatureFlagValue.BooleanFlag>? = null,
 ) {
   var previousPresentationStyle by remember {
     mutableStateOf(model.presentationStyle)
@@ -64,11 +68,16 @@ fun App(
   val theme by themePreferenceService?.theme()?.collectAsState(initial = currentSystemTheme)
     ?: remember { mutableStateOf(currentSystemTheme) }
 
+  // Collect the design system updates flag, defaulting to false
+  val isDesignSystemV2Enabled by designSystemUpdatesEnabled?.collectAsState()
+    ?: remember { mutableStateOf(FeatureFlagValue.BooleanFlag(false)) }
+
   CompositionLocalProvider(
     LocalDeviceInfo provides deviceInfo,
     LocalAccelerometer provides accelerometer,
     LocalTheme provides theme,
-    LocalHaptics provides haptics
+    LocalHaptics provides haptics,
+    LocalDesignSystemUpdatesEnabled provides isDesignSystemV2Enabled.value
   ) {
     WalletTheme {
       Box(modifier = Modifier.background(WalletTheme.colors.background)) {

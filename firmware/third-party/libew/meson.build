@@ -34,6 +34,10 @@ libew_dep = declare_dependency(
   link_with: libew_lib,
 )
 
+libew_headers_dep = declare_dependency(
+  include_directories: libew_includes,
+)
+
 # For libew_demo and libew_test, we need to include secp256k1 sources since they use secp256k1
 # directly.
 # Note: precompute_ecmult.c is excluded as it's a standalone tool with its own main() function

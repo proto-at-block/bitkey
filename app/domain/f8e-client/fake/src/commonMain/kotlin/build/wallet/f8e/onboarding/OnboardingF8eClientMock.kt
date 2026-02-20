@@ -14,6 +14,19 @@ class OnboardingF8eClientMock(
   val completeOnboardingCalls = turbine("completeOnboarding calls")
   var completeOnboardingResult: Result<Unit, NetworkingError> = Ok(Unit)
 
+  val completeOnboardingV2Calls = turbine("completeOnboardingV2 calls")
+  var completeOnboardingV2Result: Result<CompleteOnboardingResponseV2, NetworkingError> =
+    Ok(
+      CompleteOnboardingResponseV2(
+        appAuthPub = "",
+        hardwareAuthPub = "",
+        appSpendingPub = "",
+        hardwareSpendingPub = "",
+        serverSpendingPub = "",
+        signature = ""
+      )
+    )
+
   override suspend fun completeOnboarding(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
@@ -22,7 +35,26 @@ class OnboardingF8eClientMock(
     return completeOnboardingResult
   }
 
+  override suspend fun completeOnboardingV2(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+  ): Result<CompleteOnboardingResponseV2, NetworkingError> {
+    completeOnboardingV2Calls += Unit
+    return completeOnboardingV2Result
+  }
+
   fun reset() {
     completeOnboardingResult = Ok(Unit)
+    completeOnboardingV2Result =
+      Ok(
+        CompleteOnboardingResponseV2(
+          appAuthPub = "",
+          hardwareAuthPub = "",
+          appSpendingPub = "",
+          hardwareSpendingPub = "",
+          serverSpendingPub = "",
+          signature = ""
+        )
+      )
   }
 }

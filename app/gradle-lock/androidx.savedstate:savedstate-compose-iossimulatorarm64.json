@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.savedstate:savedstate-compose-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.3.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "savedstate-compose-iosSimulatorArm64Main-1.3.3.klib": "db8feb95575b678163ec4a1221cbd3b047e7c241a378771e3985a9124fd9b1f6"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "savedstate-compose-iossimulatorarm64-1.3.3-metadata.jar": "6c929dff974ae921031a3e2db8366f4908f54c4aa3a2002e707400a3ba95d0ac"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

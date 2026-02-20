@@ -7,21 +7,23 @@ use teltra::{TelemetryIdentifiers, Teltra, TeltraError};
 use wca::attestation::{Attestation, AttestationError};
 use wca::command_interface::{Command, State};
 use wca::commands::{
-    BioMatchStats, BtcNetwork, CancelFingerprintEnrollment, ConfirmedCommandResult,
+    BioMatchStats, BtcNetwork, CancelFingerprintEnrollment, ChunkData, ConfirmedCommandResult,
     CoredumpFragment, DeleteFingerprint, DescriptorPublicKey, DeviceIdentifiers, DeviceInfo,
     DeviceInfoMcu, EnrolledFingerprints, EnrollmentDiagnostics, EventFragment,
     FingerprintEnrollmentResult, FingerprintEnrollmentStatus, FingerprintResetFinalize,
     FingerprintResetRequest, FirmwareFeatureFlag, FirmwareFeatureFlagCfg, FirmwareMetadata,
     FirmwareSlot, FwupFinish, FwupFinishRspStatus, FwupMode, FwupStart, FwupStartResult,
-    FwupTransfer, GetAuthenticationKey, GetAuthenticationKeyV2, GetCert, GetConfirmationResult,
-    GetCoredumpCount, GetCoredumpFragment, GetDeviceIdentifiers, GetDeviceInfo,
-    GetEnrolledFingerprints, GetEvents, GetFingerprintEnrollmentStatus, GetFirmwareFeatureFlags,
-    GetFirmwareMetadata, GetInitialSpendingKey, GetNextSpendingKey, GetTelemetryIdentifiers,
-    GetUnlockMethod, LockDevice, McuInfo, McuName, McuRole, PartiallySignedTransaction,
-    ProvisionAppAuthKey, QueryAuthentication, SecureBootConfig, SetFingerprintLabel,
-    SetFirmwareFeatureFlags, SignChallenge, SignChallengeV2, SignTransaction,
+    FwupTransfer, GetAddress, GetAddressResult, GetAuthenticationKey, GetAuthenticationKeyV2,
+    GetCert, GetConfirmationResult, GetConfirmationResultChunk, GetCoredumpCount,
+    GetCoredumpFragment, GetDeviceIdentifiers, GetDeviceInfo, GetEnrolledFingerprints, GetEvents,
+    GetFingerprintEnrollmentStatus, GetFirmwareFeatureFlags, GetFirmwareMetadata,
+    GetInitialSpendingKey, GetNextSpendingKey, GetTelemetryIdentifiers, GetUnlockMethod,
+    LockDevice, McuInfo, McuName, McuRole, PartiallySignedTransaction, ProvisionAppAuthKey,
+    QueryAuthentication, SecureBootConfig, SetFingerprintLabel, SetFirmwareFeatureFlags,
+    SignActionProof, SignActionProofResult, SignChallenge, SignChallengeV2, SignStart,
+    SignStartResult, SignTransaction, SignTransfer, SignTransferResult,
     SignVerifyAttestationChallenge, Signature, StartFingerprintEnrollment, TemplateMatchStats,
-    UnlockInfo, Version, WipeState, WipeStateResult,
+    UnlockInfo, VerifyKeysAndBuildDescriptor, Version, WipeState, WipeStateResult,
 };
 use wca::errors::CommandError;
 use wca::fwpb::cert_get_cmd::CertType;
@@ -55,5 +57,10 @@ type UnlockInfoState = State<UnlockInfo>;
 type ConfirmedCommandResultState = State<ConfirmedCommandResult>;
 type FwupStartResultState = State<FwupStartResult>;
 type WipeStateResultState = State<WipeStateResult>;
+type SignActionProofResultState = State<SignActionProofResult>;
+type GetAddressResultState = State<GetAddressResult>;
+type SignStartResultState = State<SignStartResult>;
+type SignTransferResultState = State<SignTransferResult>;
+type ChunkDataState = State<ChunkData>;
 
 uniffi::include_scaffolding!("firmware");

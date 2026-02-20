@@ -73,13 +73,6 @@ static void service_ipc(void) {
 }
 
 NO_OPTIMIZE void ui_thread(void* UNUSED(args)) {
-#ifdef MFGTEST
-  const bool privileged = true;
-#else
-  const bool privileged = false;
-#endif
-  SECURE_ASSERT(rtos_thread_is_privileged() == privileged);
-
   sysevent_wait(SYSEVENT_POWER_READY, true);
 
   ui_priv.backend = ui_backend_get();

@@ -15,6 +15,8 @@ import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_OPEN
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.W3OnboardingFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.firmware.UnlockInfo
 import build.wallet.logging.*
 import build.wallet.nfc.transaction.PairingTransactionProvider
@@ -24,6 +26,7 @@ import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnroll
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintNotEnrolled
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.CompleteFingerprintEnrollmentViaNfcUiState
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingActivationInstructionsUiState
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingActivationInstructionsV2UiState
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingCompleteFingerprintEnrollmentInstructionsUiState
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingHelpCenter
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingStartFingerprintEnrollmentInstructionsUiState
@@ -46,15 +49,27 @@ class PairNewHardwareUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val helpCenterUiStateMachine: HelpCenterUiStateMachine,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
+  private val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
 ) : PairNewHardwareUiStateMachine {
   @Composable
   override fun model(props: PairNewHardwareProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
-    var state: State by remember { mutableStateOf(ShowingActivationInstructionsUiState()) }
+    var state: State by remember {
+      val isW3OnboardingEnabled = w3OnboardingFeatureFlag.isEnabled()
+      val initialState = if (isW3OnboardingEnabled) {
+        ShowingActivationInstructionsV2UiState()
+      } else {
+        ShowingActivationInstructionsUiState()
+      }
+      mutableStateOf(initialState)
+    }
 
     val pairNewHardwareBodyModelPresentationStyle = determinePresentationStyle(props.screenPresentationStyle)
 
     return when (val s = state) {
+      is ShowingActivationInstructionsV2UiState ->
+        handleActivationInstructionsV2(s, props, pairNewHardwareBodyModelPresentationStyle) { state = it }
+
       is ShowingActivationInstructionsUiState ->
         handleActivationInstructions(s, props, pairNewHardwareBodyModelPresentationStyle) { state = it }
 
@@ -87,6 +102,34 @@ class PairNewHardwareUiStateMachineImpl(
       ScreenPresentationStyle.Modal -> ScreenPresentationStyle.ModalFullScreen
       else -> ScreenPresentationStyle.RootFullScreen
     }
+  }
+
+  @Composable
+  private fun handleActivationInstructionsV2(
+    state: ShowingActivationInstructionsV2UiState,
+    props: PairNewHardwareProps,
+    presentationStyle: ScreenPresentationStyle,
+    updateState: (State) -> Unit,
+  ): ScreenModel {
+    return ScreenModel(
+      body = ActivationInstructionsV2BodyModel(
+        onContinue = when (props.request) {
+          is PairNewHardwareProps.Request.Ready -> {
+            { updateState(StartFingerprintEnrollmentViaNfcUiState(props.request)) }
+          }
+          else -> null
+        },
+        onNoScreenClick = {
+          // Escape hatch: user's device doesn't have a screen, go to legacy W1/W1A flow
+          updateState(ShowingActivationInstructionsUiState())
+        },
+        onBack = props.onExit,
+        isNavigatingBack = state.isNavigatingBack,
+        eventTrackerContext = props.eventTrackerContext
+      ),
+      presentationStyle = presentationStyle,
+      themePreference = ThemePreference.Manual(Theme.DARK)
+    )
   }
 
   @Composable
@@ -315,7 +358,14 @@ class PairNewHardwareUiStateMachineImpl(
 
   private sealed interface State {
     /**
-     * Showing instructions for how to activate the new hardware.
+     * W3 onboarding: Showing activation instructions V2 screen introducing hardware round trip concept.
+     */
+    data class ShowingActivationInstructionsV2UiState(
+      val isNavigatingBack: Boolean = false,
+    ) : State
+
+    /**
+     * Showing instructions for how to activate the new hardware (legacy W1/W1A flow).
      */
     data class ShowingActivationInstructionsUiState(
       val isNavigatingBack: Boolean = false,

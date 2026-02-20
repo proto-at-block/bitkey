@@ -16,6 +16,7 @@ import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.money.BitcoinMoney
+import build.wallet.nfc.platform.ChunkData
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
@@ -82,6 +83,7 @@ class NfcCommandsMock(
     patchSize: UInt?,
     fwupMode: FwupMode,
     mcuRole: McuRole,
+    version: String,
   ): HardwareInteraction<Boolean> = HardwareInteraction.Completed(true)
 
   override suspend fun fwupTransfer(
@@ -195,7 +197,7 @@ class NfcCommandsMock(
       id = "psbt-id",
       base64 = "some-base-64",
       fee = Fee(amount = BitcoinMoney.sats(10_000)),
-      baseSize = 10000,
+      vsize = 10000,
       numOfInputs = 1,
       amountSats = 10000UL
     ).also { signTransactionCalls.add(psbt) }
@@ -260,6 +262,28 @@ class NfcCommandsMock(
     session: NfcSession,
     handles: ConfirmationHandles,
   ): ConfirmationResult = ConfirmationResult.WipeDevice(success = true)
+
+  override suspend fun getConfirmationResultChunk(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+    chunkIndex: UInt,
+  ): ChunkData = ChunkData(chunk = emptyList(), isLast = true, remainingSize = 0u)
+
+  override suspend fun getAddress(
+    session: NfcSession,
+    addressIndex: UInt,
+  ): String = "bc1q_mock_$addressIndex"
+
+  override suspend fun verifyKeysAndBuildDescriptor(
+    session: NfcSession,
+    appSpendingKey: ByteString,
+    appSpendingKeyChaincode: ByteString,
+    networkMainnet: Boolean,
+    appAuthKey: ByteString,
+    serverSpendingKey: ByteString,
+    serverSpendingKeyChaincode: ByteString,
+    wsmSignature: ByteString,
+  ): Boolean = true
 
   fun setEnrollmentStatus(enrollmentStatus: FingerprintEnrollmentStatus) {
     this.enrollmentResult.status = enrollmentStatus

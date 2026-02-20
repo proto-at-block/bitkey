@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
 use crate::BdkUtilError;
-use bdk::bitcoin::secp256k1::SecretKey;
-use bdk::bitcoin::{
-    hashes::sha256,
+use bdk_wallet::bitcoin::hashes::Hash;
+use bdk_wallet::bitcoin::secp256k1::SecretKey;
+use bdk_wallet::bitcoin::{
+    hashes::sha256::Hash as Sha256Hash,
     secp256k1,
     secp256k1::{ecdsa, Message, PublicKey, Secp256k1},
 };
@@ -13,7 +14,7 @@ pub fn check_signature(
     signature: &str,
     public_key: PublicKey,
 ) -> Result<(), BdkUtilError> {
-    let msg = Message::from_hashed_data::<sha256::Hash>(message.as_bytes());
+    let msg = message_to_digest(message);
     let sig = ecdsa::Signature::from_str(signature)?;
     let secp = Secp256k1::new();
     let verification_result = secp.verify_ecdsa(&msg, &sig, &public_key);
@@ -28,6 +29,11 @@ pub fn sign_message(
     message: &str,
     secret_key: &SecretKey,
 ) -> String {
-    let message = Message::from_hashed_data::<sha256::Hash>(message.as_bytes());
+    let message = message_to_digest(message);
     secp.sign_ecdsa(&message, secret_key).to_string()
+}
+
+pub fn message_to_digest(message: &str) -> Message {
+    let hash = Sha256Hash::hash(message.as_bytes());
+    Message::from_digest(hash.to_byte_array())
 }

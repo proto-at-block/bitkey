@@ -160,7 +160,7 @@ impl From<RecoveryError> for ApiError {
                 _ => ApiError::GenericInternalApplicationError(err_msg),
             },
             RecoveryError::BdkUtil(err) => match err {
-                BdkUtilError::WalletSync(e) => {
+                BdkUtilError::ElectrumClientError(e) => {
                     event!(
                         Level::WARN,
                         "Error when trying to sync wallet to blockchain: {e}",

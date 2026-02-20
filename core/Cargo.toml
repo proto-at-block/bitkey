@@ -1,5 +1,12 @@
 [workspace]
-members = ["crypto", "enclave-tools", "picocert", "wsm-grant", "wsm-integrity"]
+members = [
+  "action-proof",
+  "crypto",
+  "enclave-tools",
+  "picocert",
+  "wsm-grant",
+  "wsm-integrity",
+]
 resolver = "2"
 
 [workspace.package]
@@ -8,8 +15,10 @@ publish = false
 version = "0.1.1"
 
 [workspace.dependencies]
-bitcoin = { version = "0.30.0", features = [
+bitcoin = { version = "=0.32.8", features = [
   "rand",
   "serde",
 ] } # bitcoin version pinned by bdk
+hkdf = "0.12.4"
+sha2 = "0.10.8"
 thiserror = "1.0.57"

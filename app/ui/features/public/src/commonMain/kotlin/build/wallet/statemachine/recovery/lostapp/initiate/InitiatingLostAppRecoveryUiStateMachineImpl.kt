@@ -26,8 +26,8 @@ import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.RetreatStyle.Back
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.*
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.InitiatingLostAppRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.InitiatingLostAppRecoveryData.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
@@ -35,6 +35,8 @@ import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationRationale
 import build.wallet.statemachine.recovery.RecoverySegment
+import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiProps
+import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiStateMachine
 import build.wallet.statemachine.recovery.inprogress.RecoverYourAppKeyBodyModel
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiStateMachineImpl.UiState.InitiatingViaNfcState
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiStateMachineImpl.UiState.ShowingInstructionsState
@@ -59,6 +61,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
   private val enableNotificationsUiStateMachine: EnableNotificationsUiStateMachine,
   private val recoveryNotificationVerificationUiStateMachine:
     RecoveryNotificationVerificationUiStateMachine,
+  private val fullAccountCloudBackupRestorationUiStateMachine:
+    FullAccountCloudBackupRestorationUiStateMachine,
   private val accountConfigService: AccountConfigService,
   private val ssekDao: SsekDao,
   private val descriptorBackupService: DescriptorBackupService,
@@ -67,6 +71,16 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
   override fun model(props: InitiatingLostAppRecoveryUiProps): ScreenModel {
     var uiState: UiState by remember { mutableStateOf(ShowingInstructionsState) }
     return when (val recoveryData = props.initiatingLostAppRecoveryData) {
+      is AttemptingCloudRecoveryLostAppRecoveryDataData ->
+        fullAccountCloudBackupRestorationUiStateMachine.model(
+          props = FullAccountCloudBackupRestorationUiProps(
+            backups = recoveryData.cloudBackups,
+            onExit = recoveryData.rollback,
+            onRecoverAppKey = recoveryData.onRecoverAppKey,
+            goToLiteAccountCreation = recoveryData.goToLiteAccountCreation
+          )
+        )
+
       is AwaitingHwKeysData -> {
         when (uiState) {
           ShowingInstructionsState ->

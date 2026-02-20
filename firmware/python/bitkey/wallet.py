@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
+from collections import namedtuple
 from typing import Any, Optional
 
 import semver
@@ -269,12 +270,13 @@ class Wallet:
         cmd.mfgtest_runin_get_data_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
-    def mfgtest_tap_test_start(self, nfc_test: int, timeout: int, delay: int) -> Any:
+    def mfgtest_tap_test_start(self, nfc_test: int, timeout: int, delay: int, continuous: bool = False) -> Any:
         """Starts an NFC loopback test.
 
         :param nfc_test: the NFC test to perform.
         :param timeout: timeout (ms) to perform the test for.
         :param delay: delay (ms) before starting the test.
+        :param continuous: if True, keep NFC active and restart polling after each card detection.
         :returns: the response proto.
         """
         cmd = self._build_cmd()
@@ -283,6 +285,7 @@ class Wallet:
         msg.test = nfc_test
         msg.delay_ms = delay
         msg.timeout_ms = timeout
+        msg.continuous = continuous
         cmd.mfgtest_nfc_loopback_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
@@ -317,7 +320,7 @@ class Wallet:
         """
         cmd = self._build_cmd()
         msg = wallet_pb.meta_cmd()
-        if mcu:
+        if mcu is not None:
             msg.mcu_role = self.chip_name_to_role(self.product, mcu)
         cmd.meta_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
@@ -357,7 +360,7 @@ class Wallet:
         msg.action = action
         msg.port = port
         msg.pin = pin
-        if mcu:
+        if mcu is not None:
             msg.mcu_role = self.chip_name_to_role(self.product, mcu)
         cmd.mfgtest_gpio_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
@@ -476,18 +479,74 @@ class Wallet:
             return rsp.mfgtest_charger_rsp
         return None
 
-    def coredump(self, offset=0, operation='COREDUMP'):
+    def ship_state(self, shutdown_after: bool = True, timeout_ms: int = 5000) -> bool:
+        """Prepares device for packout by disabling LDO to conserve battery.
+
+        This command disables the touch controller LDO to save battery during
+        warehouse storage. Should only be called at packout.
+
+        :param shutdown_after: If True, triggers device shutdown after disabling LDO
+        :param timeout_ms: Shutdown timeout in milliseconds (default 5000)
+        :returns: True if command succeeded, False otherwise
+        """
+        cmd = self._build_cmd()
+        cmd.ship_state_cmd.shutdown_after = shutdown_after
+        cmd.ship_state_cmd.shutdown_timeout_ms = timeout_ms
+
+        rsp = self.comms.transceive(cmd)
+        return rsp.ship_state_rsp.rsp_status == wallet_pb.ship_state_rsp.SUCCESS
+
+    def coredump(
+        self,
+        offset: int = 0,
+        operation: str = 'COREDUMP',
+        mcu: Optional[str] = None
+    ) -> wallet_pb.wallet_rsp:
+        """Requests a coredump fragment or count from the target MCU.
+
+        The supported ``operation``s are ``'COREDUMP'`` to get a coredump
+        fragment, using the specified ``offset`` or ``'COUNT'`` to get the
+        total number of coredumps in flash. ``offset`` can be omitted for
+        the latter.
+
+        The caller is responsible for checking the status of the returned proto
+        to determine if the operation was successful.
+
+        .. code-block:: python
+
+            rsp = wallet.coredump(operation='COUNT').coredump_get_rsp
+            if rsp.rsp_status == rsp.coredump_get_rsp_status.SUCCESS:
+                print(f"There are {rsp.coredump_count} coredumps in flash.")
+
+        :param offset: optional offset to fetch the coredump fragment from.
+        :param operation: coredump operation to perform ``'COUNT'`` or ``'COREDUMP'``.
+        :param mcu: optional target MCU name (defaults to `EFR32` if not specified).
+        :returns: wallet response proto.
+        """
         cmd = self._build_cmd()
         msg = wallet_pb.coredump_get_cmd()
         msg.offset = offset
         msg.type = wallet_pb.coredump_get_cmd.coredump_get_type.Value(
             operation)
+        if mcu is not None:
+            msg.mcu_role = self.chip_name_to_role(self.product, mcu)
         cmd.coredump_get_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
-    def events(self):
+    def events(self, mcu: Optional[str] = None) -> wallet_pb.wallet_rsp:
+        """Requests events from the target MCU.
+
+        .. code-block:: python
+
+            rsp = wallet.events().events_get_rsp
+
+        :param mcu: optional target MCU name (defaults to `EFR32` if not specified).
+        :returns: wallet response proto.
+        """
         cmd = self._build_cmd()
         msg = wallet_pb.events_get_cmd()
+        if mcu is not None:
+            msg.mcu_role = self.chip_name_to_role(self.product, mcu)
         cmd.events_get_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
@@ -564,8 +623,8 @@ class Wallet:
         v = self.device_info().device_info_rsp.version
         return semver.Version(v.major, v.minor, v.patch)
 
-    def active_slot(self):
-        return self.metadata().meta_rsp.active_slot
+    def active_slot(self, mcu: Optional[str] = None):
+        return self.metadata(mcu).meta_rsp.active_slot
 
     def derive(self, network: int, path: list):
         cmd = self._build_cmd()
@@ -575,6 +634,21 @@ class Wallet:
         p.child.extend(path)
         msg.derivation_path.CopyFrom(p)
         cmd.derive_key_descriptor_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    def get_address(self, address_index: int):
+        """Get a Bitcoin address at the specified index.
+
+        Derives and displays a P2WSH 2-of-3 multisig address on the W3 hardware screen
+        using the stored descriptor from verify_keys_and_build_descriptor.
+
+        Requires verify_keys_and_build_descriptor to be called first during onboarding.
+
+        :param address_index: The address index for derivation (0, 1, 2, etc.)
+        :returns: Response containing the derived address string
+        """
+        cmd = self._build_cmd()
+        cmd.get_address_cmd.address_index = address_index
         return self.comms.transceive(cmd)
 
     def derive_and_sign(self, digest: bytes, path: list, async_sign: bool):
@@ -689,12 +763,82 @@ class Wallet:
         cmd.fingerprint_reset_finalize_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
+    def mfgtest_touch_data(self, action: str, buffer_mode: str = 'CIRCULAR'):
+        """Send a touch data collection command.
+
+        :param action: One of 'START', 'FETCH', or 'STOP'
+        :param buffer_mode: For START: 'CIRCULAR' or 'STOP_WHEN_FULL'
+        :returns: wallet response proto
+        """
+        cmd = self._build_cmd()
+        msg = mfgtest_pb.mfgtest_touch_data_cmd()
+
+        msg.cmd_id = mfgtest_pb.mfgtest_touch_data_cmd.mfgtest_touch_data_cmd_id.Value(action.upper())
+
+        if action.upper() == 'START':
+            msg.buffer_mode = mfgtest_pb.mfgtest_touch_data_cmd.mfgtest_touch_data_buffer_mode.Value(buffer_mode.upper())
+
+        cmd.mfgtest_touch_data_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    # Result type for mfgtest_touch_data_fetch_all
+    TouchDataResult = namedtuple('TouchDataResult', ['points', 'dropped_count', 'buffer_full', 'error'])
+
+    def mfgtest_touch_data_fetch_all(self):
+        """Fetch all buffered touch points (handles multiple NFC calls internally).
+
+        :returns: TouchDataResult namedtuple with:
+            - points: list of (x, y, timestamp_ms) tuples
+            - dropped_count: number of points dropped due to buffer overflow
+            - buffer_full: True if buffer reached capacity
+            - error: error string if failed, None on success
+        """
+        points = []
+        dropped_count = 0
+        buffer_full = False
+
+        while True:
+            response = self.mfgtest_touch_data('FETCH')
+            rsp = response.mfgtest_touch_data_rsp
+
+            if rsp.rsp_status == mfgtest_pb.mfgtest_touch_data_rsp.NOT_STARTED:
+                return self.TouchDataResult(points=[], dropped_count=0, buffer_full=False, error='NOT_ENABLED')
+
+            if rsp.rsp_status != mfgtest_pb.mfgtest_touch_data_rsp.SUCCESS:
+                status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(rsp.rsp_status)
+                return self.TouchDataResult(points=points, dropped_count=dropped_count, buffer_full=buffer_full, error=status_name)
+
+            for point in rsp.points:
+                points.append((point.x, point.y, point.timestamp_ms))
+
+            dropped_count = rsp.dropped_count
+            buffer_full = rsp.buffer_full
+
+            if rsp.points_remaining == 0:
+                break
+
+        return self.TouchDataResult(points=points, dropped_count=dropped_count, buffer_full=buffer_full, error=None)
+
     def provision_app_auth_pubkey(self, pubkey):
         cmd = self._build_cmd()
         msg = wallet_pb.provision_app_auth_pubkey_cmd()
         msg.pubkey = pubkey
         cmd.provision_app_auth_pubkey_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
+
+    def get_confirmation_result(self, response_handle: bytes, confirmation_handle: bytes):
+        """Retrieve the result of a pending confirmation (W3 two-tap flow).
+
+        :param response_handle: 32-byte response handle from CONFIRMATION_PENDING response.
+        :param confirmation_handle: 32-byte confirmation handle from CONFIRMATION_PENDING response.
+        :returns: wallet response proto containing the confirmed operation result.
+        """
+        cmd = self._build_cmd()
+        msg = wallet_pb.get_confirmation_result_cmd()
+        msg.response_handle = response_handle
+        msg.confirmation_handle = confirmation_handle
+        cmd.get_confirmation_result_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd, timeout=2)
 
 
 __all__ = ["Wallet"]

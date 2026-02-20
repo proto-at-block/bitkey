@@ -4,12 +4,15 @@ import bitkey.account.AccountConfigService
 import bitkey.f8e.account.UpdateDescriptorBackupsF8eClient
 import bitkey.f8e.privilegedactions.ConfigureDelayDurationF8eClient
 import bitkey.metrics.MetricTrackerService
+import bitkey.notifications.NotificationsPreferencesCachedProvider
 import bitkey.onboarding.CreateLiteAccountService
 import bitkey.privilegedactions.FingerprintResetService
 import bitkey.recovery.DescriptorBackupService
 import bitkey.recovery.RecoveryStatusService
 import bitkey.recovery.fundslost.FundsLostRiskService
+import bitkey.securitycenter.SecurityActionsService
 import build.wallet.account.AccountService
+import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.auth.AuthTokensService
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.availability.AppFunctionalityService
@@ -49,12 +52,17 @@ import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.flags.AgeRangeVerificationFeatureFlag
+import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
 import build.wallet.feature.flags.PrivateWalletMigrationBalanceThresholdFeatureFlag
 import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
 import build.wallet.feature.flags.SharedCloudBackupsFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.feature.flags.UtxoMaxConsolidationCountFeatureFlag
+import build.wallet.feature.flags.W3OnboardingFeatureFlag
+import build.wallet.firmware.FirmwareDeviceInfoDao
+import build.wallet.fwup.FirmwareDataService
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.keybox.KeyboxDao
@@ -64,6 +72,7 @@ import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.limit.MobilePayService
 import build.wallet.logging.LoggerInitializer
+import build.wallet.memfault.MemfaultClientMock
 import build.wallet.nfc.BitkeyW1CommandsFake
 import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.nfc.transaction.PairingTransactionProvider
@@ -97,6 +106,7 @@ import kotlinx.coroutines.CoroutineScope
 interface JvmAppComponent {
   val accountDataStateMachine: AccountDataStateMachine
   val accountService: AccountService
+  val appInstallationDao: AppInstallationDao
   val jsonSerializer: JsonSerializer
   val accountConfigService: AccountConfigService
   val appCoroutineScope: CoroutineScope
@@ -194,8 +204,16 @@ interface JvmAppComponent {
   val privateWalletMigrationDao: PrivateWalletMigrationDao
   val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag
   val ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag
+  val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag
+  val bdk2FeatureFlag: Bdk2FeatureFlag
   val sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag
+  val usSmsFeatureFlag: UsSmsFeatureFlag
   val jvmInternetConnectionChecker: InternetConnectionCheckerImpl
   val networkReachabilityProvider: NetworkReachabilityProvider
   val appFunctionalityService: AppFunctionalityService
+  val firmwareDataService: FirmwareDataService
+  val firmwareDeviceInfoDao: FirmwareDeviceInfoDao
+  val memfaultClientMock: MemfaultClientMock
+  val notificationsPreferencesCachedProvider: NotificationsPreferencesCachedProvider
+  val securityActionsService: SecurityActionsService
 }

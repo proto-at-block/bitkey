@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-sam-with-receiver-compiler-plugin-embeddable",
     "components": [
         {
-            "version": "2.0.20",
+            "version": "2.2.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-sam-with-receiver-compiler-plugin-embeddable-2.0.20.jar": "f9508e3d278699833776904a0e5bb8de1f698d82d0c5859a8d8d92936e846159"
+                        "kotlin-sam-with-receiver-compiler-plugin-embeddable-2.2.20.jar": "591373b04b43b689b41e0bc862a96c944c7e0c31d23081f46a8a1ee3c6ba11d7"
                     }
                 }
             ],

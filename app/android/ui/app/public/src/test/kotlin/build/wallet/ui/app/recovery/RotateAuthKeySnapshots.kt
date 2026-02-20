@@ -141,7 +141,8 @@ class RotateAuthKeySnapshots : FunSpec({
           id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED,
           context = AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION,
           onRetry = {},
-          onContactSupport = {}
+          onContactSupport = {},
+          onClose = {}
         )
       )
     }
@@ -154,7 +155,8 @@ class RotateAuthKeySnapshots : FunSpec({
           id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED,
           context = AuthKeyRotationEventTrackerScreenIdContext.SETTINGS,
           onRetry = {},
-          onContactSupport = {}
+          onContactSupport = {},
+          onClose = {}
         )
       )
     }
@@ -167,7 +169,8 @@ class RotateAuthKeySnapshots : FunSpec({
           id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED,
           context = AuthKeyRotationEventTrackerScreenIdContext.FAILED_ATTEMPT,
           onRetry = {},
-          onContactSupport = {}
+          onContactSupport = {},
+          onClose = {}
         )
       )
     }
@@ -180,7 +183,8 @@ class RotateAuthKeySnapshots : FunSpec({
           id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCOUNT_LOCKED,
           context = AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION,
           onRetry = {},
-          onContactSupport = {}
+          onContactSupport = {},
+          onClose = {}
         )
       )
     }
@@ -193,7 +197,8 @@ class RotateAuthKeySnapshots : FunSpec({
           id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCOUNT_LOCKED,
           context = AuthKeyRotationEventTrackerScreenIdContext.SETTINGS,
           onRetry = {},
-          onContactSupport = {}
+          onContactSupport = {},
+          onClose = {}
         )
       )
     }
@@ -206,7 +211,8 @@ class RotateAuthKeySnapshots : FunSpec({
           id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCOUNT_LOCKED,
           context = AuthKeyRotationEventTrackerScreenIdContext.FAILED_ATTEMPT,
           onRetry = {},
-          onContactSupport = {}
+          onContactSupport = {},
+          onClose = {}
         )
       )
     }

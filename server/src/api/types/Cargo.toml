@@ -26,9 +26,11 @@ urn = { workspace = true }
 utoipa = { workspace = true }
 
 # path dependencies
+action-proof = { workspace = true }
 bdk_utils = { workspace = true }
 errors = { workspace = true }
 external_identifier = { workspace = true }
+wsm-rust-client = { workspace = true }
 
 [features]
 account = ["currencies", "notification"]

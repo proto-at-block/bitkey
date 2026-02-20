@@ -3,6 +3,7 @@ package build.wallet.platform.data
 import build.wallet.catchingResult
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
 import build.wallet.platform.data.File.join
@@ -15,6 +16,7 @@ import okio.SYSTEM
 import java.io.File
 import java.util.zip.ZipFile
 
+@Impl
 @BitkeyInject(AppScope::class)
 class FileManagerImpl(
   private val fileDirectoryProvider: FileDirectoryProvider,

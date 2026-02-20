@@ -31,6 +31,6 @@ COPY --from=source . .
 RUN cargo --locked install --bin wsm-api --path src/wsm/wsm-api
 
 # Version managed by dependabot
-FROM alpine:3.21.0@sha256:21dc6063fd678b478f57c0e13f47560d0ea4eeba26dfc947b2a4f81f686b9f45 AS deployable
+FROM alpine:3.21.6@sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709 AS deployable
 COPY --from=builder /usr/local/cargo/bin/wsm-api .
 CMD ["./wsm-api"]

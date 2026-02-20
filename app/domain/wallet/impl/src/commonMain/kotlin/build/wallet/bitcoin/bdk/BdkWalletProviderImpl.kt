@@ -8,6 +8,7 @@ import build.wallet.bitcoin.descriptor.BitcoinDescriptor
 import build.wallet.bitcoin.wallet.WalletDescriptor
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.platform.data.File.join
 import build.wallet.platform.data.FileDirectoryProvider
@@ -40,6 +41,7 @@ class BdkWalletProviderImpl(
   /**
    * Using suspending lock to ensure that we maintain a single [BdkWallet] instance
    * per descriptor set. This is to avoid BDK race conditions: https://github.com/bitcoindevkit/bdk/issues/915.
+   * Not applicable to modern BDK (V2Wallet) which maintains an internal lock
    */
   private val bdkLock = Mutex(locked = false)
   private val wallets = mutableMapOf<String, BdkWallet>()
@@ -78,7 +80,11 @@ class BdkWalletProviderImpl(
         walletsV2[key] = wallet
         Ok(wallet)
       },
-      onFailure = { Err(it) }
+      onFailure = { error ->
+        val errorName = error::class.simpleName ?: "UnknownError"
+        logError { "BDK2 wallet create failed (error=$errorName)" }
+        Err(error)
+      }
     )
   }
 

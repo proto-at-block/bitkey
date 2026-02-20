@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use anyhow::Result;
 use aws_sdk_dynamodb::types::AttributeValue;
-use bdk::bitcoin::hashes::sha256;
-use bdk::bitcoin::secp256k1::ecdsa::Signature;
-use bdk::bitcoin::secp256k1::{Message, PublicKey, Secp256k1};
+use bdk_wallet::bitcoin::hashes::{sha256, Hash as _};
+use bdk_wallet::bitcoin::secp256k1::ecdsa::Signature;
+use bdk_wallet::bitcoin::secp256k1::{Message, PublicKey, Secp256k1};
 
 pub fn check_keyproofs(
     account_table: String,
@@ -71,7 +71,10 @@ pub fn check_keyproofs(
 
 fn verify_signature(signature: &str, message: String, pubkey: String) -> bool {
     let secp = Secp256k1::verification_only();
-    let message = Message::from_hashed_data::<sha256::Hash>(message.as_bytes());
+    let digest = sha256::Hash::hash(message.as_bytes());
+    let digest_bytes = digest.to_byte_array();
+    let message =
+        Message::from_digest_slice(&digest_bytes).expect("digest slice length is 32 bytes");
     let Ok(signature) = Signature::from_str(signature) else {
         return false;
     };

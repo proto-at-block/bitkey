@@ -9,9 +9,8 @@ use super::{
     TransactionVerificationId,
 };
 use crate::account::spending::PrivateMultiSigSpendingKeyset;
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::bitcoin::Network;
-use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
 use bdk_utils::error::BdkUtilError;
 use bdk_utils::{
@@ -59,7 +58,7 @@ impl InitiateVerificationResult {
 
 pub enum TransactionVerificationWallet {
     Legacy {
-        wallet: Box<Wallet<AnyDatabase>>,
+        wallet: Box<Wallet>,
     },
     Private {
         wallet: ChaincodeDelegationCollaboratorWallet,
@@ -124,7 +123,7 @@ impl PrivateKeysetWalletProvider {
 }
 
 pub struct StaticWalletProvider {
-    pub wallet: Box<Wallet<AnyDatabase>>,
+    pub wallet: Box<Wallet>,
 }
 
 pub enum VerificationWalletProvider {
@@ -182,7 +181,7 @@ impl From<StaticWalletProvider> for VerificationWalletProvider {
 mod tests {
     use super::*;
     use crate::account::bitcoin::Network as AccountNetwork;
-    use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
+    use bdk_utils::bdk::bitcoin::psbt::Psbt;
     use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
     use std::str::FromStr;
 

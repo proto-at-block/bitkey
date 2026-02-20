@@ -34,7 +34,7 @@ use wsm_common::messages::api::{
     GetIntegritySigResponse, GrantRequest, GrantResponse, InitiateDistributedKeygenRequest,
     InitiateDistributedKeygenResponse, InitiateShareRefreshRequest, InitiateShareRefreshResponse,
     NoiseInitiateBundleRequest, NoiseInitiateBundleResponse, SignPsbtRequest, SignPsbtRequestV2,
-    SignedPsbt,
+    SignPublicKeysRequest, SignPublicKeysResponse, SignedPsbt,
 };
 use wsm_common::messages::enclave::{
     EnclaveContinueDistributedKeygenRequest, EnclaveContinueShareRefreshRequest,
@@ -95,6 +95,7 @@ impl From<RouteState> for Router {
             .route("/initiate-share-refresh", post(initiate_distributed_keygen))
             .route("/approve-grant", post(approve_grant))
             .route("/approve-psbt", post(approve_psbt))
+            .route("/sign-public-keys", post(sign_public_keys))
             .with_state(state)
     }
 }
@@ -701,6 +702,20 @@ async fn approve_psbt(
         .approve_psbt(request)
         .await
         .map_err(|e| ApiError::ServerError(format!("Failed to approve PSBT: {e}")))?;
+
+    Ok(Json(result))
+}
+
+#[instrument(err, skip(enclave_client))]
+async fn sign_public_keys(
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<SignPublicKeysRequest>,
+) -> Result<Json<SignPublicKeysResponse>, ApiError> {
+    tracing::info!("wsm-api sign_public_keys: {:?}", request);
+    let result = enclave_client
+        .sign_public_keys(request)
+        .await
+        .map_err(|e| ApiError::ServerError(format!("Failed to sign public keys: {e}")))?;
 
     Ok(Json(result))
 }

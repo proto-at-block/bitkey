@@ -6,7 +6,7 @@ use axum::http::request::Parts;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use jsonwebtoken::{DecodingKey, Validation};
 use secp256k1::ecdsa::Signature;
-use secp256k1::hashes::sha256;
+use secp256k1::hashes::{sha256, Hash};
 use secp256k1::{Message, PublicKey, Secp256k1};
 use types::account::identifiers::AccountId;
 use types::authn_authz::cognito::{CognitoUser, CognitoUsername};
@@ -82,7 +82,8 @@ where
 
 pub fn verify_signature(signature: &str, message: String, pubkey: String) -> bool {
     let secp = Secp256k1::verification_only();
-    let message = Message::from_hashed_data::<sha256::Hash>(message.as_bytes());
+    let digest = sha256::Hash::hash(message.as_bytes());
+    let message = Message::from_digest(digest.to_byte_array());
     let Ok(signature) = Signature::from_str(signature) else {
         return false;
     };
@@ -116,7 +117,7 @@ pub fn get_user_name_from_jwt(jwt: &str) -> Option<CognitoUsername> {
     }
 }
 
-fn get_jwt_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<String> {
+pub fn get_jwt_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<String> {
     headers
         .get(header::AUTHORIZATION)
         .cloned()
@@ -125,7 +126,7 @@ fn get_jwt_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<String> {
         .and_then(|value| value.strip_prefix("Bearer ").map(String::from))
 }
 
-async fn get_pubkeys_from_cognito(
+pub async fn get_pubkeys_from_cognito(
     user_pool_service: &UserPoolService,
     account_id: AccountId,
 ) -> Result<(Option<String>, Option<String>, Option<String>), StatusCode> {

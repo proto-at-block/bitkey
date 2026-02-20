@@ -6,8 +6,8 @@ import build.wallet.bitcoin.sync.ElectrumServerSettingProviderMock
 import build.wallet.bitcoin.sync.UserDefinedServerSettingMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.flags.Bdk2FeatureFlag
+import build.wallet.feature.flags.setBdk2Enabled
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -46,6 +46,7 @@ class BdkBlockchainProviderImplTests : FunSpec({
     electrumServerSettingProvider.reset()
     featureFlagDao.reset()
     bdk2FeatureFlag.reset()
+    bdk2FeatureFlag.initializeFromDao()
     bdkBlockchainFactory.reset(BdkResult.Ok(bdkBlockchain))
     legacyBdkBlockchainFactory.reset(BdkResult.Ok(legacyBdkBlockchain))
   }
@@ -112,7 +113,7 @@ class BdkBlockchainProviderImplTests : FunSpec({
 
   context("with BDK 2 feature flag enabled") {
     beforeTest {
-      bdk2FeatureFlag.setFlagValue(BooleanFlag(true))
+      bdk2FeatureFlag.setBdk2Enabled(true)
     }
 
     test("initialize new blockchain instance uses BDK 2 when there is no cache") {
@@ -160,16 +161,16 @@ class BdkBlockchainProviderImplTests : FunSpec({
     test("invalidates cache when feature flag changes from off to on") {
       provider.blockchain().shouldBe(BdkResult.Ok(legacyBdkBlockchain))
 
-      bdk2FeatureFlag.setFlagValue(BooleanFlag(true))
+      bdk2FeatureFlag.setBdk2Enabled(true)
 
       provider.blockchain().shouldBe(BdkResult.Ok(bdkBlockchain))
     }
 
     test("invalidates cache when feature flag changes from on to off") {
-      bdk2FeatureFlag.setFlagValue(BooleanFlag(true))
+      bdk2FeatureFlag.setBdk2Enabled(true)
       provider.blockchain().shouldBe(BdkResult.Ok(bdkBlockchain))
 
-      bdk2FeatureFlag.setFlagValue(BooleanFlag(false))
+      bdk2FeatureFlag.setBdk2Enabled(false)
 
       provider.blockchain().shouldBe(BdkResult.Ok(legacyBdkBlockchain))
     }
@@ -178,7 +179,7 @@ class BdkBlockchainProviderImplTests : FunSpec({
   context("legacyBlockchain for wallet sync") {
     test("returns legacy blockchain regardless of feature flag") {
       // Even with BDK 2 enabled, legacyBlockchain() should return legacy
-      bdk2FeatureFlag.setFlagValue(BooleanFlag(true))
+      bdk2FeatureFlag.setBdk2Enabled(true)
 
       provider.legacyBlockchain().shouldBe(BdkResult.Ok(legacyBdkBlockchain))
     }

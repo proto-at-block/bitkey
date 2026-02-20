@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-build-statistics",
     "components": [
         {
-            "version": "2.0.20",
+            "version": "2.2.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-build-statistics-2.0.20.jar": "73a7d71513755b317d2b1b6da766d6e6b7a25dc99dcefe4313325336422ece11"
+                        "kotlin-build-statistics-2.2.20.jar": "fb654a4f5bc56368759173129df49107ad09dc5b4172b01775afb3fa72579dd5"
                     }
                 }
             ],

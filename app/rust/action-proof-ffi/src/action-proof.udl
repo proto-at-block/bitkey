@@ -1,0 +1,89 @@
+namespace actionproof {
+  /// Computes token binding as SHA256("ActionProof tb v1" || JWT) hex-encoded.
+  /// Returns 64-character lowercase hex string.
+  string compute_token_binding(string jwt);
+
+  /// Validates a value against all security rules.
+  /// Throws ActionProofError on validation failure.
+  [Throws=ActionProofError]
+  void validate_value(string value);
+
+  /// Builds a canonical action payload.
+  /// Bindings are automatically sorted alphabetically by key.
+  /// Returns binary payload as Vec<u8>.
+  [Throws=ActionProofError]
+  sequence<u8> build_payload(
+    Action action,
+    Field field,
+    string? value,
+    string? current,
+    sequence<ContextBindingPair> bindings
+  );
+
+  /// Returns the string key for a context binding (e.g., TokenBinding -> "tb").
+  string context_binding_key(ContextBinding binding);
+};
+
+/// Action types for privileged operations.
+enum Action {
+  "Add",
+  "Remove",
+  "Set",
+  "Disable",
+  "Accept"
+};
+
+/// Fields that can be modified by actions.
+enum Field {
+  "SpendWithoutHardware",
+  "VerificationThreshold",
+  "RecoveryEmail",
+  "RecoveryPhone",
+  "RecoveryPushNotifications",
+  "RecoveryContacts",
+  "Beneficiaries",
+  "RecoveryContactsInvite",
+  "BeneficiariesInvite"
+};
+
+/// Context binding types for action proofs.
+enum ContextBinding {
+  "TokenBinding",
+  "EntityId",
+  "Nonce"
+};
+
+/// Key-value pair for context bindings.
+dictionary ContextBindingPair {
+  string key;
+  string value;
+};
+
+/// Unified error type for all action-proof operations.
+[Error]
+enum ActionProofError {
+  /// Value exceeds maximum length (128 bytes UTF-8).
+  "TooLong",
+  /// Value is empty when a value is required.
+  "Empty",
+  /// Value contains control characters (0x00-0x1E, 0x7F).
+  "ControlCharacter",
+  /// Value contains unit separator (0x1F) which is reserved.
+  "ContainsDelimiter",
+  /// Value contains dangerous Unicode (zero-width, directional, BOM).
+  "DangerousCharacter",
+  /// Value mixes Latin with confusable scripts (homoglyph risk).
+  "MixedScripts",
+  /// Binding key is empty.
+  "EmptyBindingKey",
+  /// Binding key contains reserved characters.
+  "InvalidBindingKey",
+  /// Binding value contains reserved characters.
+  "InvalidBindingValue",
+  /// Duplicate binding key provided.
+  "DuplicateBindingKey",
+  /// Action is not valid for the specified field.
+  "InvalidActionForField",
+  /// Bindings not sorted.
+  "BindingsNotSorted"
+};

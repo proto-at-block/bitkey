@@ -1,12 +1,9 @@
 use std::env;
 use std::str::FromStr;
 
-use bdk::bitcoincore_rpc::RpcApi;
-use bdk::blockchain::rpc::Auth;
-use bdk::blockchain::{Blockchain, ConfigurableBlockchain, RpcBlockchain, RpcConfig};
-use bdk::database::MemoryDatabase;
-use bdk::wallet::{wallet_name_from_descriptor, AddressIndex};
-use bdk::Wallet;
+use bdk_bitcoind_rpc::bitcoincore_rpc::{Auth, Client, RpcApi};
+use bdk_bitcoind_rpc::{Emitter, NO_EXPECTED_MEMPOOL_TXS};
+use bdk_wallet::{KeychainKind, Wallet};
 use bitcoin::bip32::DerivationPath;
 use bitcoin::{secp256k1, Address, Amount, Network};
 use miniscript::descriptor::{DescriptorXKey, Wildcard};
@@ -73,15 +70,14 @@ fn test_dkg_and_receive_funds() {
         ZkpPublicKey(aggregate_pubkey.public_key(zkp::SECP256K1)).into()
     );
 
-    let (wallet, rpc_config) =
+    let (mut wallet, rpc_client) =
         get_wallet(app_share_details.key_commitments.aggregate_public_key).unwrap();
-    let address = wallet.get_address(bdk::wallet::AddressIndex::New).unwrap();
+    let address = wallet.next_unused_address(KeychainKind::External);
     treasury_fund_address(&address);
 
-    let blockchain = RpcBlockchain::from_config(&rpc_config).unwrap();
-    wallet.sync(&blockchain, Default::default()).unwrap();
+    sync_wallet_mempool(&mut wallet, &rpc_client);
 
-    assert_eq!(wallet.get_balance().unwrap().untrusted_pending, 50_000);
+    assert_eq!(wallet.balance().untrusted_pending, Amount::from_sat(50_000));
 }
 
 #[test]
@@ -126,30 +122,20 @@ fn test_sign_psbt() {
         &[&Participant::App.into(), &Participant::Server.into()],
     );
 
-    let (wallet, rpc_config) =
+    let (mut wallet, rpc_client) =
         get_wallet(ZkpPublicKey(aggregate_pubkey.public_key(zkp::SECP256K1)).into()).unwrap();
-    treasury_fund_address(&wallet.get_address(bdk::wallet::AddressIndex::New).unwrap());
+    let funding_address = wallet.next_unused_address(KeychainKind::External);
+    treasury_fund_address(&funding_address);
+    sync_wallet_mempool(&mut wallet, &rpc_client);
 
-    let blockchain = RpcBlockchain::from_config(&rpc_config).unwrap();
-    wallet.sync(&blockchain, Default::default()).unwrap();
-
-    let (psbt, _) = {
+    let psbt = {
+        let recipient_spk = wallet
+            .peek_address(KeychainKind::External, 1337)
+            .address
+            .script_pubkey();
         let mut builder = wallet.build_tx();
-        builder.add_recipient(
-            wallet
-                .get_address(AddressIndex::Peek(1337))
-                .unwrap()
-                .script_pubkey(),
-            20_000,
-        );
-        match builder.finish() {
-            Ok(res) => res,
-            Err(bdk::Error::InsufficientFunds { .. }) => panic!(
-                "Insufficient funds, send more to {}",
-                wallet.get_address(AddressIndex::New).unwrap()
-            ),
-            Err(e) => panic!("{}", e),
-        }
+        builder.add_recipient(recipient_spk, Amount::from_sat(20_000));
+        builder.finish().unwrap()
     };
 
     let mut app_signer = Signer::new(App, psbt.clone(), app_share_details).unwrap();
@@ -174,25 +160,16 @@ fn test_sign_psbt() {
             println!("Error finalizing PSBT: {:?}", e);
         })
         .unwrap();
-    let signed_tx = psbt.extract_tx();
-    blockchain.broadcast(&signed_tx).unwrap();
+    let signed_tx = psbt.extract_tx().unwrap();
+    rpc_client.send_raw_transaction(&signed_tx).unwrap();
 
-    println!("Successfully broadcast {}", signed_tx.txid());
+    println!("Successfully broadcast {}", signed_tx.compute_txid());
 }
 
 fn treasury_fund_address(address: &Address) {
-    let treasury_rpc_config = RpcConfig {
-        url: env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
-        auth: Auth::UserPass {
-            username: env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
-            password: env::var("BITCOIND_RPC_PASSWORD").unwrap_or("test".to_string()),
-        },
-        network: Network::Regtest,
-        wallet_name: env::var("BITCOIND_RPC_WALLET_NAME").unwrap_or("testwallet".to_string()),
-        sync_params: None,
-    };
-    let treasury_blockchain = RpcBlockchain::from_config(&treasury_rpc_config).unwrap();
-    treasury_blockchain
+    let wallet_name = env::var("BITCOIND_RPC_WALLET_NAME").unwrap_or("testwallet".to_string());
+    let treasury_rpc_client = generate_rpc_client(Some(wallet_name));
+    treasury_rpc_client
         .send_to_address(
             address,
             Amount::from_sat(50_000),
@@ -206,45 +183,22 @@ fn treasury_fund_address(address: &Address) {
         .unwrap();
 }
 
-fn get_wallet(
-    aggregate_public_key: bitcoin::secp256k1::PublicKey,
-) -> anyhow::Result<(Wallet<MemoryDatabase>, RpcConfig)> {
+fn get_wallet(aggregate_public_key: secp256k1::PublicKey) -> anyhow::Result<(Wallet, Client)> {
     let external_descriptor = compute_wallet_descriptor(aggregate_public_key, false)?;
     let internal_descriptor = compute_wallet_descriptor(aggregate_public_key, true)?;
 
-    let wallet = Wallet::new(
-        external_descriptor.clone(),
-        Some(internal_descriptor.clone()),
-        bitcoin::Network::Regtest,
-        MemoryDatabase::default(),
-    )?;
+    let wallet = Wallet::create(external_descriptor.clone(), internal_descriptor.clone())
+        .network(Network::Regtest)
+        .create_wallet_no_persist()?;
 
-    let rpc_config = RpcConfig {
-        url: env::var("REGTEST_BITCOIND_SERVER_URI")
-            .unwrap_or("127.0.0.1:18443".to_string())
-            .to_string(),
-        auth: Auth::UserPass {
-            username: env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
-            password: env::var("BITCOIND_RPC_PASSWORD").unwrap_or("test".to_string()),
-        },
-        network: Network::Regtest,
-        wallet_name: wallet_name_from_descriptor(
-            external_descriptor,
-            Some(internal_descriptor),
-            bitcoin::Network::Regtest,
-            &secp256k1::Secp256k1::new(),
-        )?,
-        sync_params: None,
-    };
-
-    Ok((wallet, rpc_config))
+    Ok((wallet, generate_rpc_client(None)))
 }
 
 fn compute_wallet_descriptor(
-    aggregate_public_key: bitcoin::secp256k1::PublicKey,
+    aggregate_public_key: secp256k1::PublicKey,
     is_internal: bool,
 ) -> Result<Descriptor<DescriptorPublicKey>, miniscript::Error> {
-    let master_xpub = compute_frost_master_xpub(aggregate_public_key, bitcoin::Network::Regtest);
+    let master_xpub = compute_frost_master_xpub(aggregate_public_key, Network::Regtest);
     let secp = secp256k1::Secp256k1::new();
 
     let path = if is_internal {
@@ -266,4 +220,32 @@ fn compute_wallet_descriptor(
         }),
         None,
     )
+}
+
+fn sync_wallet_mempool(wallet: &mut Wallet, rpc_client: &Client) {
+    let wallet_tip = wallet.latest_checkpoint();
+    let mut emitter = Emitter::new(rpc_client, wallet_tip, 0, NO_EXPECTED_MEMPOOL_TXS);
+    let mempool_txs = emitter.mempool().unwrap().update;
+    wallet.apply_unconfirmed_txs(mempool_txs);
+}
+
+fn generate_rpc_client(wallet_name: Option<String>) -> Client {
+    let url = if let Some(wallet_name) = wallet_name {
+        format!(
+            "{}/wallet/{}",
+            env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
+            wallet_name
+        )
+    } else {
+        env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string())
+    };
+
+    Client::new(
+        &url,
+        Auth::UserPass(
+            env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
+            env::var("BITCOIND_RPC_PASSWORD").unwrap_or("test".to_string()),
+        ),
+    )
+    .expect("Failed to load bitcoind RPC client")
 }

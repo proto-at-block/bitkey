@@ -4,6 +4,7 @@ import bitkey.ui.framework.Navigator
 import build.wallet.fwup.FirmwareData
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
+import kotlinx.collections.immutable.ImmutableSet
 
 /**
  * State machine for the main debug menu list UI. The parent state machine ([DebugMenuStateMachine])
@@ -16,6 +17,8 @@ interface DebugMenuListStateMachine : StateMachine<DebugMenuListProps, BodyModel
  *  [DebugMenuStateMachine].
  * @property onClose callback that is called when the debug menu is closed.
  *  context and the config has been modified via config options.
+ * @property collapsedGroupHeaders set of group header names that are currently collapsed.
+ * @property onToggleGroupCollapse callback to toggle a group's collapsed state.
  */
 data class DebugMenuListProps(
   // TODO: merge DebugMenuScreenPresenter and DebugMenuListStateMachine together
@@ -24,4 +27,6 @@ data class DebugMenuListProps(
   val onSetState: (DebugMenuState) -> Unit,
   val onClose: () -> Unit,
   val onPasteboardCopy: (name: String) -> Unit,
+  val collapsedGroupHeaders: ImmutableSet<String>,
+  val onToggleGroupCollapse: (String) -> Unit,
 )

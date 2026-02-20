@@ -9,6 +9,7 @@ import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.feature.setFlagValue
 import build.wallet.integration.statemachine.create.restoreButton
+import build.wallet.nfc.FakeFirmwareDeviceInfo
 import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
@@ -80,6 +81,48 @@ class MultipleFullAccountCloudBackupsRestoreFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+  }
+
+  testForLegacyAndPrivateWallet(
+    "cloud restore updates AppInstallation with hardware serial number"
+  ) { originalApp ->
+    originalApp.sharedCloudBackupsFeatureFlag.setFlagValue(true)
+
+    originalApp.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake
+    )
+
+    val recoveringApp =
+      launchAppInSameMode(
+        templateApp = originalApp,
+        cloudStoreAccountRepository = originalApp.cloudStoreAccountRepository,
+        cloudKeyValueStore = originalApp.cloudKeyValueStore,
+        hardwareSeed = originalApp.fakeHardwareKeyStore.getSeed()
+      )
+    recoveringApp.sharedCloudBackupsFeatureFlag.setFlagValue(true)
+
+    recoveringApp.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 20.seconds
+    ) {
+      awaitUntilBody<ChooseAccountAccessModel>()
+        .clickMoreOptionsButton()
+      awaitUntilBody<FormBodyModel>()
+        .restoreButton.onClick.shouldNotBeNull().invoke()
+      awaitUntilBody<CloudSignInModelFake>()
+        .signInSuccess(CloudStoreAccount1Fake)
+
+      awaitUntilBody<CloudBackupFoundModel>()
+        .onRestore()
+      advanceThroughCloudRestoreUntilMoneyHome()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    // Verify hardware serial number was updated in AppInstallation to match the fake HW serial
+    val appInstallation = recoveringApp.appInstallationDao.getOrCreateAppInstallation().getOrThrow()
+    appInstallation.hardwareSerialNumber.shouldBe(FakeFirmwareDeviceInfo.serial)
   }
 
   testForLegacyAndPrivateWallet(

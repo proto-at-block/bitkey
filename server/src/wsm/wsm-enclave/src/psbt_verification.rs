@@ -1,12 +1,12 @@
 use anyhow::{bail, Context};
 
-use bdk::bitcoin::psbt::Input;
-use bdk::bitcoin::secp256k1::{All, Secp256k1};
+use bdk_wallet::bitcoin::psbt::Input;
+use bdk_wallet::bitcoin::secp256k1::{All, Secp256k1};
 
-use bdk::bitcoin::{Network, PublicKey};
-use bdk::descriptor::IntoWalletDescriptor;
-use bdk::keys::DescriptorPublicKey;
-use bdk::miniscript::descriptor::Descriptor;
+use bdk_wallet::bitcoin::{Network, PublicKey};
+use bdk_wallet::descriptor::IntoWalletDescriptor;
+use bdk_wallet::keys::DescriptorPublicKey;
+use bdk_wallet::miniscript::descriptor::{Descriptor, WshInner};
 
 pub(crate) fn verify_inputs_only_have_one_signature(inputs: &[Input]) -> anyhow::Result<()> {
     for input in inputs.iter() {
@@ -120,7 +120,7 @@ impl DefiniteWalletDescriptor {
     fn contains(self, public_key: &PublicKey) -> anyhow::Result<bool> {
         let descriptor_public_keys = match self.external {
             Descriptor::Wsh(public_key) => match public_key.into_inner() {
-                bdk::miniscript::descriptor::WshInner::SortedMulti(vec) => vec.pks,
+                WshInner::SortedMulti(vec) => vec.pks().to_vec(),
                 _ => bail!("We do not use Wsh Miniscript"),
             },
             _ => bail!("Attempted to parse descriptor with unsupported script type."),
@@ -128,7 +128,7 @@ impl DefiniteWalletDescriptor {
 
         let change_descriptor_public_keys = match self.change {
             Descriptor::Wsh(public_key) => match public_key.into_inner() {
-                bdk::miniscript::descriptor::WshInner::SortedMulti(vec) => vec.pks,
+                WshInner::SortedMulti(vec) => vec.pks().to_vec(),
                 _ => bail!("We do not use Wsh Miniscript"),
             },
             _ => bail!("Attempted to parse descriptor with unsupported script type."),
@@ -141,9 +141,12 @@ impl DefiniteWalletDescriptor {
 
 #[cfg(test)]
 mod tests {
-    use bdk::{
+    use bdk_wallet::{
         bitcoin::{
-            bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint},
+            bip32::{
+                ChildNumber, DerivationPath, Fingerprint, Xpriv as ExtendedPrivKey,
+                Xpub as ExtendedPubKey,
+            },
             ecdsa,
             key::Secp256k1,
             psbt::Input,
@@ -169,12 +172,10 @@ mod tests {
         let (sk_1, pk_1) = secp.generate_keypair(&mut rand::thread_rng());
         let (sk_2, pk_2) = secp.generate_keypair(&mut rand::thread_rng());
 
-        let sig1 = ecdsa::Signature::sighash_all(
-            secp.sign_ecdsa(&Message::from_slice(&[0; 32]).unwrap(), &sk_1),
-        );
-        let sig2 = ecdsa::Signature::sighash_all(
-            secp.sign_ecdsa(&Message::from_slice(&[0; 32]).unwrap(), &sk_2),
-        );
+        let sig1 =
+            ecdsa::Signature::sighash_all(secp.sign_ecdsa(&Message::from_digest([0; 32]), &sk_1));
+        let sig2 =
+            ecdsa::Signature::sighash_all(secp.sign_ecdsa(&Message::from_digest([0; 32]), &sk_2));
 
         let bdk_pk1 = BdkPublicKey {
             compressed: false,
@@ -331,9 +332,8 @@ mod tests {
 
         // Input signed with key not in either descriptor - nOK
         let (sk_1, pk_1) = secp.generate_keypair(&mut rand::thread_rng());
-        let sig1 = ecdsa::Signature::sighash_all(
-            secp.sign_ecdsa(&Message::from_slice(&[0; 32]).unwrap(), &sk_1),
-        );
+        let sig1 =
+            ecdsa::Signature::sighash_all(secp.sign_ecdsa(&Message::from_digest([0; 32]), &sk_1));
         let bdk_pk1 = BdkPublicKey {
             compressed: true,
             inner: pk_1,

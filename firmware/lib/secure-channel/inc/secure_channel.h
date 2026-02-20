@@ -2,6 +2,7 @@
 
 #include "aes.h"
 #include "key_management.h"
+#include "secutils.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -152,12 +153,15 @@ secure_channel_err_t secure_uart_channel_establish(uint8_t* pk_peer, uint32_t pk
  * @param[in] plaintext Input data to encrypt.
  * @param[out] ciphertext Output buffer for encrypted data. May be same as plaintext.
  * @param len Length of plaintext/ciphertext in bytes.
+ * @param[in] aad Additional data to be authenticated
+ * @param[in] aad_len Length of aad
  * @param[out] nonce Output buffer for the generated IV. Must be AES_GCM_IV_LENGTH bytes.
  * @param[out] mac Output buffer for the authentication tag. Must be AES_GCM_TAG_LENGTH bytes.
- * @return SECURE_CHANNEL_OK on success, or an error code on failure.
+ * @return SECURE_TRUE on success, SECURE_FALSE on failure.
  */
-secure_channel_err_t secure_uart_channel_encrypt(uint8_t* plaintext, uint8_t* ciphertext,
-                                                 uint32_t len, uint8_t* nonce, uint8_t* mac);
+secure_bool_t secure_uart_channel_encrypt(uint8_t const* plaintext, uint8_t* ciphertext,
+                                          uint32_t len, uint8_t const* aad, uint32_t aad_len,
+                                          uint8_t* nonce, uint8_t* mac);
 
 /**
  * @brief Decrypt ciphertext using AES-GCM with the session receive key.
@@ -168,12 +172,15 @@ secure_channel_err_t secure_uart_channel_encrypt(uint8_t* plaintext, uint8_t* ci
  * @param[in] ciphertext Input encrypted data.
  * @param[out] plaintext Output buffer for decrypted data. Must NOT be same as ciphertext.
  * @param len Length of ciphertext/plaintext in bytes.
+ * @param[in] aad Additional data to be authenticated
+ * @param[in] aad_len Length of aad
  * @param[in] nonce The IV used during encryption. Must be AES_GCM_IV_LENGTH bytes.
  * @param[in] mac The authentication tag to verify. Must be AES_GCM_TAG_LENGTH bytes.
- * @return SECURE_CHANNEL_OK on success, SECURE_CHANNEL_CIPHER_FAILED if authentication fails.
+ * @return SECURE_TRUE on success, SECURE_FALSE on failure.
  */
-secure_channel_err_t secure_uart_channel_decrypt(uint8_t* ciphertext, uint8_t* plaintext,
-                                                 uint32_t len, uint8_t* nonce, uint8_t* mac);
+secure_bool_t secure_uart_channel_decrypt(uint8_t const* ciphertext, uint8_t* plaintext,
+                                          uint32_t len, uint8_t const* aad, uint32_t aad_len,
+                                          uint8_t* nonce, uint8_t* mac);
 
 /**
  * @brief Verify the peer's key confirmation tag to complete the key exchange.
@@ -197,3 +204,27 @@ secure_channel_err_t secure_uart_channel_confirm_session(uint8_t* received_tag);
  * @return true if the session is confirmed, false otherwise.
  */
 bool secure_uart_channel_confirmed(void);
+
+/**
+ * @brief Get the next sequence number for sending encrypted messages.
+ *
+ * Atomically increments and returns a monotonically increasing sequence number
+ * used for replay protection. The sequence number is reset to 0 when a new
+ * session is confirmed via secure_uart_channel_confirm_session().
+ *
+ * @return The next sequence number to use for sending.
+ */
+uint32_t secure_uart_channel_get_send_seq_number(void);
+
+/**
+ * @brief Validate a received sequence number for replay protection.
+ *
+ * Checks whether the received sequence number is greater than any previously
+ * received sequence number. If valid, updates the internal state to track
+ * the new highest sequence number.
+ *
+ * @param new_seq The sequence number received in the incoming message.
+ * @return true if the sequence number is valid (greater than previous), false if
+ *         it is a potential replay (less than or equal to previous).
+ */
+bool secure_uart_channel_check_recv_seq_number(uint32_t new_seq);

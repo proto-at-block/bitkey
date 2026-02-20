@@ -1,0 +1,10 @@
+[package]
+edition = { workspace = true }
+name = "action-proof"
+publish = { workspace = true }
+version = { workspace = true }
+
+[dependencies]
+hex = "0.4"
+sha2 = { workspace = true }
+thiserror = { workspace = true }

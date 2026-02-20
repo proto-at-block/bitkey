@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from bitkey.elf_signer import ElfSigner
+from bitkey.partition_info import get_application_partition_size_from_config
 from bitkey.signer_utils import ElfSymbol
 
 # Test data directories
@@ -175,9 +176,8 @@ class TestElfSignerBase(unittest.TestCase):
         read_sig = self.signer._read_symbol_data("app_codesigning_signature")
         self.assertEqual(read_sig, test_signature)
 
-    def test_get_application_size(self):
-        """Test _get_application_size reads from partitions config."""
-        app_size = self.signer._get_application_size()
+    def test_get_application_partition_size(self):
+        app_size = get_application_partition_size_from_config(PARTITIONS_CONFIG)
 
         # Should return a positive integer
         self.assertIsInstance(app_size, int)
@@ -185,6 +185,9 @@ class TestElfSignerBase(unittest.TestCase):
 
         # Should be a multiple of 1024 (since config uses KB)
         self.assertEqual(app_size % 1024, 0)
+
+        # w3a-core should be 632KB
+        self.assertEqual(app_size, 632 * 1024)
 
     def test_constants(self):
         """Test that ElfSigner constants are defined correctly."""

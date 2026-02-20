@@ -7,7 +7,7 @@ import build.wallet.bitcoin.export.ExportTransactionRow.ExportTransactionType.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransactionId
-import build.wallet.bitcoin.wallet.WalletV2Provider
+import build.wallet.bitcoin.wallet.SpendingWalletV2Provider
 import build.wallet.bitcoin.wallet.WatchingWalletDescriptor
 import build.wallet.bitcoin.wallet.WatchingWalletProvider
 import build.wallet.bitkey.account.FullAccount
@@ -30,7 +30,7 @@ import okio.ByteString.Companion.encodeUtf8
 class ExportTransactionsServiceImpl(
   private val accountService: AccountService,
   private val watchingWalletProvider: WatchingWalletProvider,
-  private val walletV2Provider: WalletV2Provider,
+  private val spendingWalletV2Provider: SpendingWalletV2Provider,
   private val bdk2FeatureFlag: Bdk2FeatureFlag,
   private val bitcoinMultiSigDescriptorBuilder: BitcoinMultiSigDescriptorBuilder,
   private val exportTransactionsAsCsvSerializer: ExportTransactionsAsCsvSerializer,
@@ -76,7 +76,7 @@ class ExportTransactionsServiceImpl(
     coroutineBinding {
       descriptors.flatMap { descriptor ->
         val wallet = if (bdk2FeatureFlag.isEnabled()) {
-          walletV2Provider.getWallet(descriptor).bind()
+          spendingWalletV2Provider.getWallet(descriptor).bind()
         } else {
           watchingWalletProvider.getWallet(descriptor).bind()
         }

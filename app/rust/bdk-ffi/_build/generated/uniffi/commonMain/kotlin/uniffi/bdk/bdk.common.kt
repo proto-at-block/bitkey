@@ -2994,6 +2994,25 @@ public interface TxBuilderInterface {
     public fun `addData`(`data`: kotlin.ByteArray): TxBuilder
     
     /**
+     * Add a foreign UTXO to the internal list of UTXOs that must be spent.
+     *
+     * A foreign UTXO is a UTXO that does not belong to this wallet but can still be spent
+     * as part of the transaction. This is useful for spending UTXOs from a pending transaction
+     * that has been broadcast but not yet confirmed, where the wallet no longer tracks them
+     * as unspent.
+     *
+     * # Parameters
+     * - `outpoint`: The outpoint (txid:vout) of the UTXO to spend
+     * - `txout`: The transaction output data (value and script_pubkey) of the UTXO
+     * - `prev_tx`: The full previous transaction that created this UTXO (needed for PSBT signing)
+     * - `satisfaction_weight`: The weight of the input's satisfaction data (witness/scriptSig).
+     * For P2WPKH inputs, this is typically 108 weight units.
+     * - `sequence`: Optional nSequence value for RBF signaling. If None, defaults to 0xFFFFFFFF.
+     * For RBF-enabled transactions, use a value < 0xFFFFFFFE (e.g., 0xFFFFFFFD).
+     */
+    public fun `addForeignUtxo`(`outpoint`: OutPoint, `txout`: TxOut, `prevTx`: Transaction, `satisfactionWeight`: kotlin.ULong, `sequence`: kotlin.UInt?): TxBuilder
+    
+    /**
      * Fill-in the `PSBT_GLOBAL_XPUB` field with the extended keys contained in both the external and internal
      * descriptors.
      *
@@ -3162,7 +3181,8 @@ public interface TxBuilderInterface {
     public fun `onlySpendChange`(): TxBuilder
     
     /**
-     * The TxBuilder::policy_path is a complex API. See the Rust docs for complete       information: https://docs.rs/bdk_wallet/latest/bdk_wallet/struct.TxBuilder.html#method.policy_path
+     * The TxBuilder::policy_path is a complex API. See the Rust docs for complete information:
+     * https://docs.rs/bdk_wallet/latest/bdk_wallet/struct.TxBuilder.html#method.policy_path
      */
     public fun `policyPath`(`policyPath`: Map<kotlin.String, List<kotlin.ULong>>, `keychain`: KeychainKind): TxBuilder
     
@@ -3221,6 +3241,25 @@ public expect open class TxBuilder: Disposable, TxBuilderInterface {
      * Add data as an output using `OP_RETURN`.
      */
     public override fun `addData`(`data`: kotlin.ByteArray): TxBuilder
+    
+    /**
+     * Add a foreign UTXO to the internal list of UTXOs that must be spent.
+     *
+     * A foreign UTXO is a UTXO that does not belong to this wallet but can still be spent
+     * as part of the transaction. This is useful for spending UTXOs from a pending transaction
+     * that has been broadcast but not yet confirmed, where the wallet no longer tracks them
+     * as unspent.
+     *
+     * # Parameters
+     * - `outpoint`: The outpoint (txid:vout) of the UTXO to spend
+     * - `txout`: The transaction output data (value and script_pubkey) of the UTXO
+     * - `prev_tx`: The full previous transaction that created this UTXO (needed for PSBT signing)
+     * - `satisfaction_weight`: The weight of the input's satisfaction data (witness/scriptSig).
+     * For P2WPKH inputs, this is typically 108 weight units.
+     * - `sequence`: Optional nSequence value for RBF signaling. If None, defaults to 0xFFFFFFFF.
+     * For RBF-enabled transactions, use a value < 0xFFFFFFFE (e.g., 0xFFFFFFFD).
+     */
+    public override fun `addForeignUtxo`(`outpoint`: OutPoint, `txout`: TxOut, `prevTx`: Transaction, `satisfactionWeight`: kotlin.ULong, `sequence`: kotlin.UInt?): TxBuilder
     
     /**
      * Fill-in the `PSBT_GLOBAL_XPUB` field with the extended keys contained in both the external and internal
@@ -3391,7 +3430,8 @@ public expect open class TxBuilder: Disposable, TxBuilderInterface {
     public override fun `onlySpendChange`(): TxBuilder
     
     /**
-     * The TxBuilder::policy_path is a complex API. See the Rust docs for complete       information: https://docs.rs/bdk_wallet/latest/bdk_wallet/struct.TxBuilder.html#method.policy_path
+     * The TxBuilder::policy_path is a complex API. See the Rust docs for complete information:
+     * https://docs.rs/bdk_wallet/latest/bdk_wallet/struct.TxBuilder.html#method.policy_path
      */
     public override fun `policyPath`(`policyPath`: Map<kotlin.String, List<kotlin.ULong>>, `keychain`: KeychainKind): TxBuilder
     
@@ -6297,6 +6337,13 @@ public sealed class CreateTxException: kotlin.Exception() {
     ) : CreateTxException() {
         override val message: String
             get() = ""
+    }
+    
+    public class ForeignUtxo(
+        public val `errorMessage`: kotlin.String,
+    ) : CreateTxException() {
+        override val message: String
+            get() = "errorMessage=${ `errorMessage` }"
     }
     
 }

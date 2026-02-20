@@ -45,22 +45,18 @@ internal class LintDetektPlugin : Plugin<Project> {
         buildUponDefaultConfig = true
       }
 
-      // TODO(W-1784): generate serif report and add to GHA
-      // Tasks to be used for report merging below
-      // val reportMerge by tasks.registering(ReportMergeTask::class) {
-      //   output.set(rootProject.buildDir.resolve("reports/detekt/merged_report.sarif"))
-      // }
-
       // Configure plugins with additional rules
       if (project.pluginManager.hasPlugin("org.jetbrains.kotlin.multiplatform")) {
         kotlinExtension.sourceSets.apply {
           dependencies {
             detektPlugin(libs.pluginClasspath.detekt.compose)
+            detektPlugin("build.wallet:detekt-rules")
           }
         }
       } else {
         dependencies {
           detektPlugin(libs.pluginClasspath.detekt.compose)
+          detektPlugin("build.wallet:detekt-rules")
         }
       }
 
@@ -72,8 +68,7 @@ internal class LintDetektPlugin : Plugin<Project> {
           detektExcludes.any { excluded -> spec.file.absolutePath.contains(excluded) }
         }
 
-        // TODO(W-1784): generate serif report and add to GHA
-        // Configure reports
+        // TODO(W-1784): generate SARIF report and add to GHA
         reports {
           html.required.set(false)
           sarif.required.set(false)
@@ -81,13 +76,6 @@ internal class LintDetektPlugin : Plugin<Project> {
           txt.required.set(false)
           md.required.set(false)
         }
-
-        // TODO(W-1784): generate serif report and add to GHA
-        // Configure Sarif report merging
-        // finalizedBy(reportMerge)
-        // reportMerge.configure {
-        //   input.from(sarifReportFile)
-        // }
 
         // TODO(W-1786): prevents race condition detected by Gradle. Remove this hack after Wire
         //               plugin is updated.

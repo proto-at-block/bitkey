@@ -28,6 +28,8 @@ pub enum CommandError {
     SigningError,
     #[error("command was unsuccessful: not authenticated to hardware")]
     Unauthenticated,
+    #[error("command was unsuccessful: user denied the operation")]
+    UserDenied,
     #[error("command was unsuccessful: unimplemented error")]
     Unimplemented,
     #[error(transparent)]

@@ -1,8 +1,125 @@
 config_dir = '../../../config/'
-lvgl_dir = '../../lvgl/src'
+
+lvgl_build_root = meson.project_build_root() / 'third-party'
+lvgl_build_src = lvgl_build_root / 'lvgl'
+lvgl_source_root = meson.current_source_dir() / '../../lvgl'
+lvgl_dir = lvgl_build_src / 'src'
+lvgl_root = lvgl_build_src
+
+# Files modified by patches (used for dependency tracking)
+lvgl_patched_files = [
+  'src/indev/lv_indev.c',
+  'src/indev/lv_indev.h',
+  'src/draw/lv_draw_label.c',
+  'src/widgets/label/lv_label.c',
+]
+
+lvgl_patches = [
+  'indev-timestamp.patch',
+  'label-trailing-space-centering.patch',
+]
+
+lvgl_patch_files = []
+foreach patch_name : lvgl_patches
+  lvgl_patch_files += [meson.current_source_dir() / patch_name]
+endforeach
+
+lvgl_needs_recopy = false
+
+lvgl_src_exists = run_command('test', '-d', lvgl_build_src, check: false)
+if lvgl_src_exists.returncode() != 0
+  lvgl_needs_recopy = true
+  message('LVGL build directory missing')
+else
+  sentinel_file = lvgl_build_src / lvgl_patched_files[0]
+  foreach patch_file : lvgl_patch_files
+    patch_newer = run_command('test', patch_file, '-nt', sentinel_file, check: false)
+    if patch_newer.returncode() == 0
+      lvgl_needs_recopy = true
+      message('LVGL patch updated: @0@'.format(patch_file))
+      break
+    endif
+  endforeach
+
+  if not lvgl_needs_recopy
+    submodule_commit_stamp = lvgl_build_src / '.submodule_commit'
+    current_commit_result = run_command('git', '-C', lvgl_source_root, 'rev-parse', 'HEAD',
+                                        check: false, capture: true)
+
+    if current_commit_result.returncode() == 0
+      current_commit = current_commit_result.stdout().strip()
+      stored_commit = ''
+
+      stamp_exists = run_command('test', '-f', submodule_commit_stamp, check: false)
+      if stamp_exists.returncode() == 0
+        stored_commit_result = run_command('cat', submodule_commit_stamp, check: false, capture: true)
+        if stored_commit_result.returncode() == 0
+          stored_commit = stored_commit_result.stdout().strip()
+        endif
+      endif
+
+      if current_commit != stored_commit
+        lvgl_needs_recopy = true
+        if stored_commit == ''
+          message('LVGL submodule commit not tracked')
+        else
+          message('LVGL submodule changed: @0@ -> @1@'.format(
+            stored_commit.substring(0, 7),
+            current_commit.substring(0, 7)
+          ))
+        endif
+      endif
+    endif
+  endif
+endif
+
+if lvgl_needs_recopy
+  if lvgl_src_exists.returncode() == 0
+    run_command('rm', '-rf', lvgl_build_src, check: true, capture: false)
+  endif
+
+  copy_cmd = run_command('cp', '-r', lvgl_source_root, lvgl_build_src,
+                         check: true, capture: false)
+  message('Copied LVGL sources to build directory')
+
+  foreach patch_name : lvgl_patches
+    patch_file = meson.current_source_dir() / patch_name
+    patch_cmd = run_command('patch', '-p1', '-d', lvgl_build_src,
+                            '-i', patch_file, check: true, capture: false)
+    message('Applied LVGL patch to build copy: ' + patch_name)
+  endforeach
+
+  current_commit_result = run_command('git', '-C', lvgl_source_root, 'rev-parse', 'HEAD',
+                                      check: false, capture: true)
+  if current_commit_result.returncode() == 0
+    current_commit = current_commit_result.stdout().strip()
+    submodule_commit_stamp = lvgl_build_src / '.submodule_commit'
+    run_command('sh', '-c', 'echo "@0@" > "@1@"'.format(current_commit, submodule_commit_stamp),
+                check: true, capture: false)
+    message('Recorded submodule commit: @0@'.format(current_commit.substring(0, 7)))
+  endif
+else
+  message('LVGL sources already up-to-date (skipping copy and patch)')
+endif
+
+lvgl_patched_targets = []
+foreach patched_file : lvgl_patched_files
+  target_name = patched_file.underscorify()
+  source_file = lvgl_source_root / patched_file
+  build_file = lvgl_build_src / patched_file
+
+  patched_target = custom_target(target_name,
+    input: [source_file] + lvgl_patch_files,
+    output: target_name + '.stamp',
+    command: ['touch', '@OUTPUT@'],
+    build_by_default: true,
+  )
+
+  lvgl_patched_targets += [patched_target]
+endforeach
 
 # Base LVGL sources (common to all platforms)
-lvgl_base_srcs = files(
+lvgl_base_srcs = [
 
   # Core initialization
   lvgl_dir / 'lv_init.c',
@@ -43,6 +160,7 @@ lvgl_base_srcs = files(
   #lvgl_dir / 'draw/lv_draw_vector.c',
   lvgl_dir / 'draw/lv_draw.c',
   lvgl_dir / 'draw/lv_image_decoder.c',
+  lvgl_dir / 'draw/convert/lv_draw_buf_convert.c',
 
   # NemaGFX draw engine - not needed
   # lvgl_dir / 'draw/nema_gfx/lv_draw_nema_gfx_arc.c',
@@ -231,6 +349,9 @@ lvgl_base_srcs = files(
   # System tick
   lvgl_dir / 'tick/lv_tick.c',
 
+  # Observer/Subject pattern
+  lvgl_dir / 'others/observer/lv_observer.c',
+
   # Unused widgets
   # lvgl_dir / 'widgets/3dtexture/lv_3dtexture.c',
   # lvgl_dir / 'widgets/animimage/lv_animimage.c',
@@ -282,28 +403,32 @@ lvgl_base_srcs = files(
   # lvgl_dir / 'widgets/textarea/lv_textarea.c',
   # lvgl_dir / 'widgets/tileview/lv_tileview.c',
   # lvgl_dir / 'widgets/win/lv_win.c',
-)
+]
 
 # SDL driver sources (only for simulator)
-lvgl_sdl_srcs = files(
+lvgl_sdl_srcs = [
   lvgl_dir / 'drivers/sdl/lv_sdl_keyboard.c',
   lvgl_dir / 'drivers/sdl/lv_sdl_mouse.c',
   lvgl_dir / 'drivers/sdl/lv_sdl_mousewheel.c',
   lvgl_dir / 'drivers/sdl/lv_sdl_window.c',
-)
+]
 
-lvgl_incs = include_directories(
-  lvgl_dir,
-  lvgl_dir + '/core',
-  lvgl_dir + '/display',
-  lvgl_dir + '/draw',
-  lvgl_dir + '/font',
-  lvgl_dir + '/indev',
-  lvgl_dir + '/layouts',
-  lvgl_dir + '/layouts/flex',
-  lvgl_dir + '/layouts/grid',
-  config_dir,
-)
+lvgl_incs = [
+  include_directories(config_dir),
+]
+
+lvgl_inc_args = [
+  '-I' + lvgl_build_root,
+  '-I' + lvgl_dir,
+  '-I' + (lvgl_dir / 'core'),
+  '-I' + (lvgl_dir / 'display'),
+  '-I' + (lvgl_dir / 'draw'),
+  '-I' + (lvgl_dir / 'font'),
+  '-I' + (lvgl_dir / 'indev'),
+  '-I' + (lvgl_dir / 'layouts'),
+  '-I' + (lvgl_dir / 'layouts/flex'),
+  '-I' + (lvgl_dir / 'layouts/grid'),
+]
 
 lvgl_srcs = lvgl_base_srcs
 lvgl_c_args = [
@@ -311,7 +436,7 @@ lvgl_c_args = [
   '-Wno-unused-parameter',
   '-Wno-type-limits',
   '-Wno-unused-function',
-]
+] + lvgl_inc_args
 lvgl_deps = []
 lvgl_extra_incs = []
 
@@ -329,7 +454,7 @@ endif
 
 # Build LVGL library
 lvgl_lib = library('lvgl',
-  lvgl_srcs,
+  lvgl_srcs + lvgl_patched_targets,
   c_args : lvgl_c_args,
   include_directories : [lvgl_incs, lvgl_extra_incs],
   dependencies : lvgl_deps,
@@ -339,5 +464,39 @@ lvgl_dep = declare_dependency(
   link_with : lvgl_lib,
   include_directories : lvgl_incs,
   compile_args : lvgl_c_args,
+  dependencies : lvgl_deps,
+)
+
+# Build test-enabled LVGL with lodepng and snapshot support
+# Meson won't build this library unless it's linked by an executable,
+# so no platform guard is needed here.
+lvgl_test_srcs = lvgl_srcs + [
+  lvgl_dir / 'libs/lodepng/lodepng.c',
+  lvgl_dir / 'libs/lodepng/lv_lodepng.c',
+  lvgl_dir / 'others/snapshot/lv_snapshot.c',
+  lvgl_dir / 'libs/fsdrv/lv_fs_stdio.c',
+]
+
+lvgl_test_c_args = lvgl_c_args + [
+  '-DLV_USE_LODEPNG=1',
+  '-DLV_USE_SNAPSHOT=1',
+  '-DLV_USE_FS_STDIO=1',
+  '-DLV_FS_STDIO_LETTER=\'/\'',
+  # Increase memory pool for tests - lodepng needs ~868KB per decoded PNG image.
+  # With the current snapshot set and memory fragmentation, we need significant headroom.
+  '-DLV_MEM_SIZE=(64*1024*1024U)',
+]
+
+lvgl_test_lib = library('lvgl_test',
+  lvgl_test_srcs + lvgl_patched_targets,
+  c_args : lvgl_test_c_args,
+  include_directories : [lvgl_incs, lvgl_extra_incs],
+  dependencies : lvgl_deps,
+)
+
+lvgl_test_dep = declare_dependency(
+  link_with : lvgl_test_lib,
+  include_directories : lvgl_incs,
+  compile_args : lvgl_test_c_args,
   dependencies : lvgl_deps,
 )

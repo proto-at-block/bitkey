@@ -93,7 +93,7 @@ fun QrCodeWithData(
   // Track old and new matrices for animation
   var oldMatrix by remember { mutableStateOf<QRMatrix?>(null) }
   var currentMatrix by remember { mutableStateOf(matrix) }
-  
+
   // Animation progress (0.0 = start, 1.0 = complete)
   val animationProgress = remember { Animatable(1f) }
 
@@ -306,16 +306,16 @@ private fun calculateCellAnimation(
   // Single stage wipe-up animation
   val rowProgress = cellRow.toFloat() / rowCount.toFloat()
   val waveSpread = 0.3f // How gradual the wave effect is
-  
+
   // Wave position moves from -waveSpread to 1+waveSpread
   val wavePosition = (1f + waveSpread) * animationProgress
-  
+
   // Distance from the wave (negative = before wave, positive = after wave)
   val distanceFromWave = (wavePosition - rowProgress) / waveSpread
-  
+
   // Scale goes from 0.0 to 1.0 as wave passes
   val normalizedScale = distanceFromWave.coerceIn(0f, 1f)
-  
+
   // For inverse animation (old matrix), flip the scale/opacity
   // Old dots: visible (1.0) before wave, invisible (0.0) after wave
   // New dots: invisible (0.0) before wave, visible (1.0) after wave

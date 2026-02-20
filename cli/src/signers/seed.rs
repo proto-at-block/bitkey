@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use bdk::{
+use bdk_wallet::{
     bitcoin::{
         bip32::{ChildNumber, DerivationPath, ExtendedPrivKey},
-        hashes::sha256,
-        psbt::PartiallySignedTransaction,
+        hashes::{sha256, Hash as _},
+        psbt::Psbt,
         secp256k1::{
             ecdsa::Signature,
             rand::{thread_rng, Rng},
@@ -109,7 +109,9 @@ impl Authentication for SeedSigner {
     }
 
     fn sign(&self, message: &[u8], _: &impl Transactor) -> Result<Signature, TransactorError> {
-        let message = Message::from_hashed_data::<sha256::Hash>(message);
+        let digest = sha256::Hash::hash(message);
+        let digest_bytes = digest.to_byte_array();
+        let message = Message::from_digest_slice(&digest_bytes).expect("psbt digest length is 32");
         Ok(self
             .secp
             .sign_ecdsa(&message, &self.authentication_private_key()))
@@ -199,7 +201,7 @@ impl SignerCommon for SeedBDKSigner {
 impl InputSigner for SeedBDKSigner {
     fn sign_input(
         &self,
-        psbt: &mut PartiallySignedTransaction,
+        psbt: &mut Psbt,
         input_index: usize,
         sign_options: &SignOptions,
         secp: &Secp256k1<All>,

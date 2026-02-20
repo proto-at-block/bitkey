@@ -46,6 +46,8 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
     inAppBrowserNavigator = inAppBrowserNavigator
   )
 
+  val onBackCalls = turbines.create<Unit>("onBack calls")
+
   val props = RotateAuthKeyUIStateMachineProps(
     account = FullAccountMock,
     origin = RotateAuthKeyUIOrigin.PendingAttempt(
@@ -160,6 +162,178 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
         id.shouldBe(InactiveAppEventTrackerScreenId.DISMISS_ROTATION_PROPOSAL)
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+    }
+  }
+
+  test("close button on unexpected failure dismisses pending attempt when origin is PendingAttempt") {
+    stateMachine.test(props) {
+      fullAccountAuthKeyRotationService.rotationResult.value = { request, _ ->
+        Err(AuthKeyRotationFailure.Unexpected(retryRequest = request))
+      }
+
+      // Initial loading state
+      awaitBody<FormBodyModel> {
+        secondaryButton.shouldNotBeNull().shouldBeDisabled()
+      }
+
+      // Kick Other People Out
+      awaitBody<FormBodyModel> {
+        clickSecondaryButton()
+      }
+
+      awaitBodyMock<ProofOfPossessionNfcProps>(id = "hw-proof-of-possession") {
+        (request as Request.HwKeyProofAndAccountSignature).onSuccess(
+          "",
+          HwAuthSecp256k1PublicKeyMock,
+          HwFactorProofOfPossession(""),
+          AppGlobalAuthKeyHwSignatureMock
+        )
+      }
+
+      awaitBody<LoadingSuccessBodyModel> {
+        fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
+      }
+
+      // Unexpected failure screen - click close button
+      awaitBody<FormBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED)
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      // Should transition to dismissing proposed attempt
+      awaitBody<LoadingSuccessBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.DISMISS_ROTATION_PROPOSAL)
+      }
+    }
+  }
+
+  test("close button on unexpected failure calls onBack when origin is Settings") {
+    val settingsProps = RotateAuthKeyUIStateMachineProps(
+      account = FullAccountMock,
+      origin = RotateAuthKeyUIOrigin.Settings(onBack = { onBackCalls.add(Unit) })
+    )
+
+    stateMachine.test(settingsProps) {
+      fullAccountAuthKeyRotationService.rotationResult.value = { request, _ ->
+        Err(AuthKeyRotationFailure.Unexpected(retryRequest = request))
+      }
+
+      // Initial loading state
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().shouldBeDisabled()
+      }
+
+      // Keys generated - click remove all other devices
+      awaitBody<FormBodyModel> {
+        clickPrimaryButton()
+      }
+
+      awaitBodyMock<ProofOfPossessionNfcProps>(id = "hw-proof-of-possession") {
+        (request as Request.HwKeyProofAndAccountSignature).onSuccess(
+          "",
+          HwAuthSecp256k1PublicKeyMock,
+          HwFactorProofOfPossession(""),
+          AppGlobalAuthKeyHwSignatureMock
+        )
+      }
+
+      awaitBody<LoadingSuccessBodyModel> {
+        fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
+      }
+
+      // Unexpected failure screen - click close button
+      awaitBody<FormBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED)
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      onBackCalls.awaitItem()
+    }
+  }
+
+  test("close button on account locked failure dismisses pending attempt when origin is PendingAttempt") {
+    stateMachine.test(props) {
+      fullAccountAuthKeyRotationService.rotationResult.value = { request, _ ->
+        Err(AuthKeyRotationFailure.AccountLocked(retryRequest = request))
+      }
+
+      // Initial loading state
+      awaitBody<FormBodyModel> {
+        secondaryButton.shouldNotBeNull().shouldBeDisabled()
+      }
+
+      // Kick Other People Out
+      awaitBody<FormBodyModel> {
+        clickSecondaryButton()
+      }
+
+      awaitBodyMock<ProofOfPossessionNfcProps>(id = "hw-proof-of-possession") {
+        (request as Request.HwKeyProofAndAccountSignature).onSuccess(
+          "",
+          HwAuthSecp256k1PublicKeyMock,
+          HwFactorProofOfPossession(""),
+          AppGlobalAuthKeyHwSignatureMock
+        )
+      }
+
+      awaitBody<LoadingSuccessBodyModel> {
+        fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
+      }
+
+      // Account locked failure screen - click close button
+      awaitBody<FormBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCOUNT_LOCKED)
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      // Should transition to dismissing proposed attempt
+      awaitBody<LoadingSuccessBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.DISMISS_ROTATION_PROPOSAL)
+      }
+    }
+  }
+
+  test("close button on account locked failure calls onBack when origin is Settings") {
+    val settingsProps = RotateAuthKeyUIStateMachineProps(
+      account = FullAccountMock,
+      origin = RotateAuthKeyUIOrigin.Settings(onBack = { onBackCalls.add(Unit) })
+    )
+
+    stateMachine.test(settingsProps) {
+      fullAccountAuthKeyRotationService.rotationResult.value = { request, _ ->
+        Err(AuthKeyRotationFailure.AccountLocked(retryRequest = request))
+      }
+
+      // Initial loading state
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().shouldBeDisabled()
+      }
+
+      // Keys generated - click remove all other devices
+      awaitBody<FormBodyModel> {
+        clickPrimaryButton()
+      }
+
+      awaitBodyMock<ProofOfPossessionNfcProps>(id = "hw-proof-of-possession") {
+        (request as Request.HwKeyProofAndAccountSignature).onSuccess(
+          "",
+          HwAuthSecp256k1PublicKeyMock,
+          HwFactorProofOfPossession(""),
+          AppGlobalAuthKeyHwSignatureMock
+        )
+      }
+
+      awaitBody<LoadingSuccessBodyModel> {
+        fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
+      }
+
+      // Account locked failure screen - click close button
+      awaitBody<FormBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCOUNT_LOCKED)
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      onBackCalls.awaitItem()
     }
   }
 })

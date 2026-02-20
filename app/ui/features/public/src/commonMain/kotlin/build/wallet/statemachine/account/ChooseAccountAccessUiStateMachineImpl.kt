@@ -26,7 +26,6 @@ import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.data.keybox.OrphanedKeyRecoveryUiState
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.recovery.orphaned.OrphanedAccountSelectionBodyModel
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
@@ -135,14 +134,14 @@ class ChooseAccountAccessUiStateMachineImpl(
         if (isEekBuild) {
           EmergencyAccountAccessMoreOptionsFormBodyModel(
             onBack = { state = ShowingChooseAccountAccess },
-            onRestoreEmergencyExitKit = props.chooseAccountAccessData.startEmergencyExitRecovery
+            onRestoreEmergencyExitKit = props.onStartEmergencyExitRecovery
           ).asRootScreen()
         } else {
           AccountAccessMoreOptionsFormBodyModel(
             onBack = { state = ShowingChooseAccountAccess },
-            onRestoreYourWalletClick = props.chooseAccountAccessData.startRecovery,
+            onRestoreYourWalletClick = props.onStartRecovery,
             onBeTrustedContactClick = {
-              props.chooseAccountAccessData.startLiteAccountCreation()
+              props.onStartLiteAccountCreation()
             },
             onRecoverFromOrphanedKeysClick = if (showOrphanedKeyRecovery) {
               { state = DiscoveringOrphanedAccounts }
@@ -180,7 +179,7 @@ class ChooseAccountAccessUiStateMachineImpl(
       is ShowingBeTrustedContactIntroduction -> {
         BeTrustedContactIntroductionModel(
           onBack = { state = ShowingChooseAccountAccess },
-          onContinue = props.chooseAccountAccessData.startLiteAccountCreation,
+          onContinue = props.onStartLiteAccountCreation,
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
         ).asRootScreen()
       }
@@ -395,4 +394,10 @@ class ChooseAccountAccessUiStateMachineImpl(
      */
     data object ShowingCustomerSupport : State
   }
+}
+
+private enum class OrphanedKeyRecoveryUiState {
+  Recovering,
+  Success,
+  Error,
 }

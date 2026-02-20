@@ -2,10 +2,13 @@ package build.wallet.nfc.interceptors
 
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
+import build.wallet.bitcoin.wallet.SpendingWalletV2ProviderMock
 import build.wallet.db.DbError
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.Secp256k1PrivateKey
 import build.wallet.encrypt.SignatureUtils
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.McuName
 import build.wallet.firmware.McuRole
@@ -90,10 +93,14 @@ private fun createBitkeyW1CommandsFake(): BitkeyW1CommandsFake {
   val fakeHardwareKeyStore: FakeHardwareKeyStore = FakeHardwareKeyStoreFake()
 
   val spendingWalletProvider = SpendingWalletProvider { Err(Throwable("Not used in this test")) }
+  val spendingWalletV2Provider = SpendingWalletV2ProviderMock()
+  val featureFlagDao = FeatureFlagDaoFake()
   val descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock()
   val fakeHardwareSpendingWalletProvider =
     FakeHardwareSpendingWalletProvider(
       spendingWalletProvider = spendingWalletProvider,
+      spendingWalletV2Provider = spendingWalletV2Provider,
+      bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao),
       descriptorBuilder = descriptorBuilder,
       fakeHardwareKeyStore = fakeHardwareKeyStore
     )

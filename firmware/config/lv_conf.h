@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_conf.h
  * Configuration file based off v9.3.0
  */
@@ -55,7 +55,9 @@
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
     /** Size of memory available for `lv_malloc()` in bytes (>= 2kB) */
+    #ifndef LV_MEM_SIZE
     #define LV_MEM_SIZE (128 * 1024U)          /**< [bytes] */
+    #endif
 
     /** Size of the memory expand for `lv_malloc()` in bytes */
     #define LV_MEM_POOL_EXPAND_SIZE 0
@@ -435,6 +437,7 @@
     LV_FONT_DECLARE(cash_sans_mono_regular_20) \
     LV_FONT_DECLARE(cash_sans_mono_regular_22) \
     LV_FONT_DECLARE(cash_sans_mono_regular_24) \
+    LV_FONT_DECLARE(cash_sans_mono_regular_26) \
     LV_FONT_DECLARE(cash_sans_mono_regular_28) \
     LV_FONT_DECLARE(cash_sans_mono_regular_30) \
     LV_FONT_DECLARE(cash_sans_mono_regular_34) \

@@ -1,38 +1,44 @@
 package build.wallet.ui.components.list
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import build.wallet.ui.components.label.Label
+import build.wallet.ui.components.radio.RadioButton
 import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun <Option : Any> ListItemPickerMenu(model: ListItemPickerMenu<Option>) {
-  BasicAlertDialog(
-    onDismissRequest = model.onDismiss,
-    modifier = Modifier.background(WalletTheme.colors.background)
+  Dialog(
+    onDismissRequest = model.onDismiss
   ) {
     Column(
-      modifier =
-        Modifier
-          .fillMaxWidth()
-          .verticalScroll(rememberScrollState()),
+      modifier = Modifier
+        .background(
+          color = WalletTheme.colors.containerBackground,
+          shape = RoundedCornerShape(16.dp)
+        )
+        .border(
+          width = 1.dp,
+          color = WalletTheme.colors.foreground10,
+          shape = RoundedCornerShape(16.dp)
+        )
+        .fillMaxWidth()
+        .verticalScroll(rememberScrollState()),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       model.options.forEach { option ->
@@ -49,10 +55,7 @@ internal fun <Option : Any> ListItemPickerMenu(model: ListItemPickerMenu<Option>
           RadioButton(
             selected = model.selectedOption == option,
             onClick = { model.onOptionSelected(option) },
-            colors =
-              RadioButtonDefaults.colors(
-                selectedColor = WalletTheme.colors.bitkeyPrimary
-              )
+            selectedColor = WalletTheme.colors.bitkeyPrimary
           )
           Label(
             text = model.titleSelector(option),

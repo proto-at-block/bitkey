@@ -27,7 +27,8 @@ typedef enum {
 
 typedef struct ew_psbt ew_psbt_t;
 
-#define EW_SEED_SIZE (32)
+#define EW_SEED_SIZE  (32)
+#define EW_SHA256_LEN (32)
 
 typedef bool (*ew_crypto_random_cb_t)(uint8_t* out, size_t len);
 typedef void (*ew_secure_memzero_cb_t)(void* p, size_t n);
@@ -212,6 +213,70 @@ ew_error_t ew_psbt_input_get_amount(const ew_psbt_t* psbt, size_t index, bool* h
                                     uint64_t* amount_out);
 
 /**
+ * Get the number of keypaths for a specific input in a PSBT.
+ *
+ * @param psbt The PSBT.
+ * @param index The zero-based index of the input.
+ * @param count_out Output parameter for the number of keypaths.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_input_get_keypath_count(const ew_psbt_t* psbt, size_t index, size_t* count_out);
+
+/**
+ * Get a keypath entry for a specific input in a PSBT.
+ *
+ * @param psbt The PSBT.
+ * @param input_index The zero-based index of the input.
+ * @param keypath_index The zero-based index of the keypath entry.
+ * @param pubkey_out Output parameter for the pubkey pointer.
+ * @param pubkey_len_out Output parameter for the pubkey length.
+ * @param keypath_out Output parameter for the keypath value pointer.
+ * @param keypath_len_out Output parameter for the keypath value length.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_input_get_keypath(const ew_psbt_t* psbt, size_t input_index,
+                                     size_t keypath_index, const uint8_t** pubkey_out,
+                                     size_t* pubkey_len_out, const uint8_t** keypath_out,
+                                     size_t* keypath_len_out);
+
+/**
+ * Get witness_utxo script and amount for a specific input in a PSBT.
+ *
+ * Falls back to non-witness UTXO if witness_utxo is missing.
+ *
+ * @param psbt The PSBT.
+ * @param index The zero-based index of the input.
+ * @param script_out Output parameter for the script pubkey pointer.
+ * @param script_len_out Output parameter for the script pubkey length.
+ * @param amount_out Output parameter for the amount in satoshis.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_input_get_witness_utxo(const ew_psbt_t* psbt, size_t index,
+                                          const uint8_t** script_out, size_t* script_len_out,
+                                          uint64_t* amount_out);
+
+/**
+ * Get the sequence number for a specific input in a PSBT.
+ *
+ * @param psbt The PSBT.
+ * @param index The zero-based index of the input.
+ * @param sequence_out Output parameter for the sequence number.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_input_get_sequence(const ew_psbt_t* psbt, size_t index, uint32_t* sequence_out);
+
+/**
+ * Get the raw sighash type for a specific input in a PSBT.
+ *
+ * @param psbt The PSBT.
+ * @param index The zero-based index of the input.
+ * @param sighash_out Output parameter for the sighash value (0 if not present).
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_input_get_sighash_type(const ew_psbt_t* psbt, size_t index,
+                                          uint32_t* sighash_out);
+
+/**
  * Get script and amount information for a specific output in a PSBT.
  *
  * Handles both PSBT v0 and v2 formats. For v2, checks PSBT output fields first,
@@ -263,3 +328,99 @@ ew_error_t ew_psbt_output_has_keypath(const ew_psbt_t* psbt, size_t index, bool*
  */
 ew_error_t ew_base64_to_bytes(const char* base64_psbt, uint8_t* out, size_t out_size,
                               size_t* written);
+
+/**
+ * Serialize a PSBT to bytes.
+ *
+ * @param psbt The PSBT wrapper.
+ * @param out Output buffer for the PSBT bytes.
+ * @param out_size Size of the output buffer.
+ * @param written Output parameter for number of bytes written.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_to_bytes(const ew_psbt_t* psbt, uint8_t* out, size_t out_size, size_t* written);
+
+/**
+ * Compute the BIP143 signature hash for a PSBT input.
+ *
+ * @param psbt The PSBT wrapper.
+ * @param index The zero-based index of the input.
+ * @param script The scriptCode to sign (for P2WSH, the witness script).
+ * @param script_len Length of the script in bytes.
+ * @param sighash_out Output buffer for the 32-byte signature hash.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_get_input_signature_hash(const ew_psbt_t* psbt, size_t index,
+                                            const uint8_t* script, size_t script_len,
+                                            uint8_t sighash_out[EW_SHA256_LEN]);
+
+/**
+ * Create a BIP67-sorted multisig witness script from compressed pubkeys.
+ *
+ * @param pubkeys Concatenated compressed pubkeys.
+ * @param pubkeys_len Length of pubkeys in bytes.
+ * @param threshold Number of signatures required.
+ * @param sort_keys Whether to BIP67 sort the pubkeys.
+ * @param script_out Output buffer for the witness script.
+ * @param script_out_len Size of the output buffer.
+ * @param script_len_out Output parameter for script length.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_multisig_witness_script_from_pubkeys(const uint8_t* pubkeys, size_t pubkeys_len,
+                                                   uint32_t threshold, bool sort_keys,
+                                                   uint8_t* script_out, size_t script_out_len,
+                                                   size_t* script_len_out);
+
+/**
+ * Create a P2WSH scriptPubKey from a witness script.
+ *
+ * @param witness_script The witness script.
+ * @param witness_script_len Length of the witness script.
+ * @param scriptpubkey_out Output buffer for the scriptPubKey.
+ * @param scriptpubkey_out_len Size of the output buffer.
+ * @param scriptpubkey_len_out Output parameter for scriptPubKey length.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_p2wsh_scriptpubkey_from_witness(const uint8_t* witness_script,
+                                              size_t witness_script_len, uint8_t* scriptpubkey_out,
+                                              size_t scriptpubkey_out_len,
+                                              size_t* scriptpubkey_len_out);
+
+/**
+ * Normalize a compact ECDSA signature into low-S form.
+ *
+ * @param sig Compact signature (64 bytes).
+ * @param sig_len Length of the compact signature.
+ * @param sig_out Output buffer for normalized signature.
+ * @param sig_out_len Size of the output buffer.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_ec_sig_normalize(const uint8_t* sig, size_t sig_len, uint8_t* sig_out,
+                               size_t sig_out_len);
+
+/**
+ * Convert a compact ECDSA signature to DER encoding.
+ *
+ * @param sig Compact signature (64 bytes).
+ * @param sig_len Length of the compact signature.
+ * @param der_out Output buffer for DER signature.
+ * @param der_out_len Size of the output buffer.
+ * @param der_len_out Output parameter for DER signature length.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_ec_sig_to_der(const uint8_t* sig, size_t sig_len, uint8_t* der_out,
+                            size_t der_out_len, size_t* der_len_out);
+
+/**
+ * Add a partial signature to a PSBT input.
+ *
+ * @param psbt The PSBT wrapper.
+ * @param index The zero-based index of the input.
+ * @param pubkey The compressed pubkey (33 bytes).
+ * @param pubkey_len Length of the pubkey.
+ * @param sig The DER-encoded signature with sighash byte.
+ * @param sig_len Length of the signature.
+ * @return EW_OK on success, otherwise an error.
+ */
+ew_error_t ew_psbt_input_add_signature(ew_psbt_t* psbt, size_t index, const uint8_t* pubkey,
+                                       size_t pubkey_len, const uint8_t* sig, size_t sig_len);

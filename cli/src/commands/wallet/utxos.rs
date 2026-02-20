@@ -1,8 +1,6 @@
 use anyhow::Result;
-use bdk::{
-    blockchain::{log_progress, ElectrumBlockchain},
-    KeychainKind,
-};
+use bdk_electrum::{electrum_client::Client as ElectrumClient, BdkElectrumClient};
+use bdk_wallet::KeychainKind;
 use rustify::blocking::clients::reqwest::Client;
 use sled::Db;
 
@@ -12,26 +10,25 @@ use crate::{
     entities::{Account, SignerHistory},
 };
 
-pub fn utxos(client: &Client, db: &Db, blockchain: ElectrumBlockchain) -> Result<()> {
+pub fn utxos(
+    client: &Client,
+    db: &Db,
+    blockchain: &BdkElectrumClient<ElectrumClient>,
+) -> Result<()> {
     let account = Account::from_cache(client, db)?;
-    let wallet = SignerHistory::from_database(db)?
+    let mut wallet = SignerHistory::from_database(db)?
         .active
         .wallet(&account, db, None)?;
 
-    wallet.sync(
-        &blockchain,
-        bdk::SyncOptions {
-            progress: Some(Box::new(log_progress())),
-        },
-    )?;
+    let request = wallet.start_full_scan();
+    let update = blockchain.full_scan(request, 100, 10, true)?;
+    wallet.apply_update(update)?;
 
-    let utxos = wallet.list_unspent()?;
+    let utxos: Vec<_> = wallet.list_unspent().collect();
     let val_width = utxos
         .iter()
-        .max_by_key(|u| u.txout.value)
-        .map(|u| u.txout.value as f64)
-        .map(|f| f.log10() as usize)
-        .map(|u| u + 1)
+        .map(|u| u.txout.value.to_string().len())
+        .max()
         .unwrap_or_default();
     for utxo in utxos {
         let keychain = match utxo.keychain {

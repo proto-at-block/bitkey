@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.foundation:foundation",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-1.8.1.jar": "368b6ce194ec2d51360beb52d11984b6a9d0e08dde973fe5a41636c7d34e96c4"
+                        "foundation-1.9.1.jar": "1f2d401d06da973f96ad38cbe2be40a3f3b4dfd32a9e25a12bec8cabe2262e86"
                     }
                 }
             ],

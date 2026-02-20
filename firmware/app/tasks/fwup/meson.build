@@ -42,6 +42,7 @@ fwup_task_libs += {
     dependencies: [
       auth_dep,
       bio_dep,
+      confirmation_dep,
       fwup_dep,
       ipc_dep,
       mcu_dep,

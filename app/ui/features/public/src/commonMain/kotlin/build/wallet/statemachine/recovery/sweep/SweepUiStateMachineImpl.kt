@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.sweep
 
 import androidx.compose.runtime.*
+import bitkey.account.isW3Hardware
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
@@ -16,9 +17,13 @@ import build.wallet.logging.logDebug
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.nfc.NfcSession
+import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.NfcCommands
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.sweep.SweepContext
+import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
@@ -34,6 +39,8 @@ import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.send.*
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationAppSegment
 
 @BitkeyInject(ActivityScope::class)
@@ -43,6 +50,7 @@ class SweepUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val sweepDataStateMachine: SweepDataStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val hardwareConfirmationUiStateMachine: HardwareConfirmationUiStateMachine,
 ) : SweepUiStateMachine {
   @Composable
   override fun model(props: SweepUiProps): ScreenModel {
@@ -57,8 +65,18 @@ class SweepUiStateMachineImpl(
       )
     )
 
+    // Track which AwaitingHardwareSignedSweepsData instance we've initiated signing for
+    // This prevents re-triggering when returning to ShowingSweepState with stale data
+    var initiatedSigningForData: AwaitingHardwareSignedSweepsData? by remember { mutableStateOf(null) }
+
     return when (val uiState = screenState) {
-      ScreenState.ShowingSweepState -> getSweepScreen(props, sweepData, setState = { screenState = it })
+      ScreenState.ShowingSweepState -> getSweepScreen(
+        props = props,
+        sweepData = sweepData,
+        setState = { screenState = it },
+        initiatedSigningForData = initiatedSigningForData,
+        onInitiateSigning = { data -> initiatedSigningForData = data }
+      )
       ScreenState.ShowingHelpText -> sweepInactiveHelpModel(
         id = InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_HELP,
         presentationStyle = props.presentationStyle,
@@ -77,6 +95,74 @@ class SweepUiStateMachineImpl(
           }
         ).asModalScreen()
       }
+      is ScreenState.ShowingMultipleTransactionsWarning -> {
+        multipleTransactionsWarningScreenModel(
+          id = when (props.sweepContext) {
+            is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
+              App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
+              Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
+            }
+            is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
+            else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
+          },
+          transactionCount = uiState.psbtsToSign.size,
+          onContinue = {
+            screenState = ScreenState.SigningSinglePsbt(
+              currentPsbt = uiState.psbtsToSign.first(),
+              remainingPsbts = uiState.psbtsToSign.drop(1),
+              signedPsbts = emptySet(),
+              sweepData = uiState.sweepData
+            )
+          },
+          onBack = {
+            uiState.sweepData.cancelHwSign()
+            screenState = ScreenState.ShowingSweepState
+          },
+          presentationStyle = props.presentationStyle
+        )
+      }
+      is ScreenState.SigningSinglePsbt -> {
+        signingSinglePsbtScreen(
+          props = props,
+          state = uiState,
+          setState = { screenState = it }
+        )
+      }
+      is ScreenState.ReadyToSignNextPsbt -> {
+        // Immediately transition to signing the next PSBT
+        // This state exists to break out of the previous NFC session's composition
+        LaunchedEffect(uiState) {
+          screenState = ScreenState.SigningSinglePsbt(
+            currentPsbt = uiState.currentPsbt,
+            remainingPsbts = uiState.remainingPsbts,
+            signedPsbts = uiState.signedPsbts,
+            sweepData = uiState.sweepData
+          )
+        }
+        // Show a brief loading screen during the transition
+        generatingPsbtsLoadingScreen(props)
+      }
+      is ScreenState.AwaitingDeviceConfirmation -> {
+        hardwareConfirmationUiStateMachine.model(
+          props = HardwareConfirmationUiProps(
+            onBack = {
+              // User cancelled - go back to the sweep state which will reset
+              uiState.sweepData.cancelHwSign()
+              screenState = ScreenState.ShowingSweepState
+            },
+            onConfirm = {
+              // User confirmed - start a new NFC session to fetch the result
+              screenState = ScreenState.SigningSinglePsbt(
+                currentPsbt = uiState.currentPsbt,
+                remainingPsbts = uiState.remainingPsbts,
+                signedPsbts = uiState.signedPsbts,
+                sweepData = uiState.sweepData,
+                fetchResult = uiState.fetchResult
+              )
+            }
+          )
+        )
+      }
     }
   }
 
@@ -85,6 +171,8 @@ class SweepUiStateMachineImpl(
     props: SweepUiProps,
     sweepData: SweepData,
     setState: (ScreenState) -> Unit,
+    initiatedSigningForData: AwaitingHardwareSignedSweepsData?,
+    onInitiateSigning: (AwaitingHardwareSignedSweepsData) -> Unit,
   ): ScreenModel {
     // TODO: Add Hardware Proof of Possession state machine if GetAccountKeysets
     //   endpoint ends up requiring it.
@@ -92,18 +180,7 @@ class SweepUiStateMachineImpl(
     return when (sweepData) {
       /** Show spinner while we wait for PSBTs to be generated */
       is GeneratingPsbtsData ->
-        generatingPsbtsBodyModel(
-          id = when (props.sweepContext) {
-            is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-              App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
-              Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
-            }
-            is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_GENERATING_PSBTS
-            else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATING_PSBTS
-          },
-          onBack = props.onExit,
-          presentationStyle = props.presentationStyle
-        )
+        generatingPsbtsLoadingScreen(props)
 
       /** Terminal error state: PSBT generation failed */
       is GeneratePsbtsFailedData ->
@@ -219,31 +296,42 @@ class SweepUiStateMachineImpl(
         }
       }
 
-      is AwaitingHardwareSignedSweepsData ->
-        nfcSessionUIStateMachine.model(
-          NfcConfirmableSessionUIStateMachineProps(
-            session = { session, commands ->
-              val signedPsbts = sweepData.needsHwSign
-                .map {
-                  val result = commands.signTransaction(session, it.psbt, it.sourceKeyset)
-                  when (result) {
-                    is HardwareInteraction.Completed<Psbt> -> result.result
-                    else -> error("Unexpected HardwareInteraction type for signTransaction")
-                  }
-                }
-                .toSet()
-              HardwareInteraction.Completed(signedPsbts)
-            },
-            onSuccess = sweepData.addHwSignedSweeps,
-            // When NFC fails or is cancelled, go back to the PSBT confirmation screen
-            // to allow retry instead of exiting the sweep flow entirely
-            onCancel = sweepData.cancelHwSign,
-            screenPresentationStyle = props.presentationStyle,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_MANY_TRANSACTIONS,
-            hardwareVerification = Required(useRecoveryPubKey = props.sweepContext is SweepContext.Recovery),
-            shouldShowLongRunningOperation = true
-          )
-        )
+      is AwaitingHardwareSignedSweepsData -> {
+        // Start signing the first PSBT - transition to sequential signing state
+        val psbtsToSign = sweepData.needsHwSign.toList()
+        val isW3 = props.keybox.config.isW3Hardware
+        val hasMultiplePsbts = psbtsToSign.size > 1
+
+        // Only initiate signing if we haven't already for this data instance
+        // This prevents re-triggering when returning to ShowingSweepState with stale data
+        val shouldInitiateSigning = psbtsToSign.isNotEmpty() && initiatedSigningForData !== sweepData
+
+        if (shouldInitiateSigning) {
+          LaunchedEffect(sweepData) {
+            onInitiateSigning(sweepData)
+            // Show warning screen first if W3 with multiple PSBTs
+            if (isW3 && hasMultiplePsbts) {
+              setState(
+                ScreenState.ShowingMultipleTransactionsWarning(
+                  psbtsToSign = psbtsToSign,
+                  sweepData = sweepData
+                )
+              )
+            } else {
+              setState(
+                ScreenState.SigningSinglePsbt(
+                  currentPsbt = psbtsToSign.first(),
+                  remainingPsbts = psbtsToSign.drop(1),
+                  signedPsbts = emptySet(),
+                  sweepData = sweepData
+                )
+              )
+            }
+          }
+        }
+        // Show a loading screen while we transition
+        generatingPsbtsLoadingScreen(props)
+      }
 
       /** Server+App signing and broadcasting the transactions */
       is SigningAndBroadcastingSweepsData ->
@@ -346,6 +434,114 @@ class SweepUiStateMachineImpl(
     }
   }
 
+  /**
+   * Screen model for signing a single PSBT via NFC.
+   * Handles HardwareInteraction responses to support W3 two-tap flow.
+   */
+  @Composable
+  private fun signingSinglePsbtScreen(
+    props: SweepUiProps,
+    state: ScreenState.SigningSinglePsbt,
+    setState: (ScreenState) -> Unit,
+  ): ScreenModel {
+    return nfcSessionUIStateMachine.model(
+      NfcConfirmableSessionUIStateMachineProps(
+        session = state.fetchResult ?: { session, commands ->
+          // Initial signing flow - handle RequiresTransfer by doing transfer in session
+          when (val interaction = commands.signTransaction(session, state.currentPsbt.psbt, state.currentPsbt.sourceKeyset)) {
+            is HardwareInteraction.RequiresTransfer -> {
+              // W3 path: chunked transfer required - do the transfer in this session
+              interaction.transferAndFetch(session, commands) { /* progress callback */ }
+            }
+            else -> interaction
+          }
+        },
+        onSuccess = { signedPsbt ->
+          val newSignedPsbts = state.signedPsbts + signedPsbt
+
+          if (state.remainingPsbts.isEmpty()) {
+            // All PSBTs have been signed - complete the flow
+            // This will transition sweepData to SigningAndBroadcastingSweepsData
+            state.sweepData.addHwSignedSweeps(newSignedPsbts)
+            // Go back to ShowingSweepState so getSweepScreen renders the new sweepData state
+            setState(ScreenState.ShowingSweepState)
+          } else {
+            // More PSBTs to sign - transition to intermediate state to break out of NFC session
+            setState(
+              ScreenState.ReadyToSignNextPsbt(
+                currentPsbt = state.remainingPsbts.first(),
+                remainingPsbts = state.remainingPsbts.drop(1),
+                signedPsbts = newSignedPsbts,
+                sweepData = state.sweepData
+              )
+            )
+          }
+        },
+        onCancel = {
+          // User cancelled - go back to the sweep state
+          state.sweepData.cancelHwSign()
+          setState(ScreenState.ShowingSweepState)
+        },
+        onRequiresConfirmation = { confirmation ->
+          // W3 hardware requires confirmation - transition to awaiting confirmation state
+          setState(
+            ScreenState.AwaitingDeviceConfirmation(
+              currentPsbt = state.currentPsbt,
+              remainingPsbts = state.remainingPsbts,
+              signedPsbts = state.signedPsbts,
+              fetchResult = confirmation.fetchResult,
+              sweepData = state.sweepData
+            )
+          )
+          null
+        },
+        onEmulatedPromptSelected = { selectedOption ->
+          // Emulated prompt for fake hardware
+          // If "Deny" was selected, cancel the flow instead of continuing
+          if (selectedOption.name == EmulatedPromptOption.DENY) {
+            state.sweepData.cancelHwSign()
+            setState(ScreenState.ShowingSweepState)
+          } else {
+            // Transition to awaiting confirmation with the selected option's fetchResult
+            setState(
+              ScreenState.AwaitingDeviceConfirmation(
+                currentPsbt = state.currentPsbt,
+                remainingPsbts = state.remainingPsbts,
+                signedPsbts = state.signedPsbts,
+                fetchResult = selectedOption.fetchResult,
+                sweepData = state.sweepData
+              )
+            )
+          }
+          null
+        },
+        screenPresentationStyle = props.presentationStyle,
+        eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_MANY_TRANSACTIONS,
+        hardwareVerification = Required(useRecoveryPubKey = props.sweepContext is SweepContext.Recovery),
+        shouldShowLongRunningOperation = true
+      )
+    )
+  }
+
+  /**
+   * Helper function to create the loading screen shown while generating PSBTs.
+   * This is used in multiple places during the sweep flow.
+   */
+  private fun generatingPsbtsLoadingScreen(props: SweepUiProps): ScreenModel {
+    return generatingPsbtsBodyModel(
+      id = when (props.sweepContext) {
+        is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
+          App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+          Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        }
+        is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_GENERATING_PSBTS
+        else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATING_PSBTS
+      },
+      onBack = props.onExit,
+      presentationStyle = props.presentationStyle
+    )
+  }
+
   @Composable
   private fun transactionDetailFromSweepData(
     totalFeeAmount: BitcoinMoney,
@@ -399,6 +595,52 @@ class SweepUiStateMachineImpl(
      */
     data class ShowingLearnMore(
       val urlString: String,
+    ) : ScreenState
+
+    /**
+     * Showing warning about multiple transactions to sign on W3 hardware.
+     */
+    data class ShowingMultipleTransactionsWarning(
+      val psbtsToSign: List<SweepPsbt>,
+      val sweepData: AwaitingHardwareSignedSweepsData,
+    ) : ScreenState
+
+    /**
+     * Signing a single PSBT via NFC. Used when hardware requires one-at-a-time signing
+     * with confirmation between each.
+     *
+     * @param fetchResult Optional continuation callback from RequiresConfirmation.
+     *   If set, this NFC session will call fetchResult instead of signTransaction.
+     */
+    data class SigningSinglePsbt(
+      val currentPsbt: SweepPsbt,
+      val remainingPsbts: List<SweepPsbt>,
+      val signedPsbts: Set<Psbt>,
+      val sweepData: AwaitingHardwareSignedSweepsData,
+      val fetchResult: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Psbt>)? = null,
+    ) : ScreenState
+
+    /**
+     * Ready to sign the next PSBT. This intermediate state exists to break out of the
+     * previous NFC session's composition before starting a new one.
+     */
+    data class ReadyToSignNextPsbt(
+      val currentPsbt: SweepPsbt,
+      val remainingPsbts: List<SweepPsbt>,
+      val signedPsbts: Set<Psbt>,
+      val sweepData: AwaitingHardwareSignedSweepsData,
+    ) : ScreenState
+
+    /**
+     * Waiting for user to confirm transaction on device (W3 two-tap flow).
+     * Shows "complete interaction on device" screen with continue button.
+     */
+    data class AwaitingDeviceConfirmation(
+      val currentPsbt: SweepPsbt,
+      val remainingPsbts: List<SweepPsbt>,
+      val signedPsbts: Set<Psbt>,
+      val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Psbt>,
+      val sweepData: AwaitingHardwareSignedSweepsData,
     ) : ScreenState
   }
 }

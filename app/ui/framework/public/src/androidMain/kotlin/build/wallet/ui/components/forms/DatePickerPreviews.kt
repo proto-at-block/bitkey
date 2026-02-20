@@ -35,3 +35,20 @@ internal fun DatePickerFieldWithNowPreview() {
     )
   }
 }
+
+@Preview
+@Composable
+internal fun DatePickerFieldWithMinMaxPreview() {
+  PreviewWalletTheme {
+    DatePickerField(
+      model =
+        DatePickerModel(
+          valueStringRepresentation = "February 8, 2024",
+          value = LocalDate(2024, 2, 8),
+          onValueChange = { },
+          minDate = LocalDate(2024, 1, 1),
+          maxDate = LocalDate(2024, 12, 31)
+        )
+    )
+  }
+}

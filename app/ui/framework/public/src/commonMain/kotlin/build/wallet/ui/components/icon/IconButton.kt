@@ -1,21 +1,20 @@
 package build.wallet.ui.components.icon
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.sheet.LocalSheetCloser
+import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.IconBackgroundType
@@ -23,9 +22,10 @@ import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconImage.MarketIconImage
 import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
+import build.wallet.ui.tokens.LabelType
 import kotlinx.coroutines.launch
-import androidx.compose.material3.IconButton as MaterialIconButton
 
 @Composable
 fun IconButton(
@@ -125,13 +125,22 @@ fun IconButton(
   ) {
     when (iconModel.iconBackgroundType) {
       is IconBackgroundType.Square -> {
-        FilledIconButton(
+        val shape = RoundedCornerShape((iconModel.iconBackgroundType as IconBackgroundType.Square).cornerRadius.dp)
+        Box(
           modifier =
             modifier
               .size(iconModel.totalSize.dp)
-              .alpha(if (enabled) 1f else 0.5f),
-          shape = RoundedCornerShape((iconModel.iconBackgroundType as IconBackgroundType.Square).cornerRadius.dp),
-          onClick = onClick
+              .alpha(if (enabled) 1f else 0.5f)
+              .clip(shape)
+              .scalingClickable(
+                enabled = enabled,
+                onClick = onClick
+              )
+              .background(
+                color = WalletTheme.colors.foreground10,
+                shape = shape
+              ),
+          contentAlignment = Alignment.Center
         ) {
           IconImage(
             model = iconModel,
@@ -144,12 +153,16 @@ fun IconButton(
         }
       }
       else -> {
-        MaterialIconButton(
+        Box(
           modifier =
             modifier
               .size(iconModel.totalSize.dp)
-              .alpha(if (enabled) 1f else 0.5f),
-          onClick = onClick
+              .alpha(if (enabled) 1f else 0.5f)
+              .scalingClickable(
+                enabled = enabled,
+                onClick = onClick
+              ),
+          contentAlignment = Alignment.Center
         ) {
           IconImage(
             model = iconModel,
@@ -164,9 +177,13 @@ fun IconButton(
     }
 
     text?.let {
+      val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+      val labelType = if (isDesignSystemV2Enabled) LabelType.Body2Medium else LabelType.Title3
+
       Spacer(Modifier.height(8.dp))
       Label(
         text = it,
+        type = labelType,
         treatment = if (enabled) LabelTreatment.Primary else LabelTreatment.Disabled
       )
     }

@@ -34,4 +34,14 @@ enum class OnboardingKeyboxStep {
    * After recovery channels, select available channels for notifications.
    */
   NotificationPreferences,
+
+  /**
+   * STEP 4 (W3 hardware only)
+   *
+   * The step of building the hardware descriptor.
+   * Only shown when hardware type is W3.
+   *
+   * Marked as complete when hardware descriptor is built.
+   */
+  BuildHardwareDescriptor,
 }

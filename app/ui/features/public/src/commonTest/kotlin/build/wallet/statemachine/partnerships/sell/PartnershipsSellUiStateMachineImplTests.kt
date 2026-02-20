@@ -13,6 +13,7 @@ import build.wallet.feature.flags.SellBitcoinMinAmountFeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
+import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.partnerships.*
 import build.wallet.platform.links.AppRestrictions
@@ -21,6 +22,8 @@ import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.InAppBrowserModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.sell.metrics.PartnershipSellConfirmationMetricDefinition
 import build.wallet.statemachine.partnerships.sell.metrics.PartnershipSellMetricDefinition
@@ -30,8 +33,12 @@ import build.wallet.statemachine.send.TransferAmountEntryUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.shouldBe
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
 class PartnershipsSellUiStateMachineImplTests : FunSpec({
@@ -54,6 +61,7 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
     }
   }
   // state machine
+  val exchangeRateService = ExchangeRateServiceFake()
   val stateMachine =
     PartnershipsSellUiStateMachineImpl(
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
@@ -69,7 +77,7 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
       inAppBrowserNavigator = inAppBrowserNavigator,
       sellBitcoinMinAmountFeatureFlag = sellBitcoinMinAmountFeatureFlag,
       sellBitcoinMaxAmountFeatureFlag = sellBitcoinMaxAmountFeatureFlag,
-      exchangeRateService = ExchangeRateServiceFake(),
+      exchangeRateService = exchangeRateService,
       deepLinkHandler = deepLinkHandler,
       metricTrackerService = metricTrackerService
     )
@@ -106,6 +114,7 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     metricTrackerService.reset()
+    exchangeRateService.reset()
   }
 
   test("happy path") {
@@ -207,6 +216,67 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
       )
 
       awaitUntilScreenWithBody<SellBitcoinSuccessBodyModel>()
+    }
+  }
+
+  test("shows loading when exchange rates are stale, then proceeds after sync") {
+    // Set up stale rates by clearing them (mostRecentRatesSinceDurationForCurrency returns null)
+    exchangeRateService.exchangeRates.value = emptyList()
+    // Configure sync to return fresh rates
+    val freshRates = listOf(
+      ExchangeRate(
+        fromCurrency = IsoCurrencyTextCode("BTC"),
+        toCurrency = IsoCurrencyTextCode("USD"),
+        rate = 50000.0,
+        timeRetrieved = Clock.System.now()
+      )
+    )
+    exchangeRateService.syncRatesResult = Ok(freshRates)
+
+    stateMachine.test(props) {
+      // Should show loading screen while syncing rates
+      awaitBody<LoadingSuccessBodyModel> {
+        state shouldBe LoadingSuccessBodyModel.State.Loading
+      }
+
+      // After sync completes with fresh rates, should proceed to amount entry
+      awaitBodyMock<TransferAmountEntryUiProps>(id = "transfer-amount-entry")
+    }
+  }
+
+  test("shows error when exchange rate sync fails") {
+    // Set up stale rates and configure sync to fail
+    exchangeRateService.exchangeRates.value = emptyList()
+    exchangeRateService.syncRatesResult = Err(Error("sync failed"))
+
+    stateMachine.test(props) {
+      // Should show loading first
+      awaitBody<LoadingSuccessBodyModel> {
+        state shouldBe LoadingSuccessBodyModel.State.Loading
+      }
+
+      // Then show error after sync fails
+      awaitBody<FormBodyModel> {
+        header?.headline shouldBe "Exchange rates unavailable"
+      }
+    }
+  }
+
+  test("shows error when exchange rate sync returns empty rates") {
+    // Set up stale rates and configure sync to return empty list
+    exchangeRateService.exchangeRates.value = emptyList()
+    exchangeRateService.syncRatesResult = Ok(emptyList())
+
+    stateMachine.test(props) {
+      // Should show loading first
+      awaitBody<LoadingSuccessBodyModel> {
+        state shouldBe LoadingSuccessBodyModel.State.Loading
+      }
+
+      // Then show error since sync returned no rates
+      awaitBody<FormBodyModel> {
+        header?.headline shouldBe "Exchange rates unavailable"
+      }
     }
   }
 })

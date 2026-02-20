@@ -16,7 +16,7 @@ use http_server::{
 };
 use privileged_action::service::{
     authorize_privileged_action::{
-        AuthenticationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+        AuthorizationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
         PrivilegedActionRequestValidatorBuilder,
     },
     Service as PrivilegedActionService,
@@ -34,6 +34,7 @@ use types::{
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 use wsm_common::messages::enclave::GrantRequest;
+use wsm_compat::{wsm_pubkey_from_bdk, wsm_signature_from_bdk};
 use wsm_grant::fp_reset::verify_grant_request_signature;
 use wsm_rust_client::{CreateGrantRequest, Grant, SigningService, WsmClient};
 
@@ -139,26 +140,46 @@ pub async fn reset_fingerprint(
         .authorize_privileged_action(AuthorizePrivilegedActionInput {
             account_id: &account_id,
             privileged_action_definition: &PrivilegedActionType::ResetFingerprint.into(),
-            authentication: AuthenticationContext::KeyClaims(&key_proof),
+            authorization: AuthorizationContext::KeyClaims(&key_proof),
             privileged_action_request: &privileged_action_request,
+            validation_context: None,
             request_validator: PrivilegedActionRequestValidatorBuilder::default()
                 .on_initiate_delay_and_notify(Box::new(move |req: ResetFingerprintRequest| {
                     Box::pin(async move {
+                        let hw_signature_wsm =
+                            wsm_signature_from_bdk(&req.signature).map_err(|_| {
+                                ApiError::GenericBadRequest(
+                                    "Invalid hardware signature format".to_string(),
+                                )
+                            })?;
                         // Build the grant request and verify the signature before initiating D&N
                         let serialized_request = GrantRequest {
                             version: req.version,
                             action: req.action,
                             device_id: req.device_id,
                             challenge: req.challenge,
-                            hw_signature: req.signature,
-                            app_signature: req.app_signature,
+                            hw_signature: hw_signature_wsm,
+                            app_signature: wsm_signature_from_bdk(&req.app_signature).map_err(
+                                |_| {
+                                    ApiError::GenericBadRequest(
+                                        "Invalid app signature format".to_string(),
+                                    )
+                                },
+                            )?,
                         }
                         .serialize(false);
 
+                        let hw_auth_public_key_wsm =
+                            wsm_pubkey_from_bdk(&account.hardware_auth_pubkey).map_err(|_| {
+                                ApiError::GenericBadRequest(
+                                    "Invalid hardware public key format".to_string(),
+                                )
+                            })?;
+
                         verify_grant_request_signature(
                             serialized_request.as_slice(),
-                            &req.signature,
-                            &account.hardware_auth_pubkey,
+                            &hw_signature_wsm,
+                            &hw_auth_public_key_wsm,
                         )
                         .map_err(|_| {
                             ApiError::GenericUnauthorized(
@@ -198,8 +219,12 @@ async fn create_signed_grant(
             action: request.action,
             device_id: request.device_id,
             challenge: request.challenge,
-            hw_signature: request.signature,
-            app_signature: request.app_signature,
+            hw_signature: wsm_signature_from_bdk(&request.signature).map_err(|_| {
+                ApiError::GenericBadRequest("Invalid hardware signature format".to_string())
+            })?,
+            app_signature: wsm_signature_from_bdk(&request.app_signature).map_err(|_| {
+                ApiError::GenericBadRequest("Invalid app signature format".to_string())
+            })?,
         })
         .await
         .map_err(|e| ApiError::from(RecoveryError::WsmGrantError(e)))

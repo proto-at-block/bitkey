@@ -240,7 +240,7 @@ pub async fn create_completed_claim(
     let completed_claim = InheritanceClaim::Completed(InheritanceClaimCompleted {
         common_fields: locked_claim.common_fields.clone(),
         completion_method: InheritanceCompletionMethod::WithPsbt {
-            txid: signed_psbt.unsigned_tx.txid(),
+            txid: signed_psbt.unsigned_tx.compute_txid(),
         },
         completed_at: OffsetDateTime::now_utc(),
     });

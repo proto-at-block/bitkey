@@ -12,3 +12,4 @@ messages:
     - name: fwup_start_coproc_rsp_t
     - name: fwup_transfer_coproc_rsp_t
     - name: fwup_finish_coproc_rsp_t
+    - name: fwup_confirmation_result_t

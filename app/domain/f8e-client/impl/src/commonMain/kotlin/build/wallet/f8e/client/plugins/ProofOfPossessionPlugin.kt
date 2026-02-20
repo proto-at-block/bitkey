@@ -4,6 +4,7 @@ import bitkey.auth.AccessToken
 import bitkey.auth.AuthTokenScope
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AuthTokensService
+import build.wallet.auth.SignedAccessTokenCache
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.crypto.PublicKey
@@ -11,7 +12,7 @@ import build.wallet.f8e.auth.AppFactorProofOfPossession
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.*
-import io.ktor.client.plugins.api.*
+import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.request.HttpRequestPipeline
 import okio.ByteString.Companion.encodeUtf8
 
@@ -19,6 +20,7 @@ class ProofOfPossessionPluginConfig {
   lateinit var authTokensService: AuthTokensService
   lateinit var appAuthKeyMessageSigner: AppAuthKeyMessageSigner
   lateinit var keyboxDao: KeyboxDao
+  lateinit var signedAccessTokenCache: SignedAccessTokenCache
 }
 
 object ProofOfPossessionHeaders {
@@ -37,6 +39,7 @@ val ProofOfPossessionPlugin = createClientPlugin(
   val authTokensRepository = pluginConfig.authTokensService
   val appAuthKeyMessageSigner = pluginConfig.appAuthKeyMessageSigner
   val keyboxDao = pluginConfig.keyboxDao
+  val signedAccessTokenCache = pluginConfig.signedAccessTokenCache
   client.requestPipeline.intercept(HttpRequestPipeline.Before) {
     if (context.attributes.contains(HwProofOfPossessionAttribute)) {
       val hwProofOfPossession = context.attributes[HwProofOfPossessionAttribute]
@@ -61,7 +64,11 @@ val ProofOfPossessionPlugin = createClientPlugin(
             }
 
           if (authKey != null) {
-            appAuthKeyMessageSigner.createAppProofOfPossession(authKey, tokens.accessToken)
+            appAuthKeyMessageSigner.createAppProofOfPossession(
+              authKey,
+              tokens.accessToken,
+              signedAccessTokenCache
+            )
               .onSuccess { signedMessage ->
                 // add our proof-of-possession http header
                 context.headers.append(
@@ -100,11 +107,22 @@ private suspend fun KeyboxDao.getAppAuthKey(): PublicKey<AppGlobalAuthKey>? {
 private suspend fun AppAuthKeyMessageSigner.createAppProofOfPossession(
   authKey: PublicKey<out AppAuthKey>,
   accessToken: AccessToken,
+  cache: SignedAccessTokenCache,
 ): Result<AppFactorProofOfPossession, Throwable> {
+  // Check if we have a cached signature for this token
+  cache.get(accessToken, authKey)?.let { cachedSignature ->
+    return Ok(AppFactorProofOfPossession(cachedSignature))
+  }
+
+  // No cached signature, sign the token
   return signMessage(
     publicKey = authKey,
     message = accessToken.raw.encodeUtf8()
   )
+    .onSuccess { signature ->
+      // Cache the signature for future use
+      cache.put(accessToken, authKey, signature)
+    }
     // Wrapped into type for documentation sake.
     .map(::AppFactorProofOfPossession)
     .logFailure { "Error creating app proof of possession." }

@@ -1,5 +1,5 @@
 use crate::chaincode_delegation::{ChaincodeDelegationError, Result};
-use bitcoin::bip32::{ChildNumber, ExtendedPubKey};
+use bitcoin::bip32::{ChildNumber, Xpub};
 use bitcoin::secp256k1::{All, Scalar, Secp256k1};
 
 pub const PROPRIETARY_KEY_PREFIX: &[u8] = b"CCDT";
@@ -8,10 +8,10 @@ pub const PROPRIETARY_KEY_SUBTYPE: u8 = 0;
 /// Computes the tweak for a given path, and returns the final, tweaked public key.
 pub fn tweak_from_path(
     secp: &Secp256k1<All>,
-    xpub: ExtendedPubKey,
+    xpub: Xpub,
     path: &[ChildNumber],
-) -> Result<(Scalar, ExtendedPubKey)> {
-    let mut pk: ExtendedPubKey = xpub;
+) -> Result<(Scalar, Xpub)> {
+    let mut pk: Xpub = xpub;
     let tweak: Scalar = path
         .iter()
         .try_fold(Scalar::ZERO, |acc, i| -> Result<Scalar> {

@@ -10,7 +10,7 @@ pub enum Error {
     #[error("Address exists, but AccountId is different: [{0}: {1}]")]
     AccountMismatchError(String, AccountId),
     #[error(transparent)]
-    BdkAddressError(#[from] address::Error),
+    BdkAddressError(#[from] address::error::ParseError),
     #[error(transparent)]
     DatabaseError(#[from] DatabaseError),
     #[error("Internal error: {0}")]

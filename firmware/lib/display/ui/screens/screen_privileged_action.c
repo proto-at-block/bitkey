@@ -6,8 +6,8 @@
 #include "langpack.h"
 #include "lvgl/lvgl.h"
 #include "widgets/address_display.h"
+#include "widgets/dot_ring.h"
 #include "widgets/hold_cancel.h"
-#include "widgets/hold_ring.h"
 #include "widgets/orbital_dots_animation.h"
 #include "widgets/top_menu.h"
 
@@ -17,6 +17,9 @@
 
 // Screen configuration
 #define MAX_PAGES 5
+
+// Timing
+#define HOLD_TO_CONFIRM_DURATION_MS 2000
 
 // Layout configuration
 #define HEADER_HEIGHT              140
@@ -53,8 +56,8 @@ static top_menu_t menu_button;
 // Cached params for rendering
 static fwpb_display_params_privileged_action cached_params;
 
-// Hold ring widget for approve action
-static hold_ring_t approve_ring;
+// Dot ring widget for approve action
+static dot_ring_t approve_ring;
 
 // Scan page orbital dots animation
 static orbital_dots_animation_t scan_page_orbital;
@@ -140,10 +143,13 @@ static void check_button_event_handler(lv_event_t* e) {
   lv_event_code_t code = lv_event_get_code(e);
 
   if (code == LV_EVENT_PRESSED) {
-    hold_ring_start(&approve_ring, HOLD_RING_COLOR_GREEN, on_approve_complete, NULL);
+    dot_ring_show(&approve_ring);
+    dot_ring_animate_fill(&approve_ring, 100, HOLD_TO_CONFIRM_DURATION_MS, DOT_RING_COLOR_GREEN,
+                          DOT_RING_FILL_SPLIT, on_approve_complete, NULL);
   } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
     // Stop if released before completion
-    hold_ring_stop(&approve_ring);
+    dot_ring_stop(&approve_ring);
+    dot_ring_hide(&approve_ring);
   }
 }
 
@@ -189,7 +195,7 @@ static void scroll_to_page(int page_index, bool animate) {
 
   // Free memory before scan page (orbital dots need memory)
   if (page_index == num_pages - 1 && current_page_index != num_pages - 1) {
-    hold_ring_destroy(&approve_ring);
+    dot_ring_destroy(&approve_ring);
     address_display_destroy(&address_widget);
   }
 
@@ -555,7 +561,7 @@ lv_obj_t* screen_privileged_action_init(void* ctx) {
 
   // Create widgets
   memset(&approve_ring, 0, sizeof(approve_ring));
-  hold_ring_create(screen, &approve_ring);
+  dot_ring_create(screen, &approve_ring);
 
   memset(&cancel_modal, 0, sizeof(cancel_modal));
   hold_cancel_create(screen, &cancel_modal);
@@ -570,7 +576,7 @@ lv_obj_t* screen_privileged_action_init(void* ctx) {
 }
 
 void screen_privileged_action_destroy(void) {
-  hold_ring_destroy(&approve_ring);
+  dot_ring_destroy(&approve_ring);
   hold_cancel_destroy(&cancel_modal);
   orbital_dots_animation_destroy(&scan_page_orbital);
   address_display_destroy(&address_widget);
@@ -595,7 +601,60 @@ void screen_privileged_action_destroy(void) {
   memset(&address_widget, 0, sizeof(address_widget));
 }
 
+// Handles screen re-entry safely by stopping all animations before recreation.
+// Prevents callback conflicts when showing the same screen with different action data.
 void screen_privileged_action_update(void* ctx) {
-  screen_privileged_action_destroy();
-  screen_privileged_action_init(ctx);
+  // First-time init
+  if (!screen) {
+    screen_privileged_action_init(ctx);
+    return;
+  }
+
+  // Validate parameters
+  const fwpb_display_show_screen* show_screen = (const fwpb_display_show_screen*)ctx;
+  if (!show_screen || show_screen->which_params != fwpb_display_show_screen_privileged_action_tag) {
+    return;
+  }
+
+  // New action may have different structure - stop animations before recreating
+  orbital_dots_animation_stop(&scan_page_orbital);
+  dot_ring_stop(&approve_ring);
+  if (cancel_modal.is_showing) {
+    dot_ring_stop(&cancel_modal.ring);
+  }
+
+  // Preserve old screen for async deletion
+  lv_obj_t* old_screen = screen;
+
+  // Clear all screen state
+  screen = NULL;
+  header = NULL;
+  header_title = NULL;
+  scroll_container = NULL;
+  for (int i = 0; i < MAX_PAGES; i++) {
+    page_containers[i] = NULL;
+  }
+  num_pages = 0;
+  current_page_index = 0;
+
+  // Clear widget state
+  memset(&cached_params, 0, sizeof(cached_params));
+  memset(&approve_ring, 0, sizeof(approve_ring));
+  memset(&cancel_modal, 0, sizeof(cancel_modal));
+  memset(&scan_page_orbital, 0, sizeof(scan_page_orbital));
+  memset(&address_widget, 0, sizeof(address_widget));
+  if (menu_button.is_initialized) {
+    memset(&menu_button, 0, sizeof(menu_button));
+  }
+
+  // Create and display new screen
+  lv_obj_t* new_screen = screen_privileged_action_init(ctx);
+  if (new_screen) {
+    lv_scr_load(new_screen);
+
+    // Delete old screen asynchronously to avoid callback conflicts
+    if (old_screen) {
+      lv_obj_del_async(old_screen);
+    }
+  }
 }

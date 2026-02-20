@@ -11,6 +11,7 @@ use http_server::swagger::{SwaggerEndpoint, Url};
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 use tracing::{error, instrument};
+use types::account::bitcoin::Network;
 use types::account::identifiers::AccountId;
 use types::account::spending::SpendingKeyDefinition;
 use utoipa::{OpenApi, ToSchema};
@@ -303,10 +304,17 @@ pub async fn continue_share_refresh(
         ));
     }
 
+    let network_wsm = match distributed_key.network {
+        Network::BitcoinMain => wsm_common::bitcoin::Network::Bitcoin,
+        Network::BitcoinTest => wsm_common::bitcoin::Network::Testnet,
+        Network::BitcoinSignet => wsm_common::bitcoin::Network::Signet,
+        Network::BitcoinRegtest => wsm_common::bitcoin::Network::Regtest,
+    };
+
     wsm_client
         .continue_share_refresh(
             &key_definition_id.to_string(),
-            distributed_key.network.into(),
+            network_wsm,
             request.sealed_request,
             request.noise_session,
         )

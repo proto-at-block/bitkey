@@ -61,12 +61,33 @@ test-unit-ios-simulator:
   {{gradle}} iosTest
 
 # Run integration tests targeting JVM
+# Uses --rerun to force test execution (catch flaky tests) without deleting compiled classes
 test-integration-jvm:
-  {{gradle}} cleanJvmIntegrationTest jvmIntegrationTest
+  {{gradle}} jvmIntegrationTest -Dkotest.tags="!IsolatedTest" --rerun
+
+# Run isolated integration tests targeting JVM
+# Uses --rerun to force test execution (catch flaky tests) without deleting compiled classes
+test-integration-jvm-isolated:
+  {{gradle}} jvmIntegrationTest -Dkotest.tags="IsolatedTest" --max-workers=1 -Pbitkey.integrationTest.maxParallelForks=1 --rerun
 
 # Run integration tests targeting all platforms - currently only JVM is supported
+# Uses --rerun to force test execution (catch flaky tests) without deleting compiled classes
 test-integration-all:
-  {{gradle}} cleanJvmIntegrationTest jvmIntegrationTest
+  {{gradle}} jvmIntegrationTest -Dkotest.tags="!IsolatedTest" --rerun
+
+# Run isolated integration tests targeting all platforms - currently only JVM is supported
+# Uses --rerun to force test execution (catch flaky tests) without deleting compiled classes
+test-integration-all-isolated:
+  {{gradle}} jvmIntegrationTest -Dkotest.tags="IsolatedTest" --max-workers=1 -Pbitkey.integrationTest.maxParallelForks=1 --rerun
+
+# Run integration tests in a Docker container alongside backend services
+# This is the preferred method for CI as it runs everything in containers
+test-integration-container *ARGS:
+  ./scripts/test-integration-container.sh {{ARGS}}
+
+# Stop and clean up integration test containers
+test-integration-container-down:
+  docker compose -f integration-test-container/docker-compose.yml down --volumes --timeout=1
 
 # Run unit tests targeting all platforms
 test-unit-all:
@@ -76,6 +97,7 @@ test-unit-all:
 test-all:
   just test-unit-all
   just test-integration-all
+  just test-integration-all-isolated
 
 # Record and update baseline UI snapshots for iOS and Android
 snapshots-record:
@@ -101,8 +123,10 @@ ios-snapshots-verify:
   set -e
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
-  echo "⚠️⚠️⚠️ Please be aware than verifying snapshots locally may result in flakey failures ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.0'
+  echo "⚠️⚠️⚠️ Please be aware that verifying snapshots locally may result in flakey failures ⚠️⚠️⚠️"
+  snapshot_device="${IOS_SNAPSHOT_DEVICE:-iPhone 17}"
+  snapshot_os="${IOS_SNAPSHOT_OS:-26.2}"
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination "platform=iOS Simulator,name=${snapshot_device},OS=${snapshot_os}"
 
 # Record and update baseline UI snapshots for iOS
 ios-snapshots-record:
@@ -111,23 +135,44 @@ ios-snapshots-record:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=true
   echo "⚠️⚠️⚠️ Only for use for local development, DO NOT COMMIT LOCALLY GENERATED SNAPSHOTS ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.0'
+  snapshot_device="${IOS_SNAPSHOT_DEVICE:-iPhone 17}"
+  snapshot_os="${IOS_SNAPSHOT_OS:-26.2}"
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination "platform=iOS Simulator,name=${snapshot_device},OS=${snapshot_os}"
+
+# Launch a specific iOS simulator (falls back to latest available runtime/device if missing)
+ios-app-launch-simulator device="iPhone 17" os="26.2":
+  ./scripts/ios-app-launch-simulator.sh "{{device}}" "{{os}}"
+
+# Build iOS app for simulator from CLI (no Xcode UI) and launch simulator in parallel
+ios-app-install-simulator device="iPhone 17" os="26.2":
+  ./scripts/ios-app-install-simulator.sh "{{device}}" "{{os}}"
+
+# Uninstall iOS app from simulator (also clears app data)
+ios-app-uninstall-simulator device="iPhone 17" os="26.2":
+  ./scripts/ios-app-uninstall-simulator.sh "{{device}}" "{{os}}"
+
+# Erase the entire simulator (resets all data and apps)
+ios-app-reset-simulator device="iPhone 17" os="26.2":
+  ./scripts/ios-app-reset-simulator.sh "{{device}}" "{{os}}"
 
 [private]
 ios-snapshot-prework:
   #!/bin/bash
   just install-xcode-clt
+  snapshot_device="${IOS_SNAPSHOT_DEVICE:-iPhone 17}"
+  snapshot_os="${IOS_SNAPSHOT_OS:-26.2}"
   # Check for the specific iOS simulator runtime
-  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-26-0' && echo true || echo false)
+  runtime_id="com.apple.CoreSimulator.SimRuntime.iOS-${snapshot_os//./-}"
+  runtime=$(xcrun simctl list runtimes | grep -w "$runtime_id" && echo true || echo false)
   if [ "$runtime" == "false" ]; then
-    echo "You must install the iOS 26.0 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the iOS ${snapshot_os} simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
   # Check for the specific simulator device
-  devices=$(xcrun simctl list devices | awk '/-- iOS 26.0 --/{flag=1;next}/--/{flag=0}flag')
-  device=$(echo "$devices" | grep -E 'iPhone 17 Pro Max \(.*\)' && echo true || echo false)
+  devices=$(xcrun simctl list devices | awk "/-- iOS $snapshot_os --/{flag=1;next}/--/{flag=0}flag")
+  device=$(echo "$devices" | grep -E "$snapshot_device \\(.*\\)" && echo true || echo false)
   if [ "$device" == "false" ]; then
-    echo "You must install the iPhone 17 Pro Max 26.0 simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the ${snapshot_device} Simulator (iOS ${snapshot_os}) to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
   # Generate Swift Snapshot test cases before generating xcode project
@@ -297,6 +342,14 @@ maestro os:
 validate-gradle-version:
   ./scripts/validate-gradle-version.sh
 
+# Validate CI status for a commit before creating a release
+validate-ci-status commit-sha:
+  ./scripts/validate-ci-status.sh {{commit-sha}}
+
+# Validate CI status for a team release tag before creating a customer release
+validate-ci-status-team-tag team-version:
+  ./scripts/validate-ci-status.sh --team-tag {{team-version}}
+
 start-backend:
   just -f ../server/justfile start-backend
 
@@ -378,5 +431,6 @@ pr-ready:
   just ios-snapshots-verify
   just start-backend
   just test-integration-all
+  just test-integration-all-isolated
   just stop-backend
   just ../valid-dependencies/check-gradle

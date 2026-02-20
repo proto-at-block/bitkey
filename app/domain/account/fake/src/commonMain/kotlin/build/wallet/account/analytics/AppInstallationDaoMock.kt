@@ -6,6 +6,9 @@ import com.github.michaelbull.result.Result
 class AppInstallationDaoMock : AppInstallationDao {
   var appInstallation: AppInstallation? = null
 
+  /** Tracks all calls to [updateAppInstallationHardwareSerialNumber] with their serial numbers. */
+  val updateSerialNumberCalls = mutableListOf<String>()
+
   override suspend fun getOrCreateAppInstallation(): Result<AppInstallation, Error> {
     appInstallation = appInstallation ?: AppInstallation(
       localId = "local-id",
@@ -17,11 +20,18 @@ class AppInstallationDaoMock : AppInstallationDao {
   override suspend fun updateAppInstallationHardwareSerialNumber(
     serialNumber: String,
   ): Result<Unit, Error> {
-    appInstallation = appInstallation!!.copy(hardwareSerialNumber = serialNumber)
+    updateSerialNumberCalls.add(serialNumber)
+    appInstallation = (
+      appInstallation ?: AppInstallation(
+        localId = "local-id",
+        hardwareSerialNumber = null
+      )
+    ).copy(hardwareSerialNumber = serialNumber)
     return Ok(Unit)
   }
 
   fun reset() {
     appInstallation = null
+    updateSerialNumberCalls.clear()
   }
 }

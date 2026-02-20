@@ -1668,6 +1668,8 @@ internal typealias UniffiVTableCallbackInterfaceSyncScriptInspectorUniffiByValue
 
 
 
+
+
 @Synchronized
 private fun findLibraryName(componentName: String): String {
     val libOverride = System.getProperty("uniffi.component.$componentName.libraryOverride")
@@ -2055,6 +2057,9 @@ internal object IntegrityCheckingUniffiLib : Library {
         if (uniffi_bdk_checksum_method_txbuilder_add_data() != 60041.toShort()) {
             throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
         }
+        if (uniffi_bdk_checksum_method_txbuilder_add_foreign_utxo() != 43709.toShort()) {
+            throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        }
         if (uniffi_bdk_checksum_method_txbuilder_add_global_xpubs() != 28938.toShort()) {
             throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
         }
@@ -2112,7 +2117,7 @@ internal object IntegrityCheckingUniffiLib : Library {
         if (uniffi_bdk_checksum_method_txbuilder_only_spend_change() != 44017.toShort()) {
             throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
         }
-        if (uniffi_bdk_checksum_method_txbuilder_policy_path() != 7992.toShort()) {
+        if (uniffi_bdk_checksum_method_txbuilder_policy_path() != 58250.toShort()) {
             throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
         }
         if (uniffi_bdk_checksum_method_txbuilder_set_exact_sequence() != 26799.toShort()) {
@@ -2783,6 +2788,9 @@ internal object IntegrityCheckingUniffiLib : Library {
     ): Short
     @JvmStatic
     external fun uniffi_bdk_checksum_method_txbuilder_add_data(
+    ): Short
+    @JvmStatic
+    external fun uniffi_bdk_checksum_method_txbuilder_add_foreign_utxo(
     ): Short
     @JvmStatic
     external fun uniffi_bdk_checksum_method_txbuilder_add_global_xpubs(
@@ -4581,6 +4589,16 @@ internal object UniffiLib : Library {
     external fun uniffi_bdk_fn_method_txbuilder_add_data(
         `ptr`: Pointer?,
         `data`: RustBufferByValue,
+        uniffiCallStatus: UniffiRustCallStatus,
+    ): Pointer?
+    @JvmStatic
+    external fun uniffi_bdk_fn_method_txbuilder_add_foreign_utxo(
+        `ptr`: Pointer?,
+        `outpoint`: RustBufferByValue,
+        `txout`: RustBufferByValue,
+        `prevTx`: Pointer?,
+        `satisfactionWeight`: Long,
+        `sequence`: RustBufferByValue,
         uniffiCallStatus: UniffiRustCallStatus,
     ): Pointer?
     @JvmStatic
@@ -12884,6 +12902,39 @@ public actual open class TxBuilder: Disposable, TxBuilderInterface {
     }
 
     /**
+     * Add a foreign UTXO to the internal list of UTXOs that must be spent.
+     *
+     * A foreign UTXO is a UTXO that does not belong to this wallet but can still be spent
+     * as part of the transaction. This is useful for spending UTXOs from a pending transaction
+     * that has been broadcast but not yet confirmed, where the wallet no longer tracks them
+     * as unspent.
+     *
+     * # Parameters
+     * - `outpoint`: The outpoint (txid:vout) of the UTXO to spend
+     * - `txout`: The transaction output data (value and script_pubkey) of the UTXO
+     * - `prev_tx`: The full previous transaction that created this UTXO (needed for PSBT signing)
+     * - `satisfaction_weight`: The weight of the input's satisfaction data (witness/scriptSig).
+     * For P2WPKH inputs, this is typically 108 weight units.
+     * - `sequence`: Optional nSequence value for RBF signaling. If None, defaults to 0xFFFFFFFF.
+     * For RBF-enabled transactions, use a value < 0xFFFFFFFE (e.g., 0xFFFFFFFD).
+     */
+    public actual override fun `addForeignUtxo`(`outpoint`: OutPoint, `txout`: TxOut, `prevTx`: Transaction, `satisfactionWeight`: kotlin.ULong, `sequence`: kotlin.UInt?): TxBuilder {
+        return FfiConverterTypeTxBuilder.lift(callWithPointer {
+            uniffiRustCall { uniffiRustCallStatus ->
+                UniffiLib.uniffi_bdk_fn_method_txbuilder_add_foreign_utxo(
+                    it,
+                    FfiConverterTypeOutPoint.lower(`outpoint`),
+                    FfiConverterTypeTxOut.lower(`txout`),
+                    FfiConverterTypeTransaction.lower(`prevTx`),
+                    FfiConverterULong.lower(`satisfactionWeight`),
+                    FfiConverterOptionalUInt.lower(`sequence`),
+                    uniffiRustCallStatus,
+                )
+            }!!
+        })
+    }
+
+    /**
      * Fill-in the `PSBT_GLOBAL_XPUB` field with the extended keys contained in both the external and internal
      * descriptors.
      *
@@ -13237,7 +13288,8 @@ public actual open class TxBuilder: Disposable, TxBuilderInterface {
     }
 
     /**
-     * The TxBuilder::policy_path is a complex API. See the Rust docs for complete       information: https://docs.rs/bdk_wallet/latest/bdk_wallet/struct.TxBuilder.html#method.policy_path
+     * The TxBuilder::policy_path is a complex API. See the Rust docs for complete information:
+     * https://docs.rs/bdk_wallet/latest/bdk_wallet/struct.TxBuilder.html#method.policy_path
      */
     public actual override fun `policyPath`(`policyPath`: Map<kotlin.String, List<kotlin.ULong>>, `keychain`: KeychainKind): TxBuilder {
         return FfiConverterTypeTxBuilder.lift(callWithPointer {
@@ -16844,6 +16896,9 @@ public object FfiConverterTypeCreateTxError : FfiConverterRustBuffer<CreateTxExc
                 )
             21 -> CreateTxException.PushBytesException()
             22 -> CreateTxException.LockTimeConversionException()
+            23 -> CreateTxException.ForeignUtxo(
+                FfiConverterString.read(buf),
+                )
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
     }
@@ -16956,6 +17011,11 @@ public object FfiConverterTypeCreateTxError : FfiConverterRustBuffer<CreateTxExc
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
             )
+            is CreateTxException.ForeignUtxo -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`errorMessage`)
+            )
         }
     }
 
@@ -17065,6 +17125,11 @@ public object FfiConverterTypeCreateTxError : FfiConverterRustBuffer<CreateTxExc
             }
             is CreateTxException.LockTimeConversionException -> {
                 buf.putInt(22)
+                Unit
+            }
+            is CreateTxException.ForeignUtxo -> {
+                buf.putInt(23)
+                FfiConverterString.write(value.`errorMessage`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }

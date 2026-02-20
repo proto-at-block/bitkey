@@ -28,6 +28,7 @@ class AuthTokensServiceImpl(
   private val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider,
   private val appVariant: AppVariant,
   private val accountConfigService: AccountConfigService,
+  private val signedAccessTokenCache: SignedAccessTokenCache,
 ) : AuthTokensService {
   override suspend fun refreshAccessTokenWithApp(
     f8eEnvironment: F8eEnvironment,
@@ -109,6 +110,10 @@ class AuthTokensServiceImpl(
     scope: AuthTokenScope,
   ) = authTokenDao
     .setTokensOfScope(accountId, newTokens, scope)
+    .onSuccess {
+      // Clear cached signatures since we have new tokens
+      signedAccessTokenCache.clear()
+    }
     .mapError(::AuthStorageError)
 
   private suspend fun validateF8eEnvironment(
@@ -160,6 +165,10 @@ class AuthTokensServiceImpl(
     scope: AuthTokenScope,
   ): Result<Unit, Throwable> {
     return authTokenDao.setTokensOfScope(accountId, tokens, scope)
+      .onSuccess {
+        // Clear cached signatures since we have new tokens
+        signedAccessTokenCache.clear()
+      }
   }
 
   override suspend fun clear(): Result<Unit, Throwable> =
@@ -169,5 +178,7 @@ class AuthTokensServiceImpl(
       }
 
       authTokenDao.clear().bind()
+      // Clear cached signatures since we cleared tokens
+      signedAccessTokenCache.clear()
     }
 }

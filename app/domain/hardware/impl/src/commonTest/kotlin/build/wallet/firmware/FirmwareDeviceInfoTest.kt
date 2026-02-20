@@ -128,6 +128,42 @@ class FirmwareDeviceInfoTest : FunSpec({
     info.fwupHwVersion().shouldBe("evt-prod")
   }
 
+  test("w3 dev config using secure boot config") {
+    val info =
+      infoTemplate.copy(
+        version = "1.0.32",
+        serial = "serial",
+        swType = "app-a-dev",
+        secureBootConfig = SecureBootConfig.DEV,
+        hwRevision = "w3a-core-evt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-evt-dev")
+  }
+
+  test("w3 prod config using secure boot config") {
+    val info =
+      infoTemplate.copy(
+        version = "1.0.32",
+        serial = "serial",
+        swType = "app-a-dev",
+        secureBootConfig = SecureBootConfig.PROD,
+        hwRevision = "w3a-core-evt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-evt-prod")
+  }
+
+  test("w3 mp revision") {
+    val info =
+      infoTemplate.copy(
+        version = "1.0.32",
+        serial = "serial",
+        swType = "app-a-dev",
+        secureBootConfig = SecureBootConfig.DEV,
+        hwRevision = "w3b-core-mp"
+      )
+    info.fwupHwVersion().shouldBe("w3b-mp-dev")
+  }
+
   test("batteryChargeForUninitializedModelGauge returns correct SOC table") {
     // @formatter:off
     //

@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This script updates Market icons from the squareup/market repository.
+# It generates drawable XMLs and MarketIcons.generated.kt for use in the wallet app.
+
+if ! command -v node >/dev/null; then
+  echo "node is required to build icons from market repo." >&2
+  exit 1
+fi
+
 if ! command -v npm >/dev/null; then
-  echo "npm is required to build icons via cash-design-system." >&2
+  echo "npm is required to build icons from market repo." >&2
   exit 1
 fi
 
@@ -14,143 +22,145 @@ cleanup() {
 }
 trap cleanup EXIT
 
-CASH_DESIGN_SYSTEM_REPO="$TMP_DIR/cash-design-system"
-git clone --depth 1 https://github.com/squareup/cash-design-system "$CASH_DESIGN_SYSTEM_REPO" >/dev/null
+echo "Cloning squareup/market repository..."
+MARKET_REPO="$TMP_DIR/market"
+git clone --depth 1 https://github.com/squareup/market "$MARKET_REPO" >/dev/null 2>&1
 
+echo "Installing dependencies..."
 (
-  cd "$CASH_DESIGN_SYSTEM_REPO"
-  if [[ -f package-lock.json ]]; then
-    npm ci
-  else
-    npm install
-  fi
-  npm run build:tokens:android
+  cd "$MARKET_REPO/common/icons"
+  npm ci --silent 2>/dev/null || npm install --silent
 )
 
-SRC_DRAWABLE_DIR="$CASH_DESIGN_SYSTEM_REPO/generators/android/lib/arcade/src/main/res/drawable"
+# Generate drawables and Kotlin file
 DEST_DRAWABLE_DIR="$REPO_ROOT/ui/framework/public/src/commonMain/composeResources/drawable"
-
-if [[ ! -d "$SRC_DRAWABLE_DIR" ]]; then
-  echo "Drawable directory not found after build: $SRC_DRAWABLE_DIR" >&2
-  exit 1
-fi
-
-shopt -s nullglob
-icon_drawables=("$SRC_DRAWABLE_DIR"/icon_*.xml)
-if (( ${#icon_drawables[@]} == 0 )); then
-  echo "No icon drawables were produced by cash-design-system." >&2
-  exit 1
-fi
-
-find "$DEST_DRAWABLE_DIR" -maxdepth 1 -type f \( -name 'market_*' -o -name 'icon_*' \) -delete
-cp "${icon_drawables[@]}" "$DEST_DRAWABLE_DIR"/
-shopt -u nullglob
-
 DEST_KT_DIR="$REPO_ROOT/ui/framework/public/src/commonMain/kotlin/build/wallet/ui/tokens/market"
 mkdir -p "$DEST_KT_DIR"
 KOTLIN_DEST="$DEST_KT_DIR/MarketIcons.generated.kt"
 
-python3 - "$CASH_DESIGN_SYSTEM_REPO/assets/icons/icon.json" "$DEST_DRAWABLE_DIR" "$KOTLIN_DEST" <<'PY'
-import json
-import re
-import sys
-from pathlib import Path
+echo "Generating Market icons..."
 
-icons_manifest = Path(sys.argv[1])
-drawable_dir = Path(sys.argv[2])
-output_path = Path(sys.argv[3])
+# Use node to generate the icons
+node - "$MARKET_REPO/common/icons" "$DEST_DRAWABLE_DIR" "$KOTLIN_DEST" <<'JS'
+const fs = require('fs');
+const path = require('path');
 
-data = json.loads(icons_manifest.read_text())
-icons = data.get("asset", {}).get("icon", {})
+const iconsDir = process.argv[2];
+const drawableDir = process.argv[3];
+const kotlinDest = process.argv[4];
 
-if not icons:
-  raise SystemExit("No icon metadata found in assets/icons/icon.json")
+// Load manifest
+const manifestPath = path.join(iconsDir, 'manifest.json');
+const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
 
-def camel_to_snake(name: str) -> str:
-  name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-  name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
-  name = re.sub("([A-Za-z])([0-9])", r"\1_\2", name)
-  name = re.sub("([0-9])([A-Za-z])", r"\1_\2", name)
-  name = name.replace("__", "_")
-  return name.lower()
+// Helper functions
+function snakeCase(str) {
+  return str
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toLowerCase();
+}
 
-def snake_to_pascal(name: str) -> str:
-  return "".join(part.capitalize() for part in name.split("_") if part)
+function pascalCase(str) {
+  return str
+    .split(/[-_\s]+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+}
 
-def is_multi_color(xml_path: Path) -> bool:
-  text = xml_path.read_text()
-  colors = set(color.lower() for color in re.findall(r"#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})", text))
-  colors.discard("#00000000")
-  return len(colors) > 1
-
-entries = []
-missing = []
-
-for key in sorted(icons.keys()):
-  entry = icons[key]
-  drawable_name = f"icon_{camel_to_snake(key)}"
-  drawable_path = drawable_dir / f"{drawable_name}.xml"
-  if not drawable_path.exists():
-    missing.append(drawable_name)
-    continue
-  property_name = snake_to_pascal(camel_to_snake(key))
-  description = entry.get("description", "").strip()
-  is_multicolor = is_multi_color(drawable_path)
-  entries.append(
-    {
-      "property_name": property_name,
-      "icon_name": entry.get("name", key),
-      "description": description,
-      "drawable": drawable_name,
-      "multicolor": is_multicolor,
+// Check which SVG files exist
+const svgDir = path.join(iconsDir, 'svg');
+const existingSvgs = new Set();
+if (fs.existsSync(svgDir)) {
+  fs.readdirSync(svgDir).forEach(file => {
+    if (file.endsWith('.svg')) {
+      existingSvgs.add(file.replace('.svg', ''));
     }
-  )
+  });
+}
 
-if missing:
-  sys.stderr.write(
-    "Warning: skipped {} icons with no drawable representation (e.g. {}).\n".format(
-      len(missing),
-      ", ".join(missing[:5])
-    )
-  )
+// Filter icons that have SVG files
+const icons = Object.entries(manifest.icons)
+  .filter(([key, icon]) => existingSvgs.has(icon.name))
+  .sort((a, b) => a[1].name.localeCompare(b[1].name));
 
-if not entries:
-  raise SystemExit("No icons were generated; aborting MarketIcons file creation.")
+if (icons.length === 0) {
+  console.error('No icons found with SVG files');
+  process.exit(1);
+}
 
-lines = [
-  "// Don't edit manually.",
-  "// Generated via scripts/update-market-icons.sh using cash-design-system.",
-  "",
-  "package build.wallet.ui.tokens.market",
-  "",
-  "import bitkey.ui.framework_public.generated.resources.Res",
-  "import bitkey.ui.framework_public.generated.resources.*",
-  "",
-  "/**",
-  " * Collection of [MarketIcon]s generated from cash-design-system.",
-  " */",
-  "@Suppress(\"LargeClass\")",
-  "public object MarketIcons {",
-]
+console.log(`Found ${icons.length} icons with SVG files`);
 
-for idx, entry in enumerate(entries):
-  if idx != 0:
-    lines.append("")
-  lines.append("  /**")
-  lines.append(f"   * The Market icon named '{entry['icon_name']}'.")
-  if entry["description"]:
-    lines.append("   *")
-    for desc_line in entry["description"].splitlines():
-      lines.append(f"   * {desc_line}")
-  lines.append("   */")
-  lines.append(f"  public val {entry['property_name']}: MarketIcon =")
-  multicolor = "true" if entry["multicolor"] else "false"
-  lines.append(f"    MarketIcon(Res.drawable.{entry['drawable']}, {multicolor})")
+// Check which drawables already exist
+const existingDrawables = new Set();
+if (fs.existsSync(drawableDir)) {
+  fs.readdirSync(drawableDir).forEach(file => {
+    if (file.startsWith('market_') && file.endsWith('.xml')) {
+      existingDrawables.add(file.replace('.xml', ''));
+    }
+  });
+}
 
-lines.append("}")
-lines.append("")
+// Generate Kotlin file
+const kotlinLines = [
+  '// Don\'t edit manually.',
+  '// Generated from market repo manifest.json',
+  '',
+  'package build.wallet.ui.tokens.market',
+  '',
+  'import bitkey.ui.framework_public.generated.resources.Res',
+  'import bitkey.ui.framework_public.generated.resources.*',
+  '',
+  '/**',
+  ' * Collection of [MarketIcon]s generated from the Market design system.',
+  ' */',
+  '@Suppress("LargeClass")',
+  'public object MarketIcons {',
+];
 
-output_path.write_text("\n".join(lines))
-PY
+let skippedCount = 0;
+let includedCount = 0;
 
-echo "Market drawables and icons metadata updated from cash-design-system."
+icons.forEach(([key, icon], index) => {
+  const drawableName = `market_${snakeCase(icon.name)}`;
+  const propertyName = pascalCase(icon.name);
+  
+  // Only include icons that have drawable files
+  if (!existingDrawables.has(drawableName)) {
+    skippedCount++;
+    return;
+  }
+  
+  includedCount++;
+  
+  if (includedCount > 1) {
+    kotlinLines.push('');
+  }
+  
+  kotlinLines.push('  /**');
+  kotlinLines.push(`   * The Market icon named '${icon.name}'.`);
+  if (icon.description) {
+    kotlinLines.push('   *');
+    icon.description.split('\n').forEach(line => {
+      kotlinLines.push(`   * ${line}`);
+    });
+  }
+  kotlinLines.push('   */');
+  kotlinLines.push(`  public val ${propertyName}: MarketIcon =`);
+  kotlinLines.push(`    MarketIcon(Res.drawable.${drawableName}, ${icon.multicolor})`);
+});
+
+kotlinLines.push('}');
+kotlinLines.push('');
+
+fs.writeFileSync(kotlinDest, kotlinLines.join('\n'));
+
+console.log(`Generated MarketIcons.generated.kt with ${includedCount} icons`);
+if (skippedCount > 0) {
+  console.log(`Skipped ${skippedCount} icons without drawable files`);
+}
+JS
+
+echo "Market icons updated successfully!"
+echo "Note: Drawable XML files must be generated separately using svg2vectordrawable or similar tool."
+echo "The MarketIcons.generated.kt file has been updated to match existing drawable files."

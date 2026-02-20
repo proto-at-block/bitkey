@@ -6,28 +6,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
-import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.model.datetime.DatePickerModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.toLocalDateTime
-import androidx.compose.material3.DatePicker as MaterialDatePicker
-import androidx.compose.material3.DatePickerDialog as MaterialDatePickerDialog
 
 @Composable
 fun DatePickerField(
@@ -38,19 +26,13 @@ fun DatePickerField(
     mutableStateOf(false)
   }
 
-  val textStyle =
-    WalletTheme.labelStyle(
-      type = LabelType.Body2Regular,
-      treatment = LabelTreatment.Primary
-    )
-
   Row(
     modifier =
       modifier
         .clip(RoundedCornerShape(size = 32.dp))
         .defaultMinSize(
-          minWidth = TextFieldDefaults.MinWidth,
-          minHeight = TextFieldDefaults.MinHeight
+          minWidth = 280.dp, // Material3 default TextField minimum width
+          minHeight = 56.dp // Material3 default TextField minimum height
         )
         .background(color = WalletTheme.colors.foreground10)
         .clickable {
@@ -58,54 +40,23 @@ fun DatePickerField(
         },
     verticalAlignment = Alignment.CenterVertically
   ) {
-    Text(
+    Label(
       modifier = Modifier.padding(horizontal = 16.dp),
       text = model.valueStringRepresentation,
-      style = textStyle
+      type = LabelType.Body2Regular,
+      treatment = LabelTreatment.Primary
     )
   }
 
   if (isShowingDatePicker) {
-    DatePickerDialog(
+    NativeDatePickerDialog(
       initialDate = model.value,
+      minDate = model.minDate,
+      maxDate = model.maxDate,
       onDateSelected = model.onValueChange,
       onDismiss = {
         isShowingDatePicker = false
       }
-    )
-  }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DatePickerDialog(
-  initialDate: LocalDate?,
-  onDateSelected: (LocalDate) -> Unit,
-  onDismiss: () -> Unit,
-) {
-  val datePickerState =
-    rememberDatePickerState(
-      initialSelectedDateMillis = initialDate?.atStartOfDayIn(TimeZone.UTC)?.toEpochMilliseconds()
-    )
-
-  MaterialDatePickerDialog(
-    onDismissRequest = onDismiss,
-    confirmButton = {
-      Button(onClick = {
-        datePickerState.selectedDateMillis?.let { millis ->
-          val selectedDate =
-            Instant.fromEpochMilliseconds(millis)
-              .toLocalDateTime(TimeZone.UTC)
-          onDateSelected(selectedDate.date)
-          onDismiss()
-        }
-      }) {
-        Text("Confirm")
-      }
-    }
-  ) {
-    MaterialDatePicker(
-      state = datePickerState
     )
   }
 }

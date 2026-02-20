@@ -73,6 +73,9 @@ enum class DelayNotifyRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Error screen shown when generating the sweep PSBTs fails for lost app D+N */
   LOST_APP_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR,
 
+  /** Warning screen shown on W3 when there are multiple transactions to sign during recovery */
+  LOST_APP_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING,
+
   /** Error screen shown when user navigates away from sweep */
   LOST_APP_DELAY_NOTIFY_SWEEP_EXITED,
 

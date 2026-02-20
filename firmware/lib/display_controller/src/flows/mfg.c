@@ -10,6 +10,7 @@
 #include "ipc.h"
 #include "power.h"
 #include "rtos.h"
+#include "sleep.h"
 #else
 // External functions for simulation (provided by ui-simulate/main.c)
 extern uint32_t rtos_thread_systime(void);
@@ -81,6 +82,11 @@ void display_controller_mfg_on_enter(display_controller_t* controller, const voi
   // Always reset context on entry to prevent state leakage between test runs
   memset(&runin_ctx, 0, sizeof(runin_ctx));
 
+#ifdef EMBEDDED_BUILD
+  // Prevent device from sleeping during manufacturing tests
+  sleep_inhibit(SLEEP_INHIBIT_INFINITE);
+#endif
+
   // Set which_params for mfg screens
   controller->show_screen.which_params = fwpb_display_show_screen_mfg_tag;
 
@@ -121,6 +127,12 @@ void display_controller_mfg_on_enter(display_controller_t* controller, const voi
     controller->show_screen.params.mfg.test_mode = payload->test_mode;
     controller->show_screen.params.mfg.custom_rgb = payload->custom_rgb;
     controller->show_screen.params.mfg.brightness_percent = payload->brightness_percent;
+
+    // For MFG tests, set global brightness to 100% (no dimming from device settings)
+    // The local brightness (set in screen_mfg) will control the actual brightness
+    if (payload->brightness_percent > 0) {
+      controller->show_screen.brightness_percent = 100;
+    }
 
     // Set battery info for START_SCREEN
     if (payload->test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN) {
@@ -165,6 +177,10 @@ void display_controller_mfg_on_enter(display_controller_t* controller, const voi
 void display_controller_mfg_on_exit(display_controller_t* controller) {
   // Reset run-in state on exit
   memset(&runin_ctx, 0, sizeof(runin_ctx));
+
+#ifdef EMBEDDED_BUILD
+  sleep_clear_inhibit();
+#endif
 
   // Terminate any active touch test and send timeout result
   if (controller->touch_test.active) {

@@ -3,20 +3,16 @@ package build.wallet.ui.compose
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.updateTransition
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.platform.haptics.HapticsEffect
@@ -75,7 +71,8 @@ fun Modifier.scalingClickable(
   hapticsEffect: HapticsEffect = HapticsEffect.Selection,
   onClick: () -> Unit,
 ) = composed {
-  var isPressed by remember { mutableStateOf(false) }
+  val interactionSource = remember { MutableInteractionSource() }
+  val isPressed by interactionSource.collectIsPressedAsState()
   val animationTransition = updateTransition(isPressed, label = "scaling-clickable-transition")
   val scaleAnimation by animationTransition.animateFloat(
     targetValueByState = { pressed -> if (pressed) scaleFactor else 1f },
@@ -87,34 +84,23 @@ fun Modifier.scalingClickable(
   )
 
   val scope = rememberCoroutineScope()
-
   val haptics = LocalHaptics.current
 
   this.graphicsLayer {
     scaleX = scaleAnimation
     scaleY = scaleAnimation
     alpha = alphaAnimation
-  }.thenIf(enabled) {
-    pointerInput(enabled) {
-      detectTapGestures(
-        onPress = {
-          isPressed = true
-
-          val released = tryAwaitRelease()
-          isPressed = false
-          if (released) {
-            // Trigger haptic feedback when pressed
-            haptics?.let {
-              scope.launch {
-                it.vibrate(hapticsEffect)
-              }
-            }
-            onClick()
-          }
-        }
-      )
+  }.clickable(
+    interactionSource = interactionSource,
+    indication = null,
+    enabled = enabled,
+    onClick = {
+      haptics?.let {
+        scope.launch { it.vibrate(hapticsEffect) }
+      }
+      onClick()
     }
-  }.semantics(mergeDescendants = true) { role = Role.Button }
+  )
 }
 
 /**

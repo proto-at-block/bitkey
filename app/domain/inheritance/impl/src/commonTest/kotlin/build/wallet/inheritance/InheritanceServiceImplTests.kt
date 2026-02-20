@@ -71,13 +71,22 @@ class InheritanceServiceImplTests : FunSpec({
   val newHash = InheritanceMaterialHashData(
     networkType = BitcoinNetworkType.BITCOIN,
     spendingKey = SpendingKeysetMock.appKey,
-    contacts = listOf(EndorsedBeneficiaryFake)
+    hardwareKey = SpendingKeysetMock.hardwareKey,
+    f8eSpendingKeyset = SpendingKeysetMock.f8eSpendingKeyset,
+    contacts = setOf(
+      InheritanceContactHashData(
+        id = EndorsedBeneficiaryFake.id,
+        identityKey = EndorsedBeneficiaryFake.identityKey
+      )
+    )
   )
   val upToDateHash = newHash
   val outdatedHash = InheritanceMaterialHashData(
     networkType = BitcoinNetworkType.BITCOIN,
     spendingKey = SpendingKeysetMock.appKey,
-    contacts = emptyList()
+    hardwareKey = SpendingKeysetMock.hardwareKey,
+    f8eSpendingKeyset = SpendingKeysetMock.f8eSpendingKeyset,
+    contacts = emptySet()
   )
   val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val appCoroutineScope = TestScope()

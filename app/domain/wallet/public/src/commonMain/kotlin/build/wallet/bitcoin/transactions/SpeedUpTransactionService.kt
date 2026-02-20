@@ -57,6 +57,14 @@ sealed interface SpeedUpTransactionError {
    * Transactions must have at least one input with nSequence < 0xfffffffe to be replaceable.
    */
   data object TransactionNotReplaceable : SpeedUpTransactionError
+
+  /**
+   * Returned when the fee bump would reduce the output amount below the dust limit.
+   *
+   * This occurs when the fee increase required for the replacement transaction would leave
+   * insufficient value for a valid output.
+   */
+  data object OutputBelowDustLimit : SpeedUpTransactionError
 }
 
 /**

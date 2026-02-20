@@ -20,7 +20,6 @@ kotlin {
         implementation(projects.libs.timePublic)
         implementation(compose.components.resources)
         implementation(compose.foundation)
-        implementation(compose.material)
         implementation(libs.kmp.compottie)
         implementation(libs.kmp.compottie.resources)
         implementation(projects.domain.analyticsPublic)

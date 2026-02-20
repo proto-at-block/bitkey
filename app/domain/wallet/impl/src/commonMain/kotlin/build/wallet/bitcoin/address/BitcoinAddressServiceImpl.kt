@@ -106,6 +106,40 @@ class BitcoinAddressServiceImpl(
     }.logFailure { "Error generating bitcoin address." }
   }
 
+  override suspend fun generateAddressInfo(): Result<BitcoinAddressInfo, Throwable> {
+    return coroutineBinding {
+      val account = accountService.getAccount<FullAccount>().bind()
+
+      // Check keyset sync status first - block address generation if mismatch detected
+      when (val syncStatus = spendingKeysetRepairService.syncStatus.value) {
+        is SpendingKeysetSyncStatus.Mismatch -> {
+          Err(
+            KeysetMismatchError(
+              message = "Cannot generate address: local keyset doesn't match server",
+              localKeysetId = syncStatus.localActiveKeysetId,
+              serverKeysetId = syncStatus.serverActiveKeysetId
+            )
+          ).bind()
+        }
+        else -> {} // Continue with address generation
+      }
+
+      // Check descriptor backup health
+      val activeSpendingKeyset = account.keybox.activeSpendingKeyset
+      if (activeSpendingKeyset.isPrivateWallet) {
+        descriptorBackupService
+          .checkBackupForPrivateKeyset(activeSpendingKeyset.f8eSpendingKeyset.keysetId)
+          .bind()
+      }
+
+      val wallet = bitcoinWalletService.spendingWallet().value
+      ensureNotNull(wallet) { Error("No spending wallet found.") }
+      val addressInfo = wallet.getNewAddressInfo().bind()
+      addressCache.emit(AccountWithAddress(account = account, bitcoinAddress = addressInfo.address))
+      addressInfo
+    }.logFailure { "Error generating bitcoin address info." }
+  }
+
   /**
    * A simple wrapper data class to couple an account and a newly generated address. Used instead of
    * retrieving the account dynamically when registering the address.

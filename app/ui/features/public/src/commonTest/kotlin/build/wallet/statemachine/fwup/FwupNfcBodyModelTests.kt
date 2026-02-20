@@ -20,9 +20,9 @@ class FwupNfcBodyModelTests : FunSpec({
     status.text.shouldBe("Updating...")
   }
 
-  test("InProgress text shows '(1/2)' for W3 first MCU (CORE)") {
+  test("InProgress text shows '(1/2)' for W3 first MCU (UXC)") {
     val status = InProgress(
-      currentMcuRole = McuRole.CORE,
+      currentMcuRole = McuRole.UXC,
       mcuIndex = 0,
       totalMcus = 2,
       fwupProgress = 50f
@@ -30,9 +30,9 @@ class FwupNfcBodyModelTests : FunSpec({
     status.text.shouldBe("Updating (1/2)...")
   }
 
-  test("InProgress text shows '(2/2)' for W3 second MCU (UXC)") {
+  test("InProgress text shows '(2/2)' for W3 second MCU (CORE)") {
     val status = InProgress(
-      currentMcuRole = McuRole.UXC,
+      currentMcuRole = McuRole.CORE,
       mcuIndex = 1,
       totalMcus = 2,
       fwupProgress = 75f
@@ -64,7 +64,7 @@ class FwupNfcBodyModelTests : FunSpec({
 
   test("LostConnection text shows '(1/2)' for W3 first MCU") {
     val status = LostConnection(
-      currentMcuRole = McuRole.CORE,
+      currentMcuRole = McuRole.UXC,
       mcuIndex = 0,
       totalMcus = 2,
       fwupProgress = 30f
@@ -74,7 +74,7 @@ class FwupNfcBodyModelTests : FunSpec({
 
   test("LostConnection text shows '(2/2)' for W3 second MCU") {
     val status = LostConnection(
-      currentMcuRole = McuRole.UXC,
+      currentMcuRole = McuRole.CORE,
       mcuIndex = 1,
       totalMcus = 2,
       fwupProgress = 60f

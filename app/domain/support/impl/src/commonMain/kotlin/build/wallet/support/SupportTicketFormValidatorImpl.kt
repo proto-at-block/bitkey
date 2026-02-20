@@ -16,6 +16,12 @@ class SupportTicketFormValidatorImpl(
       return false
     }
 
+    // Validate that media attachments don't exceed the limit
+    val mediaAttachmentCount = data.attachments.count { it is SupportTicketAttachment.Media }
+    if (mediaAttachmentCount > MAX_MEDIA_ATTACHMENTS) {
+      return false
+    }
+
     return form.fields.all { field ->
       if (form.conditions.evaluate(field, data) == ConditionEvaluationResult.Visible.Required) {
         field.validateFrom(data)

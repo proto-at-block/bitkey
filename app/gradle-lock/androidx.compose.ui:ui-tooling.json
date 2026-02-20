@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-tooling",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.3",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-tooling-metadata-1.8.1.jar": "059535329d4e6746a57becc93f9afed723940badd475b92f2c4494b5a07e9cc9"
+                        "ui-tooling-metadata-1.9.3.jar": "9eec83f5d46914ff0b8021166e11c0a8dbc53039aa2c2fedb85e550e9dd1d1c5"
                     }
                 }
             ],

@@ -13,7 +13,7 @@ class ChaincodeDelegationTweakServiceFake : ChaincodeDelegationTweakService {
     id = "psbt-id",
     base64 = "delegated-base-64",
     fee = Fee(amount = BitcoinMoney.sats(10_000)),
-    baseSize = 10000,
+    vsize = 10000,
     numOfInputs = 1,
     amountSats = 10000UL
   )

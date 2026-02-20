@@ -101,4 +101,10 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
 
   /** NFC flow to generate a replacement spending key during keyset repair */
   KEYSET_REPAIR_GENERATE_HW_KEY,
+
+  /** NFC flow to get address from hardware for verification */
+  ADDRESS_VERIFICATION,
+
+  /** NFC flow to build hardware descriptor for W3 devices during onboarding */
+  VERIFY_KEYS_AND_BUILD_HARDWARE_DESCRIPTOR,
 }

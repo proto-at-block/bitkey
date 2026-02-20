@@ -23,7 +23,6 @@ import build.wallet.statemachine.account.create.CreateAccountOptionsModel
 import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
@@ -85,11 +84,9 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val onCreateFullAccountCalls = turbines.create<Unit>("onCreateFullAccount calls")
 
   val props = ChooseAccountAccessUiProps(
-    chooseAccountAccessData = GettingStartedData(
-      startRecovery = { startRecoveryCalls.add(Unit) },
-      startLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
-      startEmergencyExitRecovery = { startEmergencyExitRecoveryCalls.add(Unit) }
-    ),
+    onStartRecovery = { startRecoveryCalls.add(Unit) },
+    onStartLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
+    onStartEmergencyExitRecovery = { startEmergencyExitRecoveryCalls.add(Unit) },
     onSoftwareWalletCreated = {},
     onCreateFullAccount = { onCreateFullAccountCalls += Unit }
   )

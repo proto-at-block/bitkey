@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-runtime-compose-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.9.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-runtime-compose-iosSimulatorArm64Main-2.9.4.klib": "918968d0d1d2d21efd56e52c106165d48ecc84c994b32d5c548cc089eb8f4629"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "lifecycle-runtime-compose-iossimulatorarm64-2.9.4-metadata.jar": "f56f72e0261ad3b2a2b23f33485104d2c20cc66112776195e73c7db8634ef826"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

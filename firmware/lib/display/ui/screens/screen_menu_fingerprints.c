@@ -14,9 +14,9 @@
 
 // Screen configuration
 #define SCREEN_BRIGHTNESS 100
-#define TITLE_Y_OFFSET    90
-#define ICON_SIZE         64
-#define ITEM_LABEL_Y      120
+#define ICON_SIZE         80
+#define ICON_Y_OFFSET     0
+#define ITEM_LABEL_Y      80
 #define MAX_FINGERPRINTS  3
 
 // Carousel layout configuration
@@ -24,39 +24,34 @@
 #define OPACITY_SELECTED     LV_OPA_COVER
 #define OPACITY_DIMMED       LV_OPA_40
 #define ANIM_DURATION        300
-#define SCROLL_ANIM_TIME     150
-#define ICON_CIRCLE_SIZE     80
-#define ICON_CIRCLE_COLOR    0x404040  // Gray
-#define COLOR_GREEN          0xD1FB96  // Green for pulse animation
+#define SCROLL_ANIM_TIME     350
+#define ICON_CIRCLE_SIZE     120
+#define ICON_CIRCLE_SIZE_MIN 100
+#define ICON_CIRCLE_COLOR    0x404040
+#define COLOR_GREEN          0xD1FB96
 #define GREEN_PULSE_DURATION 200
 #define GREEN_PULSE_CYCLES   2
 
-// Colors
-#define COLOR_TITLE      0xADADAD
-#define COLOR_ITEM_TEXT  0xFFFFFF
-#define COLOR_EMPTY_TEXT 0x808080
-
 // Fonts
-#define FONT_TITLE (&cash_sans_mono_regular_24)
-#define FONT_ITEM  (&cash_sans_mono_regular_28)
+#define FONT_ITEM (&cash_sans_mono_regular_28)
 
-// External image declaration
+// External image declarations
 extern const lv_img_dsc_t fingerprint;
+extern const lv_img_dsc_t plus;
 
 // Screen state
 static lv_obj_t* screen = NULL;
-static lv_obj_t* title_label = NULL;
 static lv_obj_t* scroll_container = NULL;
 static lv_obj_t* item_containers[MAX_FINGERPRINTS] = {NULL};
-static lv_obj_t* item_icon_circles[MAX_FINGERPRINTS] = {NULL};  // Circle backgrounds
+static lv_obj_t* item_icon_circles[MAX_FINGERPRINTS] = {NULL};
 static lv_obj_t* item_icons[MAX_FINGERPRINTS] = {NULL};
 static lv_obj_t* item_labels[MAX_FINGERPRINTS] = {NULL};
 static top_back_t back_button = {0};
 static int current_item = 0;
 
 // Animation context for green pulse
-static lv_obj_t* pulse_target_obj = NULL;
-static lv_color_t pulse_original_color = {0};
+static lv_obj_t* pulse_icon_obj = NULL;
+static lv_obj_t* pulse_label_obj = NULL;
 static int pulse_slot_index = 0;
 static bool pulse_active = false;
 static uint8_t pulse_cycle_count = 0;
@@ -92,19 +87,35 @@ static void update_item_styles_by_position(void) {
     lv_coord_t distance =
       (item_center > screen_center) ? (item_center - screen_center) : (screen_center - item_center);
 
-    // Calculate opacity: full at center, fades to 40% away
     lv_opa_t opacity;
+    lv_coord_t circle_size;
     if (distance < ITEM_WIDTH / 2) {
       uint32_t opacity_range = OPACITY_SELECTED - OPACITY_DIMMED;
       uint32_t fade = (distance * opacity_range) / (ITEM_WIDTH / 2);
       opacity = OPACITY_SELECTED - fade;
+
+      uint32_t size_range = ICON_CIRCLE_SIZE - ICON_CIRCLE_SIZE_MIN;
+      uint32_t size_reduction = (distance * size_range) / (ITEM_WIDTH / 2);
+      circle_size = ICON_CIRCLE_SIZE - size_reduction;
     } else {
       opacity = OPACITY_DIMMED;
+      circle_size = ICON_CIRCLE_SIZE_MIN;
     }
 
     lv_obj_set_style_opa(item_icon_circles[i], opacity, 0);
     lv_obj_set_style_opa(item_icons[i], opacity, 0);
-    lv_obj_set_style_text_opa(item_labels[i], opacity, 0);
+
+    lv_obj_set_size(item_icon_circles[i], circle_size, circle_size);
+
+    lv_coord_t label_fade_threshold = ITEM_WIDTH / 2;
+    if (distance < label_fade_threshold) {
+      lv_obj_clear_flag(item_labels[i], LV_OBJ_FLAG_HIDDEN);
+      uint32_t label_opacity =
+        ((label_fade_threshold - distance) * LV_OPA_COVER) / label_fade_threshold;
+      lv_obj_set_style_text_opa(item_labels[i], (lv_opa_t)label_opacity, 0);
+    } else {
+      lv_obj_add_flag(item_labels[i], LV_OBJ_FLAG_HIDDEN);
+    }
   }
 }
 
@@ -153,9 +164,7 @@ static void fingerprint_item_click_handler(lv_event_t* e) {
       return;
     }
 
-    // Already centered - trigger action
     if (enrolled_cache[fp_index]) {
-      // Check if this is the last enrolled fingerprint
       uint8_t enrolled_count = 0;
       for (uint8_t i = 0; i < MAX_FINGERPRINTS; i++) {
         if (enrolled_cache[i]) {
@@ -164,16 +173,13 @@ static void fingerprint_item_click_handler(lv_event_t* e) {
       }
 
       if (enrolled_count <= 1) {
-        // Last fingerprint - can't delete
         return;
       }
 
-      // Show delete modal
       cached_fingerprint_index = (uint8_t)fp_index;
       hold_cancel_show_with_text(&cancel_modal, on_cancel_complete, on_cancel_dismiss, NULL,
                                  "Remove", "Removed");
     } else {
-      // Empty slot - start enrollment
       display_send_action(fwpb_display_action_display_action_type_DISPLAY_ACTION_EXIT, fp_index);
     }
   }
@@ -196,7 +202,7 @@ static void scroll_to_item(int index, bool animate) {
 static void green_pulse_complete_cb(lv_anim_t* anim) {
   (void)anim;
 
-  if (!pulse_target_obj) {
+  if (!pulse_icon_obj || !pulse_label_obj) {
     return;
   }
 
@@ -213,10 +219,11 @@ static void green_pulse_complete_cb(lv_anim_t* anim) {
     lv_anim_set_completed_cb(&next_anim, green_pulse_complete_cb);
     lv_anim_start(&next_anim);
   } else {
-    // Restore original color
-    lv_obj_set_style_bg_color(pulse_target_obj, pulse_original_color, 0);
+    lv_obj_set_style_img_recolor(pulse_icon_obj, lv_color_white(), 0);
+    lv_obj_set_style_text_color(pulse_label_obj, lv_color_white(), 0);
     pulse_active = false;
-    pulse_target_obj = NULL;
+    pulse_icon_obj = NULL;
+    pulse_label_obj = NULL;
     pulse_cycle_count = 0;
   }
 }
@@ -224,15 +231,16 @@ static void green_pulse_complete_cb(lv_anim_t* anim) {
 static void green_pulse_anim_cb(void* var, int32_t value) {
   (void)var;
 
-  if (!pulse_target_obj) {
+  if (!pulse_icon_obj || !pulse_label_obj) {
     return;
   }
 
-  // Fade gray -> green -> gray
   if (value <= 50) {
-    lv_obj_set_style_bg_color(pulse_target_obj, lv_color_hex(COLOR_GREEN), 0);
+    lv_obj_set_style_img_recolor(pulse_icon_obj, lv_color_hex(COLOR_GREEN), 0);
+    lv_obj_set_style_text_color(pulse_label_obj, lv_color_hex(COLOR_GREEN), 0);
   } else {
-    lv_obj_set_style_bg_color(pulse_target_obj, pulse_original_color, 0);
+    lv_obj_set_style_img_recolor(pulse_icon_obj, lv_color_white(), 0);
+    lv_obj_set_style_text_color(pulse_label_obj, lv_color_white(), 0);
   }
 }
 
@@ -241,15 +249,17 @@ static void start_green_pulse(int slot_index) {
     return;
   }
 
-  if (!item_icon_circles[slot_index]) {
+  if (!item_icons[slot_index] || !item_labels[slot_index]) {
     return;
   }
 
   pulse_active = true;
   pulse_cycle_count = 0;
-  pulse_target_obj = item_icon_circles[slot_index];
-  pulse_original_color = lv_color_hex(ICON_CIRCLE_COLOR);
+  pulse_icon_obj = item_icons[slot_index];
+  pulse_label_obj = item_labels[slot_index];
   pulse_slot_index = slot_index;
+
+  lv_obj_set_style_img_recolor_opa(pulse_icon_obj, LV_OPA_COVER, 0);
 
   lv_anim_t anim;
   lv_anim_init(&anim);
@@ -264,6 +274,21 @@ static void start_green_pulse(int slot_index) {
 
 static void on_cancel_complete(void* user_data) {
   (void)user_data;
+  hold_cancel_hide(&cancel_modal);
+
+  if (cached_fingerprint_index < MAX_FINGERPRINTS) {
+    enrolled_cache[cached_fingerprint_index] = false;
+
+    if (item_icons[cached_fingerprint_index]) {
+      lv_img_set_src(item_icons[cached_fingerprint_index], &plus);
+    }
+
+    if (item_labels[cached_fingerprint_index]) {
+      lv_label_set_text(item_labels[cached_fingerprint_index],
+                        langpack_get_string(LANGPACK_ID_FINGERPRINT_MENU_ADD));
+    }
+  }
+
   display_send_action(fwpb_display_action_display_action_type_DISPLAY_ACTION_DELETE_FINGERPRINT,
                       cached_fingerprint_index);
 }
@@ -292,27 +317,12 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
   memset(&cancel_modal, 0, sizeof(cancel_modal));
   hold_cancel_create(screen, &cancel_modal);
 
-  // Cache enrollment status
   if (params) {
     for (uint8_t i = 0; i < MAX_FINGERPRINTS; i++) {
       enrolled_cache[i] = params->enrolled[i];
     }
   }
 
-  memset(&back_button, 0, sizeof(top_back_t));
-  top_back_create(screen, &back_button, NULL);
-
-  // Title
-  title_label = lv_label_create(screen);
-  if (!title_label) {
-    return NULL;
-  }
-  lv_label_set_text(title_label, langpack_get_string(LANGPACK_ID_FINGERPRINT_MENU_TITLE));
-  lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, TITLE_Y_OFFSET);
-  lv_obj_set_style_text_color(title_label, lv_color_hex(COLOR_TITLE), 0);
-  lv_obj_set_style_text_font(title_label, FONT_TITLE, 0);
-
-  // Scroll container
   scroll_container = lv_obj_create(screen);
   if (!scroll_container) {
     return NULL;
@@ -331,6 +341,9 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
   lv_obj_set_scrollbar_mode(scroll_container, LV_SCROLLBAR_MODE_OFF);
   lv_obj_set_scroll_snap_x(scroll_container, LV_SCROLL_SNAP_CENTER);
   lv_obj_set_style_anim_time(scroll_container, SCROLL_ANIM_TIME, LV_PART_MAIN);
+  lv_obj_clear_flag(scroll_container, LV_OBJ_FLAG_SCROLL_MOMENTUM);
+  lv_obj_add_flag(scroll_container, LV_OBJ_FLAG_SCROLL_ELASTIC);
+  lv_obj_add_flag(scroll_container, LV_OBJ_FLAG_SCROLL_ONE);
   lv_obj_set_flex_flow(scroll_container, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(scroll_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
@@ -338,9 +351,7 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
   lv_obj_add_event_cb(scroll_container, scroll_event_handler, LV_EVENT_SCROLL, NULL);
   lv_obj_add_event_cb(scroll_container, scroll_event_handler, LV_EVENT_SCROLL_END, NULL);
 
-  // Create fingerprint slots
   for (uint8_t i = 0; i < MAX_FINGERPRINTS; i++) {
-    // Item container
     item_containers[i] = lv_obj_create(scroll_container);
     if (!item_containers[i]) {
       return NULL;
@@ -350,9 +361,10 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
     lv_obj_set_style_border_opa(item_containers[i], LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_all(item_containers[i], 0, 0);
     lv_obj_clear_flag(item_containers[i], LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(item_containers[i], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(item_containers[i], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(item_containers[i], fingerprint_item_click_handler, LV_EVENT_CLICKED,
+                        (void*)(uintptr_t)i);
 
-    // Icon circle background
     item_icon_circles[i] = lv_obj_create(item_containers[i]);
     if (!item_icon_circles[i]) {
       return NULL;
@@ -363,57 +375,39 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
     lv_obj_set_style_bg_opa(item_icon_circles[i], LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(item_icon_circles[i], 0, 0);
     lv_obj_set_style_pad_all(item_icon_circles[i], 0, 0);
-    lv_obj_align(item_icon_circles[i], LV_ALIGN_CENTER, 0, -20);
-    lv_obj_add_flag(item_icon_circles[i], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(item_icon_circles[i], fingerprint_item_click_handler, LV_EVENT_CLICKED,
-                        (void*)(uintptr_t)i);
+    lv_obj_align(item_icon_circles[i], LV_ALIGN_CENTER, 0, ICON_Y_OFFSET);
+    lv_obj_clear_flag(item_icon_circles[i], LV_OBJ_FLAG_CLICKABLE);
 
-    // Fingerprint icon
     item_icons[i] = lv_img_create(item_icon_circles[i]);
     if (!item_icons[i]) {
       return NULL;
     }
-    lv_img_set_src(item_icons[i], &fingerprint);
+    const lv_img_dsc_t* icon = (params && params->enrolled[i]) ? &fingerprint : &plus;
+    lv_img_set_src(item_icons[i], icon);
     lv_obj_set_width(item_icons[i], ICON_SIZE);
     lv_obj_set_height(item_icons[i], ICON_SIZE);
     lv_obj_align(item_icons[i], LV_ALIGN_CENTER, 0, 0);
-    lv_obj_add_flag(item_icons[i], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(item_icons[i], fingerprint_item_click_handler, LV_EVENT_CLICKED,
-                        (void*)(uintptr_t)i);
+    lv_obj_clear_flag(item_icons[i], LV_OBJ_FLAG_CLICKABLE);
 
-    // Label
     item_labels[i] = lv_label_create(item_containers[i]);
     if (!item_labels[i]) {
       return NULL;
     }
 
-    char label_text[64];
     if (params && params->enrolled[i]) {
-      strncpy(label_text, params->labels[i], sizeof(label_text) - 1);
-      label_text[sizeof(label_text) - 1] = '\0';
-      lv_obj_set_style_text_color(item_labels[i], lv_color_white(), 0);
-      lv_obj_set_style_img_recolor(item_icons[i], lv_color_white(), 0);
-      lv_obj_set_style_img_recolor_opa(item_icons[i], LV_OPA_100, 0);
+      lv_label_set_text(item_labels[i], params->labels[i]);
     } else {
-      snprintf(label_text, sizeof(label_text),
-               langpack_get_string(LANGPACK_ID_FINGERPRINT_MENU_ADD), i + 1);
-      lv_obj_set_style_text_color(item_labels[i], lv_color_hex(COLOR_EMPTY_TEXT), 0);
-      lv_obj_set_style_img_recolor(item_icons[i], lv_color_hex(COLOR_EMPTY_TEXT), 0);
-      lv_obj_set_style_img_recolor_opa(item_icons[i], LV_OPA_100, 0);
+      lv_label_set_text(item_labels[i], langpack_get_string(LANGPACK_ID_FINGERPRINT_MENU_ADD));
     }
-
-    lv_label_set_text(item_labels[i], label_text);
-    lv_obj_set_style_text_font(item_labels[i], FONT_ITEM, 0);
-    lv_obj_set_style_text_align(item_labels[i], LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(item_labels[i], ITEM_WIDTH);
     lv_label_set_long_mode(item_labels[i], LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(item_labels[i], ITEM_WIDTH - 10);
-    lv_obj_align(item_labels[i], LV_ALIGN_CENTER, 0, ITEM_LABEL_Y);
-    lv_obj_add_flag(item_labels[i], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(item_labels[i], fingerprint_item_click_handler, LV_EVENT_CLICKED,
-                        (void*)(uintptr_t)i);
+    lv_obj_set_style_text_align(item_labels[i], LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(item_labels[i], lv_color_white(), 0);
+    lv_obj_set_style_text_font(item_labels[i], FONT_ITEM, 0);
+    lv_obj_align(item_labels[i], LV_ALIGN_TOP_MID, 0, (LV_VER_RES / 2) + ITEM_LABEL_Y);
+    lv_obj_clear_flag(item_labels[i], LV_OBJ_FLAG_CLICKABLE);
   }
 
-  // Scroll to initial position
   if (params && params->initial_slot < MAX_FINGERPRINTS) {
     current_item = params->initial_slot;
     scroll_to_item(current_item, false);
@@ -422,6 +416,10 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
     scroll_to_item(0, false);
   }
   update_item_styles_by_position();
+
+  memset(&back_button, 0, sizeof(top_back_t));
+  top_back_create(screen, &back_button, NULL);
+  lv_obj_move_foreground(back_button.container);
 
   ui_set_local_brightness(SCREEN_BRIGHTNESS);
 
@@ -438,7 +436,6 @@ void screen_menu_fingerprints_destroy(void) {
   lv_obj_del(screen);
 
   screen = NULL;
-  title_label = NULL;
   scroll_container = NULL;
   for (int i = 0; i < MAX_FINGERPRINTS; i++) {
     item_containers[i] = NULL;
@@ -451,7 +448,8 @@ void screen_menu_fingerprints_destroy(void) {
   pulse_active = false;
   pulse_cycle_count = 0;
   cached_fingerprint_index = 0;
-  pulse_target_obj = NULL;
+  pulse_icon_obj = NULL;
+  pulse_label_obj = NULL;
 }
 
 void screen_menu_fingerprints_update(void* ctx) {
@@ -473,41 +471,27 @@ void screen_menu_fingerprints_update(void* ctx) {
       enrolled_cache[i] = params->enrolled[i];
     }
 
-    // Update fingerprint item labels and colors
     for (uint8_t i = 0; i < MAX_FINGERPRINTS; i++) {
-      if (!item_labels[i]) {
+      if (!item_labels[i] || !item_icons[i]) {
         continue;
       }
 
-      char label_text[64];
+      const lv_img_dsc_t* icon = params->enrolled[i] ? &fingerprint : &plus;
+      lv_img_set_src(item_icons[i], icon);
+
       if (params->enrolled[i]) {
-        strncpy(label_text, params->labels[i], sizeof(label_text) - 1);
-        label_text[sizeof(label_text) - 1] = '\0';
-        lv_obj_set_style_text_color(item_labels[i], lv_color_white(), 0);
-        if (item_icons[i]) {
-          lv_obj_set_style_img_recolor(item_icons[i], lv_color_white(), 0);
-          lv_obj_set_style_img_recolor_opa(item_icons[i], LV_OPA_100, 0);
-        }
+        lv_label_set_text(item_labels[i], params->labels[i]);
       } else {
-        snprintf(label_text, sizeof(label_text),
-                 langpack_get_string(LANGPACK_ID_FINGERPRINT_MENU_ADD), i + 1);
-        lv_obj_set_style_text_color(item_labels[i], lv_color_hex(COLOR_EMPTY_TEXT), 0);
-        if (item_icons[i]) {
-          lv_obj_set_style_img_recolor(item_icons[i], lv_color_hex(COLOR_EMPTY_TEXT), 0);
-          lv_obj_set_style_img_recolor_opa(item_icons[i], LV_OPA_100, 0);
-        }
+        lv_label_set_text(item_labels[i], langpack_get_string(LANGPACK_ID_FINGERPRINT_MENU_ADD));
       }
-      lv_label_set_text(item_labels[i], label_text);
     }
 
-    // Handle authenticated fingerprint feedback
     if (params->show_authenticated && params->authenticated_index < MAX_FINGERPRINTS) {
       scroll_to_item(params->authenticated_index, true);
       start_green_pulse(params->authenticated_index);
     }
   }
 
-  // Ensure back button is in front
   if (back_button.container && lv_obj_is_valid(back_button.container)) {
     lv_obj_move_foreground(back_button.container);
     lv_obj_clear_state(back_button.container, LV_STATE_DISABLED);

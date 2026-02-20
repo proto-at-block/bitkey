@@ -65,7 +65,8 @@ class LostHardwareRecoveryServiceImpl(
             appKeyBundle = destinationAppKeyBundle,
             hwKeyBundle = destinationHardwareKeyBundle,
             appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
-            lostFactor = Hardware
+            lostFactor = Hardware,
+            originalAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey
           )
         ).mapError { OtherError(it) }
 

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-util",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-util-1.8.1.jar": "fe300f271031c0bc1c9fca5caf8f839ecb4bde8988663b273e1dae051494ba6d"
+                        "ui-util-1.9.1.jar": "6947790568eb9403127a3728c16951ac7c735a550dd7ea556460e0b579ac4c13"
                     }
                 }
             ],

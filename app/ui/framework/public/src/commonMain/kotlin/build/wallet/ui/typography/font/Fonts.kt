@@ -55,3 +55,34 @@ internal val foundersGroteskFontFamily: FontFamily
       style = FontStyle.Normal
     )
   )
+
+// New Cash Sans font families for design system updates
+internal val cashSansFontFamily: FontFamily
+  @Composable
+  get() = FontFamily(
+    Font(
+      resource = Res.font.cash_sans_regular,
+      weight = FontWeight.Normal,
+      style = FontStyle.Normal
+    ),
+    Font(
+      resource = Res.font.cash_sans_medium,
+      weight = FontWeight.Medium,
+      style = FontStyle.Normal
+    )
+  )
+
+internal val cashSansMonoFontFamily: FontFamily
+  @Composable
+  get() = FontFamily(
+    Font(
+      resource = Res.font.cash_sans_mono_regular,
+      weight = FontWeight.Normal,
+      style = FontStyle.Normal
+    ),
+    Font(
+      resource = Res.font.cash_sans_mono_medium,
+      weight = FontWeight.Medium,
+      style = FontStyle.Normal
+    )
+  )

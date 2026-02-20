@@ -48,6 +48,7 @@ class RecoveryDaoImplTests : FunSpec({
   val appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey
   val hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey
   val serverSpendingKeyset = F8eSpendingKeysetMock
+  val originalAppGlobalAuthKey = PublicKey<AppGlobalAuthKey>("original-app-global-auth-key")
   val spendingKeyset1 = SpendingKeyset(
     localId = "keyset-app-1",
     f8eSpendingKeyset =
@@ -108,7 +109,8 @@ class RecoveryDaoImplTests : FunSpec({
             keyset,
             appGlobalAuthKey,
             appRecoveryAuthKey,
-            hardwareAuthKey
+            hardwareAuthKey,
+            originalAppGlobalAuthKey
           )
 
           dao.setActiveServerRecovery(serverRecovery)
@@ -124,7 +126,8 @@ class RecoveryDaoImplTests : FunSpec({
                 hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
                 appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
                 factorToRecover = Hardware,
-                serverRecovery = serverRecovery
+                serverRecovery = serverRecovery,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey
               )
             )
           )
@@ -145,7 +148,8 @@ class RecoveryDaoImplTests : FunSpec({
                 appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
                 factorToRecover = Hardware,
                 sealedCsek = sealedCsek,
-                sealedSsek = sealedSsek
+                sealedSsek = sealedSsek,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey
               )
             )
           )
@@ -171,7 +175,8 @@ class RecoveryDaoImplTests : FunSpec({
                 appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
                 factorToRecover = Hardware,
                 sealedCsek = sealedCsek,
-                sealedSsek = sealedSsek
+                sealedSsek = sealedSsek,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey
               )
             )
           )
@@ -192,7 +197,8 @@ class RecoveryDaoImplTests : FunSpec({
                 factorToRecover = Hardware,
                 sealedCsek = sealedCsek,
                 sealedSsek = sealedSsek,
-                keysets = keysets
+                keysets = keysets,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey
               )
             )
           )
@@ -213,7 +219,8 @@ class RecoveryDaoImplTests : FunSpec({
                 factorToRecover = Hardware,
                 sealedCsek = sealedCsek,
                 sealedSsek = sealedSsek,
-                keysets = keysets
+                keysets = keysets,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey
               )
             )
           )
@@ -234,7 +241,8 @@ class RecoveryDaoImplTests : FunSpec({
                 factorToRecover = Hardware,
                 sealedCsek = sealedCsek,
                 sealedSsek = sealedSsek,
-                keysets = keysets
+                keysets = keysets,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey
               )
             )
           )
@@ -253,7 +261,8 @@ class RecoveryDaoImplTests : FunSpec({
                 hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
                 appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
                 factorToRecover = Hardware,
-                keysets = keysets
+                keysets = keysets,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey
               )
             )
           )
@@ -274,7 +283,8 @@ class RecoveryDaoImplTests : FunSpec({
                 hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
                 appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
                 factorToRecover = Hardware,
-                keysets = listOf(spendingKeyset1, spendingKeyset2)
+                keysets = listOf(spendingKeyset1, spendingKeyset2),
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey
               )
             )
           )
@@ -299,7 +309,8 @@ class RecoveryDaoImplTests : FunSpec({
             keyset,
             appGlobalAuthKey,
             appRecoveryAuthKey,
-            hardwareAuthKey
+            hardwareAuthKey,
+            originalAppGlobalAuthKey = null
           )
 
           dao.setActiveServerRecovery(serverRecovery)
@@ -324,7 +335,8 @@ class RecoveryDaoImplTests : FunSpec({
             keyset,
             appGlobalAuthKey,
             appRecoveryAuthKey,
-            hardwareAuthKey
+            hardwareAuthKey,
+            originalAppGlobalAuthKey = null
           )
 
           dao.setActiveServerRecovery(serverRecovery)
@@ -338,6 +350,19 @@ class RecoveryDaoImplTests : FunSpec({
       }
 
       test("SomeoneElseIsRecovering") {
+        // This test demonstrates the DAO behavior that causes the race condition:
+        // When server recovery is set WITHOUT local recovery being present,
+        // the DAO returns SomeoneElseIsRecovering.
+        //
+        // The race condition occurs when:
+        // 1. User initiates recovery
+        // 2. Server is notified and returns recovery status
+        // 3. Sync worker saves server recovery BEFORE local recovery is saved
+        // 4. User incorrectly sees "SomeoneElseIsRecovering"
+        //
+        // The fix in RecoveryStatusServiceImpl prevents this by checking if
+        // local recovery is present before setting server recovery. See the
+        // tests in RecoveryStatusServiceImplTests for the service-level fix.
         dao.activeRecovery().test {
           awaitItem().shouldBe(Ok(NoActiveRecovery))
 
@@ -358,6 +383,7 @@ private suspend fun setProgressInitiated(
   appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
   appRecoveryAuthPublicKey: PublicKey<AppRecoveryAuthKey>,
   hwAuthPublicKey: HwAuthPublicKey,
+  originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
 ) {
   dao.setLocalRecoveryProgress(
     CreatedPendingKeybundles(
@@ -378,7 +404,8 @@ private suspend fun setProgressInitiated(
           networkType = BITCOIN
         ),
       appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-      Hardware
+      lostFactor = Hardware,
+      originalAppGlobalAuthKey = originalAppGlobalAuthKey
     )
   )
 }

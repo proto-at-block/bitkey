@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -31,13 +32,13 @@ import build.wallet.ui.components.coachmark.CoachmarkPresenter
 import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.layout.Divider
-import build.wallet.ui.components.refresh.PullRefreshIndicator
-import build.wallet.ui.components.refresh.pullRefresh
+import build.wallet.ui.components.refresh.PullToRefreshBox
 import build.wallet.ui.components.tabbar.Tab
 import build.wallet.ui.components.tabbar.TabBar
 import build.wallet.ui.components.toolbar.ToolbarAccessory
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 
 @Composable
@@ -52,6 +53,9 @@ fun MoneyHomeScreen(
   }
   var tabBarHeightDp by remember {
     mutableStateOf(0.dp)
+  }
+  var moneyHomeYInRoot by remember {
+    mutableStateOf(0f)
   }
 
   // Different coachmarks have different heights (e.g., Security Hub has no button,
@@ -69,11 +73,17 @@ fun MoneyHomeScreen(
     CoachmarkIdentifier.PrivateWalletHomeCoachmark
   )
 
-  Box(
-    modifier = modifier.pullRefresh(
-      refreshing = model.isRefreshing,
-      onRefresh = model.onRefresh
-    ).background(WalletTheme.colors.background)
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val listHorizontalAlignment = if (isDesignSystemV2Enabled) Alignment.Start else Alignment.CenterHorizontally
+
+  PullToRefreshBox(
+    refreshing = model.isRefreshing,
+    onRefresh = model.onRefresh,
+    modifier = modifier
+      .background(WalletTheme.colors.background)
+      .onGloballyPositioned { layoutCoordinates ->
+        moneyHomeYInRoot = layoutCoordinates.positionInRoot().y
+      }
   ) {
     // Display a coachmark if needed
     model.coachmark?.let { coachmarkModel ->
@@ -90,13 +100,13 @@ fun MoneyHomeScreen(
 
     LazyColumn(
       modifier = Modifier.fillMaxSize(),
-      horizontalAlignment = Alignment.CenterHorizontally,
+      horizontalAlignment = listHorizontalAlignment,
       state = listState
     ) {
       // Header
       item {
         Row(
-          modifier = Modifier.padding(horizontal = 20.dp),
+          modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
           verticalAlignment = Alignment.CenterVertically
         ) {
           Header(
@@ -115,31 +125,38 @@ fun MoneyHomeScreen(
         val hasBip177Coachmark = remember(model.coachmark) {
           model.coachmark?.identifier == CoachmarkIdentifier.Bip177Coachmark
         }
-        with(model.balanceModel) {
-          HeroAmount(
-            modifier = Modifier
-              .clickable(
-                interactionSource = MutableInteractionSource(),
-                indication = null,
-                onClick = {
-                  model.onHideBalance()
-                }
-              )
-              .thenIf(hasBip177Coachmark) {
-                Modifier.onGloballyPositioned { layoutCoordinates ->
-                  val positionInParent = layoutCoordinates.positionInParent()
-                  val size = layoutCoordinates.size
-                  coachmarkOffset = Offset(
-                    0f,
-                    positionInParent.y + size.height
-                  )
-                }
-              },
-            primaryAmount = AnnotatedString(primaryAmount),
-            contextLine = secondaryAmount,
-            hideBalance = model.hideBalance,
-            isLoading = isLoading
-          )
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+          horizontalAlignment = listHorizontalAlignment
+        ) {
+          with(model.balanceModel) {
+            HeroAmount(
+              modifier = Modifier
+                .clickable(
+                  interactionSource = MutableInteractionSource(),
+                  indication = null,
+                  onClick = {
+                    model.onHideBalance()
+                  }
+                )
+                .thenIf(hasBip177Coachmark) {
+                  Modifier.onGloballyPositioned { layoutCoordinates ->
+                    val positionInRoot = layoutCoordinates.positionInRoot()
+                    val size = layoutCoordinates.size
+                    coachmarkOffset = Offset(
+                      0f,
+                      positionInRoot.y - moneyHomeYInRoot + size.height
+                    )
+                  }
+                },
+              primaryAmount = AnnotatedString(primaryAmount),
+              contextLine = secondaryAmount,
+              hideBalance = model.hideBalance,
+              isLoading = isLoading
+            )
+          }
         }
         Spacer(Modifier.height(32.dp))
         MoneyHomeButtons(model = model.buttonsModel)
@@ -181,12 +198,6 @@ fun MoneyHomeScreen(
         Spacer(Modifier.height(tabBarHeightDp))
       }
     }
-
-    PullRefreshIndicator(
-      modifier = Modifier.align(Alignment.TopCenter),
-      refreshing = model.isRefreshing,
-      onRefresh = model.onRefresh
-    )
 
     val hasCoachmark = remember(model.coachmark, coachmarkHeight) {
       model.coachmark?.identifier in tabBarCoachmarkIds && coachmarkHeight != null

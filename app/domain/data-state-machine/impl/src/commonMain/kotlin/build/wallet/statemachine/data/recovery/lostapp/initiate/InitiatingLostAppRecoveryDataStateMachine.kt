@@ -9,6 +9,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
@@ -17,8 +18,9 @@ import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotify
 import build.wallet.recovery.LostAppAndCloudRecoveryService
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.*
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.InitiatingLostAppRecoveryData.*
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.InitiatingLostAppRecoveryData.AttemptingCloudRecoveryLostAppRecoveryDataData
 import build.wallet.statemachine.data.recovery.lostapp.initiate.CommsVerificationTargetAction.CancelRecovery
 import build.wallet.statemachine.data.recovery.lostapp.initiate.CommsVerificationTargetAction.InitiateRecovery
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachineImpl.State.*
@@ -34,10 +36,16 @@ import com.github.michaelbull.result.onSuccess
  * initiation process will not restore latest initiation state.
  */
 interface InitiatingLostAppRecoveryDataStateMachine :
-  StateMachine<InitiatingLostAppRecoveryProps, InitiatingLostAppRecoveryData>
+  StateMachine<InitiatingLostAppRecoveryProps, LostAppRecoveryData>
 
 data class InitiatingLostAppRecoveryProps(
+  /**
+   * List of cloud backups to try during recovery. The restoration flow will
+   * attempt to decrypt each backup with the hardware key until one succeeds.
+   */
+  val cloudBackups: List<CloudBackup>,
   val onRollback: () -> Unit,
+  val goToLiteAccountCreation: () -> Unit,
 )
 
 @BitkeyInject(AppScope::class)
@@ -48,289 +56,309 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
   private val accountConfigService: AccountConfigService,
 ) : InitiatingLostAppRecoveryDataStateMachine {
   @Composable
-  override fun model(props: InitiatingLostAppRecoveryProps): InitiatingLostAppRecoveryData {
-    var state: State by remember { mutableStateOf(AwaitingHardwareKeysState) }
+  override fun model(props: InitiatingLostAppRecoveryProps): LostAppRecoveryData {
+    var state: State by remember {
+      mutableStateOf(
+        if (props.cloudBackups.isEmpty()) {
+          AwaitingHardwareKeysState
+        } else {
+          AttemptingCloudBackupRecoveryState(props.cloudBackups)
+        }
+      )
+    }
     val defaultConfig = remember { accountConfigService.defaultConfig().value }
 
-    return state.let {
-      when (val dataState = it) {
-        is AwaitingHardwareKeysState -> {
-          AwaitingHwKeysData(
-            addHardwareAuthKey = { hardwareAuthKey ->
-              state = InitiatingHardwareAuthWithF8eState(hardwareAuthKey)
-            },
-            rollback = props.onRollback
-          )
-        }
+    return when (val currentState = state) {
+      is AttemptingCloudBackupRecoveryState ->
+        AttemptingCloudRecoveryLostAppRecoveryDataData(
+          cloudBackups = currentState.cloudBackups,
+          rollback = props.onRollback,
+          onRecoverAppKey = {
+            state = AwaitingHardwareKeysState
+          },
+          goToLiteAccountCreation = props.goToLiteAccountCreation
+        )
 
-        is InitiatingHardwareAuthWithF8eState -> {
-          LaunchedEffect("request-challenge") {
-            lostAppAndCloudRecoveryService
-              .initiateAuth(dataState.hardwareAuthKey)
-              .onSuccess { authChallenge ->
-                state = AwaitingHardwareSignedAuthChallengeState(
-                  authChallenge = authChallenge,
-                  hardwareAuthKey = dataState.hardwareAuthKey
-                )
-              }
-              .onFailure { error ->
-                state = FailedToInitiateHardwareAuthWithF8eState(dataState.hardwareAuthKey, error)
-              }
-          }
+      is AwaitingHardwareKeysState -> {
+        AwaitingHwKeysData(
+          addHardwareAuthKey = { hardwareAuthKey ->
+            state = InitiatingHardwareAuthWithF8eState(hardwareAuthKey)
+          },
+          rollback = props.onRollback
+        )
+      }
 
-          InitiatingAppAuthWithF8eData(
-            rollback = props.onRollback
-          )
-        }
-
-        is FailedToInitiateHardwareAuthWithF8eState ->
-          FailedToInitiateAppAuthWithF8eData(
-            error = dataState.error,
-            retry = {
-              state = InitiatingHardwareAuthWithF8eState(dataState.hardwareAuthKey)
-            },
-            rollback = props.onRollback
-          )
-
-        is AwaitingHardwareSignedAuthChallengeState ->
-          AwaitingAppSignedAuthChallengeData(
-            addSignedChallenge = { hardwareSignedChallenge ->
-              state = AuthenticatingWithF8eViaHardwareState(
-                authChallenge = dataState.authChallenge,
-                hardwareAuthKey = dataState.hardwareAuthKey,
-                signedAuthChallenge = hardwareSignedChallenge
+      is InitiatingHardwareAuthWithF8eState -> {
+        LaunchedEffect("request-challenge") {
+          lostAppAndCloudRecoveryService
+            .initiateAuth(currentState.hardwareAuthKey)
+            .onSuccess { authChallenge ->
+              state = AwaitingHardwareSignedAuthChallengeState(
+                authChallenge = authChallenge,
+                hardwareAuthKey = currentState.hardwareAuthKey
               )
-            },
-            challenge = dataState.authChallenge,
-            rollback = {
-              state = AwaitingHardwareKeysState
             }
-          )
+            .onFailure { error ->
+              state = FailedToInitiateHardwareAuthWithF8eState(currentState.hardwareAuthKey, error)
+            }
+        }
 
-        is AuthenticatingWithF8eViaHardwareState -> {
-          LaunchedEffect("authenticate-with-hardware") {
-            withMinimumDelay(minimumLoadingDuration.value) {
-              lostAppAndCloudRecoveryService
-                .completeAuth(
-                  accountId = FullAccountId(dataState.authChallenge.accountId),
-                  session = dataState.authChallenge.session,
-                  hwSignedChallenge = dataState.signedAuthChallenge,
-                  hwAuthKey = dataState.hardwareAuthKey
+        InitiatingAppAuthWithF8eData(
+          rollback = props.onRollback
+        )
+      }
+
+      is FailedToInitiateHardwareAuthWithF8eState ->
+        FailedToInitiateAppAuthWithF8eData(
+          error = currentState.error,
+          retry = {
+            state = InitiatingHardwareAuthWithF8eState(currentState.hardwareAuthKey)
+          },
+          rollback = props.onRollback
+        )
+
+      is AwaitingHardwareSignedAuthChallengeState ->
+        AwaitingAppSignedAuthChallengeData(
+          addSignedChallenge = { hardwareSignedChallenge ->
+            state = AuthenticatingWithF8eViaHardwareState(
+              authChallenge = currentState.authChallenge,
+              hardwareAuthKey = currentState.hardwareAuthKey,
+              signedAuthChallenge = hardwareSignedChallenge
+            )
+          },
+          challenge = currentState.authChallenge,
+          rollback = {
+            state = AwaitingHardwareKeysState
+          }
+        )
+
+      is AuthenticatingWithF8eViaHardwareState -> {
+        LaunchedEffect("authenticate-with-hardware") {
+          withMinimumDelay(minimumLoadingDuration.value) {
+            lostAppAndCloudRecoveryService
+              .completeAuth(
+                accountId = FullAccountId(currentState.authChallenge.accountId),
+                session = currentState.authChallenge.session,
+                hwSignedChallenge = currentState.signedAuthChallenge,
+                hwAuthKey = currentState.hardwareAuthKey
+              )
+          }
+            .onSuccess { completedAuth ->
+              state = AwaitingHardwareProofOfPossessionAndSpendingKeyState(
+                authChallenge = currentState.authChallenge,
+                completedAuth = completedAuth,
+                signedAuthChallenge = currentState.signedAuthChallenge,
+                hardwareAuthKey = currentState.hardwareAuthKey
+              )
+            }
+            .onFailure { error ->
+              state =
+                FailedToAuthenticateWithF8eViaHardwareState(
+                  authChallenge = currentState.authChallenge,
+                  hardwareAuthKey = currentState.hardwareAuthKey,
+                  signedAuthChallenge = currentState.signedAuthChallenge,
+                  error = error
                 )
             }
-              .onSuccess { completedAuth ->
-                state = AwaitingHardwareProofOfPossessionAndSpendingKeyState(
-                  authChallenge = dataState.authChallenge,
-                  completedAuth = completedAuth,
-                  signedAuthChallenge = dataState.signedAuthChallenge,
-                  hardwareAuthKey = dataState.hardwareAuthKey
+        }
+        AuthenticatingWithF8EViaAppData(
+          rollback = props.onRollback
+        )
+      }
+
+      is FailedToAuthenticateWithF8eViaHardwareState ->
+        FailedToAuthenticateWithF8EViaAppData(
+          retry = {
+            state =
+              AuthenticatingWithF8eViaHardwareState(
+                authChallenge = currentState.authChallenge,
+                hardwareAuthKey = currentState.hardwareAuthKey,
+                signedAuthChallenge = currentState.signedAuthChallenge
+              )
+          },
+          error = currentState.error,
+          rollback = props.onRollback
+        )
+
+      is AwaitingHardwareProofOfPossessionAndSpendingKeyState -> {
+        AwaitingHardwareProofOfPossessionAndKeysData(
+          completedAuth = currentState.completedAuth,
+          onComplete = { proof, hardwareSpendingKey, newAppGlobalAuthKeyHwSignature ->
+            state = AwaitingPushNotificationPermissionState(
+              signedAuthChallenge = currentState.signedAuthChallenge,
+              completedAuth = currentState.completedAuth,
+              hardwareKeys = HardwareKeysForRecovery(
+                newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature,
+                hwProofOfPossession = proof,
+                newKeyBundle = HwKeyBundle(
+                  localId = uuidGenerator.random(),
+                  spendingKey = hardwareSpendingKey,
+                  authKey = currentState.hardwareAuthKey,
+                  networkType = defaultConfig.bitcoinNetworkType
                 )
-              }
-              .onFailure { error ->
-                state =
-                  FailedToAuthenticateWithF8eViaHardwareState(
-                    authChallenge = dataState.authChallenge,
-                    hardwareAuthKey = dataState.hardwareAuthKey,
-                    signedAuthChallenge = dataState.signedAuthChallenge,
+              )
+            )
+          },
+          rollback = {
+            state = AwaitingHardwareKeysState
+          }
+        )
+      }
+
+      is AwaitingPushNotificationPermissionState -> {
+        AwaitingPushNotificationPermissionData(
+          onComplete = {
+            state = InitiatingRecoveryWithF8eState(
+              completedAuth = currentState.completedAuth,
+              hardwareKeys = currentState.hardwareKeys,
+              signedAuthChallenge = currentState.signedAuthChallenge
+            )
+          },
+          onRetreat = {
+            state = AwaitingHardwareKeysState
+          }
+        )
+      }
+      is InitiatingRecoveryWithF8eState -> {
+        LaunchedEffect("initiate-recovery") {
+          lostAppAndCloudRecoveryService
+            .initiateRecovery(
+              completedAuth = currentState.completedAuth,
+              hardwareKeysForRecovery = currentState.hardwareKeys
+            )
+            .onFailure { error ->
+              when (error) {
+                is CommsVerificationRequiredError ->
+                  state = VerifyingNotificationCommsState(
+                    completedAuth = currentState.completedAuth,
+                    signedAuthChallenge = currentState.signedAuthChallenge,
+                    hardwareKeys = currentState.hardwareKeys,
+                    targetAction = InitiateRecovery
+                  )
+                is RecoveryAlreadyExistsError ->
+                  state = DisplayingConflictingRecoveryState(
+                    completedAuth = currentState.completedAuth,
+                    signedAuthChallenge = currentState.signedAuthChallenge,
+                    hardwareKeys = currentState.hardwareKeys
+                  )
+                is OtherError ->
+                  state = FailedToInitiateRecoveryWithF8eState(
+                    completedAuth = currentState.completedAuth,
+                    signedAuthChallenge = currentState.signedAuthChallenge,
+                    hardwareKeys = currentState.hardwareKeys,
                     error = error
                   )
               }
-          }
-          AuthenticatingWithF8EViaAppData(
-            rollback = props.onRollback
-          )
-        }
-
-        is FailedToAuthenticateWithF8eViaHardwareState ->
-          FailedToAuthenticateWithF8EViaAppData(
-            retry = {
-              state =
-                AuthenticatingWithF8eViaHardwareState(
-                  authChallenge = dataState.authChallenge,
-                  hardwareAuthKey = dataState.hardwareAuthKey,
-                  signedAuthChallenge = dataState.signedAuthChallenge
-                )
-            },
-            error = dataState.error,
-            rollback = props.onRollback
-          )
-
-        is AwaitingHardwareProofOfPossessionAndSpendingKeyState -> {
-          AwaitingHardwareProofOfPossessionAndKeysData(
-            completedAuth = dataState.completedAuth,
-            onComplete = { proof, hardwareSpendingKey, newAppGlobalAuthKeyHwSignature ->
-              state = AwaitingPushNotificationPermissionState(
-                signedAuthChallenge = dataState.signedAuthChallenge,
-                completedAuth = dataState.completedAuth,
-                hardwareKeys = HardwareKeysForRecovery(
-                  newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature,
-                  hwProofOfPossession = proof,
-                  newKeyBundle = HwKeyBundle(
-                    localId = uuidGenerator.random(),
-                    spendingKey = hardwareSpendingKey,
-                    authKey = dataState.hardwareAuthKey,
-                    networkType = defaultConfig.bitcoinNetworkType
-                  )
-                )
-              )
-            },
-            rollback = {
-              state = AwaitingHardwareKeysState
             }
-          )
         }
 
-        is AwaitingPushNotificationPermissionState -> {
-          AwaitingPushNotificationPermissionData(
-            onComplete = {
-              state = InitiatingRecoveryWithF8eState(
-                completedAuth = dataState.completedAuth,
-                hardwareKeys = dataState.hardwareKeys,
-                signedAuthChallenge = dataState.signedAuthChallenge
-              )
-            },
-            onRetreat = {
-              state = AwaitingHardwareKeysState
-            }
-          )
-        }
-        is InitiatingRecoveryWithF8eState -> {
-          LaunchedEffect("initiate-recovery") {
-            lostAppAndCloudRecoveryService
-              .initiateRecovery(
-                completedAuth = dataState.completedAuth,
-                hardwareKeysForRecovery = dataState.hardwareKeys
-              )
-              .onFailure { error ->
-                when (error) {
-                  is CommsVerificationRequiredError ->
-                    state = VerifyingNotificationCommsState(
-                      completedAuth = dataState.completedAuth,
-                      signedAuthChallenge = dataState.signedAuthChallenge,
-                      hardwareKeys = dataState.hardwareKeys,
-                      targetAction = InitiateRecovery
-                    )
-                  is RecoveryAlreadyExistsError ->
-                    state = DisplayingConflictingRecoveryState(
-                      completedAuth = dataState.completedAuth,
-                      signedAuthChallenge = dataState.signedAuthChallenge,
-                      hardwareKeys = dataState.hardwareKeys
-                    )
-                  is OtherError ->
-                    state = FailedToInitiateRecoveryWithF8eState(
-                      completedAuth = dataState.completedAuth,
-                      signedAuthChallenge = dataState.signedAuthChallenge,
-                      hardwareKeys = dataState.hardwareKeys,
-                      error = error
-                    )
-                }
-              }
-          }
-
-          InitiatingLostAppRecoveryWithF8eData(rollback = props.onRollback)
-        }
-
-        is FailedToInitiateRecoveryWithF8eState ->
-          FailedToInitiateLostAppWithF8eData(
-            error = dataState.error,
-            retry = {
-              state = InitiatingRecoveryWithF8eState(
-                completedAuth = dataState.completedAuth,
-                signedAuthChallenge = dataState.signedAuthChallenge,
-                hardwareKeys = dataState.hardwareKeys
-              )
-            },
-            rollback = props.onRollback
-          )
-
-        is VerifyingNotificationCommsState ->
-          VerifyingNotificationCommsData(
-            fullAccountId = dataState.completedAuth.accountId,
-            onRollback = props.onRollback,
-            onComplete = {
-              // We try our target action on F8e again, now that the additional verification
-              // is complete
-              state =
-                when (dataState.targetAction) {
-                  InitiateRecovery ->
-                    InitiatingRecoveryWithF8eState(
-                      completedAuth = dataState.completedAuth,
-                      signedAuthChallenge = dataState.signedAuthChallenge,
-                      hardwareKeys = dataState.hardwareKeys
-                    )
-
-                  CancelRecovery ->
-                    CancellingConflictingRecoveryWithF8eState(
-                      completedAuth = dataState.completedAuth,
-                      signedAuthChallenge = dataState.signedAuthChallenge,
-                      hardwareKeys = dataState.hardwareKeys
-                    )
-                }
-            },
-            hwFactorProofOfPossession = dataState.hardwareKeys.hwProofOfPossession
-          )
-
-        is CancellingConflictingRecoveryWithF8eState -> {
-          LaunchedEffect("cancel-existing-recovery") {
-            lostAppAndCloudRecoveryService
-              .cancelRecovery(
-                accountId = dataState.completedAuth.accountId,
-                hwProofOfPossession = dataState.hardwareKeys.hwProofOfPossession
-              )
-              .onSuccess {
-                state = InitiatingRecoveryWithF8eState(
-                  completedAuth = dataState.completedAuth,
-                  hardwareKeys = dataState.hardwareKeys,
-                  signedAuthChallenge = dataState.signedAuthChallenge
-                )
-              }
-              .onFailure {
-                // TODO: move error handling details to service implementation
-                val f8eError =
-                  ((it as? F8eCancelDelayNotifyError)?.error as? F8eError.SpecificClientError<CancelDelayNotifyRecoveryErrorCode>)
-                state =
-                  if (f8eError?.errorCode == CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED) {
-                    VerifyingNotificationCommsState(
-                      completedAuth = dataState.completedAuth,
-                      signedAuthChallenge = dataState.signedAuthChallenge,
-                      hardwareKeys = dataState.hardwareKeys,
-                      targetAction = CancelRecovery
-                    )
-                  } else {
-                    FailedToCancelConflictingRecoveryState(
-                      error = it,
-                      hardwareKeys = dataState.hardwareKeys,
-                      completedAuth = dataState.completedAuth,
-                      signedAuthChallenge = dataState.signedAuthChallenge
-                    )
-                  }
-              }
-          }
-          CancellingConflictingRecoveryData
-        }
-
-        is DisplayingConflictingRecoveryState ->
-          DisplayingConflictingRecoveryData(
-            onCancelRecovery = {
-              state = CancellingConflictingRecoveryWithF8eState(
-                completedAuth = dataState.completedAuth,
-                hardwareKeys = dataState.hardwareKeys,
-                signedAuthChallenge = dataState.signedAuthChallenge
-              )
-            },
-            onRetreat = props.onRollback
-          )
-
-        is FailedToCancelConflictingRecoveryState ->
-          FailedToCancelConflictingRecoveryData(
-            cause = dataState.error,
-            onAcknowledge = { state = AwaitingHardwareKeysState }
-          )
+        InitiatingLostAppRecoveryWithF8eData(rollback = props.onRollback)
       }
+
+      is FailedToInitiateRecoveryWithF8eState ->
+        FailedToInitiateLostAppWithF8eData(
+          error = currentState.error,
+          retry = {
+            state = InitiatingRecoveryWithF8eState(
+              completedAuth = currentState.completedAuth,
+              signedAuthChallenge = currentState.signedAuthChallenge,
+              hardwareKeys = currentState.hardwareKeys
+            )
+          },
+          rollback = props.onRollback
+        )
+
+      is VerifyingNotificationCommsState ->
+        VerifyingNotificationCommsData(
+          fullAccountId = currentState.completedAuth.accountId,
+          onRollback = props.onRollback,
+          onComplete = {
+            // We try our target action on F8e again, now that the additional verification
+            // is complete
+            state =
+              when (currentState.targetAction) {
+                InitiateRecovery ->
+                  InitiatingRecoveryWithF8eState(
+                    completedAuth = currentState.completedAuth,
+                    signedAuthChallenge = currentState.signedAuthChallenge,
+                    hardwareKeys = currentState.hardwareKeys
+                  )
+
+                CancelRecovery ->
+                  CancellingConflictingRecoveryWithF8eState(
+                    completedAuth = currentState.completedAuth,
+                    signedAuthChallenge = currentState.signedAuthChallenge,
+                    hardwareKeys = currentState.hardwareKeys
+                  )
+              }
+          },
+          hwFactorProofOfPossession = currentState.hardwareKeys.hwProofOfPossession
+        )
+
+      is CancellingConflictingRecoveryWithF8eState -> {
+        LaunchedEffect("cancel-existing-recovery") {
+          lostAppAndCloudRecoveryService
+            .cancelRecovery(
+              accountId = currentState.completedAuth.accountId,
+              hwProofOfPossession = currentState.hardwareKeys.hwProofOfPossession
+            )
+            .onSuccess {
+              state = InitiatingRecoveryWithF8eState(
+                completedAuth = currentState.completedAuth,
+                hardwareKeys = currentState.hardwareKeys,
+                signedAuthChallenge = currentState.signedAuthChallenge
+              )
+            }
+            .onFailure {
+              // TODO: move error handling details to service implementation
+              val f8eError =
+                ((it as? F8eCancelDelayNotifyError)?.error as? F8eError.SpecificClientError<CancelDelayNotifyRecoveryErrorCode>)
+              state =
+                if (f8eError?.errorCode == CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED) {
+                  VerifyingNotificationCommsState(
+                    completedAuth = currentState.completedAuth,
+                    signedAuthChallenge = currentState.signedAuthChallenge,
+                    hardwareKeys = currentState.hardwareKeys,
+                    targetAction = CancelRecovery
+                  )
+                } else {
+                  FailedToCancelConflictingRecoveryState(
+                    error = it,
+                    hardwareKeys = currentState.hardwareKeys,
+                    completedAuth = currentState.completedAuth,
+                    signedAuthChallenge = currentState.signedAuthChallenge
+                  )
+                }
+            }
+        }
+        CancellingConflictingRecoveryData
+      }
+
+      is DisplayingConflictingRecoveryState ->
+        DisplayingConflictingRecoveryData(
+          onCancelRecovery = {
+            state = CancellingConflictingRecoveryWithF8eState(
+              completedAuth = currentState.completedAuth,
+              hardwareKeys = currentState.hardwareKeys,
+              signedAuthChallenge = currentState.signedAuthChallenge
+            )
+          },
+          onRetreat = props.onRollback
+        )
+
+      is FailedToCancelConflictingRecoveryState ->
+        FailedToCancelConflictingRecoveryData(
+          cause = currentState.error,
+          onAcknowledge = { state = AwaitingHardwareKeysState }
+        )
     }
   }
 
   private sealed interface State {
+    data class AttemptingCloudBackupRecoveryState(
+      val cloudBackups: List<CloudBackup>,
+    ) : State
+
     /**
      * Corresponds to [AwaitingHwKeysData].
      */

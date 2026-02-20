@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree.Companion.main
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree.Companion.test
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeOutputKind
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
@@ -173,6 +174,17 @@ private fun KotlinMultiplatformExtension.configureIosTarget(project: Project) {
     targets.forEach { target ->
       target.linkSqlite()
     }
+  }
+
+  // Gradle 9 fails if test tasks discover no tests. Some modules have commonTest
+  // source sets with test utilities but no actual test classes. Disable the strict
+  // check to allow these modules to pass.
+  // https://docs.gradle.org/current/userguide/upgrading_major_version_9.html
+  project.tasks.withType<KotlinNativeTest>().configureEach {
+    filter.isFailOnNoMatchingTests = false
+    // KotlinNativeTest extends AbstractTestTask which has this property in Gradle 9+
+    @Suppress("UnstableApiUsage")
+    failOnNoDiscoveredTests.set(false)
   }
 
   // Disable K/N tests for :bugsnag modules due to a Bugsnag linking issue.

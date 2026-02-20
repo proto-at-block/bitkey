@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+# AI-optimized gradle wrapper
+#
+# Saves full output to .gradle-logs/ and returns minimal summary to stdout.
+# Reduces context bloat for AI agents while preserving complete logs for debugging.
+#
+# Usage: bin/ai-gradle :module:task [additional gradle args]
+
+set -euo pipefail
+
+# Check hermit is activated
+if [[ -z "${HERMIT_ENV:-}" ]]; then
+  echo "Error: Hermit not activated. Run: . bin/activate-hermit" >&2
+  exit 1
+fi
+
+# Derive repo root (handles symlinks correctly)
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+  # Fallback: resolve physical path if not in git repo
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+  REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+}
+
+# Create .gradle-logs directory if needed
+LOG_DIR="${REPO_ROOT}/app/.gradle-logs"
+mkdir -p "${LOG_DIR}"
+
+# Generate task slug from first arg only (avoids secrets in -P/-D flags)
+# - Use only first arg (task name like :module:task)
+# - Replace : with -
+# - Replace non-alphanumeric with _
+# - Truncate to 50 chars
+if [[ $# -gt 0 ]]; then
+  TASK_SLUG=$(printf "%s" "$1" | tr ':' '-' | tr -c '[:alnum:]-' '_' | cut -c1-50)
+else
+  TASK_SLUG="no_args"
+fi
+
+# Generate timestamped log filename
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+LOG_FILE="${LOG_DIR}/gradle-${TIMESTAMP}-${TASK_SLUG}.log"
+
+# Run gradle and capture exit code
+# Use --console=plain for CI-friendly output without progress bars
+set +e
+gradle --console=plain "$@" > "${LOG_FILE}" 2>&1
+GRADLE_EXIT_CODE=$?
+set -e
+
+# Output summary based on exit code
+if [[ ${GRADLE_EXIT_CODE} -eq 0 ]]; then
+  echo "BUILD SUCCESSFUL"
+  # Show last 5 lines (timing info)
+  tail -n 5 "${LOG_FILE}"
+else
+  echo "BUILD FAILED (exit code: ${GRADLE_EXIT_CODE})"
+  # Show last 40 lines (failure context)
+  tail -n 40 "${LOG_FILE}"
+fi
+
+# Preserve gradle's exit code
+exit ${GRADLE_EXIT_CODE}

@@ -1,6 +1,6 @@
+use std::str::FromStr;
 use std::sync::Arc;
 use std::vec;
-use std::{env, str::FromStr};
 
 use account::service::{
     tests::{
@@ -13,18 +13,14 @@ use authn_authz::routes::{
 };
 use axum::response::IntoResponse;
 use base64::{prelude::BASE64_STANDARD as b64, Engine as _};
+use bdk_bitcoind_rpc::{Emitter, NO_EXPECTED_MEMPOOL_TXS};
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
-use bdk_utils::bdk::bitcoin::secp256k1::Message;
 use bdk_utils::bdk::bitcoin::Network;
 use bdk_utils::bdk::miniscript::DescriptorPublicKey;
+use bdk_utils::signature::message_to_digest;
 use bdk_utils::{
-    bdk::{
-        bitcoin::{hashes::sha256, secp256k1, Amount},
-        blockchain::{rpc::Auth, ConfigurableBlockchain, RpcBlockchain, RpcConfig},
-        wallet::{wallet_name_from_descriptor, AddressIndex},
-        KeychainKind,
-    },
-    treasury_fund_address,
+    bdk::{bitcoin::Amount, wallet_name_from_descriptor, KeychainKind, Wallet},
+    generate_rpc_client, treasury_fund_address,
 };
 use comms_verification::TEST_CODE;
 use crypto::ssb::server::SelfSovereignBackup;
@@ -373,7 +369,7 @@ async fn touchpoint_lifecycle_test(
                 };
 
                 let actual_response = client
-                    .add_touchpoint(&account.get_id().to_string(), &req)
+                    .add_touchpoint(&account.get_id().to_string(), &req, Some(&keys))
                     .await;
 
                 assert_eq!(actual_response.status_code, expected_status,);
@@ -731,7 +727,7 @@ async fn touchpoint_lifecycle_test(
         TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
             // Activate non-existing touchpoint id fails
             use_last_seen_touchpoint_id: false,
-            expected_status: StatusCode::BAD_REQUEST,
+            expected_status: StatusCode::NOT_FOUND,
             expected_num_touchpoints: 1,
             expected_active_touchpoint: true,
             app_signed: false,
@@ -1777,7 +1773,7 @@ async fn test_revoked_access_token_add_push_touchpoint() {
     let auth_resp = actual_response.body.unwrap();
     let challenge = auth_resp.challenge;
     let secp = Secp256k1::new();
-    let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_ref());
+    let message = message_to_digest(challenge.as_ref());
     let signature = secp.sign_ecdsa(&message, &keys.app.secret_key);
     let request = GetTokensRequest {
         challenge: Some(ChallengeResponseParameters {
@@ -2137,40 +2133,42 @@ async fn software_onboarding_keygen_activation_test() {
 
 #[test]
 fn test_create_bdk_wallet() {
-    let (_, wallet) = create_legacy_spend_keyset(types::account::bitcoin::Network::BitcoinRegtest);
+    let (_, mut wallet) =
+        create_legacy_spend_keyset(types::account::bitcoin::Network::BitcoinRegtest);
+
     treasury_fund_address(
-        &wallet.get_address(AddressIndex::New).unwrap(),
+        &mut wallet.next_unused_address(KeychainKind::External),
         Amount::from_sat(50_000),
     );
 
-    let rpc_config = RpcConfig {
-        url: env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
-        auth: Auth::UserPass {
-            username: "test".to_string(),
-            password: "test".to_string(),
-        },
-        network: Network::Regtest,
-        wallet_name: wallet_name_from_descriptor(
-            wallet
-                .public_descriptor(KeychainKind::External)
-                .unwrap()
-                .unwrap(),
-            Some(
-                wallet
-                    .public_descriptor(KeychainKind::Internal)
-                    .unwrap()
-                    .unwrap(),
-            ),
-            Network::Regtest,
-            &secp256k1::Secp256k1::new(),
-        )
-        .unwrap(),
-        sync_params: None,
-    };
-    let blockchain = RpcBlockchain::from_config(&rpc_config).unwrap();
-    wallet.sync(&blockchain, Default::default()).unwrap();
+    let wallet_name = wallet_name_from_descriptor(
+        wallet.public_descriptor(KeychainKind::External).to_owned(),
+        Some(wallet.public_descriptor(KeychainKind::Internal).to_owned()),
+        Network::Regtest,
+        &Secp256k1::default(),
+    )
+    .expect("Failed to get wallet name");
+    let rpc_client = generate_rpc_client(Some(wallet_name));
 
-    assert_eq!(wallet.get_balance().unwrap().untrusted_pending, 50_000);
+    let receive_descriptor = wallet.public_descriptor(KeychainKind::External).to_owned();
+    let change_descriptor = wallet.public_descriptor(KeychainKind::Internal).to_owned();
+    let mut wallet = Wallet::create(receive_descriptor, change_descriptor)
+        .network(Network::Regtest)
+        .create_wallet_no_persist()
+        .expect("Failed to load wallet");
+
+    let wallet_tip = wallet.latest_checkpoint();
+    let mut emitter = Emitter::new(&rpc_client, wallet_tip, 0, NO_EXPECTED_MEMPOOL_TXS);
+
+    let mempool_txs = emitter
+        .mempool()
+        .expect("Failed to get mempool transactions")
+        .update;
+
+    wallet.apply_unconfirmed_txs(mempool_txs);
+
+    let balance = wallet.balance();
+    assert_eq!(balance.untrusted_pending, Amount::from_sat(50_000));
 }
 
 #[rstest]
@@ -2360,4 +2358,299 @@ async fn test_descriptor_backup(
         assert!(account_keysets_sealed_descriptor.contains(&sealed_descriptor));
         assert!(account_keysets_sealed_descriptor.contains(&sealed_descriptor2));
     }
+}
+
+// ActionProof integration tests for touchpoint activation
+// These tests verify the Action-Proof header authentication end-to-end
+
+#[tokio::test]
+async fn activate_touchpoint_with_action_proof_both_signatures_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    // Complete onboarding so we require HardwareProofOfPossession
+    assert_eq!(
+        client
+            .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {})
+            .await
+            .status_code,
+        StatusCode::OK,
+    );
+
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    // Add email touchpoint
+    let email = "test@example.com";
+    let add_response = client
+        .add_touchpoint(
+            &account.id.to_string(),
+            &AccountAddTouchpointRequest::Email {
+                email_address: email.to_owned(),
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(add_response.status_code, StatusCode::OK);
+    let touchpoint_id = add_response.body.unwrap().touchpoint_id;
+
+    // Verify touchpoint
+    let verify_response = client
+        .verify_touchpoint(
+            &account.id.to_string(),
+            &touchpoint_id.to_string(),
+            &AccountVerifyTouchpointRequest {
+                verification_code: comms_verification::TEST_CODE.to_owned(),
+            },
+        )
+        .await;
+    assert_eq!(verify_response.status_code, StatusCode::OK);
+
+    // Activate with ActionProof using both signatures
+    let activate_response = client
+        .activate_touchpoint_with_action_proof(
+            &account.id.to_string(),
+            &touchpoint_id.to_string(),
+            &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
+            action_proof::Action::Add,
+            action_proof::Field::RecoveryEmail,
+            Some(email),
+            &keys,
+            true, // sign_with_app
+            true, // sign_with_hw
+        )
+        .await;
+
+    assert_eq!(
+        activate_response.status_code,
+        StatusCode::OK,
+        "Expected OK but got {} with body: {}",
+        activate_response.status_code,
+        activate_response.body_string
+    );
+
+    // Verify the touchpoint is now active
+    let account = bootstrap
+        .services
+        .account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account.id,
+        })
+        .await
+        .unwrap();
+    let touchpoint = account.get_touchpoint_by_id(touchpoint_id);
+    assert!(touchpoint.is_some());
+    assert!(touchpoint.unwrap().get_active());
+}
+
+#[tokio::test]
+async fn activate_touchpoint_with_action_proof_wrong_value_fails() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    // Complete onboarding so we require HardwareProofOfPossession
+    assert_eq!(
+        client
+            .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {})
+            .await
+            .status_code,
+        StatusCode::OK,
+    );
+
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    // Add email touchpoint
+    let actual_email = "actual@example.com";
+    let add_response = client
+        .add_touchpoint(
+            &account.id.to_string(),
+            &AccountAddTouchpointRequest::Email {
+                email_address: actual_email.to_owned(),
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(add_response.status_code, StatusCode::OK);
+    let touchpoint_id = add_response.body.unwrap().touchpoint_id;
+
+    // Verify touchpoint
+    let verify_response = client
+        .verify_touchpoint(
+            &account.id.to_string(),
+            &touchpoint_id.to_string(),
+            &AccountVerifyTouchpointRequest {
+                verification_code: comms_verification::TEST_CODE.to_owned(),
+            },
+        )
+        .await;
+    assert_eq!(verify_response.status_code, StatusCode::OK);
+
+    // Sign with wrong email value - should fail signature verification
+    let wrong_email = "wrong@example.com";
+    let activate_response = client
+        .activate_touchpoint_with_action_proof(
+            &account.id.to_string(),
+            &touchpoint_id.to_string(),
+            &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
+            action_proof::Action::Add,
+            action_proof::Field::RecoveryEmail,
+            Some(wrong_email), // Wrong value!
+            &keys,
+            true, // sign_with_app
+            true, // sign_with_hw
+        )
+        .await;
+
+    assert_eq!(
+        activate_response.status_code,
+        StatusCode::FORBIDDEN,
+        "Expected FORBIDDEN but got {} with body: {}",
+        activate_response.status_code,
+        activate_response.body_string
+    );
+
+    // Verify the error is due to signature verification failure (wrong value = unknown key)
+    assert!(
+        activate_response
+            .body_string
+            .contains("hardware proof of possession")
+            || activate_response.body_string.contains("signature"),
+        "Expected error about signature/proof failure, got: {}",
+        activate_response.body_string
+    );
+
+    // Verify touchpoint was NOT activated (no side effects from failed auth)
+    let account = bootstrap
+        .services
+        .account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account.id,
+        })
+        .await
+        .unwrap();
+    let touchpoint = account.get_touchpoint_by_id(touchpoint_id);
+    assert!(touchpoint.is_some());
+    assert!(
+        !touchpoint.unwrap().get_active(),
+        "Touchpoint should NOT be active after failed authorization"
+    );
+}
+
+#[tokio::test]
+async fn activate_touchpoint_with_action_proof_missing_hw_signature_fails() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    // Complete onboarding so we require HardwareProofOfPossession (Signers::All)
+    assert_eq!(
+        client
+            .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {})
+            .await
+            .status_code,
+        StatusCode::OK,
+    );
+
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    // Add email touchpoint
+    let email = "test@example.com";
+    let add_response = client
+        .add_touchpoint(
+            &account.id.to_string(),
+            &AccountAddTouchpointRequest::Email {
+                email_address: email.to_owned(),
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(add_response.status_code, StatusCode::OK);
+    let touchpoint_id = add_response.body.unwrap().touchpoint_id;
+
+    // Verify touchpoint
+    let verify_response = client
+        .verify_touchpoint(
+            &account.id.to_string(),
+            &touchpoint_id.to_string(),
+            &AccountVerifyTouchpointRequest {
+                verification_code: comms_verification::TEST_CODE.to_owned(),
+            },
+        )
+        .await;
+    assert_eq!(verify_response.status_code, StatusCode::OK);
+
+    // Try to activate with only app signature - should fail (Signers::All requires both)
+    let activate_response = client
+        .activate_touchpoint_with_action_proof(
+            &account.id.to_string(),
+            &touchpoint_id.to_string(),
+            &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
+            action_proof::Action::Add,
+            action_proof::Field::RecoveryEmail,
+            Some(email),
+            &keys,
+            true,  // sign_with_app
+            false, // sign_with_hw - missing!
+        )
+        .await;
+
+    assert_eq!(
+        activate_response.status_code,
+        StatusCode::FORBIDDEN,
+        "Expected FORBIDDEN but got {} with body: {}",
+        activate_response.status_code,
+        activate_response.body_string
+    );
+
+    // Verify the error indicates missing hardware signature
+    assert!(
+        activate_response.body_string.contains("hardware")
+            || activate_response.body_string.contains("signature")
+            || activate_response
+                .body_string
+                .contains("proof of possession"),
+        "Expected error about missing hardware signature, got: {}",
+        activate_response.body_string
+    );
+
+    // Verify touchpoint was NOT activated (no side effects from failed auth)
+    let account = bootstrap
+        .services
+        .account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account.id,
+        })
+        .await
+        .unwrap();
+    let touchpoint = account.get_touchpoint_by_id(touchpoint_id.clone());
+    assert!(touchpoint.is_some());
+    assert!(
+        !touchpoint.unwrap().get_active(),
+        "Touchpoint should NOT be active after failed authorization"
+    );
 }

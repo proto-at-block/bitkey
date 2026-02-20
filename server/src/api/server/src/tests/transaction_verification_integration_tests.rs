@@ -15,7 +15,7 @@ use crate::tests::{
 // Workspace crate imports
 use crate::tests::lib::wallet_protocol::{build_app_signed_psbt_for_protocol, WalletTestProtocol};
 use account::service::FetchAccountInput;
-use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex};
+use bdk_utils::bdk::{test_utils::get_funded_wallet_single, KeychainKind};
 use transaction_verification::routes::InitiateTransactionVerificationRequest;
 use transaction_verification::routes::ProcessTransactionVerificationTokenRequest;
 use types::{
@@ -227,7 +227,7 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm(
 ) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
+    let mut fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
 
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
@@ -255,10 +255,10 @@ async fn transaction_verification_with_threshold_under_limit_approved_by_wsm(
 
     // Create a PSBT for a transaction under the threshold (e.g., 1000 sats ≈ $0.50 at current rates)
     // This is a test PSBT that sends 1000 sats
-    let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-    let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
+    let mut recipient_wallet = get_funded_wallet_single("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
+    let recipient_address = recipient_wallet.next_unused_address(KeychainKind::External);
     let psbt = build_app_signed_psbt_for_protocol(
-        &fixture,
+        &mut fixture,
         recipient_address,
         get_unique_test_amount(1000),
         &[],
@@ -309,7 +309,7 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
 ) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
+    let mut fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
 
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
@@ -331,10 +331,10 @@ async fn transaction_verification_with_threshold_over_limit_requires_verificatio
         )
         .await;
 
-    let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-    let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
+    let mut recipient_wallet = get_funded_wallet_single("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
+    let recipient_address = recipient_wallet.next_unused_address(KeychainKind::External);
     let psbt = build_app_signed_psbt_for_protocol(
-        &fixture,
+        &mut fixture,
         recipient_address,
         get_unique_test_amount(1000),
         &[],
@@ -424,7 +424,7 @@ async fn transaction_verification_verification_flow_test(
 ) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
+    let mut fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
 
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
@@ -446,10 +446,10 @@ async fn transaction_verification_verification_flow_test(
         )
         .await;
 
-    let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-    let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
+    let mut recipient_wallet = get_funded_wallet_single("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
+    let recipient_address = recipient_wallet.next_unused_address(KeychainKind::External);
     let psbt = build_app_signed_psbt_for_protocol(
-        &fixture,
+        &mut fixture,
         recipient_address,
         get_unique_test_amount(1000),
         &[],
@@ -540,7 +540,7 @@ async fn transaction_verification_requires_verification_idempotent(
 ) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
+    let mut fixture = setup_fixture(&mut context, &client, &bootstrap.services, protocol).await;
 
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
@@ -562,10 +562,10 @@ async fn transaction_verification_requires_verification_idempotent(
         )
         .await;
 
-    let recipient_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
-    let recipient_address = recipient_wallet.get_address(AddressIndex::New).unwrap();
+    let mut recipient_wallet = get_funded_wallet_single("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
+    let recipient_address = recipient_wallet.next_unused_address(KeychainKind::External);
     let psbt = build_app_signed_psbt_for_protocol(
-        &fixture,
+        &mut fixture,
         recipient_address,
         get_unique_test_amount(1000),
         &[],

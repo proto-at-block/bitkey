@@ -23,9 +23,11 @@ import build.wallet.ui.components.label.LabelTreatment.Strikethrough
 import build.wallet.ui.components.label.LabelTreatment.Tertiary
 import build.wallet.ui.components.label.LabelTreatment.Unspecified
 import build.wallet.ui.components.label.LabelTreatment.Warning
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.style
+import build.wallet.ui.tokens.currentStyle
+import build.wallet.ui.typography.font.cashSansFontFamily
 import build.wallet.ui.typography.font.interFontFamily
 
 /**
@@ -74,13 +76,14 @@ fun WalletTheme.textStyle(
       else -> None
     }
 
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   val baseFont =
     TextStyle(
-      fontFamily = interFontFamily,
+      fontFamily = if (isDesignSystemV2Enabled) cashSansFontFamily else interFontFamily,
       fontStyle = FontStyle.Normal
     )
 
-  return type.style(baseFont).copy(
+  return type.currentStyle(baseFont).copy(
     textAlign = TextAlign.Center,
     color = color,
     textDecoration = textDecoration,
@@ -102,13 +105,14 @@ fun buttonTextStyle(
   underline: Boolean,
   textColor: Color,
 ): TextStyle {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   val baseFont =
     TextStyle(
-      fontFamily = interFontFamily,
+      fontFamily = if (isDesignSystemV2Enabled) cashSansFontFamily else interFontFamily,
       fontStyle = FontStyle.Normal
     )
 
-  return type.style(baseFont).copy(
+  return type.currentStyle(baseFont).copy(
     textAlign = TextAlign.Center,
     color = textColor,
     textDecoration = if (underline) Underline else None,

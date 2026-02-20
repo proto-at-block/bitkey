@@ -23,6 +23,7 @@ import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.platform.permissions.EnableNotificationsBodyModel
 import build.wallet.statemachine.recovery.cloud.CloudWarningBodyModel
 import build.wallet.statemachine.recovery.conflict.model.ShowingNoLongerRecoveringBodyModel
+import build.wallet.statemachine.recovery.conflict.model.ShowingSomeoneElseIsRecoveringBodyModel
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionBodyModel
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
@@ -49,6 +50,116 @@ import kotlinx.coroutines.CoroutineScope
 import kotlin.time.Duration.Companion.seconds
 
 class LostAppContestedRecoveryFunctionalTests : FunSpec({
+
+  // Critical test: Device A (active account) sees SomeoneElseIsRecovering when Device B initiates recovery
+  //
+  // This test verifies the LEGITIMATE SomeoneElseIsRecovering case:
+  // 1. Device A onboards with HW X (has active account)
+  // 2. Device B (with same HW X) initiates Lost App recovery
+  // 3. Device A should see "Recovery Conflict" warning (ShowingSomeoneElseIsRecoveringBodyModel)
+  //
+  // This test would FAIL if the race condition fix is too aggressive and prevents
+  // server recovery from being set on Device A (which has an active account but no local recovery).
+  test("active account device sees SomeoneElseIsRecovering when another device initiates Lost App recovery") {
+    // Device A: onboard and stay at Money Home
+    val deviceA = launchNewApp(executeWorkers = true)
+    deviceA.onboardFullAccountWithFakeHardware(true, delayNotifyDuration = 2.seconds)
+
+    // Device B: same hardware, no account - will initiate recovery
+    val deviceAHardwareSeed = deviceA.fakeNfcCommands.fakeHardwareKeyStore.getSeed()
+    val deviceB = launchNewApp(
+      hardwareSeed = deviceAHardwareSeed,
+      executeWorkers = true
+    )
+
+    turbineScope(timeout = 60.seconds) {
+      val deviceATester = deviceA.appUiStateMachine.testIn(
+        props = Unit,
+        turbineTimeout = 30.seconds,
+        scope = this
+      )
+
+      val deviceBTester = deviceB.appUiStateMachine.testIn(
+        props = Unit,
+        turbineTimeout = 30.seconds,
+        scope = this
+      )
+
+      // Device A should be at Money Home
+      deviceATester.awaitUntilBody<MoneyHomeBodyModel>()
+
+      // Device B initiates Lost App recovery
+      // This will notify the server, creating a server recovery
+      deviceBTester.navigateToLostAppRecovery()
+
+      // Device B reaches DelayAndNotifyNewKeyReady (recovery initiated on server)
+      deviceBTester.awaitUntilBody<DelayAndNotifyNewKeyReady>().also {
+        it.factorToRecover.shouldBe(PhysicalFactor.App)
+      }
+
+      // Device A should now see ShowingSomeoneElseIsRecoveringBodyModel
+      // because someone else (Device B) is trying to recover the account.
+      // The sync worker on Device A should detect the server recovery and show the warning.
+      //
+      // This assertion would FAIL if the race condition fix is too aggressive
+      // and doesn't set server recovery when there's an active account.
+      deviceATester.awaitUntilBody<ShowingSomeoneElseIsRecoveringBodyModel>(
+        matching = { it.cancelingRecoveryLostFactor == PhysicalFactor.App }
+      )
+
+      deviceATester.cancelAndIgnoreRemainingEvents()
+      deviceBTester.cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  // Race condition test: This test verifies that when a user initiates lost app recovery,
+  // they don't incorrectly see "SomeoneElseIsRecovering" due to a race condition between
+  // the server sync and local recovery initiation.
+  //
+  // The race condition that was fixed:
+  // 1. User initiates recovery (server is notified)
+  // 2. Sync worker fetches server recovery status
+  // 3. Server recovery is saved to DB BEFORE local recovery is initiated
+  // 4. User incorrectly sees "SomeoneElseIsRecovering"
+  //
+  // The fix ensures that server recovery is NOT set in the DAO until local recovery is present.
+  // This test verifies the fix works by ensuring the recovery flow completes without
+  // showing "SomeoneElseIsRecovering".
+  test("lost app recovery does not show SomeoneElseIsRecovering - race condition prevention") {
+    testWithTwoApps(
+      isContested = false
+    ) { _, lostAppAppTester, _, _ ->
+      // Initiate lost app recovery - this should NOT show SomeoneElseIsRecovering
+      // even though the server will be notified and sync workers are running.
+      // Without the race condition fix, there's a chance that:
+      // 1. Server returns recovery status after notification
+      // 2. Sync worker saves server recovery before local recovery is saved
+      // 3. App incorrectly shows "SomeoneElseIsRecovering"
+      //
+      // The fix in RecoveryStatusServiceImpl prevents this by:
+      // 1. Checking if local recovery is present before setting server recovery
+      // 2. Triggering an immediate sync when local recovery is initiated
+
+      // This call would fail if SomeoneElseIsRecovering was shown instead of
+      // the expected DelayAndNotifyNewKeyReady screen
+      lostAppAppTester.initiateLostAppRecovery(isContested = false)
+        .factorToRecover.shouldBe(PhysicalFactor.App)
+    }
+  }
+
+  // Another race condition test: Complete the full lost app recovery flow
+  // This tests that the entire flow works correctly when background workers are running.
+  test("complete lost app recovery - full flow race condition prevention") {
+    testWithTwoApps(
+      isContested = false,
+      isUsingSocRecFakes = true
+    ) { _, lostAppAppTester, _, _ ->
+      // This complete flow would fail at any point if SomeoneElseIsRecovering was shown
+      // The test passes through multiple sync cycles as the recovery progresses,
+      // verifying the fix works throughout the entire recovery flow.
+      lostAppAppTester.initiateAndCompleteLostAppRecovery(isConflicted = false)
+    }
+  }
 
   test("complete lost hardware recovery then lost app recovery") {
     testWithTwoApps(

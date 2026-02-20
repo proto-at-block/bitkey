@@ -3,7 +3,7 @@
 #include "assert.h"
 #include "display.pb.h"
 #include "langpack.h"
-#include "orbital_dots_animation.h"
+#include "nfc_dots_animation.h"
 #include "top_menu.h"
 #include "ui.h"
 
@@ -17,7 +17,7 @@
 #define FONT_TITLE (&cash_sans_mono_regular_36)
 
 static lv_obj_t* screen = NULL;
-static orbital_dots_animation_t orbital_dots_animation;
+static nfc_dots_animation_t nfc_dots_animation;
 static top_menu_t menu_button;
 static lv_obj_t* title_label = NULL;
 
@@ -57,11 +57,11 @@ lv_obj_t* screen_scan_init(void* ctx) {
   }
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
-  // Initialize orbital_dots_animation structure
-  memset(&orbital_dots_animation, 0, sizeof(orbital_dots_animation_t));
+  // Initialize NFC dots animation structure
+  memset(&nfc_dots_animation, 0, sizeof(nfc_dots_animation_t));
 
-  // Create orbital dots animation widget
-  orbital_dots_animation_create(screen, &orbital_dots_animation);
+  // Create NFC dots animation widget
+  nfc_dots_animation_create(screen, &nfc_dots_animation);
 
   // Title with black background box
   lv_obj_t* text_container = lv_obj_create(screen);
@@ -88,18 +88,11 @@ lv_obj_t* screen_scan_init(void* ctx) {
   lv_obj_set_size(text_container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_align(text_container, LV_ALIGN_CENTER, 0, 0);
 
-  // Show background dots
-  for (int i = 0; i < ORBITAL_DOTS_NUM_BACKGROUND; i++) {
-    if (orbital_dots_animation.bg_dots[i]) {
-      lv_obj_clear_flag(orbital_dots_animation.bg_dots[i], LV_OBJ_FLAG_HIDDEN);
-    }
-  }
-
   // Set brightness to full immediately
   ui_set_local_brightness(SCREEN_BRIGHTNESS);
 
-  // Start orbital dots animation immediately
-  orbital_dots_animation_start(&orbital_dots_animation);
+  // Start NFC dots animation immediately
+  nfc_dots_animation_start(&nfc_dots_animation);
 
   // Create top menu button (create last so it's on top)
   memset(&menu_button, 0, sizeof(top_menu_t));
@@ -113,8 +106,8 @@ void screen_scan_destroy(void) {
     return;
   }
 
-  orbital_dots_animation_destroy(&orbital_dots_animation);
-  memset(&orbital_dots_animation, 0, sizeof(orbital_dots_animation));
+  nfc_dots_animation_destroy(&nfc_dots_animation);
+  memset(&nfc_dots_animation, 0, sizeof(nfc_dots_animation));
   top_menu_destroy(&menu_button);
   memset(&menu_button, 0, sizeof(menu_button));
   lv_obj_del(screen);

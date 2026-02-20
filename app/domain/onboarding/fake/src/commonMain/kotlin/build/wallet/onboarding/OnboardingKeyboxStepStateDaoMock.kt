@@ -1,6 +1,7 @@
 package build.wallet.onboarding
 
 import app.cash.turbine.Turbine
+import build.wallet.onboarding.OnboardingKeyboxStep.BuildHardwareDescriptor
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.DescriptorBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
@@ -28,12 +29,14 @@ class OnboardingKeyboxStepStateDaoMock(
   val descriptorBackupStateFlow = MutableStateFlow(Incomplete)
   val cloudBackupStateFlow = MutableStateFlow(Incomplete)
   val notificationPreferencesStateFlow = MutableStateFlow(Incomplete)
+  val buildHardwareDescriptorStateFlow = MutableStateFlow(Incomplete)
 
   override fun stateForStep(step: OnboardingKeyboxStep): Flow<OnboardingKeyboxStepState> {
     return when (step) {
       DescriptorBackup -> descriptorBackupStateFlow
       CloudBackup -> cloudBackupStateFlow
       NotificationPreferences -> notificationPreferencesStateFlow
+      BuildHardwareDescriptor -> buildHardwareDescriptorStateFlow
     }
   }
 
@@ -46,5 +49,6 @@ class OnboardingKeyboxStepStateDaoMock(
     descriptorBackupStateFlow.value = Incomplete
     cloudBackupStateFlow.value = Incomplete
     notificationPreferencesStateFlow.value = Incomplete
+    buildHardwareDescriptorStateFlow.value = Incomplete
   }
 }

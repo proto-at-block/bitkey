@@ -5,15 +5,16 @@ srcs = [
   'ui/display_action.c',
   'ui/gesture_tx.c',
   'ui/widgets/top_back.c',
-  'ui/widgets/page_indicator.c',
   'ui/widgets/orbital_dots_animation.c',
+  'ui/widgets/nfc_dots_animation.c',
   'ui/widgets/mfg_starfield_fps.c',
   'ui/widgets/mfg_burnin_grid.c',
   'ui/widgets/mfg_scrolling_h.c',
   'ui/widgets/top_menu.c',
-  'ui/widgets/hold_ring.c',
   'ui/widgets/hold_cancel.c',
   'ui/widgets/address_display.c',
+  'ui/widgets/dot_ring.c',
+  'ui/widgets/fingerprint_dots.c',
   'ui/screens/screen_about.c',
   'ui/screens/screen_money_movement.c',
   'ui/screens/screen_scan.c',
@@ -35,6 +36,7 @@ srcs = [
   'ui/screens/screen_mfg_touch_test.c',
   'ui/screens/screen_fingerprint.c',
   'ui/screens/screen_privileged_action.c',
+  'ui/screens/screen_power_off.c',
 ]
 
 includes = [
@@ -62,7 +64,7 @@ deps = [
 python = find_program('python3')
 
 # Font sizes we need for CashSansMono
-font_sizes = [20, 22, 24, 28, 30, 34, 36, 40, 48]
+font_sizes = [20, 22, 24, 26, 28, 30, 34, 36, 40, 48]
 
 # Font variants: Regular and Medium
 font_variants = {
@@ -107,8 +109,12 @@ image_pngs_rgb565 = [
 
 # Monochrome images (1-bit indexed)
 image_pngs_i1 = [
+  'ui/images/arrow_right.png',
   'ui/images/back_arrow.png',
   'ui/images/brightness.png',
+  'ui/images/brightness_min.png',
+  'ui/images/brightness_mid.png',
+  'ui/images/brightness_max.png',
   'ui/images/ellipsis_horizontal.png',
   'ui/images/exclamation_circle.png',
   'ui/images/fingerprint.png',
@@ -135,6 +141,7 @@ image_pngs_i1 = [
   'ui/images/touch.png',
   'ui/images/sleep.png',
   'ui/images/run_in.png',
+  'ui/images/plus.png',
 ]
 
 foreach img : image_pngs_rgb565
@@ -207,6 +214,36 @@ display_ui_mfgtest_dep = declare_dependency(
   include_directories : includes,
   dependencies : deps,
 )
+
+# Build display_ui with test-enabled LVGL for snapshot testing (desktop only)
+# Use crypto_deps['posix'] instead of crypto_dep to get crypto_rand_short implementation
+# Use langpack_deps['en'] to get the actual langpack_load_default implementation
+# NOTE: Must be BEFORE subdir('driver') because that redefines 'srcs'
+if system == 'darwin' or system == 'linux'
+  test_deps_list = [
+    assert_dep,
+    crypto_deps['posix'],
+    langpack_deps['en'],
+    log_dep,
+    lvgl_test_dep,
+    mcu_dep,
+    protos_dep,
+    uc_dep,
+  ]
+
+  display_ui_test_lib = library('display_ui_test',
+    srcs,
+    include_directories : includes,
+    dependencies : test_deps_list,
+    c_args : ['-DLV_USE_LODEPNG=1', '-DLV_USE_SNAPSHOT=1'],
+  )
+
+  display_ui_test_dep = declare_dependency(
+    link_with : display_ui_test_lib,
+    include_directories : includes,
+    dependencies : test_deps_list,
+  )
+endif
 
 # Build subdirectories (independent libraries)
 subdir('driver')

@@ -14,7 +14,7 @@ use wsm_common::enclave_log::LogBuffer;
 use wsm_common::messages::api::{
     ApprovePsbtRequest, ApprovePsbtResponse, AttestationDocResponse, EvaluatePinRequest,
     EvaluatePinResponse, GrantRequest, GrantResponse, NoiseInitiateBundleRequest,
-    NoiseInitiateBundleResponse,
+    NoiseInitiateBundleResponse, SignPublicKeysRequest, SignPublicKeysResponse,
 };
 use wsm_common::messages::enclave::{
     DerivedKey, EnclaveContinueDistributedKeygenRequest, EnclaveContinueDistributedKeygenResponse,
@@ -302,6 +302,25 @@ impl EnclaveClient {
         let result = self
             .client
             .post(self.endpoint.join("approve-psbt")?)
+            .json(&request)
+            .send()
+            .await?;
+        handle_enclave_logs(&result).await;
+        if result.status() != 200 {
+            bail!("Error from the enclave: {}", result.text().await?);
+        }
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn sign_public_keys(
+        &self,
+        request: SignPublicKeysRequest,
+    ) -> anyhow::Result<SignPublicKeysResponse> {
+        self.load_integrity_key().await?;
+        let result = self
+            .client
+            .post(self.endpoint.join("sign-public-keys")?)
             .json(&request)
             .send()
             .await?;

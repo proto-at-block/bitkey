@@ -80,13 +80,16 @@ NO_OPTIMIZE int main(void) {
   mfgtest_task_create();
   fwup_task_create((fwup_task_options_t){
     .bl_upgrade = true,
+    .confirmation = SECURE_FALSE,
   });
   auth_task_create(true);
 #else
   key_manager_task_create();
   auth_task_create(false);
+  // W1 does not require on-device confirmation for firmware updates because it has no screen
   fwup_task_create((fwup_task_options_t){
     .bl_upgrade = false,
+    .confirmation = SECURE_FALSE,
   });
 #endif
 

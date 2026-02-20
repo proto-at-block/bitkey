@@ -22,10 +22,7 @@ use account::service::{
     tests::default_electrum_rpc_uris, FetchAccountInput, Service as AccountService,
 };
 use authn_authz::key_claims::KeyClaims;
-use bdk_utils::{
-    bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, generate_electrum_rpc_uris,
-    DescriptorKeyset,
-};
+use bdk_utils::{bdk::bitcoin::psbt::Psbt, generate_electrum_rpc_uris, DescriptorKeyset};
 use errors::ApiError;
 use exchange_rate::{
     currency_conversion::money_for_sats, select_exchange_rate_provider,
@@ -39,7 +36,7 @@ use http_server::{
 };
 use privileged_action::service::{
     authorize_privileged_action::{
-        AuthenticationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+        AuthorizationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
         PrivilegedActionRequestValidatorBuilder,
     },
     Service as PrivilegedActionService,
@@ -254,8 +251,9 @@ async fn put_transaction_verification_policy(
                 account_id: &account_id,
                 privileged_action_definition:
                     &PrivilegedActionType::LoosenTransactionVerificationPolicy.into(),
-                authentication: AuthenticationContext::Standard,
+                authorization: AuthorizationContext::Standard,
                 privileged_action_request: &PrivilegedActionRequest::Initiate(request),
+                validation_context: None,
                 request_validator: PrivilegedActionRequestValidatorBuilder::default()
                 .on_initiate_out_of_band(Box::new(
                     move |_| {

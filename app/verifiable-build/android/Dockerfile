@@ -9,10 +9,10 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
   git=1:2.34.1-1ubuntu1.15 \
   build-essential=12.9ubuntu3 \
   libclang1=1:14.0-55~exp2 \
-  openjdk-17-jdk=17.0.17+10-1~22.04 \
+  openjdk-17-jdk=17.0.18+8-1~22.04.1 \
   curl=7.81.0-1ubuntu1.21 \
   sdkmanager=0.5.1-1 \
-  unzip=6.0-26ubuntu3 \
+  unzip=6.0-26ubuntu3.2 \
   zip=3.0-12build2
 
 ENV ANDROID_HOME=/opt/android-sdk

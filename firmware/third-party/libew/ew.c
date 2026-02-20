@@ -27,6 +27,11 @@ struct ew_psbt {
 static const char* EW_BECH32_MAINNET_PREFIX = "bc";
 static const char* EW_BECH32_TESTNET_PREFIX = "tb";
 
+// Bitcoin script constants
+#define EC_PUBLIC_KEY_LEN 33  // Compressed secp256k1 public key size
+#define MULTISIG_MIN_KEYS 1   // Minimum keys in multisig (per Bitcoin script)
+#define MULTISIG_MAX_KEYS 15  // Maximum keys in multisig (per Bitcoin script OP_1 to OP_15)
+
 /* libwally init + ops override + secp context randomization */
 static ew_error_t internal_wally_init(void) {
   if (wally_init(0) != WALLY_OK) {
@@ -373,6 +378,125 @@ ew_error_t ew_psbt_input_get_amount(const ew_psbt_t* psbt, size_t index, bool* h
   return has_amount ? EW_OK : EW_ERROR_MISSING_UTXO;
 }
 
+ew_error_t ew_psbt_input_get_keypath_count(const ew_psbt_t* psbt, size_t index, size_t* count_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt || !psbt->inner || !count_out || index >= psbt->inner->num_inputs) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  *count_out = psbt->inner->inputs[index].keypaths.num_items;
+  return EW_OK;
+}
+
+ew_error_t ew_psbt_input_get_keypath(const ew_psbt_t* psbt, size_t input_index,
+                                     size_t keypath_index, const uint8_t** pubkey_out,
+                                     size_t* pubkey_len_out, const uint8_t** keypath_out,
+                                     size_t* keypath_len_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt || !psbt->inner || input_index >= psbt->inner->num_inputs) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  const struct wally_map* keypaths = &psbt->inner->inputs[input_index].keypaths;
+  if (keypath_index >= keypaths->num_items) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  const struct wally_map_item* item = &keypaths->items[keypath_index];
+  if (pubkey_out) {
+    *pubkey_out = item->key;
+  }
+  if (pubkey_len_out) {
+    *pubkey_len_out = item->key_len;
+  }
+  if (keypath_out) {
+    *keypath_out = item->value;
+  }
+  if (keypath_len_out) {
+    *keypath_len_out = item->value_len;
+  }
+
+  return EW_OK;
+}
+
+ew_error_t ew_psbt_input_get_witness_utxo(const ew_psbt_t* psbt, size_t index,
+                                          const uint8_t** script_out, size_t* script_len_out,
+                                          uint64_t* amount_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt || !psbt->inner || index >= psbt->inner->num_inputs) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  const struct wally_psbt_input* input = &psbt->inner->inputs[index];
+  const uint8_t* script = NULL;
+  size_t script_len = 0;
+  uint64_t amount = 0;
+  bool has_utxo = false;
+
+  if (input->witness_utxo) {
+    script = input->witness_utxo->script;
+    script_len = input->witness_utxo->script_len;
+    amount = input->witness_utxo->satoshi;
+    has_utxo = true;
+  } else if (input->utxo) {
+    uint32_t utxo_index = input->index;
+    if (input->utxo->num_outputs > utxo_index) {
+      const struct wally_tx_output* txo = &input->utxo->outputs[utxo_index];
+      script = txo->script;
+      script_len = txo->script_len;
+      amount = txo->satoshi;
+      has_utxo = true;
+    }
+  }
+
+  if (!has_utxo) {
+    return EW_ERROR_MISSING_UTXO;
+  }
+
+  if (script_out) {
+    *script_out = script;
+  }
+  if (script_len_out) {
+    *script_len_out = script_len;
+  }
+  if (amount_out) {
+    *amount_out = amount;
+  }
+
+  return EW_OK;
+}
+
+ew_error_t ew_psbt_input_get_sequence(const ew_psbt_t* psbt, size_t index, uint32_t* sequence_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt || !psbt->inner || !sequence_out || index >= psbt->inner->num_inputs) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  *sequence_out = psbt->inner->inputs[index].sequence;
+  return EW_OK;
+}
+
+ew_error_t ew_psbt_input_get_sighash_type(const ew_psbt_t* psbt, size_t index,
+                                          uint32_t* sighash_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt || !psbt->inner || !sighash_out || index >= psbt->inner->num_inputs) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  *sighash_out = psbt->inner->inputs[index].sighash;
+  return EW_OK;
+}
+
 ew_error_t ew_psbt_output_get_info(const ew_psbt_t* psbt, size_t index, const uint8_t** script_out,
                                    size_t* script_len_out, bool* has_amount_out,
                                    uint64_t* amount_out) {
@@ -516,4 +640,115 @@ ew_error_t ew_base64_to_bytes(const char* base64_psbt, uint8_t* out, size_t out_
   }
   *written = decoded_len;
   return EW_OK;
+}
+
+ew_error_t ew_psbt_to_bytes(const ew_psbt_t* psbt, uint8_t* out, size_t out_size, size_t* written) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt || !psbt->inner || !out || out_size == 0 || !written) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  size_t bytes_written = 0;
+  int ret = wally_psbt_to_bytes(psbt->inner, 0, out, out_size, &bytes_written);
+  if (ret != WALLY_OK) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+  *written = bytes_written;
+  return EW_OK;
+}
+
+ew_error_t ew_psbt_get_input_signature_hash(const ew_psbt_t* psbt, size_t index,
+                                            const uint8_t* script, size_t script_len,
+                                            uint8_t sighash_out[EW_SHA256_LEN]) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt || !psbt->inner || !sighash_out || !script || script_len == 0) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+  if (!psbt->inner->tx || index >= psbt->inner->num_inputs) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  int ret = wally_psbt_get_input_signature_hash(psbt->inner, index, psbt->inner->tx, script,
+                                                script_len, 0, sighash_out, EW_SHA256_LEN);
+  return ret == WALLY_OK ? EW_OK : EW_ERROR_INTERNAL;
+}
+
+ew_error_t ew_psbt_input_add_signature(ew_psbt_t* psbt, size_t index, const uint8_t* pubkey,
+                                       size_t pubkey_len, const uint8_t* sig, size_t sig_len) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!psbt || !psbt->inner || !pubkey || !sig || pubkey_len == 0 || sig_len == 0 ||
+      index >= psbt->inner->num_inputs) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  struct wally_psbt_input* input = &psbt->inner->inputs[index];
+  int ret = wally_psbt_input_add_signature(input, pubkey, pubkey_len, sig, sig_len);
+  return ret == WALLY_OK ? EW_OK : EW_ERROR_INTERNAL;
+}
+
+ew_error_t ew_multisig_witness_script_from_pubkeys(const uint8_t* pubkeys, size_t pubkeys_len,
+                                                   uint32_t threshold, bool sort_keys,
+                                                   uint8_t* script_out, size_t script_out_len,
+                                                   size_t* script_len_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!pubkeys || pubkeys_len == 0 || !script_out || script_out_len == 0 || !script_len_out) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  uint32_t flags = sort_keys ? WALLY_SCRIPT_MULTISIG_SORTED : 0;
+  int ret = wally_scriptpubkey_multisig_from_bytes(pubkeys, pubkeys_len, threshold, flags,
+                                                   script_out, script_out_len, script_len_out);
+  return ret == WALLY_OK ? EW_OK : EW_ERROR_INVALID_SCRIPT_PUBKEY;
+}
+
+ew_error_t ew_p2wsh_scriptpubkey_from_witness(const uint8_t* witness_script,
+                                              size_t witness_script_len, uint8_t* scriptpubkey_out,
+                                              size_t scriptpubkey_out_len,
+                                              size_t* scriptpubkey_len_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!witness_script || witness_script_len == 0 || !scriptpubkey_out ||
+      scriptpubkey_out_len == 0 || !scriptpubkey_len_out) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  int ret =
+    wally_witness_program_from_bytes(witness_script, witness_script_len, WALLY_SCRIPT_SHA256,
+                                     scriptpubkey_out, scriptpubkey_out_len, scriptpubkey_len_out);
+  return ret == WALLY_OK ? EW_OK : EW_ERROR_INVALID_SCRIPT_PUBKEY;
+}
+
+ew_error_t ew_ec_sig_normalize(const uint8_t* sig, size_t sig_len, uint8_t* sig_out,
+                               size_t sig_out_len) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!sig || !sig_out || sig_len != EC_SIGNATURE_LEN || sig_out_len < EC_SIGNATURE_LEN) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  int ret = wally_ec_sig_normalize(sig, sig_len, sig_out, sig_out_len);
+  return ret == WALLY_OK ? EW_OK : EW_ERROR_INTERNAL;
+}
+
+ew_error_t ew_ec_sig_to_der(const uint8_t* sig, size_t sig_len, uint8_t* der_out,
+                            size_t der_out_len, size_t* der_len_out) {
+  if (!ctx.initialized) {
+    return EW_ERROR_NOT_INITIALIZED;
+  }
+  if (!sig || !der_out || !der_len_out || sig_len != EC_SIGNATURE_LEN || der_out_len == 0) {
+    return EW_ERROR_INVALID_PARAM;
+  }
+
+  int ret = wally_ec_sig_to_der(sig, sig_len, der_out, der_out_len, der_len_out);
+  return ret == WALLY_OK ? EW_OK : EW_ERROR_INTERNAL;
 }

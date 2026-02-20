@@ -14,6 +14,8 @@ inputs = {
     "wsm-api",
     "wsm-enclave",
     "bitkey-reproducible-android-builder",
+    # App integration test container (pre-built JVM test environment)
+    "app-integration-tests",
     # Nix base images for CI caching (pre-warmed Nix shells)
     "nix-base-ci-wsm-build",
     "nix-base-ci-core-test",

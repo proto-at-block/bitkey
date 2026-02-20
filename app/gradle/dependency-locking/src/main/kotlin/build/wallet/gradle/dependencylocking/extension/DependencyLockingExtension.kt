@@ -55,10 +55,31 @@ abstract class DependencyLockingExtension
 
     private fun getLockingConfigurationForConfiguration(
       configuration: Configuration,
-    ): DependencyLockingConfigurationConfig =
-      configByConfigurationId.getOrPut(configuration.id) {
-        objects.newInstance(DependencyLockingConfigurationConfig::class.java, configuration)
+    ): DependencyLockingConfigurationConfig {
+      // In Gradle 9+, configurations become immutable earlier.
+      // Even accessing certain properties on resolved configurations can trigger errors.
+      // Use configuration name as key since it's always safe to access.
+      val configKey = try {
+        configuration.id
+      } catch (_: IllegalStateException) {
+        // Fall back to using name-based key for already-resolved configurations
+        LockableConfiguration.Id(LockableConfiguration.Origin.Build, configuration.name)
       }
+
+      return configByConfigurationId.getOrPut(configKey) {
+        val config = objects.newInstance(DependencyLockingConfigurationConfig::class.java)
+        // In Gradle 9+, configurations can be "observed" (not mutable) even when state == UNRESOLVED.
+        // The only safe way to check is to try and catch the exception.
+        try {
+          config.initWithConfiguration(configuration)
+        } catch (_: IllegalStateException) {
+          // Configuration was already observed/resolved, skip initialization
+        } catch (_: org.gradle.api.InvalidUserCodeException) {
+          // Configuration was already observed/resolved, skip initialization
+        }
+        config
+      }
+    }
 
     private val Configuration.id: LockableConfiguration.Id
       get() = getId(origin)

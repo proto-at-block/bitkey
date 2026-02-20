@@ -8,6 +8,7 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.UsSmsFeatureFlag
+import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.notifications.NotificationTouchpointService
 import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.onboarding.OnboardingKeyboxStep
@@ -50,6 +51,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
   private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider,
   private val uiErrorHintsProvider: UiErrorHintsProvider,
   private val usSmsFeatureFlag: UsSmsFeatureFlag,
+  private val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
 ) : NotificationPreferencesSetupUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -61,17 +63,20 @@ class NotificationPreferencesSetupUiStateMachineImpl(
     val pushItemModel by remember {
       pushItemModelProvider.model(
         onShowAlert = { alertState ->
-          state = ConfigureRecoveryOptionsUiState(PushAlertState(alertState))
+          // Determine if we should advance to transactions after push completes
+          val shouldAdvance = when (val currentState = state) {
+            is ConfigureRecoveryOptionsUiState -> currentState.advanceToTransactionsAfterPush
+            // Coming from fullscreen page - should advance after push
+            is RecoveryState.RecoveryNotificationsSetupUiState -> true
+            else -> false
+          }
+          state = ConfigureRecoveryOptionsUiState(
+            overlayState = PushAlertState(alertState),
+            advanceToTransactionsAfterPush = shouldAdvance
+          )
         }
       )
-    }.collectAsState(
-      initial =
-        RecoveryChannelsSetupFormItemModel(
-          state = NotCompleted,
-          uiErrorHint = UiErrorHint.None,
-          onClick = {}
-        )
-    )
+    }.collectAsState()
 
     var smsState by remember {
       mutableStateOf(NotCompleted)
@@ -111,20 +116,47 @@ class NotificationPreferencesSetupUiStateMachineImpl(
       usSmsFeatureFlag.flagValue()
     }.collectAsState()
 
+    // Whether W3 onboarding flow is enabled
+    val w3OnboardingEnabled by remember {
+      w3OnboardingFeatureFlag.flagValue()
+    }.collectAsState()
+
+    // SMS is not allowed in the USA unless the feature flag is enabled
+    val isCountryUS = telephonyCountryCodeProvider.isCountry("us")
+    val shouldShowSmsItem = !isCountryUS || usSmsEnabled.value
+
+    // When feature flag is ON and push is not completed, intercept push click to show fullscreen page
+    val effectivePushItemModel = if (w3OnboardingEnabled.value && pushItemModel.state != Completed) {
+      pushItemModel.copy(
+        onClick = { state = RecoveryState.RecoveryNotificationsSetupUiState }
+      )
+    } else {
+      pushItemModel
+    }
+
+    // Auto-advance to transactions when returning from settings with push now enabled
+    // This handles the case where user opened app settings and enabled notifications
+    LaunchedEffect("auto-advance-after-settings", pushItemModel.state) {
+      val currentState = state
+      if (currentState is ConfigureRecoveryOptionsUiState &&
+        currentState.advanceToTransactionsAfterPush &&
+        pushItemModel.state == Completed
+      ) {
+        state = TransactionsAndProductUpdatesState
+      }
+    }
+
     return when (val currentState = state) {
       is ConfigureRecoveryOptionsUiState -> {
         // Deal with some special states outside of the ScreenModel domain
         handleSpecialOverlayState(
           overlayState = currentState.overlayState,
+          advanceToTransactionsAfterPush = currentState.advanceToTransactionsAfterPush,
           setState = { state = it }
         )
 
-        val isCountryUS = telephonyCountryCodeProvider.isCountry("us")
-        val shouldShowSmsItem = !isCountryUS || usSmsEnabled.value
-
-        // SMS is not allowed in the USA unless the feature flag is enabled
         RecoveryChannelsSetupFormBodyModel(
-          pushItem = pushItemModel,
+          pushItem = effectivePushItemModel,
           smsItem = RecoveryChannelsSetupFormItemModel(
             state = smsState,
             displayValue = smsNumber,
@@ -172,6 +204,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
         ).asRootScreen(
           alertModel = constructAlertModel(
             overlayState = currentState.overlayState,
+            advanceToTransactionsAfterPush = currentState.advanceToTransactionsAfterPush,
             setState = { state = it },
             pushItemModel = pushItemModel
           ),
@@ -188,8 +221,36 @@ class NotificationPreferencesSetupUiStateMachineImpl(
             NotificationTouchpointInputAndVerificationProps(
               accountId = props.accountId,
               touchpointType = NotificationTouchpointType.PhoneNumber,
-              entryPoint = Recovery { state = ConfigureRecoveryOptionsUiState() },
-              onClose = { state = ConfigureRecoveryOptionsUiState() }
+              // Only show skip button in sequential flow (feature flag ON)
+              entryPoint = Recovery(
+                onSkip = if (w3OnboardingEnabled.value) {
+                  {
+                    // Skip advances to push setup page or transactions (not back to hub)
+                    if (pushItemModel.state == Completed) {
+                      state = TransactionsAndProductUpdatesState
+                    } else {
+                      state = RecoveryState.RecoveryNotificationsSetupUiState
+                    }
+                  }
+                } else {
+                  null
+                }
+              ),
+              onClose = { state = ConfigureRecoveryOptionsUiState() },
+              onSuccess = {
+                if (w3OnboardingEnabled.value) {
+                  // Sequential flow: advance to push fullscreen page or transactions
+                  if (pushItemModel.state == Completed) {
+                    state = TransactionsAndProductUpdatesState
+                  } else {
+                    // Show fullscreen push notification setup page
+                    state = RecoveryState.RecoveryNotificationsSetupUiState
+                  }
+                } else {
+                  // Hub-and-spoke: return to hub
+                  state = ConfigureRecoveryOptionsUiState()
+                }
+              }
             )
         )
       }
@@ -201,7 +262,23 @@ class NotificationPreferencesSetupUiStateMachineImpl(
               accountId = props.accountId,
               touchpointType = NotificationTouchpointType.Email,
               entryPoint = Recovery(),
-              onClose = { state = ConfigureRecoveryOptionsUiState() }
+              onClose = { state = ConfigureRecoveryOptionsUiState() },
+              onSuccess = {
+                if (w3OnboardingEnabled.value) {
+                  // Sequential flow: advance to next channel
+                  when {
+                    shouldShowSmsItem -> state = EnteringAndVerifyingPhoneNumberUiState
+                    pushItemModel.state == Completed -> state = TransactionsAndProductUpdatesState
+                    else -> {
+                      // Show fullscreen push notification setup page
+                      state = RecoveryState.RecoveryNotificationsSetupUiState
+                    }
+                  }
+                } else {
+                  // Hub-and-spoke: return to hub
+                  state = ConfigureRecoveryOptionsUiState()
+                }
+              }
             )
         )
       }
@@ -240,16 +317,40 @@ class NotificationPreferencesSetupUiStateMachineImpl(
           }
         ).asModalScreen()
       }
+
+      RecoveryState.RecoveryNotificationsSetupUiState -> {
+        RecoveryNotificationsSetupFormBodyModel(
+          onAllowNotifications = {
+            // Use the original push item's onClick to trigger proper permission check
+            // This will call onShowAlert which handles both NotDetermined (show prompt)
+            // and Denied (open settings) cases consistently with the hub dialog
+            pushItemModel.onClick?.invoke()
+          },
+          onSkip = {
+            eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_DISABLED)
+            state = TransactionsAndProductUpdatesState
+          },
+          onClose = {
+            eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_DISABLED)
+            // Go back to hub
+            state = ConfigureRecoveryOptionsUiState()
+          }
+        ).asModalScreen()
+      }
     }
   }
 
   /**
    * Special overlays don't really fit neatly into our screen model and need special
    * handling.
+   *
+   * @param advanceToTransactionsAfterPush When true, after push permission is granted or declined,
+   * advance to TransactionsAndProductUpdatesState instead of returning to the hub.
    */
   @Composable
   private fun handleSpecialOverlayState(
     overlayState: OverlayState,
+    advanceToTransactionsAfterPush: Boolean,
     setState: (RecoveryState) -> Unit,
   ) {
     when (overlayState) {
@@ -258,11 +359,23 @@ class NotificationPreferencesSetupUiStateMachineImpl(
         notificationPermissionRequester.requestNotificationPermission(
           onGranted = {
             eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_ENABLED)
-            setState(ConfigureRecoveryOptionsUiState())
+            setState(
+              if (advanceToTransactionsAfterPush) {
+                TransactionsAndProductUpdatesState
+              } else {
+                ConfigureRecoveryOptionsUiState()
+              }
+            )
           },
           onDeclined = {
             eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_DISABLED)
-            setState(ConfigureRecoveryOptionsUiState())
+            setState(
+              if (advanceToTransactionsAfterPush) {
+                TransactionsAndProductUpdatesState
+              } else {
+                ConfigureRecoveryOptionsUiState()
+              }
+            )
           }
         )
       }
@@ -271,9 +384,13 @@ class NotificationPreferencesSetupUiStateMachineImpl(
 
   /**
    * Create an alert model for the main screen
+   *
+   * @param advanceToTransactionsAfterPush When true, after push notification setup completes
+   * (whether user allows or denies), advance to TransactionsAndProductUpdatesState.
    */
   private fun constructAlertModel(
     overlayState: OverlayState,
+    advanceToTransactionsAfterPush: Boolean,
     setState: (RecoveryState) -> Unit,
     pushItemModel: RecoveryChannelsSetupFormItemModel,
   ): ButtonAlertModel? =
@@ -283,11 +400,24 @@ class NotificationPreferencesSetupUiStateMachineImpl(
         is RecoveryChannelsSetupPushActionState.AppInfoPromptRequestingPush -> {
           requestPushAlertModel(
             onAllow = {
-              setState(ConfigureRecoveryOptionsUiState(SystemPromptRequestingPush))
+              // Preserve advanceToTransactionsAfterPush when transitioning to system prompt
+              setState(
+                ConfigureRecoveryOptionsUiState(
+                  overlayState = SystemPromptRequestingPush,
+                  advanceToTransactionsAfterPush = advanceToTransactionsAfterPush
+                )
+              )
               eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_ENABLED)
             },
             onDontAllow = {
-              setState(ConfigureRecoveryOptionsUiState())
+              // User declined at app dialog - respect the sequential flow flag
+              setState(
+                if (advanceToTransactionsAfterPush) {
+                  TransactionsAndProductUpdatesState
+                } else {
+                  ConfigureRecoveryOptionsUiState()
+                }
+              )
               eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_DISABLED)
             }
           )
@@ -297,9 +427,24 @@ class NotificationPreferencesSetupUiStateMachineImpl(
             pushEnabled = pushItemModel.state == Completed,
             settingsOpenAction = {
               overlayState.pushActionState.openAction()
-              setState(ConfigureRecoveryOptionsUiState())
+              // After opening settings, return to hub with advanceToTransactionsAfterPush preserved
+              // The LaunchedEffect will auto-advance if push becomes enabled
+              setState(
+                ConfigureRecoveryOptionsUiState(
+                  advanceToTransactionsAfterPush = advanceToTransactionsAfterPush
+                )
+              )
             },
-            onClose = { setState(ConfigureRecoveryOptionsUiState()) }
+            onClose = {
+              // User dismissed without opening settings - respect sequential flow
+              setState(
+                if (advanceToTransactionsAfterPush) {
+                  TransactionsAndProductUpdatesState
+                } else {
+                  ConfigureRecoveryOptionsUiState()
+                }
+              )
+            }
           )
         }
       }
@@ -330,9 +475,14 @@ class NotificationPreferencesSetupUiStateMachineImpl(
   private sealed interface RecoveryState {
     /**
      * Recovery options and status shown to user
+     *
+     * @property advanceToTransactionsAfterPush When true, after push notification setup completes
+     * (whether granted or denied), automatically advance to TransactionsAndProductUpdatesState
+     * instead of staying on the hub. This is used for sequential flow when feature flag is enabled.
      */
     data class ConfigureRecoveryOptionsUiState(
       val overlayState: OverlayState = None,
+      val advanceToTransactionsAfterPush: Boolean = false,
     ) : RecoveryState {
       sealed interface OverlayState {
         /** No overlaid info */
@@ -382,6 +532,9 @@ class NotificationPreferencesSetupUiStateMachineImpl(
 
     /** Show recovery info web page */
     data object ShowLearnRecoveryWebView : RecoveryState
+
+    /** Fullscreen page asking the customer to enable push notifications (sequential flow only) */
+    data object RecoveryNotificationsSetupUiState : RecoveryState
   }
 }
 

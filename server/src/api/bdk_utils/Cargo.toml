@@ -6,7 +6,9 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = { workspace = true }
-bdk = { workspace = true, features = ["electrum", "keys-bip39", "rpc", "std"] }
+bdk_bitcoind_rpc = { workspace = true }
+bdk_electrum = { workspace = true, features = ["use-rustls-ring"] }
+bdk_wallet = { workspace = true, features = ["all-keys", "std"] }
 crypto = { workspace = true, features = ["chaincode_delegation"] }
 feature_flags = { workspace = true }
 hex = { workspace = true }
@@ -22,10 +24,16 @@ errors = { workspace = true }
 instrumentation = { workspace = true }
 
 [dev-dependencies]
+bdk_wallet = { workspace = true, features = [
+  "all-keys",
+  "keys-bip39",
+  "std",
+  "test-utils",
+] }
 rstest = { workspace = true }
 
 [features]
-test-helpers = []
+test-helpers = ["bdk_wallet/test-utils"]
 
 [lints]
 workspace = true

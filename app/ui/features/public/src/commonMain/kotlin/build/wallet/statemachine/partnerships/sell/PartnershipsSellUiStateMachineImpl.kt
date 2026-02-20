@@ -3,6 +3,7 @@ package build.wallet.statemachine.partnerships.sell
 import androidx.compose.runtime.*
 import bitkey.metrics.MetricOutcome
 import bitkey.metrics.MetricTrackerService
+import build.wallet.analytics.events.screen.id.SellEventTrackerScreenId
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
@@ -20,13 +21,20 @@ import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
+import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.InAppBrowserModel
+import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.partnerships.PartnershipsSegment
 import build.wallet.statemachine.partnerships.sell.SellState.*
 import build.wallet.statemachine.partnerships.sell.metrics.PartnershipSellConfirmationMetricDefinition
 import build.wallet.statemachine.partnerships.sell.metrics.PartnershipSellMetricDefinition
 import build.wallet.statemachine.send.TransferAmountEntryUiProps
 import build.wallet.statemachine.send.TransferAmountEntryUiStateMachine
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.time.Duration.Companion.minutes
@@ -49,27 +57,29 @@ class PartnershipsSellUiStateMachineImpl(
 ) : PartnershipsSellUiStateMachine {
   @Composable
   override fun model(props: PartnershipsSellUiProps): ScreenModel {
-    var state: SellState by remember {
-      when {
-        props.confirmedSale != null -> mutableStateOf(SellConfirmation(props.confirmedSale))
-        else -> mutableStateOf(EnteringSellAmount)
-      }
-    }
-
-    StartMetricEffect(props)
-
     val fiatCurrency by remember { fiatCurrencyPreferenceRepository.fiatCurrencyPreference }
       .collectAsState()
 
     // On initiating the sell flow, we grab and lock in the current exchange rates, so we use
     // the same rates over the duration of the flow. This is null when the exchange rates are not
-    // available or are out of date due to the customer being offline or unable to communicate with f8e
-    val exchangeRates: ImmutableList<ExchangeRate>? by remember {
+    // available or are out of date due to the customer being offline or unable to communicate with f8e.
+    // If rates are stale, we'll try to sync fresh rates before proceeding.
+    var exchangeRates: ImmutableList<ExchangeRate>? by remember {
       mutableStateOf(
         exchangeRateService.mostRecentRatesSinceDurationForCurrency(6.minutes, fiatCurrency)
           ?.toImmutableList()
       )
     }
+
+    var state: SellState by remember {
+      when {
+        props.confirmedSale != null -> mutableStateOf(SellConfirmation(props.confirmedSale))
+        exchangeRates == null -> mutableStateOf(LoadingExchangeRates)
+        else -> mutableStateOf(EnteringSellAmount)
+      }
+    }
+
+    StartMetricEffect(props)
 
     val initialAmount by remember(exchangeRates) {
       when (exchangeRates) {
@@ -82,6 +92,46 @@ class PartnershipsSellUiStateMachineImpl(
     var sellAmount by remember { mutableStateOf(BitcoinMoney.btc(0.1)) }
 
     return when (val currentState = state) {
+      is LoadingExchangeRates -> {
+        LaunchedEffect("sync-exchange-rates") {
+          exchangeRateService.syncRates()
+            .onSuccess { freshRates ->
+              // Use the rates returned directly from sync - no race condition with StateFlow
+              if (freshRates.isNotEmpty()) {
+                exchangeRates = freshRates.toImmutableList()
+                state = EnteringSellAmount
+              } else {
+                state = ExchangeRatesUnavailable
+              }
+            }
+            .onFailure {
+              state = ExchangeRatesUnavailable
+            }
+        }
+        LoadingBodyModel(
+          id = SellEventTrackerScreenId.LOADING_SELL_EXCHANGE_RATES,
+          onBack = props.onBack
+        ).asModalFullScreen()
+      }
+
+      is ExchangeRatesUnavailable -> {
+        ErrorFormBodyModel(
+          title = "Exchange rates unavailable",
+          subline = "We couldn’t load current exchange rates. Please check your connection and try again.",
+          primaryButton = ButtonDataModel(
+            text = "Go back",
+            onClick = props.onBack
+          ),
+          eventTrackerScreenId = SellEventTrackerScreenId.SELL_EXCHANGE_RATES_UNAVAILABLE,
+          onBack = props.onBack,
+          errorData = ErrorData(
+            segment = PartnershipsSegment.Sell,
+            actionDescription = "Loading exchange rates for sell",
+            cause = Error("Exchange rates unavailable or stale")
+          )
+        ).asModalFullScreen()
+      }
+
       is EnteringSellAmount -> transferAmountEntryUiStateMachine.model(
         props = TransferAmountEntryUiProps(
           onBack = {
@@ -243,6 +293,16 @@ class PartnershipsSellUiStateMachineImpl(
 }
 
 sealed interface SellState {
+  /**
+   * Loading exchange rates - shown when rates are stale and we're syncing fresh ones.
+   */
+  data object LoadingExchangeRates : SellState
+
+  /**
+   * Exchange rates are unavailable after sync attempt failed.
+   */
+  data object ExchangeRatesUnavailable : SellState
+
   data object ListSellPartners : SellState
 
   /**

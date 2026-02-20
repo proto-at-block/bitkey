@@ -3,6 +3,7 @@ package build.wallet.statemachine.recovery.cloud
 import androidx.compose.runtime.*
 import bitkey.auth.AuthTokenScope
 import bitkey.recovery.RecoveryStatusService
+import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.CLOUD_BACKUP_PROVISION_APP_AUTH_KEY
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UNSEAL_CLOUD_BACKUP
@@ -41,6 +42,7 @@ import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.fwup.semverToInt
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.platform.unsealSymmetricKey
@@ -73,6 +75,7 @@ internal const val START_SOCIAL_RECOVERY_MESSAGE = "Starting Recovery..."
 @BitkeyInject(ActivityScope::class)
 class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val accountAuthenticator: AccountAuthenticator,
+  private val appInstallationDao: AppInstallationDao,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val authTokensService: AuthTokensService,
   private val appPrivateKeyDao: AppPrivateKeyDao,
@@ -367,8 +370,17 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
           // Unsealing proves we're on the original hardware, so reuse this session to
           // persist current device info and fingerprint data for security hub.
-          firmwareDeviceInfoDao.setDeviceInfo(commands.getDeviceInfo(session))
+          val deviceInfo = commands.getDeviceInfo(session)
+          firmwareDeviceInfoDao.setDeviceInfo(deviceInfo)
             .logFailure { "Failed to sync firmware device info during cloud recovery" }
+
+          // Restore HW serial number
+          if (deviceInfo.serial.isNotBlank()) {
+            appInstallationDao.updateAppInstallationHardwareSerialNumber(deviceInfo.serial)
+              .logFailure { "Failed to sync hardware serial number during cloud recovery" }
+          } else {
+            logError { "Hardware serial number is blank during cloud recovery" }
+          }
 
           // This will fail on firmware versions that don't support the command (W1 <=1.0.67).
           catchingResult {

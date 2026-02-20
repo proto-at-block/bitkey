@@ -75,6 +75,11 @@ static struct {
    */
   uint32_t loopback_end_time_ms;
 
+  /**
+   * @brief If true, restart polling after card detection instead of stopping.
+   */
+  bool continuous_mode;
+
 } hal_nfc_loopback_priv NFC_TASK_DATA;
 
 /**
@@ -105,15 +110,17 @@ static bool hal_nfc_loopback_anti_collision(void);
 
 #endif
 
-void hal_nfc_loopback_test_start(hal_nfc_mode_t mode, uint32_t timeout_ms) {
+void hal_nfc_loopback_test_start(hal_nfc_mode_t mode, uint32_t timeout_ms, bool continuous) {
   (void)mode;
   (void)timeout_ms;
+  (void)continuous;
 
 #if defined(PLATFORM_CFG_NFC_READER_MODE) && (PLATFORM_CFG_NFC_READER_MODE)
   const uint32_t events = rtos_event_group_get_bits(&hal_nfc_priv.nfc_events);
   (void)rtos_event_group_clear_bits(&hal_nfc_priv.nfc_events, events);
 
   hal_nfc_priv.card_detection_timeout_ms = timeout_ms;
+  hal_nfc_loopback_priv.continuous_mode = continuous;
   hal_nfc_set_mode(mode);
 #endif
 }
@@ -122,7 +129,7 @@ bool hal_nfc_loopback_test_passed(void) {
 #if defined(PLATFORM_CFG_NFC_READER_MODE) && (PLATFORM_CFG_NFC_READER_MODE)
   const uint32_t events = rtos_event_group_wait_bits(
     &hal_nfc_priv.nfc_events, (HAL_NFC_EVENT_CARD_DETECTED | HAL_NFC_EVENT_CARD_TIMEOUT),
-    true /* clear */, false /* wait any */, 0u /* non-blocking */);
+    false /* do not clear */, false /* wait any */, 0u /* non-blocking */);
 #else
   const uint32_t events = 0;
 #endif
@@ -193,7 +200,7 @@ void hal_nfc_loopback_run(hal_nfc_callback_t callback) {
 }
 
 bool hal_nfc_loopback_test(hal_nfc_mode_t mode, uint32_t timeout_ms) {
-  hal_nfc_loopback_test_start(mode, timeout_ms);
+  hal_nfc_loopback_test_start(mode, timeout_ms, false /* continuous */);
 
   const uint32_t events = rtos_event_group_wait_bits(
     &hal_nfc_priv.nfc_events, (HAL_NFC_EVENT_CARD_DETECTED | HAL_NFC_EVENT_CARD_TIMEOUT),
@@ -242,7 +249,13 @@ static void hal_nfc_loopback_step(void) {
 
     case HAL_NFC_LOOPBACK_STATE_CARD_DETECTED:
       (void)rtos_event_group_set_bits(&hal_nfc_priv.nfc_events, HAL_NFC_EVENT_CARD_DETECTED);
-      hal_nfc_loopback_priv.state = HAL_NFC_LOOPBACK_STATE_RESET;
+      if (hal_nfc_loopback_priv.continuous_mode) {
+        // In continuous mode, restart polling after card detection
+        hal_nfc_loopback_priv.state = HAL_NFC_LOOPBACK_STATE_POLL_RETRY;
+      } else {
+        // In single-shot mode, reset and exit (existing behavior)
+        hal_nfc_loopback_priv.state = HAL_NFC_LOOPBACK_STATE_RESET;
+      }
       break;
 
     case HAL_NFC_LOOPBACK_STATE_TIMEOUT:

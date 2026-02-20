@@ -95,6 +95,8 @@ class JLinkGdbServer:
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             output = p.communicate(
                 input="""target extended-remote localhost:2331
+monitor reset
+monitor halt
 monitor flash erase
 kill""".encode())[0]
 

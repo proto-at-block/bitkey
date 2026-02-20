@@ -2,20 +2,6 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-build-tools-api",
     "components": [
         {
-            "version": "2.0.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-build-tools-api-2.0.20.jar": "57ed50220e78ec39e8a80014330f295e5485b5638c1129af9ed7d53d7858c5c2"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[build-logic]",
-                "kotlin-compiler"
-            ]
-        },
-        {
             "version": "2.1.20",
             "variants": [
                 {
@@ -26,6 +12,20 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
+            ]
+        },
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-build-tools-api-2.2.20.jar": "fd9947b3a17621a86fabd953af87f34bd2bb7f8b26dae92c1ed7be7472f44c3b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
             ]
         }
     ]

@@ -23,6 +23,7 @@ import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.logging.*
 import build.wallet.nfc.NfcSession
+import build.wallet.nfc.platform.ChunkData
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.NfcCommands
@@ -90,7 +91,8 @@ private class MetricsNfcCommandsImpl(
     patchSize: UInt?,
     fwupMode: FwupMode,
     mcuRole: McuRole,
-  ) = measure("fwupStart") { commands.fwupStart(session, patchSize, fwupMode, mcuRole) }
+    version: String,
+  ) = measure("fwupStart") { commands.fwupStart(session, patchSize, fwupMode, mcuRole, version) }
 
   override suspend fun fwupTransfer(
     session: NfcSession,
@@ -304,4 +306,40 @@ private class MetricsNfcCommandsImpl(
     measure("getConfirmationResult") {
       commands.getConfirmationResult(session, handles)
     }
+
+  override suspend fun getConfirmationResultChunk(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+    chunkIndex: UInt,
+  ): ChunkData =
+    measure("getConfirmationResultChunk") {
+      commands.getConfirmationResultChunk(session, handles, chunkIndex)
+    }
+
+  override suspend fun getAddress(
+    session: NfcSession,
+    addressIndex: UInt,
+  ) = measure("getAddress") { commands.getAddress(session, addressIndex) }
+
+  override suspend fun verifyKeysAndBuildDescriptor(
+    session: NfcSession,
+    appSpendingKey: ByteString,
+    appSpendingKeyChaincode: ByteString,
+    networkMainnet: Boolean,
+    appAuthKey: ByteString,
+    serverSpendingKey: ByteString,
+    serverSpendingKeyChaincode: ByteString,
+    wsmSignature: ByteString,
+  ) = measure("verifyKeysAndBuildDescriptor") {
+    commands.verifyKeysAndBuildDescriptor(
+      session,
+      appSpendingKey,
+      appSpendingKeyChaincode,
+      networkMainnet,
+      appAuthKey,
+      serverSpendingKey,
+      serverSpendingKeyChaincode,
+      wsmSignature
+    )
+  }
 }

@@ -7,6 +7,8 @@ import bitkey.recovery.InitiateDelayNotifyRecoveryError.*
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.HwKeyBundleMock
+import build.wallet.cloud.backup.AllFullAccountBackupMocks
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.platform.random.UuidGeneratorFake
@@ -15,14 +17,15 @@ import build.wallet.recovery.LostAppAndCloudRecoveryServiceFake
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.*
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.InitiatingLostAppRecoveryData.*
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.InitiatingLostAppRecoveryData.AttemptingCloudRecoveryLostAppRecoveryDataData
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachineImpl
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryProps
 import build.wallet.time.MinimumLoadingDuration
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
@@ -46,9 +49,16 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     lostAppAndCloudRecoveryService.reset()
   }
 
+  fun props(cloudBackups: List<CloudBackup> = emptyList()) =
+    InitiatingLostAppRecoveryProps(
+      cloudBackups = cloudBackups,
+      onRollback = { },
+      goToLiteAccountCreation = { }
+    )
+
   test("initiating lost app recovery -- success") {
     stateMachine.test(
-      props = InitiatingLostAppRecoveryProps(onRollback = { })
+      props = props()
     ) {
       getHardwareKeys(keyBundleMock)
       signChallenge()
@@ -59,7 +69,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
   test("initiating lost app recovery -- auth initiation service initiation failure/retry") {
     stateMachine.test(
-      props = InitiatingLostAppRecoveryProps(onRollback = {})
+      props = props()
     ) {
 
       lostAppAndCloudRecoveryService.initiateAuthResult = Err(NetworkError(Error()))
@@ -78,7 +88,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   test("initiating lost app recovery -- authenticator service failure") {
 
     stateMachine.test(
-      props = InitiatingLostAppRecoveryProps(onRollback = {})
+      props = props()
     ) {
       lostAppAndCloudRecoveryService.completeAuthResult = Err(Error())
 
@@ -97,7 +107,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
   test("initiating lost app recovery -- initiate recovery failure/retry") {
     stateMachine.test(
-      props = InitiatingLostAppRecoveryProps(onRollback = {})
+      props = props()
     ) {
       lostAppAndCloudRecoveryService.initiateRecoveryResult = Err(OtherError(Error()))
 
@@ -117,7 +127,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
   test("initiating lost app recovery -- requires comms verification -- success") {
     stateMachine.test(
-      props = InitiatingLostAppRecoveryProps(onRollback = { })
+      props = props()
     ) {
       lostAppAndCloudRecoveryService.initiateRecoveryResult =
         Err(CommsVerificationRequiredError(Error()))
@@ -139,7 +149,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
   test("test cancellation") {
     stateMachine.test(
-      props = InitiatingLostAppRecoveryProps(onRollback = { })
+      props = props()
     ) {
       getHardwareKeys(keyBundleMock)
       signChallenge()
@@ -155,7 +165,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   }
   test("initiating lost app recovery -- existing recovery exists -- cancel it -- without comms") {
     stateMachine.testWithVirtualTime(
-      props = InitiatingLostAppRecoveryProps(onRollback = { })
+      props = props()
     ) {
 
       lostAppAndCloudRecoveryService.initiateRecoveryResult =
@@ -180,7 +190,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
   test("initiating lost app recovery -- existing recovery exists -- cancel it -- with comms") {
     stateMachine.testWithVirtualTime(
-      props = InitiatingLostAppRecoveryProps(onRollback = { })
+      props = props()
     ) {
 
       lostAppAndCloudRecoveryService.initiateRecoveryResult =
@@ -207,9 +217,24 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBeTypeOf<VerifyingNotificationCommsData>()
     }
   }
+
+  test("initiating lost app recovery -- starts with cloud backup restoration") {
+    val backup = AllFullAccountBackupMocks.first()
+    stateMachine.test(
+      props = props(cloudBackups = listOf(backup))
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<AttemptingCloudRecoveryLostAppRecoveryDataData>()
+        it.cloudBackups.shouldBe(listOf(backup))
+        it.onRecoverAppKey()
+      }
+
+      awaitItem().shouldBeTypeOf<AwaitingHwKeysData>()
+    }
+  }
 })
 
-private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, InitiatingLostAppRecoveryData>.getHardwareKeys(
+private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, LostAppRecoveryData>.getHardwareKeys(
   keybundleMock: HwKeyBundle,
 ) {
   awaitItem().let {
@@ -219,7 +244,7 @@ private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, Initiatin
   awaitItem().shouldBeTypeOf<InitiatingAppAuthWithF8eData>()
 }
 
-private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, InitiatingLostAppRecoveryData>.signChallenge() {
+private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, LostAppRecoveryData>.signChallenge() {
   awaitItem().let {
     it.shouldBeTypeOf<AwaitingAppSignedAuthChallengeData>()
     it.addSignedChallenge("signed-challenge")
@@ -228,7 +253,7 @@ private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, Initiatin
   awaitItem().shouldBeTypeOf<AuthenticatingWithF8EViaAppData>()
 }
 
-private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, InitiatingLostAppRecoveryData>.getProofOfPossession() {
+private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, LostAppRecoveryData>.getProofOfPossession() {
   awaitItem().let {
     it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionAndKeysData>()
     it.onComplete(
@@ -239,7 +264,7 @@ private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, Initiatin
   }
 }
 
-private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, InitiatingLostAppRecoveryData>.enablePush() {
+private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, LostAppRecoveryData>.enablePush() {
   awaitItem().let {
     it.shouldBeTypeOf<AwaitingPushNotificationPermissionData>()
     it.onComplete()

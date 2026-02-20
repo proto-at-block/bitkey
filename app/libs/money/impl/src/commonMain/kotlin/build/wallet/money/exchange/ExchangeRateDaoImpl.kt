@@ -94,6 +94,12 @@ class ExchangeRateDaoImpl(
     }
 
   override fun allExchangeRates(): Flow<List<ExchangeRate>> = allExchangeRates
+
+  override suspend fun clear(): Result<Unit, DbError> {
+    return databaseProvider.database()
+      .awaitTransaction { exchangeRateQueries.clear() }
+      .logFailure { "Failed to clear exchange rates" }
+  }
 }
 
 /**

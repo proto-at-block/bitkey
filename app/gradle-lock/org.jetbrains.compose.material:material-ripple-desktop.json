@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.material:material-ripple-desktop",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "material-ripple-desktop-1.8.1.jar": "551640102479ac83a41aa4a9e97d9a32d6d2f46e71bd7bc11bd55d21954daafd"
+                        "material-ripple-desktop-1.9.1.jar": "2407d9e83c6fd84b90b123cc7ae6291fa7a18bb40938ad210f675e4c86425c8b"
                     }
                 }
             ],

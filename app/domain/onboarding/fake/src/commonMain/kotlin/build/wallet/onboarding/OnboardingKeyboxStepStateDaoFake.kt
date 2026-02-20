@@ -1,5 +1,6 @@
 package build.wallet.onboarding
 
+import build.wallet.onboarding.OnboardingKeyboxStep.BuildHardwareDescriptor
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.DescriptorBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
@@ -13,6 +14,7 @@ class OnboardingKeyboxStepStateDaoFake : OnboardingKeyboxStepStateDao {
   private var descriptorBackupStateFlow = MutableStateFlow(Incomplete)
   private var cloudBackupStateFlow = MutableStateFlow(Incomplete)
   private var notificationPreferencesStateFlow = MutableStateFlow(Incomplete)
+  private var buildHardwareDescriptorStateFlow = MutableStateFlow(Incomplete)
 
   override suspend fun setStateForStep(
     step: OnboardingKeyboxStep,
@@ -22,6 +24,7 @@ class OnboardingKeyboxStepStateDaoFake : OnboardingKeyboxStepStateDao {
       DescriptorBackup -> descriptorBackupStateFlow.emit(state)
       CloudBackup -> cloudBackupStateFlow.emit(state)
       NotificationPreferences -> notificationPreferencesStateFlow.emit(state)
+      BuildHardwareDescriptor -> buildHardwareDescriptorStateFlow.emit(state)
     }
     return Ok(Unit)
   }
@@ -31,6 +34,7 @@ class OnboardingKeyboxStepStateDaoFake : OnboardingKeyboxStepStateDao {
       DescriptorBackup -> descriptorBackupStateFlow
       CloudBackup -> cloudBackupStateFlow
       NotificationPreferences -> notificationPreferencesStateFlow
+      BuildHardwareDescriptor -> buildHardwareDescriptorStateFlow
     }
   }
 
@@ -38,6 +42,7 @@ class OnboardingKeyboxStepStateDaoFake : OnboardingKeyboxStepStateDao {
     descriptorBackupStateFlow.emit(Incomplete)
     cloudBackupStateFlow.emit(Incomplete)
     notificationPreferencesStateFlow.emit(Incomplete)
+    buildHardwareDescriptorStateFlow.emit(Incomplete)
     return Ok(Unit)
   }
 }

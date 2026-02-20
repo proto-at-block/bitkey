@@ -1,35 +1,48 @@
 package build.wallet.ui.components.refresh
 
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import build.wallet.ui.theme.WalletTheme
 
+/**
+ * A Box that provides pull-to-refresh functionality.
+ * The indicator is automatically shown at the top center.
+ *
+ * @param refreshing Whether a refresh is currently occurring
+ * @param onRefresh Callback when user triggers a refresh
+ * @param modifier Modifier to be applied to the Box
+ * @param content The scrollable content
+ */
 @Composable
-fun PullRefreshIndicator(
+fun PullToRefreshBox(
+  refreshing: Boolean,
+  onRefresh: () -> Unit,
   modifier: Modifier = Modifier,
-  refreshing: Boolean,
-  onRefresh: () -> Unit,
+  content: @Composable BoxScope.() -> Unit,
 ) {
-  PullRefreshIndicator(
-    refreshing = refreshing,
-    state = rememberPullRefreshState(refreshing, { onRefresh() }),
-    modifier = modifier,
-    backgroundColor = WalletTheme.colors.refreshIndicatorBackground,
-    contentColor = WalletTheme.colors.refreshIndicatorContent
-  )
-}
+  val state = rememberPullToRefreshState()
 
-fun Modifier.pullRefresh(
-  refreshing: Boolean,
-  onRefresh: () -> Unit,
-): Modifier =
-  composed {
-    pullRefresh(
-      state = rememberPullRefreshState(refreshing, { onRefresh() })
+  Box(
+    modifier = modifier.pullToRefresh(
+      state = state,
+      isRefreshing = refreshing,
+      onRefresh = onRefresh
+    )
+  ) {
+    content()
+
+    PullToRefreshDefaults.Indicator(
+      state = state,
+      isRefreshing = refreshing,
+      modifier = Modifier.align(Alignment.TopCenter),
+      containerColor = WalletTheme.colors.refreshIndicatorBackground,
+      color = WalletTheme.colors.refreshIndicatorContent
     )
   }
+}

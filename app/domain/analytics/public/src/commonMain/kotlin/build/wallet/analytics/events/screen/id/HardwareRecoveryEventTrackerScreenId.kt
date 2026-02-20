@@ -67,6 +67,9 @@ enum class HardwareRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Error screen shown when generating the sweep PSBTs fails for lost hardware D+N */
   LOST_HW_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR,
 
+  /** Warning screen shown on W3 when there are multiple transactions to sign during hardware recovery */
+  LOST_HW_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING,
+
   /** Error screen shown when user navigates away from sweep */
   LOST_HW_DELAY_NOTIFY_SWEEP_EXITED,
 

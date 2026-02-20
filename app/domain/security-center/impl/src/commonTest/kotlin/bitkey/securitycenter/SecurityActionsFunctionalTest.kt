@@ -35,6 +35,7 @@ import build.wallet.recovery.socrec.SocRecServiceFake
 import io.kotest.assertions.fail
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -299,7 +300,7 @@ class SecurityActionsFunctionalTest : FunSpec({
     testScope.advanceUntilIdle()
 
     securityActionsService.securityActionsWithRecommendations.test {
-      awaitItem().apply {
+      awaitItem().shouldNotBeNull().apply {
         atRiskRecommendations shouldBe expectedAtRiskRecommendations
         recommendations.shouldBeEmpty()
       }
@@ -320,7 +321,7 @@ class SecurityActionsFunctionalTest : FunSpec({
         }
 
         runCatching {
-          awaitItem().apply {
+          awaitItem().shouldNotBeNull().apply {
             atRiskRecommendations.shouldBe(expectedAtRiskRecommendations)
             recommendations shouldBe expectedRecsForThisStep
           }
@@ -343,7 +344,7 @@ class SecurityActionsFunctionalTest : FunSpec({
         testScope.advanceUntilIdle()
 
         runCatching {
-          awaitItem().apply {
+          awaitItem().shouldNotBeNull().apply {
             atRiskRecommendations.shouldBeEmpty()
             recommendations shouldBe expectedRecommendations
           }
@@ -358,10 +359,8 @@ class SecurityActionsFunctionalTest : FunSpec({
   }
 
   test("getActions returns expected actions") {
-    val recoveryActions = securityActionsService.securityActionsWithRecommendations.value.recoveryActions
-    recoveryActions.size shouldBe 4
-
-    val accessActions = securityActionsService.securityActionsWithRecommendations.value.securityActions
-    accessActions.size shouldBe 4
+    val state = securityActionsService.securityActionsWithRecommendations.value.shouldNotBeNull()
+    state.recoveryActions.size shouldBe 4
+    state.securityActions.size shouldBe 4
   }
 })

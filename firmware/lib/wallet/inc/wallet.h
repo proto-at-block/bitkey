@@ -64,6 +64,41 @@ typedef struct PACKED {
 #define DERIVED_KEY_CACHE_VERSION         (0)
 #define DERIVED_KEY_CACHE_CIPHERTEXT_SIZE (sizeof(derived_key_cache_t) + AES_GCM_OVERHEAD)
 
+// Key material for multisig keyset (using BIP32 sizes)
+#define PUBKEY_LENGTH    (BIP32_SEC1_KEY_SIZE)   // 33 bytes (compressed secp256k1)
+#define CHAINCODE_LENGTH (BIP32_CHAINCODE_SIZE)  // 32 bytes
+
+typedef struct PACKED {
+  uint8_t pubkey[PUBKEY_LENGTH];
+  uint8_t chaincode[CHAINCODE_LENGTH];
+} xpub_t;
+
+#define KEY_MATERIAL_SIZE (PUBKEY_LENGTH + CHAINCODE_LENGTH)
+_Static_assert(sizeof(xpub_t) == KEY_MATERIAL_SIZE, "xpub_t size mismatch");
+
+// Network type constants
+#define NETWORK_MAINNET (0)
+#define NETWORK_TESTNET (1)
+
+// Wallet keyset for multisig address derivation
+typedef struct PACKED {
+  uint8_t version;
+  uint8_t network;  // NETWORK_MAINNET or NETWORK_TESTNET
+  xpub_t app;       // App spending key at m/84'/coin_type'/account'
+                    // coin_type: 0' (mainnet) or 1' (testnet)
+  xpub_t hw;        // HW spending key at m/84'/coin_type'/account'
+                    // coin_type: 0' (mainnet) or 1' (testnet)
+  xpub_t server;    // Server spending key at m/84'/coin_type'/account'
+                    // coin_type: 0' (mainnet) or 1' (testnet)
+} wallet_keyset_t;
+
+#define WALLET_KEYSET_PATH    "wallet-keyset.bin"
+#define WALLET_KEYSET_VERSION (1)
+#define WALLET_KEYSET_SIZE    (2 + 3 * KEY_MATERIAL_SIZE)
+
+_Static_assert(sizeof(wallet_keyset_t) == WALLET_KEYSET_SIZE,
+               "wallet_keyset_t size must be 197 bytes");
+
 #define WALLET_POOL_R0_SIZE (70)
 #define WALLET_POOL_R0_NUM  (6)
 #define WALLET_POOL_R1_SIZE (128)

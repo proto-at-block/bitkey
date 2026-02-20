@@ -1,3 +1,4 @@
+use bdk_utils::bdk::bitcoin::hex::HexToArrayError;
 use database::ddb::DatabaseError;
 use thiserror::Error;
 
@@ -15,8 +16,8 @@ pub enum ChainIndexerError {
     DeserializationError(#[from] bdk_utils::bdk::bitcoin::consensus::encode::Error),
     #[error("Database error {0}")]
     DatabaseError(#[from] DatabaseError),
-    #[error("Unable to parse block hash as hex {0}")]
-    BlockHashParseError(#[from] bdk_utils::bdk::bitcoin::hashes::hex::Error),
+    #[error(transparent)]
+    BlockHashParseError(#[from] HexToArrayError),
     #[error("BIP34 error: {0}")]
     Bip34Error(#[from] bdk_utils::bdk::bitcoin::blockdata::block::Bip34Error),
 }

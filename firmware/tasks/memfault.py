@@ -1,26 +1,26 @@
-import os
 import base64
 import json
-import sh
-import requests
-from pathlib import Path
+import os
+import pprint
+import shutil
 import tempfile
 import time
-import click
-import shutil
-from invoke import task, exceptions
-from typing import Tuple
-
-import plotly.express as px
-import pandas
-import pprint
-
-from prettytable import PrettyTable
 from dataclasses import dataclass
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+import click
+import pandas
+import plotly.express as px
+import requests
+import sh
+from bitkey.git import Git
 from bitkey.meson import MesonBuild
 from bitkey.walletfs import GDBFs
+from invoke import exceptions, task
+from prettytable import PrettyTable
+
 from .lib.config import update_config
-from bitkey.git import Git
 
 COHORTS = ["default", "bitkey-team", "bitkey-external-beta"]
 
@@ -41,12 +41,17 @@ def auth_headers():
     }
 
 
-@task(help={"target": "Build target to backup"})
-def coredump(ctx, target=None):
+@task(
+    help={
+        "project": "Memfault project slug for which to upload and inspect coredumps",
+        "target": "Build target to backup"
+    }
+)
+def coredump(ctx, project: str, target: Optional[str] = None) -> None:
     target = target if target else ctx.target
 
     coredumps_filename = "coredumps.bin"
-    issue_url = f"https://app.memfault.com/organizations/{ctx.memfault_org}/projects/{ctx.memfault_project}/issues/"
+    issue_url = f"https://app.memfault.com/organizations/{ctx.memfault_org}/projects/{project}/issues/"
 
     # Check for saved memfault login
     check_login(ctx)
@@ -78,7 +83,7 @@ def coredump(ctx, target=None):
         serial = fs.get_serial() or "XXXXXXXXXXXXXXXX"
         click.echo("Getting most recent trace id")
         (previous_trace_id, previous_trace_count) = find_latest_trace_id(
-            ctx, "coredump", serial
+            ctx, "coredump", serial, project
         )
     except Exception as e:
         click.echo(click.style(f"Error {e}", fg="red"))
@@ -100,7 +105,7 @@ def coredump(ctx, target=None):
                 "--org",
                 f"{ctx.memfault_org}",
                 "--project",
-                f"{ctx.memfault_project}",
+                f"{project}",
                 "upload-coredump",
                 "--device-serial",
                 f"{serial}",
@@ -122,7 +127,8 @@ def coredump(ctx, target=None):
         click.echo("Uploading mcu symbols")
         try:
             git = Git()
-            sw_type = Path(target).stem.replace(f"{ctx.memfault_project}-", "")
+            # Note: Only w1a strips the product name.
+            sw_type = Path(target).stem.replace(f"w1a-", "")
             mb = MesonBuild(ctx, target=target)
             symbols = mb.target_path(mb.target.elf)
             version = f"{git.semver_tag}-{git.identity}-{int(time.time())}"
@@ -133,7 +139,7 @@ def coredump(ctx, target=None):
                 "--org",
                 f"{ctx.memfault_org}",
                 "--project",
-                f"{ctx.memfault_project}",
+                f"{project}",
                 "upload-mcu-symbols",
                 "--software-type",
                 f"{sw_type}",
@@ -166,7 +172,7 @@ def coredump(ctx, target=None):
         for _ in range(10):
             # Find the latest coredump
             (trace_id, trace_count) = find_latest_trace_id(
-                ctx, "coredump", serial)
+                ctx, "coredump", serial, project)
 
             if (
                 trace_id is not None
@@ -192,10 +198,10 @@ def coredump(ctx, target=None):
         f'Coredump may be viewable here: {issue_url + f"{previous_trace_id}"}')
 
 
-def find_latest_trace_id(ctx, type, serial) -> Tuple[int, int]:
+def find_latest_trace_id(ctx, type, serial, project) -> Tuple[int, int]:
     """Finds the latest trace ID for a type and serial number"""
 
-    url = f"https://api.memfault.com/api/v0/organizations/{ctx.memfault_org}/projects/{ctx.memfault_project}/issues"
+    url = f"https://api.memfault.com/api/v0/organizations/{ctx.memfault_org}/projects/{project}/issues"
     auth = f":{ctx.memfault_org_token}"
     token = base64.b64encode(auth.encode("utf-8")).decode("utf-8")
     headers = {"cache-control": "no-cache", "Authorization": f"Basic {token}"}
@@ -254,14 +260,19 @@ def save_login(ctx):
         )
 
     config["memfault_org"] = "block-wallet"
-    config["memfault_project"] = "w1a"
     update_config(config)
     ctx.update(config)
 
 
 @task()
-def create_device(ctx, device_serial, hw_version, cohort="default"):
-    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/devices"
+def create_device(
+    ctx,
+    device_serial: str,
+    hw_version: str,
+    project: str,
+    cohort: str = "default"
+) -> None:
+    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/{project}/devices"
 
     payload = {
         "device_serial": device_serial,
@@ -284,15 +295,38 @@ def check_coredump_status(ctx, identifier, project_key):
 
 
 @task
-def released_versions(ctx, quiet=False):
-    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/releases?per_page=10000"
+def released_versions(ctx, project: str, hardware_version: str, quiet: bool = False) -> List[str]:
+    """Returns a list of releases for the target hardware version under the given project.
 
-    releases = json.loads(requests.get(
-        url, headers=auth_headers()).text)["data"]
+    :param ctx: Memfault build context.
+    :param project: Memfault project name.
+    :param hardware_version: hardware revision name (should match an artifact hardware version).
+    :param quiet: `True` to suppress printing, otherwise `False`.
+    :returns: list of version strings.
+    """
+    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/{project}/releases?per_page=10000"
+
+    response = requests.get(url, headers=auth_headers())
+    response.raise_for_status()
+
+    releases = response.json().get("data")
     output = []
     for release in releases:
-        click.echo(release)
-        output.append(release["version"])
+        version: str = release["version"]
+        _url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/{project}/releases/{version}"
+        # Request the release specific metadata. This is necessary for
+        # multi-product projects in order to ensure that the release
+        # actually applies to this product.
+        _rsp = requests.get(_url, headers=auth_headers())
+        _rsp.raise_for_status()
+
+        _data = _rsp.json().get("data")
+        for artifact in _data.get("artifacts", []):
+            if artifact.get("hardware_version", {}).get("name", "") == hardware_version:
+                if not quiet:
+                    click.echo(release)
+                output.append(version)
+                break
 
     if not quiet:
         click.echo(output)
@@ -301,12 +335,19 @@ def released_versions(ctx, quiet=False):
 
 
 @task
-def fetch_release(ctx, version, hw_revision, sw_type, output_dir) -> Path:
+def fetch_release(
+    ctx,
+    version: str,
+    hw_revision: str,
+    sw_type: str,
+    output_dir: str,
+    project: str
+) -> Path:
     """Fetch a release and extract the bundle to `output_dir`.
     Will delete any previously existing files for the same (version, hw_revision, sw_type) triple,
     if they are present in `output_dir`.
     """
-    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/releases/{version}"
+    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/{project}/releases/{version}"
     template = f"fwup-bundle-{version}-{hw_revision}-{sw_type}"
 
     def download_and_extract(zip_contents):
@@ -337,25 +378,19 @@ def fetch_release(ctx, version, hw_revision, sw_type, output_dir) -> Path:
     return None
 
 
-def _list_issues():
-    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/issues?per_page=10000"
+def _list_issues(project):
+    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/{project}/issues?per_page=10000"
     return json.loads(requests.get(url, headers=auth_headers()).text)["data"]
 
 
 @task
-def list_issues(
-    ctx,
-):
-    print(
-        _list_issues(
-            ctx,
-        )
-    )
+def list_issues(ctx, project: str) -> None:
+    print(_list_issues(project=project))
 
 
 @task
-def fingerprint_issue_tracker(ctx, no_graph=False):
-    all_issues = _list_issues()
+def fingerprint_issue_tracker(ctx, project: str, no_graph: bool = False) -> None:
+    all_issues = _list_issues(project=project)
 
     pass_reason = "Bio Enroll Sample Pass Count"
     fail_reason = "Bio Enroll Sample Fail Count"
@@ -405,9 +440,9 @@ class DeploymentView:
     to_version: str
 
 
-def get_deployments():
+def get_deployments(project):
     """Retrieve all active deployments from Memfault, and return them as a tuple of (delta, normal) releases."""
-    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/deployments"
+    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/{project}/deployments"
 
     deployments = json.loads(requests.get(
         url, headers=auth_headers()).text)["data"]
@@ -453,8 +488,8 @@ def get_deployments():
 
 
 @task
-def list_deployments(ctx, version=None):
-    delta, normal = get_deployments()
+def list_deployments(ctx, project: str = "w1a", version: Optional[str] = None) -> None:
+    delta, normal = get_deployments(project=project)
 
     table = PrettyTable()
     table.field_names = [
@@ -504,9 +539,14 @@ def list_deployments(ctx, version=None):
     print(table)
 
 
-def get_delta_releases(ctx, from_version=None, to_version=None):
+def get_delta_releases(
+    ctx,
+    project: str = "w1a",
+    from_version: Optional[str] = None,
+    to_version: Optional[str] = None
+) -> None:
     """Get all delta releases; optionally filter by from version."""
-    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/delta-releases?per_page=10000"
+    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/{project}/delta-releases?per_page=10000"
 
     releases = json.loads(requests.get(
         url, headers=auth_headers()).text)["data"]
@@ -522,22 +562,34 @@ def get_delta_releases(ctx, from_version=None, to_version=None):
 
 
 @task
-def list_delta_releases(ctx, from_version=None, to_version=None):
+def list_delta_releases(
+    ctx,
+    project: str = "w1a",
+    from_version: Optional[str] = None,
+    to_version: Optional[str] = None
+) -> None:
     table = PrettyTable()
     table.field_names = ["From Version", "To Version"]
 
-    for release in get_delta_releases(ctx, from_version, to_version):
+    for release in get_delta_releases(ctx, project, from_version, to_version):
         table.add_row(
             [release["from_version"]["version"], release["to_version"]["version"]]
-        ),
+        )
 
     print(table)
 
 
 @task
 def activate_delta_release(
-    ctx, to_version, cohort, from_version=None, deactivate=False, percent=0, dry_run=False
-):
+    ctx,
+    to_version: str,
+    cohort: str,
+    from_version: Optional[str] = None,
+    deactivate: bool = False,
+    percent: int = 0,
+    dry_run: bool = False,
+    project: str = "w1a",
+) -> None:
     """Activate (or deactivate) a delta release for a given cohort.
 
     `to_version` is the version to activate, and must be supplied.
@@ -552,7 +604,7 @@ def activate_delta_release(
     then only 1.0.64 -> 1.0.65 will be activated.
     """
     releases = get_delta_releases(
-        ctx, from_version=from_version, to_version=to_version)
+        ctx, project=project, from_version=from_version, to_version=to_version)
 
     if cohort == "bitkey-external":
         # We changed the cosmetic name in Memfault, but it doesn't change the real name
@@ -568,7 +620,7 @@ def activate_delta_release(
             "--org",
             "block-wallet",
             "--project",
-            "w1a",
+            project,
             "deploy-release",
             "--delta-from",
             release["from_version"]["version"],

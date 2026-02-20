@@ -17,8 +17,8 @@ use account::service::{
 };
 use authn_authz::key_claims::KeyClaims;
 use bdk_utils::{
-    bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, bdk::bitcoin::secp256k1::PublicKey,
-    generate_electrum_rpc_uris, TransactionBroadcasterTrait,
+    bdk::bitcoin::psbt::Psbt, bdk::bitcoin::secp256k1::PublicKey, generate_electrum_rpc_uris,
+    TransactionBroadcasterTrait,
 };
 use errors::{ApiError, ErrorCode::NoSpendingLimitExists};
 use exchange_rate::service::Service as ExchangeRateService;

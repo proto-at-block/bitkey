@@ -1,10 +1,12 @@
 package build.wallet.f8e.client
 
 import bitkey.datadog.DatadogTracer
+import build.wallet.account.AccountService
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AuthTokensService
+import build.wallet.auth.SignedAccessTokenCache
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -30,7 +32,9 @@ class AuthenticatedF8eHttpClientFactory(
   deviceInfoProvider: DeviceInfoProvider,
   private val keyboxDao: KeyboxDao,
   private val authTokensService: AuthTokensService,
+  private val accountService: AccountService,
   private val appAuthKeyMessageSigner: AppAuthKeyMessageSigner,
+  private val signedAccessTokenCache: SignedAccessTokenCache,
   private val clock: Clock,
   appInstallationDao: AppInstallationDao,
   firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
@@ -60,12 +64,14 @@ class AuthenticatedF8eHttpClientFactory(
         keyboxDao = factory.keyboxDao
         authTokensService = factory.authTokensService
         appAuthKeyMessageSigner = factory.appAuthKeyMessageSigner
+        signedAccessTokenCache = factory.signedAccessTokenCache
       }
 
       install(Auth) {
         providers.add(
           BitkeyAuthProvider(
             authTokensService = factory.authTokensService,
+            accountService = factory.accountService,
             clock = clock
           )
         )

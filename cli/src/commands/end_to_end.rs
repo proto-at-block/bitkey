@@ -1,4 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
+use bdk_electrum::electrum_client::Client as ElectrumClient;
+use bdk_electrum::BdkElectrumClient;
+use bdk_wallet::bitcoin::bip32::Xpriv;
 use rustify::blocking::clients::reqwest::Client;
 use sled::Db;
 use std::str::FromStr;
@@ -8,19 +11,16 @@ use crate::cache::FromCache;
 use crate::db::transactions::FromDatabase;
 use crate::entities::{Account, SignerHistory};
 use crate::{commands, AccountType};
-use bdk::bitcoin::secp256k1::rand;
-use bdk::bitcoin::{Address, Network};
-use bdk::blockchain::{Blockchain, ElectrumBlockchain};
-use bdk::database::MemoryDatabase;
-use bdk::template::Bip84;
-use bdk::wallet::AddressIndex;
-use bdk::{bitcoin, KeychainKind, SignOptions, Wallet};
+use bdk_wallet::bitcoin::secp256k1::rand;
+use bdk_wallet::bitcoin::{Address, Amount, Network};
+use bdk_wallet::template::Bip84;
+use bdk_wallet::{KeychainKind, SignOptions, Wallet};
 
 use tokio::runtime::Runtime;
 
 pub fn end_to_end(
     client: &Client,
-    blockchain: ElectrumBlockchain,
+    blockchain: &BdkElectrumClient<ElectrumClient>,
     treasury_root_key: &Option<String>,
 ) -> Result<()> {
     let db = open_database()?;
@@ -37,7 +37,7 @@ pub fn end_to_end(
     info!("Setting up Mobilepay for 100,000,000 sats");
     commands::wallet::setup_mobile_pay(client, &db, 100_000_000)?;
 
-    let treasury_address = fund_wallet_from_treasury(client, &db, &blockchain, treasury_root_key)?;
+    let treasury_address = fund_wallet_from_treasury(client, &db, blockchain, treasury_root_key)?;
 
     info!("spending coins via server-spend");
     commands::wallet::server_send(client, &db, blockchain, treasury_address, 9500)?;
@@ -58,28 +58,29 @@ fn open_database() -> Result<Db> {
 fn fund_wallet_from_treasury(
     client: &Client,
     db: &Db,
-    blockchain: &ElectrumBlockchain,
+    blockchain: &BdkElectrumClient<ElectrumClient>,
     treasury_root_key: &Option<String>,
 ) -> Result<Address> {
     let key_str = parse_or_fetch_key(treasury_root_key)?;
 
-    let key = bitcoin::bip32::ExtendedPrivKey::from_str(&key_str)?;
-    let treasury_wallet = Wallet::new(
+    let key = Xpriv::from_str(&key_str)?;
+    let mut treasury_wallet = Wallet::create(
         Bip84(key, KeychainKind::External),
-        Some(Bip84(key, KeychainKind::Internal)),
-        Network::Testnet, // TODO: should this be Signet?
-        MemoryDatabase::default(),
-    )?;
+        Bip84(key, KeychainKind::Internal),
+    )
+    .network(Network::Signet)
+    .create_wallet_no_persist()?;
 
-    treasury_wallet.sync(blockchain, Default::default())?;
+    let request = treasury_wallet.start_full_scan();
+    let update = blockchain.full_scan(request, 100, 10, false)?;
+    treasury_wallet.apply_update(update)?;
 
-    let treasury_address = treasury_wallet
-        .get_address(AddressIndex::LastUnused)?
-        .address;
-    let treasury_balance = treasury_wallet.get_balance()?;
-    if treasury_balance.confirmed
+    let treasury_address = treasury_wallet.reveal_next_address(KeychainKind::External);
+    let treasury_balance = treasury_wallet.balance();
+    if (treasury_balance.confirmed
         + treasury_balance.trusted_pending
-        + treasury_balance.untrusted_pending
+        + treasury_balance.untrusted_pending)
+        .to_sat()
         < 10000
     {
         bail!("Not enough sats in treasury wallet. Send coins to {treasury_address}");
@@ -87,28 +88,33 @@ fn fund_wallet_from_treasury(
     info!("The treasury currently has {treasury_balance}. You can top it up at {treasury_address}");
 
     let account = Account::from_cache(client, db)?;
-    let wallet = SignerHistory::from_database(db)?
+    let mut wallet = SignerHistory::from_database(db)?
         .active
         .wallet(&account, db, None)?;
-    let deposit_address = wallet.get_address(AddressIndex::New)?.address;
+    let deposit_address = wallet.reveal_next_address(KeychainKind::External);
     info!("Receive address for this wallet: {deposit_address}");
 
     let mut builder = treasury_wallet.build_tx();
-    builder.add_recipient(deposit_address.script_pubkey(), 10000);
-    let (mut psbt, _) = builder.finish()?;
+    builder.add_recipient(deposit_address.script_pubkey(), Amount::from_sat(10000));
+    let mut psbt = builder.finish()?;
     treasury_wallet.sign(&mut psbt, SignOptions::default())?;
-    let funding_tx = psbt.extract_tx();
-    blockchain.broadcast(&funding_tx)?;
-    info!("Funding txid (to this wallet): {}", funding_tx.txid());
+    let funding_tx = psbt.extract_tx()?;
+    blockchain.transaction_broadcast(&funding_tx)?;
+    info!(
+        "Funding txid (to this wallet): {}",
+        funding_tx.compute_txid()
+    );
 
     // TODO: replace sleep with a loop that checks for the tx to become pending
     info!("Sleeping for 10 seconds to let the transaction propagate");
     std::thread::sleep(std::time::Duration::from_secs(10));
 
     info!("Syncing wallet");
-    wallet.sync(blockchain, Default::default())?;
+    let request = wallet.start_full_scan();
+    let update = blockchain.full_scan(request, 100, 10, true)?;
+    wallet.apply_update(update)?;
 
-    Ok(treasury_address)
+    Ok(treasury_address.address)
 }
 
 fn parse_or_fetch_key(treasury_root_key: &Option<String>) -> Result<String> {

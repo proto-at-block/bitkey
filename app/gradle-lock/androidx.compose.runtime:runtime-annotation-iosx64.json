@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-annotation-iosx64",
+    "components": [
+        {
+            "version": "1.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-annotation-iosX64Main-1.9.3.klib": "1dcb866dc111b78695b6dbf073178d9fa7c0951cacc0e5e0cb98ebbcd2c33932"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime-annotation-iosx64-1.9.3-metadata.jar": "5dad84d9fb7a5ec9169b934f501ea724cf084fa806e46db585fe1f880aa82b38"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

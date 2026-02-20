@@ -1,9 +1,9 @@
 package build.wallet.ui.components.coachmark
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Card
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,132 +40,107 @@ fun Coachmark(
   offset: Offset,
 ) {
   val density = LocalDensity.current
-  val closeButtonColor = WalletTheme.colors.foreground30
+  val coachmarkShape = RoundedCornerShape(20.dp)
+  val arrowAlignment = when (model.arrowPosition.horizontal) {
+    CoachmarkModel.ArrowPosition.Horizontal.Leading -> Alignment.Start
+    CoachmarkModel.ArrowPosition.Horizontal.Centered -> Alignment.CenterHorizontally
+    CoachmarkModel.ArrowPosition.Horizontal.Trailing -> Alignment.End
+  }
 
   Column(
     modifier = modifier
-      .padding(start = 16.dp, end = 16.dp)
+      .padding(horizontal = 16.dp)
       .fillMaxWidth()
       .offset(with(density) { offset.x.toDp() }, with(density) { offset.y.toDp() })
   ) {
-    // Top arrow if needed
+    // Top arrow
     if (model.arrowPosition.vertical == CoachmarkModel.ArrowPosition.Vertical.Top) {
-      Row(
-        modifier = Modifier
-          .offset(y = 1.dp)
-          .height(12.dp)
-          .align(
-            when (model.arrowPosition.horizontal) {
-              CoachmarkModel.ArrowPosition.Horizontal.Leading -> Alignment.Start
-              CoachmarkModel.ArrowPosition.Horizontal.Centered -> Alignment.CenterHorizontally
-              CoachmarkModel.ArrowPosition.Horizontal.Trailing -> Alignment.End
-            }
-          ).padding(start = 16.dp, end = 16.dp)
-      ) {
-        IconImage(
-          model = IconModel(
-            icon = Icon.CalloutArrow,
-            iconSize = IconSize.Small
-          ),
-          color = WalletTheme.colors.coachmarkBackground
-        )
-      }
+      CoachmarkArrow(modifier = Modifier.align(arrowAlignment).offset(y = 1.dp))
     }
 
     // Coachmark body
-    Row(
+    Column(
       modifier = Modifier
         .fillMaxWidth()
+        .shadow(
+          elevation = 8.dp,
+          shape = coachmarkShape,
+          spotColor = Color(0x0A000000),
+          ambientColor = Color(0x0A000000)
+        )
+        .background(color = WalletTheme.colors.coachmarkBackground, shape = coachmarkShape)
+        .padding(16.dp)
     ) {
-      Card(
-        shape = RoundedCornerShape(20.dp),
-        backgroundColor = WalletTheme.colors.coachmarkBackground,
-        modifier = Modifier
-          .shadow(elevation = 8.dp, RoundedCornerShape(12.dp), spotColor = Color(0x0A000000), ambientColor = Color(0x0A000000))
-          .fillMaxWidth()
-      ) {
-        Column(
-          horizontalAlignment = Alignment.Start,
-          modifier = Modifier.padding(16.dp)
-        ) {
-          // Image
-          model.image?.let {
-            Image(
-              painter = it.painter(),
-              contentDescription = null
-            )
-          }
-
-          Spacer(modifier = Modifier.height(8.dp))
-
-          Row {
-            // New label
-            CoachmarkLabel(
-              model = CoachmarkLabelModel.New.copy(treatment = CoachmarkLabelTreatment.Dark)
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Close button
-            IconButton(
-              iconModel = IconModel(
-                icon = Icon.SmallIconXFilled,
-                iconSize = IconSize.Small
-              ),
-              color = closeButtonColor,
-              onClick = {
-                model.dismiss()
-              }
-            )
-          }
-
-          Spacer(modifier = Modifier.height(8.dp))
-
-          // Title
-          Label(
-            text = model.title,
-            type = LabelType.Title2,
-            treatment = LabelTreatment.Unspecified,
-            color = Color.White
-          )
-          // Description
-          Label(
-            text = model.description,
-            type = LabelType.Body3Regular,
-            treatment = LabelTreatment.Unspecified,
-            color = Color.White
-          )
-          // Button
-          model.button?.let {
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(model = it)
-          }
-        }
+      model.image?.let {
+        Image(
+          painter = it.painter(),
+          contentDescription = null
+        )
+        Spacer(modifier = Modifier.height(8.dp))
       }
-    }
-    // Bottom arrow if needed
-    if (model.arrowPosition.vertical == CoachmarkModel.ArrowPosition.Vertical.Bottom) {
+
       Row(
-        modifier = Modifier
-          .offset(y = (-1).dp)
-          .height(12.dp)
-          .align(
-            when (model.arrowPosition.horizontal) {
-              CoachmarkModel.ArrowPosition.Horizontal.Leading -> Alignment.Start
-              CoachmarkModel.ArrowPosition.Horizontal.Centered -> Alignment.CenterHorizontally
-              CoachmarkModel.ArrowPosition.Horizontal.Trailing -> Alignment.End
-            }
-          ).padding(start = 16.dp, end = 16.dp)
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
       ) {
-        IconImage(
-          model = IconModel(
-            icon = Icon.CalloutArrow,
+        CoachmarkLabel(
+          model = CoachmarkLabelModel.New.copy(treatment = CoachmarkLabelTreatment.Dark)
+        )
+        IconButton(
+          iconModel = IconModel(
+            icon = Icon.SmallIconXFilled,
             iconSize = IconSize.Small
           ),
-          modifier = Modifier.rotate(degrees = 180f),
-          color = WalletTheme.colors.coachmarkBackground
+          color = WalletTheme.colors.foreground30,
+          onClick = model.dismiss
         )
       }
+
+      Spacer(modifier = Modifier.height(8.dp))
+
+      Label(
+        text = model.title,
+        type = LabelType.Title2,
+        treatment = LabelTreatment.Unspecified,
+        color = Color.White
+      )
+      Label(
+        text = model.description,
+        type = LabelType.Body3Regular,
+        treatment = LabelTreatment.Unspecified,
+        color = Color.White
+      )
+      model.button?.let {
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(model = it)
+      }
+    }
+
+    // Bottom arrow
+    if (model.arrowPosition.vertical == CoachmarkModel.ArrowPosition.Vertical.Bottom) {
+      CoachmarkArrow(
+        modifier = Modifier.align(arrowAlignment).offset(y = (-1).dp),
+        rotated = true
+      )
     }
   }
+}
+
+@Composable
+private fun CoachmarkArrow(
+  modifier: Modifier = Modifier,
+  rotated: Boolean = false,
+) {
+  IconImage(
+    model = IconModel(
+      icon = Icon.CalloutArrow,
+      iconSize = IconSize.Small
+    ),
+    modifier = modifier
+      .padding(horizontal = 16.dp)
+      .height(12.dp)
+      .then(if (rotated) Modifier.rotate(180f) else Modifier),
+    color = WalletTheme.colors.coachmarkBackground
+  )
 }

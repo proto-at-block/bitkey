@@ -75,11 +75,19 @@ NO_OPTIMIZE secure_bool_t crypto_ecc_sign_hash(key_handle_t* privkey, uint8_t* h
   }
 
   volatile secure_bool_t ok = SECURE_FALSE;
+  volatile sl_status_t sign_status = SL_STATUS_FAIL;
 
   SECURE_DO_ONCE({
-    if (se_ecc_sign(&cmd_ctx, &privkey_desc, SL_SE_HASH_NONE, true, hash, hash_size, signature,
-                    ECC_SIG_SIZE) == SL_STATUS_OK) {
-      if (crypto_ecc_secp256k1_normalize_signature(signature)) {
+    sign_status = se_ecc_sign(&cmd_ctx, &privkey_desc, SL_SE_HASH_NONE, true, hash, hash_size,
+                              signature, ECC_SIG_SIZE);
+    if (sign_status == SL_STATUS_OK) {
+      // Only normalize for secp256k1 (Bitcoin curve). P-256 uses standard ECDSA signature.
+      if (privkey->alg == ALG_ECC_SECP256K1) {
+        if (crypto_ecc_secp256k1_normalize_signature(signature)) {
+          ok = SECURE_TRUE;
+        }
+      } else {
+        // P-256: use signature directly
         ok = SECURE_TRUE;
       }
     }

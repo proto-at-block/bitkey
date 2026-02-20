@@ -54,16 +54,6 @@ interface SecurityRecommendationInteractionDao {
   fun getAllInteractions(): Flow<List<SecurityRecommendationInteractionEntity>>
 
   /**
-   * Sets the interaction status of a specific recommendation back to NEW.
-   * This might be used if a previously VIEWED item is re-triggered and needs to re-appear as new for badging.
-   */
-  suspend fun resetRecommendationStatusToNew(
-    id: SecurityActionRecommendation,
-    newTriggeredAt: Instant,
-    currentTime: Instant,
-  )
-
-  /**
    * Deletes the persisted recommendation interaction.
    */
   suspend fun deleteRecommendation(id: String)

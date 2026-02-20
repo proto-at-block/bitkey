@@ -1,5 +1,5 @@
 // Don't edit manually.
-// Generated via scripts/update-market-icons.sh using cash-design-system.
+// Generated from market repo manifest.json
 
 package build.wallet.ui.tokens.market
 
@@ -7,6391 +7,3955 @@ import bitkey.ui.framework_public.generated.resources.*
 import bitkey.ui.framework_public.generated.resources.Res
 
 /**
- * Collection of [MarketIcon]s generated from cash-design-system.
+ * Collection of [MarketIcon]s generated from the Market design system.
  */
 @Suppress("LargeClass")
 public object MarketIcons {
   /**
-   * The Market icon named 'accountVerified'.
+   * The Market icon named 'afterpay'.
    *
-   * 16/account-verified
+   * ❌ [Outdated] ❌
+   * Afterpay branding has been replaced with Cash app branding in the US. Replace with the Cash App icon.
+   *
    */
-  public val AccountVerified16: MarketIcon =
-    MarketIcon(Res.drawable.icon_account_verified_16, false)
+  public val Afterpay: MarketIcon =
+    MarketIcon(Res.drawable.market_afterpay, false)
 
   /**
-   * The Market icon named 'accountVerified'.
+   * The Market icon named 'afterpay-international'.
    *
-   * 24/account-verified
+   * payment
    */
-  public val AccountVerified24: MarketIcon =
-    MarketIcon(Res.drawable.icon_account_verified_24, false)
+  public val AfterpayInternational: MarketIcon =
+    MarketIcon(Res.drawable.market_afterpay_international, false)
 
   /**
-   * The Market icon named 'accountVerified'.
+   * The Market icon named 'afterpay-international-multicolor'.
    *
-   * 32/account-verified
+   * card logo, payment
    */
-  public val AccountVerified32: MarketIcon =
-    MarketIcon(Res.drawable.icon_account_verified_32, false)
+  public val AfterpayInternationalMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_afterpay_international_multicolor, true)
 
   /**
-   * The Market icon named 'add'.
+   * The Market icon named 'afterpay-multicolor'.
    *
-   * 16/add
+   * ❌ [Outdated] ❌
+   * Afterpay branding has been with Cash app branding. Replace with the Cash App multicolor icon.
+   *
    */
-  public val Add16: MarketIcon =
-    MarketIcon(Res.drawable.icon_add_16, false)
+  public val AfterpayMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_afterpay_multicolor, true)
 
   /**
-   * The Market icon named 'add'.
+   * The Market icon named 'airplane'.
    *
-   * 24/add (+ bg circle)
+   * travel
+   * flight
+   * transportation
    */
-  public val Add24: MarketIcon =
-    MarketIcon(Res.drawable.icon_add_24, false)
+  public val Airplane: MarketIcon =
+    MarketIcon(Res.drawable.market_airplane, false)
 
   /**
-   * The Market icon named 'add'.
+   * The Market icon named 'alipay-multicolor'.
    *
-   * 32/add
+   * card logo, payment
    */
-  public val Add32: MarketIcon =
-    MarketIcon(Res.drawable.icon_add_32, false)
+  public val AlipayMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_alipay_multicolor, true)
 
   /**
-   * The Market icon named 'addFill'.
+   * The Market icon named 'american-express-multicolor'.
    *
-   * 16/add-fill (do not use with a background circle)
+   * card logo, amex, payment
    */
-  public val AddFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_add_fill_16, false)
+  public val AmericanExpressMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_american_express_multicolor, true)
 
   /**
-   * The Market icon named 'addFill'.
+   * The Market icon named 'angled-home'.
    *
-   * 24/add-fill (do not use with a background circle)
+   * squareup.com, services, home & commercial
    */
-  public val AddFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_add_fill_24, false)
+  public val AngledHome: MarketIcon =
+    MarketIcon(Res.drawable.market_angled_home, false)
 
   /**
-   * The Market icon named 'afterpayHome'.
+   * The Market icon named 'arrow-clock'.
    *
-   * 24/afterpay-home
+   * history
    */
-  public val AfterpayHome24: MarketIcon =
-    MarketIcon(Res.drawable.icon_afterpay_home_24, false)
+  public val ArrowClock: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_clock, false)
 
   /**
-   * The Market icon named 'afterpayMerchants'.
+   * The Market icon named 'arrow-down'.
    *
-   * 24/afterpay-merchants
+   * ascend
    */
-  public val AfterpayMerchants24: MarketIcon =
-    MarketIcon(Res.drawable.icon_afterpay_merchants_24, false)
+  public val ArrowDown: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_down, false)
 
   /**
-   * The Market icon named 'alert'.
+   * The Market icon named 'arrow-down-letters'.
    *
-   * 16/alert
+   * sort, alphabetical, ascend
    */
-  public val Alert16: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_16, false)
+  public val ArrowDownLetters: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_down_letters, false)
 
   /**
-   * The Market icon named 'alert'.
+   * The Market icon named 'arrow-down-lines'.
    *
-   * 24/alert
+   * sort, old, ascend, low
    */
-  public val Alert24: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_24, false)
+  public val ArrowDownLines: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_down_lines, false)
 
   /**
-   * The Market icon named 'alert'.
+   * The Market icon named 'arrow-left'.
    *
-   * 32/alert
+   * back
+   * previous
    */
-  public val Alert32: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_32, false)
+  public val ArrowLeft: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_left, false)
 
   /**
-   * The Market icon named 'alertFill'.
+   * The Market icon named 'arrow-merge'.
    *
-   * 16/alert-fill (do not use with a background circle)
+   * Merge
    */
-  public val AlertFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_fill_16, false)
+  public val ArrowMerge: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_merge, false)
 
   /**
-   * The Market icon named 'alertFill'.
+   * The Market icon named 'arrow-right'.
    *
-   * 24/alert-fill (do not use with a background circle)
+   * forward
+   * next
    */
-  public val AlertFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_fill_24, false)
+  public val ArrowRight: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_right, false)
 
   /**
-   * The Market icon named 'alertFill'.
+   * The Market icon named 'arrow-right-motion-lines'.
    *
-   * 32/alert-fill (do not use with a background circle)
+   * fulfilment
    */
-  public val AlertFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_fill_32, false)
+  public val ArrowRightMotionLines: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_right_motion_lines, false)
 
   /**
-   * The Market icon named 'alertOffline'.
+   * The Market icon named 'arrow-rotate-counterclockwise'.
    *
-   * 16/alert-offline
+   * squareup.com, kds value props, keep orders synced
    */
-  public val AlertOffline16: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_offline_16, false)
+  public val ArrowRotateCounterclockwise: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_rotate_counterclockwise, false)
 
   /**
-   * The Market icon named 'alertOffline'.
+   * The Market icon named 'arrow-split'.
    *
-   * 24/alert-offline
+   * Split
    */
-  public val AlertOffline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_offline_24, false)
+  public val ArrowSplit: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_split, false)
 
   /**
-   * The Market icon named 'alertOffline'.
+   * The Market icon named 'arrow-up'.
    *
-   * 32/alert-offline
+   * descend
    */
-  public val AlertOffline32: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_offline_32, false)
+  public val ArrowUp: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_up, false)
 
   /**
-   * The Market icon named 'alertOnline'.
+   * The Market icon named 'arrow-up-letters'.
    *
-   * 16/alert-online
+   * sort, alphabetical, descend
    */
-  public val AlertOnline16: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_online_16, false)
+  public val ArrowUpLetters: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_up_letters, false)
 
   /**
-   * The Market icon named 'alertOnline'.
+   * The Market icon named 'arrow-up-lines'.
    *
-   * 24/alert-online
+   * sort, new, newest, descend
    */
-  public val AlertOnline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_online_24, false)
+  public val ArrowUpLines: MarketIcon =
+    MarketIcon(Res.drawable.market_arrow_up_lines, false)
 
   /**
-   * The Market icon named 'alertOnline'.
-   *
-   * 32/alert-online
+   * The Market icon named 'arrows-converge-vertical'.
    */
-  public val AlertOnline32: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_online_32, false)
+  public val ArrowsConvergeVertical: MarketIcon =
+    MarketIcon(Res.drawable.market_arrows_converge_vertical, false)
 
   /**
-   * The Market icon named 'alertOutline'.
+   * The Market icon named 'arrows-inward-left'.
    *
-   * 16/alert-outline
+   * size
+   * smaller
+   * shrink
    */
-  public val AlertOutline16: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_outline_16, false)
+  public val ArrowsInwardLeft: MarketIcon =
+    MarketIcon(Res.drawable.market_arrows_inward_left, false)
 
   /**
-   * The Market icon named 'alertOutline'.
+   * The Market icon named 'arrows-inward-right'.
    *
-   * 24/alert-outline
+   * size
+   * smaller
+   * shrink
    */
-  public val AlertOutline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_outline_24, false)
+  public val ArrowsInwardRight: MarketIcon =
+    MarketIcon(Res.drawable.market_arrows_inward_right, false)
 
   /**
-   * The Market icon named 'alertOutline'.
+   * The Market icon named 'arrows-outward-left'.
    *
-   * 32/alert-outline
+   * size
+   * bigger
+   * grow
    */
-  public val AlertOutline32: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_outline_32, false)
+  public val ArrowsOutwardLeft: MarketIcon =
+    MarketIcon(Res.drawable.market_arrows_outward_left, false)
 
   /**
-   * The Market icon named 'alertReportedFill'.
+   * The Market icon named 'arrows-outward-right'.
    *
-   * 16/alert-reported-fill
+   * size
+   * bigger
+   * grow
    */
-  public val AlertReportedFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_reported_fill_16, false)
-
-  /**
-   * The Market icon named 'alertReportedFill'.
-   *
-   * 24/alert-reported-fill
-   */
-  public val AlertReportedFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_reported_fill_24, false)
-
-  /**
-   * The Market icon named 'alertReportedFill'.
-   *
-   * 32/alert-reported-fill
-   */
-  public val AlertReportedFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_alert_reported_fill_32, false)
-
-  /**
-   * The Market icon named 'anniversary'.
-   *
-   * 16/anniversary
-   */
-  public val Anniversary16: MarketIcon =
-    MarketIcon(Res.drawable.icon_anniversary_16, false)
-
-  /**
-   * The Market icon named 'anniversary'.
-   *
-   * 24/anniversary
-   */
-  public val Anniversary24: MarketIcon =
-    MarketIcon(Res.drawable.icon_anniversary_24, false)
-
-  /**
-   * The Market icon named 'anniversaryFill'.
-   *
-   * 16/anniversary-fill
-   */
-  public val AnniversaryFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_anniversary_fill_16, false)
-
-  /**
-   * The Market icon named 'anniversaryFill'.
-   *
-   * 24/anniversary-fill
-   */
-  public val AnniversaryFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_anniversary_fill_24, false)
-
-  /**
-   * The Market icon named 'anniversaryFill'.
-   *
-   * 32/anniversary-fill
-   */
-  public val AnniversaryFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_anniversary_fill_32, false)
-
-  /**
-   * The Market icon named 'atm'.
-   *
-   * 16/atm
-   */
-  public val Atm16: MarketIcon =
-    MarketIcon(Res.drawable.icon_atm_16, false)
-
-  /**
-   * The Market icon named 'atm'.
-   *
-   * 24/atm
-   */
-  public val Atm24: MarketIcon =
-    MarketIcon(Res.drawable.icon_atm_24, false)
-
-  /**
-   * The Market icon named 'atm'.
-   *
-   * 32/atm
-   */
-  public val Atm32: MarketIcon =
-    MarketIcon(Res.drawable.icon_atm_32, false)
-
-  /**
-   * The Market icon named 'atmFill'.
-   *
-   * 16/atm-fill
-   */
-  public val AtmFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_atm_fill_16, false)
-
-  /**
-   * The Market icon named 'atmFill'.
-   *
-   * 24/atm-fill
-   */
-  public val AtmFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_atm_fill_24, false)
-
-  /**
-   * The Market icon named 'atmFill'.
-   *
-   * 32/atm-fill
-   */
-  public val AtmFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_atm_fill_32, false)
+  public val ArrowsOutwardRight: MarketIcon =
+    MarketIcon(Res.drawable.market_arrows_outward_right, false)
 
   /**
    * The Market icon named 'attach'.
    *
-   * 16/attach
+   * paper clip, attachment
    */
-  public val Attach16: MarketIcon =
-    MarketIcon(Res.drawable.icon_attach_16, false)
+  public val Attach: MarketIcon =
+    MarketIcon(Res.drawable.market_attach, false)
 
   /**
-   * The Market icon named 'attach'.
+   * The Market icon named 'audio'.
    *
-   * 24/attach
+   * sound, on
    */
-  public val Attach24: MarketIcon =
-    MarketIcon(Res.drawable.icon_attach_24, false)
+  public val Audio: MarketIcon =
+    MarketIcon(Res.drawable.market_audio, false)
 
   /**
-   * The Market icon named 'attach'.
+   * The Market icon named 'audio-slash'.
    *
-   * 32/attach
+   * sound, off
    */
-  public val Attach32: MarketIcon =
-    MarketIcon(Res.drawable.icon_attach_32, false)
+  public val AudioSlash: MarketIcon =
+    MarketIcon(Res.drawable.market_audio_slash, false)
 
   /**
-   * The Market icon named 'avatar'.
+   * The Market icon named 'backspace'.
    *
-   * 16/avatar
+   * delete
    */
-  public val Avatar16: MarketIcon =
-    MarketIcon(Res.drawable.icon_avatar_16, false)
+  public val Backspace: MarketIcon =
+    MarketIcon(Res.drawable.market_backspace, false)
 
   /**
-   * The Market icon named 'avatar'.
+   * The Market icon named 'bag'.
    *
-   * 24/avatar
+   * shopping
    */
-  public val Avatar24: MarketIcon =
-    MarketIcon(Res.drawable.icon_avatar_24, false)
+  public val Bag: MarketIcon =
+    MarketIcon(Res.drawable.market_bag, false)
 
   /**
-   * The Market icon named 'avatar'.
+   * The Market icon named 'banana'.
    *
-   * 32/avatar
+   * squareup.com, retail, grocery
    */
-  public val Avatar32: MarketIcon =
-    MarketIcon(Res.drawable.icon_avatar_32, false)
+  public val Banana: MarketIcon =
+    MarketIcon(Res.drawable.market_banana, false)
 
   /**
-   * The Market icon named 'avatarFill'.
+   * The Market icon named 'bank'.
    *
-   * 16/avatar-fill
+   * building
    */
-  public val AvatarFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_avatar_fill_16, false)
+  public val Bank: MarketIcon =
+    MarketIcon(Res.drawable.market_bank, false)
 
   /**
-   * The Market icon named 'avatarFill'.
+   * The Market icon named 'bank-of-america'.
    *
-   * 24/avatar-fill
+   * bank, payment
    */
-  public val AvatarFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_avatar_fill_24, false)
+  public val BankOfAmerica: MarketIcon =
+    MarketIcon(Res.drawable.market_bank_of_america, false)
 
   /**
-   * The Market icon named 'avatarFill'.
+   * The Market icon named 'battery-10'.
    *
-   * 32/avatar-fill
+   * Low battery
    */
-  public val AvatarFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_avatar_fill_32, false)
+  public val Battery10: MarketIcon =
+    MarketIcon(Res.drawable.market_battery_10, false)
 
   /**
-   * The Market icon named 'bPay'.
+   * The Market icon named 'battery-100'.
    *
-   * 24/b-pay
+   * Full battery
    */
-  public val BPay24: MarketIcon =
-    MarketIcon(Res.drawable.icon_b_pay_24, false)
+  public val Battery100: MarketIcon =
+    MarketIcon(Res.drawable.market_battery_100, false)
 
   /**
-   * The Market icon named 'backCentered'.
+   * The Market icon named 'battery-25'.
    *
-   * 24/back-centered
+   * Low battery
    */
-  public val BackCentered24: MarketIcon =
-    MarketIcon(Res.drawable.icon_back_centered_24, false)
+  public val Battery25: MarketIcon =
+    MarketIcon(Res.drawable.market_battery_25, false)
 
   /**
-   * The Market icon named 'balance'.
-   *
-   * 24/balance
-   */
-  public val Balance24: MarketIcon =
-    MarketIcon(Res.drawable.icon_balance_24, false)
-
-  /**
-   * The Market icon named 'bankAccount'.
-   *
-   * 16/bank-account
-   */
-  public val BankAccount16: MarketIcon =
-    MarketIcon(Res.drawable.icon_bank_account_16, false)
-
-  /**
-   * The Market icon named 'bankAccount'.
-   *
-   * 24/bank-account
-   */
-  public val BankAccount24: MarketIcon =
-    MarketIcon(Res.drawable.icon_bank_account_24, false)
-
-  /**
-   * The Market icon named 'bankAccount'.
-   *
-   * 32/bank-account
-   */
-  public val BankAccount32: MarketIcon =
-    MarketIcon(Res.drawable.icon_bank_account_32, false)
-
-  /**
-   * The Market icon named 'bankLinked'.
-   *
-   * 16/bank-linked
-   */
-  public val BankLinked16: MarketIcon =
-    MarketIcon(Res.drawable.icon_bank_linked_16, false)
-
-  /**
-   * The Market icon named 'bankLinked'.
-   *
-   * 24/bank-linked
-   */
-  public val BankLinked24: MarketIcon =
-    MarketIcon(Res.drawable.icon_bank_linked_24, false)
-
-  /**
-   * The Market icon named 'bankLinked'.
-   *
-   * 32/bank-linked
-   */
-  public val BankLinked32: MarketIcon =
-    MarketIcon(Res.drawable.icon_bank_linked_32, false)
-
-  /**
-   * The Market icon named 'bills'.
-   *
-   * 16/bills
-   */
-  public val Bills16: MarketIcon =
-    MarketIcon(Res.drawable.icon_bills_16, false)
-
-  /**
-   * The Market icon named 'bills'.
-   *
-   * 24/bills
-   */
-  public val Bills24: MarketIcon =
-    MarketIcon(Res.drawable.icon_bills_24, false)
-
-  /**
-   * The Market icon named 'bills'.
-   *
-   * 32/bills
-   */
-  public val Bills32: MarketIcon =
-    MarketIcon(Res.drawable.icon_bills_32, false)
-
-  /**
-   * The Market icon named 'biometricsFace'.
-   *
-   * 16/biometrics-face
-   */
-  public val BiometricsFace16: MarketIcon =
-    MarketIcon(Res.drawable.icon_biometrics_face_16, false)
-
-  /**
-   * The Market icon named 'biometricsFace'.
-   *
-   * 24/biometrics-face
-   */
-  public val BiometricsFace24: MarketIcon =
-    MarketIcon(Res.drawable.icon_biometrics_face_24, false)
-
-  /**
-   * The Market icon named 'biometricsFace'.
-   *
-   * 32/biometrics-face
-   */
-  public val BiometricsFace32: MarketIcon =
-    MarketIcon(Res.drawable.icon_biometrics_face_32, false)
-
-  /**
-   * The Market icon named 'biometricsFingerprint'.
-   *
-   * 16/biometrics-fingerprint
-   */
-  public val BiometricsFingerprint16: MarketIcon =
-    MarketIcon(Res.drawable.icon_biometrics_fingerprint_16, false)
-
-  /**
-   * The Market icon named 'biometricsFingerprint'.
-   *
-   * 24/biometrics-fingerprint
-   */
-  public val BiometricsFingerprint24: MarketIcon =
-    MarketIcon(Res.drawable.icon_biometrics_fingerprint_24, false)
-
-  /**
-   * The Market icon named 'biometricsFingerprint'.
-   *
-   * 32/biometrics-fingerprint
-   */
-  public val BiometricsFingerprint32: MarketIcon =
-    MarketIcon(Res.drawable.icon_biometrics_fingerprint_32, false)
-
-  /**
-   * The Market icon named 'bitcoinLightning'.
-   *
-   * 16/bitcoin-lightning (please use currency-btc for bitcoin)
-   */
-  public val BitcoinLightning16: MarketIcon =
-    MarketIcon(Res.drawable.icon_bitcoin_lightning_16, false)
-
-  /**
-   * The Market icon named 'bitcoinLightning'.
-   *
-   * 24/bitcoin-lightning (please use currency-btc for bitcoin)
-   */
-  public val BitcoinLightning24: MarketIcon =
-    MarketIcon(Res.drawable.icon_bitcoin_lightning_24, false)
-
-  /**
-   * The Market icon named 'bitcoinLightning'.
-   *
-   * 32/bitcoin-lightning (please use currency-btc for bitcoin)
-   */
-  public val BitcoinLightning32: MarketIcon =
-    MarketIcon(Res.drawable.icon_bitcoin_lightning_32, false)
-
-  /**
-   * The Market icon named 'block'.
-   *
-   * 16/block
-   */
-  public val Block16: MarketIcon =
-    MarketIcon(Res.drawable.icon_block_16, false)
-
-  /**
-   * The Market icon named 'block'.
-   *
-   * 24/block
-   */
-  public val Block24: MarketIcon =
-    MarketIcon(Res.drawable.icon_block_24, false)
-
-  /**
-   * The Market icon named 'block'.
-   *
-   * 32/block
-   */
-  public val Block32: MarketIcon =
-    MarketIcon(Res.drawable.icon_block_32, false)
-
-  /**
-   * The Market icon named 'borrow'.
-   *
-   * 16/borrow
-   */
-  public val Borrow16: MarketIcon =
-    MarketIcon(Res.drawable.icon_borrow_16, false)
-
-  /**
-   * The Market icon named 'borrow'.
-   *
-   * 24/borrow
-   */
-  public val Borrow24: MarketIcon =
-    MarketIcon(Res.drawable.icon_borrow_24, false)
-
-  /**
-   * The Market icon named 'borrow'.
-   *
-   * 32/borrow
-   */
-  public val Borrow32: MarketIcon =
-    MarketIcon(Res.drawable.icon_borrow_32, false)
-
-  /**
-   * The Market icon named 'botMic'.
-   *
-   * 16/bot-mic
-   */
-  public val BotMic16: MarketIcon =
-    MarketIcon(Res.drawable.icon_bot_mic_16, false)
-
-  /**
-   * The Market icon named 'bulletGeneric'.
-   *
-   * 16/bullet-generic
-   */
-  public val BulletGeneric16: MarketIcon =
-    MarketIcon(Res.drawable.icon_bullet_generic_16, false)
-
-  /**
-   * The Market icon named 'bulletGeneric'.
-   *
-   * 24/bullet-generic
-   */
-  public val BulletGeneric24: MarketIcon =
-    MarketIcon(Res.drawable.icon_bullet_generic_24, false)
-
-  /**
-   * The Market icon named 'bundleSafe'.
-   *
-   * 24/bundle-safe
-   */
-  public val BundleSafe24: MarketIcon =
-    MarketIcon(Res.drawable.icon_bundle_safe_24, false)
-
-  /**
-   * The Market icon named 'bundleSafe'.
-   *
-   * 32/bundle-safe
-   */
-  public val BundleSafe32: MarketIcon =
-    MarketIcon(Res.drawable.icon_bundle_safe_32, false)
-
-  /**
-   * The Market icon named 'bundleSteady'.
-   *
-   * 24/bundle-steady
-   */
-  public val BundleSteady24: MarketIcon =
-    MarketIcon(Res.drawable.icon_bundle_steady_24, false)
-
-  /**
-   * The Market icon named 'bundleSteady'.
-   *
-   * 32/bundle-steady
-   */
-  public val BundleSteady32: MarketIcon =
-    MarketIcon(Res.drawable.icon_bundle_steady_32, false)
-
-  /**
-   * The Market icon named 'bundleWealth'.
-   *
-   * 24/bundle-wealth
-   */
-  public val BundleWealth24: MarketIcon =
-    MarketIcon(Res.drawable.icon_bundle_wealth_24, false)
-
-  /**
-   * The Market icon named 'bundleWealth'.
-   *
-   * 32/bundle-wealth
-   */
-  public val BundleWealth32: MarketIcon =
-    MarketIcon(Res.drawable.icon_bundle_wealth_32, false)
-
-  /**
-   * The Market icon named 'business'.
-   *
-   * 16/business
-   */
-  public val Business16: MarketIcon =
-    MarketIcon(Res.drawable.icon_business_16, false)
-
-  /**
-   * The Market icon named 'business'.
-   *
-   * 24/business
-   */
-  public val Business24: MarketIcon =
-    MarketIcon(Res.drawable.icon_business_24, false)
-
-  /**
-   * The Market icon named 'business'.
-   *
-   * 32/business
-   */
-  public val Business32: MarketIcon =
-    MarketIcon(Res.drawable.icon_business_32, false)
-
-  /**
-   * The Market icon named 'businessEarnings'.
-   *
-   * 16/business-earnings
-   */
-  public val BusinessEarnings16: MarketIcon =
-    MarketIcon(Res.drawable.icon_business_earnings_16, false)
-
-  /**
-   * The Market icon named 'businessEarnings'.
-   *
-   * 24/business-informative
-   */
-  public val BusinessEarnings24: MarketIcon =
-    MarketIcon(Res.drawable.icon_business_earnings_24, false)
-
-  /**
-   * The Market icon named 'businessEarnings'.
-   *
-   * 32/business-earnings
-   */
-  public val BusinessEarnings32: MarketIcon =
-    MarketIcon(Res.drawable.icon_business_earnings_32, false)
-
-  /**
-   * The Market icon named 'businessInformative'.
-   *
-   * 24/business-informative
-   */
-  public val BusinessInformative24: MarketIcon =
-    MarketIcon(Res.drawable.icon_business_informative_24, false)
-
-  /**
-   * The Market icon named 'cameraFill'.
-   *
-   * 16/camera-fill
-   */
-  public val CameraFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_camera_fill_16, false)
-
-  /**
-   * The Market icon named 'cameraFill'.
-   *
-   * 24/camera-fill
-   */
-  public val CameraFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_camera_fill_24, false)
-
-  /**
-   * The Market icon named 'cameraFill'.
-   *
-   * 32/camera-fill
-   */
-  public val CameraFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_camera_fill_32, false)
-
-  /**
-   * The Market icon named 'cardActive'.
-   *
-   * 16/card-active
-   */
-  public val CardActive16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_active_16, false)
-
-  /**
-   * The Market icon named 'cardActive'.
-   *
-   * 24/card-active
-   */
-  public val CardActive24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_active_24, false)
-
-  /**
-   * The Market icon named 'cardActive'.
-   *
-   * 32/card-active
-   */
-  public val CardActive32: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_active_32, false)
-
-  /**
-   * The Market icon named 'cardAdd'.
-   *
-   * 16/card-add (to apple pay, google wallet)
-   */
-  public val CardAdd16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_add_16, false)
-
-  /**
-   * The Market icon named 'cardAdd'.
-   *
-   * 24/card-add (to apple pay, google wallet)
-   */
-  public val CardAdd24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_add_24, false)
-
-  /**
-   * The Market icon named 'cardAdd'.
-   *
-   * 32/card-add (to apple pay, google wallet)
-   */
-  public val CardAdd32: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_add_32, false)
-
-  /**
-   * The Market icon named 'cardAfterpay'.
-   *
-   * 24/card-afterpay
-   */
-  public val CardAfterpay24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_afterpay_24, false)
-
-  /**
-   * The Market icon named 'cardBasic'.
-   *
-   * 16/card-basic
-   */
-  public val CardBasic16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_basic_16, false)
-
-  /**
-   * The Market icon named 'cardBasic'.
-   *
-   * 24/card-basic
-   */
-  public val CardBasic24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_basic_24, false)
-
-  /**
-   * The Market icon named 'cardBasic'.
-   *
-   * 32/card-basic
-   */
-  public val CardBasic32: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_basic_32, false)
-
-  /**
-   * The Market icon named 'cardBasicFill'.
-   *
-   * 16/card-basic-fill
-   */
-  public val CardBasicFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_basic_fill_16, false)
-
-  /**
-   * The Market icon named 'cardBasicFill'.
-   *
-   * 24/card-basic-fill
-   */
-  public val CardBasicFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_basic_fill_24, false)
-
-  /**
-   * The Market icon named 'cardBasicFill'.
-   *
-   * 32/card-basic-fill
-   */
-  public val CardBasicFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_basic_fill_32, false)
-
-  /**
-   * The Market icon named 'cardCredit'.
-   *
-   * 24/card-credit
-   */
-  public val CardCredit24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_credit_24, false)
-
-  /**
-   * The Market icon named 'cardCredit'.
-   *
-   * 32/card-credit
-   */
-  public val CardCredit32: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_credit_32, false)
-
-  /**
-   * The Market icon named 'cardDesign'.
-   *
-   * 16/card-design
-   */
-  public val CardDesign16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_design_16, false)
-
-  /**
-   * The Market icon named 'cardDesign'.
-   *
-   * 24/card-design
-   */
-  public val CardDesign24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_design_24, false)
-
-  /**
-   * The Market icon named 'cardDesignFill'.
-   *
-   * 16/card-design-fill
-   */
-  public val CardDesignFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_design_fill_16, false)
-
-  /**
-   * The Market icon named 'cardDesignFill'.
-   *
-   * 24/card-design-fill [archived]
-   */
-  public val CardDesignFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_design_fill_24, false)
-
-  /**
-   * The Market icon named 'cardDesignFill'.
-   *
-   * 32/card-design-fill [archived]
-   */
-  public val CardDesignFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_design_fill_32, false)
-
-  /**
-   * The Market icon named 'cardInactive'.
-   *
-   * 16/card-inactive
-   */
-  public val CardInactive16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_inactive_16, false)
-
-  /**
-   * The Market icon named 'cardInactive'.
-   *
-   * 24/card-inactive
-   */
-  public val CardInactive24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_inactive_24, false)
-
-  /**
-   * The Market icon named 'cardInactive'.
-   *
-   * 32/card-inactive
-   */
-  public val CardInactive32: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_inactive_32, false)
-
-  /**
-   * The Market icon named 'cardNew'.
-   *
-   * 16/card-new
-   */
-  public val CardNew16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_new_16, false)
-
-  /**
-   * The Market icon named 'cardNew'.
-   *
-   * 24/card-new
-   */
-  public val CardNew24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_new_24, false)
-
-  /**
-   * The Market icon named 'cardNew'.
-   *
-   * 32/card-new
-   */
-  public val CardNew32: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_new_32, false)
-
-  /**
-   * The Market icon named 'cardRefresh'.
-   *
-   * 24/card-refresh
-   */
-  public val CardRefresh24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_refresh_24, false)
-
-  /**
-   * The Market icon named 'cardStrip'.
-   *
-   * 16/card-strip
-   */
-  public val CardStrip16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_strip_16, false)
-
-  /**
-   * The Market icon named 'cardStrip'.
-   *
-   * 24/card-strip
-   */
-  public val CardStrip24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_strip_24, false)
-
-  /**
-   * The Market icon named 'cardStrip'.
-   *
-   * 32/card-strip
-   */
-  public val CardStrip32: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_strip_32, false)
-
-  /**
-   * The Market icon named 'cardSupport'.
-   *
-   * 16/card-support
-   */
-  public val CardSupport16: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_support_16, false)
-
-  /**
-   * The Market icon named 'cardSupport'.
-   *
-   * 24/card-support
-   */
-  public val CardSupport24: MarketIcon =
-    MarketIcon(Res.drawable.icon_card_support_24, false)
-
-  /**
-   * The Market icon named 'caretDown'.
-   *
-   * 16/caret-down
-   */
-  public val CaretDown16: MarketIcon =
-    MarketIcon(Res.drawable.icon_caret_down_16, false)
-
-  /**
-   * The Market icon named 'caretUp'.
-   *
-   * 16/caret-up
-   */
-  public val CaretUp16: MarketIcon =
-    MarketIcon(Res.drawable.icon_caret_up_16, false)
-
-  /**
-   * The Market icon named 'cashAppCustomer'.
-   *
-   * 16/cash-app-customer
-   */
-  public val CashAppCustomer16: MarketIcon =
-    MarketIcon(Res.drawable.icon_cash_app_customer_16, false)
-
-  /**
-   * The Market icon named 'cashAppPay'.
-   *
-   * 16/cash-app-pay
-   */
-  public val CashAppPay16: MarketIcon =
-    MarketIcon(Res.drawable.icon_cash_app_pay_16, false)
-
-  /**
-   * The Market icon named 'cashAppPay'.
-   *
-   * 24/cash-app-pay
-   */
-  public val CashAppPay24: MarketIcon =
-    MarketIcon(Res.drawable.icon_cash_app_pay_24, false)
-
-  /**
-   * The Market icon named 'cashAppPay'.
-   *
-   * 32/cash-app-pay
-   */
-  public val CashAppPay32: MarketIcon =
-    MarketIcon(Res.drawable.icon_cash_app_pay_32, false)
-
-  /**
-   * The Market icon named 'categoryAccessories'.
-   *
-   * 16/category-accessories
-   */
-  public val CategoryAccessories16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_accessories_16, false)
-
-  /**
-   * The Market icon named 'categoryAccessories'.
-   *
-   * 24/category-accessories
-   */
-  public val CategoryAccessories24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_accessories_24, false)
-
-  /**
-   * The Market icon named 'categoryAccessories'.
-   *
-   * 32/category-apparel
-   */
-  public val CategoryAccessories32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_accessories_32, false)
-
-  /**
-   * The Market icon named 'categoryAccessoriesAlt'.
-   *
-   * 24/category-accessories-alt
-   */
-  public val CategoryAccessoriesAlt24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_accessories_alt_24, false)
-
-  /**
-   * The Market icon named 'categoryAccessoriesHats'.
-   *
-   * 24/category-accessories-alt
-   */
-  public val CategoryAccessoriesHats24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_accessories_hats_24, false)
-
-  /**
-   * The Market icon named 'categoryAdult'.
-   *
-   * 24/category-adult
-   */
-  public val CategoryAdult24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_adult_24, false)
-
-  /**
-   * The Market icon named 'categoryApparel'.
-   *
-   * 16/category-apparel
-   */
-  public val CategoryApparel16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_apparel_16, false)
-
-  /**
-   * The Market icon named 'categoryApparel'.
-   *
-   * 24/category-apparel
-   */
-  public val CategoryApparel24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_apparel_24, false)
-
-  /**
-   * The Market icon named 'categoryApparel'.
-   *
-   * 32/category-apparel
-   */
-  public val CategoryApparel32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_apparel_32, false)
-
-  /**
-   * The Market icon named 'categoryApparelAlt'.
-   *
-   * 24/category-apparel-alt
-   */
-  public val CategoryApparelAlt24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_apparel_alt_24, false)
-
-  /**
-   * The Market icon named 'categoryAuto'.
-   *
-   * 16/category-auto
-   */
-  public val CategoryAuto16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_auto_16, false)
-
-  /**
-   * The Market icon named 'categoryAuto'.
-   *
-   * 24/category-auto
-   */
-  public val CategoryAuto24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_auto_24, false)
-
-  /**
-   * The Market icon named 'categoryAuto'.
-   *
-   * 32/category-auto
-   */
-  public val CategoryAuto32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_auto_32, false)
-
-  /**
-   * The Market icon named 'categoryBar'.
-   *
-   * 16/category-bar
-   */
-  public val CategoryBar16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_bar_16, false)
-
-  /**
-   * The Market icon named 'categoryBar'.
-   *
-   * 24/category-bar
-   */
-  public val CategoryBar24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_bar_24, false)
-
-  /**
-   * The Market icon named 'categoryBar'.
-   *
-   * 32/category-bar
-   */
-  public val CategoryBar32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_bar_32, false)
-
-  /**
-   * The Market icon named 'categoryBusinessServices'.
-   *
-   * 16/category-business-services
-   */
-  public val CategoryBusinessServices16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_business_services_16, false)
-
-  /**
-   * The Market icon named 'categoryBusinessServices'.
-   *
-   * 24/category-business-services
-   */
-  public val CategoryBusinessServices24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_business_services_24, false)
-
-  /**
-   * The Market icon named 'categoryBusinessServices'.
-   *
-   * 32/category-business-services
-   */
-  public val CategoryBusinessServices32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_business_services_32, false)
-
-  /**
-   * The Market icon named 'categoryCafe'.
-   *
-   * 16/category-cafe
-   */
-  public val CategoryCafe16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_cafe_16, false)
-
-  /**
-   * The Market icon named 'categoryCafe'.
-   *
-   * 24/category-cafe
-   */
-  public val CategoryCafe24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_cafe_24, false)
-
-  /**
-   * The Market icon named 'categoryCafe'.
-   *
-   * 32/category-cafe
-   */
-  public val CategoryCafe32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_cafe_32, false)
-
-  /**
-   * The Market icon named 'categoryCoffee'.
-   *
-   * 16/category-coffee
-   */
-  public val CategoryCoffee16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_coffee_16, false)
-
-  /**
-   * The Market icon named 'categoryCoffee'.
-   *
-   * 24/category-coffee
-   */
-  public val CategoryCoffee24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_coffee_24, false)
-
-  /**
-   * The Market icon named 'categoryCoffee'.
-   *
-   * 32/category-coffee
-   */
-  public val CategoryCoffee32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_coffee_32, false)
-
-  /**
-   * The Market icon named 'categoryDepartmentStore'.
-   *
-   * 24/category-department-store
-   */
-  public val CategoryDepartmentStore24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_department_store_24, false)
-
-  /**
-   * The Market icon named 'categoryDesigner'.
-   *
-   * 24/category-designer
-   */
-  public val CategoryDesigner24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_designer_24, false)
-
-  /**
-   * The Market icon named 'categoryDiy'.
-   *
-   * 24/category-diy
-   */
-  public val CategoryDiy24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_diy_24, false)
-
-  /**
-   * The Market icon named 'categoryEnergy'.
-   *
-   * 16/category-energy
-   */
-  public val CategoryEnergy16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_energy_16, false)
-
-  /**
-   * The Market icon named 'categoryEnergy'.
-   *
-   * 24/category-energy
-   */
-  public val CategoryEnergy24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_energy_24, false)
-
-  /**
-   * The Market icon named 'categoryEnergy'.
-   *
-   * 32/category-energy
-   */
-  public val CategoryEnergy32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_energy_32, false)
-
-  /**
-   * The Market icon named 'categoryEntertainment'.
-   *
-   * 16/category-entertainment
-   */
-  public val CategoryEntertainment16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_entertainment_16, false)
-
-  /**
-   * The Market icon named 'categoryEntertainment'.
-   *
-   * 24/category-entertainment
-   */
-  public val CategoryEntertainment24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_entertainment_24, false)
-
-  /**
-   * The Market icon named 'categoryEntertainment'.
-   *
-   * 32/category-entertainment
-   */
-  public val CategoryEntertainment32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_entertainment_32, false)
-
-  /**
-   * The Market icon named 'categoryEtf'.
-   *
-   * 16/category-etf
-   */
-  public val CategoryEtf16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_etf_16, false)
-
-  /**
-   * The Market icon named 'categoryEtf'.
-   *
-   * 24/category-etf
-   */
-  public val CategoryEtf24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_etf_24, false)
-
-  /**
-   * The Market icon named 'categoryEtf'.
-   *
-   * 32/category-etf
-   */
-  public val CategoryEtf32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_etf_32, false)
-
-  /**
-   * The Market icon named 'categoryExperiences'.
-   *
-   * 24/category-experiences
-   */
-  public val CategoryExperiences24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_experiences_24, false)
-
-  /**
-   * The Market icon named 'categoryFashion'.
-   *
-   * 24/category-fashion
-   */
-  public val CategoryFashion24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_fashion_24, false)
-
-  /**
-   * The Market icon named 'categoryFastFood'.
-   *
-   * 16/category-fast-food
-   */
-  public val CategoryFastFood16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_fast_food_16, false)
-
-  /**
-   * The Market icon named 'categoryFastFood'.
-   *
-   * 24/category-fast-food
-   */
-  public val CategoryFastFood24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_fast_food_24, false)
-
-  /**
-   * The Market icon named 'categoryFastFood'.
-   *
-   * 32/category-fast-food
-   */
-  public val CategoryFastFood32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_fast_food_32, false)
-
-  /**
-   * The Market icon named 'categoryFinance'.
-   *
-   * 16/category-finance
-   */
-  public val CategoryFinance16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_finance_16, false)
-
-  /**
-   * The Market icon named 'categoryFinance'.
-   *
-   * 24/category-finance
-   */
-  public val CategoryFinance24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_finance_24, false)
-
-  /**
-   * The Market icon named 'categoryFinance'.
-   *
-   * 32/category-finance
-   */
-  public val CategoryFinance32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_finance_32, false)
-
-  /**
-   * The Market icon named 'categoryFitness'.
-   *
-   * 16/category-fitness
-   */
-  public val CategoryFitness16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_fitness_16, false)
-
-  /**
-   * The Market icon named 'categoryFitness'.
-   *
-   * 24/category-fitness
-   */
-  public val CategoryFitness24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_fitness_24, false)
-
-  /**
-   * The Market icon named 'categoryFitness'.
-   *
-   * 32/category-fitness
-   */
-  public val CategoryFitness32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_fitness_32, false)
-
-  /**
-   * The Market icon named 'categoryFoodDrink'.
-   *
-   * 16/category-food-drink (offers only)
-   */
-  public val CategoryFoodDrink16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_food_drink_16, false)
-
-  /**
-   * The Market icon named 'categoryFoodDrink'.
-   *
-   * 24/category-food-drink (offers only)
-   */
-  public val CategoryFoodDrink24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_food_drink_24, false)
-
-  /**
-   * The Market icon named 'categoryFoodDrink'.
-   *
-   * 32/category-food-drink (offers only)
-   */
-  public val CategoryFoodDrink32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_food_drink_32, false)
-
-  /**
-   * The Market icon named 'categoryFoodDrinkAlt'.
-   *
-   * 16/category-food-drink-alt (investing only)
-   */
-  public val CategoryFoodDrinkAlt16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_food_drink_alt_16, false)
-
-  /**
-   * The Market icon named 'categoryFoodDrinkAlt'.
-   *
-   * 24/category-food-drink-alt (investing only)
-   */
-  public val CategoryFoodDrinkAlt24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_food_drink_alt_24, false)
-
-  /**
-   * The Market icon named 'categoryFoodDrinkAlt'.
-   *
-   * 32/category-food-drink-alt (investing only)
-   */
-  public val CategoryFoodDrinkAlt32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_food_drink_alt_32, false)
-
-  /**
-   * The Market icon named 'categoryFragrances'.
-   *
-   * 24/category-fragrances
-   */
-  public val CategoryFragrances24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_fragrances_24, false)
-
-  /**
-   * The Market icon named 'categoryFurniture'.
-   *
-   * 24/category-furniture
-   */
-  public val CategoryFurniture24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_furniture_24, false)
-
-  /**
-   * The Market icon named 'categoryGarden'.
-   *
-   * 24/category-garden
-   */
-  public val CategoryGarden24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_garden_24, false)
-
-  /**
-   * The Market icon named 'categoryGasStation'.
-   *
-   * 16/category-gas-station
-   */
-  public val CategoryGasStation16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_gas_station_16, false)
-
-  /**
-   * The Market icon named 'categoryGasStation'.
-   *
-   * 24/category-gas-station
-   */
-  public val CategoryGasStation24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_gas_station_24, false)
-
-  /**
-   * The Market icon named 'categoryGrocery'.
-   *
-   * 16/category-grocery
-   */
-  public val CategoryGrocery16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_grocery_16, false)
-
-  /**
-   * The Market icon named 'categoryGrocery'.
-   *
-   * 24/category-grocery
-   */
-  public val CategoryGrocery24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_grocery_24, false)
-
-  /**
-   * The Market icon named 'categoryGrocery'.
-   *
-   * 32/category-grocery
-   */
-  public val CategoryGrocery32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_grocery_32, false)
-
-  /**
-   * The Market icon named 'categoryHandbags'.
-   *
-   * 24/category-handbags
-   */
-  public val CategoryHandbags24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_handbags_24, false)
-
-  /**
-   * The Market icon named 'categoryHardware'.
-   *
-   * 16/category-hardware
-   */
-  public val CategoryHardware16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_hardware_16, false)
-
-  /**
-   * The Market icon named 'categoryHardware'.
-   *
-   * 24/category-hardware
-   */
-  public val CategoryHardware24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_hardware_24, false)
-
-  /**
-   * The Market icon named 'categoryHardware'.
-   *
-   * 32/category-hardware
-   */
-  public val CategoryHardware32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_hardware_32, false)
-
-  /**
-   * The Market icon named 'categoryHealthBeauty'.
-   *
-   * 16/category-health-beauty
-   */
-  public val CategoryHealthBeauty16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_health_beauty_16, false)
-
-  /**
-   * The Market icon named 'categoryHealthBeauty'.
-   *
-   * 24/category-health-beauty
-   */
-  public val CategoryHealthBeauty24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_health_beauty_24, false)
-
-  /**
-   * The Market icon named 'categoryHealthBeauty'.
-   *
-   * 32/category-health-beauty
-   */
-  public val CategoryHealthBeauty32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_health_beauty_32, false)
-
-  /**
-   * The Market icon named 'categoryHealthMedical'.
-   *
-   * 16/category-health-medical
-   */
-  public val CategoryHealthMedical16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_health_medical_16, false)
-
-  /**
-   * The Market icon named 'categoryHealthMedical'.
-   *
-   * 24/category-health-medical
-   */
-  public val CategoryHealthMedical24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_health_medical_24, false)
-
-  /**
-   * The Market icon named 'categoryHealthMedical'.
-   *
-   * 32/category-health-medical
-   */
-  public val CategoryHealthMedical32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_health_medical_32, false)
-
-  /**
-   * The Market icon named 'categoryHome'.
-   *
-   * 24/category-home
-   */
-  public val CategoryHome24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_home_24, false)
-
-  /**
-   * The Market icon named 'categoryHomeAuto'.
-   *
-   * 16/category-home-auto
-   */
-  public val CategoryHomeAuto16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_home_auto_16, false)
-
-  /**
-   * The Market icon named 'categoryHomeAuto'.
-   *
-   * 24/category-home-auto
-   */
-  public val CategoryHomeAuto24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_home_auto_24, false)
-
-  /**
-   * The Market icon named 'categoryHomeAuto'.
-   *
-   * 32/category-home-auto
-   */
-  public val CategoryHomeAuto32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_home_auto_32, false)
-
-  /**
-   * The Market icon named 'categoryHotel'.
-   *
-   * 16/category-hotel
+   * The Market icon named 'battery-50'.
    */
-  public val CategoryHotel16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_hotel_16, false)
+  public val Battery50: MarketIcon =
+    MarketIcon(Res.drawable.market_battery_50, false)
 
   /**
-   * The Market icon named 'categoryHotel'.
-   *
-   * 24/category-hotel
+   * The Market icon named 'battery-75'.
    */
-  public val CategoryHotel24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_hotel_24, false)
+  public val Battery75: MarketIcon =
+    MarketIcon(Res.drawable.market_battery_75, false)
 
   /**
-   * The Market icon named 'categoryHotel'.
-   *
-   * 32/category-hotel
+   * The Market icon named 'battery-charging'.
    */
-  public val CategoryHotel32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_hotel_32, false)
+  public val BatteryCharging: MarketIcon =
+    MarketIcon(Res.drawable.market_battery_charging, false)
 
   /**
-   * The Market icon named 'categoryIpo'.
-   *
-   * 16/category-ipo
+   * The Market icon named 'battery-exclamation'.
    */
-  public val CategoryIpo16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_ipo_16, false)
+  public val BatteryExclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_battery_exclamation, false)
 
   /**
-   * The Market icon named 'categoryIpo'.
+   * The Market icon named 'bell'.
    *
-   * 24/category-ipo
+   * notification
    */
-  public val CategoryIpo24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_ipo_24, false)
+  public val Bell: MarketIcon =
+    MarketIcon(Res.drawable.market_bell, false)
 
   /**
-   * The Market icon named 'categoryIpo'.
+   * The Market icon named 'bell-z'.
    *
-   * 32/category-ipo
+   * notification, mute, snooze
    */
-  public val CategoryIpo32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_ipo_32, false)
+  public val BellZ: MarketIcon =
+    MarketIcon(Res.drawable.market_bell_z, false)
 
   /**
-   * The Market icon named 'categoryJewelry'.
-   *
-   * 24/category-jewelry
+   * The Market icon named 'binoculars'.
    */
-  public val CategoryJewelry24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_jewelry_24, false)
+  public val Binoculars: MarketIcon =
+    MarketIcon(Res.drawable.market_binoculars, false)
 
   /**
-   * The Market icon named 'categoryKids'.
+   * The Market icon named 'bitcoin'.
    *
-   * 24/category-kids
+   * btc, payment
    */
-  public val CategoryKids24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_kids_24, false)
+  public val Bitcoin: MarketIcon =
+    MarketIcon(Res.drawable.market_bitcoin, false)
 
   /**
-   * The Market icon named 'categoryMedia'.
+   * The Market icon named 'bitkey'.
    *
-   * 16/category-media (investing only)
+   * btc
    */
-  public val CategoryMedia16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_media_16, false)
+  public val Bitkey: MarketIcon =
+    MarketIcon(Res.drawable.market_bitkey, false)
 
   /**
-   * The Market icon named 'categoryMedia'.
+   * The Market icon named 'bitkey-arrow-down'.
    *
-   * 24/category-media (investing only)
+   * bitkey
    */
-  public val CategoryMedia24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_media_24, false)
+  public val BitkeyArrowDown: MarketIcon =
+    MarketIcon(Res.drawable.market_bitkey_arrow_down, false)
 
   /**
-   * The Market icon named 'categoryMedia'.
+   * The Market icon named 'bitkey-arrow-up'.
    *
-   * 32/category-media (investing only)
+   * bitkey
    */
-  public val CategoryMedia32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_media_32, false)
+  public val BitkeyArrowUp: MarketIcon =
+    MarketIcon(Res.drawable.market_bitkey_arrow_up, false)
 
   /**
-   * The Market icon named 'categoryMoving'.
+   * The Market icon named 'bitkey-wallet'.
    *
-   * 16/category-moving
+   * bitkey device
    */
-  public val CategoryMoving16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_moving_16, false)
+  public val BitkeyWallet: MarketIcon =
+    MarketIcon(Res.drawable.market_bitkey_wallet, false)
 
   /**
-   * The Market icon named 'categoryMoving'.
-   *
-   * 24/category-moving
+   * The Market icon named 'bluetooth'.
    */
-  public val CategoryMoving24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_moving_24, false)
+  public val Bluetooth: MarketIcon =
+    MarketIcon(Res.drawable.market_bluetooth, false)
 
   /**
-   * The Market icon named 'categoryMoving'.
+   * The Market icon named 'bluetooth-exclamation'.
    *
-   * 32/category-moving
+   * bluetooth alert
    */
-  public val CategoryMoving32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_moving_32, false)
+  public val BluetoothExclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_bluetooth_exclamation, false)
 
   /**
-   * The Market icon named 'categoryOnline'.
+   * The Market icon named 'bold-b'.
    *
-   * 16/category-online (generic merchant only)
+   * rich text, bold
    */
-  public val CategoryOnline16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_online_16, false)
+  public val BoldB: MarketIcon =
+    MarketIcon(Res.drawable.market_bold_b, false)
 
   /**
-   * The Market icon named 'categoryOnline'.
+   * The Market icon named 'bone'.
    *
-   * 24/category-online (generic merchant only)
+   * pet store
    */
-  public val CategoryOnline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_online_24, false)
+  public val Bone: MarketIcon =
+    MarketIcon(Res.drawable.market_bone, false)
 
   /**
-   * The Market icon named 'categoryOnline'.
+   * The Market icon named 'box'.
    *
-   * 32/category-online (generic merchant only)
+   * archive
    */
-  public val CategoryOnline32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_online_32, false)
+  public val Box: MarketIcon =
+    MarketIcon(Res.drawable.market_box, false)
 
   /**
-   * The Market icon named 'categoryPetStore'.
+   * The Market icon named 'box-arrow'.
    *
-   * 16/category-pet-store
+   * new window, tab
    */
-  public val CategoryPetStore16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_pet_store_16, false)
+  public val BoxArrow: MarketIcon =
+    MarketIcon(Res.drawable.market_box_arrow, false)
 
   /**
-   * The Market icon named 'categoryPetStore'.
+   * The Market icon named 'box-arrow-down'.
    *
-   * 24/category-pet-store
+   * Cash In
    */
-  public val CategoryPetStore24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_pet_store_24, false)
+  public val BoxArrowDown: MarketIcon =
+    MarketIcon(Res.drawable.market_box_arrow_down, false)
 
   /**
-   * The Market icon named 'categoryPetStore'.
+   * The Market icon named 'box-arrow-up'.
    *
-   * 32/category-pet-store
+   * Cash Out
    */
-  public val CategoryPetStore32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_pet_store_32, false)
+  public val BoxArrowUp: MarketIcon =
+    MarketIcon(Res.drawable.market_box_arrow_up, false)
 
   /**
-   * The Market icon named 'categoryPharmacy'.
+   * The Market icon named 'bracket-arrow-left'.
    *
-   * 16/category-pharmacy
+   * transfer in
    */
-  public val CategoryPharmacy16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_pharmacy_16, false)
+  public val BracketArrowLeft: MarketIcon =
+    MarketIcon(Res.drawable.market_bracket_arrow_left, false)
 
   /**
-   * The Market icon named 'categoryPharmacy'.
+   * The Market icon named 'bracket-arrow-right'.
    *
-   * 24/category-pharmacy
+   * transfer out
    */
-  public val CategoryPharmacy24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_pharmacy_24, false)
+  public val BracketArrowRight: MarketIcon =
+    MarketIcon(Res.drawable.market_bracket_arrow_right, false)
 
   /**
-   * The Market icon named 'categoryPharmacy'.
+   * The Market icon named 'briefcase'.
    *
-   * 32/category-pharmacy
+   * jobs
    */
-  public val CategoryPharmacy32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_pharmacy_32, false)
+  public val Briefcase: MarketIcon =
+    MarketIcon(Res.drawable.market_briefcase, false)
 
   /**
-   * The Market icon named 'categoryPopular'.
+   * The Market icon named 'brightness'.
    *
-   * 24/category-popular
+   * sun
    */
-  public val CategoryPopular24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_popular_24, false)
+  public val Brightness: MarketIcon =
+    MarketIcon(Res.drawable.market_brightness, false)
 
   /**
-   * The Market icon named 'categoryRent'.
+   * The Market icon named 'buildings'.
    *
-   * 16/category-rent
+   * enterprise, building
    */
-  public val CategoryRent16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_rent_16, false)
+  public val Buildings: MarketIcon =
+    MarketIcon(Res.drawable.market_buildings, false)
 
   /**
-   * The Market icon named 'categoryRent'.
+   * The Market icon named 'bullet-list'.
    *
-   * 24/category-rent
+   * rich text, bulleted list
    */
-  public val CategoryRent24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_rent_24, false)
+  public val BulletList: MarketIcon =
+    MarketIcon(Res.drawable.market_bullet_list, false)
 
   /**
-   * The Market icon named 'categoryRent'.
+   * The Market icon named 'cake'.
    *
-   * 32/category-rent
+   * birthday
    */
-  public val CategoryRent32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_rent_32, false)
+  public val Cake: MarketIcon =
+    MarketIcon(Res.drawable.market_cake, false)
 
   /**
-   * The Market icon named 'categoryRestaurant'.
-   *
-   * 16/category-restaurant
+   * The Market icon named 'calculator'.
    */
-  public val CategoryRestaurant16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_restaurant_16, false)
+  public val Calculator: MarketIcon =
+    MarketIcon(Res.drawable.market_calculator, false)
 
   /**
-   * The Market icon named 'categoryRestaurant'.
+   * The Market icon named 'calendar'.
    *
-   * 24/category-restaurant
+   * schedule, date
    */
-  public val CategoryRestaurant24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_restaurant_24, false)
+  public val Calendar: MarketIcon =
+    MarketIcon(Res.drawable.market_calendar, false)
 
   /**
-   * The Market icon named 'categoryRestaurant'.
+   * The Market icon named 'calendar-date'.
    *
-   * 32/category-restaurant
+   * schedule
    */
-  public val CategoryRestaurant32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_restaurant_32, false)
+  public val CalendarDate: MarketIcon =
+    MarketIcon(Res.drawable.market_calendar_date, false)
 
   /**
-   * The Market icon named 'categoryShoes'.
+   * The Market icon named 'calendar-eur'.
    *
-   * 16/category-shoes
+   * Next day funds, currency
    */
-  public val CategoryShoes16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shoes_16, false)
+  public val CalendarEur: MarketIcon =
+    MarketIcon(Res.drawable.market_calendar_eur, false)
 
   /**
-   * The Market icon named 'categoryShoes'.
+   * The Market icon named 'calendar-gbp'.
    *
-   * 24/category-shoes
+   * Next day funds, currency
    */
-  public val CategoryShoes24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shoes_24, false)
+  public val CalendarGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_calendar_gbp, false)
 
   /**
-   * The Market icon named 'categoryShoes'.
+   * The Market icon named 'calendar-jpy'.
    *
-   * 32/category-shoes
+   * Next day funds, currency
    */
-  public val CategoryShoes32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shoes_32, false)
+  public val CalendarJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_calendar_jpy, false)
 
   /**
-   * The Market icon named 'categoryShoesAlt'.
+   * The Market icon named 'calendar-plus'.
    *
-   * 24/category-shoes-alt
+   * add date, schedule
    */
-  public val CategoryShoesAlt24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shoes_alt_24, false)
+  public val CalendarPlus: MarketIcon =
+    MarketIcon(Res.drawable.market_calendar_plus, false)
 
   /**
-   * The Market icon named 'categoryShoesHeel'.
+   * The Market icon named 'calendar-usd'.
    *
-   * 24/category-shoes-heel
+   * Next day funds, currency
    */
-  public val CategoryShoesHeel24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shoes_heel_24, false)
+  public val CalendarUsd: MarketIcon =
+    MarketIcon(Res.drawable.market_calendar_usd, false)
 
   /**
-   * The Market icon named 'categoryShopping'.
+   * The Market icon named 'call'.
    *
-   * 16/category-shopping
+   * phone, telephone
    */
-  public val CategoryShopping16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shopping_16, false)
+  public val Call: MarketIcon =
+    MarketIcon(Res.drawable.market_call, false)
 
   /**
-   * The Market icon named 'categoryShopping'.
-   *
-   * 24/category-shopping
+   * The Market icon named 'camera'.
    */
-  public val CategoryShopping24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shopping_24, false)
+  public val Camera: MarketIcon =
+    MarketIcon(Res.drawable.market_camera, false)
 
   /**
-   * The Market icon named 'categoryShopping'.
+   * The Market icon named 'car'.
    *
-   * 32/category-shopping
+   * transportation
+   * automobile
+   * vehicle
    */
-  public val CategoryShopping32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shopping_32, false)
+  public val Car: MarketIcon =
+    MarketIcon(Res.drawable.market_car, false)
 
   /**
-   * The Market icon named 'categoryShoppingAlt'.
-   *
-   * 16/category-shopping-alt (investing only)
+   * The Market icon named 'card'.
    */
-  public val CategoryShoppingAlt16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shopping_alt_16, false)
+  public val Card: MarketIcon =
+    MarketIcon(Res.drawable.market_card, false)
 
   /**
-   * The Market icon named 'categoryShoppingAlt'.
-   *
-   * 24/category-shopping-alt (investing only)
+   * The Market icon named 'card-chip'.
    */
-  public val CategoryShoppingAlt24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shopping_alt_24, false)
+  public val CardChip: MarketIcon =
+    MarketIcon(Res.drawable.market_card_chip, false)
 
   /**
-   * The Market icon named 'categoryShoppingAlt'.
-   *
-   * 32/category-shopping-alt (investing only)
+   * The Market icon named 'card-chip-multiple'.
    */
-  public val CategoryShoppingAlt32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shopping_alt_32, false)
+  public val CardChipMultiple: MarketIcon =
+    MarketIcon(Res.drawable.market_card_chip_multiple, false)
 
   /**
-   * The Market icon named 'categoryShoppingCenter'.
-   *
-   * 24/category-pet-store
+   * The Market icon named 'card-contactless'.
    */
-  public val CategoryShoppingCenter24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_shopping_center_24, false)
+  public val CardContactless: MarketIcon =
+    MarketIcon(Res.drawable.market_card_contactless, false)
 
   /**
-   * The Market icon named 'categorySports'.
+   * The Market icon named 'card-human-lines'.
    *
-   * 16/category-sports
+   * customers
    */
-  public val CategorySports16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_sports_16, false)
+  public val CardHumanLines: MarketIcon =
+    MarketIcon(Res.drawable.market_card_human_lines, false)
 
   /**
-   * The Market icon named 'categorySports'.
-   *
-   * 24/category-sports
+   * The Market icon named 'card-insert'.
    */
-  public val CategorySports24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_sports_24, false)
+  public val CardInsert: MarketIcon =
+    MarketIcon(Res.drawable.market_card_insert, false)
 
   /**
-   * The Market icon named 'categorySports'.
+   * The Market icon named 'card-line'.
    *
-   * 32/category-sports
+   * Bitkey nav
    */
-  public val CategorySports32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_sports_32, false)
+  public val CardLine: MarketIcon =
+    MarketIcon(Res.drawable.market_card_line, false)
 
   /**
-   * The Market icon named 'categorySportsAlt'.
+   * The Market icon named 'card-line-fill'.
    *
-   * 24/category-sports-alt
+   * Bitkey nav
    */
-  public val CategorySportsAlt24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_sports_alt_24, false)
+  public val CardLineFill: MarketIcon =
+    MarketIcon(Res.drawable.market_card_line_fill, false)
 
   /**
-   * The Market icon named 'categoryTech'.
+   * The Market icon named 'card-off'.
    *
-   * 24/category-tech
+   * Card logo, payment
    */
-  public val CategoryTech24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_tech_24, false)
+  public val CardOff: MarketIcon =
+    MarketIcon(Res.drawable.market_card_off, false)
 
   /**
-   * The Market icon named 'categoryTechnology'.
+   * The Market icon named 'card-on'.
    *
-   * 16/category-technology
+   * success, check mark, payment
    */
-  public val CategoryTechnology16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_technology_16, false)
+  public val CardOn: MarketIcon =
+    MarketIcon(Res.drawable.market_card_on, false)
 
   /**
-   * The Market icon named 'categoryTechnology'.
-   *
-   * 24/category-technology
+   * The Market icon named 'card-remove'.
    */
-  public val CategoryTechnology24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_technology_24, false)
+  public val CardRemove: MarketIcon =
+    MarketIcon(Res.drawable.market_card_remove, false)
 
   /**
-   * The Market icon named 'categoryTechnology'.
-   *
-   * technology investing category
+   * The Market icon named 'card-swipe'.
    */
-  public val CategoryTechnology32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_technology_32, false)
+  public val CardSwipe: MarketIcon =
+    MarketIcon(Res.drawable.market_card_swipe, false)
 
   /**
-   * The Market icon named 'categoryTourism'.
-   *
-   * 16/category-tourism (investing only)
+   * The Market icon named 'card-swipe-check'.
    */
-  public val CategoryTourism16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_tourism_16, false)
+  public val CardSwipeCheck: MarketIcon =
+    MarketIcon(Res.drawable.market_card_swipe_check, false)
 
   /**
-   * The Market icon named 'categoryTourism'.
-   *
-   * 24/category-tourism (investing only)
+   * The Market icon named 'card-swipe-exclamation'.
    */
-  public val CategoryTourism24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_tourism_24, false)
+  public val CardSwipeExclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_card_swipe_exclamation, false)
 
   /**
-   * The Market icon named 'categoryTourism'.
-   *
-   * 32/category-tourism (investing only)
+   * The Market icon named 'card-swipe-multiple'.
    */
-  public val CategoryTourism32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_tourism_32, false)
+  public val CardSwipeMultiple: MarketIcon =
+    MarketIcon(Res.drawable.market_card_swipe_multiple, false)
 
   /**
-   * The Market icon named 'categoryToys'.
-   *
-   * 24/category-toys
+   * The Market icon named 'card-swipe-plus'.
    */
-  public val CategoryToys24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_toys_24, false)
+  public val CardSwipePlus: MarketIcon =
+    MarketIcon(Res.drawable.market_card_swipe_plus, false)
 
   /**
-   * The Market icon named 'categoryTransporationAlt'.
+   * The Market icon named 'cash'.
    *
-   * 24/category-transportation-alt
+   * balance
    */
-  public val CategoryTransporationAlt24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_transporation_alt_24, false)
+  public val Cash: MarketIcon =
+    MarketIcon(Res.drawable.market_cash, false)
 
   /**
-   * The Market icon named 'categoryTransporationAlt'.
+   * The Market icon named 'cash-app'.
    *
-   * 32/category-transportation-alt
+   * payment, P2P, afterpay
    */
-  public val CategoryTransporationAlt32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_transporation_alt_32, false)
+  public val CashApp: MarketIcon =
+    MarketIcon(Res.drawable.market_cash_app, false)
 
   /**
-   * The Market icon named 'categoryTransportation'.
+   * The Market icon named 'cash-app-multicolor'.
    *
-   * 16/category-transportation
+   * card logo, payment, afterpay
    */
-  public val CategoryTransportation16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_transportation_16, false)
+  public val CashAppMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_cash_app_multicolor, true)
 
   /**
-   * The Market icon named 'categoryTransportation'.
+   * The Market icon named 'cash-arrow'.
    *
-   * 24/category-transportation
+   * bill pay
    */
-  public val CategoryTransportation24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_transportation_24, false)
+  public val CashArrow: MarketIcon =
+    MarketIcon(Res.drawable.market_cash_arrow, false)
 
   /**
-   * The Market icon named 'categoryTransportation'.
-   *
-   * 32/category-transportation
+   * The Market icon named 'cash-multiple'.
    */
-  public val CategoryTransportation32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_transportation_32, false)
+  public val CashMultiple: MarketIcon =
+    MarketIcon(Res.drawable.market_cash_multiple, false)
 
   /**
-   * The Market icon named 'categoryTravel'.
+   * The Market icon named 'caviar'.
    *
-   * 16/category-travel
+   * order, delivery, pickup, door dash
    */
-  public val CategoryTravel16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_travel_16, false)
+  public val Caviar: MarketIcon =
+    MarketIcon(Res.drawable.market_caviar, false)
 
   /**
-   * The Market icon named 'categoryTravel'.
+   * The Market icon named 'ceiling-lamp'.
    *
-   * 24/category-travel
+   * squareup.com, retail, home & gift
    */
-  public val CategoryTravel24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_travel_24, false)
+  public val CeilingLamp: MarketIcon =
+    MarketIcon(Res.drawable.market_ceiling_lamp, false)
 
   /**
-   * The Market icon named 'categoryTravel'.
-   *
-   * 32/category-travel
+   * The Market icon named 'celebrate'.
    */
-  public val CategoryTravel32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_travel_32, false)
+  public val Celebrate: MarketIcon =
+    MarketIcon(Res.drawable.market_celebrate, false)
 
   /**
-   * The Market icon named 'categoryUtilities'.
+   * The Market icon named 'chain-links'.
    *
-   * 16/category-utilities
+   * link
    */
-  public val CategoryUtilities16: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_utilities_16, false)
+  public val ChainLinks: MarketIcon =
+    MarketIcon(Res.drawable.market_chain_links, false)
 
   /**
-   * The Market icon named 'categoryUtilities'.
+   * The Market icon named 'chain-links-slash'.
    *
-   * 24/category-utilities
+   * unlink
    */
-  public val CategoryUtilities24: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_utilities_24, false)
+  public val ChainLinksSlash: MarketIcon =
+    MarketIcon(Res.drawable.market_chain_links_slash, false)
 
   /**
-   * The Market icon named 'categoryUtilities'.
-   *
-   * 32/category-utilities
+   * The Market icon named 'chart-bar'.
    */
-  public val CategoryUtilities32: MarketIcon =
-    MarketIcon(Res.drawable.icon_category_utilities_32, false)
+  public val ChartBar: MarketIcon =
+    MarketIcon(Res.drawable.market_chart_bar, false)
 
   /**
-   * The Market icon named 'charity'.
-   *
-   * 24/charity
+   * The Market icon named 'chart-line'.
    */
-  public val Charity24: MarketIcon =
-    MarketIcon(Res.drawable.icon_charity_24, false)
+  public val ChartLine: MarketIcon =
+    MarketIcon(Res.drawable.market_chart_line, false)
 
   /**
-   * The Market icon named 'chatActive'.
-   *
-   * 24/chat-active
+   * The Market icon named 'chart-pie'.
    */
-  public val ChatActive24: MarketIcon =
-    MarketIcon(Res.drawable.icon_chat_active_24, false)
+  public val ChartPie: MarketIcon =
+    MarketIcon(Res.drawable.market_chart_pie, false)
 
   /**
-   * The Market icon named 'chatSmart'.
+   * The Market icon named 'chase'.
    *
-   * 24/chat-smart
+   * bank, payment
    */
-  public val ChatSmart24: MarketIcon =
-    MarketIcon(Res.drawable.icon_chat_smart_24, false)
+  public val Chase: MarketIcon =
+    MarketIcon(Res.drawable.market_chase, false)
 
   /**
    * The Market icon named 'check'.
-   *
-   * 16/check
    */
-  public val Check16: MarketIcon =
-    MarketIcon(Res.drawable.icon_check_16, false)
+  public val Check: MarketIcon =
+    MarketIcon(Res.drawable.market_check, false)
 
   /**
-   * The Market icon named 'check'.
-   *
-   * 24/check
+   * The Market icon named 'checkmark'.
    */
-  public val Check24: MarketIcon =
-    MarketIcon(Res.drawable.icon_check_24, false)
+  public val Checkmark: MarketIcon =
+    MarketIcon(Res.drawable.market_checkmark, false)
 
   /**
-   * The Market icon named 'check'.
+   * The Market icon named 'checkmark-circle'.
    *
-   * 32/check
+   * success
+   * succeed
    */
-  public val Check32: MarketIcon =
-    MarketIcon(Res.drawable.icon_check_32, false)
+  public val CheckmarkCircle: MarketIcon =
+    MarketIcon(Res.drawable.market_checkmark_circle, false)
 
   /**
-   * The Market icon named 'checkFill'.
+   * The Market icon named 'checkmark-circle-fill'.
    *
-   * 16/check-fill
+   * success
    */
-  public val CheckFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_check_fill_16, false)
+  public val CheckmarkCircleFill: MarketIcon =
+    MarketIcon(Res.drawable.market_checkmark_circle_fill, false)
 
   /**
-   * The Market icon named 'checkFill'.
+   * The Market icon named 'checkout-continuous'.
    *
-   * 24/check-fill
+   * Checkout / tiles continuous
    */
-  public val CheckFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_check_fill_24, false)
+  public val CheckoutContinuous: MarketIcon =
+    MarketIcon(Res.drawable.market_checkout_continuous, false)
 
   /**
-   * The Market icon named 'checkOutline'.
+   * The Market icon named 'checkout-small'.
    *
-   * 16/check-outline
+   * Checkout small
    */
-  public val CheckOutline16: MarketIcon =
-    MarketIcon(Res.drawable.icon_check_outline_16, false)
+  public val CheckoutSmall: MarketIcon =
+    MarketIcon(Res.drawable.market_checkout_small, false)
 
   /**
-   * The Market icon named 'clear'.
+   * The Market icon named 'checkout-variable'.
    *
-   * 16/clear
+   * Checkout variable
    */
-  public val Clear16: MarketIcon =
-    MarketIcon(Res.drawable.icon_clear_16, false)
+  public val CheckoutVariable: MarketIcon =
+    MarketIcon(Res.drawable.market_checkout_variable, false)
 
   /**
-   * The Market icon named 'clear'.
+   * The Market icon named 'cheeseburger'.
    *
-   * 24/clear
+   * squareup.com, food & beverage, food trucks (alternate)
    */
-  public val Clear24: MarketIcon =
-    MarketIcon(Res.drawable.icon_clear_24, false)
+  public val Cheeseburger: MarketIcon =
+    MarketIcon(Res.drawable.market_cheeseburger, false)
 
   /**
-   * The Market icon named 'clear'.
+   * The Market icon named 'chef-hat'.
    *
-   * 32/clear
+   * restaurants
+   * cook
    */
-  public val Clear32: MarketIcon =
-    MarketIcon(Res.drawable.icon_clear_32, false)
+  public val ChefHat: MarketIcon =
+    MarketIcon(Res.drawable.market_chef_hat, false)
 
   /**
-   * The Market icon named 'clearField'.
+   * The Market icon named 'chevron-down'.
    *
-   * 24/clear-field
+   * expand
    */
-  public val ClearField24: MarketIcon =
-    MarketIcon(Res.drawable.icon_clear_field_24, false)
+  public val ChevronDown: MarketIcon =
+    MarketIcon(Res.drawable.market_chevron_down, false)
 
   /**
-   * The Market icon named 'coins'.
+   * The Market icon named 'chevron-left'.
    *
-   * 24/coins
+   * return
    */
-  public val Coins24: MarketIcon =
-    MarketIcon(Res.drawable.icon_coins_24, false)
+  public val ChevronLeft: MarketIcon =
+    MarketIcon(Res.drawable.market_chevron_left, false)
 
   /**
-   * The Market icon named 'collapse'.
+   * The Market icon named 'chevron-right'.
    *
-   * 24/collapse
+   * continue
    */
-  public val Collapse24: MarketIcon =
-    MarketIcon(Res.drawable.icon_collapse_24, false)
+  public val ChevronRight: MarketIcon =
+    MarketIcon(Res.drawable.market_chevron_right, false)
 
   /**
-   * The Market icon named 'collapseCentered'.
+   * The Market icon named 'chevron-up'.
    *
-   * 24/collapse-centered
+   * collapse
    */
-  public val CollapseCentered24: MarketIcon =
-    MarketIcon(Res.drawable.icon_collapse_centered_24, false)
+  public val ChevronUp: MarketIcon =
+    MarketIcon(Res.drawable.market_chevron_up, false)
 
   /**
-   * The Market icon named 'commChat'.
+   * The Market icon named 'circle-1'.
    *
-   * 16/comm-chat
+   * one, first, number
    */
-  public val CommChat16: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_chat_16, false)
+  public val Circle1: MarketIcon =
+    MarketIcon(Res.drawable.market_circle_1, false)
 
   /**
-   * The Market icon named 'commChat'.
+   * The Market icon named 'circle-2'.
    *
-   * 24/comm-chat
+   * two, second, number
    */
-  public val CommChat24: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_chat_24, false)
+  public val Circle2: MarketIcon =
+    MarketIcon(Res.drawable.market_circle_2, false)
 
   /**
-   * The Market icon named 'commEmail'.
+   * The Market icon named 'circle-3'.
    *
-   * 16/comm-email
+   * three, third, number
    */
-  public val CommEmail16: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_email_16, false)
+  public val Circle3: MarketIcon =
+    MarketIcon(Res.drawable.market_circle_3, false)
 
   /**
-   * The Market icon named 'commEmail'.
+   * The Market icon named 'circle-4'.
    *
-   * 24/comm-email
+   * four, fourth, number
    */
-  public val CommEmail24: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_email_24, false)
+  public val Circle4: MarketIcon =
+    MarketIcon(Res.drawable.market_circle_4, false)
 
   /**
-   * The Market icon named 'commEmail'.
+   * The Market icon named 'circle-5'.
    *
-   * 32/comm-email
+   * five, fifth, number
    */
-  public val CommEmail32: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_email_32, false)
+  public val Circle5: MarketIcon =
+    MarketIcon(Res.drawable.market_circle_5, false)
 
   /**
-   * The Market icon named 'commEmailFill'.
+   * The Market icon named 'circle-6'.
    *
-   * 16/comm-email-fill
+   * six, sixth, number
    */
-  public val CommEmailFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_email_fill_16, false)
+  public val Circle6: MarketIcon =
+    MarketIcon(Res.drawable.market_circle_6, false)
 
   /**
-   * The Market icon named 'commEmailFill'.
+   * The Market icon named 'circle-7'.
    *
-   * 24/comm-email-fill
+   * seven, seventh, number
    */
-  public val CommEmailFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_email_fill_24, false)
+  public val Circle7: MarketIcon =
+    MarketIcon(Res.drawable.market_circle_7, false)
 
   /**
-   * The Market icon named 'commEmailFill'.
+   * The Market icon named 'circle-8'.
    *
-   * 32/comm-email-fill
+   * eight, eighth, number
    */
-  public val CommEmailFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_email_fill_32, false)
+  public val Circle8: MarketIcon =
+    MarketIcon(Res.drawable.market_circle_8, false)
 
   /**
-   * The Market icon named 'commPhoneFill'.
+   * The Market icon named 'circle-9'.
    *
-   * 16/comm-phone-fill
+   * nine, ninth, number
    */
-  public val CommPhoneFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_phone_fill_16, false)
+  public val Circle9: MarketIcon =
+    MarketIcon(Res.drawable.market_circle_9, false)
 
   /**
-   * The Market icon named 'commPhoneFill'.
+   * The Market icon named 'clipboard'.
    *
-   * 24/comm-phone-fill
+   * setup guide, list
    */
-  public val CommPhoneFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_phone_fill_24, false)
+  public val Clipboard: MarketIcon =
+    MarketIcon(Res.drawable.market_clipboard, false)
 
   /**
-   * The Market icon named 'commPhoneFill'.
-   *
-   * 32/comm-phone-fill
+   * The Market icon named 'clock'.
    */
-  public val CommPhoneFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_phone_fill_32, false)
+  public val Clock: MarketIcon =
+    MarketIcon(Res.drawable.market_clock, false)
 
   /**
-   * The Market icon named 'commSms'.
+   * The Market icon named 'clothes-hanger'.
    *
-   * 16/comm-sms
+   * apparel
    */
-  public val CommSms16: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_sms_16, false)
+  public val ClothesHanger: MarketIcon =
+    MarketIcon(Res.drawable.market_clothes_hanger, false)
 
   /**
-   * The Market icon named 'commSms'.
+   * The Market icon named 'cloud'.
    *
-   * 24/comm-sms
+   * weather
    */
-  public val CommSms24: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_sms_24, false)
+  public val Cloud: MarketIcon =
+    MarketIcon(Res.drawable.market_cloud, false)
 
   /**
-   * The Market icon named 'commSms'.
+   * The Market icon named 'cloud-1'.
    *
-   * 32/comm-sms
+   * cloud, weather
    */
-  public val CommSms32: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_sms_32, false)
+  public val Cloud1: MarketIcon =
+    MarketIcon(Res.drawable.market_cloud_1, false)
 
   /**
-   * The Market icon named 'commSmsFill'.
+   * The Market icon named 'cloud-1-slash'.
    *
-   * 16/comm-sms-fill
+   * offline
+   * no internet
    */
-  public val CommSmsFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_sms_fill_16, false)
+  public val Cloud1Slash: MarketIcon =
+    MarketIcon(Res.drawable.market_cloud_1_slash, false)
 
   /**
-   * The Market icon named 'commSmsFill'.
+   * The Market icon named 'codi-multicolor'.
    *
-   * 24/comm-sms-fill
+   * card logo, payment, LATAM
    */
-  public val CommSmsFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_sms_fill_24, false)
+  public val CodiMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_codi_multicolor, true)
 
   /**
-   * The Market icon named 'commSmsFill'.
+   * The Market icon named 'coin-sign-dollar'.
    *
-   * 32/comm-sms-fill
+   * USD
+   * CAD
+   * AUD
    */
-  public val CommSmsFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_comm_sms_fill_32, false)
+  public val CoinSignDollar: MarketIcon =
+    MarketIcon(Res.drawable.market_coin_sign_dollar, false)
 
   /**
-   * The Market icon named 'contactAdd'.
-   *
-   * 16/contact-add
+   * The Market icon named 'coin-sign-eur'.
    */
-  public val ContactAdd16: MarketIcon =
-    MarketIcon(Res.drawable.icon_contact_add_16, false)
+  public val CoinSignEur: MarketIcon =
+    MarketIcon(Res.drawable.market_coin_sign_eur, false)
 
   /**
-   * The Market icon named 'contactAdd'.
-   *
-   * 24/contact-add
+   * The Market icon named 'coin-sign-gbp'.
    */
-  public val ContactAdd24: MarketIcon =
-    MarketIcon(Res.drawable.icon_contact_add_24, false)
+  public val CoinSignGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_coin_sign_gbp, false)
 
   /**
-   * The Market icon named 'contactAdd'.
-   *
-   * 32/contact-add
+   * The Market icon named 'coin-sign-jpy'.
    */
-  public val ContactAdd32: MarketIcon =
-    MarketIcon(Res.drawable.icon_contact_add_32, false)
+  public val CoinSignJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_coin_sign_jpy, false)
 
   /**
-   * The Market icon named 'contactFalse'.
-   *
-   * 16/contact-false
+   * The Market icon named 'color-key-square-10'.
    */
-  public val ContactFalse16: MarketIcon =
-    MarketIcon(Res.drawable.icon_contact_false_16, false)
+  public val ColorKeySquare10: MarketIcon =
+    MarketIcon(Res.drawable.market_color_key_square_10, false)
 
   /**
-   * The Market icon named 'contactFalse'.
-   *
-   * 24/contact-false
+   * The Market icon named 'color-key-square-20'.
    */
-  public val ContactFalse24: MarketIcon =
-    MarketIcon(Res.drawable.icon_contact_false_24, false)
+  public val ColorKeySquare20: MarketIcon =
+    MarketIcon(Res.drawable.market_color_key_square_20, false)
 
   /**
-   * The Market icon named 'contactTrue'.
-   *
-   * 16/contact-true
+   * The Market icon named 'color-key-square-30'.
    */
-  public val ContactTrue16: MarketIcon =
-    MarketIcon(Res.drawable.icon_contact_true_16, false)
+  public val ColorKeySquare30: MarketIcon =
+    MarketIcon(Res.drawable.market_color_key_square_30, false)
 
   /**
-   * The Market icon named 'contactTrue'.
+   * The Market icon named 'color-selection'.
    *
-   * 24/contact-true
+   * edit
    */
-  public val ContactTrue24: MarketIcon =
-    MarketIcon(Res.drawable.icon_contact_true_24, false)
-
-  /**
-   * The Market icon named 'contactTrue'.
-   *
-   * 32/contact-true
-   */
-  public val ContactTrue32: MarketIcon =
-    MarketIcon(Res.drawable.icon_contact_true_32, false)
-
-  /**
-   * The Market icon named 'control'.
-   *
-   * 16/control
-   */
-  public val Control16: MarketIcon =
-    MarketIcon(Res.drawable.icon_control_16, false)
-
-  /**
-   * The Market icon named 'control'.
-   *
-   * 24/control
-   */
-  public val Control24: MarketIcon =
-    MarketIcon(Res.drawable.icon_control_24, false)
+  public val ColorSelection: MarketIcon =
+    MarketIcon(Res.drawable.market_color_selection, false)
 
   /**
    * The Market icon named 'copy'.
-   *
-   * 16/copy
-   */
-  public val Copy16: MarketIcon =
-    MarketIcon(Res.drawable.icon_copy_16, false)
-
-  /**
-   * The Market icon named 'copy'.
-   *
-   * 24/copy
-   */
-  public val Copy24: MarketIcon =
-    MarketIcon(Res.drawable.icon_copy_24, false)
-
-  /**
-   * The Market icon named 'copy'.
-   *
-   * 32/copy
-   */
-  public val Copy32: MarketIcon =
-    MarketIcon(Res.drawable.icon_copy_32, false)
-
-  /**
-   * The Market icon named 'currencyBtc'.
-   *
-   * 16/currency-btc (bitcoin)
-   */
-  public val CurrencyBtc16: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_btc_16, false)
-
-  /**
-   * The Market icon named 'currencyBtc'.
-   *
-   * 24/currency-btc (bitcoin)
-   */
-  public val CurrencyBtc24: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_btc_24, false)
-
-  /**
-   * The Market icon named 'currencyBtc'.
-   *
-   * 32/currency-btc (bitcoin)
-   */
-  public val CurrencyBtc32: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_btc_32, false)
-
-  /**
-   * The Market icon named 'currencyEur'.
-   *
-   * 16/currency-eur
-   */
-  public val CurrencyEur16: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_eur_16, false)
-
-  /**
-   * The Market icon named 'currencyEur'.
-   *
-   * 24/currency-eur
-   */
-  public val CurrencyEur24: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_eur_24, false)
-
-  /**
-   * The Market icon named 'currencyEur'.
-   *
-   * 32/currency-eur
-   */
-  public val CurrencyEur32: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_eur_32, false)
-
-  /**
-   * The Market icon named 'currencyGbp'.
-   *
-   * 16/currency-gbp
-   */
-  public val CurrencyGbp16: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_gbp_16, false)
-
-  /**
-   * The Market icon named 'currencyGbp'.
-   *
-   * 24/currency-gbp
-   */
-  public val CurrencyGbp24: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_gbp_24, false)
-
-  /**
-   * The Market icon named 'currencyGbp'.
-   *
-   * 32/currency-gbp
-   */
-  public val CurrencyGbp32: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_gbp_32, false)
-
-  /**
-   * The Market icon named 'currencyUsd'.
-   *
-   * 16/currency-usd (also cashtag)
-   */
-  public val CurrencyUsd16: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_usd_16, false)
-
-  /**
-   * The Market icon named 'currencyUsd'.
-   *
-   * 24/currency-usd (also cashtag)
-   */
-  public val CurrencyUsd24: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_usd_24, false)
-
-  /**
-   * The Market icon named 'currencyUsd'.
-   *
-   * 32/currency-usd (also cashtag)
-   */
-  public val CurrencyUsd32: MarketIcon =
-    MarketIcon(Res.drawable.icon_currency_usd_32, false)
-
-  /**
-   * The Market icon named 'customizeBrushFill'.
-   *
-   * 16/customize-brush-fill
-   */
-  public val CustomizeBrushFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_customize_brush_fill_16, false)
-
-  /**
-   * The Market icon named 'customizeBrushFill'.
-   *
-   * 24/customize-brush-fill
-   */
-  public val CustomizeBrushFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_customize_brush_fill_24, false)
-
-  /**
-   * The Market icon named 'customizeBrushFill'.
-   *
-   * 32/customize-brush-fill
-   */
-  public val CustomizeBrushFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_customize_brush_fill_32, false)
-
-  /**
-   * The Market icon named 'data'.
-   *
-   * 24/data
-   */
-  public val Data24: MarketIcon =
-    MarketIcon(Res.drawable.icon_data_24, false)
-
-  /**
-   * The Market icon named 'date'.
-   *
-   * 16/date
-   */
-  public val Date16: MarketIcon =
-    MarketIcon(Res.drawable.icon_date_16, false)
-
-  /**
-   * The Market icon named 'date'.
-   *
-   * 24/date
-   */
-  public val Date24: MarketIcon =
-    MarketIcon(Res.drawable.icon_date_24, false)
-
-  /**
-   * The Market icon named 'date'.
-   *
-   * 32/date
-   */
-  public val Date32: MarketIcon =
-    MarketIcon(Res.drawable.icon_date_32, false)
-
-  /**
-   * The Market icon named 'dateStart'.
-   *
-   * 24/date-start
-   */
-  public val DateStart24: MarketIcon =
-    MarketIcon(Res.drawable.icon_date_start_24, false)
-
-  /**
-   * The Market icon named 'dateStop'.
-   *
-   * 24/date-stop
-   */
-  public val DateStop24: MarketIcon =
-    MarketIcon(Res.drawable.icon_date_stop_24, false)
-
-  /**
-   * The Market icon named 'delivery'.
-   *
-   * 16/delivery
-   */
-  public val Delivery16: MarketIcon =
-    MarketIcon(Res.drawable.icon_delivery_16, false)
-
-  /**
-   * The Market icon named 'delivery'.
-   *
-   * 24/delivery
-   */
-  public val Delivery24: MarketIcon =
-    MarketIcon(Res.drawable.icon_delivery_24, false)
-
-  /**
-   * The Market icon named 'delivery'.
-   *
-   * 32/delivery
-   */
-  public val Delivery32: MarketIcon =
-    MarketIcon(Res.drawable.icon_delivery_32, false)
-
-  /**
-   * The Market icon named 'deposit'.
-   *
-   * 16/deposit
-   */
-  public val Deposit16: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_16, false)
-
-  /**
-   * The Market icon named 'deposit'.
-   *
-   * 24/deposit
-   */
-  public val Deposit24: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_24, false)
-
-  /**
-   * The Market icon named 'deposit'.
-   *
-   * 32/deposit
-   */
-  public val Deposit32: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_32, false)
-
-  /**
-   * The Market icon named 'depositBarcode'.
-   *
-   * 16/deposit-barcode
-   */
-  public val DepositBarcode16: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_barcode_16, false)
-
-  /**
-   * The Market icon named 'depositBarcode'.
-   *
-   * 24/deposit-barcode
-   */
-  public val DepositBarcode24: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_barcode_24, false)
-
-  /**
-   * The Market icon named 'depositBarcode'.
-   *
-   * 32/deposit-barcode
-   */
-  public val DepositBarcode32: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_barcode_32, false)
-
-  /**
-   * The Market icon named 'depositCheck'.
-   *
-   * 16/deposit-check
-   */
-  public val DepositCheck16: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_check_16, false)
-
-  /**
-   * The Market icon named 'depositCheck'.
-   *
-   * 24/deposit-check
-   */
-  public val DepositCheck24: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_check_24, false)
-
-  /**
-   * The Market icon named 'depositCheck'.
-   *
-   * 32/deposit-check
-   */
-  public val DepositCheck32: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_check_32, false)
-
-  /**
-   * The Market icon named 'depositPaper'.
-   *
-   * 24/deposit-paper
-   */
-  public val DepositPaper24: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_paper_24, false)
-
-  /**
-   * The Market icon named 'depositPaper'.
-   *
-   * 32/deposit-paper
-   */
-  public val DepositPaper32: MarketIcon =
-    MarketIcon(Res.drawable.icon_deposit_paper_32, false)
-
-  /**
-   * The Market icon named 'deviceDesktop'.
-   *
-   * 16/device-desktop
-   */
-  public val DeviceDesktop16: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_desktop_16, false)
-
-  /**
-   * The Market icon named 'deviceDesktop'.
-   *
-   * 24/device-desktop
-   */
-  public val DeviceDesktop24: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_desktop_24, false)
-
-  /**
-   * The Market icon named 'deviceDesktop'.
-   *
-   * 32/device-desktop
-   */
-  public val DeviceDesktop32: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_desktop_32, false)
-
-  /**
-   * The Market icon named 'deviceLaptop'.
-   *
-   * 16/device-laptop
-   */
-  public val DeviceLaptop16: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_laptop_16, false)
-
-  /**
-   * The Market icon named 'deviceLaptop'.
-   *
-   * 24/device-laptop
-   */
-  public val DeviceLaptop24: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_laptop_24, false)
-
-  /**
-   * The Market icon named 'deviceLaptop'.
-   *
-   * 32/device-laptop
-   */
-  public val DeviceLaptop32: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_laptop_32, false)
-
-  /**
-   * The Market icon named 'deviceMobile'.
-   *
-   * 16/device-mobile
-   */
-  public val DeviceMobile16: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_mobile_16, false)
-
-  /**
-   * The Market icon named 'deviceMobile'.
-   *
-   * 24/device-mobile
-   */
-  public val DeviceMobile24: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_mobile_24, false)
-
-  /**
-   * The Market icon named 'deviceMobile'.
-   *
-   * 32/device-mobile
-   */
-  public val DeviceMobile32: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_mobile_32, false)
-
-  /**
-   * The Market icon named 'deviceTap'.
-   *
-   * 16/device-tap
-   */
-  public val DeviceTap16: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_tap_16, false)
-
-  /**
-   * The Market icon named 'deviceTap'.
-   *
-   * 24/device-tap
-   */
-  public val DeviceTap24: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_tap_24, false)
-
-  /**
-   * The Market icon named 'deviceTap'.
-   *
-   * 32/device-tap
-   */
-  public val DeviceTap32: MarketIcon =
-    MarketIcon(Res.drawable.icon_device_tap_32, false)
-
-  /**
-   * The Market icon named 'dineIn'.
-   *
-   * 24/dine-in
-   */
-  public val DineIn24: MarketIcon =
-    MarketIcon(Res.drawable.icon_dine_in_24, false)
-
-  /**
-   * The Market icon named 'discountMaximum'.
-   *
-   * 16/discount-maximum
-   */
-  public val DiscountMaximum16: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_maximum_16, false)
-
-  /**
-   * The Market icon named 'discountMaximum'.
-   *
-   * 24/discount-maximum
-   */
-  public val DiscountMaximum24: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_maximum_24, false)
-
-  /**
-   * The Market icon named 'discountMaximum'.
-   *
-   * 32/discount-maximum
-   */
-  public val DiscountMaximum32: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_maximum_32, false)
-
-  /**
-   * The Market icon named 'discountMinimum'.
-   *
-   * 16/discount-minimum
-   */
-  public val DiscountMinimum16: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_minimum_16, false)
-
-  /**
-   * The Market icon named 'discountMinimum'.
-   *
-   * 24/discount-minimum
-   */
-  public val DiscountMinimum24: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_minimum_24, false)
-
-  /**
-   * The Market icon named 'discountMinimum'.
-   *
-   * 32/discount-minimum
-   */
-  public val DiscountMinimum32: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_minimum_32, false)
-
-  /**
-   * The Market icon named 'discountPercentage'.
-   *
-   * 16/discount-percentage
-   */
-  public val DiscountPercentage16: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_percentage_16, false)
-
-  /**
-   * The Market icon named 'discountPercentage'.
-   *
-   * 24/discount-percentage
-   */
-  public val DiscountPercentage24: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_percentage_24, false)
-
-  /**
-   * The Market icon named 'discountPercentage'.
-   *
-   * 32/discount-percentage
    */
-  public val DiscountPercentage32: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_percentage_32, false)
+  public val Copy: MarketIcon =
+    MarketIcon(Res.drawable.market_copy, false)
 
   /**
-   * The Market icon named 'discountTag'.
+   * The Market icon named 'coupe-spot'.
    *
-   * 16/discount-tag
+   * Drive thru
    */
-  public val DiscountTag16: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_tag_16, false)
+  public val CoupeSpot: MarketIcon =
+    MarketIcon(Res.drawable.market_coupe_spot, false)
 
   /**
-   * The Market icon named 'discountTag'.
+   * The Market icon named 'critical-badge-alert'.
    *
-   * 24/discount-tag
+   * itemTile.state:unavailable.icon
    */
-  public val DiscountTag24: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_tag_24, false)
+  public val CriticalBadgeAlert: MarketIcon =
+    MarketIcon(Res.drawable.market_critical_badge_alert, false)
 
   /**
-   * The Market icon named 'discountTag'.
+   * The Market icon named 'cup'.
    *
-   * 32/discount-tag
+   * cafe
+   * coffee
+   * mug
    */
-  public val DiscountTag32: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_tag_32, false)
+  public val Cup: MarketIcon =
+    MarketIcon(Res.drawable.market_cup, false)
 
   /**
-   * The Market icon named 'discountTagFill'.
-   *
-   * 16/discount-tag-fill
+   * The Market icon named 'custom-icon'.
    */
-  public val DiscountTagFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_tag_fill_16, false)
+  public val CustomIcon: MarketIcon =
+    MarketIcon(Res.drawable.market_custom_icon, false)
 
   /**
-   * The Market icon named 'discountTagFill'.
-   *
-   * 24/discount-tag-fill
+   * The Market icon named 'cycle-backward'.
    */
-  public val DiscountTagFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_tag_fill_24, false)
+  public val CycleBackward: MarketIcon =
+    MarketIcon(Res.drawable.market_cycle_backward, false)
 
   /**
-   * The Market icon named 'discountTagFill'.
-   *
-   * 32/discount-tag-fill
+   * The Market icon named 'cycle-forward'.
    */
-  public val DiscountTagFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_discount_tag_fill_32, false)
+  public val CycleForward: MarketIcon =
+    MarketIcon(Res.drawable.market_cycle_forward, false)
 
   /**
-   * The Market icon named 'document'.
+   * The Market icon named 'dark-mode'.
    *
-   * 16/document
+   * dark mode
    */
-  public val Document16: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_16, false)
+  public val DarkMode: MarketIcon =
+    MarketIcon(Res.drawable.market_dark_mode, false)
 
   /**
-   * The Market icon named 'document'.
+   * The Market icon named 'dashed-circle-star'.
    *
-   * 24/document
+   * loyalty
    */
-  public val Document24: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_24, false)
+  public val DashedCircleStar: MarketIcon =
+    MarketIcon(Res.drawable.market_dashed_circle_star, false)
 
   /**
-   * The Market icon named 'document'.
+   * The Market icon named 'dashed-clock'.
    *
-   * 32/document
+   * shifts
    */
-  public val Document32: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_32, false)
+  public val DashedClock: MarketIcon =
+    MarketIcon(Res.drawable.market_dashed_clock, false)
 
   /**
-   * The Market icon named 'documentCertificate'.
+   * The Market icon named 'deposit-sign-dollar'.
    *
-   * 16/document-certificate
+   * USD
+   * CAD
+   * AUD
    */
-  public val DocumentCertificate16: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_certificate_16, false)
+  public val DepositSignDollar: MarketIcon =
+    MarketIcon(Res.drawable.market_deposit_sign_dollar, false)
 
   /**
-   * The Market icon named 'documentCertificate'.
-   *
-   * 24/document-certificate
+   * The Market icon named 'deposit-sign-eur'.
    */
-  public val DocumentCertificate24: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_certificate_24, false)
+  public val DepositSignEur: MarketIcon =
+    MarketIcon(Res.drawable.market_deposit_sign_eur, false)
 
   /**
-   * The Market icon named 'documentCertificate'.
-   *
-   * 32/document-certificate
+   * The Market icon named 'deposit-sign-gbp'.
    */
-  public val DocumentCertificate32: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_certificate_32, false)
+  public val DepositSignGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_deposit_sign_gbp, false)
 
   /**
-   * The Market icon named 'documentCourtOrder'.
-   *
-   * 16/document-court-order
+   * The Market icon named 'deposit-sign-jpy'.
    */
-  public val DocumentCourtOrder16: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_court_order_16, false)
+  public val DepositSignJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_deposit_sign_jpy, false)
 
   /**
-   * The Market icon named 'documentCourtOrder'.
-   *
-   * 24/document-court-order
+   * The Market icon named 'desktop'.
    */
-  public val DocumentCourtOrder24: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_court_order_24, false)
+  public val Desktop: MarketIcon =
+    MarketIcon(Res.drawable.market_desktop, false)
 
   /**
-   * The Market icon named 'documentCourtOrder'.
-   *
-   * 32/document-court-order
+   * The Market icon named 'developer'.
    */
-  public val DocumentCourtOrder32: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_court_order_32, false)
+  public val Developer: MarketIcon =
+    MarketIcon(Res.drawable.market_developer, false)
 
   /**
-   * The Market icon named 'documentFill'.
+   * The Market icon named 'device-code'.
    *
-   * 16/document-fill
+   * Device code, asterisk, password
    */
-  public val DocumentFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_fill_16, false)
+  public val DeviceCode: MarketIcon =
+    MarketIcon(Res.drawable.market_device_code, false)
 
   /**
-   * The Market icon named 'documentFill'.
+   * The Market icon named 'diagram'.
    *
-   * 24/document-fill
+   * admin
    */
-  public val DocumentFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_fill_24, false)
+  public val Diagram: MarketIcon =
+    MarketIcon(Res.drawable.market_diagram, false)
 
   /**
-   * The Market icon named 'documentFill'.
+   * The Market icon named 'diagram-horizontal'.
    *
-   * 32/document-fill
+   * online sales channels
    */
-  public val DocumentFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_fill_32, false)
+  public val DiagramHorizontal: MarketIcon =
+    MarketIcon(Res.drawable.market_diagram_horizontal, false)
 
   /**
-   * The Market icon named 'documentPaystub'.
-   *
-   * 16/document-paystub
+   * The Market icon named 'diamond'.
    */
-  public val DocumentPaystub16: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_paystub_16, false)
+  public val Diamond: MarketIcon =
+    MarketIcon(Res.drawable.market_diamond, false)
 
   /**
-   * The Market icon named 'documentPaystub'.
-   *
-   * 24/document-paystub
+   * The Market icon named 'digital-scale'.
    */
-  public val DocumentPaystub24: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_paystub_24, false)
+  public val DigitalScale: MarketIcon =
+    MarketIcon(Res.drawable.market_digital_scale, false)
 
   /**
-   * The Market icon named 'documentPaystub'.
+   * The Market icon named 'diners-multicolor'.
    *
-   * 32/document-paystub
+   * card logo, payment
    */
-  public val DocumentPaystub32: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_paystub_32, false)
+  public val DinersMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_diners_multicolor, true)
 
   /**
-   * The Market icon named 'documentQuill'.
+   * The Market icon named 'discord'.
    *
-   * 16/document-quill
+   * social
    */
-  public val DocumentQuill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_quill_16, false)
+  public val Discord: MarketIcon =
+    MarketIcon(Res.drawable.market_discord, false)
 
   /**
-   * The Market icon named 'documentQuill'.
+   * The Market icon named 'discover-multicolor'.
    *
-   * 24/document-quill
+   * card logo, payment
    */
-  public val DocumentQuill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_quill_24, false)
+  public val DiscoverMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_discover_multicolor, true)
 
   /**
-   * The Market icon named 'documentQuill'.
+   * The Market icon named 'disposable-cup'.
    *
-   * 32/document-quill
+   * coffee
+   * drink
    */
-  public val DocumentQuill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_quill_32, false)
+  public val DisposableCup: MarketIcon =
+    MarketIcon(Res.drawable.market_disposable_cup, false)
 
   /**
-   * The Market icon named 'documentW2'.
-   *
-   * 16/document-w2
+   * The Market icon named 'divide'.
    */
-  public val DocumentW216: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_w_216, false)
+  public val Divide: MarketIcon =
+    MarketIcon(Res.drawable.market_divide, false)
 
   /**
-   * The Market icon named 'documentW2'.
+   * The Market icon named 'dogeared-paper'.
    *
-   * 24/document-w2
+   * file
    */
-  public val DocumentW224: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_w_224, false)
+  public val DogearedPaper: MarketIcon =
+    MarketIcon(Res.drawable.market_dogeared_paper, false)
 
   /**
-   * The Market icon named 'documentW2'.
+   * The Market icon named 'dogeared-paper-sign-dollar'.
    *
-   * 32/document-w2
+   * invoices
+   * USD
+   * CAD
    */
-  public val DocumentW232: MarketIcon =
-    MarketIcon(Res.drawable.icon_document_w_232, false)
+  public val DogearedPaperSignDollar: MarketIcon =
+    MarketIcon(Res.drawable.market_dogeared_paper_sign_dollar, false)
 
   /**
-   * The Market icon named 'download'.
+   * The Market icon named 'dogeared-paper-sign-eur'.
    *
-   * 16/download
+   * invoices
    */
-  public val Download16: MarketIcon =
-    MarketIcon(Res.drawable.icon_download_16, false)
+  public val DogearedPaperSignEur: MarketIcon =
+    MarketIcon(Res.drawable.market_dogeared_paper_sign_eur, false)
 
   /**
-   * The Market icon named 'download'.
+   * The Market icon named 'dogeared-paper-sign-gbp'.
    *
-   * 24/download
+   * invoices
    */
-  public val Download24: MarketIcon =
-    MarketIcon(Res.drawable.icon_download_24, false)
+  public val DogearedPaperSignGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_dogeared_paper_sign_gbp, false)
 
   /**
-   * The Market icon named 'download'.
+   * The Market icon named 'dogeared-paper-sign-jpy'.
    *
-   * 32/download
+   * invoices
    */
-  public val Download32: MarketIcon =
-    MarketIcon(Res.drawable.icon_download_32, false)
+  public val DogearedPaperSignJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_dogeared_paper_sign_jpy, false)
 
   /**
-   * The Market icon named 'downtrend'.
-   *
-   * 16/down-right
+   * The Market icon named 'donation'.
    */
-  public val Downtrend16: MarketIcon =
-    MarketIcon(Res.drawable.icon_downtrend_16, false)
+  public val Donation: MarketIcon =
+    MarketIcon(Res.drawable.market_donation, false)
 
   /**
-   * The Market icon named 'draw'.
+   * The Market icon named 'door-dash'.
    *
-   * 16/draw
+   * order, delivery, pickup
    */
-  public val Draw16: MarketIcon =
-    MarketIcon(Res.drawable.icon_draw_16, false)
+  public val DoorDash: MarketIcon =
+    MarketIcon(Res.drawable.market_door_dash, false)
 
   /**
-   * The Market icon named 'draw'.
-   *
-   * 24/draw
+   * The Market icon named 'down-left'.
    */
-  public val Draw24: MarketIcon =
-    MarketIcon(Res.drawable.icon_draw_24, false)
+  public val DownLeft: MarketIcon =
+    MarketIcon(Res.drawable.market_down_left, false)
 
   /**
-   * The Market icon named 'draw'.
-   *
-   * 32/draw
+   * The Market icon named 'down-right'.
    */
-  public val Draw32: MarketIcon =
-    MarketIcon(Res.drawable.icon_draw_32, false)
+  public val DownRight: MarketIcon =
+    MarketIcon(Res.drawable.market_down_right, false)
 
   /**
-   * The Market icon named 'edit'.
-   *
-   * 16/edit
+   * The Market icon named 'drawer'.
    */
-  public val Edit16: MarketIcon =
-    MarketIcon(Res.drawable.icon_edit_16, false)
+  public val Drawer: MarketIcon =
+    MarketIcon(Res.drawable.market_drawer, false)
 
   /**
-   * The Market icon named 'edit'.
+   * The Market icon named 'drive-thru'.
    *
-   * 24/edit
+   * Drive-thru
    */
-  public val Edit24: MarketIcon =
-    MarketIcon(Res.drawable.icon_edit_24, false)
+  public val DriveThru: MarketIcon =
+    MarketIcon(Res.drawable.market_drive_thru, false)
 
   /**
-   * The Market icon named 'employer'.
+   * The Market icon named 'dual-rotating-arrows'.
    *
-   * 24/employer
+   * refresh, cycle
    */
-  public val Employer24: MarketIcon =
-    MarketIcon(Res.drawable.icon_employer_24, false)
+  public val DualRotatingArrows: MarketIcon =
+    MarketIcon(Res.drawable.market_dual_rotating_arrows, false)
 
   /**
-   * The Market icon named 'expand'.
+   * The Market icon named 'dual-rotating-square-arrows'.
    *
-   * 24/expand
+   * cross, location
    */
-  public val Expand24: MarketIcon =
-    MarketIcon(Res.drawable.icon_expand_24, false)
+  public val DualRotatingSquareArrows: MarketIcon =
+    MarketIcon(Res.drawable.market_dual_rotating_square_arrows, false)
 
   /**
-   * The Market icon named 'expandCentered'.
+   * The Market icon named 'dumbbell'.
    *
-   * 24/expand-centered
+   * weight
+   * health
+   * fitness
    */
-  public val ExpandCentered24: MarketIcon =
-    MarketIcon(Res.drawable.icon_expand_centered_24, false)
+  public val Dumbbell: MarketIcon =
+    MarketIcon(Res.drawable.market_dumbbell, false)
 
   /**
-   * The Market icon named 'failed'.
+   * The Market icon named 'ebt-multicolor'.
    *
-   * 16/failed (+ bg circle)
+   * card logo, payment
    */
-  public val Failed16: MarketIcon =
-    MarketIcon(Res.drawable.icon_failed_16, false)
+  public val EbtMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_ebt_multicolor, true)
 
   /**
-   * The Market icon named 'failed'.
+   * The Market icon named 'eftpos-multicolor'.
    *
-   * 24/failed (+ bg circle)
+   * card logo, payment
    */
-  public val Failed24: MarketIcon =
-    MarketIcon(Res.drawable.icon_failed_24, false)
+  public val EftposMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_eftpos_multicolor, true)
 
   /**
-   * The Market icon named 'failed'.
+   * The Market icon named 'ellipsis-horizontal'.
    *
-   * 32/failed
+   * more, overflow
    */
-  public val Failed32: MarketIcon =
-    MarketIcon(Res.drawable.icon_failed_32, false)
+  public val EllipsisHorizontal: MarketIcon =
+    MarketIcon(Res.drawable.market_ellipsis_horizontal, false)
 
   /**
-   * The Market icon named 'failedFill'.
+   * The Market icon named 'ellipsis-vertical'.
    *
-   * 16/failed-fill (do not use with bg circle)
+   * more options
    */
-  public val FailedFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_failed_fill_16, false)
+  public val EllipsisVertical: MarketIcon =
+    MarketIcon(Res.drawable.market_ellipsis_vertical, false)
 
   /**
-   * The Market icon named 'failedFill'.
+   * The Market icon named 'emotion-happy'.
    *
-   * 24/failed-fill (do not use with bg circle)
+   * emoji, happy, react
    */
-  public val FailedFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_failed_fill_24, false)
+  public val EmotionHappy: MarketIcon =
+    MarketIcon(Res.drawable.market_emotion_happy, false)
 
   /**
-   * The Market icon named 'failedFill'.
+   * The Market icon named 'emotion-neutral'.
    *
-   * 32/failed-fill [archived]
+   * emoji, neutral, react
    */
-  public val FailedFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_failed_fill_32, false)
+  public val EmotionNeutral: MarketIcon =
+    MarketIcon(Res.drawable.market_emotion_neutral, false)
 
   /**
-   * The Market icon named 'failedOutline'.
+   * The Market icon named 'emotion-plus'.
    *
-   * 16/failed-outline
+   * emoji, add, react
    */
-  public val FailedOutline16: MarketIcon =
-    MarketIcon(Res.drawable.icon_failed_outline_16, false)
+  public val EmotionPlus: MarketIcon =
+    MarketIcon(Res.drawable.market_emotion_plus, false)
 
   /**
-   * The Market icon named 'failedOutline'.
+   * The Market icon named 'emotion-sad'.
    *
-   * 24/failed-outline
+   * emoji, sad, react
    */
-  public val FailedOutline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_failed_outline_24, false)
+  public val EmotionSad: MarketIcon =
+    MarketIcon(Res.drawable.market_emotion_sad, false)
 
   /**
-   * The Market icon named 'failedOutline'.
+   * The Market icon named 'empty-frame'.
    *
-   * 32/failed-outline [archived]
+   * itemTile.state:unavailable.icon
    */
-  public val FailedOutline32: MarketIcon =
-    MarketIcon(Res.drawable.icon_failed_outline_32, false)
+  public val EmptyFrame: MarketIcon =
+    MarketIcon(Res.drawable.market_empty_frame, false)
 
   /**
-   * The Market icon named 'family'.
-   *
-   * 16/family
+   * The Market icon named 'envelope'.
    */
-  public val Family16: MarketIcon =
-    MarketIcon(Res.drawable.icon_family_16, false)
+  public val Envelope: MarketIcon =
+    MarketIcon(Res.drawable.market_envelope, false)
 
   /**
-   * The Market icon named 'family'.
+   * The Market icon named 'envelope-arrow-right'.
    *
-   * 24/family
+   * folder, move
    */
-  public val Family24: MarketIcon =
-    MarketIcon(Res.drawable.icon_family_24, false)
+  public val EnvelopeArrowRight: MarketIcon =
+    MarketIcon(Res.drawable.market_envelope_arrow_right, false)
 
   /**
-   * The Market icon named 'family'.
+   * The Market icon named 'equal'.
    *
-   * 32/family
+   * Lines
    */
-  public val Family32: MarketIcon =
-    MarketIcon(Res.drawable.icon_family_32, false)
+  public val Equal: MarketIcon =
+    MarketIcon(Res.drawable.market_equal, false)
 
   /**
-   * The Market icon named 'familyExpense'.
+   * The Market icon named 'ethernet'.
    *
-   * 24/family-expense
+   * Wired internet
    */
-  public val FamilyExpense24: MarketIcon =
-    MarketIcon(Res.drawable.icon_family_expense_24, false)
+  public val Ethernet: MarketIcon =
+    MarketIcon(Res.drawable.market_ethernet, false)
 
   /**
-   * The Market icon named 'fast'.
+   * The Market icon named 'ethernet-exclamation'.
    *
-   * 16/fast
+   * Wired internet
    */
-  public val Fast16: MarketIcon =
-    MarketIcon(Res.drawable.icon_fast_16, false)
+  public val EthernetExclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_ethernet_exclamation, false)
 
   /**
-   * The Market icon named 'fast'.
+   * The Market icon named 'exclamation-circle'.
    *
-   * 24/fast
+   * warning
+   * warn
    */
-  public val Fast24: MarketIcon =
-    MarketIcon(Res.drawable.icon_fast_24, false)
+  public val ExclamationCircle: MarketIcon =
+    MarketIcon(Res.drawable.market_exclamation_circle, false)
 
   /**
-   * The Market icon named 'fast'.
-   *
-   * 32/fast
+   * The Market icon named 'exclamation-circle-fill'.
    */
-  public val Fast32: MarketIcon =
-    MarketIcon(Res.drawable.icon_fast_32, false)
+  public val ExclamationCircleFill: MarketIcon =
+    MarketIcon(Res.drawable.market_exclamation_circle_fill, false)
 
   /**
-   * The Market icon named 'favorite'.
+   * The Market icon named 'exclamation-triangle'.
    *
-   * 16/favorite
+   * warning
+   * warn
    */
-  public val Favorite16: MarketIcon =
-    MarketIcon(Res.drawable.icon_favorite_16, false)
+  public val ExclamationTriangle: MarketIcon =
+    MarketIcon(Res.drawable.market_exclamation_triangle, false)
 
   /**
-   * The Market icon named 'favorite'.
+   * The Market icon named 'exclamation-triangle-fill'.
    *
-   * 24/favorite
+   * warning
+   * warn
    */
-  public val Favorite24: MarketIcon =
-    MarketIcon(Res.drawable.icon_favorite_24, false)
+  public val ExclamationTriangleFill: MarketIcon =
+    MarketIcon(Res.drawable.market_exclamation_triangle_fill, false)
 
   /**
-   * The Market icon named 'favoriteFill'.
+   * The Market icon named 'eye'.
    *
-   * 16/favorite-fill
+   * view.state:visible
+   * show
    */
-  public val FavoriteFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_favorite_fill_16, false)
+  public val Eye: MarketIcon =
+    MarketIcon(Res.drawable.market_eye, false)
 
   /**
-   * The Market icon named 'favoriteFill'.
+   * The Market icon named 'eye-slash'.
    *
-   * 24/favorite-fill
+   * view.state:hidden
+   * hide
    */
-  public val FavoriteFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_favorite_fill_24, false)
+  public val EyeSlash: MarketIcon =
+    MarketIcon(Res.drawable.market_eye_slash, false)
 
   /**
-   * The Market icon named 'favoriteFill'.
+   * The Market icon named 'facebook'.
    *
-   * 32/favorite-fill
+   * meta, social
    */
-  public val FavoriteFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_favorite_fill_32, false)
+  public val Facebook: MarketIcon =
+    MarketIcon(Res.drawable.market_facebook, false)
 
   /**
    * The Market icon named 'fdic'.
-   *
-   * 16/fdic (FDIC only)
    */
-  public val Fdic16: MarketIcon =
-    MarketIcon(Res.drawable.icon_fdic_16, false)
+  public val Fdic: MarketIcon =
+    MarketIcon(Res.drawable.market_fdic, false)
 
   /**
-   * The Market icon named 'fdic'.
-   *
-   * 24/fdic (FDIC only)
+   * The Market icon named 'fdic-multicolor'.
    */
-  public val Fdic24: MarketIcon =
-    MarketIcon(Res.drawable.icon_fdic_24, false)
+  public val FdicMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_fdic_multicolor, true)
 
   /**
-   * The Market icon named 'fdic'.
+   * The Market icon named 'felica-multicolor'.
    *
-   * 32/fdic (FDIC only)
+   * card logo, payment
    */
-  public val Fdic32: MarketIcon =
-    MarketIcon(Res.drawable.icon_fdic_32, false)
+  public val FelicaMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_felica_multicolor, true)
 
   /**
-   * The Market icon named 'flashOff'.
-   *
-   * 16/flash-off
+   * The Market icon named 'file-download'.
    */
-  public val FlashOff16: MarketIcon =
-    MarketIcon(Res.drawable.icon_flash_off_16, false)
+  public val FileDownload: MarketIcon =
+    MarketIcon(Res.drawable.market_file_download, false)
 
   /**
-   * The Market icon named 'flashOff'.
-   *
-   * 24/flash-off
+   * The Market icon named 'file-upload'.
    */
-  public val FlashOff24: MarketIcon =
-    MarketIcon(Res.drawable.icon_flash_off_24, false)
+  public val FileUpload: MarketIcon =
+    MarketIcon(Res.drawable.market_file_upload, false)
 
   /**
-   * The Market icon named 'flashOn'.
+   * The Market icon named 'filled-frame'.
    *
-   * 16/flash-on
+   * itemTile.state:available.icon
    */
-  public val FlashOn16: MarketIcon =
-    MarketIcon(Res.drawable.icon_flash_on_16, false)
+  public val FilledFrame: MarketIcon =
+    MarketIcon(Res.drawable.market_filled_frame, false)
 
   /**
-   * The Market icon named 'flashOn'.
+   * The Market icon named 'filter'.
    *
-   * 24/flash-on
+   * filter
    */
-  public val FlashOn24: MarketIcon =
-    MarketIcon(Res.drawable.icon_flash_on_24, false)
+  public val Filter: MarketIcon =
+    MarketIcon(Res.drawable.market_filter, false)
 
   /**
-   * The Market icon named 'flashOn'.
-   *
-   * 32/flash-on
+   * The Market icon named 'finger-1'.
    */
-  public val FlashOn32: MarketIcon =
-    MarketIcon(Res.drawable.icon_flash_on_32, false)
+  public val Finger1: MarketIcon =
+    MarketIcon(Res.drawable.market_finger_1, false)
 
   /**
-   * The Market icon named 'flashlightFill'.
-   *
-   * 16/flashlight-fill
+   * The Market icon named 'finger-2'.
    */
-  public val FlashlightFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_flashlight_fill_16, false)
+  public val Finger2: MarketIcon =
+    MarketIcon(Res.drawable.market_finger_2, false)
 
   /**
-   * The Market icon named 'flashlightFill'.
-   *
-   * 24/flashlight-fill
+   * The Market icon named 'finger-3'.
    */
-  public val FlashlightFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_flashlight_fill_24, false)
+  public val Finger3: MarketIcon =
+    MarketIcon(Res.drawable.market_finger_3, false)
 
   /**
-   * The Market icon named 'flashlightOffFill'.
+   * The Market icon named 'fingernail'.
    *
-   * 24/flashlight-off-fill
+   * squareup.com, beauty, nail salon
    */
-  public val FlashlightOffFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_flashlight_off_fill_24, false)
+  public val Fingernail: MarketIcon =
+    MarketIcon(Res.drawable.market_fingernail, false)
 
   /**
-   * The Market icon named 'flatFee'.
-   *
-   * 24/flat fee
+   * The Market icon named 'fingerprint'.
    */
-  public val FlatFee24: MarketIcon =
-    MarketIcon(Res.drawable.icon_flat_fee_24, false)
+  public val Fingerprint: MarketIcon =
+    MarketIcon(Res.drawable.market_fingerprint, false)
 
   /**
-   * The Market icon named 'fpoBurst'.
-   *
-   * FPO
+   * The Market icon named 'fire'.
    */
-  public val FpoBurst32: MarketIcon =
-    MarketIcon(Res.drawable.icon_fpo_burst_32, false)
+  public val Fire: MarketIcon =
+    MarketIcon(Res.drawable.market_fire, false)
 
   /**
-   * The Market icon named 'fpoShrimp'.
+   * The Market icon named 'fire-fill'.
    *
-   * 16/fpo-shrimp
+   * Fire Enabled
    */
-  public val FpoShrimp16: MarketIcon =
-    MarketIcon(Res.drawable.icon_fpo_shrimp_16, false)
+  public val FireFill: MarketIcon =
+    MarketIcon(Res.drawable.market_fire_fill, false)
 
   /**
-   * The Market icon named 'fpoShrimp'.
-   *
-   * 24/fpo-shrimp
+   * The Market icon named 'float'.
    */
-  public val FpoShrimp24: MarketIcon =
-    MarketIcon(Res.drawable.icon_fpo_shrimp_24, false)
+  public val Float: MarketIcon =
+    MarketIcon(Res.drawable.market_float, false)
 
   /**
-   * The Market icon named 'fpoShrimp'.
+   * The Market icon named 'folder'.
    *
-   * 32/fpo-shrimp
+   * File
    */
-  public val FpoShrimp32: MarketIcon =
-    MarketIcon(Res.drawable.icon_fpo_shrimp_32, false)
+  public val Folder: MarketIcon =
+    MarketIcon(Res.drawable.market_folder, false)
 
   /**
-   * The Market icon named 'gift'.
+   * The Market icon named 'folder-arrow-right'.
    *
-   * 24/gift
+   * folder, move
    */
-  public val Gift24: MarketIcon =
-    MarketIcon(Res.drawable.icon_gift_24, false)
+  public val FolderArrowRight: MarketIcon =
+    MarketIcon(Res.drawable.market_folder_arrow_right, false)
 
   /**
-   * The Market icon named 'gift'.
+   * The Market icon named 'folder-human'.
    *
-   * 32/gift
+   * folder, shared
    */
-  public val Gift32: MarketIcon =
-    MarketIcon(Res.drawable.icon_gift_32, false)
+  public val FolderHuman: MarketIcon =
+    MarketIcon(Res.drawable.market_folder_human, false)
 
   /**
-   * The Market icon named 'giftcard'.
+   * The Market icon named 'folder-lock'.
    *
-   * 16/giftcard
+   * folder, locked
    */
-  public val Giftcard16: MarketIcon =
-    MarketIcon(Res.drawable.icon_giftcard_16, false)
+  public val FolderLock: MarketIcon =
+    MarketIcon(Res.drawable.market_folder_lock, false)
 
   /**
-   * The Market icon named 'giftcard'.
+   * The Market icon named 'food-cart'.
    *
-   * 24/giftcard
+   * fast food
+   * stand
    */
-  public val Giftcard24: MarketIcon =
-    MarketIcon(Res.drawable.icon_giftcard_24, false)
+  public val FoodCart: MarketIcon =
+    MarketIcon(Res.drawable.market_food_cart, false)
 
   /**
-   * The Market icon named 'giftcard'.
-   *
-   * 32/giftcard
+   * The Market icon named 'food-menu'.
    */
-  public val Giftcard32: MarketIcon =
-    MarketIcon(Res.drawable.icon_giftcard_32, false)
+  public val FoodMenu: MarketIcon =
+    MarketIcon(Res.drawable.market_food_menu, false)
 
   /**
-   * The Market icon named 'googlePay'.
-   *
-   * 16/google-pay
+   * The Market icon named 'fork-knife'.
    */
-  public val GooglePay16: MarketIcon =
-    MarketIcon(Res.drawable.icon_google_pay_16, false)
+  public val ForkKnife: MarketIcon =
+    MarketIcon(Res.drawable.market_fork_knife, false)
 
   /**
-   * The Market icon named 'googlePay'.
+   * The Market icon named 'form'.
    *
-   * 24/google-pay
+   * file
    */
-  public val GooglePay24: MarketIcon =
-    MarketIcon(Res.drawable.icon_google_pay_24, false)
+  public val Form: MarketIcon =
+    MarketIcon(Res.drawable.market_form, false)
 
   /**
-   * The Market icon named 'googlePay'.
+   * The Market icon named 'four-pointed-star'.
    *
-   * 32/google-pay
+   * polar star, genAI, generative AI, artificial intelligence
    */
-  public val GooglePay32: MarketIcon =
-    MarketIcon(Res.drawable.icon_google_pay_32, false)
+  public val FourPointedStar: MarketIcon =
+    MarketIcon(Res.drawable.market_four_pointed_star, false)
 
   /**
-   * The Market icon named 'governmentFlag'.
+   * The Market icon named 'gas-pump'.
    *
-   * 24/government-flag
+   * fuel
+   * gasoline
+   * pump
    */
-  public val GovernmentFlag24: MarketIcon =
-    MarketIcon(Res.drawable.icon_government_flag_24, false)
+  public val GasPump: MarketIcon =
+    MarketIcon(Res.drawable.market_gas_pump, false)
 
   /**
-   * The Market icon named 'gridView'.
-   *
-   * 24/grid-view
+   * The Market icon named 'gauge-arrow-high'.
    */
-  public val GridView24: MarketIcon =
-    MarketIcon(Res.drawable.icon_grid_view_24, false)
+  public val GaugeArrowHigh: MarketIcon =
+    MarketIcon(Res.drawable.market_gauge_arrow_high, false)
 
   /**
-   * The Market icon named 'handout'.
-   *
-   * 24/handout
+   * The Market icon named 'gauge-arrow-low'.
    */
-  public val Handout24: MarketIcon =
-    MarketIcon(Res.drawable.icon_handout_24, false)
+  public val GaugeArrowLow: MarketIcon =
+    MarketIcon(Res.drawable.market_gauge_arrow_low, false)
 
   /**
-   * The Market icon named 'hash'.
+   * The Market icon named 'gear'.
    *
-   * 24/hash
+   * setting, settings
    */
-  public val Hash24: MarketIcon =
-    MarketIcon(Res.drawable.icon_hash_24, false)
+  public val Gear: MarketIcon =
+    MarketIcon(Res.drawable.market_gear, false)
 
   /**
-   * The Market icon named 'heartbeat'.
+   * The Market icon named 'gif'.
    *
-   * 24/heartbeat
+   * File , image , animated
    */
-  public val Heartbeat24: MarketIcon =
-    MarketIcon(Res.drawable.icon_heartbeat_24, false)
+  public val Gif: MarketIcon =
+    MarketIcon(Res.drawable.market_gif, false)
 
   /**
-   * The Market icon named 'help'.
-   *
-   * 24/help
+   * The Market icon named 'gift-card'.
    */
-  public val Help24: MarketIcon =
-    MarketIcon(Res.drawable.icon_help_24, false)
+  public val GiftCard: MarketIcon =
+    MarketIcon(Res.drawable.market_gift_card, false)
 
   /**
-   * The Market icon named 'help'.
+   * The Market icon named 'globe'.
    *
-   * 32/help
+   * online
    */
-  public val Help32: MarketIcon =
-    MarketIcon(Res.drawable.icon_help_32, false)
+  public val Globe: MarketIcon =
+    MarketIcon(Res.drawable.market_globe, false)
 
   /**
-   * The Market icon named 'helpFill'.
+   * The Market icon named 'globe-alert'.
    *
-   * 16/help-fill
+   * 24/international
+   *
+   *
    */
-  public val HelpFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_help_fill_16, false)
+  public val GlobeAlert: MarketIcon =
+    MarketIcon(Res.drawable.market_globe_alert, false)
 
   /**
-   * The Market icon named 'helpFill'.
-   *
-   * 16/help-fill
+   * The Market icon named 'globe-eur'.
    */
-  public val HelpFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_help_fill_24, false)
+  public val GlobeEur: MarketIcon =
+    MarketIcon(Res.drawable.market_globe_eur, false)
 
   /**
-   * The Market icon named 'helpOutline'.
-   *
-   * 16/help-outline
+   * The Market icon named 'globe-gbp'.
    */
-  public val HelpOutline16: MarketIcon =
-    MarketIcon(Res.drawable.icon_help_outline_16, false)
+  public val GlobeGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_globe_gbp, false)
 
   /**
-   * The Market icon named 'helpOutline'.
-   *
-   * 24/help-outline
+   * The Market icon named 'globe-jpy'.
    */
-  public val HelpOutline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_help_outline_24, false)
+  public val GlobeJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_globe_jpy, false)
 
   /**
-   * The Market icon named 'helpSimple'.
+   * The Market icon named 'globe-location'.
    *
-   * 16/help-simple  (+ bg circle)
+   * 24/international
+   *
+   *
    */
-  public val HelpSimple16: MarketIcon =
-    MarketIcon(Res.drawable.icon_help_simple_16, false)
+  public val GlobeLocation: MarketIcon =
+    MarketIcon(Res.drawable.market_globe_location, false)
 
   /**
-   * The Market icon named 'hsaCard'.
+   * The Market icon named 'globe-slash'.
    *
-   * 24/hsa-card
+   * offline
    */
-  public val HsaCard24: MarketIcon =
-    MarketIcon(Res.drawable.icon_hsa_card_24, false)
+  public val GlobeSlash: MarketIcon =
+    MarketIcon(Res.drawable.market_globe_slash, false)
 
   /**
-   * The Market icon named 'hyperlink'.
-   *
-   * 16/hyperlink
+   * The Market icon named 'globe-usd'.
    */
-  public val Hyperlink16: MarketIcon =
-    MarketIcon(Res.drawable.icon_hyperlink_16, false)
+  public val GlobeUsd: MarketIcon =
+    MarketIcon(Res.drawable.market_globe_usd, false)
 
   /**
-   * The Market icon named 'hyperlink'.
-   *
-   * 24/hyperlink
+   * The Market icon named 'gold'.
    */
-  public val Hyperlink24: MarketIcon =
-    MarketIcon(Res.drawable.icon_hyperlink_24, false)
+  public val Gold: MarketIcon =
+    MarketIcon(Res.drawable.market_gold, false)
 
   /**
-   * The Market icon named 'hyperlink'.
+   * The Market icon named 'google-multicolor'.
    *
-   * 32/hyperlink
+   * Social, sales channel
    */
-  public val Hyperlink32: MarketIcon =
-    MarketIcon(Res.drawable.icon_hyperlink_32, false)
+  public val GoogleMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_google_multicolor, true)
 
   /**
-   * The Market icon named 'idGovernment'.
+   * The Market icon named 'grip-dots-vertical'.
    *
-   * 16/ID-government
+   * drag
    */
-  public val IdGovernment16: MarketIcon =
-    MarketIcon(Res.drawable.icon_id_government_16, false)
+  public val GripDotsVertical: MarketIcon =
+    MarketIcon(Res.drawable.market_grip_dots_vertical, false)
 
   /**
-   * The Market icon named 'idGovernment'.
+   * The Market icon named 'grubhub'.
    *
-   * 24/ID-government
+   * order, delivery, pickup, gh, online
    */
-  public val IdGovernment24: MarketIcon =
-    MarketIcon(Res.drawable.icon_id_government_24, false)
+  public val Grubhub: MarketIcon =
+    MarketIcon(Res.drawable.market_grubhub, false)
 
   /**
-   * The Market icon named 'idPassport'.
+   * The Market icon named 'hair-comb'.
    *
-   * 16/ID-passport
+   * squareup.com, beauty, barber shop
    */
-  public val IdPassport16: MarketIcon =
-    MarketIcon(Res.drawable.icon_id_passport_16, false)
+  public val HairComb: MarketIcon =
+    MarketIcon(Res.drawable.market_hair_comb, false)
 
   /**
-   * The Market icon named 'idPassport'.
+   * The Market icon named 'hair-dryer'.
    *
-   * 24/ID-passport
+   * personal care
+   * blow dryer
    */
-  public val IdPassport24: MarketIcon =
-    MarketIcon(Res.drawable.icon_id_passport_24, false)
+  public val HairDryer: MarketIcon =
+    MarketIcon(Res.drawable.market_hair_dryer, false)
 
   /**
-   * The Market icon named 'idea'.
+   * The Market icon named 'hamburger-lines'.
    *
-   * idea icon; standard lists and cell components
+   * menu
    */
-  public val Idea24: MarketIcon =
-    MarketIcon(Res.drawable.icon_idea_24, false)
+  public val HamburgerLines: MarketIcon =
+    MarketIcon(Res.drawable.market_hamburger_lines, false)
+
+  /**
+   * The Market icon named 'handheld-scanner'.
+   *
+   * hardware
+   * device
+   */
+  public val HandheldScanner: MarketIcon =
+    MarketIcon(Res.drawable.market_handheld_scanner, false)
+
+  /**
+   * The Market icon named 'heart-tattoo'.
+   *
+   * squareup.com, beauty, tattoo & piercing
+   */
+  public val HeartTattoo: MarketIcon =
+    MarketIcon(Res.drawable.market_heart_tattoo, false)
+
+  /**
+   * The Market icon named 'hold'.
+   */
+  public val Hold: MarketIcon =
+    MarketIcon(Res.drawable.market_hold, false)
+
+  /**
+   * The Market icon named 'hold-fill'.
+   *
+   * Hold Enabled
+   */
+  public val HoldFill: MarketIcon =
+    MarketIcon(Res.drawable.market_hold_fill, false)
+
+  /**
+   * The Market icon named 'home'.
+   *
+   * House
+   */
+  public val Home: MarketIcon =
+    MarketIcon(Res.drawable.market_home, false)
+
+  /**
+   * The Market icon named 'house-account-sign-dollar'.
+   *
+   * USD
+   * CAD
+   * AUD
+   */
+  public val HouseAccountSignDollar: MarketIcon =
+    MarketIcon(Res.drawable.market_house_account_sign_dollar, false)
+
+  /**
+   * The Market icon named 'house-account-sign-eur'.
+   */
+  public val HouseAccountSignEur: MarketIcon =
+    MarketIcon(Res.drawable.market_house_account_sign_eur, false)
+
+  /**
+   * The Market icon named 'house-account-sign-gbp'.
+   */
+  public val HouseAccountSignGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_house_account_sign_gbp, false)
+
+  /**
+   * The Market icon named 'house-account-sign-jpy'.
+   */
+  public val HouseAccountSignJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_house_account_sign_jpy, false)
+
+  /**
+   * The Market icon named 'human'.
+   *
+   * People
+   */
+  public val Human: MarketIcon =
+    MarketIcon(Res.drawable.market_human, false)
+
+  /**
+   * The Market icon named 'human-arrow-right'.
+   *
+   * assign
+   */
+  public val HumanArrowRight: MarketIcon =
+    MarketIcon(Res.drawable.market_human_arrow_right, false)
+
+  /**
+   * The Market icon named 'human-book'.
+   *
+   * contacts
+   */
+  public val HumanBook: MarketIcon =
+    MarketIcon(Res.drawable.market_human_book, false)
+
+  /**
+   * The Market icon named 'human-check'.
+   *
+   * person added
+   */
+  public val HumanCheck: MarketIcon =
+    MarketIcon(Res.drawable.market_human_check, false)
+
+  /**
+   * The Market icon named 'human-couple'.
+   *
+   * People
+   */
+  public val HumanCouple: MarketIcon =
+    MarketIcon(Res.drawable.market_human_couple, false)
+
+  /**
+   * The Market icon named 'human-multiple'.
+   *
+   * People
+   */
+  public val HumanMultiple: MarketIcon =
+    MarketIcon(Res.drawable.market_human_multiple, false)
+
+  /**
+   * The Market icon named 'human-plus'.
+   *
+   * add person
+   */
+  public val HumanPlus: MarketIcon =
+    MarketIcon(Res.drawable.market_human_plus, false)
+
+  /**
+   * The Market icon named 'i-circle'.
+   *
+   * info
+   * inform
+   */
+  public val ICircle: MarketIcon =
+    MarketIcon(Res.drawable.market_i_circle, false)
+
+  /**
+   * The Market icon named 'i-circle-fill'.
+   *
+   * information
+   */
+  public val ICircleFill: MarketIcon =
+    MarketIcon(Res.drawable.market_i_circle_fill, false)
+
+  /**
+   * The Market icon named 'ic'.
+   *
+   * Integrated Circuit, JCB, transportation, payment
+   */
+  public val Ic: MarketIcon =
+    MarketIcon(Res.drawable.market_ic, false)
+
+  /**
+   * The Market icon named 'id'.
+   *
+   * e-money, payment
+   */
+  public val Id: MarketIcon =
+    MarketIcon(Res.drawable.market_id, false)
 
   /**
    * The Market icon named 'image'.
    *
-   * 24/image
+   * Picture , File
    */
-  public val Image24: MarketIcon =
-    MarketIcon(Res.drawable.icon_image_24, false)
+  public val Image: MarketIcon =
+    MarketIcon(Res.drawable.market_image, false)
 
   /**
-   * The Market icon named 'information'.
-   *
-   * 16/information (+ bg circle)
-   */
-  public val Information16: MarketIcon =
-    MarketIcon(Res.drawable.icon_information_16, false)
-
-  /**
-   * The Market icon named 'information'.
-   *
-   * 24/information (+ bg circle)
-   */
-  public val Information24: MarketIcon =
-    MarketIcon(Res.drawable.icon_information_24, false)
-
-  /**
-   * The Market icon named 'information'.
-   *
-   * 32/information (+ bg circle)
-   */
-  public val Information32: MarketIcon =
-    MarketIcon(Res.drawable.icon_information_32, false)
-
-  /**
-   * The Market icon named 'informationFill'.
-   *
-   * 16/information-fill (do not use with background circle)
-   */
-  public val InformationFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_information_fill_16, false)
-
-  /**
-   * The Market icon named 'informationFill'.
-   *
-   * 24/information-fill (do not use with background circle)
-   */
-  public val InformationFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_information_fill_24, false)
-
-  /**
-   * The Market icon named 'informationFill'.
-   *
-   * 32/information-fill [archived]
-   */
-  public val InformationFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_information_fill_32, false)
-
-  /**
-   * The Market icon named 'informationOutline'.
-   *
-   * 16/information-outline (do not use with background circle)
-   */
-  public val InformationOutline16: MarketIcon =
-    MarketIcon(Res.drawable.icon_information_outline_16, false)
-
-  /**
-   * The Market icon named 'informationOutline'.
-   *
-   * 24/information-outline (do not use with background circle)
-   */
-  public val InformationOutline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_information_outline_24, false)
-
-  /**
-   * The Market icon named 'informationOutline'.
-   *
-   * 32/information-outline [archived]
-   */
-  public val InformationOutline32: MarketIcon =
-    MarketIcon(Res.drawable.icon_information_outline_32, false)
-
-  /**
-   * The Market icon named 'insights'.
-   *
-   * 24/insights
-   */
-  public val Insights24: MarketIcon =
-    MarketIcon(Res.drawable.icon_insights_24, false)
-
-  /**
-   * The Market icon named 'insights'.
-   *
-   * 32/insights
-   */
-  public val Insights32: MarketIcon =
-    MarketIcon(Res.drawable.icon_insights_32, false)
-
-  /**
-   * The Market icon named 'instant'.
-   *
-   * 16/instant (feature badge)
-   */
-  public val Instant16: MarketIcon =
-    MarketIcon(Res.drawable.icon_instant_16, false)
-
-  /**
-   * The Market icon named 'instant'.
-   *
-   * 24/instant
-   */
-  public val Instant24: MarketIcon =
-    MarketIcon(Res.drawable.icon_instant_24, false)
-
-  /**
-   * The Market icon named 'instant'.
-   *
-   * 32/instant
-   */
-  public val Instant32: MarketIcon =
-    MarketIcon(Res.drawable.icon_instant_32, false)
-
-  /**
-   * The Market icon named 'instantFill'.
-   *
-   * 16/instant-fill (feature badge)
-   */
-  public val InstantFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_instant_fill_16, false)
-
-  /**
-   * The Market icon named 'instantFill'.
-   *
-   * 24/instant-fill
-   */
-  public val InstantFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_instant_fill_24, false)
-
-  /**
-   * The Market icon named 'international'.
-   *
-   * 16/international
-   */
-  public val International16: MarketIcon =
-    MarketIcon(Res.drawable.icon_international_16, false)
-
-  /**
-   * The Market icon named 'international'.
-   *
-   * 24/international
-   */
-  public val International24: MarketIcon =
-    MarketIcon(Res.drawable.icon_international_24, false)
-
-  /**
-   * The Market icon named 'international'.
-   *
-   * 32/international
-   */
-  public val International32: MarketIcon =
-    MarketIcon(Res.drawable.icon_international_32, false)
-
-  /**
-   * The Market icon named 'investing'.
-   *
-   * 16/investing
-   */
-  public val Investing16: MarketIcon =
-    MarketIcon(Res.drawable.icon_investing_16, false)
-
-  /**
-   * The Market icon named 'investing'.
-   *
-   * 24/investing
-   */
-  public val Investing24: MarketIcon =
-    MarketIcon(Res.drawable.icon_investing_24, false)
-
-  /**
-   * The Market icon named 'investing'.
-   *
-   * 32/international
-   */
-  public val Investing32: MarketIcon =
-    MarketIcon(Res.drawable.icon_investing_32, false)
-
-  /**
-   * The Market icon named 'investingCustomBuy'.
-   *
-   * 16/investing-custom-buy
-   */
-  public val InvestingCustomBuy16: MarketIcon =
-    MarketIcon(Res.drawable.icon_investing_custom_buy_16, false)
-
-  /**
-   * The Market icon named 'investingCustomBuy'.
-   *
-   * 24/investing-custom-buy
-   */
-  public val InvestingCustomBuy24: MarketIcon =
-    MarketIcon(Res.drawable.icon_investing_custom_buy_24, false)
-
-  /**
-   * The Market icon named 'investingCustomBuy'.
-   *
-   * 32/investing-custom-buy
-   */
-  public val InvestingCustomBuy32: MarketIcon =
-    MarketIcon(Res.drawable.icon_investing_custom_buy_32, false)
-
-  /**
-   * The Market icon named 'investingCustomSell'.
-   *
-   * 24/investing-custom-sell
-   */
-  public val InvestingCustomSell24: MarketIcon =
-    MarketIcon(Res.drawable.icon_investing_custom_sell_24, false)
-
-  /**
-   * The Market icon named 'irsPrepaid'.
-   *
-   * 24/irs-prepaid
-   */
-  public val IrsPrepaid24: MarketIcon =
-    MarketIcon(Res.drawable.icon_irs_prepaid_24, false)
-
-  /**
-   * The Market icon named 'keypadDelete'.
-   *
-   * 24/keypad-delete
-   */
-  public val KeypadDelete24: MarketIcon =
-    MarketIcon(Res.drawable.icon_keypad_delete_24, false)
-
-  /**
-   * The Market icon named 'like'.
-   *
-   * 16/like
-   */
-  public val Like16: MarketIcon =
-    MarketIcon(Res.drawable.icon_like_16, false)
-
-  /**
-   * The Market icon named 'like'.
-   *
-   * 24/like
-   */
-  public val Like24: MarketIcon =
-    MarketIcon(Res.drawable.icon_like_24, false)
-
-  /**
-   * The Market icon named 'limits'.
-   *
-   * 16/limits
-   */
-  public val Limits16: MarketIcon =
-    MarketIcon(Res.drawable.icon_limits_16, false)
-
-  /**
-   * The Market icon named 'limits'.
-   *
-   * 24/limits
-   */
-  public val Limits24: MarketIcon =
-    MarketIcon(Res.drawable.icon_limits_24, false)
-
-  /**
-   * The Market icon named 'limitsFill'.
-   *
-   * 16/limits-fill
-   */
-  public val LimitsFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_limits_fill_16, false)
-
-  /**
-   * The Market icon named 'limitsFill'.
-   *
-   * 24/limits-fill
-   */
-  public val LimitsFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_limits_fill_24, false)
-
-  /**
-   * The Market icon named 'limitsFill'.
-   *
-   * 32/limits-fill
-   */
-  public val LimitsFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_limits_fill_32, false)
-
-  /**
-   * The Market icon named 'linkOut'.
-   *
-   * 16/link-out
-   */
-  public val LinkOut16: MarketIcon =
-    MarketIcon(Res.drawable.icon_link_out_16, false)
-
-  /**
-   * The Market icon named 'linkOut'.
-   *
-   * 24/link-out
-   */
-  public val LinkOut24: MarketIcon =
-    MarketIcon(Res.drawable.icon_link_out_24, false)
-
-  /**
-   * The Market icon named 'linkOut'.
-   *
-   * 32/link-out
-   */
-  public val LinkOut32: MarketIcon =
-    MarketIcon(Res.drawable.icon_link_out_32, false)
-
-  /**
-   * The Market icon named 'local'.
-   *
-   * 16/local
-   */
-  public val Local16: MarketIcon =
-    MarketIcon(Res.drawable.icon_local_16, false)
-
-  /**
-   * The Market icon named 'local'.
-   *
-   * 24/local
-   */
-  public val Local24: MarketIcon =
-    MarketIcon(Res.drawable.icon_local_24, false)
-
-  /**
-   * The Market icon named 'local'.
-   *
-   * 32/local
-   */
-  public val Local32: MarketIcon =
-    MarketIcon(Res.drawable.icon_local_32, false)
-
-  /**
-   * The Market icon named 'location'.
-   *
-   * 16/location
-   */
-  public val Location16: MarketIcon =
-    MarketIcon(Res.drawable.icon_location_16, false)
-
-  /**
-   * The Market icon named 'location'.
-   *
-   * 24/location
+   * The Market icon named 'image-plus'.
    */
-  public val Location24: MarketIcon =
-    MarketIcon(Res.drawable.icon_location_24, false)
+  public val ImagePlus: MarketIcon =
+    MarketIcon(Res.drawable.market_image_plus, false)
 
   /**
-   * The Market icon named 'location'.
-   *
-   * 32/location
-   */
-  public val Location32: MarketIcon =
-    MarketIcon(Res.drawable.icon_location_32, false)
-
-  /**
-   * The Market icon named 'locationDuo'.
-   *
-   * 16/location-duo
-   */
-  public val LocationDuo16: MarketIcon =
-    MarketIcon(Res.drawable.icon_location_duo_16, false)
-
-  /**
-   * The Market icon named 'locationDuo'.
-   *
-   * 24/location-duo
-   */
-  public val LocationDuo24: MarketIcon =
-    MarketIcon(Res.drawable.icon_location_duo_24, false)
-
-  /**
-   * The Market icon named 'locationDuo'.
-   *
-   * 32/location-duo
-   */
-  public val LocationDuo32: MarketIcon =
-    MarketIcon(Res.drawable.icon_location_duo_32, false)
-
-  /**
-   * The Market icon named 'locationFill'.
-   *
-   * 16/location-fill
-   */
-  public val LocationFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_location_fill_16, false)
-
-  /**
-   * The Market icon named 'locationFill'.
-   *
-   * 24/location-fill
-   */
-  public val LocationFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_location_fill_24, false)
-
-  /**
-   * The Market icon named 'locationFill'.
-   *
-   * 32/location-fill
-   */
-  public val LocationFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_location_fill_32, false)
-
-  /**
-   * The Market icon named 'lockLocked'.
-   *
-   * 16/lock-locked
-   */
-  public val LockLocked16: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_locked_16, false)
-
-  /**
-   * The Market icon named 'lockLocked'.
-   *
-   * 24/lock-locked
-   */
-  public val LockLocked24: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_locked_24, false)
-
-  /**
-   * The Market icon named 'lockLockedFill'.
-   *
-   * 16/lock-locked-fill
-   */
-  public val LockLockedFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_locked_fill_16, false)
-
-  /**
-   * The Market icon named 'lockLockedFill'.
-   *
-   * 24/lock-locked-fill
-   */
-  public val LockLockedFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_locked_fill_24, false)
-
-  /**
-   * The Market icon named 'lockLockedFill'.
-   *
-   * 32/lock-locked-fill
-   */
-  public val LockLockedFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_locked_fill_32, false)
-
-  /**
-   * The Market icon named 'lockUnlocked'.
-   *
-   * 16/lock-unlocked
-   */
-  public val LockUnlocked16: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_unlocked_16, false)
-
-  /**
-   * The Market icon named 'lockUnlocked'.
-   *
-   * 24/lock-unlocked
-   */
-  public val LockUnlocked24: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_unlocked_24, false)
-
-  /**
-   * The Market icon named 'lockUnlockedFill'.
-   *
-   * 16/lock-unlocked-fill
-   */
-  public val LockUnlockedFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_unlocked_fill_16, false)
-
-  /**
-   * The Market icon named 'lockUnlockedFill'.
-   *
-   * 24/lock-unlocked-fill
-   */
-  public val LockUnlockedFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_unlocked_fill_24, false)
-
-  /**
-   * The Market icon named 'lockUnlockedFill'.
-   *
-   * 32/lock-unlocked-fill
-   */
-  public val LockUnlockedFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_lock_unlocked_fill_32, false)
-
-  /**
-   * The Market icon named 'logOut'.
-   *
-   * 16/log-out
-   */
-  public val LogOut16: MarketIcon =
-    MarketIcon(Res.drawable.icon_log_out_16, false)
-
-  /**
-   * The Market icon named 'logOut'.
-   *
-   * 24/log-out
-   */
-  public val LogOut24: MarketIcon =
-    MarketIcon(Res.drawable.icon_log_out_24, false)
-
-  /**
-   * The Market icon named 'logoAfterpay'.
-   *
-   * 16/logo-afterpay
-   */
-  public val LogoAfterpay16: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_afterpay_16, false)
-
-  /**
-   * The Market icon named 'logoAfterpay'.
-   *
-   * 24/logo-afterpay
-   */
-  public val LogoAfterpay24: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_afterpay_24, false)
-
-  /**
-   * The Market icon named 'logoAfterpay'.
-   *
-   * 32/logo-afterpay
+   * The Market icon named 'inbox'.
    */
-  public val LogoAfterpay32: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_afterpay_32, false)
+  public val Inbox: MarketIcon =
+    MarketIcon(Res.drawable.market_inbox, false)
 
   /**
-   * The Market icon named 'logoBtc'.
-   *
-   * 16/logo-btc
-   */
-  public val LogoBtc16: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_btc_16, false)
-
-  /**
-   * The Market icon named 'logoBtc'.
-   *
-   * 24/logo-btc
-   */
-  public val LogoBtc24: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_btc_24, false)
-
-  /**
-   * The Market icon named 'logoBtc'.
-   *
-   * 32/logo-btc
-   */
-  public val LogoBtc32: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_btc_32, false)
-
-  /**
-   * The Market icon named 'logoEur'.
-   *
-   * 16/logo-eur
-   */
-  public val LogoEur16: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_eur_16, false)
-
-  /**
-   * The Market icon named 'logoEur'.
-   *
-   * 24/logo-eur
-   */
-  public val LogoEur24: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_eur_24, false)
-
-  /**
-   * The Market icon named 'logoEur'.
-   *
-   * 32/logo-eur
-   */
-  public val LogoEur32: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_eur_32, false)
-
-  /**
-   * The Market icon named 'logoGbp'.
-   *
-   * 16/logo-gbp
-   */
-  public val LogoGbp16: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_gbp_16, false)
-
-  /**
-   * The Market icon named 'logoGbp'.
-   *
-   * 24/logo-gbp
-   */
-  public val LogoGbp24: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_gbp_24, false)
-
-  /**
-   * The Market icon named 'logoGbp'.
-   *
-   * 32/logo-gbp
-   */
-  public val LogoGbp32: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_gbp_32, false)
-
-  /**
-   * The Market icon named 'logoSquare'.
-   *
-   * 16/logo-square
-   */
-  public val LogoSquare16: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_square_16, false)
-
-  /**
-   * The Market icon named 'logoSquare'.
-   *
-   * 24/logo-square
-   */
-  public val LogoSquare24: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_square_24, false)
-
-  /**
-   * The Market icon named 'logoSquare'.
-   *
-   * 32/logo-square
-   */
-  public val LogoSquare32: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_square_32, false)
-
-  /**
-   * The Market icon named 'logoUsd'.
-   *
-   * 16/logo-usd
-   */
-  public val LogoUsd16: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_usd_16, false)
-
-  /**
-   * The Market icon named 'logoUsd'.
-   *
-   * 24/logo-usd
+   * The Market icon named 'indeterminate-mark'.
    */
-  public val LogoUsd24: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_usd_24, false)
+  public val IndeterminateMark: MarketIcon =
+    MarketIcon(Res.drawable.market_indeterminate_mark, false)
 
   /**
-   * The Market icon named 'logoUsd'.
-   *
-   * 32/logo-usd
+   * The Market icon named 'indicator-check-complete'.
    */
-  public val LogoUsd32: MarketIcon =
-    MarketIcon(Res.drawable.icon_logo_usd_32, false)
+  public val IndicatorCheckComplete: MarketIcon =
+    MarketIcon(Res.drawable.market_indicator_check_complete, false)
 
   /**
-   * The Market icon named 'magic'.
-   *
-   * 24/magic
+   * The Market icon named 'indicator-check-incomplete'.
    */
-  public val Magic24: MarketIcon =
-    MarketIcon(Res.drawable.icon_magic_24, false)
+  public val IndicatorCheckIncomplete: MarketIcon =
+    MarketIcon(Res.drawable.market_indicator_check_incomplete, false)
 
   /**
-   * The Market icon named 'magic'.
-   *
-   * 32/magic
+   * The Market icon named 'indicator-circle-active'.
    */
-  public val Magic32: MarketIcon =
-    MarketIcon(Res.drawable.icon_magic_32, false)
+  public val IndicatorCircleActive: MarketIcon =
+    MarketIcon(Res.drawable.market_indicator_circle_active, false)
 
   /**
-   * The Market icon named 'map'.
-   *
-   * 24/map
+   * The Market icon named 'indicator-circle-inactive'.
    */
-  public val Map24: MarketIcon =
-    MarketIcon(Res.drawable.icon_map_24, false)
+  public val IndicatorCircleInactive: MarketIcon =
+    MarketIcon(Res.drawable.market_indicator_circle_inactive, false)
 
   /**
-   * The Market icon named 'medicalExpense'.
-   *
-   * 24/medical-expense
+   * The Market icon named 'indicator-default'.
    */
-  public val MedicalExpense24: MarketIcon =
-    MarketIcon(Res.drawable.icon_medical_expense_24, false)
+  public val IndicatorDefault: MarketIcon =
+    MarketIcon(Res.drawable.market_indicator_default, false)
 
   /**
-   * The Market icon named 'movingExpense'.
-   *
-   * 24/moving-expense
+   * The Market icon named 'indicator-loading'.
    */
-  public val MovingExpense24: MarketIcon =
-    MarketIcon(Res.drawable.icon_moving_expense_24, false)
+  public val IndicatorLoading: MarketIcon =
+    MarketIcon(Res.drawable.market_indicator_loading, false)
 
   /**
-   * The Market icon named 'mutualFriend'.
-   *
-   * 16/mutual-friend
+   * The Market icon named 'indicator-small'.
    */
-  public val MutualFriend16: MarketIcon =
-    MarketIcon(Res.drawable.icon_mutual_friend_16, false)
+  public val IndicatorSmall: MarketIcon =
+    MarketIcon(Res.drawable.market_indicator_small, false)
 
   /**
-   * The Market icon named 'mutualFriend'.
-   *
-   * 24/mutual-friend
+   * The Market icon named 'indicator-success'.
    */
-  public val MutualFriend24: MarketIcon =
-    MarketIcon(Res.drawable.icon_mutual_friend_24, false)
+  public val IndicatorSuccess: MarketIcon =
+    MarketIcon(Res.drawable.market_indicator_success, false)
 
   /**
-   * The Market icon named 'mutualFriend'.
-   *
-   * 32/mutual-friend
+   * The Market icon named 'indicator-warning'.
    */
-  public val MutualFriend32: MarketIcon =
-    MarketIcon(Res.drawable.icon_mutual_friend_32, false)
+  public val IndicatorWarning: MarketIcon =
+    MarketIcon(Res.drawable.market_indicator_warning, false)
 
   /**
-   * The Market icon named 'navAdd'.
+   * The Market icon named 'instagram'.
    *
-   * 16/nav-add
+   * meta, social
    */
-  public val NavAdd16: MarketIcon =
-    MarketIcon(Res.drawable.icon_nav_add_16, false)
+  public val Instagram: MarketIcon =
+    MarketIcon(Res.drawable.market_instagram, false)
 
   /**
-   * The Market icon named 'navClose'.
+   * The Market icon named 'instagram-multicolor'.
    *
-   * 16/nav-close
+   * Social, Sales channel
    */
-  public val NavClose16: MarketIcon =
-    MarketIcon(Res.drawable.icon_nav_close_16, false)
+  public val InstagramMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_instagram_multicolor, true)
 
   /**
-   * The Market icon named 'navigationAccount'.
+   * The Market icon named 'interac-multicolor'.
    *
-   * navigation/account [archived]
+   * card logo, payment
    */
-  public val NavigationAccount: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_account, false)
+  public val InteracMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_interac_multicolor, true)
 
   /**
-   * The Market icon named 'navigationActivity'.
+   * The Market icon named 'italics-i'.
    *
-   * navigation/activity
+   * rich text, italics
    */
-  public val NavigationActivity: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_activity, false)
+  public val ItalicsI: MarketIcon =
+    MarketIcon(Res.drawable.market_italics_i, false)
 
   /**
-   * The Market icon named 'navigationBack'.
+   * The Market icon named 'jcb-multicolor'.
    *
-   * navigation/back
+   * card logo, payment
    */
-  public val NavigationBack: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_back, false)
+  public val JcbMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_jcb_multicolor, true)
 
   /**
-   * The Market icon named 'navigationBitcoin'.
+   * The Market icon named 'kds-expo'.
    *
-   * navigation/bitcoin [archived]
+   * KDS Expo
    */
-  public val NavigationBitcoin: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_bitcoin, false)
+  public val KdsExpo: MarketIcon =
+    MarketIcon(Res.drawable.market_kds_expo, false)
 
   /**
-   * The Market icon named 'navigationCard'.
+   * The Market icon named 'kds-prep'.
    *
-   * navigation/card
+   * KDS Prep
    */
-  public val NavigationCard: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_card, false)
+  public val KdsPrep: MarketIcon =
+    MarketIcon(Res.drawable.market_kds_prep, false)
 
   /**
-   * The Market icon named 'vigationChatHistory'.
+   * The Market icon named 'key'.
    *
-   * navigation/chat-history
-   */
-  public val NavigationChatHistory: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_chat_history, false)
-
-  /**
-   * The Market icon named 'navigationClose'.
+   * 24/passkey
    *
-   * navigation/close
+   * icon: key, passkey
    */
-  public val NavigationClose: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_close, false)
+  public val Key: MarketIcon =
+    MarketIcon(Res.drawable.market_key, false)
 
   /**
-   * The Market icon named 'vigationCopy'.
-   *
-   * navigation/copy
+   * The Market icon named 'keyboard'.
    */
-  public val NavigationCopy: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_copy, false)
+  public val Keyboard: MarketIcon =
+    MarketIcon(Res.drawable.market_keyboard, false)
 
   /**
-   * The Market icon named 'navigationDiscover'.
+   * The Market icon named 'kiosk'.
    *
-   * navigation/search
+   * hardware, restaurant, front of house
    */
-  public val NavigationDiscover: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_discover, false)
+  public val Kiosk: MarketIcon =
+    MarketIcon(Res.drawable.market_kiosk, false)
 
   /**
-   * The Market icon named 'navigationFavorite'.
-   *
-   * navigation/favorite
+   * The Market icon named 'language'.
    */
-  public val NavigationFavorite: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_favorite, false)
+  public val Language: MarketIcon =
+    MarketIcon(Res.drawable.market_language, false)
 
   /**
-   * The Market icon named 'navigationFavoriteActive'.
-   *
-   * navigation/favorite-active
+   * The Market icon named 'laptop'.
    */
-  public val NavigationFavoriteActive: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_favorite_active, false)
+  public val Laptop: MarketIcon =
+    MarketIcon(Res.drawable.market_laptop, false)
 
   /**
-   * The Market icon named 'navigationFilter'.
+   * The Market icon named 'lightning-bolt'.
    *
-   * navigation/filter
+   * recommendation
+   * recommend
    */
-  public val NavigationFilter: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_filter, false)
+  public val LightningBolt: MarketIcon =
+    MarketIcon(Res.drawable.market_lightning_bolt, false)
 
   /**
-   * The Market icon named 'navigationFlashOff'.
+   * The Market icon named 'location-arrow'.
    *
-   * navigation/flash-off
+   * location
    */
-  public val NavigationFlashOff: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_flash_off, false)
+  public val LocationArrow: MarketIcon =
+    MarketIcon(Res.drawable.market_location_arrow, false)
 
   /**
-   * The Market icon named 'navigationFlashOn'.
-   *
-   * navigation/flash-on
+   * The Market icon named 'location-pin'.
    */
-  public val NavigationFlashOn: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_flash_on, false)
+  public val LocationPin: MarketIcon =
+    MarketIcon(Res.drawable.market_location_pin, false)
 
   /**
-   * The Market icon named 'navigationHelp'.
-   *
-   * navigation/help
+   * The Market icon named 'lock-off'.
    */
-  public val NavigationHelp: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_help, false)
+  public val LockOff: MarketIcon =
+    MarketIcon(Res.drawable.market_lock_off, false)
 
   /**
-   * The Market icon named 'navigationInternationalP2P'.
-   *
-   * navigation/international-p2p
+   * The Market icon named 'lock-on'.
    */
-  public val NavigationInternationalP2P: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_international_p_2_p, false)
+  public val LockOn: MarketIcon =
+    MarketIcon(Res.drawable.market_lock_on, false)
 
   /**
-   * The Market icon named 'vigationLocal'.
+   * The Market icon named 'lotus'.
    *
-   * navigation/local
+   * squareup.com, beauty, medspa
    */
-  public val NavigationLocal: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_local, false)
+  public val Lotus: MarketIcon =
+    MarketIcon(Res.drawable.market_lotus, false)
 
   /**
-   * The Market icon named 'navigationLogoEur'.
+   * The Market icon named 'loud-speaker'.
    *
-   * navigation/logo-eur
+   * megaphone
    */
-  public val NavigationLogoEur: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_logo_eur, false)
+  public val LoudSpeaker: MarketIcon =
+    MarketIcon(Res.drawable.market_loud_speaker, false)
 
   /**
-   * The Market icon named 'navigationLogoGbp'.
+   * The Market icon named 'magnifying-glass'.
    *
-   * navigation/logo-gbp
+   * search, find
    */
-  public val NavigationLogoGbp: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_logo_gbp, false)
+  public val MagnifyingGlass: MarketIcon =
+    MarketIcon(Res.drawable.market_magnifying_glass, false)
 
   /**
-   * The Market icon named 'navigationLogoUsd'.
+   * The Market icon named 'martini-glass'.
    *
-   * navigation/logo-usd
+   * bar
+   * drink
+   * alcohol
    */
-  public val NavigationLogoUsd: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_logo_usd, false)
+  public val MartiniGlass: MarketIcon =
+    MarketIcon(Res.drawable.market_martini_glass, false)
 
   /**
-   * The Market icon named 'vigationMenuAfterpay'.
+   * The Market icon named 'mastercard-multicolor'.
    *
-   * navigation/menu-afterpay
+   * card logo, payment
    */
-  public val NavigationMenuAfterpay: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_menu_afterpay, false)
+  public val MastercardMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_mastercard_multicolor, true)
 
   /**
-   * The Market icon named 'navigationMoney'.
+   * The Market icon named 'medal'.
    *
-   * navigation/money (do not use outside of money tab)
+   * squareup.com, banking, specialists
    */
-  public val NavigationMoney: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_money, false)
+  public val Medal: MarketIcon =
+    MarketIcon(Res.drawable.market_medal, false)
 
   /**
-   * The Market icon named 'vigationMoneybot'.
+   * The Market icon named 'mercado-pago-multicolor'.
    *
-   * navigation/moneybot
+   * card logo, payment, LATAM
    */
-  public val NavigationMoneybot: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_moneybot, false)
+  public val MercadoPagoMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_mercado_pago_multicolor, true)
 
   /**
-   * The Market icon named 'vigationMoneybotAlt'.
-   *
-   * navigation/moneybot-alt
+   * The Market icon named 'message'.
    */
-  public val NavigationMoneybotAlt: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_moneybot_alt, false)
+  public val Message: MarketIcon =
+    MarketIcon(Res.drawable.market_message, false)
 
   /**
-   * The Market icon named 'navigationMore'.
+   * The Market icon named 'message-clock'.
    *
-   * navigation/more
+   * delayed message
    */
-  public val NavigationMore: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_more, false)
+  public val MessageClock: MarketIcon =
+    MarketIcon(Res.drawable.market_message_clock, false)
 
   /**
-   * The Market icon named 'vigationNewChat'.
-   *
-   * navigation/new-chat
+   * The Market icon named 'message-ellipses'.
    */
-  public val NavigationNewChat: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_new_chat, false)
+  public val MessageEllipses: MarketIcon =
+    MarketIcon(Res.drawable.market_message_ellipses, false)
 
   /**
-   * The Market icon named 'navigationNotifications'.
+   * The Market icon named 'message-human'.
    *
-   * navigation/notifications
+   * team communication
    */
-  public val NavigationNotifications: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_notifications, false)
+  public val MessageHuman: MarketIcon =
+    MarketIcon(Res.drawable.market_message_human, false)
 
   /**
-   * The Market icon named 'navigationOffers'.
+   * The Market icon named 'message-multiple'.
    *
-   * navigation/offers
+   * conversations
    */
-  public val NavigationOffers: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_offers, false)
+  public val MessageMultiple: MarketIcon =
+    MarketIcon(Res.drawable.market_message_multiple, false)
 
   /**
-   * The Market icon named 'navigationPopBack'.
+   * The Market icon named 'message-support'.
    *
-   * navigation/pop-back
+   * Support
    */
-  public val NavigationPopBack: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_pop_back, false)
+  public val MessageSupport: MarketIcon =
+    MarketIcon(Res.drawable.market_message_support, false)
 
   /**
-   * The Market icon named 'navigationPopForward'.
+   * The Market icon named 'meta'.
    *
-   * navigation/pop-forward
+   * social
    */
-  public val NavigationPopForward: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_pop_forward, false)
+  public val Meta: MarketIcon =
+    MarketIcon(Res.drawable.market_meta, false)
 
   /**
-   * The Market icon named 'navigationRefresh'.
-   *
-   * navigation/refresh
+   * The Market icon named 'microphone'.
    */
-  public val NavigationRefresh: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_refresh, false)
+  public val Microphone: MarketIcon =
+    MarketIcon(Res.drawable.market_microphone, false)
 
   /**
-   * The Market icon named 'navigationScanQr'.
+   * The Market icon named 'microphone-slash'.
    *
-   * navigation/scan-qr
+   * mute
    */
-  public val NavigationScanQr: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_scan_qr, false)
+  public val MicrophoneSlash: MarketIcon =
+    MarketIcon(Res.drawable.market_microphone_slash, false)
 
   /**
-   * The Market icon named 'navigationSend'.
+   * The Market icon named 'minus'.
    *
-   * navigation/send
+   * remove
    */
-  public val NavigationSend: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_send, false)
+  public val Minus: MarketIcon =
+    MarketIcon(Res.drawable.market_minus, false)
 
   /**
-   * The Market icon named 'navigationShareAndroid'.
-   *
-   * navigation/share-android
+   * The Market icon named 'minus-in-circle'.
    */
-  public val NavigationShareAndroid: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_share_android, false)
+  public val MinusInCircle: MarketIcon =
+    MarketIcon(Res.drawable.market_minus_in_circle, false)
 
   /**
-   * The Market icon named 'navigationShareIos'.
+   * The Market icon named 'money-bag-sign-dollar'.
    *
-   * navigation/share-ios
+   * USD
+   * CAD
+   * AUD
    */
-  public val NavigationShareIos: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_share_ios, false)
+  public val MoneyBagSignDollar: MarketIcon =
+    MarketIcon(Res.drawable.market_money_bag_sign_dollar, false)
 
   /**
-   * The Market icon named 'navigationShoppingAfterpay'.
-   *
-   * navigation/shopping-afterpay
+   * The Market icon named 'money-bag-sign-eur'.
    */
-  public val NavigationShoppingAfterpay: MarketIcon =
-    MarketIcon(Res.drawable.icon_navigation_shopping_afterpay, false)
+  public val MoneyBagSignEur: MarketIcon =
+    MarketIcon(Res.drawable.market_money_bag_sign_eur, false)
 
   /**
-   * The Market icon named 'newChat'.
-   *
-   * 24/new-chat
+   * The Market icon named 'money-bag-sign-gbp'.
    */
-  public val NewChat24: MarketIcon =
-    MarketIcon(Res.drawable.icon_new_chat_24, false)
+  public val MoneyBagSignGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_money_bag_sign_gbp, false)
 
   /**
-   * The Market icon named 'next'.
-   *
-   * 24/next
+   * The Market icon named 'money-bag-sign-jpy'.
    */
-  public val Next24: MarketIcon =
-    MarketIcon(Res.drawable.icon_next_24, false)
+  public val MoneyBagSignJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_money_bag_sign_jpy, false)
 
   /**
-   * The Market icon named 'noCreditCheck'.
-   *
-   * 24/no-credit-check
+   * The Market icon named 'moon'.
    */
-  public val NoCreditCheck24: MarketIcon =
-    MarketIcon(Res.drawable.icon_no_credit_check_24, false)
+  public val Moon: MarketIcon =
+    MarketIcon(Res.drawable.market_moon, false)
 
   /**
-   * The Market icon named 'note'.
+   * The Market icon named 'moped'.
    *
-   * 16/note
+   * Delivery
    */
-  public val Note16: MarketIcon =
-    MarketIcon(Res.drawable.icon_note_16, false)
+  public val Moped: MarketIcon =
+    MarketIcon(Res.drawable.market_moped, false)
 
   /**
-   * The Market icon named 'note'.
+   * The Market icon named 'moving-box'.
    *
-   * 24/note
+   * cardboard box
+   * packing box
    */
-  public val Note24: MarketIcon =
-    MarketIcon(Res.drawable.icon_note_24, false)
+  public val MovingBox: MarketIcon =
+    MarketIcon(Res.drawable.market_moving_box, false)
 
   /**
-   * The Market icon named 'note'.
+   * The Market icon named 'multiple-devices'.
    *
-   * 32/note
-   */
-  public val Note32: MarketIcon =
-    MarketIcon(Res.drawable.icon_note_32, false)
-
-  /**
-   * The Market icon named 'notifications'.
+   * 24/device-desktop
    *
-   * 16/notifications
+   * icon: device, desktop, log in, login
    */
-  public val Notifications16: MarketIcon =
-    MarketIcon(Res.drawable.icon_notifications_16, false)
+  public val MultipleDevices: MarketIcon =
+    MarketIcon(Res.drawable.market_multiple_devices, false)
 
   /**
-   * The Market icon named 'notifications'.
-   *
-   * 24/notifications
+   * The Market icon named 'multiply'.
    */
-  public val Notifications24: MarketIcon =
-    MarketIcon(Res.drawable.icon_notifications_24, false)
+  public val Multiply: MarketIcon =
+    MarketIcon(Res.drawable.market_multiply, false)
 
   /**
-   * The Market icon named 'notifications'.
+   * The Market icon named 'no-entry-circle'.
    *
-   * 32/note
+   * denied
+   * deny
    */
-  public val Notifications32: MarketIcon =
-    MarketIcon(Res.drawable.icon_notifications_32, false)
+  public val NoEntryCircle: MarketIcon =
+    MarketIcon(Res.drawable.market_no_entry_circle, false)
 
   /**
-   * The Market icon named 'notificationsFill'.
+   * The Market icon named 'noodles'.
    *
-   * 16/notifications-fill
+   * Dine in
    */
-  public val NotificationsFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_notifications_fill_16, false)
+  public val Noodles: MarketIcon =
+    MarketIcon(Res.drawable.market_noodles, false)
 
   /**
-   * The Market icon named 'notificationsFill'.
+   * The Market icon named 'notification-square'.
    *
-   * 24/notifications-fill
+   * bitkey
    */
-  public val NotificationsFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_notifications_fill_24, false)
+  public val NotificationSquare: MarketIcon =
+    MarketIcon(Res.drawable.market_notification_square, false)
 
   /**
-   * The Market icon named 'notificationsFill'.
+   * The Market icon named 'number-list'.
    *
-   * 32/notifications-fill
+   * rich text, ordered list, numbered list
    */
-  public val NotificationsFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_notifications_fill_32, false)
+  public val NumberList: MarketIcon =
+    MarketIcon(Res.drawable.market_number_list, false)
 
   /**
-   * The Market icon named 'numberPad'.
+   * The Market icon named 'office-excel'.
    *
-   * 24/number-pad
+   * File
    */
-  public val NumberPad24: MarketIcon =
-    MarketIcon(Res.drawable.icon_number_pad_24, false)
+  public val OfficeExcel: MarketIcon =
+    MarketIcon(Res.drawable.market_office_excel, false)
 
   /**
-   * The Market icon named 'officeExpense'.
+   * The Market icon named 'office-powerpoint'.
    *
-   * 24/office-expense
+   * File
    */
-  public val OfficeExpense24: MarketIcon =
-    MarketIcon(Res.drawable.icon_office_expense_24, false)
+  public val OfficePowerpoint: MarketIcon =
+    MarketIcon(Res.drawable.market_office_powerpoint, false)
 
   /**
-   * The Market icon named 'overdraftProtection'.
+   * The Market icon named 'office-word'.
    *
-   * 16/overdraft-protection
+   * File
    */
-  public val OverdraftProtection16: MarketIcon =
-    MarketIcon(Res.drawable.icon_overdraft_protection_16, false)
+  public val OfficeWord: MarketIcon =
+    MarketIcon(Res.drawable.market_office_word, false)
 
   /**
-   * The Market icon named 'overdraftProtection'.
-   *
-   * 24/overdraft-protection
+   * The Market icon named 'page-header'.
    */
-  public val OverdraftProtection24: MarketIcon =
-    MarketIcon(Res.drawable.icon_overdraft_protection_24, false)
+  public val PageHeader: MarketIcon =
+    MarketIcon(Res.drawable.market_page_header, false)
 
   /**
-   * The Market icon named 'overdraftProtection'.
+   * The Market icon named 'palette'.
    *
-   * 32/overdraft-protection
+   * paint
+   * picker
+   * color
    */
-  public val OverdraftProtection32: MarketIcon =
-    MarketIcon(Res.drawable.icon_overdraft_protection_32, false)
+  public val Palette: MarketIcon =
+    MarketIcon(Res.drawable.market_palette, false)
 
   /**
-   * The Market icon named 'packageReturn'.
-   *
-   * 24/package-return
+   * The Market icon named 'paper-check'.
    */
-  public val PackageReturn24: MarketIcon =
-    MarketIcon(Res.drawable.icon_package_return_24, false)
+  public val PaperCheck: MarketIcon =
+    MarketIcon(Res.drawable.market_paper_check, false)
 
   /**
-   * The Market icon named 'packageTracking'.
+   * The Market icon named 'paper-pencil'.
    *
-   * 24/package-tracking
+   * Estimates
    */
-  public val PackageTracking24: MarketIcon =
-    MarketIcon(Res.drawable.icon_package_tracking_24, false)
+  public val PaperPencil: MarketIcon =
+    MarketIcon(Res.drawable.market_paper_pencil, false)
 
   /**
-   * The Market icon named 'passcode'.
+   * The Market icon named 'paper-quill'.
    *
-   * 32/passcode-fill
+   * squareup.com, services, professional services
    */
-  public val Passcode32: MarketIcon =
-    MarketIcon(Res.drawable.icon_passcode_32, false)
+  public val PaperQuill: MarketIcon =
+    MarketIcon(Res.drawable.market_paper_quill, false)
 
   /**
-   * The Market icon named 'passcodeFill'.
+   * The Market icon named 'paper-ribbon'.
    *
-   * 16/passcode-fill
+   * squareup.com, customers, contracts
    */
-  public val PasscodeFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_passcode_fill_16, false)
+  public val PaperRibbon: MarketIcon =
+    MarketIcon(Res.drawable.market_paper_ribbon, false)
 
   /**
-   * The Market icon named 'passcodeFill'.
+   * The Market icon named 'paper-x'.
    *
-   * 32/passcode-fill
+   * No contracts
    */
-  public val PasscodeFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_passcode_fill_24, false)
+  public val PaperX: MarketIcon =
+    MarketIcon(Res.drawable.market_paper_x, false)
 
   /**
    * The Market icon named 'passkey'.
    *
-   * 24/passkey
+   * Passkey
    */
-  public val Passkey24: MarketIcon =
-    MarketIcon(Res.drawable.icon_passkey_24, false)
+  public val Passkey: MarketIcon =
+    MarketIcon(Res.drawable.market_passkey, false)
 
   /**
-   * The Market icon named 'password'.
+   * The Market icon named 'pause'.
    *
-   * 24/password
+   * audio, media, video
    */
-  public val Password24: MarketIcon =
-    MarketIcon(Res.drawable.icon_password_24, false)
+  public val Pause: MarketIcon =
+    MarketIcon(Res.drawable.market_pause, false)
 
   /**
-   * The Market icon named 'payInFour'.
+   * The Market icon named 'pause-circle'.
    *
-   * 16/pay-in-four
+   * audio, media, video
    */
-  public val PayInFour16: MarketIcon =
-    MarketIcon(Res.drawable.icon_pay_in_four_16, false)
+  public val PauseCircle: MarketIcon =
+    MarketIcon(Res.drawable.market_pause_circle, false)
 
   /**
-   * The Market icon named 'payInFour'.
+   * The Market icon named 'pause-circle-fill'.
    *
-   * 24/pay-in-four
+   * audio, media, video
    */
-  public val PayInFour24: MarketIcon =
-    MarketIcon(Res.drawable.icon_pay_in_four_24, false)
+  public val PauseCircleFill: MarketIcon =
+    MarketIcon(Res.drawable.market_pause_circle_fill, false)
 
   /**
-   * The Market icon named 'payInFour'.
+   * The Market icon named 'pay-pay'.
    *
-   * 32/pay-in-four
+   * payment
    */
-  public val PayInFour32: MarketIcon =
-    MarketIcon(Res.drawable.icon_pay_in_four_32, false)
+  public val PayPay: MarketIcon =
+    MarketIcon(Res.drawable.market_pay_pay, false)
 
   /**
-   * The Market icon named 'payLater'.
+   * The Market icon named 'paypay-multicolor'.
    *
-   * 16/pay-later
+   * card logo, payment
    */
-  public val PayLater16: MarketIcon =
-    MarketIcon(Res.drawable.icon_pay_later_16, false)
+  public val PaypayMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_paypay_multicolor, true)
 
   /**
-   * The Market icon named 'payLater'.
+   * The Market icon named 'pdf'.
    *
-   * 24/pay-later
+   * File
    */
-  public val PayLater24: MarketIcon =
-    MarketIcon(Res.drawable.icon_pay_later_24, false)
+  public val Pdf: MarketIcon =
+    MarketIcon(Res.drawable.market_pdf, false)
 
   /**
-   * The Market icon named 'payLater'.
+   * The Market icon named 'pencil-in-box'.
    *
-   * 32/pay-later
+   * compose
    */
-  public val PayLater32: MarketIcon =
-    MarketIcon(Res.drawable.icon_pay_later_32, false)
+  public val PencilInBox: MarketIcon =
+    MarketIcon(Res.drawable.market_pencil_in_box, false)
 
   /**
-   * The Market icon named 'paychecks'.
+   * The Market icon named 'pencil-writing'.
    *
-   * 16/paychecks
+   * edit
+   * contract
+   * write
    */
-  public val Paychecks16: MarketIcon =
-    MarketIcon(Res.drawable.icon_paychecks_16, false)
+  public val PencilWriting: MarketIcon =
+    MarketIcon(Res.drawable.market_pencil_writing, false)
 
   /**
-   * The Market icon named 'paychecks'.
+   * The Market icon named 'percentage'.
    *
-   * 24/paychecks
+   * %
    */
-  public val Paychecks24: MarketIcon =
-    MarketIcon(Res.drawable.icon_paychecks_24, false)
+  public val Percentage: MarketIcon =
+    MarketIcon(Res.drawable.market_percentage, false)
 
   /**
-   * The Market icon named 'paychecks'.
-   *
-   * 32/paychecks
-   */
-  public val Paychecks32: MarketIcon =
-    MarketIcon(Res.drawable.icon_paychecks_32, false)
-
-  /**
-   * The Market icon named 'pending'.
-   *
-   * 16/pending (+ bg circle)
-   */
-  public val Pending16: MarketIcon =
-    MarketIcon(Res.drawable.icon_pending_16, false)
-
-  /**
-   * The Market icon named 'pending'.
-   *
-   * 24/pending (+ bg circle)
-   */
-  public val Pending24: MarketIcon =
-    MarketIcon(Res.drawable.icon_pending_24, false)
-
-  /**
-   * The Market icon named 'pending'.
-   *
-   * 32/pending
-   */
-  public val Pending32: MarketIcon =
-    MarketIcon(Res.drawable.icon_pending_32, false)
-
-  /**
-   * The Market icon named 'pendingFill'.
-   *
-   * 16/pending-fill (do not use with bg circle)
-   */
-  public val PendingFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_pending_fill_16, false)
-
-  /**
-   * The Market icon named 'personalizedPayments'.
-   *
-   * 16/personalized-payments
-   */
-  public val PersonalizedPayments16: MarketIcon =
-    MarketIcon(Res.drawable.icon_personalized_payments_16, false)
-
-  /**
-   * The Market icon named 'personalizedPayments'.
-   *
-   * 16/personalized-payments
-   */
-  public val PersonalizedPayments24: MarketIcon =
-    MarketIcon(Res.drawable.icon_personalized_payments_24, false)
-
-  /**
-   * The Market icon named 'photo'.
-   *
-   * 24/photo
-   */
-  public val Photo24: MarketIcon =
-    MarketIcon(Res.drawable.icon_photo_24, false)
-
-  /**
-   * The Market icon named 'pickUp'.
-   *
-   * 24/pick-up
+   * The Market icon named 'phone'.
    */
-  public val PickUp24: MarketIcon =
-    MarketIcon(Res.drawable.icon_pick_up_24, false)
+  public val Phone: MarketIcon =
+    MarketIcon(Res.drawable.market_phone, false)
 
   /**
-   * The Market icon named 'piggyBankUsa'.
+   * The Market icon named 'phone-hardware'.
    *
-   * 24/piggie-bank-usa
+   * Mobile hardware
    */
-  public val PiggyBankUsa24: MarketIcon =
-    MarketIcon(Res.drawable.icon_piggy_bank_usa_24, false)
+  public val PhoneHardware: MarketIcon =
+    MarketIcon(Res.drawable.market_phone_hardware, false)
 
   /**
-   * The Market icon named 'pinch'.
+   * The Market icon named 'phone-lightning-bolt'.
    *
-   * 24/pinch
+   * Mobile line busting
    */
-  public val Pinch24: MarketIcon =
-    MarketIcon(Res.drawable.icon_pinch_24, false)
+  public val PhoneLightningBolt: MarketIcon =
+    MarketIcon(Res.drawable.market_phone_lightning_bolt, false)
 
   /**
-   * The Market icon named 'pools'.
+   * The Market icon named 'phone-martini-glass'.
    *
-   * 16/pools
+   * Mobile bar
    */
-  public val Pools16: MarketIcon =
-    MarketIcon(Res.drawable.icon_pools_16, false)
+  public val PhoneMartiniGlass: MarketIcon =
+    MarketIcon(Res.drawable.market_phone_martini_glass, false)
 
   /**
-   * The Market icon named 'pools'.
-   *
-   * 24/pools
+   * The Market icon named 'phone-message'.
    */
-  public val Pools24: MarketIcon =
-    MarketIcon(Res.drawable.icon_pools_24, false)
+  public val PhoneMessage: MarketIcon =
+    MarketIcon(Res.drawable.market_phone_message, false)
 
   /**
-   * The Market icon named 'pools'.
-   *
-   * 32/pools
+   * The Market icon named 'phone-wireless'.
    */
-  public val Pools32: MarketIcon =
-    MarketIcon(Res.drawable.icon_pools_32, false)
+  public val PhoneWireless: MarketIcon =
+    MarketIcon(Res.drawable.market_phone_wireless, false)
 
   /**
-   * The Market icon named 'printer'.
+   * The Market icon named 'pickup-curbside'.
    *
-   * 24/printer
+   * Pickup curbside
    */
-  public val Printer24: MarketIcon =
-    MarketIcon(Res.drawable.icon_printer_24, false)
+  public val PickupCurbside: MarketIcon =
+    MarketIcon(Res.drawable.market_pickup_curbside, false)
 
   /**
-   * The Market icon named 'push'.
+   * The Market icon named 'pill-bottle'.
    *
-   * 24/push
+   * pharmacy
+   * prescription
    */
-  public val Push24: MarketIcon =
-    MarketIcon(Res.drawable.icon_push_24, false)
+  public val PillBottle: MarketIcon =
+    MarketIcon(Res.drawable.market_pill_bottle, false)
 
   /**
-   * The Market icon named 'pushCentered'.
-   *
-   * 24/push-centered
+   * The Market icon named 'pin'.
    */
-  public val PushCentered24: MarketIcon =
-    MarketIcon(Res.drawable.icon_push_centered_24, false)
+  public val Pin: MarketIcon =
+    MarketIcon(Res.drawable.market_pin, false)
 
   /**
-   * The Market icon named 'qr'.
-   *
-   * 16/qr
+   * The Market icon named 'pin-slash'.
    */
-  public val Qr16: MarketIcon =
-    MarketIcon(Res.drawable.icon_qr_16, false)
+  public val PinSlash: MarketIcon =
+    MarketIcon(Res.drawable.market_pin_slash, false)
 
   /**
-   * The Market icon named 'qr'.
+   * The Market icon named 'play'.
    *
-   * 24/qr
+   * audio, media, video
    */
-  public val Qr24: MarketIcon =
-    MarketIcon(Res.drawable.icon_qr_24, false)
+  public val Play: MarketIcon =
+    MarketIcon(Res.drawable.market_play, false)
 
   /**
-   * The Market icon named 'qr'.
+   * The Market icon named 'play-circle'.
    *
-   * 32/qr
+   * audio, media, video
    */
-  public val Qr32: MarketIcon =
-    MarketIcon(Res.drawable.icon_qr_32, false)
+  public val PlayCircle: MarketIcon =
+    MarketIcon(Res.drawable.market_play_circle, false)
 
   /**
-   * The Market icon named 'recenter'.
+   * The Market icon named 'play-circle-fill'.
    *
-   * 24/recenter
+   * audio, media, video
    */
-  public val Recenter24: MarketIcon =
-    MarketIcon(Res.drawable.icon_recenter_24, false)
+  public val PlayCircleFill: MarketIcon =
+    MarketIcon(Res.drawable.market_play_circle_fill, false)
 
   /**
-   * The Market icon named 'recurringAutomatic'.
+   * The Market icon named 'plus'.
    *
-   * 16/recurring-automatic
+   * add
+   * create
    */
-  public val RecurringAutomatic16: MarketIcon =
-    MarketIcon(Res.drawable.icon_recurring_automatic_16, false)
+  public val Plus: MarketIcon =
+    MarketIcon(Res.drawable.market_plus, false)
 
   /**
-   * The Market icon named 'recurringAutomatic'.
-   *
-   * 24/recurring-automatic
+   * The Market icon named 'plus-in-circle'.
    */
-  public val RecurringAutomatic24: MarketIcon =
-    MarketIcon(Res.drawable.icon_recurring_automatic_24, false)
+  public val PlusInCircle: MarketIcon =
+    MarketIcon(Res.drawable.market_plus_in_circle, false)
 
   /**
-   * The Market icon named 'recurringAutomatic'.
-   *
-   * 32/recurring-automatic
+   * The Market icon named 'plus-minus'.
    */
-  public val RecurringAutomatic32: MarketIcon =
-    MarketIcon(Res.drawable.icon_recurring_automatic_32, false)
+  public val PlusMinus: MarketIcon =
+    MarketIcon(Res.drawable.market_plus_minus, false)
 
   /**
-   * The Market icon named 'refresh'.
+   * The Market icon named 'pos-keypad'.
    *
-   * 24/refresh
+   * POS Keypad
    */
-  public val Refresh24: MarketIcon =
-    MarketIcon(Res.drawable.icon_refresh_24, false)
+  public val PosKeypad: MarketIcon =
+    MarketIcon(Res.drawable.market_pos_keypad, false)
 
   /**
-   * The Market icon named 'refunded'.
+   * The Market icon named 'pos-library'.
    *
-   * 16/refunded
+   * POS Library
    */
-  public val Refunded16: MarketIcon =
-    MarketIcon(Res.drawable.icon_refunded_16, false)
+  public val PosLibrary: MarketIcon =
+    MarketIcon(Res.drawable.market_pos_library, false)
 
   /**
-   * The Market icon named 'refunded'.
+   * The Market icon named 'power'.
    *
-   * 24/refunded
+   * power
    */
-  public val Refunded24: MarketIcon =
-    MarketIcon(Res.drawable.icon_refunded_24, false)
+  public val Power: MarketIcon =
+    MarketIcon(Res.drawable.market_power, false)
 
   /**
-   * The Market icon named 'remittances'.
-   *
-   * 16/remittances
+   * The Market icon named 'print'.
    */
-  public val Remittances16: MarketIcon =
-    MarketIcon(Res.drawable.icon_remittances_16, false)
+  public val Print: MarketIcon =
+    MarketIcon(Res.drawable.market_print, false)
 
   /**
-   * The Market icon named 'remittances'.
-   *
-   * 24/remittances
+   * The Market icon named 'proto'.
    */
-  public val Remittances24: MarketIcon =
-    MarketIcon(Res.drawable.icon_remittances_24, false)
+  public val Proto: MarketIcon =
+    MarketIcon(Res.drawable.market_proto, false)
 
   /**
-   * The Market icon named 'remittances'.
+   * The Market icon named 'puzzle'.
    *
-   * 24/remittances
+   * add ons, plugins
    */
-  public val Remittances32: MarketIcon =
-    MarketIcon(Res.drawable.icon_remittances_32, false)
+  public val Puzzle: MarketIcon =
+    MarketIcon(Res.drawable.market_puzzle, false)
 
   /**
-   * The Market icon named 'reorient'.
-   *
-   * 24/reorient
+   * The Market icon named 'qr-code'.
    */
-  public val Reorient24: MarketIcon =
-    MarketIcon(Res.drawable.icon_reorient_24, false)
+  public val QrCode: MarketIcon =
+    MarketIcon(Res.drawable.market_qr_code, false)
 
   /**
-   * The Market icon named 'reply'.
-   *
-   * 16/reply
+   * The Market icon named 'question-mark'.
    */
-  public val Reply16: MarketIcon =
-    MarketIcon(Res.drawable.icon_reply_16, false)
+  public val QuestionMark: MarketIcon =
+    MarketIcon(Res.drawable.market_question_mark, false)
 
   /**
-   * The Market icon named 'reply'.
+   * The Market icon named 'question-mark-circle'.
    *
-   * 24/reply
+   * help
    */
-  public val Reply24: MarketIcon =
-    MarketIcon(Res.drawable.icon_reply_24, false)
+  public val QuestionMarkCircle: MarketIcon =
+    MarketIcon(Res.drawable.market_question_mark_circle, false)
 
   /**
-   * The Market icon named 'retirementBoat'.
+   * The Market icon named 'quic-pay'.
    *
-   * 24/retirement-boat
+   * payment
    */
-  public val RetirementBoat24: MarketIcon =
-    MarketIcon(Res.drawable.icon_retirement_boat_24, false)
+  public val QuicPay: MarketIcon =
+    MarketIcon(Res.drawable.market_quic_pay, false)
 
   /**
-   * The Market icon named 'roundUps'.
+   * The Market icon named 'quickbooks-multicolor'.
    *
-   * 16/round-ups
+   * Intuit
    */
-  public val RoundUps16: MarketIcon =
-    MarketIcon(Res.drawable.icon_round_ups_16, false)
+  public val QuickbooksMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_quickbooks_multicolor, true)
 
   /**
-   * The Market icon named 'roundUps'.
+   * The Market icon named 'radial-spinner'.
    *
-   * 24/round-ups
+   * loading
    */
-  public val RoundUps24: MarketIcon =
-    MarketIcon(Res.drawable.icon_round_ups_24, false)
+  public val RadialSpinner: MarketIcon =
+    MarketIcon(Res.drawable.market_radial_spinner, false)
 
   /**
-   * The Market icon named 'roundUps'.
-   *
-   * 32/round-ups
+   * The Market icon named 'reader-dip'.
    */
-  public val RoundUps32: MarketIcon =
-    MarketIcon(Res.drawable.icon_round_ups_32, false)
+  public val ReaderDip: MarketIcon =
+    MarketIcon(Res.drawable.market_reader_dip, false)
 
   /**
-   * The Market icon named 'savings'.
-   *
-   * 16/savings
+   * The Market icon named 'reader-tap'.
    */
-  public val Savings16: MarketIcon =
-    MarketIcon(Res.drawable.icon_savings_16, false)
+  public val ReaderTap: MarketIcon =
+    MarketIcon(Res.drawable.market_reader_tap, false)
 
   /**
-   * The Market icon named 'savings'.
+   * The Market icon named 'receipt'.
    *
-   * 24/savings
+   * orders
    */
-  public val Savings24: MarketIcon =
-    MarketIcon(Res.drawable.icon_savings_24, false)
+  public val Receipt: MarketIcon =
+    MarketIcon(Res.drawable.market_receipt, false)
 
   /**
-   * The Market icon named 'savings'.
+   * The Market icon named 'receipt-arrow-right'.
    *
-   * 32/savings
+   * assign
    */
-  public val Savings32: MarketIcon =
-    MarketIcon(Res.drawable.icon_savings_32, false)
+  public val ReceiptArrowRight: MarketIcon =
+    MarketIcon(Res.drawable.market_receipt_arrow_right, false)
 
   /**
-   * The Market icon named 'savingsApy'.
+   * The Market icon named 'receipt-checkmark'.
    *
-   * 24/savings-apy
+   * add
    */
-  public val SavingsApy24: MarketIcon =
-    MarketIcon(Res.drawable.icon_savings_apy_24, false)
+  public val ReceiptCheckmark: MarketIcon =
+    MarketIcon(Res.drawable.market_receipt_checkmark, false)
 
   /**
-   * The Market icon named 'savingsApy'.
+   * The Market icon named 'receipt-human'.
    *
-   * 32/savings-apy
+   * orders
    */
-  public val SavingsApy32: MarketIcon =
-    MarketIcon(Res.drawable.icon_savings_apy_32, false)
+  public val ReceiptHuman: MarketIcon =
+    MarketIcon(Res.drawable.market_receipt_human, false)
 
   /**
-   * The Market icon named 'savingsGoal'.
+   * The Market icon named 'receipt-multiple'.
    *
-   * 24/savings-goal
+   * payroll
    */
-  public val SavingsGoal24: MarketIcon =
-    MarketIcon(Res.drawable.icon_savings_goal_24, false)
+  public val ReceiptMultiple: MarketIcon =
+    MarketIcon(Res.drawable.market_receipt_multiple, false)
 
   /**
-   * The Market icon named 'savingsGoal'.
+   * The Market icon named 'receipt-percentage'.
    *
-   * 32/savings-goal
+   * %
    */
-  public val SavingsGoal32: MarketIcon =
-    MarketIcon(Res.drawable.icon_savings_goal_32, false)
+  public val ReceiptPercentage: MarketIcon =
+    MarketIcon(Res.drawable.market_receipt_percentage, false)
 
   /**
-   * The Market icon named 'scrubber'.
-   *
-   * 24/scrubber
+   * The Market icon named 'receipt-printer'.
    */
-  public val Scrubber24: MarketIcon =
-    MarketIcon(Res.drawable.icon_scrubber_24, false)
+  public val ReceiptPrinter: MarketIcon =
+    MarketIcon(Res.drawable.market_receipt_printer, false)
 
   /**
-   * The Market icon named 'search'.
+   * The Market icon named 'receipt-x'.
    *
-   * 16/search
+   * remove
    */
-  public val Search16: MarketIcon =
-    MarketIcon(Res.drawable.icon_search_16, false)
+  public val ReceiptX: MarketIcon =
+    MarketIcon(Res.drawable.market_receipt_x, false)
 
   /**
-   * The Market icon named 'search'.
+   * The Market icon named 'resy'.
    *
-   * 24/search
+   * reservation
    */
-  public val Search24: MarketIcon =
-    MarketIcon(Res.drawable.icon_search_24, false)
+  public val Resy: MarketIcon =
+    MarketIcon(Res.drawable.market_resy, false)
 
   /**
-   * The Market icon named 'securityAlertFill'.
+   * The Market icon named 'right-left'.
    *
-   * 16/security-alert-fill
+   * multi direction
    */
-  public val SecurityAlertFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_alert_fill_16, false)
+  public val RightLeft: MarketIcon =
+    MarketIcon(Res.drawable.market_right_left, false)
 
   /**
-   * The Market icon named 'securityAlertFill'.
+   * The Market icon named 'robe'.
    *
-   * 24/security-alert-fill
+   * squareup.com, beauty, day spa
    */
-  public val SecurityAlertFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_alert_fill_24, false)
+  public val Robe: MarketIcon =
+    MarketIcon(Res.drawable.market_robe, false)
 
   /**
-   * The Market icon named 'securityAlertFill'.
-   *
-   * 32/security-alert-fill
+   * The Market icon named 'rocket'.
    */
-  public val SecurityAlertFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_alert_fill_32, false)
+  public val Rocket: MarketIcon =
+    MarketIcon(Res.drawable.market_rocket, false)
 
   /**
-   * The Market icon named 'securityAlertOutline'.
-   *
-   * 24/security-alert-outline
+   * The Market icon named 'scale'.
    */
-  public val SecurityAlertOutline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_alert_outline_24, false)
+  public val Scale: MarketIcon =
+    MarketIcon(Res.drawable.market_scale, false)
 
   /**
-   * The Market icon named 'securityAlertOutline'.
+   * The Market icon named 'scan'.
    *
-   * 32/security-alert-outline
+   * generic
    */
-  public val SecurityAlertOutline32: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_alert_outline_32, false)
+  public val Scan: MarketIcon =
+    MarketIcon(Res.drawable.market_scan, false)
 
   /**
-   * The Market icon named 'securityCheckFill'.
-   *
-   * 16/security-check-fill
+   * The Market icon named 'scan-barcode'.
    */
-  public val SecurityCheckFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_check_fill_16, false)
+  public val ScanBarcode: MarketIcon =
+    MarketIcon(Res.drawable.market_scan_barcode, false)
 
   /**
-   * The Market icon named 'securityCheckFill'.
+   * The Market icon named 'scan-check'.
    *
-   * 24/security-check-fill
+   * success
    */
-  public val SecurityCheckFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_check_fill_24, false)
+  public val ScanCheck: MarketIcon =
+    MarketIcon(Res.drawable.market_scan_check, false)
 
   /**
-   * The Market icon named 'securityCheckFill'.
-   *
-   * 32/security-check-fill
+   * The Market icon named 'scan-document'.
    */
-  public val SecurityCheckFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_check_fill_32, false)
+  public val ScanDocument: MarketIcon =
+    MarketIcon(Res.drawable.market_scan_document, false)
 
   /**
-   * The Market icon named 'securityCheckOutline'.
+   * The Market icon named 'scan-human'.
    *
-   * 24/security-check-outline
+   * Person, customer
    */
-  public val SecurityCheckOutline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_check_outline_24, false)
+  public val ScanHuman: MarketIcon =
+    MarketIcon(Res.drawable.market_scan_human, false)
 
   /**
-   * The Market icon named 'securityCheckOutline'.
-   *
-   * 32/security-check-outline
+   * The Market icon named 'scan-qr-code'.
    */
-  public val SecurityCheckOutline32: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_check_outline_32, false)
+  public val ScanQrCode: MarketIcon =
+    MarketIcon(Res.drawable.market_scan_qr_code, false)
 
   /**
-   * The Market icon named 'securityLockFill'.
-   *
-   * 16/security-lock-fill
+   * The Market icon named 'scan-text'.
    */
-  public val SecurityLockFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_lock_fill_16, false)
+  public val ScanText: MarketIcon =
+    MarketIcon(Res.drawable.market_scan_text, false)
 
   /**
-   * The Market icon named 'securityLockFill'.
+   * The Market icon named 'scan-x'.
    *
-   * 24/security-lock-fill
+   * error
    */
-  public val SecurityLockFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_lock_fill_24, false)
+  public val ScanX: MarketIcon =
+    MarketIcon(Res.drawable.market_scan_x, false)
 
   /**
-   * The Market icon named 'securityLockFill'.
+   * The Market icon named 'scanner-scale'.
    *
-   * 32/security-lock-fill
+   * Scanner scale
    */
-  public val SecurityLockFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_lock_fill_32, false)
+  public val ScannerScale: MarketIcon =
+    MarketIcon(Res.drawable.market_scanner_scale, false)
 
   /**
-   * The Market icon named 'securityLockOutline'.
+   * The Market icon named 'screwdriver-ruler'.
    *
-   * 24/security-lock-outline
+   * tools
+   * hardware
    */
-  public val SecurityLockOutline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_lock_outline_24, false)
+  public val ScrewdriverRuler: MarketIcon =
+    MarketIcon(Res.drawable.market_screwdriver_ruler, false)
 
   /**
-   * The Market icon named 'securityLockOutline'.
+   * The Market icon named 'seat-map'.
    *
-   * 32/security-lock-outline
+   * seating chart
+   * floor plan
+   * restaurant
    */
-  public val SecurityLockOutline32: MarketIcon =
-    MarketIcon(Res.drawable.icon_security_lock_outline_32, false)
+  public val SeatMap: MarketIcon =
+    MarketIcon(Res.drawable.market_seat_map, false)
 
   /**
-   * The Market icon named 'selfEmployed'.
+   * The Market icon named 'sedan-spot'.
    *
-   * 24/self-employed
+   * Drive thru
    */
-  public val SelfEmployed24: MarketIcon =
-    MarketIcon(Res.drawable.icon_self_employed_24, false)
+  public val SedanSpot: MarketIcon =
+    MarketIcon(Res.drawable.market_sedan_spot, false)
 
   /**
    * The Market icon named 'send'.
-   *
-   * 16/send
    */
-  public val Send16: MarketIcon =
-    MarketIcon(Res.drawable.icon_send_16, false)
+  public val Send: MarketIcon =
+    MarketIcon(Res.drawable.market_send, false)
 
   /**
-   * The Market icon named 'send'.
+   * The Market icon named 'service-bell'.
    *
-   * 24/send
+   * hotel
+   * hospitality
    */
-  public val Send24: MarketIcon =
-    MarketIcon(Res.drawable.icon_send_24, false)
+  public val ServiceBell: MarketIcon =
+    MarketIcon(Res.drawable.market_service_bell, false)
 
   /**
-   * The Market icon named 'sendArrow'.
-   *
-   * 16/send-arrow
+   * The Market icon named 'service-charge'.
    */
-  public val SendArrow16: MarketIcon =
-    MarketIcon(Res.drawable.icon_send_arrow_16, false)
+  public val ServiceCharge: MarketIcon =
+    MarketIcon(Res.drawable.market_service_charge, false)
 
   /**
-   * The Market icon named 'sendArrow'.
-   *
-   * 24/next
+   * The Market icon named 'shapes'.
    */
-  public val SendArrow24: MarketIcon =
-    MarketIcon(Res.drawable.icon_send_arrow_24, false)
+  public val Shapes: MarketIcon =
+    MarketIcon(Res.drawable.market_shapes, false)
 
   /**
-   * The Market icon named 'sensitiveHidden'.
-   *
-   * 16/sensitive-hidden
+   * The Market icon named 'shield-check'.
    */
-  public val SensitiveHidden16: MarketIcon =
-    MarketIcon(Res.drawable.icon_sensitive_hidden_16, false)
+  public val ShieldCheck: MarketIcon =
+    MarketIcon(Res.drawable.market_shield_check, false)
 
   /**
-   * The Market icon named 'sensitiveHidden'.
+   * The Market icon named 'shield-empty'.
    *
-   * 24/sensitive-hidden
+   * Bitkey nav
    */
-  public val SensitiveHidden24: MarketIcon =
-    MarketIcon(Res.drawable.icon_sensitive_hidden_24, false)
+  public val ShieldEmpty: MarketIcon =
+    MarketIcon(Res.drawable.market_shield_empty, false)
 
   /**
-   * The Market icon named 'sensitiveVisible'.
-   *
-   * 16/sensitive-visible
+   * The Market icon named 'shield-exclamation'.
    */
-  public val SensitiveVisible16: MarketIcon =
-    MarketIcon(Res.drawable.icon_sensitive_visible_16, false)
+  public val ShieldExclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_shield_exclamation, false)
 
   /**
-   * The Market icon named 'sensitiveVisible'.
+   * The Market icon named 'shield-fill'.
    *
-   * 24/sensitive-visible
+   * Bitkey nav
    */
-  public val SensitiveVisible24: MarketIcon =
-    MarketIcon(Res.drawable.icon_sensitive_visible_24, false)
+  public val ShieldFill: MarketIcon =
+    MarketIcon(Res.drawable.market_shield_fill, false)
 
   /**
-   * The Market icon named 'settings'.
-   *
-   * 24/settings
+   * The Market icon named 'shield-human'.
    */
-  public val Settings24: MarketIcon =
-    MarketIcon(Res.drawable.icon_settings_24, false)
+  public val ShieldHuman: MarketIcon =
+    MarketIcon(Res.drawable.market_shield_human, false)
 
   /**
-   * The Market icon named 'share'.
-   *
-   * 16/share
+   * The Market icon named 'shield-lock'.
    */
-  public val Share16: MarketIcon =
-    MarketIcon(Res.drawable.icon_share_16, false)
+  public val ShieldLock: MarketIcon =
+    MarketIcon(Res.drawable.market_shield_lock, false)
 
   /**
-   * The Market icon named 'share'.
-   *
-   * 24/share
+   * The Market icon named 'shoe'.
    */
-  public val Share24: MarketIcon =
-    MarketIcon(Res.drawable.icon_share_24, false)
+  public val Shoe: MarketIcon =
+    MarketIcon(Res.drawable.market_shoe, false)
 
   /**
-   * The Market icon named 'shareAndroid'.
-   *
-   * 24/share-android
+   * The Market icon named 'shoe-alt'.
    */
-  public val ShareAndroid24: MarketIcon =
-    MarketIcon(Res.drawable.icon_share_android_24, false)
+  public val ShoeAlt: MarketIcon =
+    MarketIcon(Res.drawable.market_shoe_alt, false)
 
   /**
-   * The Market icon named 'shopInStore'.
-   *
-   * 24/shop-in-store
+   * The Market icon named 'shopping-basket'.
    */
-  public val ShopInStore24: MarketIcon =
-    MarketIcon(Res.drawable.icon_shop_in_store_24, false)
+  public val ShoppingBasket: MarketIcon =
+    MarketIcon(Res.drawable.market_shopping_basket, false)
 
   /**
-   * The Market icon named 'shoppingBag'.
-   *
-   * 24/shopping-bag
+   * The Market icon named 'shopping-cart'.
    */
-  public val ShoppingBag24: MarketIcon =
-    MarketIcon(Res.drawable.icon_shopping_bag_24, false)
+  public val ShoppingCart: MarketIcon =
+    MarketIcon(Res.drawable.market_shopping_cart, false)
 
   /**
-   * The Market icon named 'shoppingCart'.
-   *
-   * 24/shopping-cart
+   * The Market icon named 'shopping-cart-arrow'.
    */
-  public val ShoppingCart24: MarketIcon =
-    MarketIcon(Res.drawable.icon_shopping_cart_24, false)
+  public val ShoppingCartArrow: MarketIcon =
+    MarketIcon(Res.drawable.market_shopping_cart_arrow, false)
 
   /**
-   * The Market icon named 'skipped'.
-   *
-   * 16/skipped
+   * The Market icon named 'shopping-cart-checkmark'.
    */
-  public val Skipped16: MarketIcon =
-    MarketIcon(Res.drawable.icon_skipped_16, false)
+  public val ShoppingCartCheckmark: MarketIcon =
+    MarketIcon(Res.drawable.market_shopping_cart_checkmark, false)
 
   /**
-   * The Market icon named 'skipped'.
+   * The Market icon named 'shovel'.
    *
-   * 24/skipped
+   * squareup.com, retail, garden
    */
-  public val Skipped24: MarketIcon =
-    MarketIcon(Res.drawable.icon_skipped_24, false)
+  public val Shovel: MarketIcon =
+    MarketIcon(Res.drawable.market_shovel, false)
 
   /**
-   * The Market icon named 'skipped'.
+   * The Market icon named 'sign-dollar'.
    *
-   * 32/skipped
+   * USD
+   * CAD
+   * AUD
    */
-  public val Skipped32: MarketIcon =
-    MarketIcon(Res.drawable.icon_skipped_32, false)
+  public val SignDollar: MarketIcon =
+    MarketIcon(Res.drawable.market_sign_dollar, false)
 
   /**
-   * The Market icon named 'starCircled'.
+   * The Market icon named 'sign-dollar-arrow'.
    *
-   * 24/star-circled
+   * online checkout
+   * USD
+   * CAD
    */
-  public val StarCircled24: MarketIcon =
-    MarketIcon(Res.drawable.icon_star_circled_24, false)
+  public val SignDollarArrow: MarketIcon =
+    MarketIcon(Res.drawable.market_sign_dollar_arrow, false)
 
   /**
-   * The Market icon named 'stickers'.
-   *
-   * 16/stickers
+   * The Market icon named 'sign-eur'.
    */
-  public val Stickers16: MarketIcon =
-    MarketIcon(Res.drawable.icon_stickers_16, false)
+  public val SignEur: MarketIcon =
+    MarketIcon(Res.drawable.market_sign_eur, false)
 
   /**
-   * The Market icon named 'stickers'.
+   * The Market icon named 'sign-eur-arrow'.
    *
-   * 24/stickers
+   * online checkout
    */
-  public val Stickers24: MarketIcon =
-    MarketIcon(Res.drawable.icon_stickers_24, false)
+  public val SignEurArrow: MarketIcon =
+    MarketIcon(Res.drawable.market_sign_eur_arrow, false)
 
   /**
-   * The Market icon named 'stickers'.
-   *
-   * 32/stickers
+   * The Market icon named 'sign-gbp'.
    */
-  public val Stickers32: MarketIcon =
-    MarketIcon(Res.drawable.icon_stickers_32, false)
+  public val SignGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_sign_gbp, false)
+
+  /**
+   * The Market icon named 'sign-gbp-arrow'.
+   *
+   * online checkout
+   */
+  public val SignGbpArrow: MarketIcon =
+    MarketIcon(Res.drawable.market_sign_gbp_arrow, false)
+
+  /**
+   * The Market icon named 'sign-jpy'.
+   */
+  public val SignJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_sign_jpy, false)
+
+  /**
+   * The Market icon named 'sign-jpy-arrow'.
+   *
+   * online checkout
+   */
+  public val SignJpyArrow: MarketIcon =
+    MarketIcon(Res.drawable.market_sign_jpy_arrow, false)
+
+  /**
+   * The Market icon named 'sliders-horizontal'.
+   *
+   * options Settings
+   */
+  public val SlidersHorizontal: MarketIcon =
+    MarketIcon(Res.drawable.market_sliders_horizontal, false)
+
+  /**
+   * The Market icon named 'speaker'.
+   */
+  public val Speaker: MarketIcon =
+    MarketIcon(Res.drawable.market_speaker, false)
+
+  /**
+   * The Market icon named 'spei-multicolor'.
+   *
+   * card logo, payment, LATAM
+   */
+  public val SpeiMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_spei_multicolor, true)
+
+  /**
+   * The Market icon named 'spray-bottle'.
+   *
+   * squareup.com, services, cleaning
+   */
+  public val SprayBottle: MarketIcon =
+    MarketIcon(Res.drawable.market_spray_bottle, false)
+
+  /**
+   * The Market icon named 'square'.
+   *
+   * jewel, logo, brand
+   */
+  public val Square: MarketIcon =
+    MarketIcon(Res.drawable.market_square, false)
+
+  /**
+   * The Market icon named 'square-ai'.
+   */
+  public val SquareAi: MarketIcon =
+    MarketIcon(Res.drawable.market_square_ai, false)
+
+  /**
+   * The Market icon named 'square-ai-fill'.
+   */
+  public val SquareAiFill: MarketIcon =
+    MarketIcon(Res.drawable.market_square_ai_fill, false)
+
+  /**
+   * The Market icon named 'square-buyer-display'.
+   *
+   * BFD, buyer facing display, bran, customer display, register,  X2, X2c
+   */
+  public val SquareBuyerDisplay: MarketIcon =
+    MarketIcon(Res.drawable.market_square_buyer_display, false)
+
+  /**
+   * The Market icon named 'square-card'.
+   */
+  public val SquareCard: MarketIcon =
+    MarketIcon(Res.drawable.market_square_card, false)
+
+  /**
+   * The Market icon named 'square-checkmark'.
+   *
+   * risk manager
+   */
+  public val SquareCheckmark: MarketIcon =
+    MarketIcon(Res.drawable.market_square_checkmark, false)
+
+  /**
+   * The Market icon named 'square-gift-card'.
+   *
+   * card logo, payment
+   */
+  public val SquareGiftCard: MarketIcon =
+    MarketIcon(Res.drawable.market_square_gift_card, false)
+
+  /**
+   * The Market icon named 'square-go'.
+   */
+  public val SquareGo: MarketIcon =
+    MarketIcon(Res.drawable.market_square_go, false)
+
+  /**
+   * The Market icon named 'square-handheld'.
+   *
+   * hardware, device, handheld, T3
+   */
+  public val SquareHandheld: MarketIcon =
+    MarketIcon(Res.drawable.market_square_handheld, false)
+
+  /**
+   * The Market icon named 'square-multicolor'.
+   *
+   * card logo, payment, jewel
+   */
+  public val SquareMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_square_multicolor, true)
+
+  /**
+   * The Market icon named 'square-reader-contactless-and-chip'.
+   *
+   * hardware, device, R12
+   */
+  public val SquareReaderContactlessAndChip: MarketIcon =
+    MarketIcon(Res.drawable.market_square_reader_contactless_and_chip, false)
+
+  /**
+   * The Market icon named 'square-reader-magstripe'.
+   *
+   * hardware, device, R4
+   */
+  public val SquareReaderMagstripe: MarketIcon =
+    MarketIcon(Res.drawable.market_square_reader_magstripe, false)
+
+  /**
+   * The Market icon named 'square-register'.
+   *
+   * Register, X2, X2c
+   */
+  public val SquareRegister: MarketIcon =
+    MarketIcon(Res.drawable.market_square_register, false)
+
+  /**
+   * The Market icon named 'square-register-display'.
+   *
+   * Register, X2, X2c
+   */
+  public val SquareRegisterDisplay: MarketIcon =
+    MarketIcon(Res.drawable.market_square_register_display, false)
+
+  /**
+   * The Market icon named 'square-stand'.
+   *
+   * hardware, device, front of house, S2, S3
+   */
+  public val SquareStand: MarketIcon =
+    MarketIcon(Res.drawable.market_square_stand, false)
+
+  /**
+   * The Market icon named 'square-stand-mount'.
+   *
+   * hardware, device, mount
+   */
+  public val SquareStandMount: MarketIcon =
+    MarketIcon(Res.drawable.market_square_stand_mount, false)
+
+  /**
+   * The Market icon named 'square-terminal'.
+   *
+   * hardware, device, T2
+   */
+  public val SquareTerminal: MarketIcon =
+    MarketIcon(Res.drawable.market_square_terminal, false)
+
+  /**
+   * The Market icon named 'stack'.
+   *
+   * itemTile.group.icon
+   */
+  public val Stack: MarketIcon =
+    MarketIcon(Res.drawable.market_stack, false)
+
+  /**
+   * The Market icon named 'star'.
+   */
+  public val Star: MarketIcon =
+    MarketIcon(Res.drawable.market_star, false)
+
+  /**
+   * The Market icon named 'star-fill'.
+   */
+  public val StarFill: MarketIcon =
+    MarketIcon(Res.drawable.market_star_fill, false)
+
+  /**
+   * The Market icon named 'stethoscope'.
+   *
+   * squareup.com, services, healthcare
+   */
+  public val Stethoscope: MarketIcon =
+    MarketIcon(Res.drawable.market_stethoscope, false)
 
   /**
    * The Market icon named 'stop'.
    *
-   * 16/bot-stop
+   * audio, media, video
    */
-  public val Stop16: MarketIcon =
-    MarketIcon(Res.drawable.icon_stop_16, false)
+  public val Stop: MarketIcon =
+    MarketIcon(Res.drawable.market_stop, false)
 
   /**
-   * The Market icon named 'stop'.
-   *
-   * 24/stop icons: moneybot
-   */
-  public val Stop24: MarketIcon =
-    MarketIcon(Res.drawable.icon_stop_24, false)
-
-  /**
-   * The Market icon named 'student'.
-   *
-   * 24/student
-   */
-  public val Student24: MarketIcon =
-    MarketIcon(Res.drawable.icon_student_24, false)
-
-  /**
-   * The Market icon named 'subtleExpand'.
-   *
-   * 16/subtle-expand
-   */
-  public val SubtleExpand16: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtle_expand_16, false)
-
-  /**
-   * The Market icon named 'subtleMore'.
-   *
-   * 16/subtle-more
-   */
-  public val SubtleMore16: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtle_more_16, false)
-
-  /**
-   * The Market icon named 'subtlePush'.
-   *
-   * 16/subtle-push
-   */
-  public val SubtlePush16: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtle_push_16, false)
-
-  /**
-   * The Market icon named 'subtract'.
-   *
-   * 16/subtract (+bg circle)
-   */
-  public val Subtract16: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtract_16, false)
-
-  /**
-   * The Market icon named 'subtract'.
-   *
-   * 24/subtract (+bg circle)
-   */
-  public val Subtract24: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtract_24, false)
-
-  /**
-   * The Market icon named 'subtract'.
-   *
-   * 32/subtract
-   */
-  public val Subtract32: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtract_32, false)
-
-  /**
-   * The Market icon named 'subtractFill'.
-   *
-   * 16/subtract-fill (do not use with background circle)
-   */
-  public val SubtractFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtract_fill_16, false)
-
-  /**
-   * The Market icon named 'subtractFill'.
-   *
-   * 24/subtract-fill (do not use with background circle)
-   */
-  public val SubtractFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtract_fill_24, false)
-
-  /**
-   * The Market icon named 'subtractFill'.
-   *
-   * 32/subtract-fill [archived]
-   */
-  public val SubtractFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtract_fill_32, false)
-
-  /**
-   * The Market icon named 'subtractOutline'.
-   *
-   * 16/subtract-outline (do not use with background circle)
-   */
-  public val SubtractOutline16: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtract_outline_16, false)
-
-  /**
-   * The Market icon named 'subtractOutline'.
-   *
-   * 24/subtract-outline (do not use with background circle)
-   */
-  public val SubtractOutline24: MarketIcon =
-    MarketIcon(Res.drawable.icon_subtract_outline_24, false)
-
-  /**
-   * The Market icon named 'supportFill'.
-   *
-   * 16/support-fill
-   */
-  public val SupportFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_support_fill_16, false)
-
-  /**
-   * The Market icon named 'supportFill'.
-   *
-   * 24/support-fill
-   */
-  public val SupportFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_support_fill_24, false)
-
-  /**
-   * The Market icon named 'supportFill'.
-   *
-   * 32/support-fill
-   */
-  public val SupportFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_support_fill_32, false)
-
-  /**
-   * The Market icon named 'swapCurrency'.
-   *
-   * 16/swap-currency
-   */
-  public val SwapCurrency16: MarketIcon =
-    MarketIcon(Res.drawable.icon_swap_currency_16, false)
-
-  /**
-   * The Market icon named 'swapCurrency'.
-   *
-   * 24/swap-currency
-   */
-  public val SwapCurrency24: MarketIcon =
-    MarketIcon(Res.drawable.icon_swap_currency_24, false)
-
-  /**
-   * The Market icon named 'swapCurrency'.
-   *
-   * 32/swap-currency
+   * The Market icon named 'store'.
    */
-  public val SwapCurrency32: MarketIcon =
-    MarketIcon(Res.drawable.icon_swap_currency_32, false)
+  public val Store: MarketIcon =
+    MarketIcon(Res.drawable.market_store, false)
 
   /**
-   * The Market icon named 'switcher'.
+   * The Market icon named 'suv-spot'.
    *
-   * 16/switcher
+   * Drive thru
    */
-  public val Switcher16: MarketIcon =
-    MarketIcon(Res.drawable.icon_switcher_16, false)
+  public val SuvSpot: MarketIcon =
+    MarketIcon(Res.drawable.market_suv_spot, false)
 
   /**
-   * The Market icon named 'tapToPay'.
+   * The Market icon named 'swimmer'.
    *
-   * 24/tap-to-pay
+   * squareup.com, services, recreation
    */
-  public val TapToPay24: MarketIcon =
-    MarketIcon(Res.drawable.icon_tap_to_pay_24, false)
+  public val Swimmer: MarketIcon =
+    MarketIcon(Res.drawable.market_swimmer, false)
 
   /**
-   * The Market icon named 'tapToPay'.
-   *
-   * 32/tap-to-pay
+   * The Market icon named 'symbols'.
    */
-  public val TapToPay32: MarketIcon =
-    MarketIcon(Res.drawable.icon_tap_to_pay_32, false)
+  public val Symbols: MarketIcon =
+    MarketIcon(Res.drawable.market_symbols, false)
 
   /**
-   * The Market icon named 'taxes'.
+   * The Market icon named 'syringe'.
    *
-   * 16/taxes
+   * squareup.com, beauty, medspa (alt)
    */
-  public val Taxes16: MarketIcon =
-    MarketIcon(Res.drawable.icon_taxes_16, false)
+  public val Syringe: MarketIcon =
+    MarketIcon(Res.drawable.market_syringe, false)
 
   /**
-   * The Market icon named 'taxes'.
+   * The Market icon named 't-slash'.
    *
-   * 24/taxes
+   * rich text, clear formatting
    */
-  public val Taxes24: MarketIcon =
-    MarketIcon(Res.drawable.icon_taxes_24, false)
+  public val TSlash: MarketIcon =
+    MarketIcon(Res.drawable.market_t_slash, false)
 
   /**
-   * The Market icon named 'taxes'.
+   * The Market icon named 'table'.
    *
-   * 32/taxes
+   * list, data, spreadsheet, column, row, cell
    */
-  public val Taxes32: MarketIcon =
-    MarketIcon(Res.drawable.icon_taxes_32, false)
+  public val Table: MarketIcon =
+    MarketIcon(Res.drawable.market_table, false)
 
   /**
-   * The Market icon named 'teachingExpense'.
-   *
-   * 24/teaching-expense
+   * The Market icon named 'tablet'.
    */
-  public val TeachingExpense24: MarketIcon =
-    MarketIcon(Res.drawable.icon_teaching_expense_24, false)
+  public val Tablet: MarketIcon =
+    MarketIcon(Res.drawable.market_tablet, false)
 
   /**
-   * The Market icon named 'text'.
+   * The Market icon named 'tag'.
    *
-   * 16/text
+   * items
    */
-  public val Text16: MarketIcon =
-    MarketIcon(Res.drawable.icon_text_16, false)
+  public val Tag: MarketIcon =
+    MarketIcon(Res.drawable.market_tag, false)
 
   /**
-   * The Market icon named 'text'.
-   *
-   * 24/text
+   * The Market icon named 'tag-eur'.
    */
-  public val Text24: MarketIcon =
-    MarketIcon(Res.drawable.icon_text_24, false)
+  public val TagEur: MarketIcon =
+    MarketIcon(Res.drawable.market_tag_eur, false)
 
   /**
-   * The Market icon named 'text'.
-   *
-   * 32/text
+   * The Market icon named 'tag-gbp'.
    */
-  public val Text32: MarketIcon =
-    MarketIcon(Res.drawable.icon_text_32, false)
+  public val TagGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_tag_gbp, false)
 
   /**
-   * The Market icon named 'themes'.
-   *
-   * 24/themes
+   * The Market icon named 'tag-jpy'.
    */
-  public val Themes24: MarketIcon =
-    MarketIcon(Res.drawable.icon_themes_24, false)
+  public val TagJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_tag_jpy, false)
 
   /**
-   * The Market icon named 'thumbsDown'.
-   *
-   * 24/thumbs-down
+   * The Market icon named 'tag-usd'.
    */
-  public val ThumbsDown16: MarketIcon =
-    MarketIcon(Res.drawable.icon_thumbs_down_16, false)
+  public val TagUsd: MarketIcon =
+    MarketIcon(Res.drawable.market_tag_usd, false)
 
   /**
-   * The Market icon named 'thumbsUp'.
+   * The Market icon named 'tag-with-line'.
    *
-   * 16/thumbs-up
+   * items
    */
-  public val ThumbsUp16: MarketIcon =
-    MarketIcon(Res.drawable.icon_thumbs_up_16, false)
+  public val TagWithLine: MarketIcon =
+    MarketIcon(Res.drawable.market_tag_with_line, false)
 
   /**
-   * The Market icon named 'tickerDown'.
+   * The Market icon named 'terminal-sign-dollar'.
    *
-   * 16/ticker-down
+   * virtual terminal
+   * USD
+   * CAD
    */
-  public val TickerDown16: MarketIcon =
-    MarketIcon(Res.drawable.icon_ticker_down_16, false)
+  public val TerminalSignDollar: MarketIcon =
+    MarketIcon(Res.drawable.market_terminal_sign_dollar, false)
 
   /**
-   * The Market icon named 'tickerDown'.
+   * The Market icon named 'terminal-sign-eur'.
    *
-   * 24/ticker-down
+   * virtual terminal
    */
-  public val TickerDown24: MarketIcon =
-    MarketIcon(Res.drawable.icon_ticker_down_24, false)
+  public val TerminalSignEur: MarketIcon =
+    MarketIcon(Res.drawable.market_terminal_sign_eur, false)
 
   /**
-   * The Market icon named 'tickerUp'.
+   * The Market icon named 'terminal-sign-gbp'.
    *
-   * 16/ticker-up
+   * virtual terminal
    */
-  public val TickerUp16: MarketIcon =
-    MarketIcon(Res.drawable.icon_ticker_up_16, false)
+  public val TerminalSignGbp: MarketIcon =
+    MarketIcon(Res.drawable.market_terminal_sign_gbp, false)
 
   /**
-   * The Market icon named 'tickerUp'.
+   * The Market icon named 'terminal-sign-jpy'.
    *
-   * 24/ticker-up
+   * virtual terminal
    */
-  public val TickerUp24: MarketIcon =
-    MarketIcon(Res.drawable.icon_ticker_up_24, false)
+  public val TerminalSignJpy: MarketIcon =
+    MarketIcon(Res.drawable.market_terminal_sign_jpy, false)
 
   /**
-   * The Market icon named 'time'.
+   * The Market icon named 'thumbs-down'.
    *
-   * time icon; for subtle lists referring to time, activity, history, etc.
+   * Hand
    */
-  public val Time16: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_16, false)
+  public val ThumbsDown: MarketIcon =
+    MarketIcon(Res.drawable.market_thumbs_down, false)
 
   /**
-   * The Market icon named 'time'.
+   * The Market icon named 'thumbs-up'.
    *
-   * 24/time
+   * Hand
    */
-  public val Time24: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_24, false)
+  public val ThumbsUp: MarketIcon =
+    MarketIcon(Res.drawable.market_thumbs_up, false)
 
   /**
-   * The Market icon named 'time'.
+   * The Market icon named 'ticket'.
    *
-   * 32/time
+   * event
    */
-  public val Time32: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_32, false)
+  public val Ticket: MarketIcon =
+    MarketIcon(Res.drawable.market_ticket, false)
 
   /**
-   * The Market icon named 'timeFill'.
+   * The Market icon named 'tiles'.
    *
-   * 16/time-fill
+   * checkout Grid
    */
-  public val TimeFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_fill_16, false)
+  public val Tiles: MarketIcon =
+    MarketIcon(Res.drawable.market_tiles, false)
 
   /**
-   * The Market icon named 'timeFill'.
+   * The Market icon named 'tiles-plus'.
    *
-   * 24/time-fill
+   * app integrations
+   * add ons
+   * add-ons
    */
-  public val TimeFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_fill_24, false)
+  public val TilesPlus: MarketIcon =
+    MarketIcon(Res.drawable.market_tiles_plus, false)
 
   /**
-   * The Market icon named 'timeFill'.
-   *
-   * 32/time
+   * The Market icon named 'timer'.
    */
-  public val TimeFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_fill_32, false)
+  public val Timer: MarketIcon =
+    MarketIcon(Res.drawable.market_timer, false)
 
   /**
-   * The Market icon named 'timeHourglass'.
+   * The Market icon named 'tock'.
    *
-   * 16/time-hourglass
+   * order, reservation
    */
-  public val TimeHourglass16: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_hourglass_16, false)
+  public val Tock: MarketIcon =
+    MarketIcon(Res.drawable.market_tock, false)
 
   /**
-   * The Market icon named 'timeHourglass'.
+   * The Market icon named 'train'.
    *
-   * 24/time-hourglass
+   * squareup.com, services, transportation
    */
-  public val TimeHourglass24: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_hourglass_24, false)
+  public val Train: MarketIcon =
+    MarketIcon(Res.drawable.market_train, false)
 
   /**
-   * The Market icon named 'timeHourglass'.
+   * The Market icon named 'trashcan'.
    *
-   * 32/time-hourglass
+   * delete
+   * trash
    */
-  public val TimeHourglass32: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_hourglass_32, false)
+  public val Trashcan: MarketIcon =
+    MarketIcon(Res.drawable.market_trashcan, false)
 
   /**
-   * The Market icon named 'timeInfinite'.
+   * The Market icon named 'tree-pair'.
    *
-   * 16/time-infinite
+   * squareup.com, services, landscaping & outdoors
    */
-  public val TimeInfinite16: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_infinite_16, false)
+  public val TreePair: MarketIcon =
+    MarketIcon(Res.drawable.market_tree_pair, false)
 
   /**
-   * The Market icon named 'timeInfinite'.
-   *
-   * 24/time-infinite
+   * The Market icon named 'trend-triangle-down'.
    */
-  public val TimeInfinite24: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_infinite_24, false)
+  public val TrendTriangleDown: MarketIcon =
+    MarketIcon(Res.drawable.market_trend_triangle_down, false)
 
   /**
-   * The Market icon named 'timeInfinite'.
-   *
-   * 32/time-infinite
+   * The Market icon named 'trend-triangle-up'.
    */
-  public val TimeInfinite32: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_infinite_32, false)
+  public val TrendTriangleUp: MarketIcon =
+    MarketIcon(Res.drawable.market_trend_triangle_up, false)
 
   /**
-   * The Market icon named 'timeProgressStart'.
+   * The Market icon named 'trophy'.
    *
-   * 16/time-progress-start
+   * medal
+   * reward
+   * accolade
    */
-  public val TimeProgressStart16: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_progress_start_16, false)
+  public val Trophy: MarketIcon =
+    MarketIcon(Res.drawable.market_trophy, false)
 
   /**
-   * The Market icon named 'timeProgressStart'.
+   * The Market icon named 'truck-spot'.
    *
-   * 24/time-progress-start
+   * Drive thru
    */
-  public val TimeProgressStart24: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_progress_start_24, false)
+  public val TruckSpot: MarketIcon =
+    MarketIcon(Res.drawable.market_truck_spot, false)
 
   /**
-   * The Market icon named 'timeStopwatch'.
+   * The Market icon named 'uber-eats'.
    *
-   * 16/time-stopwatch
+   * order, delivery, pickup
    */
-  public val TimeStopwatch16: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_stopwatch_16, false)
+  public val UberEats: MarketIcon =
+    MarketIcon(Res.drawable.market_uber_eats, false)
 
   /**
-   * The Market icon named 'timeStopwatch'.
+   * The Market icon named 'umbrella'.
    *
-   * 24/time-stopwatch
+   * cover
    */
-  public val TimeStopwatch24: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_stopwatch_24, false)
+  public val Umbrella: MarketIcon =
+    MarketIcon(Res.drawable.market_umbrella, false)
 
   /**
-   * The Market icon named 'timeStopwatch'.
+   * The Market icon named 'underline-u'.
    *
-   * 32/time-stopwatch
+   * rich text, underline
    */
-  public val TimeStopwatch32: MarketIcon =
-    MarketIcon(Res.drawable.icon_time_stopwatch_32, false)
+  public val UnderlineU: MarketIcon =
+    MarketIcon(Res.drawable.market_underline_u, false)
 
   /**
-   * The Market icon named 'traffic'.
+   * The Market icon named 'union-pay-multicolor'.
    *
-   * 24/traffic
+   * card logo, payment
    */
-  public val Traffic24: MarketIcon =
-    MarketIcon(Res.drawable.icon_traffic_24, false)
+  public val UnionPayMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_union_pay_multicolor, true)
 
   /**
-   * The Market icon named 'transferP2P'.
+   * The Market icon named 'up-down'.
    *
-   * 16/transfer-p2p
+   * multi direction
    */
-  public val TransferP2P16: MarketIcon =
-    MarketIcon(Res.drawable.icon_transfer_p_2_p_16, false)
+  public val UpDown: MarketIcon =
+    MarketIcon(Res.drawable.market_up_down, false)
 
   /**
-   * The Market icon named 'transferP2P'.
-   *
-   * 24/transfer-p2p
+   * The Market icon named 'up-left'.
    */
-  public val TransferP2P24: MarketIcon =
-    MarketIcon(Res.drawable.icon_transfer_p_2_p_24, false)
+  public val UpLeft: MarketIcon =
+    MarketIcon(Res.drawable.market_up_left, false)
 
   /**
-   * The Market icon named 'transferP2P'.
-   *
-   * 32/transfer-p2p
+   * The Market icon named 'up-right'.
    */
-  public val TransferP2P32: MarketIcon =
-    MarketIcon(Res.drawable.icon_transfer_p_2_p_32, false)
+  public val UpRight: MarketIcon =
+    MarketIcon(Res.drawable.market_up_right, false)
 
   /**
-   * The Market icon named 'transferWire'.
-   *
-   * 16/transfer-wire
+   * The Market icon named 'upsell-icon'.
    */
-  public val TransferWire16: MarketIcon =
-    MarketIcon(Res.drawable.icon_transfer_wire_16, false)
+  public val UpsellIcon: MarketIcon =
+    MarketIcon(Res.drawable.market_upsell_icon, false)
 
   /**
-   * The Market icon named 'transferWire'.
+   * The Market icon named 'van-spot'.
    *
-   * 24/transfer-wire
+   * Drive thru
    */
-  public val TransferWire24: MarketIcon =
-    MarketIcon(Res.drawable.icon_transfer_wire_24, false)
+  public val VanSpot: MarketIcon =
+    MarketIcon(Res.drawable.market_van_spot, false)
 
   /**
-   * The Market icon named 'transferWire'.
+   * The Market icon named 'venmo'.
    *
-   * 32/transfer-wire
+   * payment, P2P
    */
-  public val TransferWire32: MarketIcon =
-    MarketIcon(Res.drawable.icon_transfer_wire_32, false)
+  public val Venmo: MarketIcon =
+    MarketIcon(Res.drawable.market_venmo, false)
 
   /**
-   * The Market icon named 'undo'.
+   * The Market icon named 'venmo-multicolor'.
    *
-   * 16/undo
+   * card logo, payment
    */
-  public val Undo16: MarketIcon =
-    MarketIcon(Res.drawable.icon_undo_16, false)
+  public val VenmoMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_venmo_multicolor, true)
 
   /**
-   * The Market icon named 'undo'.
+   * The Market icon named 'video'.
    *
-   * 24/undo
+   * Camera
    */
-  public val Undo24: MarketIcon =
-    MarketIcon(Res.drawable.icon_undo_24, false)
+  public val Video: MarketIcon =
+    MarketIcon(Res.drawable.market_video, false)
 
   /**
-   * The Market icon named 'undo'.
+   * The Market icon named 'visa-multicolor'.
    *
-   * 32/undo
+   * card logo, payment
    */
-  public val Undo32: MarketIcon =
-    MarketIcon(Res.drawable.icon_undo_32, false)
+  public val VisaMulticolor: MarketIcon =
+    MarketIcon(Res.drawable.market_visa_multicolor, true)
 
   /**
-   * The Market icon named 'uptrend'.
+   * The Market icon named 'wagon-spot'.
    *
-   * 16/up-right
+   * Drive thru
    */
-  public val Uptrend16: MarketIcon =
-    MarketIcon(Res.drawable.icon_uptrend_16, false)
+  public val WagonSpot: MarketIcon =
+    MarketIcon(Res.drawable.market_wagon_spot, false)
 
   /**
    * The Market icon named 'wallet'.
-   *
-   * 16/wallet
    */
-  public val Wallet16: MarketIcon =
-    MarketIcon(Res.drawable.icon_wallet_16, false)
+  public val Wallet: MarketIcon =
+    MarketIcon(Res.drawable.market_wallet, false)
 
   /**
-   * The Market icon named 'wallet'.
+   * The Market icon named 'washing-machine'.
    *
-   * 24/wallet
+   * squareup.com, services, cleaning (alt), laundry
    */
-  public val Wallet24: MarketIcon =
-    MarketIcon(Res.drawable.icon_wallet_24, false)
+  public val WashingMachine: MarketIcon =
+    MarketIcon(Res.drawable.market_washing_machine, false)
 
   /**
-   * The Market icon named 'wallet'.
+   * The Market icon named 'wells-fargo'.
    *
-   * 32/wallet
+   * bank, payment
    */
-  public val Wallet32: MarketIcon =
-    MarketIcon(Res.drawable.icon_wallet_32, false)
+  public val WellsFargo: MarketIcon =
+    MarketIcon(Res.drawable.market_wells_fargo, false)
 
   /**
-   * The Market icon named 'walletFill'.
+   * The Market icon named 'wi-fi'.
    *
-   * 16/wallet-fill
+   * internet, wireless
    */
-  public val WalletFill16: MarketIcon =
-    MarketIcon(Res.drawable.icon_wallet_fill_16, false)
+  public val WiFi: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi, false)
 
   /**
-   * The Market icon named 'walletFill'.
+   * The Market icon named 'wi-fi-5'.
    *
-   * 24/wallet-fill
+   * internet, wireless
    */
-  public val WalletFill24: MarketIcon =
-    MarketIcon(Res.drawable.icon_wallet_fill_24, false)
+  public val WiFi5: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi_5, false)
 
   /**
-   * The Market icon named 'walletFill'.
+   * The Market icon named 'wi-fi-5-exclamation'.
    *
-   * 32/wallet-fill
+   * internet, wireless
    */
-  public val WalletFill32: MarketIcon =
-    MarketIcon(Res.drawable.icon_wallet_fill_32, false)
+  public val WiFi5Exclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi_5_exclamation, false)
 
   /**
-   * The Market icon named 'zero'.
+   * The Market icon named 'wi-fi-6'.
    *
-   * 16/zero
+   * internet, wireless
    */
-  public val Zero16: MarketIcon =
-    MarketIcon(Res.drawable.icon_zero_16, false)
+  public val WiFi6: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi_6, false)
 
   /**
-   * The Market icon named 'zero'.
+   * The Market icon named 'wi-fi-6-e'.
    *
-   * 24/zero
+   * internet, wireless
    */
-  public val Zero24: MarketIcon =
-    MarketIcon(Res.drawable.icon_zero_24, false)
+  public val WiFi6E: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi_6_e, false)
+
+  /**
+   * The Market icon named 'wi-fi-6-e-exclamation'.
+   *
+   * internet, wireless
+   */
+  public val WiFi6EExclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi_6_e_exclamation, false)
+
+  /**
+   * The Market icon named 'wi-fi-6-exclamation'.
+   *
+   * internet, wireless
+   */
+  public val WiFi6Exclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi_6_exclamation, false)
+
+  /**
+   * The Market icon named 'wi-fi-7'.
+   *
+   * internet, wireless
+   */
+  public val WiFi7: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi_7, false)
+
+  /**
+   * The Market icon named 'wi-fi-7-exclamation'.
+   *
+   * internet, wireless
+   */
+  public val WiFi7Exclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi_7_exclamation, false)
+
+  /**
+   * The Market icon named 'wi-fi-slash'.
+   *
+   * internet, disconnected, wireless
+   */
+  public val WiFiSlash: MarketIcon =
+    MarketIcon(Res.drawable.market_wi_fi_slash, false)
+
+  /**
+   * The Market icon named 'wifi-empty-slash'.
+   *
+   * no wifi, wireless
+   */
+  public val WifiEmptySlash: MarketIcon =
+    MarketIcon(Res.drawable.market_wifi_empty_slash, false)
+
+  /**
+   * The Market icon named 'wifi-exclamation'.
+   *
+   * wireless
+   */
+  public val WifiExclamation: MarketIcon =
+    MarketIcon(Res.drawable.market_wifi_exclamation, false)
+
+  /**
+   * The Market icon named 'wireless'.
+   */
+  public val Wireless: MarketIcon =
+    MarketIcon(Res.drawable.market_wireless, false)
+
+  /**
+   * The Market icon named 'withdraw'.
+   */
+  public val Withdraw: MarketIcon =
+    MarketIcon(Res.drawable.market_withdraw, false)
+
+  /**
+   * The Market icon named 'x'.
+   *
+   * clear
+   * close
+   */
+  public val X: MarketIcon =
+    MarketIcon(Res.drawable.market_x, false)
+
+  /**
+   * The Market icon named 'x-circle'.
+   *
+   * cancelled
+   * cancel
+   */
+  public val XCircle: MarketIcon =
+    MarketIcon(Res.drawable.market_x_circle, false)
+
+  /**
+   * The Market icon named 'x-circle-fill'.
+   *
+   * cancelled
+   * cancel
+   */
+  public val XCircleFill: MarketIcon =
+    MarketIcon(Res.drawable.market_x_circle_fill, false)
+
+  /**
+   * The Market icon named 'x-social'.
+   *
+   * twitter, social
+   */
+  public val XSocial: MarketIcon =
+    MarketIcon(Res.drawable.market_x_social, false)
+
+  /**
+   * The Market icon named 'you-tube'.
+   *
+   * social, video
+   */
+  public val YouTube: MarketIcon =
+    MarketIcon(Res.drawable.market_you_tube, false)
+
+  /**
+   * The Market icon named 'zelle'.
+   *
+   * payment, P2P
+   */
+  public val Zelle: MarketIcon =
+    MarketIcon(Res.drawable.market_zelle, false)
 }

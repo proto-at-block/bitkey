@@ -37,7 +37,7 @@ internal class LegacyBdkBlockchainImpl(
           null -> BdkResult.Err(
             BdkError.TransactionNotFound(
               cause = null,
-              message = "Transaction with $txid not found."
+              message = "Transaction not found."
             )
           )
           else -> BdkResult.Ok(res.bdkTransaction)

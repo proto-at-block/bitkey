@@ -23,9 +23,25 @@ fun FeatureFlag<FeatureFlagValue.BooleanFlag>.isEnabled(): Boolean {
 }
 
 /**
+ * Returns the current double value of this feature flag.
+ */
+fun FeatureFlag<FeatureFlagValue.DoubleFlag>.doubleValue(): Double {
+  return flagValue().value.value
+}
+
+/**
  * Returns the current integer value of a DoubleFlag feature flag.
  * Values are coerced to be at least 0.
+ *
+ * Note: If using -1 as a "disabled" sentinel, use [doubleValue] instead.
  */
 fun FeatureFlag<FeatureFlagValue.DoubleFlag>.intValue(): Int {
   return flagValue().value.value.toInt().coerceAtLeast(0)
+}
+
+/**
+ * Returns the current string value of this feature flag.
+ */
+fun FeatureFlag<FeatureFlagValue.StringFlag>.stringValue(): String {
+  return flagValue().value.value
 }

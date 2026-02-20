@@ -12,7 +12,7 @@ import build.wallet.bitcoin.bdk.*
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingCheckerFake
-import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.BumpFee
+import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.FeeBump
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.turbines
@@ -101,7 +101,7 @@ class SpendingWalletImplTests : FunSpec({
 
     val wallet = buildWallet(createBackgroundScope())
     wallet.createSignedPsbt(
-      constructionType = BumpFee(
+      constructionType = FeeBump(
         txid = "some-txid",
         feeRate = FeeRate(1f)
       )
@@ -117,7 +117,7 @@ class SpendingWalletImplTests : FunSpec({
 
     val wallet = buildWallet(createBackgroundScope())
     wallet.createSignedPsbt(
-      constructionType = BumpFee(
+      constructionType = FeeBump(
         txid = "some-txid",
         feeRate = FeeRate(1f)
       )

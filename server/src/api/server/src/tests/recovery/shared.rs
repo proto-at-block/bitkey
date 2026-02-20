@@ -6,7 +6,6 @@ use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
 use crate::tests::TestContext;
 use crate::Bootstrap;
-use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
 use http::StatusCode;
 use notification::service::FetchForAccountInput;
@@ -401,7 +400,7 @@ pub async fn create_beneficiary_account(
     context: &mut TestContext,
     bootstrap: &Bootstrap,
     client: &TestClient,
-) -> (Account, Option<Wallet<AnyDatabase>>) {
+) -> (Account, Option<Wallet>) {
     let (acct, wallet) = if is_private {
         create_nontest_account_with_private_wallet(context, client, &bootstrap.services).await
     } else {

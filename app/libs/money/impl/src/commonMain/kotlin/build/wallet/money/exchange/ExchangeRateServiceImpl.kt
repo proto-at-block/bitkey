@@ -8,10 +8,16 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.money.currency.Currency
+import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.worker.RefreshOperationFilter
 import build.wallet.worker.RetryStrategy
 import build.wallet.worker.RunStrategy
 import build.wallet.worker.TimeoutStrategy
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.map
+import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
@@ -27,6 +33,7 @@ class ExchangeRateServiceImpl(
   private val clock: Clock,
   private val accountService: AccountService,
   private val accountConfigService: AccountConfigService,
+  private val appVariant: AppVariant,
   exchangeRateSyncFrequency: ExchangeRateSyncFrequency,
   appScope: CoroutineScope,
 ) : ExchangeRateService, ExchangeRateSyncWorker {
@@ -81,6 +88,22 @@ class ExchangeRateServiceImpl(
       instant == null || instant <= clock.now() - duration -> null
       else -> exchangeRates.value
     }
+  }
+
+  override suspend fun syncRates(): Result<List<ExchangeRate>, Error> {
+    val f8eEnvironment = activeF8eEnvironment().first()
+      ?: return Ok(emptyList()) // No environment means no account that needs rates
+    return exchangeRateF8eClient.getExchangeRates(f8eEnvironment)
+      .map { rates ->
+        rates.forEach { exchangeRateDao.storeExchangeRate(it) }
+        rates // Return the freshly fetched rates
+      }
+      .mapError { Error("Failed to sync exchange rates", it) }
+  }
+
+  override suspend fun clearRates() {
+    check(appVariant != Customer) { "Not allowed in Customer builds." }
+    exchangeRateDao.clear()
   }
 
   /**

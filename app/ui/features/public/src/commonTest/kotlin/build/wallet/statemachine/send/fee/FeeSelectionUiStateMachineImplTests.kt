@@ -4,18 +4,14 @@ import app.cash.turbine.plusAssign
 import build.wallet.account.AccountServiceFake
 import build.wallet.bitcoin.address.bitcoinAddressP2WPKH
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
-import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.CannotCreatePsbtError
-import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.InsufficientFundsError
-import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.SpendingBelowDustLimitError
+import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.*
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimatorMock
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
 import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -27,9 +23,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList.FeeOption
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_BELOW_DUST_LIMIT_ERROR_SCREEN
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_PSBT_CONSTRUCTION_ERROR_SCREEN
+import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.*
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -328,6 +322,45 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
       awaitBody<FormBodyModel> {
         id.shouldBe(FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN)
       }
+    }
+  }
+
+  test("skips loading state when pre-built PSBTs are provided") {
+    val preBuiltPsbts = build.wallet.bitcoin.transactions.PsbtsForSendAmount(
+      fastest = build.wallet.bitcoin.transactions.PsbtMock.copy(
+        id = "fastest",
+        amountSats = 10000UL,
+        fee = Fee(BitcoinMoney.btc(0.001))
+      ),
+      thirtyMinutes = build.wallet.bitcoin.transactions.PsbtMock.copy(
+        id = "thirty",
+        amountSats = 10000UL,
+        fee = Fee(BitcoinMoney.btc(0.0005))
+      ),
+      sixtyMinutes = build.wallet.bitcoin.transactions.PsbtMock.copy(
+        id = "sixty",
+        amountSats = 10000UL,
+        fee = Fee(BitcoinMoney.btc(0.0003))
+      )
+    )
+
+    stateMachine.test(
+      props.copy(
+        preBuiltPsbts = preBuiltPsbts
+      )
+    ) {
+      // Should skip loading and go directly to fee selection
+      awaitBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("Select a transfer speed")
+        primaryButton.shouldNotBeNull().text.shouldBe("Continue")
+
+        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+          options.size.shouldBe(3)
+          clickPrimaryButton()
+        }
+      }
+
+      onContinueCalls.awaitItem().shouldBe(THIRTY_MINUTES)
     }
   }
 })

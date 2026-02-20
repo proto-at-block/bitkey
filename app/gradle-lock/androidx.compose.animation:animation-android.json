@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.animation:animation-android",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.3",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-release.aar": "6b651289d45649d605963d6476b51dd16783d8de8ce0e30a2e3be977707b727d"
+                        "animation.aar": "15ed4f6df7b8dca8217912ee70334a439856351d2855fea15a4b2ec5ffcfd229"
                     }
                 }
             ],

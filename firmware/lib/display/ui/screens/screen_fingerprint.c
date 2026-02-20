@@ -3,11 +3,11 @@
 #include "assert.h"
 #include "display.pb.h"
 #include "display_action.h"
+#include "fingerprint_dots.h"
 #include "langpack.h"
 #include "lvgl/lvgl.h"
 #include "top_back.h"
 
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -19,59 +19,55 @@ static void start_button_click_handler(lv_event_t* e);
 #define PAGE_SUCCESS  2
 
 // Layout configuration
-#define TITLE_Y_OFFSET      90
-#define TEXT_Y_OFFSET       (-30)
-#define BUTTON_Y_OFFSET     80
-#define PROGRESS_ARC_RADIUS 165
-#define PROGRESS_ARC_WIDTH  10
-#define TICK_COUNT          32
-#define TICK_LENGTH         8
-#define TICK_WIDTH          2
-#define TEXT_WIDTH          280
-#define TEXT_WIDTH_INTRO    420
-#define SUCCESS_ARC_RADIUS  165
-#define SUCCESS_ARC_WIDTH   8
+#define TITLE_Y_OFFSET     90
+#define TEXT_Y_OFFSET      (-30)
+#define TEXT_WIDTH         320
+#define TEXT_WIDTH_INTRO   420
+#define SUCCESS_ARC_RADIUS 165
+#define SUCCESS_ARC_WIDTH  8
+
+// Scanning page layout (fingerprint dots above status text)
+#define SCANNING_DOTS_Y_OFFSET   (-35)  // Fingerprint dots position (above center)
+#define SCANNING_STATUS_Y_OFFSET 130    // Status text position (below dots)
 
 // Checkmark configuration
 #define CHECKMARK_PADDING 20
 
-// Angle configuration
-#define START_ANGLE       (-90.0f)
+// Angle configuration (for success arc)
 #define FULL_CIRCLE_ANGLE 360.0f
 
-// Button configuration
-#define BUTTON_RADIUS       30
-#define BUTTON_BORDER_WIDTH 2
-#define BUTTON_PADDING_X    30
-#define BUTTON_PADDING_Y    16
+// Circle button configuration (matches menu item circles)
+#define CIRCLE_BUTTON_SIZE          100
+#define CIRCLE_BUTTON_BOTTOM_MARGIN 32
 
 // Colors
-#define COLOR_TITLE 0xADADAD
+#define COLOR_TITLE         0xADADAD
+#define COLOR_CIRCLE_BUTTON 0x404040  // Grey (matches menu item circles)
 
 // Fonts
 #define FONT_TITLE   (&cash_sans_mono_regular_24)
-#define FONT_TEXT    (&cash_sans_mono_regular_34)
-#define FONT_STATUS  (&cash_sans_mono_regular_34)
-#define FONT_BUTTON  (&cash_sans_mono_regular_30)
-#define FONT_SUCCESS (&cash_sans_mono_regular_34)
+#define FONT_TEXT    (&cash_sans_mono_regular_30)
+#define FONT_STATUS  (&cash_sans_mono_regular_30)
+#define FONT_SUCCESS (&cash_sans_mono_regular_30)
 
 // External image declarations
 extern const lv_img_dsc_t exclamation_circle;
 extern const lv_img_dsc_t check;
+extern const lv_img_dsc_t arrow_right;
 
 static lv_obj_t* screen = NULL;
 static lv_obj_t* title_label = NULL;
 static lv_obj_t* text_label = NULL;
 static lv_obj_t* status_label = NULL;
-static lv_obj_t* button_container = NULL;
-static lv_obj_t* button_label = NULL;
+static lv_obj_t* circle_button = NULL;
+static lv_obj_t* circle_button_icon = NULL;
 static lv_obj_t* success_container = NULL;
 static lv_obj_t* success_checkmark = NULL;
 static lv_obj_t* success_label = NULL;
 static lv_obj_t* success_arc = NULL;
 static lv_obj_t* exclamation_image = NULL;
 static top_back_t back_button = {0};
-static lv_obj_t* progress_ticks[TICK_COUNT];
+static fingerprint_dots_t fp_dots = {0};
 static uint8_t current_page = PAGE_INTRO;
 
 static void hide_all_elements(void) {
@@ -84,11 +80,14 @@ static void hide_all_elements(void) {
   if (status_label) {
     lv_obj_add_flag(status_label, LV_OBJ_FLAG_HIDDEN);
   }
-  if (button_container) {
-    lv_obj_add_flag(button_container, LV_OBJ_FLAG_HIDDEN);
+  if (circle_button) {
+    lv_obj_add_flag(circle_button, LV_OBJ_FLAG_HIDDEN);
   }
   if (success_container) {
     lv_obj_add_flag(success_container, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (success_label) {
+    lv_obj_add_flag(success_label, LV_OBJ_FLAG_HIDDEN);
   }
   if (success_arc) {
     lv_obj_add_flag(success_arc, LV_OBJ_FLAG_HIDDEN);
@@ -100,45 +99,7 @@ static void hide_all_elements(void) {
     lv_obj_add_flag(back_button.container, LV_OBJ_FLAG_HIDDEN);
   }
 
-  for (int i = 0; i < TICK_COUNT; i++) {
-    if (progress_ticks[i]) {
-      lv_obj_add_flag(progress_ticks[i], LV_OBJ_FLAG_HIDDEN);
-    }
-  }
-}
-
-static void create_progress_ticks(lv_obj_t* parent) {
-  const lv_coord_t center_x = lv_obj_get_width(parent) / 2;
-  const lv_coord_t center_y = lv_obj_get_height(parent) / 2;
-
-  for (int i = 0; i < TICK_COUNT; i++) {
-    float angle_deg = START_ANGLE + (i * (FULL_CIRCLE_ANGLE / TICK_COUNT));
-    float angle_rad = (angle_deg * M_PI) / 180.0f;
-
-    float inner_radius = PROGRESS_ARC_RADIUS;
-    float outer_radius = inner_radius + TICK_LENGTH;
-
-    lv_coord_t x1 = center_x + (lv_coord_t)(inner_radius * cosf(angle_rad));
-    lv_coord_t y1 = center_y + (lv_coord_t)(inner_radius * sinf(angle_rad));
-    lv_coord_t x2 = center_x + (lv_coord_t)(outer_radius * cosf(angle_rad));
-    lv_coord_t y2 = center_y + (lv_coord_t)(outer_radius * sinf(angle_rad));
-
-    progress_ticks[i] = lv_line_create(parent);
-    if (!progress_ticks[i]) {
-      return;
-    }
-    static lv_point_precise_t line_points[TICK_COUNT][2];
-    line_points[i][0].x = x1;
-    line_points[i][0].y = y1;
-    line_points[i][1].x = x2;
-    line_points[i][1].y = y2;
-
-    lv_line_set_points(progress_ticks[i], line_points[i], 2);
-    lv_obj_set_style_line_width(progress_ticks[i], TICK_WIDTH, 0);
-    lv_obj_set_style_line_color(progress_ticks[i], lv_color_white(), 0);
-    lv_obj_set_style_line_rounded(progress_ticks[i], true, 0);
-    lv_obj_add_flag(progress_ticks[i], LV_OBJ_FLAG_HIDDEN);
-  }
+  fingerprint_dots_hide(&fp_dots);
 }
 
 static void update_progress_display(uint8_t progress_percent) {
@@ -146,16 +107,7 @@ static void update_progress_display(uint8_t progress_percent) {
     return;
   }
 
-  int visible_ticks = (TICK_COUNT * progress_percent) / 100;
-  for (int i = 0; i < TICK_COUNT; i++) {
-    if (progress_ticks[i]) {
-      if (i < visible_ticks) {
-        lv_obj_clear_flag(progress_ticks[i], LV_OBJ_FLAG_HIDDEN);
-      } else {
-        lv_obj_add_flag(progress_ticks[i], LV_OBJ_FLAG_HIDDEN);
-      }
-    }
-  }
+  fingerprint_dots_set_percent(&fp_dots, progress_percent);
 }
 
 static void start_button_click_handler(lv_event_t* e) {
@@ -169,25 +121,20 @@ static void show_page(uint8_t page) {
   hide_all_elements();
   current_page = page;
 
-  if (button_container) {
-    lv_obj_remove_event_cb(button_container, start_button_click_handler);
+  if (circle_button) {
+    lv_obj_remove_event_cb(circle_button, start_button_click_handler);
   }
 
   switch (page) {
     case PAGE_INTRO:
-      if (title_label) {
-        lv_label_set_text(title_label, langpack_get_string(LANGPACK_ID_FINGERPRINT_TITLE));
-        lv_obj_clear_flag(title_label, LV_OBJ_FLAG_HIDDEN);
-      }
       if (text_label) {
         lv_obj_set_width(text_label, TEXT_WIDTH_INTRO);
         lv_label_set_text(text_label, langpack_get_string(LANGPACK_ID_FINGERPRINT_INTRO));
         lv_obj_clear_flag(text_label, LV_OBJ_FLAG_HIDDEN);
       }
-      if (button_container) {
-        lv_label_set_text(button_label, langpack_get_string(LANGPACK_ID_FINGERPRINT_BUTTON));
-        lv_obj_clear_flag(button_container, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_event_cb(button_container, start_button_click_handler, LV_EVENT_CLICKED, NULL);
+      if (circle_button) {
+        lv_obj_clear_flag(circle_button, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_event_cb(circle_button, start_button_click_handler, LV_EVENT_CLICKED, NULL);
       }
       if (back_button.container) {
         lv_obj_clear_flag(back_button.container, LV_OBJ_FLAG_HIDDEN);
@@ -195,9 +142,13 @@ static void show_page(uint8_t page) {
       break;
 
     case PAGE_SCANNING:
+      if (fp_dots.container) {
+        lv_obj_align(fp_dots.container, LV_ALIGN_CENTER, 0, SCANNING_DOTS_Y_OFFSET);
+      }
+      fingerprint_dots_show(&fp_dots);
       if (status_label) {
         lv_obj_clear_flag(status_label, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_align(status_label, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_align(status_label, LV_ALIGN_CENTER, 0, SCANNING_STATUS_Y_OFFSET);
       }
       if (back_button.container) {
         lv_obj_clear_flag(back_button.container, LV_OBJ_FLAG_HIDDEN);
@@ -205,11 +156,16 @@ static void show_page(uint8_t page) {
       break;
 
     case PAGE_SUCCESS:
-      if (success_arc) {
-        lv_obj_clear_flag(success_arc, LV_OBJ_FLAG_HIDDEN);
+      if (fp_dots.container) {
+        lv_obj_align(fp_dots.container, LV_ALIGN_CENTER, 0, SCANNING_DOTS_Y_OFFSET);
       }
-      if (success_container) {
-        lv_obj_clear_flag(success_container, LV_OBJ_FLAG_HIDDEN);
+      fingerprint_dots_set_percent(&fp_dots, 100);
+      fingerprint_dots_show(&fp_dots);
+      if (success_label) {
+        lv_obj_set_parent(success_label, screen);
+        lv_label_set_text(success_label, langpack_get_string(LANGPACK_ID_FINGERPRINT_SUCCESS));
+        lv_obj_align(success_label, LV_ALIGN_CENTER, 0, SCANNING_STATUS_Y_OFFSET);
+        lv_obj_clear_flag(success_label, LV_OBJ_FLAG_HIDDEN);
       }
       break;
   }
@@ -240,7 +196,6 @@ static void _screen_fingerprint_set_status(lv_obj_t* label,
       break;
 
     case fwpb_display_params_fingerprint_display_params_fingerprint_status_NONE:
-      // 'break' intentionally omitted.
     default:
       lv_label_set_text(label, "");
       break;
@@ -263,7 +218,6 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
   lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-  // Title label
   title_label = lv_label_create(screen);
   if (!title_label) {
     return NULL;
@@ -272,7 +226,6 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_obj_set_style_text_font(title_label, FONT_TITLE, 0);
   lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, TITLE_Y_OFFSET);
 
-  // Text label
   text_label = lv_label_create(screen);
   if (!text_label) {
     return NULL;
@@ -284,42 +237,30 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP);
   lv_obj_align(text_label, LV_ALIGN_CENTER, 0, TEXT_Y_OFFSET);
 
-  // Button label
-  button_label = lv_label_create(screen);
-  if (!button_label) {
+  circle_button = lv_obj_create(screen);
+  if (!circle_button) {
     return NULL;
   }
-  lv_label_set_text(button_label, langpack_get_string(LANGPACK_ID_FINGERPRINT_BUTTON));
-  lv_obj_set_style_text_color(button_label, lv_color_white(), 0);
-  lv_obj_set_style_text_font(button_label, FONT_BUTTON, 0);
+  lv_obj_set_size(circle_button, CIRCLE_BUTTON_SIZE, CIRCLE_BUTTON_SIZE);
+  lv_obj_align(circle_button, LV_ALIGN_BOTTOM_MID, 0, -CIRCLE_BUTTON_BOTTOM_MARGIN);
+  lv_obj_set_style_radius(circle_button, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(circle_button, lv_color_hex(COLOR_CIRCLE_BUTTON), 0);
+  lv_obj_set_style_bg_opa(circle_button, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_opa(circle_button, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_pad_all(circle_button, 0, 0);
+  lv_obj_clear_flag(circle_button, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(circle_button, LV_OBJ_FLAG_CLICKABLE);
 
-  // Button container
-  button_container = lv_obj_create(screen);
-  if (!button_container) {
+  circle_button_icon = lv_img_create(circle_button);
+  if (!circle_button_icon) {
     return NULL;
   }
-  lv_obj_set_size(button_container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-  lv_obj_set_style_pad_left(button_container, BUTTON_PADDING_X, 0);
-  lv_obj_set_style_pad_right(button_container, BUTTON_PADDING_X, 0);
-  lv_obj_set_style_pad_top(button_container, BUTTON_PADDING_Y, 0);
-  lv_obj_set_style_pad_bottom(button_container, BUTTON_PADDING_Y, 0);
-  lv_obj_align(button_container, LV_ALIGN_CENTER, 0, BUTTON_Y_OFFSET);
-  lv_obj_set_style_radius(button_container, BUTTON_RADIUS, 0);
-  lv_obj_set_style_bg_opa(button_container, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_color(button_container, lv_color_white(), 0);
-  lv_obj_set_style_border_width(button_container, BUTTON_BORDER_WIDTH, 0);
-  lv_obj_set_style_border_opa(button_container, LV_OPA_COVER, 0);
-  lv_obj_clear_flag(button_container, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_add_flag(button_container, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_flag(button_container, LV_OBJ_FLAG_EVENT_BUBBLE);
+  lv_img_set_src(circle_button_icon, &arrow_right);
+  lv_obj_center(circle_button_icon);
 
-  lv_obj_set_parent(button_label, button_container);
-  lv_obj_center(button_label);
-  lv_obj_update_layout(button_container);
+  memset(&fp_dots, 0, sizeof(fp_dots));
+  fingerprint_dots_create(screen, &fp_dots);
 
-  create_progress_ticks(screen);
-
-  // Status label
   status_label = lv_label_create(screen);
   if (!status_label) {
     return NULL;
@@ -330,11 +271,11 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_obj_set_style_text_color(status_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(status_label, FONT_STATUS, 0);
   lv_obj_set_style_text_align(status_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_pad_all(status_label, 0, 0);
   lv_obj_set_width(status_label, TEXT_WIDTH);
   lv_label_set_long_mode(status_label, LV_LABEL_LONG_WRAP);
   lv_obj_align(status_label, LV_ALIGN_CENTER, 0, 0);
 
-  // Success arc
   success_arc = lv_arc_create(screen);
   if (!success_arc) {
     return NULL;
@@ -350,7 +291,6 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_obj_clear_flag(success_arc, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_flag(success_arc, LV_OBJ_FLAG_HIDDEN);
 
-  // Success container: checkmark + label
   success_container = lv_obj_create(screen);
   if (!success_container) {
     return NULL;
@@ -366,7 +306,6 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_obj_set_style_pad_column(success_container, CHECKMARK_PADDING, 0);
   lv_obj_clear_flag(success_container, LV_OBJ_FLAG_SCROLLABLE);
 
-  // Checkmark icon
   success_checkmark = lv_img_create(success_container);
   if (!success_checkmark) {
     return NULL;
@@ -375,7 +314,6 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_obj_set_style_img_recolor(success_checkmark, lv_color_white(), 0);
   lv_obj_set_style_img_recolor_opa(success_checkmark, LV_OPA_COVER, 0);
 
-  // Success label
   success_label = lv_label_create(success_container);
   if (!success_label) {
     return NULL;
@@ -384,7 +322,6 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_obj_set_style_text_color(success_label, lv_color_white(), 0);
   lv_obj_set_style_text_font(success_label, FONT_SUCCESS, 0);
 
-  // Exclamation icon for error state
   exclamation_image = lv_img_create(screen);
   if (!exclamation_image) {
     return NULL;
@@ -393,13 +330,17 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_obj_align(exclamation_image, LV_ALIGN_CENTER, 0, -60);
   lv_obj_add_flag(exclamation_image, LV_OBJ_FLAG_HIDDEN);
 
-  // Back button (only create if enrollment is optional)
   if (params && !params->is_required) {
     top_back_create(screen, &back_button, NULL);
     lv_obj_add_flag(back_button.container, LV_OBJ_FLAG_HIDDEN);
   }
 
-  show_page(PAGE_INTRO);
+  if (params && !params->is_required) {
+    show_page(PAGE_SCANNING);
+    display_send_action(fwpb_display_action_display_action_type_DISPLAY_ACTION_START_ENROLLMENT, 0);
+  } else {
+    show_page(PAGE_INTRO);
+  }
 
   if (params) {
     update_progress_display(params->progress_percent);
@@ -413,6 +354,7 @@ void screen_fingerprint_destroy(void) {
     return;
   }
 
+  fingerprint_dots_destroy(&fp_dots);
   top_back_destroy(&back_button);
 
   lv_obj_del(screen);
@@ -420,16 +362,13 @@ void screen_fingerprint_destroy(void) {
   title_label = NULL;
   text_label = NULL;
   status_label = NULL;
-  button_container = NULL;
-  button_label = NULL;
+  circle_button = NULL;
+  circle_button_icon = NULL;
   success_container = NULL;
   success_checkmark = NULL;
   success_label = NULL;
   success_arc = NULL;
   exclamation_image = NULL;
-  for (int i = 0; i < TICK_COUNT; i++) {
-    progress_ticks[i] = NULL;
-  }
   current_page = PAGE_INTRO;
 }
 
@@ -443,14 +382,12 @@ void screen_fingerprint_update(void* ctx) {
   if (show_screen && show_screen->which_params == fwpb_display_show_screen_fingerprint_tag) {
     const fwpb_display_params_fingerprint* params = &show_screen->params.fingerprint;
 
-    // Transition to scanning page when enrollment starts
     if (current_page == PAGE_INTRO &&
         params->status ==
           fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_FIRST) {
       show_page(PAGE_SCANNING);
     }
 
-    // Transition to success page when enrollment completes
     if (current_page == PAGE_SCANNING && params->progress_percent >= 100) {
       show_page(PAGE_SUCCESS);
     }
@@ -462,21 +399,21 @@ void screen_fingerprint_update(void* ctx) {
 
       update_progress_display(params->progress_percent);
 
-      // Show/hide exclamation icon based on error state
       if (params->status ==
           fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_TRY_AGAIN) {
         if (exclamation_image) {
           lv_obj_clear_flag(exclamation_image, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_align(exclamation_image, LV_ALIGN_CENTER, -80, SCANNING_STATUS_Y_OFFSET);
         }
         if (status_label) {
-          lv_obj_align(status_label, LV_ALIGN_CENTER, 0, 40);
+          lv_obj_align(status_label, LV_ALIGN_CENTER, 30, SCANNING_STATUS_Y_OFFSET);
         }
       } else {
         if (exclamation_image) {
           lv_obj_add_flag(exclamation_image, LV_OBJ_FLAG_HIDDEN);
         }
         if (status_label) {
-          lv_obj_align(status_label, LV_ALIGN_CENTER, 0, 0);
+          lv_obj_align(status_label, LV_ALIGN_CENTER, 0, SCANNING_STATUS_Y_OFFSET);
         }
       }
     }

@@ -56,8 +56,10 @@ CREATE TABLE localRecoveryAttemptEntity(
   -- presence of above means we've uploaded descriptor backups to F8e after rotating spending keys
   spendingKeysActivated           INTEGER AS Boolean NOT NULL DEFAULT 0,
   -- presence of above means spending keys have been activated
-  sweepInProgress                 INTEGER AS Boolean NOT NULL DEFAULT 0
+  sweepInProgress                 INTEGER AS Boolean NOT NULL DEFAULT 0,
   -- presence of above means sweep is currently in progress
+  originalAppGlobalAuthKey        TEXT AS PublicKey<AppGlobalAuthKey>
+  -- The original app global auth key before rotation (Lost Hardware recovery only).
 );
 
 -- Table for storing spending keysets during recovery
@@ -99,9 +101,9 @@ clear {
 }
 
 markAsInitiated:
-INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, sealedSsek, authKeysRotated, serverSpendingKey, uploadedDescriptorBackups, spendingKeysActivated, ddkBackedUp, backedUpToCloud, hadServerRecovery, sweepInProgress)
+INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, sealedSsek, authKeysRotated, serverSpendingKey, uploadedDescriptorBackups, spendingKeysActivated, ddkBackedUp, backedUpToCloud, hadServerRecovery, sweepInProgress, originalAppGlobalAuthKey)
 -- Use stable id to ensure we only ever have a single active set of local pending recovery keys.
-VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, NULL, 0, 0, 0, 0, 0, 0);
+VALUES(0, :account, :destinationAppGlobalAuthKey, :destinationAppRecoveryAuthKey, :destinationHardwareAuthKey, :destinationAppSpendingKey, :destinationHardwareSpendingKey, :appGlobalAuthKeyHwSignature, :lostFactor, NULL, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, :originalAppGlobalAuthKey);
 
 -- To protect against race conditions where we might not get a server sync between the time we
 -- rotate auth keys to the time we complete our recovery on the app, we clear the server recovery

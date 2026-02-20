@@ -5,6 +5,7 @@ plugins {
   id("build.wallet.di")
   id("build.wallet.redacted")
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.kotlin.atomicfu)
 }
 
 kotlin {
@@ -13,6 +14,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        implementation(libs.kmp.kotlin.atomicfu)
         implementation(libs.kmp.kotlin.datetime)
         implementation(projects.libs.datadogPublic)
         implementation(projects.domain.availabilityPublic)
@@ -84,6 +86,13 @@ kotlin {
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.libs.moneyTesting)
         implementation(projects.domain.walletFake)
+      }
+    }
+
+    val jvmTest by getting {
+      dependencies {
+        // Add JVM native library for JVM unit tests
+        runtimeOnly(project(":rust:bdk-ffi", configuration = "jvmRuntimeElements"))
       }
     }
 

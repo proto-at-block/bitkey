@@ -1,6 +1,7 @@
 #include "ecc.h"
 #include "secure_channel.h"
 #include "secure_channel_common.h"
+#include "sysevent.h"
 #include "wstring.h"
 
 #include <string.h>
@@ -39,6 +40,8 @@ static struct {
   key_handle_t privkey;
   uint8_t pubkey_buf[EC_PUBKEY_SIZE_X25519];
   key_handle_t pubkey;
+  uint32_t recv_sequence_number;
+  uint32_t send_sequence_number;
   bool have_keys;
   bool confirmed;
 } uxc_channel_local_state SHARED_TASK_DATA = {
@@ -60,6 +63,8 @@ static struct {
       .key.size = sizeof(uxc_channel_local_state.pubkey_buf),
       .acl = SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY,
     },
+  .recv_sequence_number = 0,
+  .send_sequence_number = 0,
   .have_keys = false,
   .confirmed = false,
 };
@@ -101,6 +106,9 @@ secure_channel_err_t secure_uart_channel_confirm_session(uint8_t* received_tag) 
     goto out;
   }
   uxc_channel_local_state.confirmed = true;
+  uxc_channel_local_state.recv_sequence_number = 0;
+  uxc_channel_local_state.send_sequence_number = 0;
+  sysevent_set(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED);
 out:
   rtos_mutex_unlock(&secure_channel_ctx.lock);
   return ret;
@@ -179,24 +187,54 @@ out:
   return ret;
 }
 
-secure_channel_err_t secure_uart_channel_encrypt(uint8_t* plaintext, uint8_t* ciphertext,
-                                                 uint32_t len, uint8_t nonce[AES_GCM_IV_LENGTH],
-                                                 uint8_t mac[AES_GCM_TAG_LENGTH]) {
+secure_bool_t secure_uart_channel_encrypt(uint8_t const* plaintext, uint8_t* ciphertext,
+                                          uint32_t len, uint8_t const* aad, uint32_t aad_len,
+                                          uint8_t nonce[AES_GCM_IV_LENGTH],
+                                          uint8_t mac[AES_GCM_TAG_LENGTH]) {
   ASSERT(secure_channel_ctx.channel_type != SECURE_CHANNEL_NONE);
   if (!uxc_channel_local_state.confirmed) {
-    return SECURE_CHANNEL_ERROR_NO_CONFIRMATION;
+    return SECURE_FALSE;
   }
-  return secure_channel_cipher(&secure_channel_ctx, SECURE_CHANNEL_ENCRYPT, plaintext, ciphertext,
-                               len, nonce, mac);
+  if (secure_channel_cipher(&secure_channel_ctx, SECURE_CHANNEL_ENCRYPT, plaintext, ciphertext, len,
+                            aad, aad_len, nonce, mac) != SECURE_CHANNEL_OK) {
+    return SECURE_FALSE;
+  }
+  return SECURE_TRUE;
 }
 
-secure_channel_err_t secure_uart_channel_decrypt(uint8_t* ciphertext, uint8_t* plaintext,
-                                                 uint32_t len, uint8_t nonce[AES_GCM_IV_LENGTH],
-                                                 uint8_t mac[AES_GCM_TAG_LENGTH]) {
+secure_bool_t secure_uart_channel_decrypt(uint8_t const* ciphertext, uint8_t* plaintext,
+                                          uint32_t len, uint8_t const* aad, uint32_t aad_len,
+                                          uint8_t nonce[AES_GCM_IV_LENGTH],
+                                          uint8_t mac[AES_GCM_TAG_LENGTH]) {
   ASSERT(secure_channel_ctx.channel_type != SECURE_CHANNEL_NONE);
   if (!uxc_channel_local_state.confirmed) {
-    return SECURE_CHANNEL_ERROR_NO_CONFIRMATION;
+    return SECURE_FALSE;
   }
-  return secure_channel_cipher(&secure_channel_ctx, SECURE_CHANNEL_DECRYPT, ciphertext, plaintext,
-                               len, nonce, mac);
+  if (secure_channel_cipher(&secure_channel_ctx, SECURE_CHANNEL_DECRYPT, ciphertext, plaintext, len,
+                            aad, aad_len, nonce, mac) != SECURE_CHANNEL_OK) {
+    return SECURE_FALSE;
+  }
+  return SECURE_TRUE;
+}
+
+uint32_t secure_uart_channel_get_send_seq_number(void) {
+  rtos_mutex_lock(&secure_channel_ctx.lock);
+  uint32_t const prev_seq = uxc_channel_local_state.send_sequence_number;
+  if (prev_seq == UINT32_MAX) {
+    ASSERT(false);
+  }
+  uint32_t const new_seq = ++uxc_channel_local_state.send_sequence_number;
+  rtos_mutex_unlock(&secure_channel_ctx.lock);
+  return new_seq;
+}
+
+bool secure_uart_channel_check_recv_seq_number(uint32_t new_seq) {
+  rtos_mutex_lock(&secure_channel_ctx.lock);
+  bool retval = false;
+  if (new_seq > uxc_channel_local_state.recv_sequence_number) {
+    uxc_channel_local_state.recv_sequence_number = new_seq;
+    retval = true;
+  }
+  rtos_mutex_unlock(&secure_channel_ctx.lock);
+  return retval;
 }

@@ -91,8 +91,7 @@ impl Service {
                         Err(e) => {
                             event!(
                                 Level::ERROR,
-                                "Failed to fetch tx from mempool with txid: {} due to error: {e}",
-                                tx_id
+                                "Failed to fetch tx from mempool due to error: {e}",
                             );
                         }
                     };
@@ -104,8 +103,7 @@ impl Service {
                 } else {
                     event!(
                         Level::ERROR,
-                        "Failed to persist tx record for batch with tx ids: {}",
-                        tx_records.into_iter().map(|r| r.txid.to_string()).collect::<Vec<String>>().join(", ")
+                        "Failed to persist tx record batch",
                     );
                 }
         }

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-build-tools-impl",
     "components": [
         {
-            "version": "2.0.20",
+            "version": "2.2.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-build-tools-impl-2.0.20.jar": "9ce6f81a699cc37db363a2837150bc62a24903daf6121034d12979aa9501446b"
+                        "kotlin-build-tools-impl-2.2.20.jar": "64789a7f00565927f2f3f2d109f230574d3d9308ed5d6e86bfca843da6487cf7"
                     }
                 }
             ],

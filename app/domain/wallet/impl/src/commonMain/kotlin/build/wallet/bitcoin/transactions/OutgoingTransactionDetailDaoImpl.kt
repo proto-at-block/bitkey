@@ -38,7 +38,7 @@ class OutgoingTransactionDetailDaoImpl(
           )
         }
       }
-      .logFailure { "Failed to insert details for transaction $transactionId" }
+      .logFailure { "Failed to insert transaction details" }
 
   override suspend fun broadcastTimeForTransaction(transactionId: String): Instant? =
     databaseProvider.database()
@@ -46,7 +46,7 @@ class OutgoingTransactionDetailDaoImpl(
       .awaitTransactionWithResult {
         broadcastTimeForTransaction(transactionId = transactionId).executeAsOneOrNull()
       }
-      .logFailure { "Failed to fetch broadcast time for transaction $transactionId" }
+      .logFailure { "Failed to fetch broadcast time for transaction" }
       .get()
 
   override suspend fun confirmationTimeForTransaction(transactionId: String): Instant? =
@@ -57,7 +57,7 @@ class OutgoingTransactionDetailDaoImpl(
           transactionId = transactionId
         ).executeAsOneOrNull()
       }
-      .logFailure { "Failed to fetch estimated confirmation time for transaction $transactionId" }
+      .logFailure { "Failed to fetch estimated confirmation time for transaction" }
       .get()
 
   override suspend fun clear(): Result<Unit, DbError> =

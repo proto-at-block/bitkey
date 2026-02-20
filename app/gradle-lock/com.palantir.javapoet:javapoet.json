@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.palantir.javapoet:javapoet",
+    "components": [
+        {
+            "version": "0.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "javapoet-0.7.0.jar": "66cf4c43ae54c8e8ab10770ba318cdfea755efa631b5ad98f32da2e38fba326a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

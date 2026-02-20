@@ -1,13 +1,17 @@
-use crate::bitcoin::{Amount, FeeRate, OutPoint, Psbt, Script, Txid};
+use crate::bitcoin::{Amount, FeeRate, OutPoint, Psbt, Script, Transaction, TxOut, Txid};
 use crate::error::CreateTxError;
 use crate::types::{LockTime, ScriptAmount};
 use crate::wallet::Wallet;
 
 use bdk_wallet::bitcoin::absolute::LockTime as BdkLockTime;
 use bdk_wallet::bitcoin::amount::Amount as BdkAmount;
+use bdk_wallet::bitcoin::psbt::Input as BdkPsbtInput;
 use bdk_wallet::bitcoin::script::PushBytesBuf;
 use bdk_wallet::bitcoin::Psbt as BdkPsbt;
 use bdk_wallet::bitcoin::ScriptBuf as BdkScriptBuf;
+use bdk_wallet::bitcoin::Transaction as BdkTransaction;
+use bdk_wallet::bitcoin::TxOut as BdkTxOut;
+use bdk_wallet::bitcoin::Weight;
 use bdk_wallet::bitcoin::{OutPoint as BdkOutPoint, Sequence};
 use bdk_wallet::KeychainKind;
 
@@ -18,6 +22,16 @@ use std::sync::Arc;
 
 type ChangeSpendPolicy = bdk_wallet::ChangeSpendPolicy;
 
+/// Internal struct to hold foreign UTXO data for add_foreign_utxo.
+#[derive(Clone, Debug)]
+struct ForeignUtxo {
+    outpoint: BdkOutPoint,
+    txout: BdkTxOut,
+    prev_tx: BdkTransaction,
+    satisfaction_weight: u64,
+    sequence: Option<u32>,
+}
+
 /// A `TxBuilder` is created by calling `build_tx` on a wallet. After assigning it, you set options on it until finally
 /// calling `finish` to consume the builder and generate the transaction.
 #[derive(Clone, uniffi::Object)]
@@ -25,6 +39,7 @@ pub struct TxBuilder {
     add_global_xpubs: bool,
     recipients: Vec<(BdkScriptBuf, BdkAmount)>,
     utxos: Vec<BdkOutPoint>,
+    foreign_utxos: Vec<ForeignUtxo>,
     unspendable: Vec<BdkOutPoint>,
     internal_policy_path: Option<BTreeMap<String, Vec<usize>>>,
     external_policy_path: Option<BTreeMap<String, Vec<usize>>>,
@@ -53,6 +68,7 @@ impl TxBuilder {
             add_global_xpubs: false,
             recipients: Vec::new(),
             utxos: Vec::new(),
+            foreign_utxos: Vec::new(),
             unspendable: Vec::new(),
             internal_policy_path: None,
             external_policy_path: None,
@@ -180,6 +196,36 @@ impl TxBuilder {
         utxos.extend(outpoints.into_iter().map(BdkOutPoint::from));
         Arc::new(TxBuilder {
             utxos,
+            ..self.clone()
+        })
+    }
+
+    /// Add a foreign UTXO to the internal list of UTXOs that must be spent.
+    ///
+    /// A foreign UTXO is a UTXO not tracked by this wallet, useful for spending
+    /// outputs from pending transactions that BDK no longer considers unspent.
+    ///
+    /// The `sequence` parameter controls RBF signaling. If `None`, defaults to
+    /// `0xFFFFFFFF` (RBF disabled). For RBF-enabled replacements, use a value
+    /// below `0xFFFFFFFE` (e.g., `0xFFFFFFFD`).
+    pub fn add_foreign_utxo(
+        &self,
+        outpoint: OutPoint,
+        txout: TxOut,
+        prev_tx: &Transaction,
+        satisfaction_weight: u64,
+        sequence: Option<u32>,
+    ) -> Arc<Self> {
+        let mut foreign_utxos = self.foreign_utxos.clone();
+        foreign_utxos.push(ForeignUtxo {
+            outpoint: outpoint.into(),
+            txout: txout.into(),
+            prev_tx: prev_tx.into(),
+            satisfaction_weight,
+            sequence,
+        });
+        Arc::new(TxBuilder {
+            foreign_utxos,
             ..self.clone()
         })
     }
@@ -395,6 +441,32 @@ impl TxBuilder {
             tx_builder
                 .add_utxos(&self.utxos)
                 .map_err(CreateTxError::from)?;
+        }
+        for foreign_utxo in &self.foreign_utxos {
+            let psbt_input = BdkPsbtInput {
+                witness_utxo: Some(foreign_utxo.txout.clone()),
+                non_witness_utxo: Some(foreign_utxo.prev_tx.clone()),
+                ..Default::default()
+            };
+
+            if let Some(seq) = foreign_utxo.sequence {
+                tx_builder
+                    .add_foreign_utxo_with_sequence(
+                        foreign_utxo.outpoint,
+                        psbt_input,
+                        Weight::from_wu(foreign_utxo.satisfaction_weight),
+                        Sequence(seq),
+                    )
+                    .map_err(CreateTxError::from)?;
+            } else {
+                tx_builder
+                    .add_foreign_utxo(
+                        foreign_utxo.outpoint,
+                        psbt_input,
+                        Weight::from_wu(foreign_utxo.satisfaction_weight),
+                    )
+                    .map_err(CreateTxError::from)?;
+            }
         }
         if !self.unspendable.is_empty() {
             tx_builder.unspendable(self.unspendable.clone());

@@ -703,6 +703,8 @@ void * uniffi_bdk_fn_constructor_txbuilder_new(UniffiRustCallStatus *_Nonnull ou
 );
 void * uniffi_bdk_fn_method_txbuilder_add_data(void * ptr, RustBuffer data, UniffiRustCallStatus *_Nonnull out_status
 );
+void * uniffi_bdk_fn_method_txbuilder_add_foreign_utxo(void * ptr, RustBuffer outpoint, RustBuffer txout, void * prevTx, int64_t satisfactionWeight, RustBuffer sequence, UniffiRustCallStatus *_Nonnull out_status
+);
 void * uniffi_bdk_fn_method_txbuilder_add_global_xpubs(void * ptr, UniffiRustCallStatus *_Nonnull out_status
 );
 void * uniffi_bdk_fn_method_txbuilder_add_recipient(void * ptr, void * script, void * amount, UniffiRustCallStatus *_Nonnull out_status
@@ -1357,6 +1359,9 @@ int16_t uniffi_bdk_checksum_method_transaction_weight(void
     
 );
 int16_t uniffi_bdk_checksum_method_txbuilder_add_data(void
+    
+);
+int16_t uniffi_bdk_checksum_method_txbuilder_add_foreign_utxo(void
     
 );
 int16_t uniffi_bdk_checksum_method_txbuilder_add_global_xpubs(void

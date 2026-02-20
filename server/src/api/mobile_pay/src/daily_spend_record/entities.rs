@@ -62,13 +62,10 @@ impl DailySpendingRecord {
 
     pub fn update_with_psbt(&mut self, wallet: &dyn AttributableWallet, psbt: &Psbt) {
         let tx = &psbt.unsigned_tx;
-        if !self
-            .spending_entries
-            .iter()
-            .any(|entry| entry.txid == tx.txid())
-        {
+        let txid = tx.compute_txid();
+        if !self.spending_entries.iter().any(|entry| entry.txid == txid) {
             self.spending_entries.push(SpendingEntry {
-                txid: tx.txid(),
+                txid,
                 timestamp: OffsetDateTime::now_utc(),
                 outflow_amount: get_total_outflow_for_psbt(wallet, psbt),
             });
@@ -94,7 +91,7 @@ impl DailySpendingRecord {
                 "{}",
                 format!(
                     "Transaction ID {} already in DailySpendingRecord, not putting it in again",
-                    tx.txid()
+                    tx.compute_txid()
                 )
             );
         }
@@ -125,11 +122,12 @@ mod tests {
     use std::ops::Sub;
     use std::str::FromStr;
 
+    use bdk_utils::bdk::bitcoin::transaction::Version;
     use time::{Date, Duration, OffsetDateTime};
 
-    use bdk_utils::bdk::bitcoin::absolute::LockTime;
+    use bdk_utils::bdk::bitcoin::absolute::{Height, LockTime};
     use bdk_utils::bdk::bitcoin::psbt::Psbt;
-    use bdk_utils::bdk::bitcoin::{Address, ScriptBuf, Transaction, TxOut};
+    use bdk_utils::bdk::bitcoin::{Address, Amount, ScriptBuf, Transaction, TxOut};
     use bdk_utils::error::BdkUtilError;
     use bdk_utils::SpkWithDerivationPaths;
     use types::account::identifiers::AccountId;
@@ -167,7 +165,7 @@ mod tests {
     #[test]
     fn update_spending_record() {
         let dummy_transaction = Transaction {
-            version: 0,
+            version: Version::TWO,
             lock_time: LockTime::ZERO,
             input: Vec::new(),
             output: Vec::new(),
@@ -203,11 +201,11 @@ mod tests {
             .assume_checked()
             .script_pubkey();
         let transaction = Transaction {
-            version: 0,
+            version: Version::TWO,
             lock_time: LockTime::ZERO,
             input: Vec::new(),
             output: vec![TxOut {
-                value: 860000,
+                value: Amount::from_sat(860000),
                 script_pubkey: output_script.clone(),
             }],
         };
@@ -227,9 +225,9 @@ mod tests {
         assert_eq!(spending_record.spending_entries.len(), 1)
     }
 
-    fn create_test_transaction(version: i32) -> Transaction {
+    fn create_test_transaction() -> Transaction {
         Transaction {
-            version,
+            version: Version::TWO,
             lock_time: LockTime::ZERO,
             input: Vec::new(),
             output: Vec::new(),
@@ -238,8 +236,8 @@ mod tests {
 
     #[test]
     fn remove_spending_entry_returns_true_when_entry_exists() {
-        let transaction = create_test_transaction(0);
-        let txid = transaction.txid();
+        let transaction = create_test_transaction();
+        let txid = transaction.compute_txid();
         let psbt = Psbt::from_unsigned_tx(transaction).unwrap();
         let dummy_wallet = DummyWallet::new(vec![]);
 
@@ -258,8 +256,8 @@ mod tests {
 
     #[test]
     fn remove_spending_entry_returns_false_when_entry_does_not_exist() {
-        let transaction = create_test_transaction(0);
-        let txid = transaction.txid();
+        let transaction = create_test_transaction();
+        let txid = transaction.compute_txid();
 
         let account_id = AccountId::gen().unwrap();
         let mut spending_record =
@@ -272,10 +270,11 @@ mod tests {
 
     #[test]
     fn remove_spending_entry_only_removes_matching_entry() {
-        let tx1 = create_test_transaction(1);
-        let tx2 = create_test_transaction(2);
-        let txid1 = tx1.txid();
-        let txid2 = tx2.txid();
+        let tx1 = create_test_transaction();
+        let mut tx2 = create_test_transaction();
+        tx2.lock_time = LockTime::Blocks(Height::from_consensus(100).unwrap());
+        let txid1 = tx1.compute_txid();
+        let txid2 = tx2.compute_txid();
         let psbt1 = Psbt::from_unsigned_tx(tx1).unwrap();
         let psbt2 = Psbt::from_unsigned_tx(tx2).unwrap();
         let dummy_wallet = DummyWallet::new(vec![]);

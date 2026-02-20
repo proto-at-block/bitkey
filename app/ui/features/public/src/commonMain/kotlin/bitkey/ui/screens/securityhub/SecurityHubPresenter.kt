@@ -7,6 +7,7 @@ import bitkey.securitycenter.SecurityActionRecommendation
 import bitkey.securitycenter.SecurityActionRecommendation.*
 import bitkey.securitycenter.SecurityActionType.*
 import bitkey.securitycenter.SecurityActionsService
+import bitkey.securitycenter.SecurityActionsWithRecommendations
 import bitkey.ui.framework.Navigator
 import bitkey.ui.framework.Screen
 import bitkey.ui.framework.ScreenPresenter
@@ -100,9 +101,9 @@ class SecurityHubPresenter(
       uiState = SecurityHubUiState.FingerprintResetState
     }
 
-    val securityActionsWithRecommendations by remember {
+    val securityActionsWithRecommendations = remember {
       securityActionsService.securityActionsWithRecommendations
-    }.collectAsState()
+    }.collectAsState().value ?: EmptySecurityActionsWithRecommendations
 
     val isFingerprintResetEnabled by remember {
       fingerprintResetAvailabilityService.isAvailable()
@@ -477,3 +478,11 @@ sealed interface SecurityHubUiState {
    */
   data object ProvisioningAppKeyState : SecurityHubUiState
 }
+
+/** Empty default used when SecurityActionsService hasn't emitted yet. */
+private val EmptySecurityActionsWithRecommendations = SecurityActionsWithRecommendations(
+  securityActions = emptyList(),
+  recoveryActions = emptyList(),
+  recommendations = emptyList(),
+  atRiskRecommendations = emptyList()
+)

@@ -28,6 +28,8 @@ pub enum SpendRuleCheckError {
     TransactionVerificationRequired,
     #[error("Invalid transaction. Commitment does not match regenerated commitment.")]
     InvalidCommitment,
+    #[error("Invalid transaction verification grant data")]
+    InvalidTransactionVerificationGrant,
     #[error("Could not generate message for transaction verification")]
     GenerateTransactionVerificationMessage,
     #[error("Could not generate chained sighashes for transaction verification")]

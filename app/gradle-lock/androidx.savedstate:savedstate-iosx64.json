@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.savedstate:savedstate-iosx64",
+    "components": [
+        {
+            "version": "1.3.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "savedstate-iosX64Main-1.3.3.klib": "9741178c847dac5c0a1b129a3db405a81d11b5f785edc549c204bfa868e0a028"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "savedstate-iosx64-1.3.3-metadata.jar": "d8953dca0c2e34031c16380e10c32a6b2fe7dc5061fc5e40508e392176cb733c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

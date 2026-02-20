@@ -70,6 +70,37 @@ NO_OPTIMIZE secure_bool_t check_authentication(uint16_t pb_tag) {
       break;
   }
 
+  // Check if the message requires device to NOT be onboarded (factory/packout only).
+  switch (pb_tag) {
+    {% for proto in protos_that_require_not_onboarded %}
+    case fwpb_wallet_cmd_{{'_'.join(proto.split('_')[1:])}}_tag:
+    {% endfor %}
+    {
+      if (onboarding_complete() == SECURE_TRUE) {
+        // Device is onboarded - command not allowed.
+        // Send error response before returning.
+        fwpb_wallet_rsp* rsp = (fwpb_wallet_rsp*)ipc_proto_alloc(sizeof(fwpb_wallet_rsp));
+        memset(rsp, 0, sizeof(fwpb_wallet_rsp));
+
+        rsp->which_msg = pb_tag;
+        rsp->status = fwpb_status_UNAUTHENTICATED;
+
+        uint8_t* buffer = ipc_proto_get_response_buffer();
+        pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(fwpb_wallet_rsp));
+
+        pb_encode(&ostream, fwpb_wallet_rsp_fields, rsp);
+        ipc_proto_send_response_buffer(buffer, ostream.bytes_written);
+        ipc_proto_free((uint8_t*)rsp);
+
+        return SECURE_FALSE;
+      }
+      // Not onboarded: allow without authentication.
+      return SECURE_TRUE;
+    }
+    default:
+      break;
+  }
+
   // Grant logic follows.
   SECURE_DO_FAILOUT(is_allowing_fingerprint_enrollment() == SECURE_TRUE, {
     switch (pb_tag) {

@@ -3,6 +3,7 @@ mcu_srcs = [
 ]
 
 mcu_posix_includes = [
+  include_directories('inc'),
   mcu_common_includes,
 ]
 

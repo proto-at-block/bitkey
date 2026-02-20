@@ -1,6 +1,7 @@
 package build.wallet.onboarding
 
 import bitkey.account.AccountConfigServiceFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.feature.FeatureFlagDaoFake
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.first
 
 class OnboardAccountServiceImplTests : FunSpec({
   val accountConfigService = AccountConfigServiceFake()
+  val accountService = AccountServiceFake()
   val onboardingKeyboxStepStateDao = OnboardingKeyboxStepStateDaoFake()
   val onboardingKeyboxSealedCsekDao = OnboardingKeyboxSealedCsekDaoMock()
   val onboardingKeyboxSealedSsekDao = OnboardingKeyboxSealedSsekDaoFake()
@@ -22,6 +24,7 @@ class OnboardAccountServiceImplTests : FunSpec({
 
   val service = OnboardAccountServiceImpl(
     accountConfigService = accountConfigService,
+    accountService = accountService,
     onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
     onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
     onboardingKeyboxSealedSsekDao = onboardingKeyboxSealedSsekDao,
@@ -30,6 +33,7 @@ class OnboardAccountServiceImplTests : FunSpec({
 
   beforeTest {
     accountConfigService.reset()
+    accountService.reset()
     onboardingKeyboxStepStateDao.clear()
     onboardingKeyboxSealedCsekDao.reset()
     onboardingKeyboxSealedSsekDao.reset()
@@ -90,6 +94,25 @@ class OnboardAccountServiceImplTests : FunSpec({
     // And the step state is now incomplete
     val state = onboardingKeyboxStepStateDao
       .stateForStep(OnboardingKeyboxStep.NotificationPreferences)
+      .first()
+    state.shouldBe(Incomplete)
+  }
+
+  test("marks build hardware descriptor step as incomplete") {
+    // Given a completed build hardware descriptor step
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.BuildHardwareDescriptor, Complete)
+      .shouldBeOk()
+
+    // When marking it incomplete
+    val result = service.markStepIncomplete(BuildHardwareDescriptor)
+
+    // Then the result is successful
+    result.shouldBeOk()
+
+    // And the step state is now incomplete
+    val state = onboardingKeyboxStepStateDao
+      .stateForStep(OnboardingKeyboxStep.BuildHardwareDescriptor)
       .first()
     state.shouldBe(Incomplete)
   }

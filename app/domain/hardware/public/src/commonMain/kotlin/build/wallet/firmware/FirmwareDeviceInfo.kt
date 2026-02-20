@@ -96,8 +96,9 @@ data class FirmwareDeviceInfo(
 ) {
   /**
    * Detects the hardware type from the hardware revision string.
-   * Hardware revision format: "w{N}{variant}-{stage}" where N is 1 for W1, 3 for W3, etc.
-   * Examples: "w1a-dvt", "w3a-evt", "w3b-mp"
+   * Hardware revision format:
+   * - W1: "{product}-{stage}" (e.g., "w1a-dvt")
+   * - W3: "{product}-{mcu}-{stage}" (e.g., "w3a-core-evt")
    */
   fun hardwareType(): HardwareType {
     return when {
@@ -108,8 +109,20 @@ data class FirmwareDeviceInfo(
   }
 
   // Transform a hwRevision like 'w1a-dvt' to 'dvt'.
-  // Memfault prefers the latter.
   private fun hwRevisionWithoutProduct() = hwRevision.split("-").last()
+
+  /**
+   * Transform a W3 hwRevision like 'w3a-core-evt' to 'w3a-evt' (removes MCU part).
+   * Format: {product}-{mcu}-{stage} → {product}-{stage}
+   */
+  private fun w3HwRevisionWithoutMcu(): String {
+    val parts = hwRevision.split("-")
+    return if (parts.size >= 3) {
+      "${parts.first()}-${parts.last()}"
+    } else {
+      hwRevision // Fallback if format doesn't match
+    }
+  }
 
   private fun hwConfig(): HwKeyConfig =
     when (secureBootConfig) {
@@ -136,11 +149,25 @@ data class FirmwareDeviceInfo(
       }
     }
 
-  fun fwupHwVersion() =
-    when (hwConfig()) {
-      PROD -> hwRevisionWithoutProduct() + "-prod"
-      DEV, UNKNOWN -> hwRevisionWithoutProduct()
+  /**
+   * Returns the hardware version string used for querying Memfault for firmware updates.
+   * For W1: returns stage only (e.g., "dvt" or "dvt-prod") - preserves existing format
+   * For W3: returns <product>-<stage>-<config> (e.g., "w3a-evt-dev" or "w3a-evt-prod")
+   *         Input hwRevision is "w3a-core-evt", MCU part is stripped.
+   */
+  fun fwupHwVersion(): String {
+    val base = if (hardwareType() == HardwareType.W3) w3HwRevisionWithoutMcu() else hwRevisionWithoutProduct()
+    return when {
+      hardwareType() == HardwareType.W3 -> when (hwConfig()) {
+        PROD -> "$base-prod"
+        DEV, UNKNOWN -> "$base-dev"
+      }
+      else -> when (hwConfig()) {
+        PROD -> "$base-prod"
+        DEV, UNKNOWN -> base
+      }
     }
+  }
 
   fun batteryChargeForUninitializedModelGauge(): Int {
     // The reported battery percent from firmware 1.0.65 and below is wrong.

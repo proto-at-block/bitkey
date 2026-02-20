@@ -9,6 +9,7 @@
 #include "hex.h"
 #include "rtos.h"
 #include "security_config.h"
+#include "secutils.h"
 
 #include <criterion/criterion.h>
 #include <criterion/new/assert.h>
@@ -129,7 +130,7 @@ void setup(void) {
     .timestamp_cb = timestamp,
   });
   fwup_init(firmware_b_slot, firmware_a_slot, &firmware_b_slot[FIRMWARE_SLOT_SIZE - 64],
-            FIRMWARE_SLOT_SIZE, true);
+            FIRMWARE_SLOT_SIZE, true, false);
   start();
 }
 

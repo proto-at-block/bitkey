@@ -23,9 +23,10 @@ import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.http.*
+import io.ktor.http.HttpStatusCode
 import kotlinx.datetime.Instant
 
 class AuthTokensServiceImplTests : FunSpec({
@@ -37,6 +38,7 @@ class AuthTokensServiceImplTests : FunSpec({
     turbine = turbines::create
   )
   val appAuthPublicKeyProvider = AppAuthPublicKeyProviderMock()
+  val signedAccessTokenCache = SignedAccessTokenCacheFake()
 
   val service = AuthTokensServiceImpl(
     authTokenDao = authTokenDao,
@@ -45,7 +47,8 @@ class AuthTokensServiceImplTests : FunSpec({
     appAuthPublicKeyProvider = appAuthPublicKeyProvider,
     f8eAuthSignatureStatusProvider = f8eAuthSignatureStatusProvider,
     appVariant = Customer,
-    accountConfigService = accountConfigService
+    accountConfigService = accountConfigService,
+    signedAccessTokenCache = signedAccessTokenCache
   )
 
   val f8eEnvironment = KeyboxMock.config.f8eEnvironment
@@ -55,6 +58,7 @@ class AuthTokensServiceImplTests : FunSpec({
     authTokenDao.reset()
     appAuthPublicKeyProvider.reset()
     accountConfigService.reset()
+    signedAccessTokenCache.reset()
   }
 
   test("successfully refresh access token") {
@@ -214,7 +218,8 @@ class AuthTokensServiceImplTests : FunSpec({
       appAuthPublicKeyProvider = appAuthPublicKeyProvider,
       f8eAuthSignatureStatusProvider = f8eAuthSignatureStatusProvider,
       appVariant = AppVariant.Team,
-      accountConfigService = accountConfigService
+      accountConfigService = accountConfigService,
+      signedAccessTokenCache = signedAccessTokenCache
     )
 
     service.setTokens(FullAccountIdMock, AccountAuthTokensMock, Global).shouldBeOk()
@@ -224,5 +229,64 @@ class AuthTokensServiceImplTests : FunSpec({
     authTokenDao.clearCalls.awaitItem()
 
     service.getTokens(FullAccountIdMock, Global).shouldBeOk(null)
+  }
+
+  test("cache is cleared when tokens are refreshed") {
+    val originalAccessToken = "original-access-token"
+    val originalRefreshToken = "original-refresh-token"
+    val newAccessToken = "new-access-token"
+
+    // Pre-populate cache with a signature
+    signedAccessTokenCache.put(
+      AccessToken(originalAccessToken),
+      AppGlobalAuthPublicKeyMock,
+      "cached-signature"
+    )
+
+    authTokenDao.getTokensResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken(originalAccessToken),
+        refreshToken = RefreshToken(originalRefreshToken),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
+      )
+    )
+    authenticationF8eClient.refreshResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken(newAccessToken),
+        refreshToken = RefreshToken(originalRefreshToken),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
+      )
+    )
+
+    service.refreshAccessTokenWithApp(
+      f8eEnvironment = f8eEnvironment,
+      accountId = accountId,
+      scope = Global
+    ).shouldBeOk()
+    authTokenDao.setTokensCalls.awaitItem()
+
+    // Verify cache was cleared
+    signedAccessTokenCache.get(
+      AccessToken(originalAccessToken),
+      AppGlobalAuthPublicKeyMock
+    ).shouldBeNull()
+  }
+
+  test("cache is cleared when tokens are set") {
+    // Pre-populate cache with a signature
+    signedAccessTokenCache.put(
+      AccessToken("old-token"),
+      AppGlobalAuthPublicKeyMock,
+      "cached-signature"
+    )
+
+    service.setTokens(FullAccountIdMock, AccountAuthTokensMock, Global).shouldBeOk()
+    authTokenDao.setTokensCalls.awaitItem()
+
+    // Verify cache was cleared
+    signedAccessTokenCache.get(
+      AccessToken("old-token"),
+      AppGlobalAuthPublicKeyMock
+    ).shouldBeNull()
   }
 })

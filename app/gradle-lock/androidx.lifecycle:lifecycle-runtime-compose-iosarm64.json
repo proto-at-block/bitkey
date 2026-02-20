@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-runtime-compose-iosarm64",
+    "components": [
+        {
+            "version": "2.9.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-runtime-compose-iosArm64Main-2.9.4.klib": "9b140f9bbc4ded137a03421ef47539548cdf6c9ca76f20b93c0be91dac34507b"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "lifecycle-runtime-compose-iosarm64-2.9.4-metadata.jar": "f56f72e0261ad3b2a2b23f33485104d2c20cc66112776195e73c7db8634ef826"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

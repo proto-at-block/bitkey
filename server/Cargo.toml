@@ -45,6 +45,7 @@ members = [
   "src/wallet-telemetry",
   "src/wsm/wsm-api",
   "src/wsm/wsm-common",
+  "src/wsm/wsm-compat",
   "src/wsm/wsm-enclave",
   "src/wsm/wsm-rust-client",
 ]
@@ -56,6 +57,7 @@ publish = false
 version = "0.1.0"
 
 [workspace.dependencies]
+action-proof = { path = "../core/action-proof" }
 anyhow = "1.0.80"
 argon2 = { version = "0.5.3", features = ["std"] }
 async-trait = "0.1.77"
@@ -76,7 +78,9 @@ axum-macros = "0.4.1"
 axum-tracing-opentelemetry = "0.19.0"
 base32 = "0.5.0"
 base64 = "0.22.0"
-bdk = { version = "0.29.0", default-features = false }
+bdk_bitcoind_rpc = { version = "=0.22.0" }
+bdk_electrum = { version = "=0.23.2" }
+bdk_wallet = { version = "=2.2.0" }
 config = { version = "=0.15.0", features = ["toml"] }
 crypto = { path = "../core/crypto" }
 ctrlc = "3.4.4"
@@ -116,6 +120,7 @@ serde_with = "3.9.0"
 sha2 = "0.10.8"
 strum = "0.26.3"
 strum_macros = "0.26.4"
+subtle = "2.5"
 thiserror = "1.0.57"
 time = { version = "0.3.36", features = [
   "formatting",
@@ -175,6 +180,7 @@ userpool = { path = "src/api/userpool" }
 wallet-telemetry = { path = "src/wallet-telemetry" }
 workers = { path = "src/api/workers" }
 wsm-common = { path = "src/wsm/wsm-common" }
+wsm-compat = { path = "src/wsm/wsm-compat" }
 wsm-rust-client = { path = "src/wsm/wsm-rust-client" }
 
 [patch.crates-io]

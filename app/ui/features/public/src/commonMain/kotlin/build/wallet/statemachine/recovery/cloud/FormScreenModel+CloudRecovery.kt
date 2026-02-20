@@ -104,7 +104,7 @@ data class CloudWarningBodyModel(
                           )
                       ),
                     title = "Recover your Wallet",
-                    secondaryText = "Replace a lost App Key by creating a new one.",
+                    secondaryText = "Use your Bitkey hardware to recover your wallet.",
                     onClick = onCannotAccessCloud,
                     trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
                   ),
@@ -119,8 +119,8 @@ data class CloudWarningBodyModel(
                               iconSize = IconSize.Small
                             )
                         ),
-                      title = "Use your Emergency Exit Kit",
-                      secondaryText = "Your Emergency Exit Kit PDF allows you transfer your funds out of Bitkey in extreme cases.",
+                      title = "Leave Bitkey Wallet",
+                      secondaryText = "Use your Bitkey hardware and Emergency Exit Kit PDF to transfer funds out of Bitkey.",
                       onClick = it,
                       trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
                     )

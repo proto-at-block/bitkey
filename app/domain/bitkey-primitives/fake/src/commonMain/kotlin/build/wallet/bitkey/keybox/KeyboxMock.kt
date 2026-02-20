@@ -101,6 +101,16 @@ val FullAccountMock = FullAccount(
   keybox = KeyboxMock
 )
 
+val KeyboxW3Mock = KeyboxMock.copy(
+  config = KeyboxMock.config.copy(hardwareType = HardwareType.W3)
+)
+
+val FullAccountW3Mock = FullAccount(
+  accountId = FullAccountIdMock,
+  config = KeyboxW3Mock.config,
+  keybox = KeyboxW3Mock
+)
+
 val PrivateAccountMock = FullAccountMock.copy(
   keybox = PrivateWalletKeyboxMock
 )

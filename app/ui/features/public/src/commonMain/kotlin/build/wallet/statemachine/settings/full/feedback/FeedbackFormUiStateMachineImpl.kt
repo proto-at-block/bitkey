@@ -191,10 +191,19 @@ class FeedbackFormUiStateMachineImpl(
         mainContentList = contentList
       ),
       alertModel =
-        when (alertUiState) {
+        when (val state = alertUiState) {
           FeedbackAlertUiState.ViewingLeaveConfirmation ->
             FeedbackUiStandaloneModels.confirmLeaveAlertModel(
               onConfirm = onBack,
+              onDismiss = {
+                alertUiState = null
+              }
+            )
+
+          is FeedbackAlertUiState.AttachmentLimitExceeded ->
+            FeedbackUiStandaloneModels.attachmentLimitExceededAlertModel(
+              attemptedCount = state.attemptedCount,
+              addedCount = state.addedCount,
               onDismiss = {
                 alertUiState = null
               }
@@ -207,13 +216,33 @@ class FeedbackFormUiStateMachineImpl(
           SystemUIModel.MediaPickerModel(
             onMediaPicked = { media ->
               isPickingMedia = false
-              media.forEach {
-                formData.addAttachment(
-                  SupportTicketAttachment.Media(
-                    name = it.name,
-                    mimeType = it.mimeType,
-                    data = { it.data() }
+              val currentCount = formData.attachments.count { it is SupportTicketAttachment.Media }
+              val availableSlots = MAX_MEDIA_ATTACHMENTS - currentCount
+
+              if (availableSlots > 0) {
+                // Add only up to the limit
+                media.take(availableSlots).forEach {
+                  formData.addAttachment(
+                    SupportTicketAttachment.Media(
+                      name = it.name,
+                      mimeType = it.mimeType,
+                      data = { it.data() }
+                    )
                   )
+                }
+
+                // Show alert if user tried to add more than available slots
+                if (media.size > availableSlots) {
+                  alertUiState = FeedbackAlertUiState.AttachmentLimitExceeded(
+                    attemptedCount = media.size,
+                    addedCount = availableSlots
+                  )
+                }
+              } else {
+                // Already at limit, show alert
+                alertUiState = FeedbackAlertUiState.AttachmentLimitExceeded(
+                  attemptedCount = media.size,
+                  addedCount = 0
                 )
               }
             }
@@ -404,10 +433,14 @@ class FeedbackFormUiStateMachineImpl(
     addAttachment: () -> Unit,
     removeAttachment: (SupportTicketAttachment) -> Unit,
   ): FormMainContentModel {
+    val mediaAttachmentCount = attachments.count { it is SupportTicketAttachment.Media }
+    val isAtLimit = mediaAttachmentCount >= MAX_MEDIA_ATTACHMENTS
+
     return FormMainContentModel.ListGroup(
       listGroupModel =
         ListGroupModel(
-          header = "Attachments",
+          header = "Attachments (up to $MAX_MEDIA_ATTACHMENTS)",
+          headerTreatment = ListGroupModel.HeaderTreatment.SECONDARY,
           items =
             attachments.mapNotNull { attachment ->
               when (attachment) {
@@ -437,6 +470,7 @@ class FeedbackFormUiStateMachineImpl(
             ButtonModel(
               text = "Add attachment",
               size = ButtonModel.Size.Footer,
+              isEnabled = !isAtLimit,
               onClick = StandardClick(addAttachment)
             )
         )
@@ -708,4 +742,12 @@ private sealed interface FeedbackAlertUiState {
    * Viewing the main Feedback link screen
    */
   data object ViewingLeaveConfirmation : FeedbackAlertUiState
+
+  /**
+   * Alert shown when user tries to add more than MAX_MEDIA_ATTACHMENTS
+   */
+  data class AttachmentLimitExceeded(
+    val attemptedCount: Int,
+    val addedCount: Int,
+  ) : FeedbackAlertUiState
 }

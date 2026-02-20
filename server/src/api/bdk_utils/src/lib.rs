@@ -1,32 +1,27 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
 use std::{env, fmt};
 
-pub use bdk;
-use bdk::bitcoin::bip32::{ChildNumber, KeySource};
-use bdk::bitcoin::key::Secp256k1;
-use bdk::bitcoin::psbt::raw::ProprietaryKey;
-use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::psbt::Psbt;
-use bdk::bitcoin::secp256k1::{PublicKey as SecpPublicKey, Scalar};
+pub use bdk_electrum as electrum;
+pub use bdk_wallet as bdk;
+use bdk_wallet::bitcoin::psbt::raw::ProprietaryKey;
+use bdk_wallet::chain::keychain_txout::DEFAULT_LOOKAHEAD;
 
-use bdk::bitcoin::{Address, Amount, BlockHash, ScriptBuf, TxOut};
-use bdk::bitcoincore_rpc::RpcApi;
-use bdk::blockchain::rpc::Auth;
-use bdk::blockchain::{
-    Blockchain, ConfigurableBlockchain, ElectrumBlockchain, RpcBlockchain, RpcConfig,
-};
-use bdk::database::{AnyDatabase, BatchDatabase};
-use bdk::descriptor::ExtendedDescriptor;
-use bdk::electrum_client::Client as ElectrumClient;
-use bdk::electrum_client::Config as ElectrumConfig;
-use bdk::electrum_client::Error as ElectrumClientError;
-use bdk::miniscript::descriptor::DescriptorXKey;
-use bdk::miniscript::{Descriptor, DescriptorPublicKey};
-use bdk::wallet::{AddressIndex, AddressInfo};
-use bdk::Error::Electrum;
-use bdk::SyncOptions;
-use bdk::{bitcoin::Network, database::MemoryDatabase, Wallet};
+use bdk_wallet::bitcoin::bip32::{ChildNumber, KeySource};
+use bdk_wallet::bitcoin::psbt::Psbt;
+use bdk_wallet::bitcoin::secp256k1::{PublicKey as SecpPublicKey, Scalar, Secp256k1};
+
+use bdk_bitcoind_rpc::bitcoincore_rpc::{Auth, Client, RpcApi};
+use bdk_electrum::electrum_client::Client as ElectrumClient;
+use bdk_electrum::electrum_client::Config as ElectrumConfig;
+use bdk_electrum::electrum_client::Error as ElectrumClientError;
+use bdk_electrum::{electrum_client, BdkElectrumClient};
+use bdk_wallet::bitcoin::{Address, Amount, BlockHash, ScriptBuf, TxOut};
+use bdk_wallet::descriptor::ExtendedDescriptor;
+use bdk_wallet::miniscript::descriptor::DescriptorXKey;
+use bdk_wallet::miniscript::{Descriptor, DescriptorPublicKey};
+use bdk_wallet::KeychainKind;
+use bdk_wallet::{bitcoin::Network, Wallet};
 use crypto::chaincode_delegation::common::{PROPRIETARY_KEY_PREFIX, PROPRIETARY_KEY_SUBTYPE};
 use feature_flags::flag::{evaluate_flag_value, ContextKey};
 use tracing::{event, instrument, Level};
@@ -50,7 +45,7 @@ pub trait TransactionBroadcasterTrait: Send + Sync {
     fn broadcast(
         &self,
         network: Network,
-        transaction: &mut PartiallySignedTransaction,
+        transaction: &mut Psbt,
         rpc_uris: &ElectrumRpcUris,
     ) -> Result<(), BdkUtilError>;
 }
@@ -71,20 +66,28 @@ impl TransactionBroadcasterTrait for TransactionBroadcaster {
     fn broadcast(
         &self,
         network: Network,
-        transaction: &mut PartiallySignedTransaction,
+        transaction: &mut Psbt,
         rpc_uris: &ElectrumRpcUris,
     ) -> Result<(), BdkUtilError> {
-        let blockchain = get_blockchain(network, rpc_uris)?;
-        blockchain
-            .broadcast(&transaction.to_owned().extract_tx())
-            .map_err(as_bdk_util_err)?;
+        let client = get_bdk_electrum_client(network, rpc_uris)?;
+        broadcast_with(transaction, |tx| client.transaction_broadcast(tx))?;
 
         Ok(())
     }
 }
 
-fn as_bdk_util_err(value: bdk::Error) -> BdkUtilError {
-    if let Electrum(ElectrumClientError::Protocol(ref json_value)) = value {
+fn broadcast_with(
+    transaction: &mut Psbt,
+    broadcast: impl FnOnce(
+        &bdk_wallet::bitcoin::Transaction,
+    ) -> Result<bdk_wallet::bitcoin::Txid, electrum_client::Error>,
+) -> Result<(), BdkUtilError> {
+    broadcast(&transaction.to_owned().extract_tx()?).map_err(as_bdk_util_err)?;
+    Ok(())
+}
+
+fn as_bdk_util_err(value: electrum_client::Error) -> BdkUtilError {
+    if let ElectrumClientError::Protocol(ref json_value) = value {
         let json_str = json_value.to_string();
 
         // We broadcast on both App and Server, so we could get this error when the
@@ -130,11 +133,11 @@ pub fn get_electrum_client(
     )?)
 }
 
-pub fn get_blockchain(
+pub fn get_bdk_electrum_client(
     network: Network,
     rpc_uris: &ElectrumRpcUris,
-) -> Result<ElectrumBlockchain, BdkUtilError> {
-    Ok(ElectrumBlockchain::from(get_electrum_client(
+) -> Result<BdkElectrumClient<ElectrumClient>, BdkUtilError> {
+    Ok(BdkElectrumClient::new(get_electrum_client(
         network, rpc_uris,
     )?))
 }
@@ -228,16 +231,20 @@ pub fn parse_electrum_server(server: &str) -> Result<ElectrumServerConfig, BdkUt
     })
 }
 
+pub const FULL_SCAN_STOP_GAP_AND_BATCH_SIZE: (usize, usize) = (20, 200);
+
 #[instrument(name = "sync_wallet", fields(network), skip(wallet))]
-pub fn sync_wallet<D: BatchDatabase>(
-    wallet: &Wallet<D>,
-    rpc_uris: &ElectrumRpcUris,
-) -> Result<(), BdkUtilError> {
+pub fn sync_wallet(wallet: &mut Wallet, rpc_uris: &ElectrumRpcUris) -> Result<(), BdkUtilError> {
+    let (stop_gap, batch_size) = FULL_SCAN_STOP_GAP_AND_BATCH_SIZE;
+
     let network = wallet.network();
-    let blockchain = get_blockchain(network, rpc_uris)?;
-    wallet
-        .sync(&blockchain, SyncOptions::default())
-        .map_err(BdkUtilError::WalletSync)
+    let client = get_bdk_electrum_client(network, rpc_uris)?;
+    let request = wallet.start_full_scan();
+
+    let update = client.full_scan(request, stop_gap, batch_size, true)?;
+
+    wallet.apply_update(update)?;
+    Ok(())
 }
 
 pub fn validate_xpubs(xpubs: &[String]) -> Result<(), ApiError> {
@@ -308,61 +315,90 @@ impl DescriptorKeyset {
         &self,
         sync: bool,
         rpc_uris: &ElectrumRpcUris,
-    ) -> Result<Wallet<AnyDatabase>, BdkUtilError> {
-        let receiving = self.receiving().into_multisig_descriptor()?;
-        let change = self.change().into_multisig_descriptor()?;
+    ) -> Result<Wallet, BdkUtilError> {
+        self.generate_wallet_with_lookahead(sync, rpc_uris, None)
+    }
 
-        let wallet = Wallet::new(
-            receiving,
-            Some(change),
-            self.network,
-            MemoryDatabase::new().into(),
+    pub fn generate_wallet_with_lookahead(
+        &self,
+        sync: bool,
+        rpc_uris: &ElectrumRpcUris,
+        lookahead: Option<u32>,
+    ) -> Result<Wallet, BdkUtilError> {
+        let lookahead = lookahead.unwrap_or(DEFAULT_LOOKAHEAD);
+
+        let mut wallet = Wallet::create(
+            self.receiving().into_multisig_descriptor()?,
+            self.change().into_multisig_descriptor()?,
         )
-        .map_err(BdkUtilError::GenerateWalletForDescriptorKeyset)?;
+        .network(self.network)
+        .lookahead(lookahead)
+        .create_wallet_no_persist()?;
 
         if sync {
-            sync_wallet(&wallet, rpc_uris)?;
+            sync_wallet(&mut wallet, rpc_uris)?;
         }
 
         Ok(wallet)
     }
 }
 
-const CHECK_SCRIPT_NUM_CACHED_ADDRESSES: u32 = 1000;
+pub const CHECK_SCRIPT_NUM_CACHED_ADDRESSES: u32 = 1000;
 
 pub fn is_addressed_to_wallet(
-    synced_wallet: &Wallet<AnyDatabase>,
+    synced_wallet: &Wallet,
     script: &ScriptBuf,
 ) -> Result<bool, BdkUtilError> {
-    synced_wallet
-        .ensure_addresses_cached(CHECK_SCRIPT_NUM_CACHED_ADDRESSES)
-        .map_err(BdkUtilError::WalletCacheAddresses)?;
-
-    synced_wallet
-        .is_mine(script)
-        .map_err(BdkUtilError::PsbtNotAddressedToAWallet)
+    Ok(script_belongs_to_wallet(synced_wallet, script))
 }
 
 const CHECK_PSBT_NUM_CACHED_ADDRESSES: u32 = 100;
 
 pub fn is_psbt_addressed_to_wallet(
-    synced_wallet: &Wallet<AnyDatabase>,
+    synced_wallet: &Wallet,
     psbt: &Psbt,
 ) -> Result<bool, BdkUtilError> {
-    synced_wallet
-        .ensure_addresses_cached(CHECK_PSBT_NUM_CACHED_ADDRESSES)
-        .map_err(BdkUtilError::WalletCacheAddresses)?;
+    let cached_script_pubkeys = build_cached_script_pubkeys(synced_wallet);
+    Ok(psbt
+        .unsigned_tx
+        .output
+        .iter()
+        .all(|tx_out| cached_script_pubkeys.contains(&tx_out.script_pubkey)))
+}
 
-    for tx_out in &psbt.unsigned_tx.output {
-        if !synced_wallet
-            .is_mine(&tx_out.script_pubkey)
-            .map_err(BdkUtilError::PsbtNotAddressedToAWallet)?
-        {
-            return Ok(false);
+fn build_cached_script_pubkeys(synced_wallet: &Wallet) -> HashSet<ScriptBuf> {
+    let mut cached_script_pubkeys =
+        HashSet::with_capacity((CHECK_SCRIPT_NUM_CACHED_ADDRESSES * 2) as usize);
+
+    for keychain in [KeychainKind::External, KeychainKind::Internal] {
+        for index in 0..CHECK_SCRIPT_NUM_CACHED_ADDRESSES {
+            cached_script_pubkeys.insert(
+                synced_wallet
+                    .peek_address(keychain, index)
+                    .address
+                    .script_pubkey(),
+            );
         }
     }
 
-    Ok(true)
+    cached_script_pubkeys
+}
+
+fn script_belongs_to_wallet(synced_wallet: &Wallet, script: &ScriptBuf) -> bool {
+    for keychain in [KeychainKind::External, KeychainKind::Internal] {
+        for index in 0..CHECK_SCRIPT_NUM_CACHED_ADDRESSES {
+            if &synced_wallet
+                .peek_address(keychain, index)
+                .address
+                .script_pubkey()
+                == script
+            {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 pub fn is_psbt_addressed_to_attributable_wallet(
@@ -403,7 +439,7 @@ fn get_unowned_output_iter<'a>(
 
 pub fn get_total_outflow_for_psbt(wallet: &dyn AttributableWallet, psbt: &Psbt) -> u64 {
     get_unowned_output_iter(wallet, psbt)
-        .map(|(_idx, output)| output.value)
+        .map(|(_idx, output)| output.value.to_sat())
         .sum()
 }
 
@@ -443,10 +479,7 @@ pub trait AttributableWallet {
     fn is_my_psbt_address(&self, spk: &SpkWithDerivationPaths) -> Result<bool, BdkUtilError>;
 }
 
-impl<D> AttributableWallet for Wallet<D>
-where
-    D: BatchDatabase,
-{
+impl AttributableWallet for Wallet {
     /// Checks if all outputs in the PSBT are addressed to the wallet
     /// Depends on the derivation path being present in the PSBT
     /// Derivation path is present in the PSBT for outputs that belong to the originating descriptor
@@ -499,11 +532,13 @@ where
                 ChildNumber::Hardened { .. } => return Err(BdkUtilError::MalformedDerivationPath),
             };
 
-            let derived_address = match is_change {
-                true => self.get_internal_address(AddressIndex::Peek(*index)),
-                false => self.get_address(AddressIndex::Peek(*index)),
-            }
-            .map_err(BdkUtilError::WalletCacheAddresses)?;
+            let keychain = if is_change {
+                KeychainKind::Internal
+            } else {
+                KeychainKind::External
+            };
+            let derived_address = self.peek_address(keychain, *index);
+
             Ok(derived_address.address.script_pubkey() == spk.script_pubkey.clone())
         } else {
             Ok(false)
@@ -577,38 +612,43 @@ impl PsbtWithDerivation for Psbt {
 }
 
 pub fn treasury_fund_address(address: &Address, amount: Amount) {
-    let treasury_blockchain = RpcBlockchain::from_config(&treasury_rpc_config()).unwrap();
-    treasury_blockchain
+    let wallet_name = env::var("BITCOIND_RPC_WALLET_NAME").unwrap_or("testwallet".to_string());
+    let rpc_client = generate_rpc_client(Some(wallet_name));
+
+    rpc_client
         .send_to_address(address, amount, None, None, None, None, None, None)
-        .unwrap();
+        .expect("Failed to send to address");
 }
 
 pub fn generate_block(
     num_blocks: u64,
-    address_str: &AddressInfo,
+    address_str: &Address,
 ) -> Result<Vec<BlockHash>, Box<dyn std::error::Error>> {
-    let treasury_blockchain = RpcBlockchain::from_config(&treasury_rpc_config()).unwrap();
-    let block_hashes: Vec<BlockHash> = treasury_blockchain.get_jsonrpc_client().call(
-        "generatetoaddress",
-        &[
-            serde_json::value::to_raw_value(&num_blocks)?,
-            serde_json::value::to_raw_value(&address_str.to_string())?,
-        ],
-    )?;
+    let wallet_name = env::var("BITCOIND_RPC_WALLET_NAME").unwrap_or("testwallet".to_string());
+    let rpc_client = generate_rpc_client(Some(wallet_name));
+
+    let block_hashes = rpc_client.generate_to_address(num_blocks, address_str)?;
     Ok(block_hashes)
 }
 
-fn treasury_rpc_config() -> RpcConfig {
-    RpcConfig {
-        url: env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
-        auth: Auth::UserPass {
-            username: env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
-            password: env::var("BITCOIND_RPC_PASSWORD").unwrap_or("test".to_string()),
-        },
-        network: Network::Regtest,
-        wallet_name: env::var("BITCOIND_RPC_WALLET_NAME").unwrap_or("testwallet".to_string()),
-        sync_params: None,
-    }
+pub fn generate_rpc_client(wallet_name: Option<String>) -> Client {
+    let url = if let Some(wallet_name) = wallet_name {
+        format!(
+            "{}/wallet/{}",
+            env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
+            wallet_name
+        )
+    } else {
+        env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string())
+    };
+    Client::new(
+        &url,
+        Auth::UserPass(
+            env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
+            env::var("BITCOIND_RPC_PASSWORD").unwrap_or("test".to_string()),
+        ),
+    )
+    .expect("Failed to load client")
 }
 
 pub struct ChaincodeDelegationPsbt {
@@ -673,7 +713,7 @@ impl ChaincodeDelegationCollaboratorWallet {
 
         for output in self.filter_outputs_by_witness_script(&ccd_psbt.psbt, false)? {
             outflow = outflow
-                .checked_add(output.value)
+                .checked_add(output.value.to_sat())
                 .ok_or_else(|| anyhow::anyhow!("Outflow overflow"))?;
         }
 
@@ -824,81 +864,90 @@ impl AttributableWallet for ChaincodeDelegationCollaboratorWallet {
 
 #[cfg(test)]
 pub mod tests {
-    use bdk::bitcoin::bip32::ExtendedPrivKey;
-    use bdk::bitcoin::secp256k1::Secp256k1;
-    use bdk::bitcoin::Network;
-    use bdk::database::{AnyDatabase, BatchOperations, MemoryDatabase};
-    use bdk::descriptor::IntoWalletDescriptor;
-    use bdk::electrum_client::Error as ElectrumClientError;
-    use bdk::keys::GeneratableKey;
-    use bdk::template::{Bip84, DescriptorTemplate};
-    use bdk::wallet::tx_builder::TxOrdering;
-    use bdk::wallet::AddressIndex;
-    use bdk::Error::Electrum;
-    use bdk::{bitcoin, populate_test_db, testutils, BlockTime, KeychainKind, Wallet};
+    use bdk_electrum::electrum_client;
+    use bdk_wallet::bitcoin::absolute::LockTime;
+    use bdk_wallet::bitcoin::bip32::Xpriv;
+    use bdk_wallet::bitcoin::hashes::Hash;
+    use bdk_wallet::bitcoin::psbt::Psbt as BitcoinPsbt;
+    use bdk_wallet::bitcoin::transaction::Version;
+    use bdk_wallet::bitcoin::{Amount, Network, Transaction};
+    use bdk_wallet::bitcoin::{BlockHash, OutPoint, TxOut};
+    use bdk_wallet::chain::BlockId;
+    use bdk_wallet::keys::GeneratableKey;
+    use bdk_wallet::template::{Bip84, DescriptorTemplate};
+    use bdk_wallet::test_utils::{insert_checkpoint, insert_tx};
+    use bdk_wallet::{KeychainKind, TxOrdering, Wallet};
     use rstest::rstest;
     use serde_json::json;
-    use std::str::FromStr;
 
+    use super::broadcast_with;
     use crate::error::BdkUtilError;
     use crate::{
-        as_bdk_util_err, get_electrum_server, get_outflow_addresses_for_psbt, AttributableWallet,
-        ElectrumRpcUris, PsbtWithDerivation,
+        get_electrum_server, get_outflow_addresses_for_psbt, AttributableWallet, ElectrumRpcUris,
+        PsbtWithDerivation,
     };
 
-    pub fn get_fake_prefunded_wallet(total_funds: u64) -> Wallet<AnyDatabase> {
-        let xprv = ExtendedPrivKey::generate(()).unwrap();
+    pub fn get_fake_prefunded_wallet(total_funds: u64) -> Wallet {
+        let xprv = Xpriv::generate(()).unwrap();
 
+        // Create descriptors using the Bip84 template
         let external_descriptor = Bip84(xprv.clone(), KeychainKind::External)
             .build(Network::Signet)
-            .unwrap()
-            .into_wallet_descriptor(&Secp256k1::new(), Network::Signet)
-            .unwrap()
-            .0;
+            .unwrap();
 
-        // pre-populate the wallet database with a fake transaction
-        let funding_address_kix = 0;
-        let descriptors = testutils!(@descriptors (&external_descriptor.to_string()));
-        let tx_meta = testutils! {
-                @tx ( (@external descriptors, funding_address_kix) => total_funds ) (@confirmations 1)
+        let internal_descriptor = Bip84(xprv, KeychainKind::Internal)
+            .build(Network::Signet)
+            .unwrap();
+
+        let mut wallet = Wallet::create(external_descriptor, internal_descriptor)
+            .network(Network::Signet)
+            .create_wallet_no_persist()
+            .expect("must create wallet");
+
+        // Get an address to fund
+        let address = wallet.reveal_next_address(KeychainKind::External).address;
+
+        // Create a fake transaction with the specified amount
+        let tx = Transaction {
+            version: Version::ONE,
+            lock_time: LockTime::ZERO,
+            input: vec![],
+            output: vec![TxOut {
+                value: Amount::from_sat(total_funds),
+                script_pubkey: address.script_pubkey(),
+            }],
         };
-        let mut wallet_database = MemoryDatabase::new();
-        wallet_database
-            .set_script_pubkey(
-                &bitcoin::Address::from_str(&tx_meta.output.first().unwrap().to_address)
-                    .unwrap()
-                    .assume_checked()
-                    .script_pubkey(),
-                KeychainKind::External,
-                funding_address_kix,
-            )
-            .unwrap();
-        wallet_database
-            .set_last_index(KeychainKind::External, funding_address_kix)
-            .unwrap();
-        populate_test_db!(&mut wallet_database, tx_meta, Some(100));
 
-        Wallet::new(
-            Bip84(xprv.clone(), KeychainKind::External),
-            Some(Bip84(xprv, KeychainKind::Internal)),
-            Network::Signet,
-            AnyDatabase::Memory(wallet_database),
-        )
-        .unwrap()
+        let txid = tx.compute_txid();
+
+        insert_checkpoint(
+            &mut wallet,
+            BlockId {
+                height: 100,
+                hash: BlockHash::all_zeros(),
+            },
+        );
+        insert_tx(&mut wallet, tx);
+
+        wallet.insert_txout(
+            OutPoint { txid, vout: 0 },
+            TxOut {
+                value: Amount::from_sat(total_funds),
+                script_pubkey: address.script_pubkey(),
+            },
+        );
+
+        wallet
     }
 
     #[test]
     fn test_psbt_input_validation_works() {
-        let wallet = get_fake_prefunded_wallet(50_000);
+        let mut wallet = get_fake_prefunded_wallet(50_000);
+        let address = wallet.reveal_next_address(KeychainKind::External).address;
+
         let mut builder = wallet.build_tx();
-        builder.add_recipient(
-            wallet
-                .get_address(AddressIndex::New)
-                .unwrap()
-                .script_pubkey(),
-            1000,
-        );
-        let (psbt, _) = builder.finish().unwrap();
+        builder.add_recipient(address.script_pubkey(), Amount::from_sat(1000));
+        let psbt = builder.finish().unwrap();
         assert_eq!(psbt.inputs.len(), 1); // make sure we have an input
                                           // check the individial input
         assert!(wallet
@@ -911,12 +960,16 @@ pub mod tests {
 
     #[test]
     fn test_psbt_outflow_address_works() {
-        let wallet = get_fake_prefunded_wallet(50_000);
-        let recipient = get_fake_prefunded_wallet(50_000);
-        let recipient_address = recipient.get_address(AddressIndex::New).unwrap();
+        let mut wallet = get_fake_prefunded_wallet(50_000);
+        let mut recipient = get_fake_prefunded_wallet(50_000);
+        let recipient_address = recipient
+            .reveal_next_address(KeychainKind::External)
+            .address;
+        let recipient_script_pubkey = recipient_address.script_pubkey();
+
         let mut builder = wallet.build_tx();
-        builder.add_recipient(recipient_address.script_pubkey(), 1000);
-        let (psbt, _) = builder.finish().unwrap();
+        builder.add_recipient(recipient_script_pubkey.clone(), Amount::from_sat(1000));
+        let psbt = builder.finish().unwrap();
         assert_eq!(psbt.inputs.len(), 1); // make sure we have an input
         assert_eq!(psbt.outputs.len(), 2); // we should have one output to our recipient, one for change
 
@@ -928,12 +981,18 @@ pub mod tests {
         let mut builder = wallet.build_tx();
         builder.ordering(TxOrdering::Untouched); // We are going to be looking at specific outputs, so don't reshuffle the ordering
                                                  // coins to self
-        let recipient_address_1 = recipient.get_address(AddressIndex::New).unwrap();
-        let recipient_address_2 = recipient.get_address(AddressIndex::New).unwrap();
-        builder.add_recipient(recipient_address_1.script_pubkey(), 1000);
+        let recipient_address_1 = recipient
+            .reveal_next_address(KeychainKind::External)
+            .address;
+        let recipient_script_pubkey_1 = recipient_address_1.script_pubkey();
+        let recipient_address_2 = recipient
+            .reveal_next_address(KeychainKind::External)
+            .address;
+        let recipient_script_pubkey_2 = recipient_address_2.script_pubkey();
+        builder.add_recipient(recipient_script_pubkey_1.clone(), Amount::from_sat(1000));
         // coins to another wallet
-        builder.add_recipient(recipient_address_2.script_pubkey(), 1000);
-        let (psbt, _) = builder.finish().unwrap();
+        builder.add_recipient(recipient_script_pubkey_2.clone(), Amount::from_sat(1000));
+        let psbt = builder.finish().unwrap();
         assert_eq!(psbt.inputs.len(), 1); // make sure we have an input
         assert_eq!(psbt.outputs.len(), 3); // we should have two outputs for the recipient, one for change
 
@@ -946,27 +1005,26 @@ pub mod tests {
 
     #[test]
     fn test_psbt_output_validation_works() {
-        let wallet = get_fake_prefunded_wallet(50_000);
-        let recipient = get_fake_prefunded_wallet(50_000);
+        let mut wallet = get_fake_prefunded_wallet(50_000);
+        let mut recipient = get_fake_prefunded_wallet(50_000);
+
+        // Builder construction creates a mutable borrow, so we need to get the script pubkey before the borrow is dropped
+        let wallet_script_pubkey = wallet
+            .reveal_next_address(KeychainKind::External)
+            .address
+            .script_pubkey();
+        let recipient_script_pubkey = recipient
+            .reveal_next_address(KeychainKind::External)
+            .address
+            .script_pubkey();
+
         let mut builder = wallet.build_tx();
         builder.ordering(TxOrdering::Untouched); // We are going to be looking at specific outputs, so don't reshuffle the ordering
                                                  // coins to self
-        builder.add_recipient(
-            wallet
-                .get_address(AddressIndex::New)
-                .unwrap()
-                .script_pubkey(),
-            1000,
-        );
+        builder.add_recipient(wallet_script_pubkey, Amount::from_sat(1000));
         // coins to another wallet
-        builder.add_recipient(
-            recipient
-                .get_address(AddressIndex::New)
-                .unwrap()
-                .script_pubkey(),
-            1000,
-        );
-        let (psbt, _) = builder.finish().unwrap();
+        builder.add_recipient(recipient_script_pubkey, Amount::from_sat(1000));
+        let psbt = builder.finish().unwrap();
         assert_eq!(psbt.inputs.len(), 1); // make sure we have an input
         assert_eq!(psbt.outputs.len(), 3); // we should have one output for our self-spend, one for the recipient, one for change
 
@@ -982,17 +1040,17 @@ pub mod tests {
 
     #[test]
     fn test_checking_self_spends_works() {
-        let wallet = get_fake_prefunded_wallet(50_0000);
+        let mut wallet = get_fake_prefunded_wallet(50_0000);
+
+        let wallet_script_pubkey = wallet
+            .reveal_next_address(KeychainKind::External)
+            .address
+            .script_pubkey();
+
         let mut builder = wallet.build_tx();
         // coins to self
-        builder.add_recipient(
-            wallet
-                .get_address(AddressIndex::New)
-                .unwrap()
-                .script_pubkey(),
-            1000,
-        );
-        let (psbt, _) = builder.finish().unwrap();
+        builder.add_recipient(wallet_script_pubkey, Amount::from_sat(1000));
+        let psbt = builder.finish().unwrap();
         assert_eq!(psbt.inputs.len(), 1); // make sure we have an input
         assert_eq!(psbt.outputs.len(), 2); // we should have one output for our self-spend, one for change
         assert!(wallet.is_addressed_to_self(&psbt).unwrap());
@@ -1015,11 +1073,19 @@ pub mod tests {
     #[case::bad_txns_inputs_missingorspent(json!({"code":-32603,"message":"sendrawtransaction RPC error: sendrawtransaction RPC error: {\"code\":-25,\"message\":\"bad-txns-inputs-missingorspent\"}"}), BdkUtilError::TransactionAlreadyInMempoolError)]
     #[case::min_relay_fee_not_met(json!({"code":-32603,"message":"sendrawtransaction RPC error: {\"code\":-26,\"message\":\"min relay fee not met, 189 < 293\"}"}), BdkUtilError::MinRelayFeeNotMetError)]
     #[test]
-    fn test_convert_bdk_error_to_bdk_util_error(
+    fn test_broadcast_maps_electrum_errors(
         #[case] json: serde_json::Value,
         #[case] expected: BdkUtilError,
     ) {
-        let actual = as_bdk_util_err(Electrum(ElectrumClientError::Protocol(json)));
+        let tx = Transaction {
+            version: Version::ONE,
+            lock_time: LockTime::ZERO,
+            input: vec![],
+            output: vec![],
+        };
+        let mut psbt = BitcoinPsbt::from_unsigned_tx(tx).unwrap();
+        let actual = broadcast_with(&mut psbt, |_tx| Err(electrum_client::Error::Protocol(json)))
+            .unwrap_err();
         assert_eq!(actual.to_string(), expected.to_string());
     }
 }

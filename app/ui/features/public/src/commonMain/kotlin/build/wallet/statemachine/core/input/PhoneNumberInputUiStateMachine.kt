@@ -22,6 +22,8 @@ interface PhoneNumberInputUiStateMachine : StateMachine<PhoneNumberInputUiProps,
  * Null if no Skip button should be shown
  * @property secondaryButtonOnClick if [secondaryButtonText] is not null and this property is
  * [null] then secondary click is considered as `onBack`
+ * @property onSkipSecondaryButton - handler for skip secondary button shown below the primary
+ * Continue button. Null if no skip secondary button should be shown.
  */
 data class PhoneNumberInputUiProps(
   val dataInputStyle: DataInputStyle,
@@ -37,4 +39,5 @@ data class PhoneNumberInputUiProps(
     onError: (error: F8eError<AddTouchpointClientErrorCode>) -> Unit,
   ) -> Unit,
   val skipBottomSheetProvider: ((onBack: () -> Unit) -> SheetModel)?,
+  val onSkipSecondaryButton: (() -> Unit)? = null,
 )

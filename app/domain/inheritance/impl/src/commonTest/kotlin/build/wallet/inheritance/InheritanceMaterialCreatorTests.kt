@@ -10,9 +10,9 @@ import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.bitkey.relationships.PrivateKeyEncryptionKey
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
-import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.relationships.RelationshipsCrypto
 import build.wallet.relationships.RelationshipsCryptoError
 import build.wallet.relationships.RelationshipsCryptoFake
@@ -31,7 +31,6 @@ class InheritanceMaterialCreatorTests : FunSpec({
   val crypto = RelationshipsCryptoFake()
   val inheritanceRelationshipsProvider = InheritanceRelationshipsProviderFake()
   val descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock()
-  val featureFlagDao = FeatureFlagDaoFake()
   val creator = InheritanceCryptoImpl(
     appPrivateKeyDao = privateKeyDao,
     relationships = inheritanceRelationshipsProvider,
@@ -93,6 +92,116 @@ class InheritanceMaterialCreatorTests : FunSpec({
     result1.isOk.shouldBeTrue()
     result2.isOk.shouldBeTrue()
     result1.shouldBeEqual(result2)
+  }
+
+  test("Contact property changes do not affect hash if ID and key unchanged") {
+    val contact = EndorsedTrustedContactFake1.copy(
+      relationshipId = "test-contact"
+    )
+
+    inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(contact)
+    val result1 = creator.getInheritanceMaterialHashData(KeyboxMock)
+
+    // Change a property that shouldn't affect the hash (like authentication state)
+    val modifiedContact = contact.copy(
+      authenticationState = build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
+    )
+    inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(modifiedContact)
+    val result2 = creator.getInheritanceMaterialHashData(KeyboxMock)
+
+    result1.isOk.shouldBeTrue()
+    result2.isOk.shouldBeTrue()
+    result1.shouldBeEqual(result2)
+  }
+
+  test("Contact key changes should result in different hash") {
+    val firstContact = EndorsedTrustedContactFake1.copy(
+      relationshipId = "test-contact"
+    )
+
+    inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(firstContact)
+    val result1 = creator.getInheritanceMaterialHashData(KeyboxMock)
+
+    // Change the identity key (e.g., after certificate rotation during recovery)
+    val modifiedContact = firstContact.copy(
+      keyCertificate = firstContact.keyCertificate.copy(
+        delegatedDecryptionKey = PublicKey("different-key-after-rotation")
+      )
+    )
+    inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(modifiedContact)
+    val result2 = creator.getInheritanceMaterialHashData(KeyboxMock)
+
+    result1.isOk.shouldBeTrue()
+    result2.isOk.shouldBeTrue()
+    result1.shouldNotBeEqual(result2)
+  }
+
+  test("Changing hardware key should give a new hash") {
+    inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(EndorsedTrustedContactFake1)
+
+    val result1 = creator.getInheritanceMaterialHashData(KeyboxMock)
+
+    val modifiedKeyset = KeyboxMock.activeSpendingKeyset.copy(
+      hardwareKey = KeyboxMock.activeSpendingKeyset.hardwareKey.copy(
+        key = DescriptorPublicKeyMock(identifier = "test-modified-hw-key")
+      )
+    )
+    val result2 = creator.getInheritanceMaterialHashData(
+      KeyboxMock.copy(
+        activeSpendingKeyset = modifiedKeyset,
+        keysets = immutableListOf(modifiedKeyset)
+      )
+    )
+
+    result1.isOk.shouldBeTrue()
+    result2.isOk.shouldBeTrue()
+    result1.shouldNotBeEqual(result2)
+  }
+
+  test("Changing server spending key should give a new hash") {
+    inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(EndorsedTrustedContactFake1)
+
+    val result1 = creator.getInheritanceMaterialHashData(KeyboxMock)
+
+    val modifiedKeyset = KeyboxMock.activeSpendingKeyset.copy(
+      f8eSpendingKeyset = KeyboxMock.activeSpendingKeyset.f8eSpendingKeyset.copy(
+        spendingPublicKey = KeyboxMock.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.copy(
+          key = DescriptorPublicKeyMock(identifier = "test-modified-server-key")
+        )
+      )
+    )
+    val result2 = creator.getInheritanceMaterialHashData(
+      KeyboxMock.copy(
+        activeSpendingKeyset = modifiedKeyset,
+        keysets = immutableListOf(modifiedKeyset)
+      )
+    )
+
+    result1.isOk.shouldBeTrue()
+    result2.isOk.shouldBeTrue()
+    result1.shouldNotBeEqual(result2)
+  }
+
+  test("Changing server root xpub should give a new hash") {
+    inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(EndorsedTrustedContactFake1)
+
+    val result1 = creator.getInheritanceMaterialHashData(KeyboxMock)
+
+    val modifiedKeyset = KeyboxMock.activeSpendingKeyset.copy(
+      f8eSpendingKeyset = KeyboxMock.activeSpendingKeyset.f8eSpendingKeyset.copy(
+        privateWalletRootXpub = "modified-root-xpub"
+      )
+    )
+    val result2 = creator.getInheritanceMaterialHashData(
+      KeyboxMock.copy(
+        activeSpendingKeyset = modifiedKeyset,
+        keysets = immutableListOf(modifiedKeyset)
+      )
+    )
+
+    result1.isOk.shouldBeTrue()
+    result2.isOk.shouldBeTrue()
+    result1.shouldNotBeEqual(result2)
   }
 
   test("Packages are encrypted for each contact") {

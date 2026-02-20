@@ -265,3 +265,17 @@ pub struct ApprovePsbtRequest {
 pub struct ApprovePsbtResponse {
     pub approval: TransactionVerificationGrant,
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct SignPublicKeysRequest {
+    pub app_auth_pub: String,
+    pub hardware_auth_pub: String,
+    pub app_spending_pub: String,
+    pub hardware_spending_pub: String,
+    pub server_spending_pub: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct SignPublicKeysResponse {
+    pub signature: String,
+}

@@ -90,6 +90,7 @@ enum class Icon {
   SmallIconEmail,
   SmallIconExternal,
   SmallIconFingerprint,
+  SmallIconFloat,
   SmallIconInformation,
   SmallIconInformationFilled,
   SmallIconInheritance,

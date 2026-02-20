@@ -7,10 +7,12 @@ import bitkey.auth.RefreshToken
 import bitkey.datadog.DatadogSpan
 import bitkey.datadog.DatadogTracer
 import bitkey.datadog.TracerHeaders
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.analytics.events.PlatformInfoProviderMock
 import build.wallet.auth.AppAuthKeyMessageSignerMock
 import build.wallet.auth.AuthTokensServiceFake
+import build.wallet.auth.SignedAccessTokenCacheFake
 import build.wallet.availability.NetworkConnection
 import build.wallet.availability.NetworkReachability
 import build.wallet.availability.NetworkReachabilityProviderMock
@@ -98,10 +100,12 @@ class F8eHttpClientImplTests : FunSpec({
   val fakeKeyboxDao = KeyboxDaoMock(turbines::create, KeyboxMock)
   val authTokensService = AuthTokensServiceFake()
   val firmwareDeviceInfoDaoMock = FirmwareDeviceInfoDaoMock(turbines::create)
+  val signedAccessTokenCache = SignedAccessTokenCacheFake()
 
   beforeTest {
     authTokensService.reset()
     firmwareDeviceInfoDaoMock.setDeviceInfo(FirmwareDeviceInfoMock)
+    signedAccessTokenCache.reset()
   }
 
   val datadogTracer =
@@ -144,10 +148,12 @@ class F8eHttpClientImplTests : FunSpec({
           appVariant = Development,
           platformInfoProvider = PlatformInfoProviderMock(),
           authTokensService = authTokensService,
+          accountService = AccountServiceFake(),
           datadogTracer = datadogTracer,
           deviceInfoProvider = deviceInfoProvider,
           keyboxDao = fakeKeyboxDao,
           appAuthKeyMessageSigner = fakeAppAuthKeyMessageSigner,
+          signedAccessTokenCache = signedAccessTokenCache,
           appInstallationDao = AppInstallationDaoMock(),
           firmwareDeviceInfoDao = firmwareDeviceInfoDaoMock,
           countryCodeGuesser = CountryCodeGuesserMock(),

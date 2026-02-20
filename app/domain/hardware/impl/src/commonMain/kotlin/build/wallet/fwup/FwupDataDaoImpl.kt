@@ -5,7 +5,6 @@ import build.wallet.database.sqldelight.FwupDataEntity
 import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.di.Impl
 import build.wallet.firmware.McuName
 import build.wallet.firmware.McuRole
 import build.wallet.logging.logFailure
@@ -20,7 +19,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import okio.ByteString.Companion.toByteString
 
-@Impl
 @BitkeyInject(AppScope::class)
 class FwupDataDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,

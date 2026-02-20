@@ -8,6 +8,14 @@ import Shared
  */
 public final class BitkeyW3Commands: NfcCommands {
 
+    /// Maximum chunk size for PSBT transfer, defined by nanopb max_size annotation
+    /// on sign_transfer_cmd.chunk_data in wallet.proto.
+    private static let psbtChunkSize = 452
+
+    /// Maximum total size for chunked responses (1 MB).
+    /// Safety limit to prevent infinite loops if firmware misbehaves.
+    private static let maxChunkedResponseSize = 1_000_000
+
     private let delegate: NfcCommands
 
     public init(delegate: NfcCommands) {
@@ -18,13 +26,15 @@ public final class BitkeyW3Commands: NfcCommands {
         session: NfcSession,
         patchSize: KotlinUInt?,
         fwupMode: Shared.FwupMode,
-        mcuRole: Shared.McuRole
+        mcuRole: Shared.McuRole,
+        version: String
     ) async throws -> Shared.HardwareInteraction {
         return try await delegate.fwupStart(
             session: session,
             patchSize: patchSize,
             fwupMode: fwupMode,
-            mcuRole: mcuRole
+            mcuRole: mcuRole,
+            version: version
         )
     }
 
@@ -183,21 +193,158 @@ public final class BitkeyW3Commands: NfcCommands {
         return try await delegate.signChallenge(session: session, challenge: challenge)
     }
 
+    /// Fetches all chunks of data from the device using the generic
+    /// getConfirmationResultChunk command.
+    ///
+    /// Uses chunk_index for idempotent retry - if NFC transmission fails after firmware
+    /// responds, the same chunk can be re-requested safely.
+    ///
+    /// - Parameters:
+    ///   - session: The active NFC session
+    ///   - commands: NFC commands interface
+    ///   - handles: Confirmation handles from the pending operation
+    ///   - expectedSize: Expected total size from ChunkedDataAvailable (for validation)
+    /// - Returns: The reassembled data as an array of bytes
+    /// - Throws: NfcException.CommandError if size exceeds safety limit or doesn't match expected
+    private func fetchAllChunks(
+        session: NfcSession,
+        commands: NfcCommands,
+        handles: Shared.ConfirmationHandles,
+        expectedSize: UInt32
+    ) async throws -> [UInt8] {
+        var chunks: [UInt8] = []
+        var chunkIndex: UInt32 = 0
+        var isLast = false
+
+        while !isLast {
+            let chunkData = try await commands.getConfirmationResultChunk(
+                session: session,
+                handles: handles,
+                chunkIndex: chunkIndex
+            )
+            chunks.append(contentsOf: chunkData.chunk.map(\.uint8Value))
+            isLast = chunkData.isLast
+            chunkIndex += 1
+
+            // Safety limit to prevent infinite loops if firmware never sets isLast
+            if chunks.count > Self.maxChunkedResponseSize {
+                throw NfcException.CommandError(
+                    message: "Chunked response exceeded maximum size of \(Self.maxChunkedResponseSize) bytes",
+                    cause: nil
+                ).asError()
+            }
+        }
+
+        if chunks.count != Int(expectedSize) {
+            throw NfcException.CommandError(
+                message: "Chunked response size mismatch: expected \(expectedSize) bytes, received \(chunks.count)",
+                cause: nil
+            ).asError()
+        }
+
+        return chunks
+    }
+
     public func signTransaction(
         session: NfcSession,
         psbt: Psbt,
-        spendingKeyset: SpendingKeyset
+        spendingKeyset _: SpendingKeyset
     ) async throws -> Shared.HardwareInteraction {
-        let suspendFunction = NfcSessionSuspendFunction { newSession, _ in
-            try await self.delegate.signTransaction(
-                session: newSession,
-                psbt: psbt,
-                spendingKeyset: spendingKeyset
-            )
+        // W3 requires chunked PSBT transfer
+        let transferFunction = NfcSessionTransferFunction { transferSession, _, onProgress in
+            // Decode base64 PSBT to binary Data for efficient transfer
+            guard let psbtData = Data(base64Encoded: psbt.base64) else {
+                throw NfcException.CommandError(
+                    message: "Failed to decode PSBT base64",
+                    cause: nil
+                ).asError()
+            }
+
+            _ = try await SignStart(psbtSize: UInt32(psbtData.count))
+                .transceive(session: transferSession)
+
+            let maxChunkSize = Self.psbtChunkSize
+
+            var offset = 0
+            var sequenceId: UInt32 = 0
+            var confirmationHandles: Shared.ConfirmationHandles? = nil
+
+            while offset < psbtData.count {
+                let endIndex = min(offset + maxChunkSize, psbtData.count)
+                let chunk = psbtData.subdata(in: offset ..< endIndex)
+                let chunkBytes = [UInt8](chunk)
+
+                let transferResult = try await SignTransfer(
+                    sequenceId: sequenceId,
+                    chunkData: chunkBytes
+                ).transceive(session: transferSession)
+
+                switch transferResult {
+                case .success:
+                    break
+                case let .confirmationPending(responseHandle, confirmationHandle):
+                    confirmationHandles = Shared.ConfirmationHandles(
+                        responseHandle: responseHandle.map { KotlinUByte(value: $0) },
+                        confirmationHandle: confirmationHandle.map { KotlinUByte(value: $0) }
+                    )
+                }
+
+                offset = endIndex
+                sequenceId += 1
+                onProgress(Float(offset) / Float(psbtData.count))
+            }
+
+            guard let handles = confirmationHandles else {
+                throw NfcException.CommandError(
+                    message: "Expected ConfirmationPending from last SignTransfer but didn't receive it. W3 hardware must require user confirmation for transaction signing.",
+                    cause: nil
+                ).asError()
+            }
+
+            let confirmFunction = NfcSessionSuspendFunction { confirmSession, confirmCommands in
+                let confirmResult = try await confirmCommands.getConfirmationResult(
+                    session: confirmSession,
+                    handles: handles
+                )
+
+                switch confirmResult {
+                case let chunkedResult as Shared.ConfirmationResultChunkedDataAvailable:
+                    let chunks = try await self.fetchAllChunks(
+                        session: confirmSession,
+                        commands: confirmCommands,
+                        handles: handles,
+                        expectedSize: chunkedResult.totalSize
+                    )
+                    let psbtData = Data(chunks)
+                    let signedPsbtBase64 = psbtData.base64EncodedString()
+                    let signedPsbt = Psbt(
+                        id: psbt.id,
+                        base64: signedPsbtBase64,
+                        fee: psbt.fee,
+                        vsize: psbt.vsize,
+                        numOfInputs: psbt.numOfInputs,
+                        amountSats: psbt.amountSats,
+                        inputs: psbt.inputs,
+                        outputs: psbt.outputs
+                    )
+                    return Shared.HardwareInteractionCompleted<Psbt>(result: signedPsbt) as Shared
+                        .HardwareInteraction
+
+                default:
+                    throw NfcException.CommandError(
+                        message: "signTransaction expected ChunkedDataAvailable result but got: \(type(of: confirmResult))",
+                        cause: nil
+                    ).asError()
+                }
+            }
+            return Shared.HardwareInteractionRequiresConfirmation<Psbt>(
+                fetchResult: confirmFunction
+            ) as Shared.HardwareInteraction
         }
-        return Shared
-            .HardwareInteractionRequiresConfirmation<Psbt>(fetchResult: suspendFunction) as Shared
-            .HardwareInteraction
+
+        return Shared.HardwareInteractionRequiresTransfer<Psbt>(
+            transferAndFetch: transferFunction
+        ) as Shared.HardwareInteraction
     }
 
     public func startFingerprintEnrollment(
@@ -269,5 +416,47 @@ public final class BitkeyW3Commands: NfcCommands {
         handles: Shared.ConfirmationHandles
     ) async throws -> Shared.ConfirmationResult {
         return try await delegate.getConfirmationResult(session: session, handles: handles)
+    }
+
+    public func getConfirmationResultChunk(
+        session: NfcSession,
+        handles: Shared.ConfirmationHandles,
+        chunkIndex: UInt32
+    ) async throws -> Shared.ChunkData {
+        return try await delegate.getConfirmationResultChunk(
+            session: session,
+            handles: handles,
+            chunkIndex: chunkIndex
+        )
+    }
+
+    public func getAddress(
+        session: NfcSession,
+        addressIndex: UInt32
+    ) async throws -> String {
+        // W3-only feature: generate and display address on hardware
+        return try await GetAddress(addressIndex: addressIndex).transceive(session: session).address
+    }
+
+    public func verifyKeysAndBuildDescriptor(
+        session: NfcSession,
+        appSpendingKey: OkioByteString,
+        appSpendingKeyChaincode: OkioByteString,
+        networkMainnet: Bool,
+        appAuthKey: OkioByteString,
+        serverSpendingKey: OkioByteString,
+        serverSpendingKeyChaincode: OkioByteString,
+        wsmSignature: OkioByteString
+    ) async throws -> KotlinBoolean {
+        let result = try await VerifyKeysAndBuildDescriptor(
+            appSpendingKey: appSpendingKey.toByteArray().asUInt8Array(),
+            appSpendingKeyChaincode: appSpendingKeyChaincode.toByteArray().asUInt8Array(),
+            networkMainnet: networkMainnet,
+            appAuthKey: appAuthKey.toByteArray().asUInt8Array(),
+            serverSpendingKey: serverSpendingKey.toByteArray().asUInt8Array(),
+            serverSpendingKeyChaincode: serverSpendingKeyChaincode.toByteArray().asUInt8Array(),
+            wsmSignature: wsmSignature.toByteArray().asUInt8Array()
+        ).transceive(session: session)
+        return KotlinBoolean(bool: result)
     }
 }

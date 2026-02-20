@@ -13,7 +13,7 @@ export class SecurityAlertMonitors extends Construct {
     const recipients = getCriticalRecipients(environment).concat(["@bitkey-security-robots"]);
 
     // These are app logs so they aren't tagged with env. Limit production env alerts to world.bitkey.app, preprod to others
-    const querySuffix = environment === Environment.PRODUCTION ? ' service:world.bitkey.app' : ' !service:world.bitkey.app';
+    const querySuffix = environment === Environment.PRODUCTION ? ' service:world.bitkey.app' : ' -service:world.bitkey.app';
 
     const logAlertConfig = {
       recipients: recipients,

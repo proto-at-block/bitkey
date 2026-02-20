@@ -16,6 +16,8 @@ use argon2::{
     Argon2,
 };
 use authn_authz::key_claims::KeyClaims;
+use authn_authz::Action;
+use authn_authz::Authorization as ProofAuthorization;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{
@@ -52,8 +54,8 @@ use notification::clients::twilio::{TwilioClient, TwilioMode};
 use notification::entities::NotificationTouchpoint;
 use once_cell::sync::Lazy;
 use privileged_action::service::authorize_privileged_action::{
-    AuthenticationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
-    PrivilegedActionRequestValidatorBuilder,
+    AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+    PrivilegedActionRequestValidatorBuilder, ValidationContext,
 };
 use privileged_action::service::Service as PrivilegedActionService;
 use recovery::repository::RecoveryRepository;
@@ -63,6 +65,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 use time::Duration;
 use tracing::{error, event, instrument, Level};
+use types::account::bitcoin::to_wsm_bitcoin_network;
 use types::account::entities::v2::UpgradeLiteAccountAuthKeysInputV2;
 use types::account::entities::{
     v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2},
@@ -71,12 +74,11 @@ use types::account::entities::{
     SoftwareAccountAuthKeysInput, SpendingKeysetInput, Touchpoint, TouchpointPlatform,
     UpgradeLiteAccountAuthKeysInput,
 };
-use types::account::spending::SpendingKeyDefinition;
 use types::{
     account::{
         identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId},
         keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys},
-        spending::{SpendingDistributedKey, SpendingKeyset},
+        spending::{SpendingDistributedKey, SpendingKeyDefinition, SpendingKeyset},
     },
     privileged_action::{
         router::generic::{
@@ -197,6 +199,10 @@ impl RouterBuilder for RouteState {
                 "/api/v2/accounts/:account_id/keysets",
                 post(create_keyset_v2),
             )
+            .route(
+                "/api/v2/accounts/:account_id/complete-onboarding",
+                post(complete_onboarding_v2),
+            )
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
     }
@@ -260,6 +266,7 @@ impl From<RouteState> for SwaggerEndpoint {
         create_account_v2,
         upgrade_account_v2,
         create_keyset_v2,
+        complete_onboarding_v2,
     ),
     components(
         schemas(
@@ -289,6 +296,8 @@ impl From<RouteState> for SwaggerEndpoint {
             BdkConfigResponse,
             CompleteOnboardingRequest,
             CompleteOnboardingResponse,
+            CompleteOnboardingRequestV2,
+            CompleteOnboardingResponseV2,
             CreateAccountRequest,
             CreateAccountResponse,
             CreateKeysetRequest,
@@ -422,6 +431,7 @@ async fn add_touchpoint_to_account(
             account_id: &account_id,
         })
         .await?;
+
     match request {
         AccountAddTouchpointRequest::Phone { phone_number } => {
             let lookup_response = twilio_client.lookup(phone_number.clone()).await?;
@@ -515,6 +525,7 @@ async fn add_touchpoint_to_account(
                 id: touchpoint_id,
                 email_address,
                 active,
+                ..
             } = touchpoint.clone()
             else {
                 let msg = "Unexpected error adding touchpoint";
@@ -650,7 +661,7 @@ async fn activate_touchpoint_for_account(
     State(comms_verification_service): State<CommsVerificationService>,
     State(iterable_client): State<IterableClient>,
     State(privileged_action_service): State<PrivilegedActionService>,
-    key_proof: KeyClaims,
+    auth: ProofAuthorization,
     Path((account_id, touchpoint_id)): Path<(AccountId, TouchpointId)>,
     Json(privileged_action_request): Json<
         PrivilegedActionRequest<AccountActivateTouchpointRequest>,
@@ -658,57 +669,84 @@ async fn activate_touchpoint_for_account(
 ) -> Result<Json<PrivilegedActionResponse<AccountActivateTouchpointResponse>>, ApiError> {
     let scope = CommsVerificationScope::AddTouchpointId(touchpoint_id.clone());
 
-    let cloned_account_id_1 = account_id.clone();
-    let cloned_account_id_2 = account_id.clone();
-    let cloned_touchpoint_id = touchpoint_id.clone();
-    let cloned_scope_1 = scope.clone();
-    let cloned_scope_2 = scope.clone();
-    let cloned_comms_verification_service_1 = comms_verification_service.clone();
-    let cloned_comms_verification_service_2 = comms_verification_service.clone();
-    let cloned_account_service = account_service.clone();
-
-    let authorize_result = privileged_action_service
-        .authorize_privileged_action(AuthorizePrivilegedActionInput {
+    // Fetch the touchpoint for ActionProof validation (uses action/field/value from touchpoint)
+    let touchpoint_for_auth = account_service
+        .fetch_touchpoint_by_id(FetchTouchpointByIdInput {
             account_id: &account_id,
-            privileged_action_definition: &PrivilegedActionType::ActivateTouchpoint.into(),
-            authentication: AuthenticationContext::KeyClaims(&key_proof),
-            privileged_action_request: &privileged_action_request,
-            request_validator: PrivilegedActionRequestValidatorBuilder::default()
-                .on_initiate_delay_and_notify(Box::new(|_| {
-                    Box::pin(async move {
-                        cloned_comms_verification_service_1
-                            .consume_verification_for_scope(ConsumeVerificationForScopeInput {
-                                account_id: &cloned_account_id_1,
-                                scope: cloned_scope_1,
-                            })
-                            .await?;
-
-                        cloned_account_service
-                            .activate_touchpoint_for_account(ActivateTouchpointForAccountInput {
-                                account_id: &cloned_account_id_1,
-                                touchpoint_id: cloned_touchpoint_id,
-                                dry_run: true,
-                            })
-                            .await?;
-
-                        Ok::<(), ApiError>(())
-                    })
-                }))
-                .on_initiate_hardware_proof_of_possession(Box::new(|_| {
-                    Box::pin(async move {
-                        cloned_comms_verification_service_2
-                            .consume_verification_for_scope(ConsumeVerificationForScopeInput {
-                                account_id: &cloned_account_id_2,
-                                scope: cloned_scope_2,
-                            })
-                            .await?;
-
-                        Ok::<(), ApiError>(())
-                    })
-                }))
-                .build()?,
+            touchpoint_id: touchpoint_id.clone(),
         })
         .await?;
+
+    let authorize_result = {
+        let account_id = account_id.clone();
+        let touchpoint_id = touchpoint_id.clone();
+        let scope = scope.clone();
+        let comms_verification_service = comms_verification_service.clone();
+        let account_service = account_service.clone();
+
+        privileged_action_service
+            .authorize_privileged_action(AuthorizePrivilegedActionInput {
+                account_id: &account_id,
+                privileged_action_definition: &PrivilegedActionType::ActivateTouchpoint.into(),
+                authorization: (&auth).into(),
+                privileged_action_request: &privileged_action_request,
+                validation_context: Some(ValidationContext::from_touchpoint(
+                    Action::Add,
+                    &touchpoint_for_auth,
+                )),
+                request_validator: PrivilegedActionRequestValidatorBuilder::default()
+                    .on_initiate_delay_and_notify({
+                        let account_id = account_id.clone();
+                        let touchpoint_id = touchpoint_id.clone();
+                        let scope = scope.clone();
+                        let comms_verification_service = comms_verification_service.clone();
+                        let account_service = account_service.clone();
+                        Box::new(move |_| {
+                            Box::pin(async move {
+                                comms_verification_service
+                                    .consume_verification_for_scope(
+                                        ConsumeVerificationForScopeInput {
+                                            account_id: &account_id,
+                                            scope,
+                                        },
+                                    )
+                                    .await?;
+
+                                account_service
+                                    .activate_touchpoint_for_account(
+                                        ActivateTouchpointForAccountInput {
+                                            account_id: &account_id,
+                                            touchpoint_id,
+                                            dry_run: true,
+                                        },
+                                    )
+                                    .await?;
+
+                                Ok::<(), ApiError>(())
+                            })
+                        })
+                    })
+                    .on_initiate_hardware_proof_of_possession({
+                        let account_id = account_id.clone();
+                        Box::new(move |_| {
+                            Box::pin(async move {
+                                comms_verification_service
+                                    .consume_verification_for_scope(
+                                        ConsumeVerificationForScopeInput {
+                                            account_id: &account_id,
+                                            scope,
+                                        },
+                                    )
+                                    .await?;
+
+                                Ok::<(), ApiError>(())
+                            })
+                        })
+                    })
+                    .build()?,
+            })
+            .await?
+    };
 
     if let AuthorizePrivilegedActionOutput::Pending(response) = authorize_result {
         return Ok(Json(response));
@@ -1038,7 +1076,10 @@ pub async fn create_account(
                 .map_err(RouteError::InvalidIdentifier)?;
             // TODO: use a correctly derived spending dpub from WSM, rather than the root xpub [W-5622]
             let key = wsm_client
-                .create_root_key(&keyset_id.to_string(), spending.network)
+                .create_root_key(
+                    &keyset_id.to_string(),
+                    to_wsm_bitcoin_network(spending.network),
+                )
                 .await
                 .map_err(|e| {
                     let msg = "Failed to create new key in WSM";
@@ -1265,7 +1306,10 @@ pub async fn upgrade_account(
         .map_err(RouteError::InvalidIdentifier)?;
     // TODO: use a correctly derived spending dpub from WSM, rather than the root xpub [W-5622]
     let create_key_result = wsm_client
-        .create_root_key(&keyset_id.to_string(), request.spending.network)
+        .create_root_key(
+            &keyset_id.to_string(),
+            to_wsm_bitcoin_network(request.spending.network),
+        )
         .await;
 
     let (xpub, xpub_sig) = match create_key_result {
@@ -1416,7 +1460,10 @@ pub async fn create_keyset(
 
     let spending_keyset_id = KeysetId::gen().map_err(RouteError::InvalidIdentifier)?;
     let key = wsm_client
-        .create_root_key(&spending_keyset_id.to_string(), request.spending.network)
+        .create_root_key(
+            &spending_keyset_id.to_string(),
+            to_wsm_bitcoin_network(request.spending.network),
+        )
         .await
         .map_err(|e| {
             let msg = "Failed to create new key in WSM";
@@ -1673,7 +1720,7 @@ pub async fn initiate_distributed_keygen(
     let wsm_response = wsm_client
         .initiate_distributed_keygen(
             &key_definition_id.to_string(),
-            request.network,
+            to_wsm_bitcoin_network(request.network),
             request.sealed_request,
             request.noise_session,
         )
@@ -1684,13 +1731,16 @@ pub async fn initiate_distributed_keygen(
             ApiError::GenericInternalApplicationError(msg.to_string())
         })?;
 
+    let aggregate_public_key = PublicKey::from_str(&wsm_response.aggregate_public_key.to_string())
+        .expect("Failed to parse aggregate public key");
+
     account_service
         .put_inactive_spending_distributed_key(PutInactiveSpendingDistributedKeyInput {
             account_id: &account_id,
             spending_key_definition_id: &key_definition_id,
             spending: SpendingDistributedKey::new(
                 request.network.into(),
-                wsm_response.aggregate_public_key,
+                aggregate_public_key,
                 false,
             ),
         })
@@ -1834,7 +1884,7 @@ pub async fn activate_spending_key_definition(
         })
         .await?;
 
-    return Ok(Json(ActivateSpendingKeyDefinitionResponse {}));
+    Ok(Json(ActivateSpendingKeyDefinitionResponse {}))
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
@@ -1867,6 +1917,166 @@ pub async fn complete_onboarding(
         .await?;
 
     Ok(Json(CompleteOnboardingResponse {}))
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CompleteOnboardingRequestV2 {}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct CompleteOnboardingResponseV2 {
+    pub app_auth_pub: String,
+    pub hardware_auth_pub: String,
+    pub app_spending_pub: String,
+    pub hardware_spending_pub: String,
+    pub server_spending_pub: String,
+    pub signature: String,
+}
+
+#[instrument(skip(account_service, wsm_client))]
+#[utoipa::path(
+    post,
+    path = "/api/v2/accounts/{account_id}/complete-onboarding",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    responses(
+        (status = 200, description = "Marked onboarding complete with signed keys", body=CompleteOnboardingResponseV2),
+    ),
+)]
+pub async fn complete_onboarding_v2(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(wsm_client): State<WsmClient>,
+    Json(request): Json<CompleteOnboardingRequestV2>,
+) -> Result<Json<CompleteOnboardingResponseV2>, ApiError> {
+    // Fetch the account first
+    let account = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    let Account::Full(full_account) = account else {
+        return Err(ApiError::GenericBadRequest(
+            "Only full accounts can complete onboarding".to_string(),
+        ));
+    };
+
+    // Check if the account is using a private multi-sig keyset
+    let keyset_id = &full_account.active_keyset_id;
+    let active_keyset = full_account
+        .spending_keysets
+        .get(keyset_id)
+        .ok_or_else(|| {
+            ApiError::GenericInternalApplicationError("No active spending keyset found".to_string())
+        })?;
+
+    // Check if descriptor backup exists for private keyset (only required for private keysets)
+    if active_keyset.is_private() {
+        let has_backup = full_account
+            .descriptor_backups_set
+            .as_ref()
+            .and_then(|b| b.get_sealed_descriptor(keyset_id))
+            .is_some();
+
+        if !has_backup {
+            return Err(ApiError::GenericBadRequest(
+                "Private keyset missing descriptor backup for onboarding completion".to_string(),
+            ));
+        }
+    }
+
+    // Check if account has an active email touchpoint (skip for test accounts)
+    let is_test_account = full_account.common_fields.properties.is_test_account;
+
+    if !is_test_account {
+        let has_active_email = full_account
+            .common_fields
+            .touchpoints
+            .iter()
+            .any(|t| matches!(t, Touchpoint::Email { active: true, .. }));
+
+        if !has_active_email {
+            return Err(ApiError::GenericBadRequest(
+                "Account must have an active email address before completing onboarding"
+                    .to_string(),
+            ));
+        }
+    }
+
+    // Get the active spending keyset
+    let spending_keyset = full_account.active_spending_keyset().ok_or_else(|| {
+        ApiError::GenericInternalApplicationError("No active spending keyset found".to_string())
+    })?;
+
+    // Extract keys from the keyset (supports both private and legacy multi-sig)
+    let (app_spending_pub, hardware_spending_pub, server_spending_pub) = match spending_keyset {
+        SpendingKeyset::PrivateMultiSig(keyset) => {
+            (keyset.app_pub, keyset.hardware_pub, keyset.server_pub)
+        }
+        SpendingKeyset::LegacyMultiSig(keyset) => {
+            let DescriptorPublicKey::XPub(app_xpub) = &keyset.app_dpub else {
+                return Err(ApiError::GenericInternalApplicationError(
+                    "Expected an xpub for app key".to_string(),
+                ));
+            };
+            let DescriptorPublicKey::XPub(hardware_xpub) = &keyset.hardware_dpub else {
+                return Err(ApiError::GenericInternalApplicationError(
+                    "Expected an xpub for hardware key".to_string(),
+                ));
+            };
+            let DescriptorPublicKey::XPub(server_xpub) = &keyset.server_dpub else {
+                return Err(ApiError::GenericInternalApplicationError(
+                    "Expected an xpub for server key".to_string(),
+                ));
+            };
+            (
+                app_xpub.xkey.public_key,
+                hardware_xpub.xkey.public_key,
+                server_xpub.xkey.public_key,
+            )
+        }
+    };
+
+    // Get auth keys
+    let auth_keys = full_account.active_auth_keys().ok_or_else(|| {
+        ApiError::GenericInternalApplicationError("No active auth keys found".to_string())
+    })?;
+
+    let app_auth_pub = auth_keys.app_pubkey;
+    let hardware_auth_pub = auth_keys.hardware_pubkey;
+
+    // Call WSM to sign all 5 public keys in a single operation
+    let sign_response = wsm_client
+        .sign_public_keys(
+            app_auth_pub,
+            hardware_auth_pub,
+            app_spending_pub,
+            hardware_spending_pub,
+            server_spending_pub,
+        )
+        .await
+        .map_err(|e| {
+            ApiError::GenericInternalApplicationError(format!("Failed to sign public keys: {}", e))
+        })?;
+
+    // Mark onboarding as complete after successful signing
+    // This is idempotent - if already complete, it's a no-op
+    account_service
+        .complete_onboarding(CompleteOnboardingInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    Ok(Json(CompleteOnboardingResponseV2 {
+        app_auth_pub: app_auth_pub.to_string(),
+        hardware_auth_pub: hardware_auth_pub.to_string(),
+        app_spending_pub: app_spending_pub.to_string(),
+        hardware_spending_pub: hardware_spending_pub.to_string(),
+        server_spending_pub: server_spending_pub.to_string(),
+        signature: sign_response.signature,
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
@@ -2061,7 +2271,7 @@ pub async fn update_descriptor_backups(
         })
         .await?;
 
-    return Ok(Json(UpdateDescriptorBackupsResponse {}));
+    Ok(Json(UpdateDescriptorBackupsResponse {}))
 }
 
 async fn maybe_get_wsm_integrity_sig(wsm_client: &WsmClient, keyset_id: &str) -> Option<String> {

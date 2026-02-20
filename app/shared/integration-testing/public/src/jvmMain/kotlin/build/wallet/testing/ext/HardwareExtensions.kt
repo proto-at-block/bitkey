@@ -80,17 +80,51 @@ suspend fun <T> AppTester.hardwareTransaction(transaction: TransactionFn<T>): T 
 
 /**
  * Shortcut to sign a PSBT with the fake hardware. Returns the signed PSBT.
+ * Automatically handles both W1 (single-tap) and W3 (two-tap with confirmation) flows.
  */
 suspend fun AppTester.signPsbtWithHardware(psbt: Psbt): Psbt {
   return hardwareTransaction { session, commands ->
-    val result = commands.signTransaction(
+    val account = getActiveFullAccount()
+    val interaction = commands.signTransaction(
       session = session,
       psbt = psbt,
-      spendingKeyset = getActiveFullAccount().keybox.activeSpendingKeyset
+      spendingKeyset = account.keybox.activeSpendingKeyset
     )
-    when (result) {
-      is HardwareInteraction.Completed<Psbt> -> result.result
-      else -> error("An error occurred while signing the PSBT.")
+
+    when (interaction) {
+      is HardwareInteraction.Completed -> {
+        // W1 path: immediate completion
+        interaction.result
+      }
+
+      is HardwareInteraction.RequiresTransfer -> {
+        // W3 path: chunked transfer required
+        val nextInteraction = interaction.transferAndFetch(session, commands) {}
+
+        when (nextInteraction) {
+          is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
+            // Fake W3 hardware: automatically approve
+            val approveOption = nextInteraction.options.first { it.name == "Approve" }
+            approveOption.onSelect?.invoke()
+
+            // Fetch the result in a second NFC session
+            hardwareTransaction { session2, commands2 ->
+              val finalInteraction = approveOption.fetchResult(session2, commands2)
+              when (finalInteraction) {
+                is HardwareInteraction.Completed -> finalInteraction.result
+                else -> error("Expected Completed after W3 confirmation, got ${finalInteraction::class.simpleName}")
+              }
+            }
+          }
+          is HardwareInteraction.Completed -> {
+            // Already completed after transfer
+            nextInteraction.result
+          }
+          else -> error("Unexpected interaction after W3 transfer: ${nextInteraction::class.simpleName}")
+        }
+      }
+
+      else -> error("Unexpected interaction type while signing PSBT: ${interaction::class.simpleName}")
     }
   }
 }

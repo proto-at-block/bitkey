@@ -28,7 +28,28 @@ sealed interface ConfirmationResult {
   data class WipeDevice(val success: Boolean) : ConfirmationResult
 
   data class FwupStart(val success: Boolean) : ConfirmationResult
+
+  /**
+   * Indicates that chunked data is available to be retrieved.
+   * Used when a confirmed operation produces large output data.
+   */
+  data class ChunkedDataAvailable(val totalSize: UInt) : ConfirmationResult
+
+  /**
+   * Result of a confirmed action proof signing operation.
+   */
+  data class SignActionProof(val signature: String) : ConfirmationResult
 }
+
+/**
+ * Chunk of data from a confirmed operation.
+ */
+data class ChunkData(
+  val chunk: List<UByte>,
+  val isLast: Boolean,
+  /** Size (bytes) of data still remaining after this chunk (always non-negative). */
+  val remainingSize: UInt,
+)
 
 /**
  * Handles for retrieving the result of a confirmed command.
@@ -52,12 +73,15 @@ interface NfcCommands {
    * the user to confirm on the device before completing the operation.
    *
    * @param mcuRole Target MCU (defaults to CORE for W1 compatibility)
+   * @param version Version string of the firmware being transferred (e.g. "1.2.3").
+   *   Firmware will display this and verify it matches the signed metadata after transfer.
    */
   suspend fun fwupStart(
     session: NfcSession,
     patchSize: UInt?,
     fwupMode: FwupMode,
     mcuRole: McuRole = McuRole.CORE,
+    version: String,
   ): HardwareInteraction<Boolean>
 
   /**
@@ -352,6 +376,69 @@ interface NfcCommands {
     session: NfcSession,
     handles: ConfirmationHandles,
   ): ConfirmationResult
+
+  /**
+   * Retrieves a chunk of data from a confirmed operation.
+   *
+   * This is used to fetch large result data (like signed PSBTs) in chunks after
+   * getConfirmationResult returns [ConfirmationResult.ChunkedDataAvailable].
+   *
+   * The chunk_index parameter enables idempotent retry: requesting the same index
+   * multiple times returns the same data. This is critical for NFC reliability -
+   * if transmission fails after firmware responds, the app can safely retry.
+   *
+   * @param session the active `NfcSession` used to communicate with the hardware device
+   * @param handles the handles returned from the initial command
+   * @param chunkIndex zero-based index of the chunk to retrieve (0, 1, 2, ...)
+   * @return a chunk of data with completion indicator
+   */
+  suspend fun getConfirmationResultChunk(
+    session: NfcSession,
+    handles: ConfirmationHandles,
+    chunkIndex: UInt,
+  ): ChunkData
+
+  /**
+   * Generate and display a bitcoin address on the hardware device.
+   *
+   * The hardware derives the address from its stored descriptor at the given index
+   * and displays it on screen for user verification.
+   *
+   * @param session the active `NfcSession` used to communicate with the hardware device
+   * @param addressIndex the address index for derivation (0, 1, 2, etc.)
+   * @return the derived address string
+   */
+  suspend fun getAddress(
+    session: NfcSession,
+    addressIndex: UInt,
+  ): String
+
+  /**
+   * Verifies app spending key, app auth key, and server spending key on W3 hardware,
+   * and builds the wallet descriptor.
+   *
+   * This command is only available on W3 devices (not W1).
+   *
+   * @param session the active `NfcSession` used to communicate with the hardware device
+   * @param appSpendingKey 33-byte compressed secp256k1 public key for app spending
+   * @param appSpendingKeyChaincode 32-byte chaincode for app spending key
+   * @param networkMainnet true for mainnet, false for testnet
+   * @param appAuthKey 33-byte compressed secp256k1 public key for app authentication
+   * @param serverSpendingKey 33-byte compressed secp256k1 public key for server spending
+   * @param serverSpendingKeyChaincode 32-byte chaincode for server spending key
+   * @param wsmSignature 64-byte compact ECDSA signature from WSM
+   * @return true if verification was successful, false otherwise
+   */
+  suspend fun verifyKeysAndBuildDescriptor(
+    session: NfcSession,
+    appSpendingKey: ByteString,
+    appSpendingKeyChaincode: ByteString,
+    networkMainnet: Boolean,
+    appAuthKey: ByteString,
+    serverSpendingKey: ByteString,
+    serverSpendingKeyChaincode: ByteString,
+    wsmSignature: ByteString,
+  ): Boolean
 }
 
 suspend fun NfcCommands.signChallenge(

@@ -19,7 +19,9 @@ class InheritanceCryptoFake(
       InheritanceMaterialHashData(
         networkType = BitcoinNetworkType.BITCOIN,
         spendingKey = SpendingKeysetMock.appKey,
-        contacts = emptyList()
+        hardwareKey = SpendingKeysetMock.hardwareKey,
+        f8eSpendingKeyset = SpendingKeysetMock.f8eSpendingKeyset,
+        contacts = emptySet()
       )
     ),
   var inheritanceMaterialPackageResult: Result<DecryptInheritanceMaterialPackageOutput, Error> =

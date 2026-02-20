@@ -18,7 +18,7 @@ data class FirmwareData(
 ) {
   /**
    * Returns the version of the first MCU update if pending, or null if up to date.
-   * For W1, this is the only MCU. For W3, this is typically CORE (first in list).
+   * For W1, this is the only MCU. For W3, this is typically UXC (first in list).
    */
   val updateVersion: String? =
     when (firmwareUpdateState) {
@@ -45,7 +45,7 @@ data class FirmwareData(
      *
      * @property mcuUpdates: List of MCU firmware updates to apply. For W1 devices,
      *   this is a single-element list. For W3+ devices, this contains updates for
-     *   CORE, UXC, etc. in the order they should be applied (CORE first).
+     *   CORE, UXC, etc. in the order they should be applied (UXC first, then CORE).
      */
     data class PendingUpdate(
       val mcuUpdates: ImmutableList<McuFwupData>,
@@ -86,11 +86,11 @@ fun Map<McuRole, McuUpdateState>.hasAnyPendingUpdate(): Boolean =
   values.any { it !is McuUpdateState.UpToDate }
 
 /**
- * Returns an ordered list of MCUs needing updates (CORE first, then UXC).
+ * Returns an ordered list of MCUs needing updates (UXC first, then CORE).
  * Only includes MCUs that are not up-to-date.
  */
 fun Map<McuRole, McuUpdateState>.pendingMcuUpdates(): List<McuRole> =
   listOfNotNull(
-    McuRole.CORE.takeIf { containsKey(it) && this[it] !is McuUpdateState.UpToDate },
-    McuRole.UXC.takeIf { containsKey(it) && this[it] !is McuUpdateState.UpToDate }
+    McuRole.UXC.takeIf { containsKey(it) && this[it] !is McuUpdateState.UpToDate },
+    McuRole.CORE.takeIf { containsKey(it) && this[it] !is McuUpdateState.UpToDate }
   )

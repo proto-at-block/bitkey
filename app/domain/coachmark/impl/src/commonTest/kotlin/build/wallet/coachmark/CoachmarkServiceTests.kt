@@ -11,9 +11,11 @@ import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
+import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryFake
 import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.onboarding.OnboardingCompletionServiceFake
+import build.wallet.platform.config.AppVariant
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
@@ -31,6 +33,7 @@ class CoachmarkServiceTests :
     val accountService = AccountServiceFake()
     val coachmarksGlobalFlag = CoachmarksGlobalFeatureFlag(featureFlagDao)
     val bip177FeatureFlag = Bip177FeatureFlag(featureFlagDao)
+    val privateWalletMigrationFeatureFlag = PrivateWalletMigrationFeatureFlag(featureFlagDao)
     val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake()
     val bip177CoachmarkEligibilityDao = Bip177CoachmarkEligibilityDaoFake()
     val onboardingCompletionService = OnboardingCompletionServiceFake()
@@ -47,13 +50,15 @@ class CoachmarkServiceTests :
         bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
         bip177CoachmarkEligibilityDao = eligibilityDao,
         onboardingCompletionService = onboardingCompletionService
-      )
+      ),
+      privateWalletMigrationFeatureFlag = privateWalletMigrationFeatureFlag
     )
 
     beforeTest {
       accountService.setActiveAccount(FullAccountMock)
       bitcoinDisplayPreferenceRepository.setBitcoinDisplayUnit(BitcoinDisplayUnit.Satoshi)
       bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
+      privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       coachmarksGlobalFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
       bip177CoachmarkEligibilityDao.reset()
       onboardingCompletionService.reset()
@@ -63,7 +68,8 @@ class CoachmarkServiceTests :
         createVisibilityDecider(),
         coachmarksGlobalFlag,
         eventTracker,
-        ClockFake()
+        ClockFake(),
+        AppVariant.Development
       )
       service.resetCoachmarks()
     }
@@ -151,7 +157,8 @@ class CoachmarkServiceTests :
         createVisibilityDecider(),
         coachmarksGlobalFlag,
         eventTracker,
-        ClockFake()
+        ClockFake(),
+        AppVariant.Development
       )
       service
         .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
@@ -169,7 +176,8 @@ class CoachmarkServiceTests :
         createVisibilityDecider(),
         coachmarksGlobalFlag,
         eventTracker,
-        ClockFake()
+        ClockFake(),
+        AppVariant.Development
       )
       service
         .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
@@ -179,6 +187,26 @@ class CoachmarkServiceTests :
     test("don't return any coachmarks if the global flag is on") {
       coachmarksGlobalFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service
+        .coachmarksToDisplay(
+          setOf(
+            CoachmarkIdentifier.PrivateWalletHomeCoachmark
+          )
+        ).shouldBe(
+          Ok(emptyList())
+        )
+    }
+
+    test("don't return any coachmarks for EEK builds") {
+      val eekService = CoachmarkServiceImpl(
+        CoachmarkDaoImpl(BitkeyDatabaseProviderImpl(sqlDriver.factory)),
+        accountService,
+        createVisibilityDecider(),
+        coachmarksGlobalFlag,
+        eventTracker,
+        ClockFake(),
+        AppVariant.Emergency
+      )
+      eekService
         .coachmarksToDisplay(
           setOf(
             CoachmarkIdentifier.PrivateWalletHomeCoachmark
@@ -203,7 +231,8 @@ class CoachmarkServiceTests :
           createVisibilityDecider(clock = clock, eligibilityDao = eligibilityDao),
           coachmarksGlobalFlag,
           eventTracker,
-          clock
+          clock,
+          AppVariant.Development
         )
 
         serviceWithFakeDao
@@ -228,10 +257,11 @@ class CoachmarkServiceTests :
           createVisibilityDecider(clock = clock, eligibilityDao = eligibilityDao),
           coachmarksGlobalFlag,
           eventTracker,
-          clock
+          clock,
+          AppVariant.Development
         )
 
-        val expectedExpiration = clock.now() + 14.days
+        val expectedExpiration = clock.now() + CoachmarkIdentifier.Bip177Coachmark.expiration!!
 
         serviceWithFakeDao
           .coachmarksToDisplay(setOf(CoachmarkIdentifier.Bip177Coachmark))
@@ -263,7 +293,8 @@ class CoachmarkServiceTests :
           createVisibilityDecider(clock = clock, eligibilityDao = eligibilityDao),
           coachmarksGlobalFlag,
           eventTracker,
-          clock
+          clock,
+          AppVariant.Development
         )
 
         serviceWithFakeDao
@@ -283,7 +314,7 @@ class CoachmarkServiceTests :
           .shouldBe(Ok(null))
       }
 
-      test("coachmark expires after 14 days") {
+      test("coachmark without expiration never expires") {
         accountService.setActiveAccount(FullAccountMock)
         bitcoinDisplayPreferenceRepository.setBitcoinDisplayUnit(BitcoinDisplayUnit.Satoshi)
         bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
@@ -297,17 +328,51 @@ class CoachmarkServiceTests :
           createVisibilityDecider(clock = clock, eligibilityDao = eligibilityDao),
           coachmarksGlobalFlag,
           eventTracker,
-          clock
+          clock,
+          AppVariant.Development
         )
 
         serviceWithFakeDao
-          .coachmarksToDisplay(setOf(CoachmarkIdentifier.Bip177Coachmark))
-          .shouldBe(Ok(listOf(CoachmarkIdentifier.Bip177Coachmark)))
+          .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
+          .shouldBe(Ok(listOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark)))
 
+        // Coachmark should still be visible even after a long time since it has no expiration
         clock.advanceBy(15.days)
         serviceWithFakeDao
-          .coachmarksToDisplay(setOf(CoachmarkIdentifier.Bip177Coachmark))
-          .shouldBe(Ok(emptyList()))
+          .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
+          .shouldBe(Ok(listOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark)))
       }
+    }
+
+    test("coachmark expiration timer should not start before feature flag is enabled") {
+      accountService.setActiveAccount(FullAccountMock)
+      bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
+
+      val clock = ClockFake()
+      val coachmarkDao = CoachmarkDaoFake()
+      val serviceWithFakeDao = CoachmarkServiceImpl(
+        coachmarkDao,
+        accountService,
+        createVisibilityDecider(clock = clock),
+        coachmarksGlobalFlag,
+        eventTracker,
+        clock,
+        AppVariant.Development
+      )
+
+      serviceWithFakeDao
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.Bip177Coachmark))
+        .shouldBe(Ok(emptyList()))
+
+      coachmarkDao.getCoachmark(CoachmarkIdentifier.Bip177Coachmark)
+        .shouldBe(Ok(null))
+
+      clock.advanceBy(15.days)
+
+      bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+      serviceWithFakeDao
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.Bip177Coachmark))
+        .shouldBe(Ok(listOf(CoachmarkIdentifier.Bip177Coachmark)))
     }
   })

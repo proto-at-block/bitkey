@@ -11,6 +11,9 @@ typedef enum {
   SYSEVENT_TEMP_HIGH = (1 << 5),
   SYSEVENT_TEMP_LOW = (1 << 6),
   SYSEVENT_USB_THERMAL_FAULT = (1 << 7),
+  SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED = (1 << 8),
+  SYSEVENT_TOUCH = (1 << 9),
+  SYSEVENT_CAPTOUCH = (1 << 10),
 } sysevent_t;
 
 void sysevent_init(void);

@@ -3,12 +3,13 @@ mod helpers;
 #[cfg(feature = "pcsc")]
 mod recordings {
 
-    use bdk::{database::AnyDatabase, wallet::AddressIndex, Wallet};
+    use bdk_wallet::{KeychainKind, Wallet};
     use bitcoin::{
         bip32::ChildNumber,
-        hashes::sha256,
-        psbt::PartiallySignedTransaction,
+        hashes::{sha256, Hash as _},
+        psbt::Psbt as PartiallySignedTransaction,
         secp256k1::{Message, Secp256k1},
+        Amount,
     };
     use miniscript::{descriptor::DescriptorXKey, Descriptor, DescriptorPublicKey};
     use wca::{fwpb::BtcNetwork::Signet, pcsc::Performer};
@@ -21,7 +22,7 @@ mod recordings {
         let rt = RecordingTransactor::new(&expectations).unwrap();
 
         let challenge = "0123456789abcdef".as_bytes();
-        let message = Message::from_hashed_data::<sha256::Hash>(challenge);
+        let message = Message::from_digest(sha256::Hash::hash(challenge).to_byte_array());
 
         let authentication_key = rt
             .perform(wca::commands::GetAuthenticationKey::new())
@@ -50,39 +51,40 @@ mod recordings {
         }
     }
 
-    fn get_funded_wallet(base: &DescriptorPublicKey) -> Wallet<AnyDatabase> {
+    fn get_funded_wallet(base: &DescriptorPublicKey) -> Wallet {
         let spending: DescriptorPublicKey =
             extend_descriptor_public_key(base, &[ChildNumber::Normal { index: 0 }]);
+        let change: DescriptorPublicKey =
+            extend_descriptor_public_key(base, &[ChildNumber::Normal { index: 1 }]);
         let descriptor = Descriptor::<DescriptorPublicKey>::new_wpkh(spending).unwrap();
-        let (wallet, _, _) = bdk::wallet::get_funded_wallet(&descriptor.to_string());
+        let change_descriptor = Descriptor::<DescriptorPublicKey>::new_wpkh(change).unwrap();
+        let (wallet, _) = bdk_wallet::test_utils::get_funded_wallet(
+            &descriptor.to_string(),
+            &change_descriptor.to_string(),
+        );
         wallet
     }
 
     fn normal_transaction(
-        from: &Wallet<AnyDatabase>,
-        to: &Wallet<AnyDatabase>,
+        from: &mut Wallet,
+        to: &mut Wallet,
         amount: u64,
-    ) -> bitcoin::psbt::PartiallySignedTransaction {
-        let destination = to.get_address(AddressIndex::New).unwrap();
+    ) -> PartiallySignedTransaction {
+        let destination = to.reveal_next_address(KeychainKind::External);
 
         let mut builder = from.build_tx();
         builder
-            .add_recipient(destination.script_pubkey(), amount)
-            .ordering(bdk::wallet::tx_builder::TxOrdering::Bip69Lexicographic); // A deterministic PSBT is nice for testing purposes.
-        let (unsigned, _) = builder.finish().unwrap();
-        unsigned
+            .add_recipient(destination.script_pubkey(), Amount::from_sat(amount))
+            .ordering(bdk_wallet::TxOrdering::Untouched); // A deterministic PSBT is nice for testing purposes.
+        builder.finish().unwrap()
     }
 
-    fn drain_wallet(
-        from: &Wallet<AnyDatabase>,
-        to: &Wallet<AnyDatabase>,
-    ) -> bitcoin::psbt::PartiallySignedTransaction {
-        let destination = to.get_address(AddressIndex::New).unwrap();
+    fn drain_wallet(from: &mut Wallet, to: &mut Wallet) -> PartiallySignedTransaction {
+        let destination = to.reveal_next_address(KeychainKind::External);
 
         let mut builder = from.build_tx();
         builder.drain_wallet().drain_to(destination.script_pubkey());
-        let (unsigned, _) = builder.finish().unwrap();
-        unsigned
+        builder.finish().unwrap()
     }
 
     fn is_finalized(psbt: &PartiallySignedTransaction) -> bool {
@@ -127,9 +129,9 @@ mod recordings {
 
         assert_ne!(source, destination);
 
-        let source_wallet = get_funded_wallet(&source);
-        let destination_wallet = get_funded_wallet(&destination);
-        let unsigned = normal_transaction(&source_wallet, &destination_wallet, 5000);
+        let mut source_wallet = get_funded_wallet(&source);
+        let mut destination_wallet = get_funded_wallet(&destination);
+        let unsigned = normal_transaction(&mut source_wallet, &mut destination_wallet, 5000);
         let mut signed = rt
             .perform(wca::commands::SignTransaction::new(
                 unsigned,
@@ -180,9 +182,9 @@ mod recordings {
 
         assert_ne!(source, destination);
 
-        let source_wallet = get_funded_wallet(&source);
-        let destination_wallet = get_funded_wallet(&destination);
-        let unsigned = drain_wallet(&source_wallet, &destination_wallet);
+        let mut source_wallet = get_funded_wallet(&source);
+        let mut destination_wallet = get_funded_wallet(&destination);
+        let unsigned = drain_wallet(&mut source_wallet, &mut destination_wallet);
         let mut signed = rt
             .perform(wca::commands::SignTransaction::new(
                 unsigned,

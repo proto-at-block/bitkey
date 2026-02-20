@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-compiler",
     "components": [
         {
-            "version": "4.9.11",
+            "version": "5.3.5",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-compiler-4.9.11.jar": "c68ff941a8e2ab4dee24a3f24bd660b13f18f9997ab50c6e8f07f9358a32e927"
+                        "wire-compiler-5.3.5.jar": "9797357396eef5fc8b6e6a752b636b288d95eeddf330b3842f7c6da15cca50e7"
                     }
                 }
             ],

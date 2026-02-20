@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::UniffiCustomTypeConverter;
-use bitcoin::bip32::{ExtendedPrivKey, ExtendedPubKey, Fingerprint};
+use bitcoin::bip32::{Fingerprint, Xpriv as ExtendedPrivKey, Xpub as ExtendedPubKey};
 use bitcoin::{psbt::Psbt, secp256k1::ecdsa::Signature, Network};
 use crypto::frost::FrostShare;
 use crypto::signature_utils::{CompactSignature, DERSignature};

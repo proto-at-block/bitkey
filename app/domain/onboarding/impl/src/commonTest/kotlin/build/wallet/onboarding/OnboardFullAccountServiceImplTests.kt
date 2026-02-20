@@ -1,6 +1,7 @@
 package build.wallet.onboarding
 
 import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
 import bitkey.f8e.error.SpecificClientErrorMock
 import bitkey.f8e.error.code.CreateAccountClientErrorCode.APP_AUTH_PUBKEY_IN_USE
 import bitkey.f8e.error.code.CreateAccountClientErrorCode.HW_AUTH_PUBKEY_IN_USE
@@ -260,7 +261,7 @@ class OnboardFullAccountServiceImplTests : FunSpec({
     result.shouldBeErrOfType<ErrorStoringSealedCsekError>()
   }
 
-  test("activateAccount completes onboarding successfully") {
+  test("activateAccount completes onboarding successfully for W1 device") {
     val keybox = KeyboxMock
 
     val result = service.activateAccount(keybox)
@@ -273,7 +274,7 @@ class OnboardFullAccountServiceImplTests : FunSpec({
     onboardingKeyboxSealedCsekDao.get().shouldBeOk().shouldBeNull()
     onboardingKeyboxSealedSsekDao.get().shouldBeOk().shouldBeNull()
 
-    // Verify F8e client was called
+    // Verify F8e client was called for W1 device
     onboardingF8eClient.completeOnboardingCalls.awaitItem()
 
     // Verify fallback completion was recorded
@@ -291,7 +292,40 @@ class OnboardFullAccountServiceImplTests : FunSpec({
     eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_ACCOUNT_CREATED)
   }
 
-  test("activateAccount returns error when F8e client fails") {
+  test("activateAccount completes onboarding successfully for W3 device without calling completeOnboarding") {
+    val w3Keybox = KeyboxMock.copy(
+      config = FullAccountConfigMock.copy(hardwareType = HardwareType.W3)
+    )
+
+    val result = service.activateAccount(w3Keybox)
+
+    result.shouldBeOk()
+
+    // Verify onboarding stores were cleared
+    onboardingAppKeyKeystore.appKeys.shouldBeNull()
+    onboardingKeyboxHardwareKeysDao.get().shouldBeOk().shouldBeNull()
+    onboardingKeyboxSealedCsekDao.get().shouldBeOk().shouldBeNull()
+    onboardingKeyboxSealedSsekDao.get().shouldBeOk().shouldBeNull()
+
+    // Verify F8e client was NOT called for W3 device (called during BuildHardwareDescriptor step)
+    onboardingF8eClient.completeOnboardingCalls.expectNoEvents()
+
+    // Verify fallback completion was NOT recorded here for W3 device (recorded during BuildHardwareDescriptor step)
+    onboardingCompletionService.recordFallbackCompletionCalled.shouldBe(false)
+
+    // Verify getting started tasks were added
+    val tasks = gettingStartedTaskDao.getTasks()
+    tasks.shouldContain(GettingStartedTask(TaskId.AddBitcoin, TaskState.Incomplete))
+    tasks.shouldContain(GettingStartedTask(TaskId.EnableSpendingLimit, TaskState.Incomplete))
+
+    // Verify keybox was activated
+    keyboxDao.activeKeybox().first().shouldBeOk(w3Keybox)
+
+    eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_GETTINGSTARTED_INITIATED)
+    eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_ACCOUNT_CREATED)
+  }
+
+  test("activateAccount returns error when F8e client fails for W1 device") {
     val error = HttpError.UnhandledException(RuntimeException("F8e error"))
     onboardingF8eClient.completeOnboardingResult = Err(error)
 

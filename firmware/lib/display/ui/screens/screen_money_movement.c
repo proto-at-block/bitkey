@@ -5,9 +5,10 @@
 #include "display_action.h"
 #include "langpack.h"
 #include "lvgl/lvgl.h"
+#include "ui.h"
 #include "widgets/address_display.h"
+#include "widgets/dot_ring.h"
 #include "widgets/hold_cancel.h"
-#include "widgets/hold_ring.h"
 #include "widgets/orbital_dots_animation.h"
 #include "widgets/top_back.h"
 #include "widgets/top_menu.h"
@@ -31,12 +32,12 @@
 
 // Layout configuration - Content
 #define CONTENT_START_Y            HEADER_HEIGHT
-#define AMOUNT_Y_OFFSET            -60
-#define CHECK_BUTTON_SIZE          80
-#define CHECK_BUTTON_BOTTOM_MARGIN 40
-#define AMOUNT_TITLE_OFFSET_Y      -70
-#define AMOUNT_CONTAINER_OFFSET_Y  -20
-#define FEE_CONTAINER_SPACING      64
+#define CHECK_BUTTON_SIZE          100
+#define CHECK_BUTTON_BOTTOM_MARGIN 32
+#define AMOUNT_TO_FEE_SPACING      8
+// The header has empty space below the step indicator. To visually center content
+// between the step indicator and check button, we shift content up by this amount.
+#define CONTENT_CENTER_OFFSET 24
 
 // Colors
 #define COLOR_TITLE  0xADADAD
@@ -45,14 +46,22 @@
 #define COLOR_RING   0xD1FB96
 #define PILL_BG_OPA  51
 
+// Confirmed page configuration
+#define CONFIRMED_DELAY_MS 3000
+#define CONFIRMED_LABEL_Y  60
+
+// Scan page configuration (matches screen_scan.c)
+#define SCAN_TEXT_CONTAINER_PADDING 12
+#define SCAN_SCREEN_BRIGHTNESS      100
+
 // Fonts
-#define FONT_TITLE       (&cash_sans_mono_regular_24)
+#define FONT_TITLE       (&cash_sans_mono_regular_26)
 #define FONT_SCAN        (&cash_sans_mono_regular_36)
 #define FONT_ADDRESS     (&cash_sans_mono_regular_28)
 #define FONT_AMOUNT_SATS (&cash_sans_mono_regular_48)
-#define FONT_AMOUNT_BTC  (&cash_sans_mono_regular_24)
-#define FONT_FEE         (&cash_sans_mono_regular_24)
-#define FONT_BUTTON      (&cash_sans_mono_regular_24)
+#define FONT_AMOUNT_BTC  (&cash_sans_mono_regular_26)
+#define FONT_FEE         (&cash_sans_mono_regular_26)
+#define FONT_BUTTON      (&cash_sans_mono_regular_26)
 
 // External image declarations
 extern const lv_img_dsc_t check;
@@ -72,10 +81,10 @@ static top_menu_t menu_button;
 // Cached params for gesture handling
 static fwpb_display_params_money_movement cached_params;
 
-// Hold ring widget for approve action
-static hold_ring_t approve_ring;
+// Dot ring widget for approve action
+static dot_ring_t approve_ring;
 
-// Scan page (page 3) orbital dots animation
+// Scan page orbital dots animation
 static orbital_dots_animation_t scan_page_orbital;
 
 // Cancel modal
@@ -83,6 +92,12 @@ static hold_cancel_t cancel_modal;
 
 // Address display widget (for multi-page addresses)
 static address_display_t address_widget;
+
+// Confirmed page elements
+static lv_obj_t* confirmed_checkmark = NULL;
+static lv_obj_t* confirmed_label = NULL;
+static lv_timer_t* confirmed_timer = NULL;
+static bool showing_confirmed_page = false;
 
 // Forward declarations
 static void check_button_event_handler(lv_event_t* e);
@@ -94,6 +109,9 @@ static void scroll_to_page(int page_index, bool animate);
 static void update_step_indicator(int current, int total);
 static void create_page_content(int page_index);
 static lv_obj_t* create_check_button(lv_obj_t* parent);
+static void show_confirmed_page(void);
+static void hide_confirmed_page(void);
+static void confirmed_timer_cb(lv_timer_t* timer);
 
 // Helper to create check button (reusable across address/amount pages)
 static lv_obj_t* create_check_button(lv_obj_t* parent) {
@@ -127,35 +145,49 @@ static lv_obj_t* create_check_button(lv_obj_t* parent) {
 }
 
 static void create_amount_page(lv_obj_t* parent, const fwpb_display_params_money_movement* params) {
+  // Create a content container to hold amount and fee elements
+  // This will be centered in the available space between top and check button
+  lv_obj_t* content_container = lv_obj_create(parent);
+  if (!content_container) {
+    return;
+  }
+  lv_obj_set_size(content_container, LV_PCT(100), LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(content_container, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_opa(content_container, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_pad_all(content_container, 0, 0);
+  lv_obj_clear_flag(content_container, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_layout(content_container, LV_LAYOUT_FLEX);
+  lv_obj_set_flex_flow(content_container, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(content_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_row(content_container, AMOUNT_TO_FEE_SPACING, 0);
+
   // "AMOUNT" title
-  lv_obj_t* amount_title = lv_label_create(parent);
+  lv_obj_t* amount_title = lv_label_create(content_container);
   if (!amount_title) {
     return;
   }
   lv_obj_set_style_text_color(amount_title, lv_color_hex(COLOR_USD), 0);
   lv_obj_set_style_text_font(amount_title, FONT_TITLE, 0);
-  lv_obj_align(amount_title, LV_ALIGN_CENTER, 0, AMOUNT_Y_OFFSET + AMOUNT_TITLE_OFFSET_Y);
   lv_label_set_text(amount_title, langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_AMOUNT));
 
   // Amount row: sats value + BTC suffix
-  lv_obj_t* amount_container = lv_obj_create(parent);
-  if (!amount_container) {
+  lv_obj_t* amount_row = lv_obj_create(content_container);
+  if (!amount_row) {
     return;
   }
-  lv_obj_set_size(amount_container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-  lv_obj_set_style_bg_opa(amount_container, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_opa(amount_container, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_pad_all(amount_container, 0, 0);
-  lv_obj_align(amount_container, LV_ALIGN_CENTER, 0, AMOUNT_Y_OFFSET + AMOUNT_CONTAINER_OFFSET_Y);
-  lv_obj_set_layout(amount_container, LV_LAYOUT_FLEX);
-  lv_obj_set_flex_flow(amount_container, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(amount_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END,
-                        LV_FLEX_ALIGN_END);
-  lv_obj_set_style_pad_column(amount_container, 4, 0);
-  lv_obj_clear_flag(amount_container, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_size(amount_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(amount_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_opa(amount_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_pad_all(amount_row, 0, 0);
+  lv_obj_set_layout(amount_row, LV_LAYOUT_FLEX);
+  lv_obj_set_flex_flow(amount_row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(amount_row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
+  lv_obj_set_style_pad_column(amount_row, 4, 0);
+  lv_obj_clear_flag(amount_row, LV_OBJ_FLAG_SCROLLABLE);
 
   // Sats value
-  lv_obj_t* sats_label = lv_label_create(amount_container);
+  lv_obj_t* sats_label = lv_label_create(amount_row);
   if (!sats_label) {
     return;
   }
@@ -164,7 +196,7 @@ static void create_amount_page(lv_obj_t* parent, const fwpb_display_params_money
   lv_label_set_text(sats_label, params->amount_sats);
 
   // BTC suffix
-  lv_obj_t* btc_suffix = lv_label_create(amount_container);
+  lv_obj_t* btc_suffix = lv_label_create(amount_row);
   if (!btc_suffix) {
     return;
   }
@@ -175,23 +207,22 @@ static void create_amount_page(lv_obj_t* parent, const fwpb_display_params_money
   lv_label_set_text(btc_suffix, langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_BTC_SUFFIX));
 
   // Fee row: "FEE" label + fee sats
-  lv_obj_t* fee_container = lv_obj_create(parent);
-  if (!fee_container) {
+  lv_obj_t* fee_row = lv_obj_create(content_container);
+  if (!fee_row) {
     return;
   }
-  lv_obj_set_size(fee_container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-  lv_obj_set_style_bg_opa(fee_container, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_opa(fee_container, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_pad_all(fee_container, 0, 0);
-  lv_obj_set_layout(fee_container, LV_LAYOUT_FLEX);
-  lv_obj_set_flex_flow(fee_container, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(fee_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                        LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_style_pad_column(fee_container, 8, 0);
-  lv_obj_clear_flag(fee_container, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_size(fee_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(fee_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_opa(fee_row, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_pad_all(fee_row, 0, 0);
+  lv_obj_set_layout(fee_row, LV_LAYOUT_FLEX);
+  lv_obj_set_flex_flow(fee_row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(fee_row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(fee_row, 8, 0);
+  lv_obj_clear_flag(fee_row, LV_OBJ_FLAG_SCROLLABLE);
 
   // Fee label
-  lv_obj_t* fee_title = lv_label_create(fee_container);
+  lv_obj_t* fee_title = lv_label_create(fee_row);
   if (!fee_title) {
     return;
   }
@@ -200,7 +231,7 @@ static void create_amount_page(lv_obj_t* parent, const fwpb_display_params_money
   lv_label_set_text(fee_title, langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_FEE));
 
   // Fee value
-  lv_obj_t* fee_value = lv_label_create(fee_container);
+  lv_obj_t* fee_value = lv_label_create(fee_row);
   if (!fee_value) {
     return;
   }
@@ -212,20 +243,26 @@ static void create_amount_page(lv_obj_t* parent, const fwpb_display_params_money
            langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_BTC_SUFFIX));
   lv_label_set_text(fee_value, fee_btc_text);
 
-  lv_obj_update_layout(fee_container);
-  lv_obj_align(fee_container, LV_ALIGN_CENTER, 0,
-               AMOUNT_Y_OFFSET + AMOUNT_CONTAINER_OFFSET_Y + FEE_CONTAINER_SPACING);
+  // Calculate available space and center the content container
+  // Available space: from y=0 of page container to top of check button
+  // Apply CONTENT_CENTER_OFFSET to shift up and visually center between step indicator and check
+  // button
+  lv_obj_update_layout(content_container);
+  lv_coord_t parent_height = lv_obj_get_height(parent);
+  lv_coord_t check_button_top = parent_height - CHECK_BUTTON_BOTTOM_MARGIN - CHECK_BUTTON_SIZE;
+  lv_coord_t content_height = lv_obj_get_height(content_container);
+  lv_coord_t center_y = (check_button_top - content_height) / 2 - CONTENT_CENTER_OFFSET;
+  lv_obj_align(content_container, LV_ALIGN_TOP_MID, 0, center_y);
 
   // Check button
   create_check_button(parent);
 }
 
+// Create scan page with same styling as screen_scan.c
 static void create_scan_page(lv_obj_t* parent) {
-  if (!parent) {
-    return;
-  }
+  (void)parent;  // Scan page content is created on screen, not parent
 
-  // Hide header title and background on scan page to free memory for orbital dots
+  // Hide header on scan page
   if (header) {
     lv_obj_set_style_bg_opa(header, LV_OPA_TRANSP, 0);
   }
@@ -233,21 +270,11 @@ static void create_scan_page(lv_obj_t* parent) {
     lv_obj_add_flag(header_title, LV_OBJ_FLAG_HIDDEN);
   }
 
-  // Create orbital dots on screen (not parent) for full-screen centering
+  // Initialize and create orbital dots animation (matches screen_scan.c)
   memset(&scan_page_orbital, 0, sizeof(orbital_dots_animation_t));
-  lv_obj_t* orbital_parent = orbital_dots_animation_create(screen, &scan_page_orbital);
+  orbital_dots_animation_create(screen, &scan_page_orbital);
 
-  if (orbital_parent) {
-    for (int i = 0; i < ORBITAL_DOTS_NUM_BACKGROUND; i++) {
-      if (scan_page_orbital.bg_dots[i]) {
-        lv_obj_clear_flag(scan_page_orbital.bg_dots[i], LV_OBJ_FLAG_HIDDEN);
-      }
-    }
-
-    orbital_dots_animation_start(&scan_page_orbital);
-  }
-
-  // Text container on screen (not parent) to be visible above orbital dots
+  // Title with black background box (matches screen_scan.c styling)
   lv_obj_t* text_container = lv_obj_create(screen);
   if (!text_container) {
     return;
@@ -255,30 +282,28 @@ static void create_scan_page(lv_obj_t* parent) {
   lv_obj_set_style_bg_color(text_container, lv_color_black(), 0);
   lv_obj_set_style_bg_opa(text_container, LV_OPA_COVER, 0);
   lv_obj_set_style_border_width(text_container, 0, 0);
-  lv_obj_set_style_pad_left(text_container, 24, 0);
-  lv_obj_set_style_pad_right(text_container, 24, 0);
-  lv_obj_set_style_pad_top(text_container, 16, 0);
-  lv_obj_set_style_pad_bottom(text_container, 16, 0);
+  lv_obj_set_style_pad_all(text_container, SCAN_TEXT_CONTAINER_PADDING, 0);
   lv_obj_clear_flag(text_container, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_clear_flag(text_container, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_move_foreground(text_container);
 
-  // Label
-  lv_obj_t* scan_label = lv_label_create(text_container);
-  if (!scan_label) {
+  lv_obj_t* title_label = lv_label_create(text_container);
+  if (!title_label) {
     return;
   }
-  lv_label_set_text(scan_label, langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_SCAN_TO_FINISH));
-  lv_obj_set_style_text_align(scan_label, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_set_style_text_color(scan_label, lv_color_white(), 0);
-  lv_obj_set_style_text_font(scan_label, FONT_SCAN, 0);
-  lv_obj_set_width(scan_label, 400);
-  lv_label_set_long_mode(scan_label, LV_LABEL_LONG_WRAP);
-  lv_obj_center(scan_label);
+  lv_label_set_text(title_label, langpack_get_string(LANGPACK_ID_SCAN_TAP));
+  lv_obj_set_style_text_color(title_label, lv_color_white(), 0);
+  lv_obj_set_style_text_font(title_label, FONT_SCAN, 0);
+  lv_obj_center(title_label);
 
-  lv_obj_update_layout(text_container);
+  // Size container to fit the text
   lv_obj_set_size(text_container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_align(text_container, LV_ALIGN_CENTER, 0, 0);
+
+  // Set brightness to full (matches screen_scan.c)
+  ui_set_local_brightness(SCAN_SCREEN_BRIGHTNESS);
+
+  // Start orbital dots animation
+  orbital_dots_animation_start(&scan_page_orbital);
 
   // Move menu button to foreground
   if (menu_button.is_initialized && menu_button.container) {
@@ -316,28 +341,23 @@ static void scroll_to_page(int page_index, bool animate) {
 static void on_approve_complete(void* user_data) {
   (void)user_data;
 
-  hold_ring_stop(&approve_ring);
+  // Check if we're on the last address page (page before scan page)
+  // Scan page is always the last page (num_pages - 1)
+  bool is_on_last_address_page = (current_page_index == num_pages - 2);
 
-  if (current_page_index < num_pages - 1) {
-    // Navigate to next page
+  if (is_on_last_address_page) {
+    // On last address page - show confirmed page, then navigate to scan
+    // The ring is already filled from the hold animation - just keep it visible
+    show_confirmed_page();
+  } else {
+    // Not on last address page - stop and hide ring, navigate to next page
+    dot_ring_stop(&approve_ring);
+    dot_ring_hide(&approve_ring);
     int next_page = current_page_index + 1;
-    bool is_final_page = (next_page == num_pages - 1);
-
-    // Free memory before scan page (orbital dots need memory)
-    if (is_final_page) {
-      hold_ring_destroy(&approve_ring);
-      address_display_destroy(&address_widget);
-    }
-
-    // Create page content if needed
     if (lv_obj_get_child_cnt(page_containers[next_page]) == 0) {
       create_page_content(next_page);
     }
-
-    scroll_to_page(next_page, !is_final_page);
-  } else {
-    // Final page - send approve action
-    display_send_action(fwpb_display_action_display_action_type_DISPLAY_ACTION_APPROVE, 0);
+    scroll_to_page(next_page, true);
   }
 }
 
@@ -359,8 +379,108 @@ static void on_cancel_dismiss(void* user_data) {
   update_step_indicator(current_page_index, num_pages);
 }
 
+static void show_confirmed_page(void) {
+  showing_confirmed_page = true;
+
+  // Hide header and step indicator
+  if (header) {
+    lv_obj_set_style_bg_opa(header, LV_OPA_TRANSP, 0);
+  }
+  if (header_title) {
+    lv_obj_add_flag(header_title, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // Hide scroll container (address/amount pages)
+  if (scroll_container) {
+    lv_obj_add_flag(scroll_container, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // Hide menu button during confirmed page
+  if (menu_button.is_initialized && menu_button.container) {
+    lv_obj_add_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // The dot_ring is already visible and filled from the hold animation
+  // Just ensure it stays visible (it should already be at 100% green)
+
+  // Create checkmark icon centered on screen
+  confirmed_checkmark = lv_img_create(screen);
+  if (confirmed_checkmark) {
+    lv_img_set_src(confirmed_checkmark, &check);
+    lv_obj_set_style_img_recolor(confirmed_checkmark, lv_color_hex(COLOR_RING), 0);
+    lv_obj_set_style_img_recolor_opa(confirmed_checkmark, LV_OPA_COVER, 0);
+    lv_obj_align(confirmed_checkmark, LV_ALIGN_CENTER, 0, -20);
+  }
+
+  // Create "CONFIRMED" label below checkmark
+  confirmed_label = lv_label_create(screen);
+  if (confirmed_label) {
+    lv_label_set_text(confirmed_label, langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_CONFIRMED));
+    lv_obj_set_style_text_color(confirmed_label, lv_color_hex(COLOR_RING), 0);
+    lv_obj_set_style_text_font(confirmed_label, FONT_TITLE, 0);
+    lv_obj_align(confirmed_label, LV_ALIGN_CENTER, 0, CONFIRMED_LABEL_Y);
+  }
+
+  // Start timer to transition to scan page after delay
+  confirmed_timer = lv_timer_create(confirmed_timer_cb, CONFIRMED_DELAY_MS, NULL);
+  if (confirmed_timer) {
+    lv_timer_set_repeat_count(confirmed_timer, 1);
+  }
+}
+
+static void hide_confirmed_page(void) {
+  // Hide the dot ring
+  dot_ring_hide(&approve_ring);
+
+  // Delete confirmed page elements
+  if (confirmed_checkmark) {
+    lv_obj_del(confirmed_checkmark);
+    confirmed_checkmark = NULL;
+  }
+  if (confirmed_label) {
+    lv_obj_del(confirmed_label);
+    confirmed_label = NULL;
+  }
+  if (confirmed_timer) {
+    lv_timer_del(confirmed_timer);
+    confirmed_timer = NULL;
+  }
+}
+
+static void confirmed_timer_cb(lv_timer_t* timer) {
+  (void)timer;
+  confirmed_timer = NULL;
+
+  // Hide confirmed page elements
+  hide_confirmed_page();
+
+  // Free memory before scan page (orbital dots need memory)
+  dot_ring_destroy(&approve_ring);
+  address_display_destroy(&address_widget);
+
+  // Navigate to scan page (final page)
+  int scan_page = num_pages - 1;
+  if (lv_obj_get_child_cnt(page_containers[scan_page]) == 0) {
+    create_page_content(scan_page);
+  }
+
+  // Show scroll container again for scan page
+  if (scroll_container) {
+    lv_obj_clear_flag(scroll_container, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // Show menu button again (was hidden during confirmed page)
+  if (menu_button.is_initialized && menu_button.container) {
+    lv_obj_clear_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(menu_button.container);
+  }
+
+  scroll_to_page(scan_page, false);
+}
+
 static void check_button_event_handler(lv_event_t* e) {
   lv_event_code_t code = lv_event_get_code(e);
+  lv_obj_t* check_button = lv_event_get_target(e);
 
   if (code == LV_EVENT_PRESSED) {
     // Change step text to "HOLD" with green color
@@ -370,15 +490,56 @@ static void check_button_event_handler(lv_event_t* e) {
       lv_obj_set_style_text_opa(header_title, LV_OPA_COVER, 0);
     }
 
-    hold_ring_start(&approve_ring, HOLD_RING_COLOR_GREEN, on_approve_complete, NULL);
+    // Change check button background to green and icon to black
+    if (check_button) {
+      lv_obj_set_style_bg_color(check_button, lv_color_hex(COLOR_RING), 0);
+      lv_obj_set_style_bg_opa(check_button, LV_OPA_COVER, 0);
+      // Recolor the check icon to black
+      lv_obj_t* check_icon = lv_obj_get_child(check_button, 0);
+      if (check_icon) {
+        lv_obj_set_style_img_recolor(check_icon, lv_color_black(), 0);
+        lv_obj_set_style_img_recolor_opa(check_icon, LV_OPA_COVER, 0);
+      }
+    }
+
+    // Hide menu button while holding
+    if (menu_button.is_initialized && menu_button.container) {
+      lv_obj_add_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    dot_ring_show(&approve_ring);
+    dot_ring_animate_fill(&approve_ring, 100, 2000, DOT_RING_COLOR_GREEN, DOT_RING_FILL_SPLIT,
+                          on_approve_complete, NULL);
 
   } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
+    // Ignore release if we're showing the confirmed page (animation completed successfully)
+    if (showing_confirmed_page) {
+      return;
+    }
+
     // Stop animation and restore step indicator
-    hold_ring_stop(&approve_ring);
+    dot_ring_stop(&approve_ring);
+    dot_ring_hide(&approve_ring);
     update_step_indicator(current_page_index, num_pages);
     if (header_title) {
       lv_obj_set_style_text_color(header_title, lv_color_white(), 0);
       lv_obj_set_style_text_opa(header_title, LV_OPA_50, 0);
+    }
+
+    // Restore check button background to white and icon to original
+    if (check_button) {
+      lv_obj_set_style_bg_color(check_button, lv_color_white(), 0);
+      lv_obj_set_style_bg_opa(check_button, PILL_BG_OPA, 0);
+      // Restore check icon color
+      lv_obj_t* check_icon = lv_obj_get_child(check_button, 0);
+      if (check_icon) {
+        lv_obj_set_style_img_recolor_opa(check_icon, LV_OPA_TRANSP, 0);
+      }
+    }
+
+    // Show menu button again
+    if (menu_button.is_initialized && menu_button.container) {
+      lv_obj_clear_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
     }
   }
 }
@@ -415,10 +576,6 @@ lv_obj_t* screen_money_movement_init(void* ctx) {
   lv_obj_set_style_pad_bottom(header, HEADER_PADDING_BOTTOM, 0);
   lv_obj_clear_flag(header, LV_OBJ_FLAG_SCROLLABLE);
 
-  // Menu button with custom handler for cancel modal
-  memset(&menu_button, 0, sizeof(top_menu_t));
-  top_menu_create(header, &menu_button, menu_button_custom_handler);
-
   // Step indicator label (page counter)
   header_title = lv_label_create(header);
   if (!header_title) {
@@ -449,8 +606,8 @@ lv_obj_t* screen_money_movement_init(void* ctx) {
                         LV_FLEX_ALIGN_CENTER);
 
   // Create widgets
-  memset(&approve_ring, 0, sizeof(hold_ring_t));
-  hold_ring_create(screen, &approve_ring);
+  memset(&approve_ring, 0, sizeof(dot_ring_t));
+  dot_ring_create(screen, &approve_ring);
 
   memset(&cancel_modal, 0, sizeof(hold_cancel_t));
   hold_cancel_create(screen, &cancel_modal);
@@ -464,9 +621,9 @@ lv_obj_t* screen_money_movement_init(void* ctx) {
     int total_address_pages = address_display_get_page_count(&address_widget);
 
     // Calculate total pages: Amount (if send) -> Address page(s) -> Scan
-    int total_pages = total_address_pages + 1;
+    int total_pages = total_address_pages + 1;  // +1 for scan page
     if (!params->is_receive_flow) {
-      total_pages += 1;
+      total_pages += 1;  // Add amount page for send flow
     }
     num_pages = total_pages;
 
@@ -487,6 +644,10 @@ lv_obj_t* screen_money_movement_init(void* ctx) {
     create_page_content(0);
     scroll_to_page(0, false);
   }
+
+  // Create menu button as child of screen (not header) so it's 20px from top like scan screen
+  memset(&menu_button, 0, sizeof(top_menu_t));
+  top_menu_create(screen, &menu_button, menu_button_custom_handler);
 
   return screen;
 }
@@ -510,7 +671,7 @@ static void create_page_content(int page_index) {
     address_display_create_page(page_containers[page_index], &address_widget, addr_page_num);
     create_check_button(page_containers[page_index]);
   } else {
-    // Scan page
+    // Scan page (final page)
     create_scan_page(page_containers[page_index]);
   }
 }
@@ -520,15 +681,41 @@ void screen_money_movement_destroy(void) {
     return;
   }
 
+  // Clean up confirmed page timer first (before deleting screen)
+  if (confirmed_timer) {
+    lv_timer_del(confirmed_timer);
+    confirmed_timer = NULL;
+  }
+
+  // Stop animations/timers before deleting screen
+  // orbital_dots has its own timer that must be stopped
+  orbital_dots_animation_stop(&scan_page_orbital);
+
+  // Stop dot_ring animations (they use LVGL animations, not timers)
+  dot_ring_stop(&approve_ring);
+
+  // Stop hold_cancel's internal dot_ring animation
+  if (cancel_modal.is_showing) {
+    dot_ring_stop(&cancel_modal.ring);
+  }
+
+  // Destroy top_menu widget (has no timers/animations, just clears state)
   if (menu_button.is_initialized) {
     top_menu_destroy(&menu_button);
   }
 
+  // Delete screen - this automatically deletes all children.
+  // Do NOT call address_display_destroy(), dot_ring_destroy(), hold_cancel_destroy(),
+  // or orbital_dots_animation_destroy() here - they would call lv_obj_del() on
+  // lv_obj_t children that were already deleted when the screen was deleted.
   lv_obj_del(screen);
   screen = NULL;
   header = NULL;
   header_title = NULL;
   scroll_container = NULL;
+  confirmed_checkmark = NULL;
+  confirmed_label = NULL;
+  showing_confirmed_page = false;
 
   for (int i = 0; i < MAX_PAGES; i++) {
     page_containers[i] = NULL;
@@ -536,16 +723,72 @@ void screen_money_movement_destroy(void) {
   num_pages = 0;
   current_page_index = 0;
 
+  // Clear all widget state (objects already deleted with screen)
   memset(&menu_button, 0, sizeof(top_menu_t));
   memset(&cached_params, 0, sizeof(cached_params));
-
-  address_display_destroy(&address_widget);
-  hold_ring_destroy(&approve_ring);
-  hold_cancel_destroy(&cancel_modal);
-  orbital_dots_animation_destroy(&scan_page_orbital);
+  memset(&address_widget, 0, sizeof(address_widget));
+  memset(&approve_ring, 0, sizeof(approve_ring));
+  memset(&cancel_modal, 0, sizeof(cancel_modal));
+  memset(&scan_page_orbital, 0, sizeof(scan_page_orbital));
 }
 
+// Handles screen re-entry safely by stopping all animations before recreation.
 void screen_money_movement_update(void* ctx) {
-  screen_money_movement_destroy();
-  screen_money_movement_init(ctx);
+  // First-time init
+  if (!screen) {
+    screen_money_movement_init(ctx);
+    return;
+  }
+
+  // Validate parameters
+  const fwpb_display_show_screen* show_screen = (const fwpb_display_show_screen*)ctx;
+  if (!show_screen || show_screen->which_params != fwpb_display_show_screen_money_movement_tag) {
+    return;
+  }
+
+  if (confirmed_timer) {
+    lv_timer_del(confirmed_timer);
+    confirmed_timer = NULL;
+  }
+  orbital_dots_animation_stop(&scan_page_orbital);
+  dot_ring_stop(&approve_ring);
+  if (cancel_modal.is_showing) {
+    dot_ring_stop(&cancel_modal.ring);
+  }
+
+  // Preserve old screen for async deletion
+  lv_obj_t* old_screen = screen;
+
+  // Clear all screen state
+  screen = NULL;
+  header = NULL;
+  header_title = NULL;
+  scroll_container = NULL;
+  confirmed_checkmark = NULL;
+  confirmed_label = NULL;
+  showing_confirmed_page = false;
+  for (int i = 0; i < MAX_PAGES; i++) {
+    page_containers[i] = NULL;
+  }
+  num_pages = 0;
+  current_page_index = 0;
+
+  // Clear widget state
+  memset(&menu_button, 0, sizeof(menu_button));
+  memset(&cached_params, 0, sizeof(cached_params));
+  memset(&address_widget, 0, sizeof(address_widget));
+  memset(&approve_ring, 0, sizeof(approve_ring));
+  memset(&cancel_modal, 0, sizeof(cancel_modal));
+  memset(&scan_page_orbital, 0, sizeof(scan_page_orbital));
+
+  // Create and display new screen
+  lv_obj_t* new_screen = screen_money_movement_init(ctx);
+  if (new_screen) {
+    lv_scr_load(new_screen);
+
+    // Delete old screen asynchronously to avoid callback conflicts
+    if (old_screen) {
+      lv_obj_del_async(old_screen);
+    }
+  }
 }

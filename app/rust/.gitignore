@@ -14,6 +14,14 @@ bdk-ffi/_build/generated/*
 !bdk-ffi/_build/generated/uniffi/
 !bdk-ffi/_build/generated/uniffi/**
 
+# Allow checked-in UniFFI bindings for action-proof-ffi (generated via `just`)
+!action-proof-ffi/_build/
+action-proof-ffi/_build/*
+!action-proof-ffi/_build/generated/
+action-proof-ffi/_build/generated/*
+!action-proof-ffi/_build/generated/uniffi/
+!action-proof-ffi/_build/generated/uniffi/**
+
 # IDE
 .idea/
 *.code-workspace

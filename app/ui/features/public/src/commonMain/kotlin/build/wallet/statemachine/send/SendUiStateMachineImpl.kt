@@ -32,7 +32,7 @@ import kotlin.time.Duration.Companion.minutes
 @BitkeyInject(ActivityScope::class)
 class SendUiStateMachineImpl(
   private val bitcoinAddressRecipientUiStateMachine: BitcoinAddressRecipientUiStateMachine,
-  private val transferAmountEntryUiStateMachine: TransferAmountEntryUiStateMachine,
+  private val sendAmountEntryUiStateMachine: SendAmountEntryUiStateMachine,
   private val transferConfirmationUiStateMachine: TransferConfirmationUiStateMachine,
   private val transferInitiatedUiStateMachine: TransferInitiatedUiStateMachine,
   private val bitcoinQrCodeUiScanStateMachine: BitcoinQrCodeUiScanStateMachine,
@@ -142,19 +142,28 @@ class SendUiStateMachineImpl(
         )
 
       is EnteringAmountUiState ->
-        transferAmountEntryUiStateMachine.model(
-          props = TransferAmountEntryUiProps(
+        sendAmountEntryUiStateMachine.model(
+          props = SendAmountEntryUiProps(
+            recipientAddress = state.recipientAddress,
             onBack = {
               uiState = SelectingRecipientUiState(recipientAddress = state.recipientAddress)
             },
             initialAmount = state.transferMoney,
-            exchangeRates = exchangeRates
-          ) { continueParams ->
-            uiState = SelectingTransactionPriorityUiState(
-              recipientAddress = state.recipientAddress,
-              sendAmount = continueParams.sendAmount
-            )
-          }
+            exchangeRates = exchangeRates,
+            onContinueClick = { sendAmount ->
+              uiState = SelectingTransactionPriorityUiState(
+                recipientAddress = state.recipientAddress,
+                sendAmount = sendAmount
+              )
+            },
+            onContinueWithPreBuiltPsbts = { sendAmount, psbts ->
+              uiState = SelectingTransactionPriorityUiState(
+                recipientAddress = state.recipientAddress,
+                sendAmount = sendAmount,
+                preBuiltPsbts = psbts
+              )
+            }
+          )
         )
 
       is ConfirmingTransferUiState ->
@@ -175,6 +184,7 @@ class SendUiStateMachineImpl(
               )
             },
             fees = state.fees,
+            preBuiltPsbts = state.preBuiltPsbts,
             onTransferFailed = props.onExit,
             exchangeRates = exchangeRates,
             onTransferInitiated = { psbt, priority ->
@@ -215,6 +225,7 @@ class SendUiStateMachineImpl(
               recipientAddress = state.recipientAddress,
               sendAmount = state.sendAmount,
               exchangeRates = exchangeRates,
+              preBuiltPsbts = state.preBuiltPsbts,
               onBack = {
                 uiState =
                   EnteringAmountUiState(
@@ -232,7 +243,8 @@ class SendUiStateMachineImpl(
                     selectedPriority = priority,
                     recipientAddress = state.recipientAddress,
                     sendAmount = state.sendAmount,
-                    fees = fees
+                    fees = fees,
+                    preBuiltPsbts = state.preBuiltPsbts
                   )
               }
             )
@@ -262,6 +274,7 @@ private sealed interface SendUiState {
   data class SelectingTransactionPriorityUiState(
     val recipientAddress: BitcoinAddress,
     val sendAmount: BitcoinTransactionSendAmount,
+    val preBuiltPsbts: build.wallet.bitcoin.transactions.PsbtsForSendAmount? = null,
   ) : SendUiState
 
   /**
@@ -280,6 +293,7 @@ private sealed interface SendUiState {
     val recipientAddress: BitcoinAddress,
     val sendAmount: BitcoinTransactionSendAmount,
     val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,
+    val preBuiltPsbts: build.wallet.bitcoin.transactions.PsbtsForSendAmount? = null,
   ) : SendUiState
 
   /**

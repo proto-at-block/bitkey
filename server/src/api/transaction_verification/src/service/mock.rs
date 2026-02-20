@@ -1,7 +1,9 @@
 use async_trait::async_trait;
+use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use wsm_common::bitcoin::hashes::{sha256, Hash, HashEngine};
-use wsm_common::bitcoin::secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
+use wsm_common::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
 use wsm_common::messages::api::TransactionVerificationGrant;
+use wsm_compat::wsm_pubkey_from_bdk;
 use wsm_rust_client::{Error, GrantService};
 
 /// Mock implementation of GrantService for testing
@@ -44,9 +46,12 @@ impl GrantService for MockGrantService {
         let message = Message::from_slice(&commitment.to_byte_array()).expect("valid message");
         let signature = secp.sign_ecdsa(&message, &self.secret_key);
 
+        let hw_auth_public_key_wsm = wsm_pubkey_from_bdk(&hw_auth_public_key)
+            .expect("Failed to convert public key to WSM public key");
+
         Ok(TransactionVerificationGrant {
             version: 0,
-            hw_auth_public_key,
+            hw_auth_public_key: hw_auth_public_key_wsm,
             commitment: commitment.to_byte_array().to_vec(),
             reverse_hash_chain: vec![commitment.to_byte_array().to_vec()],
             signature,

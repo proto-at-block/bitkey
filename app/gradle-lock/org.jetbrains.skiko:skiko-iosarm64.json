@@ -2,17 +2,17 @@
     "module-identifier": "org.jetbrains.skiko:skiko-iosarm64",
     "components": [
         {
-            "version": "0.9.4.2",
+            "version": "0.9.22.2",
             "variants": [
                 {
                     "artifacts": {
                         "skiko-cinterop-uikit.klib": "64cd3b6ca6b0ff943c3fcb663dcea28e5f4d8f888695930308ecee381afa73cd",
-                        "skiko.klib": "8c14f447dfba2bb16dc46e5d0372370134ff6fedf8498b0097ebc9746ce6d0f2"
+                        "skiko.klib": "aafaac373ad83e78a0d933865fb2aedb6cf729fcc90ae74e6180898b6e0a5810"
                     }
                 },
                 {
                     "artifacts": {
-                        "skiko-iosarm64-0.9.4.2-metadata.jar": "45ae20461c6dfb328fb223c524d31be7a50265754014b5d1aee243aa31cf2e33"
+                        "skiko-iosarm64-0.9.22.2-metadata.jar": "2a31b1096ed1644323c7c154d6c35d455dd6103b0f05625634e238122df00167"
                     }
                 }
             ],

@@ -49,10 +49,10 @@ class SendUiStateMachineImplTests : FunSpec({
           BodyStateMachineMock<BitcoinAddressRecipientUiProps>(
             "bitcoin-address-recipient"
           ) {},
-      transferAmountEntryUiStateMachine =
-        object : TransferAmountEntryUiStateMachine,
-          ScreenStateMachineMock<TransferAmountEntryUiProps>(
-            "transfer-amount-entry"
+      sendAmountEntryUiStateMachine =
+        object : SendAmountEntryUiStateMachine,
+          ScreenStateMachineMock<SendAmountEntryUiProps>(
+            "send-amount-entry"
           ) {},
       transferConfirmationUiStateMachine =
         object : TransferConfirmationUiStateMachine,
@@ -114,12 +114,8 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 2: User enters some amount they want to send
-        awaitBodyMock<TransferAmountEntryUiProps> {
-          onContinueClick(
-            ContinueTransferParams(
-              sendAmount = ExactAmount(BitcoinMoney.sats(amountToSend.toBigInteger()))
-            )
-          )
+        awaitBodyMock<SendAmountEntryUiProps> {
+          onContinueClick(ExactAmount(BitcoinMoney.sats(amountToSend.toBigInteger())))
         }
 
         // Step 3: User selects intended fee rate
@@ -157,19 +153,15 @@ class SendUiStateMachineImplTests : FunSpec({
           onRecipientEntered(someBitcoinAddress)
         }
 
-        awaitBodyMock<TransferAmountEntryUiProps> {
-          onContinueClick(
-            ContinueTransferParams(
-              ExactAmount(BitcoinMoney.zero())
-            )
-          )
+        awaitBodyMock<SendAmountEntryUiProps> {
+          onContinueClick(ExactAmount(BitcoinMoney.zero()))
         }
 
         awaitBodyMock<FeeSelectionUiProps> {
           onBack()
         }
 
-        awaitBodyMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<SendAmountEntryUiProps> {
           initialAmount.currency.shouldBe(BTC)
         }
       }
@@ -184,12 +176,8 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 2: User enters some amount they want to send
-        awaitBodyMock<TransferAmountEntryUiProps> {
-          onContinueClick(
-            ContinueTransferParams(
-              ExactAmount(moneyToSend)
-            )
-          )
+        awaitBodyMock<SendAmountEntryUiProps> {
+          onContinueClick(ExactAmount(moneyToSend))
         }
 
         // Step 3: User selects intended fee rate
@@ -203,7 +191,7 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 5: User is taken back to transfer amount input screen, with amount prefilled
-        awaitBodyMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<SendAmountEntryUiProps> {
           initialAmount.shouldBe(moneyToSend)
           onBack()
         }
@@ -225,12 +213,8 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 2: User enters some amount they want to send
-        awaitBodyMock<TransferAmountEntryUiProps> {
-          onContinueClick(
-            ContinueTransferParams(
-              SendAll
-            )
-          )
+        awaitBodyMock<SendAmountEntryUiProps> {
+          onContinueClick(SendAll)
         }
 
         // Step 3: User selects intended fee rate
@@ -271,12 +255,8 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 2: User enters some amount they want to send
-        awaitBodyMock<TransferAmountEntryUiProps> {
-          onContinueClick(
-            ContinueTransferParams(
-              SendAll
-            )
-          )
+        awaitBodyMock<SendAmountEntryUiProps> {
+          onContinueClick(SendAll)
         }
 
         // Step 3: User selects intended fee rate
@@ -291,7 +271,7 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 5: User is taken back to transfer amount input screen, with zero amount.
-        awaitBodyMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<SendAmountEntryUiProps> {
           initialAmount.shouldBe(FiatMoney.zero(USD))
           onBack()
         }
@@ -318,7 +298,7 @@ class SendUiStateMachineImplTests : FunSpec({
           onRecipientEntered(someBitcoinAddress)
         }
 
-        awaitBodyMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<SendAmountEntryUiProps> {
           exchangeRates.shouldBeNull()
         }
       }
@@ -331,15 +311,15 @@ class SendUiStateMachineImplTests : FunSpec({
           onRecipientEntered(someBitcoinAddress)
         }
 
-        awaitBodyMock<TransferAmountEntryUiProps> {
-          onContinueClick(ContinueTransferParams(SendAll))
+        awaitBodyMock<SendAmountEntryUiProps> {
+          onContinueClick(SendAll)
         }
 
         awaitBodyMock<FeeSelectionUiProps> {
           onBack()
         }
 
-        awaitBodyMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<SendAmountEntryUiProps> {
           initialAmount.currency.shouldBe(BTC)
         }
       }

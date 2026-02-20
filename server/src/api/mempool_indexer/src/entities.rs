@@ -1,9 +1,6 @@
 use std::hash::{Hash, Hasher};
 
-use bdk_utils::bdk::{
-    bitcoin::{Network, Txid, Weight},
-    FeeRate,
-};
+use bdk_utils::bdk::bitcoin::{Network, Txid, Weight};
 use serde::{Deserialize, Serialize};
 use time::{serde::rfc3339, Duration, OffsetDateTime};
 use types::serde::{deserialize_ts, serialize_ts};
@@ -71,11 +68,13 @@ impl Hash for TransactionRecord {
 impl TransactionRecord {
     pub(crate) fn from_mempool_tx(tx: &TransactionResponse, network: Network) -> Self {
         let now: OffsetDateTime = OffsetDateTime::now_utc();
+        let sats_per_vb = tx.fee as f32 / tx.weight.to_vbytes_ceil() as f32;
+
         TransactionRecord {
             txid: tx.txid,
             network,
             received: tx.vout.clone(),
-            fee_rate: FeeRate::from_wu(tx.fee, tx.weight).as_sat_per_vb(),
+            fee_rate: sats_per_vb,
             first_seen: now,
             expiring_at: now + Duration::days(RETENTION_DAYS),
         }

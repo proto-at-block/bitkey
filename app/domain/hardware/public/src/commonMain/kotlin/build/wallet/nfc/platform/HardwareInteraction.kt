@@ -1,5 +1,6 @@
 package build.wallet.nfc.platform
 
+import build.wallet.Progress
 import build.wallet.nfc.NfcSession
 
 /**
@@ -16,6 +17,33 @@ sealed interface HardwareInteraction<R> {
      * The resulting data from the hardware interaction.
      */
     val result: R,
+  ) : HardwareInteraction<R>
+
+  /**
+   * Indicates that an interaction requires chunked data transfer during the current
+   * NFC session before proceeding. Used for operations like W3 transaction signing
+   * where PSBT data must be transferred in chunks with progress updates.
+   *
+   * The [transferAndFetch] callback handles the transfer and returns the next
+   * interaction state (typically [RequiresConfirmation] for operations needing
+   * user approval on the device).
+   */
+  data class RequiresTransfer<R>(
+    /**
+     * Callback to perform chunked data transfer during the current NFC session.
+     * The [onProgress] callback should be invoked with progress values to update
+     * the UI during transfer.
+     *
+     * @param session The active NFC session
+     * @param commands The NFC commands interface for executing transfer operations
+     * @param onProgress Callback to report transfer progress
+     * @return The next [HardwareInteraction] state after transfer completes
+     */
+    val transferAndFetch: suspend (
+      session: NfcSession,
+      commands: NfcCommands,
+      onProgress: (Progress) -> Unit,
+    ) -> HardwareInteraction<R>,
   ) : HardwareInteraction<R>
 
   /**

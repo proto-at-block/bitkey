@@ -34,29 +34,10 @@ flow_action_result_t display_controller_scan_on_action(
 flow_action_result_t display_controller_scan_on_event(display_controller_t* controller,
                                                       ui_event_type_t event, const void* data,
                                                       uint32_t len) {
-  // Handle transaction start events - store data in nav union then navigate
-  if (event == UI_EVENT_START_SEND_TRANSACTION && data && len == sizeof(send_transaction_data_t)) {
-    controller->nav.money_movement.is_receive_flow = false;
-    memcpy(&controller->nav.money_movement.send_data, data, sizeof(send_transaction_data_t));
-    return flow_result_navigate(FLOW_TRANSACTION, fwpb_display_transition_DISPLAY_TRANSITION_FADE);
-  }
-
-  if (event == UI_EVENT_START_RECEIVE_TRANSACTION && data &&
-      len == sizeof(receive_transaction_data_t)) {
-    controller->nav.money_movement.is_receive_flow = true;
-    memcpy(&controller->nav.money_movement.receive_data, data, sizeof(receive_transaction_data_t));
-    return flow_result_navigate(FLOW_TRANSACTION, fwpb_display_transition_DISPLAY_TRANSITION_FADE);
-  }
-
-  if (event == UI_EVENT_START_PRIVILEGED_ACTION) {
-    if (data && len == sizeof(fwpb_display_params_privileged_action)) {
-      // Store privileged action data in nav union before navigation
-      memcpy(&controller->nav.privileged_action.params, data,
-             sizeof(fwpb_display_params_privileged_action));
-      return flow_result_navigate(FLOW_PRIVILEGED_ACTIONS,
-                                  fwpb_display_transition_DISPLAY_TRANSITION_FADE);
-    }
-  }
+  (void)controller;
+  (void)event;
+  (void)data;
+  (void)len;
 
   return flow_result_handled();
 }

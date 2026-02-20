@@ -1,14 +1,13 @@
 import io
-
 from binascii import hexlify
 from collections import defaultdict
-from elftools.elf.elffile import ELFFile
-from elftools.elf.sections import SymbolTableSection, Symbol
 from pathlib import Path
-from typing import Optional, DefaultDict
+from typing import DefaultDict, Optional
+
+from elftools.elf.elffile import ELFFile
+from elftools.elf.sections import Symbol, SymbolTableSection
 
 from . import constants
-
 
 # 4 levels up from firmware/python/bitkey/fwa
 root_fw_dir = Path(__file__).resolve().parents[4]
@@ -42,15 +41,15 @@ class FirmwareUnderTest(object):
 
     @classmethod
     def _extract_tags_from_path(cls, fwup_path: Path):
-        """ Parse the firmware filename and populate the class attributes
-            fw name has the following format:
-                {product}-{platform}-{app|loader}-{slot}?-{mfgtest}?-{prod|dev}.{signed}?.{bin|elf}
+        """Parse the firmware filename and populate the class attributes
+        fw name has the following format:
+            {product}-{platform}-{app|loader}-{slot}?-{mfgtest}?-{prod|dev}.{signed}?.{bin|elf}
         """
         cls.filename = fwup_path.name
 
-        artifacts, extensions = cls.filename.split('.', 1)
-        artifacts = artifacts.split('-')
-        extensions = extensions.split('.')
+        artifacts, extensions = cls.filename.split(".", 1)
+        artifacts = artifacts.split("-")
+        extensions = extensions.split(".")
 
         artifacts_iter = iter(artifacts)
         extensions_iter = iter(extensions)
@@ -67,16 +66,13 @@ class FirmwareUnderTest(object):
                 if compound_product in constants.PRODUCTS:
                     cls.product = compound_product
                 else:
-                    raise ValueError(
-                        f"Unknown product specified: {cls.product}")
+                    raise ValueError(f"Unknown product specified: {cls.product}")
             except StopIteration:
-                raise ValueError(
-                    f"Unknown product specified: {cls.product}")
+                raise ValueError(f"Unknown product specified: {cls.product}")
 
         cls.platform = next(artifacts_iter)
         if cls.platform not in constants.PLATFORMS:
-            raise ValueError(
-                f"Unknown platform specified: {cls.platform}")
+            raise ValueError(f"Unknown platform specified: {cls.platform}")
 
         cls.asset = next(artifacts_iter)
         if cls.asset not in constants.ASSETS:
@@ -93,8 +89,7 @@ class FirmwareUnderTest(object):
                 cls.environment = constants.ENV_NON_MFGTEST
                 cls.security = environment  # the tag was actually the security tag
             else:
-                raise ValueError(
-                    f"Unknown environment specified: {environment}")
+                raise ValueError(f"Unknown environment specified: {environment}")
         else:
             cls.environment = constants.ENV_MFGTEST
 
@@ -102,8 +97,7 @@ class FirmwareUnderTest(object):
             cls.security = next(artifacts_iter)
 
         if cls.security not in constants.SECURITIES:
-            raise ValueError(
-                f"Unknown security specified: {cls.security}")
+            raise ValueError(f"Unknown security specified: {cls.security}")
 
         # now parse the extensions
 
@@ -117,7 +111,8 @@ class FirmwareUnderTest(object):
             raise ValueError(f"Unknown suffix specified: {cls.suffix}")
         if cls.suffix == constants.SUFFIX_BIN:
             raise ValueError(
-                f"Suffix type {cls.suffix} not supported at this time. Please use .elf")
+                f"Suffix type {cls.suffix} not supported at this time. Please use .elf"
+            )
 
     @classmethod
     def load(cls, fwut_path: Path):

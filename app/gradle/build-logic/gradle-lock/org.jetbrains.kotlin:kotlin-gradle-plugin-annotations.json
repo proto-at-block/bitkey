@@ -2,19 +2,6 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin-annotations",
     "components": [
         {
-            "version": "2.0.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-gradle-plugin-annotations-2.0.20.jar": "8b63b4ffb7ba68e28720569ad47a96cc065c94564ed161eea15ac864887ba4de"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[build-logic]"
-            ]
-        },
-        {
             "version": "2.1.20",
             "variants": [
                 {
@@ -25,6 +12,19 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
+            ]
+        },
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-gradle-plugin-annotations-2.2.20.jar": "4fc32a1be645ca7404e21b24452088f93e8e993eaffd26f36bd35dbf75c60752"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
             ]
         }
     ]

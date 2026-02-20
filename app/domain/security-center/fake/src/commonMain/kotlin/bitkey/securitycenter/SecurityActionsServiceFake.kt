@@ -11,7 +11,7 @@ class SecurityActionsServiceFake(
   }.flatten().toMutableList(),
   var statuses: List<SecurityRecommendationWithStatus> = emptyList(),
 ) : SecurityActionsService {
-  override val securityActionsWithRecommendations: StateFlow<SecurityActionsWithRecommendations> = MutableStateFlow(
+  override val securityActionsWithRecommendations: StateFlow<SecurityActionsWithRecommendations?> = MutableStateFlow(
     SecurityActionsWithRecommendations(
       securityActions = actions.filter { it.category() == SecurityActionCategory.SECURITY },
       recoveryActions = actions.filter { it.category() == SecurityActionCategory.RECOVERY },

@@ -21,3 +21,14 @@ data class BitcoinAddress(val address: String) {
       "${it.take(4)}...${it.takeLast(4)}"
     }
 }
+
+/**
+ * Represents a Bitcoin address with its derivation index.
+ *
+ * @property address The Bitcoin address.
+ * @property index The derivation index used to derive this address.
+ */
+data class BitcoinAddressInfo(
+  val address: BitcoinAddress,
+  val index: UInt,
+)

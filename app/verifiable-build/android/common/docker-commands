@@ -49,7 +49,11 @@ buildAabUsingDockerContainer() {
     aab_path="/build/app/android/app/_build/outputs/bundle/${ANDROID_FLAVOR}/app-${ANDROID_FLAVOR}.aab"
     staging_dir="${ANDROID_FLAVOR}-modify"
 
-    gradle :android:app:bundle${ANDROID_FLAVOR} --no-daemon --no-build-cache --no-configuration-cache
+    # Enable R8 deterministic debugging mode for reproducible builds.
+    # This forces R8 to run single-threaded and disables input randomization,
+    # eliminating CPU-core-dependent non-determinism in DEX generation.
+    # See: https://r8.googlesource.com/r8/+/refs/heads/main/src/main/java/com/android/tools/r8/utils/InternalOptions.java
+    gradle :android:app:bundle${ANDROID_FLAVOR} --no-daemon --no-build-cache -Dcom.android.tools.r8.deterministicdebugging=true
 
     mkdir -p "${staging_dir}"
     unzip -q "${aab_path}" -d "${staging_dir}"
@@ -97,7 +101,11 @@ buildApkUsingDockerContainer() {
     set -e
     source bin/activate-hermit
     cd app
-    gradle :android:app:assemble${ANDROID_FLAVOR} --no-daemon --no-build-cache --no-configuration-cache
+    # Enable R8 deterministic debugging mode for reproducible builds.
+    # This forces R8 to run single-threaded and disables input randomization,
+    # eliminating CPU-core-dependent non-determinism in DEX generation.
+    # See: https://r8.googlesource.com/r8/+/refs/heads/main/src/main/java/com/android/tools/r8/utils/InternalOptions.java
+    gradle :android:app:assemble${ANDROID_FLAVOR} --no-daemon --no-build-cache -Dcom.android.tools.r8.deterministicdebugging=true
   '
 
   docker run --platform=linux/amd64 --name "${docker_name}" \

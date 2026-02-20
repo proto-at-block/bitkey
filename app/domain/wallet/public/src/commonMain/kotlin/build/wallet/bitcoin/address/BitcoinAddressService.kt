@@ -10,4 +10,10 @@ interface BitcoinAddressService {
   suspend fun generateAddress(
     addressIndex: BdkAddressIndex = BdkAddressIndex.New,
   ): Result<BitcoinAddress, Throwable>
+
+  /**
+   * Generates a new receiving address with its derivation index.
+   * It will be asynchronously registered to be watched.
+   */
+  suspend fun generateAddressInfo(): Result<BitcoinAddressInfo, Throwable>
 }

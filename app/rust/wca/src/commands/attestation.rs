@@ -10,7 +10,13 @@ use crate::{command, errors::CommandError, wca};
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn get_cert(kind: CertType) -> Result<Vec<u8>, CommandError> {
-    let apdu: apdu::Command = CertGetCmd { kind: kind.into() }.try_into()?;
+    let apdu: apdu::Command = CertGetCmd {
+        kind: kind.into(),
+        // Cert ID is only used for DEVICE_SECURE_CHANNEL_CERT
+        // Leave it empty for other certificate types
+        cert_id: String::new(),
+    }
+    .try_into()?;
 
     let data = yield_!(apdu.into());
     let response = apdu::Response::from(data);

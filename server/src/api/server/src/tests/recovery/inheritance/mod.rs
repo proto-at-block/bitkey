@@ -1,4 +1,4 @@
-use bdk_utils::bdk::{database::AnyDatabase, Wallet};
+use bdk_utils::bdk::Wallet;
 use http::StatusCode;
 use types::{
     account::{entities::Account, AccountType},
@@ -31,8 +31,8 @@ pub(crate) struct BenefactorBeneficiarySetup {
     pub benefactor: Account,
     pub beneficiary: Account,
     pub recovery_relationship_id: RecoveryRelationshipId,
-    pub benefactor_wallet: Wallet<AnyDatabase>,
-    pub beneficiary_wallet: Option<Wallet<AnyDatabase>>,
+    pub benefactor_wallet: Wallet,
+    pub beneficiary_wallet: Option<Wallet>,
 }
 
 pub(crate) async fn setup_benefactor_and_beneficiary_account(

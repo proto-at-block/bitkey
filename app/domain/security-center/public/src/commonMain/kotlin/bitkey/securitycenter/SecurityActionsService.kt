@@ -7,7 +7,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Instant
 
 interface SecurityActionsService {
-  val securityActionsWithRecommendations: StateFlow<SecurityActionsWithRecommendations>
+  /**
+   * StateFlow of security actions and recommendations.
+   * Returns null until the security actions have been calculated from real data sources.
+   * This allows consumers to distinguish between "not loaded yet" vs "loaded but empty".
+   */
+  val securityActionsWithRecommendations: StateFlow<SecurityActionsWithRecommendations?>
 
   fun getRecommendationsWithInteractionStatus(): Flow<List<SecurityRecommendationWithStatus>>
 

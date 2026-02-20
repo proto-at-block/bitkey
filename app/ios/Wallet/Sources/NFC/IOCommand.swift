@@ -195,6 +195,31 @@ extension GetConfirmationResult: IOCommand {
     typealias ResultType = ConfirmedCommandResult
 }
 
+extension SignStart: IOCommand {
+    typealias FFIStateType = SignStartResultState
+    typealias ResultType = SignStartResult
+}
+
+extension SignTransfer: IOCommand {
+    typealias FFIStateType = SignTransferResultState
+    typealias ResultType = SignTransferResult
+}
+
+extension GetConfirmationResultChunk: IOCommand {
+    typealias FFIStateType = ChunkDataState
+    typealias ResultType = firmware.ChunkData
+}
+
+extension GetAddress: IOCommand {
+    typealias FFIStateType = GetAddressResultState
+    typealias ResultType = GetAddressResult
+}
+
+extension VerifyKeysAndBuildDescriptor: IOCommand {
+    typealias FFIStateType = BooleanState
+    typealias ResultType = Bool
+}
+
 extension IOCommand {
     // These are defined ONCE per monomorphized result type
 
@@ -374,6 +399,42 @@ extension IOCommand {
 
     func next(_ response: [UInt8]) throws -> IOResult<ConfirmedCommandResult>
         where FFIStateType == ConfirmedCommandResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<GetAddressResult>
+        where FFIStateType == GetAddressResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<SignStartResult>
+        where FFIStateType == SignStartResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<SignTransferResult>
+        where FFIStateType == SignTransferResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.ChunkData>
+        where FFIStateType == ChunkDataState
     {
         switch try self.next(response: response) {
         case let .data(response: response): return .data(response: response)

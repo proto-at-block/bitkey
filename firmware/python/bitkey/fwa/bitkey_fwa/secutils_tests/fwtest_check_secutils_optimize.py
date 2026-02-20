@@ -2,21 +2,23 @@ import argparse
 import itertools
 import logging
 import os
-import sys
 import subprocess
+import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 from cscope_helpers import get_function_macro_counts, run_cscope
 from elf_helpers import get_functions_with_variable, get_sources
-from macro_constants import SECUTILS_SYMBOL, macro_weight, exception_functions
+from macro_constants import SECUTILS_SYMBOL, exception_functions, macro_weight
 
 logger: logging.Logger = logging.getLogger(__name__)
 root_fw_dir: Path = Path(__file__).resolve().parents[5]
 
 
-def check_with_cscope(disassembly_count: Dict[str, int], sources: Optional[List[str]] = None) -> bool:
+def check_with_cscope(
+    disassembly_count: Dict[str, int], sources: Optional[List[str]] = None
+) -> bool:
     """
     Compare the list of disassembly_count with the list obtained from cscope.
 
@@ -72,14 +74,21 @@ def get_total_dis_count(elf_list: List[str]) -> Dict[str, int]:
     result = defaultdict(int)
     for elf_file_path in elf_list:
         logger.info(f"Analyzing ELF file: {elf_file_path}")
-        functions_with_variable = get_functions_with_variable(elf_file_path, SECUTILS_SYMBOL)
+        functions_with_variable = get_functions_with_variable(
+            elf_file_path, SECUTILS_SYMBOL
+        )
         file_dis_count = defaultdict(int)
         for func, addresses in functions_with_variable.items():
             for var_addr in addresses:
-                disassemble_cmd = '--disassemble='+func
-                objdump_res = subprocess.run(['arm-none-eabi-objdump', disassemble_cmd, elf_file_path], capture_output=True, text=True, check=True)
+                disassemble_cmd = "--disassemble=" + func
+                objdump_res = subprocess.run(
+                    ["arm-none-eabi-objdump", disassemble_cmd, elf_file_path],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
                 disassembly = objdump_res.stdout.strip()
-                file_dis_count[func] += disassembly.count(var_addr[2:])-1
+                file_dis_count[func] += disassembly.count(var_addr[2:]) - 1
         # Check if this is the first file we are checking the disassembly for. If so, add file_dis_count to result.
         if not bool(result):
             result = file_dis_count
@@ -122,7 +131,9 @@ def get_elf_pairs() -> List[Tuple[str, str]]:
         if not loader_dir.is_dir():
             logger.warning(f"Loader directory does not exist: {loader_dir}")
             continue
-        app_elf_files: List[str] = [file for file in os.listdir(app_dir) if file.endswith(".elf")]
+        app_elf_files: List[str] = [
+            file for file in os.listdir(app_dir) if file.endswith(".elf")
+        ]
         for app_file in app_elf_files:
             loader_file = app_file.replace("app-a", "loader")
             if (loader_dir / loader_file).exists():
@@ -141,7 +152,9 @@ def main(args: Optional[List[str]] = None) -> None:
         args = sys.argv[1:]
 
     parser = argparse.ArgumentParser(prog="fwtest-check-secutils-optimize")
-    parser.add_argument("-v", "--verbose", action="store_true", help="increase program verbosity")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="increase program verbosity"
+    )
 
     parsed = parser.parse_args(args)
     if parsed.verbose:
@@ -171,7 +184,9 @@ def main(args: Optional[List[str]] = None) -> None:
             sources.append(source)
 
         if not check_with_cscope(disassembly_count, sources):
-            raise RuntimeError("Mismatch in secutils_fixed_true. Check for unexpected optimizations.")
+            raise RuntimeError(
+                "Mismatch in secutils_fixed_true. Check for unexpected optimizations."
+            )
 
 
 if __name__ == "__main__":

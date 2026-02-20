@@ -110,7 +110,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                 dataInputStyle = props.entryPoint.dataInputStyle(),
                 prefillValue = (state.touchpointPrefill as? PhoneNumberTouchpoint)?.value,
                 subline = if (props.entryPoint is Recovery) {
-                  "We’ll only use this phone number to notify you of wallet recovery attempts and privacy updates, nothing else."
+                  "We'll only use this phone number to notify you of wallet recovery attempts and privacy updates, nothing else."
                 } else {
                   null
                 },
@@ -154,7 +154,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                       }
                     )
                 },
-                skipBottomSheetProvider = (props.entryPoint as? Onboarding)?.skipBottomSheetProvider
+                skipBottomSheetProvider = (props.entryPoint as? Onboarding)?.skipBottomSheetProvider,
+                onSkipSecondaryButton = (props.entryPoint as? Recovery)?.onSkip
               )
             )
 

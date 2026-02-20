@@ -4,6 +4,7 @@ import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransaction
@@ -28,7 +29,9 @@ class WatchingWalletMock(
   var myAddresses: List<BitcoinAddress> = emptyList(),
   var myScripts: List<BdkScript> = emptyList(),
   var getNewAddressResult: Result<BitcoinAddress, Error>? = null,
+  var getNewAddressInfoResult: Result<BitcoinAddressInfo, Error>? = null,
   var peekAddressResult: Result<BitcoinAddress, Error>? = null,
+  var revealAddressResult: Result<BitcoinAddress, Error>? = null,
   var getLastUnusedAddressResult: Result<BitcoinAddress, Error>? = null,
   var createPsbtResult: Result<Psbt, Throwable>? = null,
   var balanceFlow: Flow<BitcoinBalance>? = null,
@@ -46,8 +49,16 @@ class WatchingWalletMock(
   override suspend fun getNewAddress(): Result<BitcoinAddress, Error> =
     getNewAddressResult ?: error("getNewAddressResult not configured in WatchingWalletMock")
 
+  override suspend fun getNewAddressInfo(): Result<BitcoinAddressInfo, Error> =
+    getNewAddressInfoResult ?: error("getNewAddressInfoResult not configured in WatchingWalletMock")
+
   override suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error> =
     peekAddressResult ?: error("peekAddressResult not configured in WatchingWalletMock")
+
+  override suspend fun revealAddress(index: UInt): Result<BitcoinAddress, Error> =
+    revealAddressResult
+      ?: peekAddressResult
+      ?: error("revealAddressResult not configured in WatchingWalletMock")
 
   override suspend fun getLastUnusedAddress(): Result<BitcoinAddress, Error> =
     getLastUnusedAddressResult ?: error("getLastUnusedAddressResult not configured in WatchingWalletMock")
@@ -78,7 +89,9 @@ class WatchingWalletMock(
     myAddresses = emptyList()
     myScripts = emptyList()
     getNewAddressResult = null
+    getNewAddressInfoResult = null
     peekAddressResult = null
+    revealAddressResult = null
     getLastUnusedAddressResult = null
     createPsbtResult = null
     balanceFlow = null

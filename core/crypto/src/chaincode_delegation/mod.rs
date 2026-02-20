@@ -2,10 +2,10 @@ use std::{collections::BTreeMap, error::Error, fmt::Display};
 pub mod common;
 
 use bitcoin::{
-    bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint},
+    bip32::{ChildNumber, DerivationPath, Fingerprint, Xpub},
     psbt::{raw::ProprietaryKey, Psbt},
     secp256k1::{All, PublicKey, Scalar, Secp256k1},
-    Network,
+    Network, NetworkKind,
 };
 use miniscript::{
     descriptor::{DescriptorPublicKey, DescriptorXKey, Wildcard},
@@ -279,15 +279,15 @@ const SWEEP_RECEIVE_ADDRESS_PATH: [ChildNumber; 2] = [
 #[derive(Clone, Debug)]
 struct SweepKey {
     /// Base, un-tweaked, extended public key.
-    base_xpub: ExtendedPubKey,
+    base_xpub: Xpub,
     /// The BIP32 scalar tweak derived using [`SWEEP_RECEIVE_ADDRESS_PATH`] from the base public key.
     tweak: Scalar,
     /// The tweaked extended public key derived using the tweak.
-    child_xpub: ExtendedPubKey,
+    child_xpub: Xpub,
 }
 
 impl SweepKey {
-    fn new(secp: &Secp256k1<All>, base_xpub: ExtendedPubKey, path: &[ChildNumber]) -> Result<Self> {
+    fn new(secp: &Secp256k1<All>, base_xpub: Xpub, path: &[ChildNumber]) -> Result<Self> {
         tweak_from_path(secp, base_xpub, path).map(|(tweak, child_xpub)| Self {
             base_xpub,
             tweak,
@@ -308,13 +308,13 @@ impl SweepKey {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HwAccountLevelDescriptorPublicKeys {
     root_fingerprint: Fingerprint,
-    account_xpub: ExtendedPubKey,
+    account_xpub: Xpub,
     account_path: DerivationPath,
 }
 
 impl HwAccountLevelDescriptorPublicKeys {
     /// Create a new HwAccountLevelDescriptorPublicKeys struct.
-    pub fn new(root_fingerprint: Fingerprint, account_xpub: ExtendedPubKey) -> Self {
+    pub fn new(root_fingerprint: Fingerprint, account_xpub: Xpub) -> Self {
         Self {
             root_fingerprint,
             account_xpub,
@@ -348,7 +348,7 @@ impl HwAccountLevelDescriptorPublicKeys {
         self.root_fingerprint
     }
 
-    pub fn account_xpub(&self) -> ExtendedPubKey {
+    pub fn account_xpub(&self) -> Xpub {
         self.account_xpub
     }
 }
@@ -356,14 +356,14 @@ impl HwAccountLevelDescriptorPublicKeys {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct XpubWithOrigin {
     pub fingerprint: Fingerprint,
-    pub xpub: ExtendedPubKey,
+    pub xpub: Xpub,
 }
 
 /// Standardize keyset that the App has possession of.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Keyset {
     pub hw_descriptor_public_keys: HwAccountLevelDescriptorPublicKeys,
-    pub server_root_xpub: ExtendedPubKey,
+    pub server_root_xpub: Xpub,
     pub app_account_xpub_with_origin: XpubWithOrigin,
 }
 
@@ -456,8 +456,8 @@ fn process_psbt_entry_tweaks(
     Ok(())
 }
 
-fn get_account_path(network: Network) -> DerivationPath {
-    let network_index = if network == Network::Bitcoin { 0 } else { 1 };
+fn get_account_path(network: NetworkKind) -> DerivationPath {
+    let network_index = if network.is_mainnet() { 0 } else { 1 };
 
     vec![
         ChildNumber::Normal { index: 84 },
@@ -476,7 +476,8 @@ mod tests {
         bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey},
         psbt::Psbt,
         secp256k1::Secp256k1,
-        Network,
+        transaction::Version,
+        Network, ScriptBuf, TxOut,
     };
     use std::str::FromStr;
 
@@ -538,10 +539,10 @@ mod tests {
 
     fn create_default_psbt() -> Psbt {
         Psbt::from_unsigned_tx(bitcoin::Transaction {
-            version: 2,
+            version: Version::TWO,
             lock_time: bitcoin::locktime::absolute::LockTime::ZERO,
             input: vec![bitcoin::TxIn::default()],
-            output: vec![bitcoin::TxOut::default()],
+            output: vec![bitcoin::TxOut::minimal_non_dust(ScriptBuf::new())],
         })
         .unwrap()
     }
@@ -866,7 +867,9 @@ mod tests {
         let (target_keyset, _, _) = create_test_keyset();
 
         let mut psbt = create_default_psbt();
-        psbt.unsigned_tx.output.push(Default::default());
+        psbt.unsigned_tx
+            .output
+            .push(TxOut::minimal_non_dust(ScriptBuf::new()));
 
         let result = UntweakedPsbt::new(psbt)
             .with_source_wallet_tweaks(&source_keyset)

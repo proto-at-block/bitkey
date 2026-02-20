@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-saveable-iosx64",
+    "components": [
+        {
+            "version": "1.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-saveable-iosX64Main-1.9.3.klib": "c755b4d99a04c59635ad9584615c1fd1a02917403ca65aabf6ceafa0a7896b4a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime-saveable-iosx64-1.9.3-metadata.jar": "8d317e469b229e65d91a4b0177dde57a674c4468b2641f30b899fffd9456da2d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

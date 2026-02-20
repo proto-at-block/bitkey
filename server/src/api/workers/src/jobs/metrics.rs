@@ -4,8 +4,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use bdk_utils::bdk::{bitcoin::Network, electrum_client::ElectrumApi};
 use bdk_utils::get_electrum_client;
+use bdk_utils::{bdk::bitcoin::Network, electrum::electrum_client::ElectrumApi};
 use bdk_utils::{
     metrics::{
         self as bdk_utils_metrics, MonitoredElectrumNode, ELECTRUM_NETWORK_KEY,

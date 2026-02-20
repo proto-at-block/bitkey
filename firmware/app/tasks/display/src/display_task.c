@@ -182,6 +182,7 @@ NO_OPTIMIZE void display_thread(void* UNUSED(args)) {
   // Register the queue for display command messages from w3-core
   uc_route_register_queue(fwpb_uxc_msg_host_display_cmd_tag, display_cmd_queue);
 
+  sysevent_wait(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED, true);
   // Send display ready action to signal we're ready to receive commands
   fwpb_uxc_msg_device* ready_msg = uc_alloc_send_proto();
   if (ready_msg) {

@@ -20,7 +20,6 @@ import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
-import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform.Android
@@ -45,8 +44,7 @@ class BdkWalletSyncerImpl(
   private val networkReachabilityProvider: NetworkReachabilityProvider,
 ) : BdkWalletSyncer {
   /**
-   * A mutex used to ensure only one call to sync is in flight at a time
-   * and to record unusually long syncs.
+   * A mutex used to ensure only one call to sync is in flight at a time.
    */
   private val syncLock = Mutex(locked = false)
 
@@ -58,9 +56,8 @@ class BdkWalletSyncerImpl(
       logDebug { "Attempting wallet sync..." }
       // Ignore a request if there is already a sync in progress
       if (syncLock.isLocked) {
-        Ok(Unit).bind()
+        return@coroutineBinding Unit
       }
-
       syncLock.withLock {
         val electrumServerSetting = electrumServerSettingProvider.get().first()
 
@@ -88,14 +85,16 @@ class BdkWalletSyncerImpl(
           }
 
         val resourceKey = "BDK Wallet Sync"
+        val rumAttributes = mapOf("bdk_version" to "1")
         when (electrumServerSetting) {
           is Default -> {
-            val electrumUrl = electrumServerSetting.server.electrumServerDetails.url()
+            val electrumServer = serverToTry ?: electrumServerSetting.server
+            val electrumUrl = electrumServer.electrumServerDetails.url()
             datadogRumMonitor.startResourceLoading(
               resourceKey = resourceKey,
               method = "GET", // We're required to pass an HTTP method, but this is an SSL connection.
               url = electrumUrl,
-              attributes = emptyMap()
+              attributes = rumAttributes
             )
           }
 
@@ -117,7 +116,7 @@ class BdkWalletSyncerImpl(
                 datadogRumMonitor.stopResourceLoading(
                   resourceKey = resourceKey,
                   kind = Other,
-                  attributes = emptyMap()
+                  attributes = rumAttributes
                 )
               }
 
@@ -126,11 +125,14 @@ class BdkWalletSyncerImpl(
           }
           .onFailure {
             if (electrumServerSetting is Default && it is BdkError.Electrum) {
-              val electrumUrl = electrumServerSetting.server.electrumServerDetails.url()
+              val electrumUrl = (serverToTry ?: electrumServerSetting.server).electrumServerDetails.url()
               datadogRumMonitor.addError(
                 "Error connecting to Electrum",
                 Network,
-                mapOf("url" to electrumUrl)
+                mapOf(
+                  "url" to electrumUrl,
+                  "bdk_version" to "1"
+                )
               )
             }
           }
@@ -158,7 +160,6 @@ class BdkWalletSyncerImpl(
       }
       .logFailure(Warn) { "Error syncing BDK wallet" }
       .onSuccess {
-        logInfo { "Wallet sync complete" }
         networkReachabilityProvider.updateNetworkReachabilityForConnection(
           connection = NetworkConnection.ElectrumSyncerNetworkConnection,
           reachability = NetworkReachability.REACHABLE

@@ -167,14 +167,22 @@ static void cmd_power_run(int argc, char** argv) {
   }
 
   if (power_cmd_args.timeout->header.found) {
-    sleep_inhibit(power_cmd_args.timeout->value);
+    int timeout = power_cmd_args.timeout->value;
+    if (timeout <= 0) {
+      return;
+    }
+    uint32_t timeout_ms = (uint32_t)timeout;
+    // Use absolute timeout to support values < 60s.
+    sleep_start_power_timer_with_timeout(timeout_ms);
   } else if (power_cmd_args.forever->header.found) {
-    sleep_inhibit(UINT32_MAX);
+    sleep_inhibit(SLEEP_INHIBIT_INFINITE);
+    // Start timer to apply inhibit immediately (timer may be stopped when unlocked).
+    sleep_start_power_timer();
   }
 }
 
 static void cmd_power_register(void) {
-  power_cmd_args.timeout = ARG_INT_OPT('t', "timeout", "timeout in ms");
+  power_cmd_args.timeout = ARG_INT_OPT('t', "timeout", "absolute timeout in ms");
   power_cmd_args.forever = ARG_LIT_OPT('f', "forever", "leave power on forever");
   power_cmd_args.end = ARG_END();
 

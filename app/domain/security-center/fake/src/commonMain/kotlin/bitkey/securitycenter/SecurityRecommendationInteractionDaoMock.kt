@@ -58,20 +58,6 @@ class SecurityRecommendationInteractionDaoMock : SecurityRecommendationInteracti
     return flowOf(interactions.values.toList())
   }
 
-  override suspend fun resetRecommendationStatusToNew(
-    id: SecurityActionRecommendation,
-    newTriggeredAt: Instant,
-    currentTime: Instant,
-  ) {
-    interactions[id]?.let {
-      interactions[id] = it.copy(
-        interactionStatus = SecurityInteractionStatus.NEW,
-        recordUpdatedAt = currentTime,
-        lastRecommendationTriggeredAt = newTriggeredAt
-      )
-    }
-  }
-
   override suspend fun deleteRecommendation(id: String) {
     interactions.remove(SecurityActionRecommendation.entries.firstOrNull { it.name == id })
   }

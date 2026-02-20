@@ -5,10 +5,9 @@ use bitcoin::sighash::{LegacySighash, SegwitV0Sighash};
 use bitcoin::{
     bip32::{ChildNumber, DerivationPath},
     ecdsa::Signature as EcdsaSig,
-    psbt::{Input, PartiallySignedTransaction},
+    psbt::{Input, Psbt as PartiallySignedTransaction},
     secp256k1::PublicKey,
-    sighash::NonStandardSighashType,
-    sighash::SighashCache,
+    sighash::{NonStandardSighashTypeError, SighashCache},
     Transaction,
 };
 use miniscript::{
@@ -30,7 +29,7 @@ pub enum Error {
     #[error("attempted sign with a descriptor lacking an xpub")]
     InvalidDescriptor,
     #[error("non-standard ECDSA sighash type")]
-    NonStandardSighashType(#[from] NonStandardSighashType),
+    NonStandardSighashType(#[from] NonStandardSighashTypeError),
 }
 
 pub(crate) struct Signable {
@@ -64,8 +63,8 @@ pub(crate) fn sign(
     input.partial_sigs.insert(
         bitcoin::PublicKey::new(signed_sighash.public_key),
         EcdsaSig {
-            sig: signed_sighash.signature,
-            hash_ty: input.ecdsa_hash_ty()?,
+            signature: signed_sighash.signature,
+            sighash_type: input.ecdsa_hash_ty()?,
         },
     );
 

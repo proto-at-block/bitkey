@@ -2,9 +2,12 @@ package build.wallet.nfc.interceptors
 
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
+import build.wallet.bitcoin.wallet.SpendingWalletV2ProviderMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.encrypt.MessageSignerFake
 import build.wallet.encrypt.SignatureUtilsMock
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.firmware.McuRole
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
@@ -29,10 +32,13 @@ class RetryingNfcCommandsImplTest : FunSpec({
   val messageSigner = MessageSignerFake()
   val signatureUtils = SignatureUtilsMock()
   val fakeHardwareKeyStore = FakeHardwareKeyStoreFake()
+  val featureFlagDao = FeatureFlagDaoFake()
   val fakeHardwareSpendingWalletProvider = FakeHardwareSpendingWalletProvider(
     spendingWalletProvider = { Ok(SpendingWalletFake()) },
-    fakeHardwareKeyStore = fakeHardwareKeyStore,
-    descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock()
+    spendingWalletV2Provider = SpendingWalletV2ProviderMock(),
+    bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao),
+    descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
+    fakeHardwareKeyStore = fakeHardwareKeyStore
   )
 
   test("fwupFinish should treat iOS 'Tag response error / no response' as success") {

@@ -39,21 +39,24 @@ class FwupManifestParserImpl : FwupManifestParser {
     manifestJson: String,
     currentVersion: String,
     activeSlot: FwupSlot,
-    fwupMode: FwupMode,
+    currentMcuVersions: Map<McuRole, String>?,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
+    // Parse both manifest version and bundle type in a single lightweight probe
     val header =
       json.decodeFromStringResult<FwupManifestHeader>(manifestJson)
         .mapError { ParsingError(it) }
         .getOrElse { return Err(it) }
 
+    val fwupMode = if (header.fwup_bundle.from_version != null) Delta else Normal
+
     return when (header.manifest_version) {
       FWUP_MANIFEST_VERSION_V1 -> when (fwupMode) {
-        Normal -> parseNormalFwupManifestV1(manifestJson, currentVersion, activeSlot)
-        Delta -> parseDeltaFwupManifestV1(manifestJson, currentVersion, activeSlot)
+        Normal -> parseNormalFwupManifestV1(manifestJson, currentVersion, activeSlot, fwupMode)
+        Delta -> parseDeltaFwupManifestV1(manifestJson, currentVersion, activeSlot, fwupMode)
       }
       FWUP_MANIFEST_VERSION_V2 -> when (fwupMode) {
-        Normal -> parseNormalFwupManifestV2(manifestJson, currentVersion, activeSlot)
-        Delta -> parseDeltaFwupManifestV2(manifestJson, currentVersion, activeSlot)
+        Normal -> parseNormalFwupManifestV2(manifestJson, currentVersion, activeSlot, fwupMode, currentMcuVersions)
+        Delta -> parseDeltaFwupManifestV2(manifestJson, currentVersion, activeSlot, fwupMode, currentMcuVersions)
       }
       else -> Err(UnknownManifestVersion)
     }
@@ -89,10 +92,12 @@ class FwupManifestParserImpl : FwupManifestParser {
    */
   private fun createSingleMcuResult(
     firmwareVersion: String,
+    fwupMode: FwupMode,
     asset: AssetInfo,
     parameters: FwupParameters,
   ) = ParseFwupManifestSuccess.SingleMcu(
     firmwareVersion = firmwareVersion,
+    fwupMode = fwupMode,
     binaryFilename = asset.image.name,
     signatureFilename = asset.signature.name,
     chunkSize = parameters.wca_chunk_size,
@@ -104,6 +109,7 @@ class FwupManifestParserImpl : FwupManifestParser {
     manifestJson: String,
     currentVersion: String,
     activeSlot: FwupSlot,
+    fwupMode: FwupMode,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
       json.decodeFromStringResult<FwupManifestV1>(manifestJson)
@@ -121,13 +127,14 @@ class FwupManifestParserImpl : FwupManifestParser {
       B -> bundle.assets.application_b
     }
 
-    return Ok(createSingleMcuResult(bundle.version, selectedAsset, bundle.parameters))
+    return Ok(createSingleMcuResult(bundle.version, fwupMode, selectedAsset, bundle.parameters))
   }
 
   private fun parseDeltaFwupManifestV1(
     manifestJson: String,
     currentVersion: String,
     activeSlot: FwupSlot,
+    fwupMode: FwupMode,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
       json.decodeFromStringResult<FwupDeltaManifestV1>(manifestJson)
@@ -145,13 +152,15 @@ class FwupManifestParserImpl : FwupManifestParser {
       B -> bundle.assets.a2b_patch
     }
 
-    return Ok(createSingleMcuResult(bundle.to_version, selectedAsset, bundle.parameters))
+    return Ok(createSingleMcuResult(bundle.to_version, fwupMode, selectedAsset, bundle.parameters))
   }
 
   private fun parseNormalFwupManifestV2(
     manifestJson: String,
     currentVersion: String,
     activeSlot: FwupSlot,
+    fwupMode: FwupMode,
+    currentMcuVersions: Map<McuRole, String>?,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
       json.decodeFromStringResult<FwupManifestV2>(manifestJson)
@@ -159,12 +168,22 @@ class FwupManifestParserImpl : FwupManifestParser {
         .getOrElse { return Err(it) }
 
     val bundle = manifest.fwup_bundle
-    if (semverToInt(bundle.version) <= semverToInt(currentVersion)) {
+    val bundleVersionInt = semverToInt(bundle.version)
+
+    // Filter to only MCUs that need updating by checking per-MCU versions
+    val mcusNeedingUpdate = bundle.mcus.filter { (mcuRole, _) ->
+      // Get the current version: prefer per-MCU version from device info, fallback to metadata currentVersion
+      val mcuCurrentVersion = currentMcuVersions?.get(mcuRole) ?: currentVersion
+      val currentVersionInt = semverToInt(mcuCurrentVersion)
+      bundleVersionInt > currentVersionInt
+    }
+
+    if (mcusNeedingUpdate.isEmpty()) {
       return Err(NoUpdateNeeded)
     }
 
     val target = targetSlot(activeSlot)
-    val mcuUpdates = bundle.mcus.mapValues { (_, mcu) ->
+    val mcuUpdates = mcusNeedingUpdate.mapValues { (_, mcu) ->
       val selectedAsset = when (target) {
         A -> mcu.assets.application_a
         B -> mcu.assets.application_b
@@ -172,13 +191,15 @@ class FwupManifestParserImpl : FwupManifestParser {
       createMcuUpdate(mcu.mcu_name, selectedAsset, mcu.parameters)
     }
 
-    return Ok(ParseFwupManifestSuccess.MultiMcu(bundle.version, mcuUpdates))
+    return Ok(ParseFwupManifestSuccess.MultiMcu(bundle.version, fwupMode, mcuUpdates))
   }
 
   private fun parseDeltaFwupManifestV2(
     manifestJson: String,
     currentVersion: String,
     activeSlot: FwupSlot,
+    fwupMode: FwupMode,
+    currentMcuVersions: Map<McuRole, String>?,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
       json.decodeFromStringResult<FwupDeltaManifestV2>(manifestJson)
@@ -186,12 +207,22 @@ class FwupManifestParserImpl : FwupManifestParser {
         .getOrElse { return Err(it) }
 
     val bundle = manifest.fwup_bundle
-    if (semverToInt(bundle.to_version) <= semverToInt(currentVersion)) {
+    val toVersionInt = semverToInt(bundle.to_version)
+
+    // Filter to only MCUs that need updating by checking per-MCU versions
+    val mcusNeedingUpdate = bundle.mcus.filter { (mcuRole, _) ->
+      // Get the current version: prefer per-MCU version from device info, fallback to metadata currentVersion
+      val mcuCurrentVersion = currentMcuVersions?.get(mcuRole) ?: currentVersion
+      val currentVersionInt = semverToInt(mcuCurrentVersion)
+      toVersionInt > currentVersionInt
+    }
+
+    if (mcusNeedingUpdate.isEmpty()) {
       return Err(NoUpdateNeeded)
     }
 
     val target = targetSlot(activeSlot)
-    val mcuUpdates = bundle.mcus.mapValues { (_, mcu) ->
+    val mcuUpdates = mcusNeedingUpdate.mapValues { (_, mcu) ->
       val selectedAsset = when (target) {
         A -> mcu.assets.b2a_patch
         B -> mcu.assets.a2b_patch
@@ -199,14 +230,24 @@ class FwupManifestParserImpl : FwupManifestParser {
       createMcuUpdate(mcu.mcu_name, selectedAsset, mcu.parameters)
     }
 
-    return Ok(ParseFwupManifestSuccess.MultiMcu(bundle.to_version, mcuUpdates))
+    return Ok(ParseFwupManifestSuccess.MultiMcu(bundle.to_version, fwupMode, mcuUpdates))
   }
 }
 
+/**
+ * Lightweight header for detecting manifest version and update type.
+ * Delta manifests have [fwup_bundle.from_version], normal manifests don't.
+ */
 @Serializable
 private data class FwupManifestHeader(
   val manifest_version: String,
-)
+  val fwup_bundle: BundleTypeProbe,
+) {
+  @Serializable
+  data class BundleTypeProbe(
+    val from_version: String? = null,
+  )
+}
 
 @Serializable
 private data class NamedAsset(

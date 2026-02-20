@@ -7,11 +7,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.cloud.backup.CloudBackup
-import build.wallet.cloud.backup.CloudBackupRepository
-import build.wallet.cloud.backup.CloudBackupV2
-import build.wallet.cloud.backup.CloudBackupV3
-import build.wallet.cloud.backup.FullAccountCloudBackupCreator
+import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
@@ -210,10 +206,8 @@ class FullAccountAuthKeyRotationServiceImpl(
   }
 
   override suspend fun dismissProposedRotationAttempt() {
-    if (getPendingRotationAttemptOrNull() == PendingAuthKeyRotationAttempt.ProposedAttempt) {
-      consumePendingRotationAttempt()
-      notifyPendingRotationAttemptChanged()
-    }
+    consumePendingRotationAttempt()
+    notifyPendingRotationAttemptChanged()
   }
 
   private suspend fun getPendingRotationAttemptOrNull(): PendingAuthKeyRotationAttempt? {

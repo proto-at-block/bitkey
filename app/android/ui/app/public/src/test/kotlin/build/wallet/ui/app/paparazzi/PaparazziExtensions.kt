@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue.Expanded
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import build.wallet.kotest.paparazzi.PaparazziExtension
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -28,11 +27,14 @@ fun PaparazziExtension.snapshotSheet(model: SheetModel) {
     ) {
       Sheet(
         model = model,
-        sheetState = SheetState(
-          initialValue = Expanded,
-          density = LocalDensity.current,
-          skipPartiallyExpanded = true
-        )
+        sheetState = run {
+          SheetState(
+            skipPartiallyExpanded = true,
+            positionalThreshold = { 0.0f },
+            velocityThreshold = { 0.0f },
+            initialValue = Expanded
+          )
+        }
       )
     }
   }

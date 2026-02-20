@@ -10,6 +10,7 @@
 #include "policy.h"
 #include "secure_rng.h"
 #include "wallet.h"
+#include "wsm_integrity_key.h"
 #include "wstring.h"
 
 #include <string.h>
@@ -17,18 +18,6 @@
 // We don't have a POSIX (and thus unit testable) implementation of hal/sysinfo,
 // so we extern the function and fake it in the tests.
 extern void sysinfo_chip_id_read(uint8_t* chip_id_out, uint32_t* length_out);
-
-static const uint8_t WIK_TEST_PUBKEY[] = {
-  0x03, 0x07, 0x84, 0x51, 0xe0, 0xc1, 0xe1, 0x27, 0x43, 0xd2, 0xfd,
-  0xd9, 0x3a, 0xe7, 0xd0, 0x3d, 0x5c, 0xf7, 0x81, 0x3d, 0x2f, 0x61,
-  0x2d, 0xe1, 0x09, 0x04, 0xe1, 0xc6, 0xa0, 0xb8, 0x7f, 0x70, 0x71,
-};
-
-static const uint8_t WIK_PROD_PUBKEY[] = {
-  0x02, 0x95, 0x21, 0x6a, 0x2e, 0x0b, 0x54, 0xb3, 0x82, 0xcc, 0x39,
-  0x38, 0xe2, 0x07, 0x29, 0x8d, 0x21, 0xcb, 0x8c, 0x5f, 0x68, 0x6f,
-  0x78, 0xb0, 0x5d, 0x9f, 0x14, 0xb4, 0xe4, 0x66, 0x9e, 0x56, 0x0f,
-};
 
 STATIC_VISIBLE_FOR_TESTING struct {
   const uint8_t* wik_pubkey;
@@ -40,9 +29,9 @@ STATIC_VISIBLE_FOR_TESTING struct {
 
 void grant_protocol_init(bool is_production) {
   if (is_production) {
-    grant_ctx.wik_pubkey = WIK_PROD_PUBKEY;
+    grant_ctx.wik_pubkey = WSM_INTEGRITY_PROD_PUBKEY;
   } else {
-    grant_ctx.wik_pubkey = WIK_TEST_PUBKEY;
+    grant_ctx.wik_pubkey = WSM_INTEGRITY_TEST_PUBKEY;
   }
 }
 
@@ -121,8 +110,7 @@ static grant_protocol_result_t verify_grant_signature(const grant_t* grant,
   memcpy(signed_serialized_grant, GRANT_LABEL, GRANT_LABEL_LEN);  // Prepend the label.
   memcpy(signed_serialized_grant + GRANT_LABEL_LEN, grant, GRANT_EXCLUDING_WSM_SIGNATURE_LEN);
 
-  if (!crypto_ecc_secp256k1_verify_signature(grant_ctx.wik_pubkey, signed_serialized_grant,
-                                             GRANT_SIGNABLE_LEN, grant->wsm_signature)) {
+  if (!wsm_verify_signature(signed_serialized_grant, GRANT_SIGNABLE_LEN, grant->wsm_signature)) {
     LOGE("Failed to verify WIK signature");
     return GRANT_RESULT_ERROR_VERIFICATION;
   }

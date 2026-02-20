@@ -21,7 +21,7 @@ impl Display for KeysetId {
 }
 
 pub mod fromagerie_network {
-    use bdk::bitcoin::Network;
+    use bdk_wallet::bitcoin::Network;
     use serde::Deserialize;
 
     #[derive(Deserialize)]

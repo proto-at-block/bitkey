@@ -61,9 +61,9 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
  */
 
 secure_channel_err_t secure_channel_cipher(secure_channel_ctx_t* secure_channel_ctx,
-                                           secure_channel_cipher_op_t op, uint8_t* data_in,
-                                           uint8_t* data_out, uint32_t data_len, uint8_t* nonce,
-                                           uint8_t* mac);
+                                           secure_channel_cipher_op_t op, uint8_t const* data_in,
+                                           uint8_t* data_out, uint32_t data_len, uint8_t const* aad,
+                                           uint32_t aad_len, uint8_t* nonce, uint8_t* mac);
 
 secure_channel_err_t secure_channel_compute_confirmation(secure_channel_type_t channel_type,
                                                          key_handle_t* conf_key,

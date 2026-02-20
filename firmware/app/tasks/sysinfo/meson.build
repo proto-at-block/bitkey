@@ -8,6 +8,7 @@ sysinfo_platform_configs = {
     'deps' : [
       bio_dep,
       bitlog_dep,
+      confirmation_dep,
       feature_flags_dep,
       ipc_dep,
       kv_dep,
@@ -34,6 +35,8 @@ sysinfo_platform_configs = {
     'deps' : [
       bio_dep,
       bitlog_dep,
+      confirmation_dep,
+      coproc_dep,
       feature_flags_dep,
       ipc_dep,
       kv_dep,

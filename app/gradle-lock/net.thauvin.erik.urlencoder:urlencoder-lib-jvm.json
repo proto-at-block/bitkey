@@ -1,0 +1,18 @@
+{
+    "module-identifier": "net.thauvin.erik.urlencoder:urlencoder-lib-jvm",
+    "components": [
+        {
+            "version": "1.6.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "urlencoder-lib-jvm-1.6.0.jar": "8d0fd2aeb48d19dc49c563ebc00f274947e45f716c107535c12ead63decd688d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

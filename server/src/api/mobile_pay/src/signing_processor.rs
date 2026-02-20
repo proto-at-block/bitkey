@@ -307,7 +307,7 @@ mod tests {
     use crate::spend_rules::SpendRuleSet;
     use account::service::tests::default_electrum_rpc_uris;
     use async_trait::async_trait;
-    use bdk_utils::bdk::bitcoin::psbt::{PartiallySignedTransaction, Psbt};
+    use bdk_utils::bdk::bitcoin::psbt::Psbt;
     use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, Secp256k1};
     use bdk_utils::bdk::bitcoin::Network;
     use bdk_utils::bdk::keys::{DescriptorPublicKey, DescriptorSecretKey};
@@ -320,13 +320,11 @@ mod tests {
     use std::str::FromStr;
     use std::sync::Arc;
     use types::account::identifiers::KeysetId;
-    use wsm_common::messages::api::{
-        AttestationDocResponse, ContinueDistributedKeygenResponse, ContinueShareRefreshResponse,
-        CreateSelfSovereignBackupResponse, EvaluatePinResponse, GeneratePartialSignaturesResponse,
-        GetIntegritySigResponse, InitiateDistributedKeygenResponse, InitiateShareRefreshResponse,
-    };
     use wsm_rust_client::{
-        CreateGrantRequest, CreatedSigningKey, Error, Grant,
+        AttestationDocResponse, ContinueDistributedKeygenResponse, ContinueShareRefreshResponse,
+        CreateGrantRequest, CreateSelfSovereignBackupResponse, CreatedSigningKey, Error,
+        EvaluatePinResponse, GeneratePartialSignaturesResponse, GetIntegritySigResponse, Grant,
+        InitiateDistributedKeygenResponse, InitiateShareRefreshResponse, Network as WsmNetwork,
         NoiseInitiateBundleResponseWithSession, SignedPsbt, SigningService,
     };
 
@@ -338,47 +336,47 @@ mod tests {
             async fn create_root_key(
                 &self,
                 root_key_id: &str,
-                network: Network,
+                network: WsmNetwork,
             ) -> Result<CreatedSigningKey, Error>;
             async fn initiate_distributed_keygen(
                 &self,
                 root_key_id: &str,
-                network: Network,
+                network: WsmNetwork,
                 sealed_request: Vec<u8>,
                 noise_session: Vec<u8>,
             ) -> Result<InitiateDistributedKeygenResponse, Error>;
             async fn continue_distributed_keygen(
                 &self,
                 root_key_id: &str,
-                network: Network,
+                network: WsmNetwork,
                 sealed_request: Vec<u8>,
                 noise_session: Vec<u8>,
             ) -> Result<ContinueDistributedKeygenResponse, Error>;
             async fn create_self_sovereign_backup(
                 &self,
                 root_key_id: &str,
-                network: Network,
+                network: WsmNetwork,
                 sealed_request: Vec<u8>,
                 noise_session:Vec<u8>,
             ) -> Result<CreateSelfSovereignBackupResponse, Error>;
             async fn initiate_share_refresh(
                 &self,
                 root_key_id: &str,
-                network: Network,
+                network: WsmNetwork,
                 sealed_request: Vec<u8>,
                 noise_session: Vec<u8>,
             ) -> Result<InitiateShareRefreshResponse, Error>;
             async fn continue_share_refresh(
                 &self,
                 root_key_id: &str,
-                network: Network,
+                network: WsmNetwork,
                 sealed_request: Vec<u8>,
                 noise_session: Vec<u8>,
             ) -> Result<ContinueShareRefreshResponse, Error>;
             async fn generate_partial_signatures(
                 &self,
                 root_key_id: &str,
-                network: Network,
+                network: WsmNetwork,
                 sealed_request: Vec<u8>,
                 noise_session: Vec<u8>,
             ) -> Result<GeneratePartialSignaturesResponse, Error>;
@@ -417,7 +415,7 @@ mod tests {
             fn broadcast(
                 &self,
                 network: Network,
-                transaction: &mut PartiallySignedTransaction,
+                transaction: &mut Psbt,
                 rpc_uris: &ElectrumRpcUris,
             ) -> Result<(), BdkUtilError>;
         }
@@ -622,10 +620,16 @@ mod tests {
 
         // assert
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap().state.finalized_psbt,
-            app_and_server_signed_psbt
-        );
+        let finalized_psbt = result.unwrap().state.finalized_psbt;
+        let finalized_tx = finalized_psbt
+            .clone()
+            .extract_tx()
+            .expect("Failed to extract finalized transaction");
+        let expected_tx = app_and_server_signed_psbt
+            .clone()
+            .extract_tx()
+            .expect("Failed to extract expected transaction");
+        assert_eq!(finalized_tx, expected_tx);
     }
 
     #[rstest]
@@ -649,10 +653,18 @@ mod tests {
             });
 
         let mut mock_broadcaster = MockBroadcaster::new();
-        let expected_psbt = app_and_server_signed_psbt.to_string();
+        let expected_tx = app_and_server_signed_psbt
+            .clone()
+            .extract_tx()
+            .expect("Failed to extract expected transaction");
         mock_broadcaster
             .expect_broadcast()
-            .withf(move |_, signed_psbt, _| signed_psbt.to_string() == expected_psbt)
+            .withf(move |_, signed_psbt, _| {
+                signed_psbt
+                    .clone()
+                    .extract_tx()
+                    .is_ok_and(|tx| tx == expected_tx)
+            })
             .times(1)
             .returning(|_, _, _| Ok(()));
 

@@ -5,10 +5,12 @@ import build.wallet.database.SecurityInteractionStatus
 import build.wallet.database.sqldelight.SecurityRecommendationInteractionEntity
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import kotlinx.coroutines.Dispatchers
+import build.wallet.sqldelight.awaitAsListResult
+import build.wallet.sqldelight.awaitAsOneOrNullResult
+import build.wallet.sqldelight.awaitTransaction
+import com.github.michaelbull.result.getOrThrow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 
 @BitkeyInject(AppScope::class)
@@ -27,14 +29,16 @@ class SecurityRecommendationInteractionDaoImpl(
     id: SecurityActionRecommendation,
     triggeredAt: Instant,
     currentTime: Instant,
-  ) = withContext(Dispatchers.Default) {
-    databaseProvider.database().securityRecommendationInteractionEntityQueries.insertOrUpdateActiveRecommendation(
-      recommendationId = id.toDbString(),
-      interactionStatus = SecurityInteractionStatus.NEW,
-      lastInteractedAt = null,
-      lastRecommendationTriggeredAt = triggeredAt,
-      recordUpdatedAt = currentTime
-    )
+  ) {
+    databaseProvider.database().awaitTransaction {
+      securityRecommendationInteractionEntityQueries.insertOrUpdateActiveRecommendation(
+        recommendationId = id.toDbString(),
+        interactionStatus = SecurityInteractionStatus.NEW,
+        lastInteractedAt = null,
+        lastRecommendationTriggeredAt = triggeredAt,
+        recordUpdatedAt = currentTime
+      )
+    }.getOrThrow()
   }
 
   override suspend fun recordUserInteraction(
@@ -42,25 +46,26 @@ class SecurityRecommendationInteractionDaoImpl(
     status: SecurityInteractionStatus,
     interactedAt: Instant,
     currentTime: Instant,
-  ) = withContext(Dispatchers.Default) {
-    databaseProvider.database().securityRecommendationInteractionEntityQueries.updateUserInteraction(
-      recommendationId = id.toDbString(),
-      interactionStatus = status,
-      lastInteractedAt = interactedAt,
-      recordUpdatedAt = currentTime
-    )
+  ) {
+    databaseProvider.database().awaitTransaction {
+      securityRecommendationInteractionEntityQueries.updateUserInteraction(
+        recommendationId = id.toDbString(),
+        interactionStatus = status,
+        lastInteractedAt = interactedAt,
+        recordUpdatedAt = currentTime
+      )
+    }.getOrThrow()
   }
 
   override fun getInteraction(
     id: SecurityActionRecommendation,
   ): Flow<SecurityRecommendationInteractionEntity> =
     flow {
-      val interaction = withContext(Dispatchers.Default) {
-        databaseProvider.database().securityRecommendationInteractionEntityQueries
-          .getById(id.toDbString())
-          .executeAsOneOrNull()
-      }
-      if (interaction == null) requireNotNull(interaction) { "No record found for id: $id" }
+      val interaction = databaseProvider.database().securityRecommendationInteractionEntityQueries
+        .getById(id.toDbString())
+        .awaitAsOneOrNullResult()
+        .getOrThrow()
+      requireNotNull(interaction) { "No record found for id: $id" }
       emit(interaction)
     }
 
@@ -71,7 +76,8 @@ class SecurityRecommendationInteractionDaoImpl(
       val interactions: List<SecurityRecommendationInteractionEntity> =
         databaseProvider.database().securityRecommendationInteractionEntityQueries
           .getByIds(ids.toDbStrings())
-          .executeAsList()
+          .awaitAsListResult()
+          .getOrThrow()
 
       val interactionMap = interactions.associateBy(
         keySelector = { entity -> entity.recommendationId.toSecurityActionRecommendation() },
@@ -83,38 +89,24 @@ class SecurityRecommendationInteractionDaoImpl(
 
   override fun getAllInteractions(): Flow<List<SecurityRecommendationInteractionEntity>> =
     flow {
-      val allInteractions = withContext(Dispatchers.Default) {
-        databaseProvider.database().securityRecommendationInteractionEntityQueries
-          .getAll()
-          .executeAsList()
-      }
+      val allInteractions = databaseProvider.database().securityRecommendationInteractionEntityQueries
+        .getAll()
+        .awaitAsListResult()
+        .getOrThrow()
       emit(allInteractions)
     }
 
-  override suspend fun resetRecommendationStatusToNew(
-    id: SecurityActionRecommendation,
-    newTriggeredAt: Instant,
-    currentTime: Instant,
-  ) = withContext(Dispatchers.Default) {
-    databaseProvider.database().securityRecommendationInteractionEntityQueries.insertOrResetToNew(
-      recommendationId = id.toDbString(),
-      lastRecommendationTriggeredAt = newTriggeredAt,
-      recordUpdatedAt = currentTime
-    )
-  }
-
-  override suspend fun deleteRecommendation(id: String) =
-    withContext(Dispatchers.Default) {
-      databaseProvider.database().securityRecommendationInteractionEntityQueries.deleteByIds(
+  override suspend fun deleteRecommendation(id: String) {
+    databaseProvider.database().awaitTransaction {
+      securityRecommendationInteractionEntityQueries.deleteByIds(
         listOf(id)
       )
-    }
+    }.getOrThrow()
+  }
 
   override suspend fun clear() {
-    withContext(Dispatchers.Default) {
-      databaseProvider.database()
-        .securityRecommendationInteractionEntityQueries
-        .deleteAll()
-    }
+    databaseProvider.database().awaitTransaction {
+      securityRecommendationInteractionEntityQueries.deleteAll()
+    }.getOrThrow()
   }
 }

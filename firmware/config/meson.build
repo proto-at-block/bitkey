@@ -14,13 +14,14 @@ w1_build_env_configs = {
 }
 
 w3_build_env_configs = {
-  'mfgtest-dev' : [cfg_w3a_core_dev_security_config_dep,    ['-DMFGTEST=1'],    'dev'],
-  'dev'         : [cfg_w3a_core_dev_security_config_dep,    ['-DCONFIG_DEV'],   'dev'],
+  'mfgtest-dev' : [cfg_w3a_dev_security_config_dep,    ['-DMFGTEST=1'],    'dev'],
+  'dev'         : [cfg_w3a_dev_security_config_dep,    ['-DCONFIG_DEV'],   'dev'],
 
   # Prod gets signed with a dev key as part of the build system. The unsigned prod
   # images are fed to the signing tool, which signs them with the prod key.
   # This allows us to test prod images on dev-fused units.
-  'prod'        : [cfg_w3a_core_prod_security_config_dep,   ['-DCONFIG_PROD'],  'dev'],
+  'mfgtest-prod' : [cfg_w3a_mfgtest_prod_security_config_dep, ['-DMFGTEST=1'], 'dev'],
+  'prod'         : [cfg_w3a_prod_security_config_dep,         ['-DCONFIG_PROD'], 'dev'],
 }
 
 slot_configs = {

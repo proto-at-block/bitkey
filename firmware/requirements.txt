@@ -39,4 +39,4 @@ codespell==2.2.6
 freertos-gdb==1.0.2
 
 # Python deps
-pip==24.0
+pip==26.0

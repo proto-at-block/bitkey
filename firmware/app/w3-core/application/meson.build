@@ -58,6 +58,8 @@ common_deps = [
   psbt_dep,
   bitlog_dep,
   feature_flags_dep,
+  secure_channel_dep,
+  confirmation_dep,
   secutils_dep,
   canary_dep,
   mpu_regions_dep,
@@ -83,7 +85,8 @@ dev_tools_deps = [
   metadata_cmd_dep,
   fs_cmd_dep,
   sysinfo_cmd_dep,
-  crypto_cmd_deps['efr32mg24'],
+  # Commented out to save ~27KB flash: removes shell test commands for crypto.
+  #crypto_cmd_deps['efr32mg24'],
   memfault_cmd_deps['efr32mg24'],
   power_cmd_dep,
   wca_cmd_dep,
@@ -95,6 +98,8 @@ dev_tools_deps = [
   unlock_cmd_dep,
   hal_nfc_cmd_dep,
   temperature_cmd_dep,
+  # Commented out due to space constraints in w3-core mfgtest
+  # secure_channel_cmd_deps['w3-core'],
 ]
 
 dev_variant_deps = base_deps + dev_tools_deps
@@ -124,7 +129,7 @@ foreach hardware : w3_core_hardware_configs.keys()
 
       if build_env == 'prod'
         deps = prod_variant_deps
-      elif build_env == 'mfgtest-dev'
+      elif build_env == 'mfgtest-dev' or build_env == 'mfgtest-prod'
         deps = mfgtest_variant_deps
       else
         deps = dev_variant_deps

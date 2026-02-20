@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.material3:material3-uikitarm64",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "material3-uikitArm64Main-1.8.1.klib": "f77516c80db9de62ae80721f2e394b72d685a28e05fb39f9ac93f3c4ccbc96bb"
+                        "material3-uikitArm64Main-1.9.0.klib": "fa637880ccc0b8f6cae9af6a62159f4abd7c5be33e6d6134a3bc9f865e4437e2"
                     }
                 },
                 {
                     "artifacts": {
-                        "material3-uikitarm64-1.8.1-metadata.jar": "158843579739ddfd4a26ccd86dc08dbde836bac9243b4715c6ee32a2f649f2ac"
+                        "material3-uikitarm64-1.9.0-metadata.jar": "8bd24d0627934a3018a958c76ddbd64a50b1719424b162a88b50c229bc9f0d0b"
                     }
                 }
             ],

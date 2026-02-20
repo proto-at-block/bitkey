@@ -83,7 +83,6 @@ impl DailySpendRecordRepository {
                 Err(DatabaseError::PersistenceError(_)) if attempt < MAX_ROLLBACK_RETRIES - 1 => {
                     event!(
                         Level::WARN,
-                        ?txid,
                         attempt,
                         "version conflict during spending entry rollback, retrying"
                     );

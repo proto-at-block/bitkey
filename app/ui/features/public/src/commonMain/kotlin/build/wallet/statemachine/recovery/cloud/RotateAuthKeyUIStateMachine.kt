@@ -109,44 +109,8 @@ class RotateAuthKeyUIStateMachineImpl(
           }
         ).asModalScreen()
       }
-      is State.WaitingOnChoiceState -> {
-        if (uiState.appGlobalAndRecoveryAuthKeys == null) {
-          LaunchedEffect("generate-new-app-auth-keys") {
-            // Since we are rotating app global auth key, we need to create
-            // a new AppGlobalAuthKeyHwSignature as well by tapping hardware.
-            // This requires having a new app global auth key before the hardware tap,
-            // so we are preloading it here, to save us from an extra tap after auth keys are rotated.
-            generateAppAuthKeys()
-              .onSuccess { keys ->
-                state = State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = keys)
-              }
-          }
-        }
-
-        val removeAllOtherDevices = remember(uiState.appGlobalAndRecoveryAuthKeys) {
-          if (uiState.appGlobalAndRecoveryAuthKeys == null) {
-            { /* noop */ }
-          } else {
-            {
-              state = State.ObtainingHwProofOfPossession(
-                appGlobalAndRecoveryAuthKeys = uiState.appGlobalAndRecoveryAuthKeys
-              )
-            }
-          }
-        }
-
-        when (val origin = props.origin) {
-          is RotateAuthKeyUIOrigin.PendingAttempt -> RotateAuthKeyScreens.DeactivateDevicesAfterRestoreChoice(
-            onNotRightNow = { state = State.DismissingProposedAttempt },
-            removeAllOtherDevicesEnabled = uiState.appGlobalAndRecoveryAuthKeys != null,
-            onRemoveAllOtherDevices = removeAllOtherDevices
-          )
-          is RotateAuthKeyUIOrigin.Settings -> RotateAuthKeyScreens.DeactivateDevicesFromSettingsChoice(
-            onBack = origin.onBack,
-            removeAllOtherDevicesEnabled = uiState.appGlobalAndRecoveryAuthKeys != null,
-            onRemoveAllOtherDevices = removeAllOtherDevices
-          )
-        }.asRootScreen()
+      is State.WaitingOnChoiceState -> waitingOnChoice(props, uiState) {
+        state = it
       }
       is State.ObtainingHwProofOfPossession -> waitingOnProofOfPossession(props, uiState) {
         state = it
@@ -177,6 +141,12 @@ class RotateAuthKeyUIStateMachineImpl(
         },
         onContactSupport = {
           state = State.PresentingInAppBrowserCustomerSupportUi(uiState.retryRequest)
+        },
+        onClose = {
+          when (val origin = props.origin) {
+            is RotateAuthKeyUIOrigin.Settings -> origin.onBack()
+            is RotateAuthKeyUIOrigin.PendingAttempt -> state = State.DismissingProposedAttempt
+          }
         }
       ).asRootScreen()
       is State.PresentingRecoverableFailure -> RotateAuthKeyScreens.AcceptableFailure(
@@ -204,6 +174,12 @@ class RotateAuthKeyUIStateMachineImpl(
         },
         onContactSupport = {
           state = State.PresentingInAppBrowserCustomerSupportUi(uiState.retryRequest)
+        },
+        onClose = {
+          when (val origin = props.origin) {
+            is RotateAuthKeyUIOrigin.Settings -> origin.onBack()
+            is RotateAuthKeyUIOrigin.PendingAttempt -> state = State.DismissingProposedAttempt
+          }
         }
       ).asRootScreen()
       State.DismissingProposedAttempt -> {
@@ -257,6 +233,53 @@ class RotateAuthKeyUIStateMachineImpl(
         )
       }
     }.logFailure { "Error generating new app auth keys" }
+  }
+
+  @Composable
+  private fun waitingOnChoice(
+    props: RotateAuthKeyUIStateMachineProps,
+    state: State.WaitingOnChoiceState,
+    setState: (State) -> Unit,
+  ): ScreenModel {
+    if (state.appGlobalAndRecoveryAuthKeys == null) {
+      LaunchedEffect("generate-new-app-auth-keys") {
+        // Since we are rotating app global auth key, we need to create
+        // a new AppGlobalAuthKeyHwSignature as well by tapping hardware.
+        // This requires having a new app global auth key before the hardware tap,
+        // so we are preloading it here, to save us from an extra tap after auth keys are rotated.
+        generateAppAuthKeys()
+          .onSuccess { keys ->
+            setState(State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = keys))
+          }
+      }
+    }
+
+    val removeAllOtherDevices = remember(state.appGlobalAndRecoveryAuthKeys) {
+      if (state.appGlobalAndRecoveryAuthKeys == null) {
+        { /* noop */ }
+      } else {
+        {
+          setState(
+            State.ObtainingHwProofOfPossession(
+              appGlobalAndRecoveryAuthKeys = state.appGlobalAndRecoveryAuthKeys
+            )
+          )
+        }
+      }
+    }
+
+    return when (val origin = props.origin) {
+      is RotateAuthKeyUIOrigin.PendingAttempt -> RotateAuthKeyScreens.DeactivateDevicesAfterRestoreChoice(
+        onNotRightNow = { setState(State.DismissingProposedAttempt) },
+        removeAllOtherDevicesEnabled = state.appGlobalAndRecoveryAuthKeys != null,
+        onRemoveAllOtherDevices = removeAllOtherDevices
+      )
+      is RotateAuthKeyUIOrigin.Settings -> RotateAuthKeyScreens.DeactivateDevicesFromSettingsChoice(
+        onBack = origin.onBack,
+        removeAllOtherDevicesEnabled = state.appGlobalAndRecoveryAuthKeys != null,
+        onRemoveAllOtherDevices = removeAllOtherDevices
+      )
+    }.asRootScreen()
   }
 
   @Composable

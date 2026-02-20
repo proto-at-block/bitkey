@@ -599,6 +599,125 @@ class SupportTicketFormValidatorImplTests : DescribeSpec({
       }
     }
   }
+
+  context("Attachment validation") {
+    val form = simpleForm()
+
+    describe("validate") {
+      it("succeeds with no attachments") {
+        val data = buildSupportTicketData { }
+        validator.validate(form, data).shouldBeTrue()
+      }
+
+      it("succeeds with 1 media attachment") {
+        val data =
+          buildSupportTicketData {
+            addAttachment(
+              SupportTicketAttachment.Media(
+                name = "image1.png",
+                mimeType = build.wallet.platform.data.MimeType("image/png"),
+                data = { null }
+              )
+            )
+          }
+        validator.validate(form, data).shouldBeTrue()
+      }
+
+      it("succeeds with 4 media attachments") {
+        val data =
+          buildSupportTicketData {
+            repeat(MAX_MEDIA_ATTACHMENTS) { i ->
+              addAttachment(
+                SupportTicketAttachment.Media(
+                  name = "image$i.png",
+                  mimeType = build.wallet.platform.data.MimeType("image/png"),
+                  data = { null }
+                )
+              )
+            }
+          }
+        validator.validate(form, data).shouldBeTrue()
+      }
+
+      it("fails with 5 media attachments") {
+        val data =
+          buildSupportTicketData {
+            repeat(MAX_MEDIA_ATTACHMENTS + 1) { i ->
+              addAttachment(
+                SupportTicketAttachment.Media(
+                  name = "image$i.png",
+                  mimeType = build.wallet.platform.data.MimeType("image/png"),
+                  data = { null }
+                )
+              )
+            }
+          }
+        validator.validate(form, data).shouldBeFalse()
+      }
+
+      it("fails with 6 media attachments") {
+        val data =
+          buildSupportTicketData {
+            repeat(6) { i ->
+              addAttachment(
+                SupportTicketAttachment.Media(
+                  name = "image$i.png",
+                  mimeType = build.wallet.platform.data.MimeType("image/png"),
+                  data = { null }
+                )
+              )
+            }
+          }
+        validator.validate(form, data).shouldBeFalse()
+      }
+
+      it("succeeds with 4 media attachments and 1 log attachment") {
+        val data =
+          buildSupportTicketData {
+            repeat(MAX_MEDIA_ATTACHMENTS) { i ->
+              addAttachment(
+                SupportTicketAttachment.Media(
+                  name = "image$i.png",
+                  mimeType = build.wallet.platform.data.MimeType("image/png"),
+                  data = { null }
+                )
+              )
+            }
+            // Log attachments don't count toward the media limit
+            addAttachment(
+              SupportTicketAttachment.Logs(
+                name = "app.log",
+                data = { null }
+              )
+            )
+          }
+        validator.validate(form, data).shouldBeTrue()
+      }
+
+      it("fails with 5 media attachments and 1 log attachment") {
+        val data =
+          buildSupportTicketData {
+            repeat(MAX_MEDIA_ATTACHMENTS + 1) { i ->
+              addAttachment(
+                SupportTicketAttachment.Media(
+                  name = "image$i.png",
+                  mimeType = build.wallet.platform.data.MimeType("image/png"),
+                  data = { null }
+                )
+              )
+            }
+            // Log attachments don't count toward the media limit, but total will be 6
+            addAttachment(
+              SupportTicketAttachment.Logs(
+                name = "app.log",
+                data = { null }
+              )
+            )
+          }
+        validator.validate(form, data).shouldBeFalse()
+      }
+    }
+  }
 }) {
   private object TestValues {
     val requiredTextField =

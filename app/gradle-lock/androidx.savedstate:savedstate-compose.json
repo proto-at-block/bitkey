@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.savedstate:savedstate-compose",
+    "components": [
+        {
+            "version": "1.3.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "savedstate-compose-metadata-1.3.3.jar": "9a8d6197b3eb23452add1aa1e6d2c3dc7711f07e32d72199906de12cdb553e50"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

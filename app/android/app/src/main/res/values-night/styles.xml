@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+  <!-- Bitkey DatePicker Theme for Dark Mode -->
+  <!-- Only uses public attributes: colorAccent controls selection color, date highlights, and buttons -->
+  <style name="BitkeyDatePickerDialog" parent="android:Theme.Material.Dialog">
+    <item name="android:colorAccent">@color/bitkey_primary</item>
+    <item name="android:colorPrimary">@color/bitkey_primary</item>
+  </style>
+
+</resources>

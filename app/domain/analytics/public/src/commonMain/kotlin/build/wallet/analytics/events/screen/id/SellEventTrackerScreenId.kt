@@ -4,6 +4,12 @@ enum class SellEventTrackerScreenId : EventTrackerScreenId {
   /** Screen showing a list of quotes from partners for selling */
   SELL_QUOTES_LIST,
 
+  /** Loading screen shown when we are syncing exchange rates */
+  LOADING_SELL_EXCHANGE_RATES,
+
+  /** Error screen shown when exchange rates are unavailable */
+  SELL_EXCHANGE_RATES_UNAVAILABLE,
+
   /** Loading screen shown when we are loading sell partners */
   LOADING_SELL_PARTNERS,
 

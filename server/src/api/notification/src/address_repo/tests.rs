@@ -32,7 +32,7 @@ fn random_address(network: Network) -> AddressAndKeysetId {
     // Force Address to be of type Address<NetworkUnchecked> for AddressAndKeysetId to be
     // deserializable.
     // [W-5648]: Use `as_unchecked` once it's available in BDK.
-    let addr_string = Address::p2pkh(&PublicKey::new(pk), network).to_string();
+    let addr_string = Address::p2pkh(PublicKey::new(pk), network).to_string();
     let unchecked_address: Address<NetworkUnchecked> = addr_string.parse().unwrap();
     AddressAndKeysetId::new(unchecked_address, KeysetId::gen().unwrap())
 }

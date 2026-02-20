@@ -1,10 +1,9 @@
 use rstest::rstest;
 
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
-use bdk_utils::bdk::bitcoin::ScriptBuf;
-use bdk_utils::bdk::database::AnyDatabase;
-use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex};
-use bdk_utils::bdk::{FeeRate, Wallet};
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
+use bdk_utils::bdk::bitcoin::{Amount, FeeRate, ScriptBuf};
+use bdk_utils::bdk::test_utils::get_funded_wallet;
+use bdk_utils::bdk::{KeychainKind, Wallet};
 use exchange_rate::currency_conversion::sats_for;
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::flag::ContextKey;
@@ -55,7 +54,7 @@ async fn test_initiate_verification(
     let account = setup_account_with_transaction_verification_policy(policy).await;
 
     let psbt = Psbt::from_str("cHNidP8BAHUCAAAAASaBcTce3/KF6Tet7qSze3gADAVmy7OtZGQXE8pCFxv2AAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQD9pQEBAAAAAAECiaPHHqtNIOA3G7ukzGmPopXJRjr6Ljl/hTPMti+VZ+UBAAAAFxYAFL4Y0VKpsBIDna89p95PUzSe7LmF/////4b4qkOnHf8USIk6UwpyN+9rRgi7st0tAXHmOuxqSJC0AQAAABcWABT+Pp7xp0XpdNkCxDVZQ6vLNL1TU/////8CAMLrCwAAAAAZdqkUhc/xCX/Z4Ai7NK9wnGIZeziXikiIrHL++E4sAAAAF6kUM5cluiHv1irHU6m80GfWx6ajnQWHAkcwRAIgJxK+IuAnDzlPVoMR3HyppolwuAJf3TskAinwf4pfOiQCIAGLONfc0xTnNMkna9b7QPZzMlvEuqFEyADS8vAtsnZcASED0uFWdJQbrUqZY3LLh+GFbTZSYG2YVi/jnF6efkE/IQUCSDBFAiEA0SuFLYXc2WHS9fSrZgZU327tzHlMDDPOXMMJ/7X85Y0CIGczio4OFyXBl/saiK9Z9R5E5CVbIBZ8hoQDHAXR8lkqASECI7cr7vCWXRC+B3jv7NYfysb3mk6haTkzgHNEZPhPKrMAAAAAAAAA").unwrap();
-    let wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
+    let wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
     let network = wallet.network();
     let result = service
         .initiate(
@@ -96,6 +95,8 @@ async fn test_psbt_threshold(
     >,
 ) {
     // The LocalProvider's exchange rate is hardcoded LOCAL_ONE_BTC_IN_FIAT
+
+    use bdk_utils::bdk::KeychainKind;
     let threshold = Money {
         amount: 1000,
         currency_code: USD,
@@ -113,14 +114,16 @@ async fn test_psbt_threshold(
     ))
     .await;
 
-    let source_wallet_unboxed = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0;
+    let source_wallet_unboxed = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
     let network = source_wallet_unboxed.network();
-    let source_wallet = Box::new(source_wallet_unboxed);
-    let destination_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-    let destination_address = destination_wallet.get_address(AddressIndex::New).unwrap();
+    let mut source_wallet = Box::new(source_wallet_unboxed);
+    let mut destination_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/2/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/3/*)").0;
+    let destination_address = destination_wallet
+        .reveal_next_address(KeychainKind::External)
+        .address;
     let sats_to_send = (threshold_sats as i64 + threshold_offset) as u64;
     let psbt = make_psbt(
-        source_wallet.as_ref(),
+        &mut source_wallet,
         destination_address.script_pubkey(),
         sats_to_send,
     );
@@ -163,14 +166,16 @@ async fn initiate_rejects_blocked_addresses() {
         construct_test_transaction_verification_service_with(true, feature_flags_service).await;
     let account = setup_account_with_transaction_verification_policy(None).await;
 
-    let source_wallet = Box::new(
-        get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0,
+    let mut source_wallet = Box::new(
+        get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0,
     );
-    let destination_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-    let destination_address = destination_wallet.get_address(AddressIndex::New).unwrap();
+    let mut destination_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/2/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/3/*)").0;
+    let destination_address = destination_wallet
+        .reveal_next_address(KeychainKind::External)
+        .address;
     let network = source_wallet.network();
     let psbt = make_psbt(
-        source_wallet.as_ref(),
+        &mut source_wallet,
         destination_address.script_pubkey(),
         1_000,
     );
@@ -211,14 +216,16 @@ async fn initiate_rejects_blocked_addresses_via_flag() {
         construct_test_transaction_verification_service_with(false, feature_flags_service).await;
     let account = setup_account_with_transaction_verification_policy(None).await;
 
-    let source_wallet = Box::new(
-        get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0,
+    let mut source_wallet = Box::new(
+        get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0,
     );
-    let destination_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-    let destination_address = destination_wallet.get_address(AddressIndex::New).unwrap();
+    let mut destination_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/2/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/3/*)").0;
+    let destination_address = destination_wallet
+        .reveal_next_address(KeychainKind::External)
+        .address;
     let network = source_wallet.network();
     let psbt = make_psbt(
-        source_wallet.as_ref(),
+        &mut source_wallet,
         destination_address.script_pubkey(),
         1_000,
     );
@@ -258,16 +265,16 @@ async fn initiate_rejects_invalid_script_pubkeys() {
     let service =
         construct_test_transaction_verification_service_with(false, feature_flags_service).await;
     let account = setup_account_with_transaction_verification_policy(None).await;
-    let source_wallet = Box::new(
-        get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)").0,
+    let mut source_wallet = Box::new(
+        get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0,
     );
     let network = source_wallet.network();
     let invalid_script = ScriptBuf::from_hex("001161458e330389cd0437ee9fe3641d70cc18").unwrap();
     let mut builder = source_wallet.build_tx();
     builder
-        .add_recipient(invalid_script, 1_000)
-        .fee_rate(FeeRate::from_sat_per_vb(5.0));
-    let (psbt, _) = builder.finish().unwrap();
+        .add_recipient(invalid_script, Amount::from_sat(1_000))
+        .fee_rate(FeeRate::from_sat_per_vb(5).expect("Invalid fee rate"));
+    let psbt = builder.finish().unwrap();
 
     let result = service
         .initiate(
@@ -291,11 +298,11 @@ async fn initiate_rejects_invalid_script_pubkeys() {
     ));
 }
 
-fn make_psbt(wallet: &Wallet<AnyDatabase>, recipient: ScriptBuf, sats: u64) -> Psbt {
+fn make_psbt(wallet: &mut Wallet, recipient: ScriptBuf, sats: u64) -> Psbt {
     let mut builder = wallet.build_tx();
     builder
-        .add_recipient(recipient, sats)
-        .fee_rate(FeeRate::from_sat_per_kvb(5.0));
-    let (psbt, _) = builder.finish().unwrap();
-    psbt
+        .add_recipient(recipient, Amount::from_sat(sats))
+        .fee_rate(FeeRate::from_sat_per_vb(5).expect("Invalid fee rate"));
+
+    builder.finish().unwrap()
 }

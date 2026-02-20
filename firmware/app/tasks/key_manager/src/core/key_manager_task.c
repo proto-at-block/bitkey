@@ -599,6 +599,14 @@ void key_manager_thread(void* UNUSED(args)) {
         handle_provision_app_auth_pubkey(&message);
         break;
       }
+      case IPC_PROTO_GET_ADDRESS_CMD: {
+        key_manager_task_port_handle_get_address(&message);
+        break;
+      }
+      case IPC_PROTO_VERIFY_KEYS_AND_BUILD_DESCRIPTOR_CMD: {
+        key_manager_task_port_handle_verify_keys_and_build_descriptor(&message);
+        break;
+      }
       case IPC_KEY_MANAGER_UXC_BOOT: {
         key_manager_task_handle_uxc_boot();
         break;

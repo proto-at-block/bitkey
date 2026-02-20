@@ -2,6 +2,8 @@
 
 #include "assert.h"
 
+#include <stdint.h>
+
 #ifdef __BYTE_ORDER__
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -43,6 +45,11 @@
 #else
 #error "Can't determine target platform endianness"
 #endif
+
+static inline uint32_t read_u32_le(const uint8_t* bytes) {
+  return ((uint32_t)bytes[0]) | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16) |
+         ((uint32_t)bytes[3] << 24);
+}
 
 // Change the bit at position `pos` in `val` to 1 if target is 1, and 0 if target is 0.
 #define BIT_CHANGE(val, pos, target)       \

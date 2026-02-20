@@ -30,7 +30,7 @@ class CompleteInheritanceClaimUiStateMachineTests : FunSpec({
     id = "psbt-id",
     base64 = "some-base-64",
     fee = Fee(BitcoinMoney.sats(10_000)),
-    baseSize = 20_000,
+    vsize = 20_000,
     numOfInputs = 1,
     amountSats = 20_000UL
   )

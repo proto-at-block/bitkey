@@ -367,8 +367,59 @@ data class SweepSuccessScreenBodyModel(
     eventTrackerShouldTrack = false
   )
 
+/**
+ * Screen shown on W3 hardware when there are multiple transactions to sign.
+ * Informs the user about the number of transactions and asks them to continue.
+ */
+fun multipleTransactionsWarningScreenModel(
+  id: EventTrackerScreenId,
+  transactionCount: Int,
+  onContinue: () -> Unit,
+  onBack: () -> Unit,
+  presentationStyle: ScreenPresentationStyle,
+) = ScreenModel(
+  presentationStyle = presentationStyle,
+  body = MultipleTransactionsWarningBodyModel(
+    id = id,
+    transactionCount = transactionCount,
+    onContinue = onContinue,
+    onBack = onBack
+  )
+)
+
+private data class MultipleTransactionsWarningBodyModel(
+  override val id: EventTrackerScreenId,
+  val transactionCount: Int,
+  val onContinue: () -> Unit,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    id = id,
+    onBack = onBack,
+    toolbar = ToolbarModel(
+      leadingAccessory = BackAccessory(onClick = onBack)
+    ),
+    header = FormHeaderModel(
+      iconModel = IconModel(
+        icon = LargeIconWarningFilled,
+        iconSize = IconSize.Avatar,
+        iconTint = IconTint.Primary
+      ),
+      headline = "Multiple transactions to sign",
+      subline = "This transfer requires $transactionCount separate transactions. " +
+        "You'll need to approve each one on your Bitkey device."
+    ),
+    primaryButton = ButtonModel(
+      text = "Continue",
+      onClick = StandardClick { onContinue() },
+      size = Footer,
+      leadingIcon = Icon.SmallIconBitkey,
+      treatment = ButtonModel.Treatment.BitkeyInteraction
+    ),
+    eventTrackerShouldTrack = false
+  )
+
 fun sweepFailedScreenModel(
-  id: EventTrackerScreenId?,
+  id: EventTrackerScreenId,
   presentationStyle: ScreenPresentationStyle,
   errorData: ErrorData,
   onRetry: () -> Unit,
@@ -384,7 +435,7 @@ fun sweepFailedScreenModel(
 )
 
 private data class SweepFailedScreenBodyModel(
-  override val id: EventTrackerScreenId?,
+  override val id: EventTrackerScreenId,
   override val errorData: ErrorData,
   val onRetry: () -> Unit,
   val onExit: () -> Unit,

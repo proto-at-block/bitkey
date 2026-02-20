@@ -25,8 +25,9 @@ def _debug_unit_test(c, test_path):
 
     # https://lldb.llvm.org/use/remote.html
     test_path = BUILD_HOST_DIR.joinpath(test_path)
-    debug_server = subprocess.Popen(shlex.split(
-        f"{test_path} --debug"), start_new_session=True)
+    debug_server = subprocess.Popen(
+        shlex.split(f"{test_path} --debug"), start_new_session=True
+    )
 
     # Spawn the debug client.
     # c.run(f"echo 'gdb-remote localhost:1234' | lldb {test_path}")
@@ -35,7 +36,7 @@ def _debug_unit_test(c, test_path):
 
 
 class BuildVariant(Enum):
-    DEV = "dev",
+    DEV = "dev"
     PROD = "prod"
 
 
@@ -54,10 +55,10 @@ class Target:
 
     @property
     def variant(self) -> BuildVariant:
-        if "-prod" in self.target:
-            return BuildVariant.PROD
-        else:
+        if "-dev" in self.target or "mfgtest" in self.target:
             return BuildVariant.DEV
+        else:
+            return BuildVariant.PROD
 
     def loader(self, loader_name: str):
         if "app-" not in self.target:
@@ -93,13 +94,16 @@ class MesonBuild:
         platform: Optional[str] = None,
         build_dir: Optional[str] = None,
         ignore_codegen_cache: bool = False,
-        target: Optional[str] = None
+        target: Optional[str] = None,
     ):
         self._ctx = invoke_context
         self._ignore_codegen_cache = ignore_codegen_cache
         self._platform = platform if platform else self._ctx.platform
-        self._build_dir = build_dir.absolute() if build_dir else \
-            BUILD_ROOT_DIR.joinpath("firmware", self._platform).absolute()
+        self._build_dir = (
+            build_dir.absolute()
+            if build_dir
+            else BUILD_ROOT_DIR.joinpath("firmware", self._platform).absolute()
+        )
         self._platforms = Platforms()
         self._target = target if target else self._ctx.target
         self._targets = None
@@ -118,8 +122,9 @@ class MesonBuild:
     def targets(self):
         if not self._targets:
             with self._ctx.cd(self._build_dir):
-                self._targets = json.loads(self._ctx.run(
-                    "meson introspect --targets", hide=True).stdout)
+                self._targets = json.loads(
+                    self._ctx.run("meson introspect --targets", hide=True).stdout
+                )
         return self._targets
 
     @property
@@ -133,19 +138,22 @@ class MesonBuild:
 
     @cached_property
     def deprecated_hw_revisions(self) -> list:
-        return self.platform.get('deprecated_hw_revisions', [])
+        return self.platform.get("deprecated_hw_revisions", [])
 
     @property
     def is_bootloader(self) -> bool:
         # This is a bit hacky, since it assumes the bl name will not be in the app target name
-        return (self.platform['bootloader_image'] in self._target)
+        return self.platform["bootloader_image"] in self._target
 
     def filter_targets(self, targets, variant: BuildVariant) -> list:
         return [t for t in targets if Target(t).variant == variant]
 
     def build_firmware(self, all_targets=False, verbose=False):
-        targets = [str(Target(self._target).elf)
-                   ] if not all_targets else self._firmware_targets
+        targets = (
+            [str(Target(self._target).elf)]
+            if not all_targets
+            else self._firmware_targets
+        )
 
         dev_targets = self.filter_targets(targets, BuildVariant.DEV)
         prod_targets = self.filter_targets(targets, BuildVariant.PROD)
@@ -192,19 +200,23 @@ class MesonBuild:
                 def filter_test_targets(_target):
                     return self.filter_executables(_target, "test")
 
-                targets = map(self._target_to_build_path, filter(
-                    filter_test_targets, self.targets))
+                targets = map(
+                    self._target_to_build_path,
+                    filter(filter_test_targets, self.targets),
+                )
                 targets = " ".join(targets)
 
                 self._ctx.run(f"meson compile {verbose} {targets}")
 
     def build_fuzzers(self, verbose=False):
         with self._ctx.cd(self._build_dir):
+
             def filter_fuzz_targets(target):
                 return self.filter_executables(target, "fuzz")
 
-            targets = map(self._target_to_build_path, filter(
-                filter_fuzz_targets, self.targets))
+            targets = map(
+                self._target_to_build_path, filter(filter_fuzz_targets, self.targets)
+            )
             targets = " ".join(targets)
             verbose = "-v" if verbose else ""
 
@@ -234,8 +246,13 @@ class MesonBuild:
     def _firmware_targets(self):
         targets = []
         for target in self.targets:
-            if target["type"] in ["executable", "custom"] and self._platform in target["defined_in"] and \
-                    not any(rev in target["name"] for rev in self.deprecated_hw_revisions):
+            if (
+                target["type"] in ["executable", "custom"]
+                and self._platform in target["defined_in"]
+                and not any(
+                    rev in target["name"] for rev in self.deprecated_hw_revisions
+                )
+            ):
                 # Multiple platforms can define targets with the same name. Meson allows for this, but
                 # requires that you pass the full path to the target. We do that here:
                 targets.append(self._target_to_build_path(target))
@@ -258,13 +275,18 @@ class MesonBuild:
                 options = ()
                 if sys.platform == "darwin":
                     options = (
-                        "-Db_sanitize=address -Db_lundef=false -Dc_args='-std=gnu11'")
+                        "-Db_sanitize=address -Db_lundef=false -Dc_args='-std=gnu11'"
+                    )
                 else:
-                    options = ("-Db_sanitize=address -Db_lundef=false -Dc_args='-std=gnu11 -fprofile-instr-generate "
-                               "-fcoverage-mapping' -Dcpp_args='-fprofile-instr-generate -fcoverage-mapping'")
+                    options = (
+                        "-Db_sanitize=address -Db_lundef=false -Dc_args='-std=gnu11 -fprofile-instr-generate "
+                        "-fcoverage-mapping' -Dcpp_args='-fprofile-instr-generate -fcoverage-mapping'"
+                    )
             with self._ctx.cd(ROOT_DIR):
                 self._ctx.run(
-                    f"meson setup {self._build_dir} {cross_file_arg} {options}", pty=True)
+                    f"meson setup {self._build_dir} {cross_file_arg} {options}",
+                    pty=True,
+                )
 
     def _prebuild(self):
         # Build and relocate nanopb_pb2.py
@@ -273,7 +295,8 @@ class MesonBuild:
 
         # Run code generators
         ipc_codegen.generate_to_dir(
-            IPC_GENERATED_DIR, ignore_cache=self._ignore_codegen_cache)  # See lib/ipc/README.md for rationale on not doing purely this in Meson
+            IPC_GENERATED_DIR, ignore_cache=self._ignore_codegen_cache
+        )  # See lib/ipc/README.md for rationale on not doing purely this in Meson
 
         if self._platform == "posix":
             # patch nfc library for posix builds

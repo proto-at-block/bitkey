@@ -8,10 +8,7 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
-import build.wallet.ktor.result.EmptyRequestBody
-import build.wallet.ktor.result.NetworkingError
-import build.wallet.ktor.result.catching
-import build.wallet.ktor.result.setRedactedBody
+import build.wallet.ktor.result.*
 import build.wallet.mapUnit
 import com.github.michaelbull.result.Result
 import io.ktor.client.request.post
@@ -35,4 +32,19 @@ class OnboardingF8eClientImpl(
       }
       .mapUnit()
   }
+
+  override suspend fun completeOnboardingV2(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+  ): Result<CompleteOnboardingResponseV2, NetworkingError> =
+    f8eHttpClient
+      .authenticated()
+      .bodyResult<CompleteOnboardingResponseV2> {
+        post(urlString = "/api/v2/accounts/${fullAccountId.serverId}/complete-onboarding") {
+          withDescription("Complete onboarding V2")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          setRedactedBody(EmptyRequestBody)
+        }
+      }
 }

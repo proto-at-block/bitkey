@@ -134,6 +134,12 @@ class TransactionDetailsUiStateMachineImpl(
                     cause = error
                   )
                 },
+                onSpendBelowDust = { error ->
+                  uiState = FeeEstimationErrorUiState(
+                    error = FeeEstimationErrorUiError.SpendBelowDust,
+                    cause = error
+                  )
+                },
                 onFailedToPrepareData = { error ->
                   uiState = FeeEstimationErrorUiState(
                     error = FeeEstimationErrorUiError.Generic,
@@ -276,6 +282,7 @@ class TransactionDetailsUiStateMachineImpl(
     transaction: BitcoinTransaction,
     onFailedToPrepareData: (Throwable) -> Unit,
     onInsufficientFunds: (Throwable) -> Unit,
+    onSpendBelowDust: (Throwable) -> Unit,
     onFeeRateTooLow: (Throwable) -> Unit,
     onSuccessBumpingFee: (
       psbt: Psbt,
@@ -292,6 +299,7 @@ class TransactionDetailsUiStateMachineImpl(
         when (error) {
           SpeedUpTransactionError.InsufficientFunds -> onInsufficientFunds(BdkError.InsufficientFunds(null, null))
           SpeedUpTransactionError.FeeRateTooLow -> onFeeRateTooLow(BdkError.FeeRateTooLow(null, null))
+          SpeedUpTransactionError.OutputBelowDustLimit -> onSpendBelowDust(BdkError.OutputBelowDustLimit(null, null))
           SpeedUpTransactionError.FailedToPrepareData,
           SpeedUpTransactionError.TransactionNotReplaceable,
           -> onFailedToPrepareData(GenericSpeedUpError)

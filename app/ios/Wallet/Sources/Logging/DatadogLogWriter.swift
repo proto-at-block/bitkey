@@ -48,11 +48,15 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
             nil
         }
 
+        var attributes: [String: Encodable] = ["tag": tag]
+        if let appSessionId = logWriterContextStore.get().appSessionId {
+            attributes["app_session_id"] = appSessionId
+        }
         logger.log(
             level: severity.asLogLevel(),
             message: message,
             error: error,
-            attributes: ["tag": tag]
+            attributes: attributes
         )
     }
 }

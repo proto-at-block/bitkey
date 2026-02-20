@@ -33,7 +33,8 @@ use onboarding::routes::{
     AccountAddDeviceTokenRequest, AccountAddDeviceTokenResponse, AccountAddTouchpointRequest,
     AccountAddTouchpointResponse, AccountVerifyTouchpointRequest, AccountVerifyTouchpointResponse,
     ActivateSpendingKeyDefinitionRequest, ActivateSpendingKeyDefinitionResponse, BdkConfigResponse,
-    CompleteOnboardingRequest, CompleteOnboardingResponse, ContinueDistributedKeygenRequest,
+    CompleteOnboardingRequest, CompleteOnboardingRequestV2, CompleteOnboardingResponse,
+    CompleteOnboardingResponseV2, ContinueDistributedKeygenRequest,
     ContinueDistributedKeygenResponse, CreateAccountRequest, CreateAccountResponse,
     CreateKeysetRequest, CreateKeysetResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
@@ -309,13 +310,14 @@ impl TestClient {
         &self,
         account_id: &str,
         request: &AccountAddTouchpointRequest,
+        keys: Option<&TestAuthenticationKeys>,
     ) -> Response<AccountAddTouchpointResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/touchpoints"))
             .authenticated(
                 &AccountId::from_str(account_id).expect("Account id not valid"),
-                None,
-                None,
+                keys.map(|k| k.app.secret_key),
+                keys.map(|k| k.hw.secret_key),
             )
             .post(request)
             .call(&self.router)
@@ -363,6 +365,47 @@ impl TestClient {
                     None
                 },
                 if hw_signed {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    /// Activate touchpoint using ActionProof authentication header.
+    ///
+    /// This sends the request with the `Action-Proof` header instead of the legacy
+    /// `X-App-Signature` / `X-Hw-Signature` headers.
+    pub(crate) async fn activate_touchpoint_with_action_proof(
+        &self,
+        account_id: &str,
+        touchpoint_id: &str,
+        request: &PrivilegedActionRequest<AccountActivateTouchpointRequest>,
+        action: action_proof::Action,
+        field: action_proof::Field,
+        value: Option<&str>,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<PrivilegedActionResponse<AccountActivateTouchpointResponse>> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/touchpoints/{touchpoint_id}/activate"
+            ))
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).expect("Account id not valid"),
+                action,
+                field,
+                value,
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
                     Some(keys.hw.secret_key)
                 } else {
                     None
@@ -877,6 +920,29 @@ impl TestClient {
             .post(request)
             .call(&self.router)
             .await
+    }
+
+    pub(crate) async fn complete_onboarding_v2(
+        &self,
+        account_id: &str,
+        request: &CompleteOnboardingRequestV2,
+        keys: Option<&TestAuthenticationKeys>,
+    ) -> Response<CompleteOnboardingResponseV2> {
+        let account_id = AccountId::from_str(account_id).unwrap();
+        let mut builder =
+            Request::builder().uri(format!("/api/v2/accounts/{account_id}/complete-onboarding"));
+
+        builder = if let Some(keys) = keys {
+            builder.authenticated(
+                &account_id,
+                Some(keys.app.secret_key),
+                Some(keys.hw.secret_key),
+            )
+        } else {
+            builder.authenticated(&account_id, None, None)
+        };
+
+        builder.post(request).call(&self.router).await
     }
 
     pub(crate) async fn register_watch_address(

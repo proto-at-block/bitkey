@@ -27,7 +27,6 @@ import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
-import kotlinx.datetime.Instant
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
@@ -38,6 +37,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 @BitkeyInject(AppScope::class)
 class CloudBackupHealthRepositoryImpl(
@@ -49,7 +49,8 @@ class CloudBackupHealthRepositoryImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val jsonSerializer: JsonSerializer,
   private val cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
-  private val cloudBackupForceReuploadTimestampFeatureFlag: CloudBackupForceReuploadTimestampFeatureFlag,
+  private val cloudBackupForceReuploadTimestampFeatureFlag:
+    CloudBackupForceReuploadTimestampFeatureFlag,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val cloudBackupOperationLock: CloudBackupOperationLock,
 ) : CloudBackupHealthRepository {
@@ -153,7 +154,7 @@ class CloudBackupHealthRepositoryImpl(
       .toErrorIfNull { Error("No local backup found") }
       .logFailure { "Error finding local backup" }
       .get()
-    
+
     if (localCloudBackup == null) {
       // We are missing a local backup, so we can't validate the integrity of the cloud backup.
       // Mark backup as missing to let the customer
@@ -231,7 +232,7 @@ class CloudBackupHealthRepositoryImpl(
               } else {
                 // TODO(BKR-1155): do we need to perform additional integrity checks?
                 logInfo { "App key backup status check: backup is healthy (local matches cloud)" }
-                
+
                 // For V2 backups, preserve existing behavior: always return healthy with current time
                 // For V3 backups, use actual timestamp and check force reupload flag
                 when (cloudBackup) {
@@ -289,7 +290,9 @@ class CloudBackupHealthRepositoryImpl(
     val forceReuploadThreshold = try {
       Instant.parse(flagValue)
     } catch (e: IllegalArgumentException) {
-      logInfo { "Invalid timestamp format in cloud-backup-force-reupload-timestamp flag: $flagValue - ${e.message}" }
+      logInfo {
+        "Invalid timestamp format in cloud-backup-force-reupload-timestamp flag: $flagValue - ${e.message}"
+      }
       return false
     }
 

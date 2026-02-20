@@ -1,5 +1,6 @@
 package build.wallet.recovery
 
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
@@ -10,6 +11,7 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.csek.SealedSsek
+import build.wallet.crypto.PublicKey
 
 /**
  * Represents progress made towards a recovery locally. Each member represents
@@ -19,6 +21,10 @@ import build.wallet.cloud.backup.csek.SealedSsek
 sealed interface LocalRecoveryAttemptProgress {
   /**
    * User requested recovery. We generated keys but haven't told the server yet.
+   *
+   * @property originalAppGlobalAuthKey The original app global auth key from the keybox
+   *   before recovery. Only set for Lost Hardware recovery since there's an existing keybox.
+   *   Null for Lost App recovery since there's no pre-existing keybox.
    */
   data class CreatedPendingKeybundles(
     val fullAccountId: FullAccountId,
@@ -26,6 +32,7 @@ sealed interface LocalRecoveryAttemptProgress {
     val hwKeyBundle: HwKeyBundle,
     val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     val lostFactor: PhysicalFactor,
+    val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
   ) : LocalRecoveryAttemptProgress
 
   /**

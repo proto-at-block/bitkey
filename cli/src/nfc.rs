@@ -4,15 +4,17 @@ use std::{
     time::Duration,
 };
 
-use bdk::{
+use bdk_wallet::{
     bitcoin::{
         bip32::Fingerprint,
-        psbt::PartiallySignedTransaction,
+        psbt::Psbt,
         secp256k1::{ecdsa::Signature, PublicKey},
+        Network,
     },
     miniscript::{descriptor::DescriptorKeyParseError, DescriptorPublicKey},
 };
 use thiserror::Error;
+use wca::fwpb::BtcNetwork;
 use wca::{
     commands::{
         DeviceInfo, FirmwareMetadata, FwupFinish, FwupFinishRspStatus, FwupStart, FwupStartResult,
@@ -67,21 +69,21 @@ pub trait NFCTransactions {
     fn sign_message(&self, message: &[u8]) -> Result<Signature, TransactorError>;
     fn sign_transaction(
         &self,
-        psbt: PartiallySignedTransaction,
+        psbt: Psbt,
         fingerprint: Fingerprint,
-    ) -> Result<PartiallySignedTransaction, TransactorError>;
+    ) -> Result<Psbt, TransactorError>;
     fn device_info(&self) -> Result<DeviceInfo, TransactorError>;
     fn metadata(&self) -> Result<FirmwareMetadata, TransactorError>;
     fn upload(&mut self, upload: &Upload) -> Result<FwupFinishRspStatus, PairingError>;
     fn get_authentication_key(&self) -> Result<PublicKey, TransactorError>;
     fn get_initial_spending_key(
         &self,
-        network: bdk::bitcoin::Network,
+        network: Network,
     ) -> Result<DescriptorPublicKey, TransactorError>;
     fn get_next_spending_key(
         &self,
         existing: Vec<DescriptorPublicKey>,
-        network: bdk::bitcoin::Network,
+        network: Network,
     ) -> Result<DescriptorPublicKey, TransactorError>;
     fn wipe(&self) -> Result<WipeStateResult, TransactorError>;
 }
@@ -114,9 +116,9 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
 
     fn sign_transaction(
         &self,
-        psbt: PartiallySignedTransaction,
+        psbt: Psbt,
         fingerprint: Fingerprint,
-    ) -> Result<PartiallySignedTransaction, TransactorError> {
+    ) -> Result<Psbt, TransactorError> {
         self.perform(SignTransaction::new(psbt, fingerprint, false))
     }
 
@@ -133,6 +135,7 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
             None,
             wca::commands::FwupMode::Normal,
             wca::commands::McuRole::Core,
+            upload.version.clone(),
         ))? {
             FwupStartResult::Success { value: true } => {}
             FwupStartResult::Success { value: false } => return Err(PairingError::FwupStart),
@@ -159,17 +162,17 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
 
     fn get_initial_spending_key(
         &self,
-        network: bdk::bitcoin::Network,
+        network: Network,
     ) -> Result<DescriptorPublicKey, TransactorError> {
-        self.perform(GetInitialSpendingKey::new(network.into()))
+        self.perform(GetInitialSpendingKey::new(to_btc_network(network)))
     }
 
     fn get_next_spending_key(
         &self,
         existing: Vec<DescriptorPublicKey>,
-        network: bdk::bitcoin::Network,
+        network: Network,
     ) -> Result<DescriptorPublicKey, TransactorError> {
-        self.perform(GetNextSpendingKey::new(existing, network.into()))
+        self.perform(GetNextSpendingKey::new(existing, to_btc_network(network)))
     }
 
     fn wipe(&self) -> Result<WipeStateResult, TransactorError> {
@@ -187,6 +190,7 @@ pub struct Upload {
     pub app_properties_offset: u32,
     pub application: Asset,
     pub signature: Asset,
+    pub version: String,
 }
 
 fn upload_asset<T: Transactor + ?Sized>(
@@ -231,4 +235,13 @@ fn upload_asset<T: Transactor + ?Sized>(
     bar.finish_and_clear();
 
     Ok(())
+}
+
+fn to_btc_network(network: Network) -> BtcNetwork {
+    match network {
+        Network::Bitcoin => BtcNetwork::Bitcoin,
+        Network::Testnet | Network::Testnet4 => BtcNetwork::Testnet,
+        Network::Signet => BtcNetwork::Signet,
+        Network::Regtest => BtcNetwork::Regtest,
+    }
 }

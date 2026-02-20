@@ -29,8 +29,10 @@
 #include "wallet.pb.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 
-#define WDOG_REFRESH_MS (1000)
+#define SYSINFO_WDOG_REFRESH_MS      (1000)
+#define SYSINFO_BITLOG_SAVE_DELAY_MS (50)
 
 extern char active_slot[];
 extern power_config_t power_config;
@@ -38,18 +40,21 @@ extern power_config_t power_config;
 static struct {
   rtos_queue_t* queue;
   rtos_timer_t wdog_timer;
+  rtos_timer_t shutdown_timer;
   uint32_t power_timeout_ms;
   uint32_t wdog_timer_refresh_ms;
   platform_hwrev_t hwrev;
   rtos_timer_t cap_touch_cal_timer;
   rtos_mutex_t kv_mutex;
+  bool ship_state_active;
 } sysinfo_task_priv SHARED_TASK_DATA = {
   .queue = NULL,
   .wdog_timer = {0},
-  .wdog_timer_refresh_ms = WDOG_REFRESH_MS,
+  .wdog_timer_refresh_ms = SYSINFO_WDOG_REFRESH_MS,
   .hwrev = 0,
   .cap_touch_cal_timer = {0},
   .kv_mutex = {0},
+  .ship_state_active = false,
 };
 
 static bool kv_mutex_lock(void) {
@@ -61,12 +66,22 @@ static bool kv_mutex_unlock(void) {
 }
 
 static void power_system_down_callback(rtos_timer_handle_t UNUSED(timer)) {
-  sysinfo_task_port_prepare_sleep_and_power_down();
+  sysinfo_task_port_prepare_power_down();
 }
 
 static void wdog_feed_callback(rtos_timer_handle_t UNUSED(timer)) {
   mcu_wdog_feed();
   rtos_timer_restart(&sysinfo_task_priv.wdog_timer);
+}
+
+static void _sysinfo_task_shutdown_timer_callback(rtos_timer_handle_t UNUSED(timer)) {
+  // Device failed to shutdown before shutdown timer expired, so we're
+  // falling back to force power off.
+  BITLOG_EVENT(sleep_prep_timeout, 0);
+
+  // Give bitlog time to save.
+  rtos_thread_sleep(SYSINFO_BITLOG_SAVE_DELAY_MS);
+  sysinfo_task_port_power_down();
 }
 
 void copy_metadata_to_proto(metadata_t* metadata, fwpb_firmware_metadata* proto) {
@@ -97,6 +112,7 @@ void handle_meta_cmd(ipc_ref_t* message) {
   fwpb_wallet_rsp* rsp = proto_get_rsp();
 
   rsp->which_msg = fwpb_wallet_rsp_meta_rsp_tag;
+  rsp->msg.meta_rsp.mcu_role = cmd->msg.meta_cmd.mcu_role;
 
   metadata_t metadata = {0};
   rsp->msg.meta_rsp.meta_bl.valid = metadata_get(META_TGT_BL, &metadata) == METADATA_VALID;
@@ -180,11 +196,37 @@ void handle_fuel_cmd(ipc_ref_t* message) {
   proto_send_rsp(cmd, rsp);
 }
 
-void handle_coredump_get(ipc_ref_t* message) {
+void handle_ship_state_cmd(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
+  rsp->which_msg = fwpb_wallet_rsp_ship_state_rsp_tag;
 
+  // Enable ship state flag - LDO will be disabled during shutdown sequence
+  sysinfo_task_priv.ship_state_active = true;
+  LOGI("Ship state enabled - LDO will be disabled on next shutdown");
+
+  // Optionally trigger shutdown
+  if (cmd->msg.ship_state_cmd.shutdown_after) {
+    uint32_t timeout = cmd->msg.ship_state_cmd.shutdown_timeout_ms > 0
+                         ? cmd->msg.ship_state_cmd.shutdown_timeout_ms
+                         : 5000;
+    sleep_start_power_timer_with_timeout(timeout);
+  }
+
+  rsp->msg.ship_state_rsp.rsp_status = fwpb_ship_state_rsp_ship_state_rsp_status_SUCCESS;
+  proto_send_rsp(cmd, rsp);
+}
+
+void handle_coredump_get(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  if (cmd->msg.coredump_get_cmd.mcu_role != fwpb_mcu_role_MCU_ROLE_CORE) {
+    sysinfo_task_request_coproc_coredump(cmd);
+    return;
+  }
+
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
   rsp->which_msg = fwpb_wallet_rsp_coredump_get_rsp_tag;
+  rsp->msg.coredump_get_rsp.mcu_role = cmd->msg.coredump_get_cmd.mcu_role;
 
   switch (cmd->msg.coredump_get_cmd.type) {
     case fwpb_coredump_get_cmd_coredump_get_type_COUNT:
@@ -203,21 +245,26 @@ void handle_coredump_get(ipc_ref_t* message) {
       break;
     default:
       rsp->msg.coredump_get_rsp.rsp_status = fwpb_coredump_get_rsp_coredump_get_rsp_status_ERROR;
-      goto out;
+      break;
   }
 
-out:
   proto_send_rsp(cmd, rsp);
 }
 
 void handle_events_get(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  if (cmd->msg.events_get_cmd.mcu_role != fwpb_mcu_role_MCU_ROLE_CORE) {
+    sysinfo_task_request_coproc_events(cmd);
+    return;
+  }
+
   fwpb_wallet_rsp* rsp = proto_get_rsp();
 
   uint32_t written = 0;
 
   rsp->which_msg = fwpb_wallet_rsp_events_get_rsp_tag;
 
+  rsp->msg.events_get_rsp.mcu_role = cmd->msg.events_get_cmd.mcu_role;
   rsp->msg.events_get_rsp.has_fragment = true;
   rsp->msg.events_get_rsp.fragment.remaining_size =
     bitlog_drain(rsp->msg.events_get_rsp.fragment.data.bytes,
@@ -610,6 +657,8 @@ void handle_device_info(ipc_ref_t* message) {
 
   bio_match_stats_clear();  // Clear to avoid duplicate reporting
 
+  sysinfo_task_port_populate_mcu_info(&rsp->msg.device_info_rsp);
+
   rsp->msg.device_info_rsp.rsp_status = fwpb_device_info_rsp_device_info_rsp_status_SUCCESS;
 
 out:
@@ -680,6 +729,9 @@ void sysinfo_thread(void* UNUSED(args)) {
       case IPC_PROTO_FUEL_CMD:
         handle_fuel_cmd(&message);
         break;
+      case IPC_PROTO_SHIP_STATE_CMD:
+        handle_ship_state_cmd(&message);
+        break;
       case IPC_PROTO_COREDUMP_GET_CMD:
         handle_coredump_get(&message);
         break;
@@ -725,14 +777,28 @@ void sysinfo_thread(void* UNUSED(args)) {
       case IPC_SYSINFO_COPROC_METADATA:
         sysinfo_task_handle_coproc_metadata(&message);
         break;
-      case IPC_SYSINFO_POWER_OFF:
-        LOGI("[Sysinfo] Power off requested");
-        sysinfo_task_port_prepare_sleep_and_power_down();
+      case IPC_SYSINFO_COPROC_COREDUMP:
+        sysinfo_task_handle_coproc_coredump(&message);
         break;
-      case IPC_SYSINFO_UXC_SLEEP_READY:
-        LOGD("UXC sleep ready, powering down");
-        power_set_ldo_low_power_mode();  // Reduce LDO quiescent current before sleep
-        power_set_retain(false);
+      case IPC_SYSINFO_COPROC_EVENTS:
+        sysinfo_task_handle_coproc_events(&message);
+        break;
+      case IPC_SYSINFO_POWER_OFF_REQUESTED:
+        LOGI("[Sysinfo] Power off requested");
+        sysinfo_task_port_prepare_power_down();
+        break;
+      case IPC_SYSINFO_POWER_OFF:
+        LOGI("[Sysinfo] Powering off device");
+        sysinfo_task_port_power_down();
+        break;
+      case IPC_PROTO_GET_CONFIRMATION_RESULT_CMD:
+        if (!sysinfo_task_port_dispatch_confirmation_result(&message)) {
+          LOGE("No handler registered for pending confirmation type");
+          fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message.object, message.length);
+          fwpb_wallet_rsp* rsp = proto_get_rsp();
+          rsp->status = fwpb_status_ERROR;
+          proto_send_rsp(cmd, rsp);
+        }
         break;
       default:
         LOGE("unknown message %ld", message.tag);
@@ -758,4 +824,14 @@ void sysinfo_task_create(const platform_hwrev_t hwrev) {
   rtos_mutex_create(&sysinfo_task_priv.kv_mutex);
 
   rtos_timer_create_static(&sysinfo_task_priv.wdog_timer, wdog_feed_callback);
+  rtos_timer_create_static(&sysinfo_task_priv.shutdown_timer,
+                           _sysinfo_task_shutdown_timer_callback);
+}
+
+void sysinfo_task_start_shutdown_timer(uint32_t timeout_ms) {
+  rtos_timer_start(&sysinfo_task_priv.shutdown_timer, timeout_ms);
+}
+
+bool sysinfo_task_in_ship_state(void) {
+  return sysinfo_task_priv.ship_state_active;
 }

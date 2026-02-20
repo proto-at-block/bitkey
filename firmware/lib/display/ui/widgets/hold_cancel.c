@@ -12,29 +12,39 @@
 #include <string.h>
 
 // Layout configuration
-#define ICON_SIZE              80
-#define ICON_COLOR_GREY        0x555555  // Grey (default state)
-#define ICON_COLOR_RED         0xF84752  // Red (completed state)
-#define ICON_COLOR_BLACK       0x000000  // Black
-#define OVERLAY_OPA            230       // 90% opacity
+#define ICON_SIZE              120
+#define ICON_COLOR_GREY        0x404040      // Grey (default state)
+#define ICON_COLOR_RED         0xF84752      // Red (completed state)
+#define ICON_COLOR_BLACK       0x000000      // Black
+#define ICON_COLOR_GREEN       0xD1FB96      // Green (success state)
+#define OVERLAY_OPA            LV_OPA_COVER  // Fully opaque
 #define DISMISS_BTN_WIDTH      60
-#define DISMISS_BTN_HEIGHT     44
+#define DISMISS_BTN_HEIGHT     36
 #define DISMISS_BTN_RADIUS     22
-#define DISMISS_BTN_TOP_MARGIN 20
-#define CANCEL_LABEL_OFFSET    56  // Offset below icon center
+#define DISMISS_BTN_TOP_MARGIN 32
+#define CANCEL_LABEL_Y         80    // Y offset below vertical center
+#define HOLD_LABEL_TOP_MARGIN  80    // Top margin for HOLD label
+#define COMPLETION_DELAY_MS    3000  // Delay before triggering callback after hold completes
+#define COMPLETED_ICON_Y \
+  (-20)  // Y offset from center for completed checkmark (matches confirmed page)
+#define COMPLETED_LABEL_Y 60  // Y offset from center for completed label (matches confirmed page)
 
 // Fonts
-LV_FONT_DECLARE(cash_sans_mono_regular_24);
-#define FONT_CANCEL (&cash_sans_mono_regular_24)
+LV_FONT_DECLARE(cash_sans_mono_regular_30);
+LV_FONT_DECLARE(cash_sans_mono_regular_26);
+#define FONT_CANCEL (&cash_sans_mono_regular_30)
+#define FONT_HOLD   (&cash_sans_mono_regular_26)
 
 // External images
 extern const lv_img_dsc_t cross;
 extern const lv_img_dsc_t back_arrow;
+extern const lv_img_dsc_t check;
 
 // Forward declarations
 static void dismiss_button_handler(lv_event_t* e);
 static void hold_handler(lv_event_t* e);
 static void on_hold_complete(void* user_data);
+static void completion_timer_cb(lv_timer_t* timer);
 
 void hold_cancel_create(lv_obj_t* parent, hold_cancel_t* modal) {
   ASSERT(parent != NULL);
@@ -63,6 +73,7 @@ void hold_cancel_show_with_text(hold_cancel_t* modal, hold_cancel_complete_cb_t 
   modal->initial_text = initial_text;
   modal->completed_text = completed_text;
   modal->hold_completed = false;
+  modal->complete_timer = NULL;
 
   // Create semi-transparent black overlay
   // Ensure parent is valid before creating
@@ -108,6 +119,25 @@ void hold_cancel_show_with_text(hold_cancel_t* modal, hold_cancel_complete_cb_t 
   lv_img_set_src(modal->icon_x, &cross);
   lv_obj_center(modal->icon_x);
 
+  // Create check icon centered in circle (hidden initially, shown on completion)
+  modal->icon_check = lv_img_create(modal->icon_bg);
+  if (modal->icon_check) {
+    lv_img_set_src(modal->icon_check, &check);
+    lv_obj_center(modal->icon_check);
+    lv_obj_add_flag(modal->icon_check, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // Create HOLD label at top (hidden initially, shown while holding)
+  modal->hold_label = lv_label_create(modal->overlay);
+  if (modal->hold_label) {
+    lv_label_set_text(modal->hold_label, langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_HOLD));
+    lv_obj_set_style_text_color(modal->hold_label, lv_color_hex(ICON_COLOR_RED), 0);
+    lv_obj_set_style_text_font(modal->hold_label, FONT_HOLD, 0);
+    lv_obj_set_style_text_align(modal->hold_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(modal->hold_label, LV_ALIGN_TOP_MID, 0, HOLD_LABEL_TOP_MARGIN);
+    lv_obj_add_flag(modal->hold_label, LV_OBJ_FLAG_HIDDEN);
+  }
+
   // Create label below the icon (use custom text if provided, otherwise use default langpack)
   modal->cancel_label = lv_label_create(modal->overlay);
   if (modal->cancel_label) {
@@ -117,12 +147,12 @@ void hold_cancel_show_with_text(hold_cancel_t* modal, hold_cancel_complete_cb_t 
     lv_obj_set_style_text_color(modal->cancel_label, lv_color_white(), 0);
     lv_obj_set_style_text_font(modal->cancel_label, FONT_CANCEL, 0);
     lv_obj_set_style_text_align(modal->cancel_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(modal->cancel_label, LV_ALIGN_CENTER, 0, CANCEL_LABEL_OFFSET);
+    lv_obj_align(modal->cancel_label, LV_ALIGN_TOP_MID, 0, (LV_VER_RES / 2) + CANCEL_LABEL_Y);
   }
 
-  // Create red hold ring on the overlay
-  memset(&modal->ring, 0, sizeof(hold_ring_t));
-  hold_ring_create(modal->overlay, &modal->ring);
+  // Create red dot ring on the overlay
+  memset(&modal->ring, 0, sizeof(dot_ring_t));
+  dot_ring_create(modal->overlay, &modal->ring);
 
   // Create dismiss button (pill with back arrow) - same style as top_back widget
   modal->dismiss_btn_container = lv_obj_create(modal->overlay);
@@ -137,6 +167,7 @@ void hold_cancel_show_with_text(hold_cancel_t* modal, hold_cancel_complete_cb_t 
     lv_obj_clear_flag(modal->dismiss_btn_container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(modal->dismiss_btn_container, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_align(modal->dismiss_btn_container, LV_ALIGN_TOP_MID, 0, DISMISS_BTN_TOP_MARGIN);
+    lv_obj_set_ext_click_area(modal->dismiss_btn_container, 40);  // Match top_back widget
     lv_obj_add_event_cb(modal->dismiss_btn_container, dismiss_button_handler, LV_EVENT_CLICKED,
                         modal);
 
@@ -162,8 +193,14 @@ void hold_cancel_hide(hold_cancel_t* modal) {
   // Mark as not showing first to prevent recursive calls
   modal->is_showing = false;
 
+  // Clean up completion timer if running
+  if (modal->complete_timer) {
+    lv_timer_del(modal->complete_timer);
+    modal->complete_timer = NULL;
+  }
+
   // Clean up widgets
-  hold_ring_destroy(&modal->ring);
+  dot_ring_destroy(&modal->ring);
 
   // Delete overlay
   if (modal->overlay && lv_obj_is_valid(modal->overlay)) {
@@ -175,7 +212,9 @@ void hold_cancel_hide(hold_cancel_t* modal) {
   modal->overlay = NULL;
   modal->icon_bg = NULL;
   modal->icon_x = NULL;
+  modal->icon_check = NULL;
   modal->cancel_label = NULL;
+  modal->hold_label = NULL;
   modal->dismiss_btn_container = NULL;
   modal->dismiss_btn_icon = NULL;
 }
@@ -215,6 +254,14 @@ static void hold_handler(lv_event_t* e) {
   }
 
   if (code == LV_EVENT_PRESSED) {
+    // Show HOLD label and hide dismiss button
+    if (modal->hold_label) {
+      lv_obj_clear_flag(modal->hold_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (modal->dismiss_btn_container) {
+      lv_obj_add_flag(modal->dismiss_btn_container, LV_OBJ_FLAG_HIDDEN);
+    }
+
     // While holding: X → black, circle → red
     if (modal->icon_x) {
       lv_obj_set_style_img_recolor(modal->icon_x, lv_color_black(), 0);
@@ -224,17 +271,27 @@ static void hold_handler(lv_event_t* e) {
       lv_obj_set_style_bg_color(modal->icon_bg, lv_color_hex(ICON_COLOR_RED), 0);
     }
 
-    hold_ring_start(&modal->ring, HOLD_RING_COLOR_RED, on_hold_complete, modal);
+    dot_ring_show(&modal->ring);
+    dot_ring_animate_fill(&modal->ring, 100, 2000, DOT_RING_COLOR_RED, DOT_RING_FILL_SPLIT,
+                          on_hold_complete, modal);
   } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
     // Check if hold was completed
     if (modal->hold_completed) {
-      // Hold completed and now released - trigger callback
-      // Don't hide modal here - let it stay visible until screen transitions
-      // The modal will be cleaned up when the screen is destroyed
-      if (modal->complete_cb) {
+      // Hold completed - the timer will trigger the callback after the delay
+      // If timer is NULL (failed to create or already fired), trigger callback now
+      if (!modal->complete_timer && modal->complete_cb) {
         modal->complete_cb(modal->user_data);
       }
+      return;
     } else {
+      // Hide HOLD label and show dismiss button
+      if (modal->hold_label) {
+        lv_obj_add_flag(modal->hold_label, LV_OBJ_FLAG_HIDDEN);
+      }
+      if (modal->dismiss_btn_container) {
+        lv_obj_clear_flag(modal->dismiss_btn_container, LV_OBJ_FLAG_HIDDEN);
+      }
+
       // Released before completing - revert to original (X → white, circle → grey, text → initial)
       if (modal->cancel_label) {
         const char* text = modal->initial_text
@@ -249,7 +306,8 @@ static void hold_handler(lv_event_t* e) {
         lv_obj_set_style_bg_color(modal->icon_bg, lv_color_hex(ICON_COLOR_GREY), 0);
       }
 
-      hold_ring_stop(&modal->ring);
+      dot_ring_stop(&modal->ring);
+      dot_ring_hide(&modal->ring);
     }
   }
 }
@@ -261,26 +319,72 @@ static void on_hold_complete(void* user_data) {
     return;
   }
 
-  // Destroy the hold ring immediately to free memory
-  hold_ring_destroy(&modal->ring);
-
   // Mark hold as completed
   modal->hold_completed = true;
 
-  // On complete: Text → completed text, X → red, circle → black
+  // Keep the ring visible at 100% - don't destroy it
+  // The ring will be cleaned up when the modal is hidden/destroyed
+
+  // Hide HOLD label
+  if (modal->hold_label) {
+    lv_obj_add_flag(modal->hold_label, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // On complete: Text → completed text
   if (modal->cancel_label) {
     const char* text = modal->completed_text
                          ? modal->completed_text
                          : langpack_get_string(LANGPACK_ID_HOLD_CANCEL_CANCELLED);
     lv_label_set_text(modal->cancel_label, text);
   }
+
+  // Hide X icon and circle
   if (modal->icon_x) {
-    lv_obj_set_style_img_recolor(modal->icon_x, lv_color_hex(ICON_COLOR_RED), 0);
-    lv_obj_set_style_img_recolor_opa(modal->icon_x, LV_OPA_COVER, 0);
+    lv_obj_add_flag(modal->icon_x, LV_OBJ_FLAG_HIDDEN);
   }
   if (modal->icon_bg) {
-    lv_obj_set_style_bg_color(modal->icon_bg, lv_color_black(), 0);
+    lv_obj_add_flag(modal->icon_bg, LV_OBJ_FLAG_HIDDEN);
   }
 
-  // Now wait for user to release - callback and hide will happen in hold_handler
+  // Show check icon with red color to match the ring
+  // Reparent to overlay and position to match confirmed page alignment
+  if (modal->icon_check) {
+    lv_obj_set_parent(modal->icon_check, modal->overlay);
+    lv_obj_clear_flag(modal->icon_check, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_img_recolor(modal->icon_check, lv_color_hex(ICON_COLOR_RED), 0);
+    lv_obj_set_style_img_recolor_opa(modal->icon_check, LV_OPA_COVER, 0);
+    lv_obj_align(modal->icon_check, LV_ALIGN_CENTER, 0, COMPLETED_ICON_Y);
+  }
+
+  // Update the label color and position to match confirmed page alignment
+  if (modal->cancel_label) {
+    lv_obj_set_style_text_color(modal->cancel_label, lv_color_hex(ICON_COLOR_RED), 0);
+    lv_obj_align(modal->cancel_label, LV_ALIGN_CENTER, 0, COMPLETED_LABEL_Y);
+  }
+
+  // Start timer for completion delay - callback will be triggered after the delay
+  modal->complete_timer = lv_timer_create(completion_timer_cb, COMPLETION_DELAY_MS, modal);
+  if (modal->complete_timer) {
+    lv_timer_set_repeat_count(modal->complete_timer, 1);
+  } else {
+    // Timer creation failed - trigger callback immediately as fallback
+    if (modal->complete_cb) {
+      modal->complete_cb(modal->user_data);
+    }
+  }
+}
+
+static void completion_timer_cb(lv_timer_t* timer) {
+  hold_cancel_t* modal = (hold_cancel_t*)lv_timer_get_user_data(timer);
+
+  if (!modal) {
+    return;
+  }
+
+  modal->complete_timer = NULL;
+
+  // Trigger the complete callback after the delay
+  if (modal->complete_cb) {
+    modal->complete_cb(modal->user_data);
+  }
 }

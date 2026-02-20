@@ -88,21 +88,33 @@ impl fmt::Display for WSMSupportedDomain {
 #[cfg(test)]
 mod tests {
     use crate::derivation::{CoinType, WSMSupportedDomain};
-    use bitcoin::bip32::DerivationPath;
+    use bitcoin::bip32::{ChildNumber, DerivationPath};
 
     #[test]
     fn test_derivation_path() {
         assert_eq!(
-            DerivationPath::from(WSMSupportedDomain::Config).to_string(),
-            "m/212152'/0'/0'".to_string()
+            DerivationPath::from(WSMSupportedDomain::Config),
+            DerivationPath::from(vec![
+                ChildNumber::Hardened { index: 212152 },
+                ChildNumber::Hardened { index: 0 },
+                ChildNumber::Hardened { index: 0 }
+            ]),
         );
         assert_eq!(
-            DerivationPath::from(WSMSupportedDomain::Spend(CoinType::Bitcoin)).to_string(),
-            "m/84'/0'/0'".to_string()
+            DerivationPath::from(WSMSupportedDomain::Spend(CoinType::Bitcoin)),
+            DerivationPath::from(vec![
+                ChildNumber::Hardened { index: 84 },
+                ChildNumber::Hardened { index: 0 },
+                ChildNumber::Hardened { index: 0 }
+            ]),
         );
         assert_eq!(
-            DerivationPath::from(WSMSupportedDomain::Spend(CoinType::Testnet)).to_string(),
-            "m/84'/1'/0'".to_string()
+            DerivationPath::from(WSMSupportedDomain::Spend(CoinType::Testnet)),
+            DerivationPath::from(vec![
+                ChildNumber::Hardened { index: 84 },
+                ChildNumber::Hardened { index: 1 },
+                ChildNumber::Hardened { index: 0 }
+            ]),
         )
     }
 

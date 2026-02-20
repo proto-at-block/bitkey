@@ -16,7 +16,7 @@ interface CoachmarkDao {
    */
   suspend fun insertCoachmark(
     id: CoachmarkIdentifier,
-    expiration: Instant,
+    expiration: Instant?,
   ): Result<Unit, Error>
 
   /**

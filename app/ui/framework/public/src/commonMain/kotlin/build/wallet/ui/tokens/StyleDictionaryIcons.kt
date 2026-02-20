@@ -98,6 +98,7 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       SmallIconEmail -> Res.drawable.small_icon_email
       SmallIconExternal -> Res.drawable.small_icon_external
       SmallIconFingerprint -> Res.drawable.small_icon_fingerprint
+      SmallIconFloat -> Res.drawable.small_icon_float
       SmallIconInformation -> Res.drawable.small_icon_information
       SmallIconInformationFilled -> Res.drawable.small_icon_information_filled
       SmallIconInheritance -> Res.drawable.small_icon_inheritance

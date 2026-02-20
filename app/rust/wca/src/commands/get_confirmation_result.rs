@@ -15,6 +15,8 @@ use crate::command_interface::command;
 pub enum ConfirmedCommandResult {
     WipeState { success: bool },
     FwupStart { success: bool },
+    ChunkedDataAvailable { total_size: u32 },
+    SignActionProof { signature: Vec<u8> },
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
@@ -63,7 +65,19 @@ fn get_confirmation_result(
                     Err(_) => Err(CommandError::InvalidResponse),
                 }
             }
+            Some(ConfirmationResult::ChunkedDataAvailable(chunked_info)) => {
+                Ok(ConfirmedCommandResult::ChunkedDataAvailable {
+                    total_size: chunked_info.total_size,
+                })
+            }
+            Some(ConfirmationResult::SignActionProofResult(sign_rsp)) => {
+                Ok(ConfirmedCommandResult::SignActionProof {
+                    signature: sign_rsp.signature,
+                })
+            }
             None => Err(CommandError::MissingMessage),
+            // GetAddressResult is not expected through confirmation protocol
+            _ => Err(CommandError::InvalidResponse),
         }
     } else {
         Err(CommandError::MissingMessage)
@@ -81,8 +95,8 @@ mod tests {
         errors::CommandError,
         fwpb::{
             get_confirmation_result_rsp::Result as ConfirmationResult, wallet_rsp::Msg,
-            wipe_state_rsp::WipeStateRspStatus, GetConfirmationResultRsp, Status, WalletRsp,
-            WipeStateRsp,
+            wipe_state_rsp::WipeStateRspStatus, ChunkedDataInfo, GetConfirmationResultRsp,
+            SignActionProofRsp, Status, WalletRsp, WipeStateRsp,
         },
     };
 
@@ -138,6 +152,65 @@ mod tests {
             command.next(response),
             Err(CommandError::MissingMessage)
         ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn get_confirmation_result_chunked_data_available() -> Result<(), CommandError> {
+        let command =
+            GetConfirmationResult::new(vec![0x01, 0x02, 0x03, 0x04], vec![0x05, 0x06, 0x07, 0x08]);
+        command.next(Vec::default())?;
+
+        let total_size = 1234u32;
+        let response = make_response(WalletRsp {
+            status: Status::Success.into(),
+            msg: Some(Msg::GetConfirmationResultRsp(GetConfirmationResultRsp {
+                result: Some(ConfirmationResult::ChunkedDataAvailable(ChunkedDataInfo {
+                    total_size,
+                })),
+            })),
+            ..Default::default()
+        });
+
+        assert!(matches!(
+            command.next(response),
+            Ok(State::Result {
+                value: ConfirmedCommandResult::ChunkedDataAvailable { total_size: 1234 }
+            })
+        ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn get_confirmation_result_sign_action_proof_success() -> Result<(), CommandError> {
+        let command =
+            GetConfirmationResult::new(vec![0x01, 0x02, 0x03, 0x04], vec![0x05, 0x06, 0x07, 0x08]);
+        command.next(Vec::default())?;
+
+        let signature = vec![0u8; 65];
+
+        let response = make_response(WalletRsp {
+            status: Status::Success.into(),
+            msg: Some(Msg::GetConfirmationResultRsp(GetConfirmationResultRsp {
+                result: Some(ConfirmationResult::SignActionProofResult(
+                    SignActionProofRsp {
+                        signature: signature.clone(),
+                    },
+                )),
+            })),
+            ..Default::default()
+        });
+
+        match command.next(response) {
+            Ok(State::Result {
+                value: ConfirmedCommandResult::SignActionProof { signature: sig },
+            }) => {
+                assert_eq!(sig, signature);
+            }
+            other => panic!("Expected SignActionProof success, got {:?}", other),
+        }
 
         Ok(())
     }

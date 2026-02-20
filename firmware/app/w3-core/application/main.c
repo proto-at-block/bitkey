@@ -1,6 +1,9 @@
 #include "app.h"
 #include "bio.h"
+#include "confirmation_manager.h"
+#include "ecc.h"
 #include "exti.h"
+#include "psbt.h"
 
 // These are here instead of in sysinfo.c because propagating cflags to dependencies
 // in Meson is hard (impossible?).
@@ -54,6 +57,9 @@ NO_OPTIMIZE int main(void) {
   SECURE_DO_ONCE({ se_configure_active_mode(SECURE_TRUE); });
   SECURE_DO_ONCE({ tamper_init(); });
   SECURE_DO_ONCE({ canary_init(); });
+  SECURE_DO_ONCE({ crypto_ecc_secp256k1_init(); });
+
+  psbt_lib_init();
 
   bitlog_init((bitlog_api_t){
     .timestamp_cb = &rtos_thread_systime,
@@ -64,6 +70,8 @@ NO_OPTIMIZE int main(void) {
     .set_drain_all = &memfault_port_drain_all,
     .set_drain_only_events = &memfault_port_drain_only_events,
   });
+
+  confirmation_manager_init();
 
   secure_nfc_channel_init();
   secure_uart_channel_init(SECURE_UART_CHANNEL_CORE);
@@ -83,7 +91,20 @@ NO_OPTIMIZE int main(void) {
   bio_hal_init();
 
   // Initialize UXC comms.
-  uc_init((uc_send_callback_t)mcu_usart_write, (void*)&comms_usart_config);
+  // No message encryption on MFG test devices
+#ifdef MFGTEST
+  uc_init((uc_send_callback_t)mcu_usart_write, NULL, (void*)&comms_usart_config);
+  sysevent_set(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED);
+#else
+  uc_crypto_api_t crypto_api = {
+    .gcm_encrypt = &secure_uart_channel_encrypt,
+    .gcm_decrypt = &secure_uart_channel_decrypt,
+    .check_recv_seq = &secure_uart_channel_check_recv_seq_number,
+    .get_send_seq = &secure_uart_channel_get_send_seq_number,
+  };
+  uc_init((uc_send_callback_t)mcu_usart_write, &crypto_api, (void*)&comms_usart_config);
+#endif
+
   usart_task_create(&comms_usart_config, uc_handle_data, uc_idle, &comms_usart_config);
 
   ui_task_create();  // Start after UC (dependancy)
@@ -95,6 +116,7 @@ NO_OPTIMIZE int main(void) {
   mfgtest_task_create();
   fwup_task_create((fwup_task_options_t){
     .bl_upgrade = true,
+    .confirmation = SECURE_FALSE,
   });
   auth_task_create(true);
 #else
@@ -102,6 +124,7 @@ NO_OPTIMIZE int main(void) {
   auth_task_create(false);
   fwup_task_create((fwup_task_options_t){
     .bl_upgrade = false,
+    .confirmation = SECURE_TRUE,
   });
 #endif
 

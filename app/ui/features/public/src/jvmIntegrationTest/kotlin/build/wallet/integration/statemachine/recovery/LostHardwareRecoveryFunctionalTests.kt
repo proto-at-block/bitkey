@@ -1,9 +1,13 @@
 package build.wallet.integration.statemachine.recovery
 
 import app.cash.turbine.ReceiveTurbine
+import bitkey.recovery.fundslost.AtRiskCause
+import bitkey.recovery.fundslost.FundsLostRiskLevel
+import bitkey.recovery.fundslost.FundsLostRiskLevel.AtRisk
 import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
+import build.wallet.availability.AppFunctionalityStatus.FullFunctionality
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.money.BitcoinMoney.Companion.sats
@@ -38,10 +42,14 @@ import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.ui.model.alert.ButtonAlertModel
+import build.wallet.ui.model.status.BannerStyle
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -49,6 +57,35 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   suspend fun AppTester.prepareApp(delayNotifyDuration: Duration = 1.seconds) {
     onboardFullAccountWithFakeHardware(delayNotifyDuration = delayNotifyDuration)
     fakeNfcCommands.wipeDevice()
+  }
+
+  testForLegacyAndPrivateWallet("wallet at risk banner after wiping hardware with zero balance") { app ->
+    app.onboardFullAccountWithFakeHardware()
+    app.shouldHaveTotalBalance(sats(0))
+    app.fakeNfcCommands.wipeDevice()
+    (app.fundsRiskLossService.riskLevel() as? MutableStateFlow<FundsLostRiskLevel>)
+      ?.let { it.value = AtRisk(cause = AtRiskCause.MissingHardware) }
+    withTimeout(20.seconds) {
+      app.appFunctionalityService.status.first { it is FullFunctionality }
+    }
+
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      val screen = awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+        matchingScreen = { it.statusBannerModel?.title == "Your wallet is at risk" }
+      )
+
+      screen.statusBannerModel.shouldNotBeNull().apply {
+        title.shouldBe("Your wallet is at risk")
+        subtitle.shouldBe("Add a Bitkey device to avoid losing funds →")
+        style.shouldBe(BannerStyle.Destructive)
+      }
+
+      cancelAndIgnoreRemainingEvents()
+    }
   }
 
   testForLegacyAndPrivateWallet("lost hardware recovery - happy path") { app ->

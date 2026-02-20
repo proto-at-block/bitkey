@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.resources
 import json
 import semver
+import time
 import yaml
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,15 +11,37 @@ from functools import cached_property
 from math import ceil
 from os import stat
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
-import yaml
 from bitkey_proto import wallet_pb2 as wallet_pb
 from nanopb_pb2 import nanopb
 from tqdm import tqdm
 
 from . import util
 from .comms import WalletComms
+
+
+@dataclass
+class FwupStartSuccess:
+    """Firmware update started successfully (without confirmation flow)."""
+    max_chunk_size: Optional[int] = None
+
+
+@dataclass
+class FwupStartConfirmationPending:
+    """Firmware update requires confirmation (with confirmation flow)."""
+    response_handle: bytes
+    confirmation_handle: bytes
+
+
+@dataclass
+class FwupStartFailure:
+    """Firmware update failed to start."""
+    pass
+
+
+FwupStartResult = Union[FwupStartSuccess,
+                        FwupStartConfirmationPending, FwupStartFailure]
 
 
 @dataclass
@@ -258,16 +281,16 @@ class Fwup:
             f"Updating into slot {app} from {version} to {self.params.version} with {self.binary}, {self.signature}")
         return needed
 
-    def start(self: FirmwareUpdater) -> bool:
+    def start(self: FirmwareUpdater) -> FwupStartResult:
         """Start the firmware update.
 
         :param self: the updater instance.
-        :returns: ``True`` on success, otherwise ``False``.
+        :returns: FwupStartResult indicating success, failure, or confirmation pending.
         """
         if not self._prepare():
-            return False
+            return FwupStartFailure()
         if self.start_sequence_id > 0:
-            return True
+            return FwupStartSuccess()
 
         cmd = wallet_pb.wallet_cmd()
         msg = wallet_pb.fwup_start_cmd()
@@ -278,11 +301,23 @@ class Fwup:
             msg.mcu_role = self.mcu_role
         cmd.fwup_start_cmd.CopyFrom(msg)
         result = self.comms.transceive(cmd, timeout=2)
-        success = result.fwup_start_rsp.rsp_status == result.fwup_start_rsp.SUCCESS
-        if success and result.fwup_start_rsp.max_chunk_size:
-            # Update the chunk size based on what was returned by the MCU.
-            self.params.chunk_size = result.fwup_start_rsp.max_chunk_size
-        return success
+
+        # Check for confirmation flow
+        if result.status == wallet_pb.status.CONFIRMATION_PENDING:
+            # With confirmation flow: return confirmation pending with handles
+            return FwupStartConfirmationPending(
+                response_handle=bytes(result.response_handle),
+                confirmation_handle=bytes(result.confirmation_handle)
+            )
+
+        # Without confirmation flow: immediate response
+        if result.fwup_start_rsp.rsp_status == result.fwup_start_rsp.SUCCESS:
+            max_chunk_size = result.fwup_start_rsp.max_chunk_size if result.fwup_start_rsp.max_chunk_size else None
+            if max_chunk_size:
+                self.params.chunk_size = max_chunk_size
+            return FwupStartSuccess(max_chunk_size=max_chunk_size)
+        else:
+            return FwupStartFailure()
 
     def finish(self, bl_upgrade: bool = False) -> wallet_pb.fwup_finish_rsp:
         """Finalize the firmware update."""
@@ -445,8 +480,8 @@ class FirmwareUpdater:
         elif mode == wallet_pb.fwup_mode.FWUP_MODE_DELTA_ONESHOT:
             manifest = fwup_bundle.manifest
 
-            # Which slot is active?
-            active_slot = self.wallet.active_slot()
+            # Which slot is active? Use MCU-specific metadata for multi-MCU devices.
+            active_slot = self.wallet.active_slot(mcu)
 
             if active_slot == wallet_pb.firmware_slot.SLOT_A:
                 patch_name = 'a2b_patch'
@@ -483,6 +518,63 @@ class FirmwareUpdater:
         else:
             assert False, mode
 
+    def _wait_for_confirmation(
+        self,
+        result: FwupStartConfirmationPending
+    ) -> Optional[wallet_pb.fwpb_wallet_rsp]:
+        """Poll for user confirmation on device.
+
+        :param result: The pending confirmation result with handles.
+        :returns: The confirmation result response if successful, None if timeout/error.
+        """
+        print("Confirmation required. Please confirm on device to approve...")
+        print("Waiting for user confirmation...")
+
+        # Poll for confirmation result (user must approve on device screen)
+        CONFIRMATION_TIMEOUT_SECONDS = 30
+        POLL_INTERVAL_SECONDS = 1
+        PROGRESS_UPDATE_INTERVAL = 2  # Print progress every N seconds
+
+        max_retries = CONFIRMATION_TIMEOUT_SECONDS // POLL_INTERVAL_SECONDS
+        conf_result = None
+
+        for retry_count in range(max_retries):
+            # Try to get confirmation result
+            conf_result = self.wallet.get_confirmation_result(
+                result.response_handle,
+                result.confirmation_handle
+            )
+
+            # Check if still pending user approval
+            if conf_result.status == wallet_pb.status.CONFIRMATION_PENDING:
+                # User hasn't approved yet, wait and retry
+                time.sleep(POLL_INTERVAL_SECONDS)
+                elapsed_seconds = (retry_count + 1) * POLL_INTERVAL_SECONDS
+                if elapsed_seconds % PROGRESS_UPDATE_INTERVAL == 0:
+                    print(
+                        f"Still waiting for user to confirm on device... ({elapsed_seconds}s)")
+                continue
+
+            # Got a final response
+            break
+        else:
+            print(
+                f"Timeout waiting for user confirmation ({CONFIRMATION_TIMEOUT_SECONDS}s)")
+            return None
+
+        # Extract fwup_start_rsp from get_confirmation_result_rsp
+        if conf_result.get_confirmation_result_rsp.HasField('fwup_start_result'):
+            fwup_start_result = conf_result.get_confirmation_result_rsp.fwup_start_result
+            if fwup_start_result.rsp_status == fwup_start_result.SUCCESS:
+                print("User confirmed! Firmware update starting...")
+                return conf_result
+            else:
+                print("Firmware update confirmation failed.")
+                return None
+        else:
+            print(f"Unexpected response: status={conf_result.status}")
+            return None
+
     def fwup(
         self: FirmwareUpdater,
         mcu: str,
@@ -504,7 +596,7 @@ class FirmwareUpdater:
         :param timeout: optional timeout (in seconds) to wait for the update to finish.
         :returns: ``True`` if update was successful, otherwise ``False``.
         """
-        role = self.wallet.chip_name_to_role(mcu)
+        role = self.wallet.chip_name_to_role(self.wallet.product, mcu)
         fwup = Fwup(
             bundle_dir=None,
             binary=image,
@@ -515,11 +607,27 @@ class FirmwareUpdater:
         )
 
         # Send a custom start message.
-        ok = fwup.start()
-        if ok:
+        result = fwup.start()
+
+        # Handle different result types
+        if isinstance(result, FwupStartConfirmationPending):
+            # With confirmation flow: poll until user approves on device
+            conf_result = self._wait_for_confirmation(result)
+            if conf_result is None:
+                return False
+
+            # Update chunk size if provided
+            fwup_start_result = conf_result.get_confirmation_result_rsp.fwup_start_result
+            if fwup_start_result.max_chunk_size:
+                fwup.params.chunk_size = fwup_start_result.max_chunk_size
+        elif isinstance(result, FwupStartSuccess):
+            # Without confirmation flow: immediate success
             print("Firmware update successfully started.")
-        else:
+        elif isinstance(result, FwupStartFailure):
             print("Firmware update failed to start.")
+            return False
+        else:
+            print("Unexpected start result.")
             return False
 
         ok = fwup.transfer(timeout=timeout)
@@ -551,11 +659,25 @@ class FirmwareUpdater:
         update = self._build_updater(FwupBundle(bundle), mcu=mcu)
 
         result = update.start()
-        if not result:
-            print("Failed to start")
-            return
 
-        print("Firmware update in progress...")
+        # Handle different result types
+        if isinstance(result, FwupStartConfirmationPending):
+            # With confirmation flow: poll until user approves on device
+            conf_result = self._wait_for_confirmation(result)
+            if conf_result is None:
+                return False
+
+            # Update chunk size if provided
+            fwup_start_result = conf_result.get_confirmation_result_rsp.fwup_start_result
+            if fwup_start_result.max_chunk_size:
+                update.params.chunk_size = fwup_start_result.max_chunk_size
+        elif isinstance(result, FwupStartFailure):
+            print("Failed to start")
+            return False
+
+        print(f"Update Image: {update.binary}")
+        print(f"Signature Image: {update.signature}")
+        print(f"Firmware update in progress...")
 
         if self.gui:
             ok = update.transfer(update_gui=True,

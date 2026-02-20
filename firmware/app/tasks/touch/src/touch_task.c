@@ -105,6 +105,9 @@ static void touch_task_thread(void* UNUSED(args)) {
   ASSERT(touch_enable());
 #endif
 
+  // Check and update touch firmware if embedded version differs from device
+  (void)touch_fwup_upgrade();
+
   while (1) {
     touch_event_t touch_event;
     if (touch_pend_event(&touch_event, TOUCH_PEND_1000_MS)) {
@@ -113,6 +116,10 @@ static void touch_task_thread(void* UNUSED(args)) {
         (void)touch_event_callback(&touch_event);
       }
     }
+
+    // Process any pending firmware upgrade requests
+    touch_fwup_process_pending();
+
     touch_process_esd_check();
   }
 }

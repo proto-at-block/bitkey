@@ -6,6 +6,7 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.memfault.MemfaultClient.DownloadFwupBundleSuccess
 import build.wallet.memfault.MemfaultClient.QueryFwupBundleSuccess
 import build.wallet.memfault.MemfaultClient.UploadTelemetryEventSuccess
+import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import okio.ByteString
 
@@ -21,19 +22,25 @@ class MemfaultClientMock(
     List<Result<UploadTelemetryEventSuccess, NetworkingError>>
   var uploadTelemetryEventsCount = 0
 
+  // FWUP bundle configuration
+  var queryForFwupBundleResult: Result<QueryFwupBundleSuccess, NetworkingError> =
+    Ok(QueryFwupBundleSuccess(null))
+  var downloadFwupBundleResult: Result<DownloadFwupBundleSuccess, NetworkingError>? = null
+
   override suspend fun queryForFwupBundle(
     deviceSerial: String,
     hardwareVersion: String,
     softwareType: String,
     currentVersion: String,
   ): Result<QueryFwupBundleSuccess, NetworkingError> {
-    TODO("Not yet implemented")
+    return queryForFwupBundleResult
   }
 
   override suspend fun downloadFwupBundle(
     url: String,
   ): Result<DownloadFwupBundleSuccess, NetworkingError> {
-    TODO("Not yet implemented")
+    return downloadFwupBundleResult
+      ?: error("downloadFwupBundleResult not configured. Set it before calling downloadFwupBundle().")
   }
 
   override suspend fun uploadTelemetryEvent(
@@ -58,5 +65,7 @@ class MemfaultClientMock(
   fun reset() {
     uploadCoredumpReturnsCount = 0
     uploadTelemetryEventsCount = 0
+    queryForFwupBundleResult = Ok(QueryFwupBundleSuccess(null))
+    downloadFwupBundleResult = null
   }
 }

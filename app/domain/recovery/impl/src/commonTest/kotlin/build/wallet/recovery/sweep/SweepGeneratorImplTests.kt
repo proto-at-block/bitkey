@@ -26,7 +26,10 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.f8e.recovery.ListKeysetsResponse
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.keybox.wallet.KeysetWalletProviderMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.notifications.RegisterWatchAddressContext
@@ -185,6 +188,9 @@ class SweepGeneratorImplTests : FunSpec({
   val keysetWalletProvider = KeysetWalletProviderMock(wallets, walletsByF8eKeysetId)
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao)
+  val appSpendingWalletProvider = AppSpendingWalletProviderMock(wallets.getValue(activeKeyset.localId))
   val processorMock = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
   val registerWatchAddressProcessor = object :
     RegisterWatchAddressProcessor,
@@ -200,7 +206,9 @@ class SweepGeneratorImplTests : FunSpec({
     registerWatchAddressProcessor = registerWatchAddressProcessor,
     uuidGenerator = uuidGenerator,
     chaincodeDelegationTweakService = chaincodeDelegationTweakService,
-    descriptorBackupService = descriptorBackupService
+    descriptorBackupService = descriptorBackupService,
+    appSpendingWalletProvider = appSpendingWalletProvider,
+    bdk2FeatureFlag = bdk2FeatureFlag
   )
 
   beforeEach {
@@ -208,6 +216,7 @@ class SweepGeneratorImplTests : FunSpec({
     listKeysetsF8eClient.reset()
     chaincodeDelegationTweakService.reset()
     descriptorBackupService.reset()
+    featureFlagDao.reset()
 
     appPrivateKeyDao.reset()
     appPrivateKeyDao.appSpendingKeys[lostHwKeyset1.appKey] = AppSpendingPrivateKey(
@@ -530,7 +539,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
   }
 
-  test("uses peekAddress(0u) for private wallet destination keyset") {
+  test("uses revealAddress(0u) for private wallet destination keyset") {
     val peekedAddress = BitcoinAddress("bc1qpeek0000000000000000000000000000000000")
     val privateActiveKeyset = activeKeyset.copy(
       f8eSpendingKeyset = activeKeyset.f8eSpendingKeyset.copy(
@@ -543,7 +552,7 @@ class SweepGeneratorImplTests : FunSpec({
     )
 
     // Configure the private active keyset wallet to return a specific peeked address
-    wallets.getValue(privateActiveKeyset.localId).peekAddressResult = Ok(peekedAddress)
+    wallets.getValue(privateActiveKeyset.localId).revealAddressResult = Ok(peekedAddress)
     wallets.getValue(privateActiveKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
@@ -586,7 +595,7 @@ class SweepGeneratorImplTests : FunSpec({
 
     wallets.getValue(destPrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(sourcePrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
-    wallets.getValue(destPrivateKeyset.localId).peekAddressResult =
+    wallets.getValue(destPrivateKeyset.localId).revealAddressResult =
       Ok(BitcoinAddress(destinationAddress))
 
     val result = sweepGenerator.generateSweep(keyboxWithPrivateSweep)
@@ -674,7 +683,7 @@ class SweepGeneratorImplTests : FunSpec({
 
     wallets.getValue(destPrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(sourceLegacyKeyset.localId).createPsbtResult = Ok(psbtMock)
-    wallets.getValue(destPrivateKeyset.localId).peekAddressResult =
+    wallets.getValue(destPrivateKeyset.localId).revealAddressResult =
       Ok(BitcoinAddress(destinationAddress))
 
     val result = sweepGenerator.generateSweep(keyboxWithMigrationSweep)
@@ -711,7 +720,7 @@ class SweepGeneratorImplTests : FunSpec({
 
     wallets.getValue(destPrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
-    wallets.getValue(destPrivateKeyset.localId).peekAddressResult =
+    wallets.getValue(destPrivateKeyset.localId).revealAddressResult =
       Ok(BitcoinAddress(destinationAddress))
 
     val result = sweepGenerator.generateSweep(keyboxWithTweakFailure)

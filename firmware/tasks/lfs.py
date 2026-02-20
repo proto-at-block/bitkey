@@ -8,17 +8,20 @@ from pathlib import Path
 
 from bitkey.walletfs import (WalletFS, GDBFs)
 from bitkey.meson import MesonBuild
+from bitkey.partition_info import PartitionInfo
 
 from .lib.paths import (FS_BACKUPS, COMMANDER_BIN)
 
 
-def do_backup(c, target):
-    gdbfs = GDBFs(c, target=target)
+def do_backup(c, target, jlink_serial=None):
+    gdbfs = GDBFs(c, target=target, jlink_serial=jlink_serial)
     fs = gdbfs.fetch()
     filename = fs.save(FS_BACKUPS)
 
     click.echo('Resetting target')
     reset_cmd = f"{COMMANDER_BIN} device reset --device={gdbfs.meson.platform['jlink_gdb_chip']}"
+    if jlink_serial:
+        reset_cmd += f" --serialno {jlink_serial}"
     c.run(reset_cmd, hide=True)
 
     click.echo(click.style(
@@ -27,15 +30,33 @@ def do_backup(c, target):
     return filename
 
 
-def do_restore(c, file=None):
-    chip = MesonBuild(c).platform['jlink_gdb_chip']
+def do_restore(c, file=None, jlink_serial=None):
+    meson = MesonBuild(c)
+    chip = meson.platform['jlink_gdb_chip']
+
+    # Get the filesystem address from partition info
+    partition_name = meson.platform.get('partitions')
+    if not partition_name:
+        raise ValueError(
+            f"Platform '{meson._platform}' does not have 'partitions' "
+            f"defined in platforms.yaml - cannot determine filesystem location")
+
+    partition_info = PartitionInfo(partition_name)
+    lfs_start = partition_info.filesystem_start_address
+
+    # Build base commands
+    flash_cmd = f"{COMMANDER_BIN} flash --device={chip} --address={lfs_start:08x} --binary {file}"
+    reset_cmd = f"{COMMANDER_BIN} device reset --device={chip}"
+
+    # Append serial number if provided
+    if jlink_serial:
+        flash_cmd += f" --serialno {jlink_serial}"
+        reset_cmd += f" --serialno {jlink_serial}"
 
     # Commander weirdness:
     # The 'flash' command will fail if the target is not halted already
     # The target gets halted after the first try and then the second try succeeds
     # There's no way to halt the device with commander so this hack is done instead
-    flash_cmd = f"{COMMANDER_BIN} flash --device={chip} --address={WalletFS.LFS_START:02x} --binary {file}"
-    reset_cmd = f"{COMMANDER_BIN} device reset --device={chip}"
     output = c.run(flash_cmd + " --halt", hide=False, warn=True)
     if output.exited != 0:
         output = c.run(flash_cmd, hide=False)
@@ -59,20 +80,22 @@ def cp_from_hardware(c, file_name, output_dir):
 
 
 @task(help={
-    "target": "Build target to backup"
+    "target": "Build target to backup",
+    "jlink": "J-Link serial number to use",
 })
-def backup(c, target=None):
+def backup(c, target=None, jlink=None):
     """Create a local backup of the targets filesystem using gdb"""
     target = target if target else c.target
-    do_backup(c, target)
+    do_backup(c, target, jlink_serial=jlink)
 
 
 @task(help={
     "file": "path to backup file",
+    "jlink": "J-Link serial number to use",
 })
-def restore(c, file=None):
+def restore(c, file=None, jlink=None):
     """Restores a local backup filesystem to the target using gdb"""
-    do_restore(c, file)
+    do_restore(c, file, jlink_serial=jlink)
 
 
 @task(help={

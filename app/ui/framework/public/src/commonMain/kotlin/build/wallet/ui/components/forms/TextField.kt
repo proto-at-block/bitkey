@@ -1,29 +1,32 @@
 package build.wallet.ui.components.forms
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
-import androidx.compose.ui.text.*
-import androidx.compose.ui.text.input.*
+import androidx.compose.ui.text.Paragraph
+import androidx.compose.ui.text.ParagraphIntrinsics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Characters
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.None
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Sentences
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Words
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -36,12 +39,10 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.Capitalization
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.*
-import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Number
 import build.wallet.ui.model.input.TextFieldModel.TextTransformation.INVITE_CODE
 import build.wallet.ui.model.input.TextFieldModel.TextTransformation.PASSWORD
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import androidx.compose.material3.TextField as MaterialTextField
 
 @Suppress("CyclomaticComplexMethod")
 @Composable
@@ -278,30 +279,35 @@ fun TextFieldWithCharacteristic(
         .background(color = WalletTheme.colors.foreground10),
     verticalAlignment = Alignment.CenterVertically
   ) {
-    MaterialTextField(
+    BasicTextField(
       modifier = Modifier.weight(1F),
       value = value,
       onValueChange = onValueChange,
       textStyle = textStyle,
-      placeholder = {
-        Label(
-          text = placeholderText,
-          type = LabelType.Body2Regular,
-          treatment = LabelTreatment.Secondary
-        )
-      },
+      cursorBrush = SolidColor(WalletTheme.colors.bitkeyPrimary),
       singleLine = textFieldOverflowCharacteristic !is Multiline,
-      colors =
-        TextFieldDefaults.colors(
-          focusedContainerColor = WalletTheme.colors.foreground10,
-          unfocusedContainerColor = WalletTheme.colors.foreground10,
-          cursorColor = WalletTheme.colors.bitkeyPrimary,
-          focusedIndicatorColor = Color.Transparent,
-          unfocusedIndicatorColor = Color.Transparent
-        ),
       keyboardOptions = keyboardOptions,
       visualTransformation = visualTransformation,
-      keyboardActions = keyboardActions
+      keyboardActions = keyboardActions,
+      decorationBox = { innerTextField ->
+        // Material3 TextField default content padding: 16dp horizontal, 8dp vertical
+        Box(
+          modifier = Modifier
+            .defaultMinSize(minWidth = 280.dp, minHeight = 56.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+          contentAlignment = Alignment.CenterStart
+        ) {
+          // Show placeholder when text is empty
+          if (value.text.isEmpty()) {
+            Label(
+              text = placeholderText,
+              type = LabelType.Body2Regular,
+              treatment = LabelTreatment.Secondary
+            )
+          }
+          innerTextField()
+        }
+      }
     )
 
     trailingButtonModel?.let {

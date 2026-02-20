@@ -1,4 +1,4 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
   `kotlin-dsl`
@@ -27,15 +27,12 @@ java {
   targetCompatibility = javaVersion
 }
 
-tasks.withType<KotlinCompile>().configureEach {
-  kotlinOptions {
-    jvmTarget = jvmTargetVersion
-  }
-}
-
 kotlin {
   val jvmToolchain = libs.versions.jvmToolchain.get().toInt()
   jvmToolchain(jvmToolchain)
+  compilerOptions {
+    jvmTarget.set(JvmTarget.fromTarget(jvmTargetVersion))
+  }
 }
 
 dependencies {

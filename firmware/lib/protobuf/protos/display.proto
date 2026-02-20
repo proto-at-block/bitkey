@@ -26,6 +26,7 @@ enum display_menu_item {
   DISPLAY_MENU_ITEM_TOUCH_TEST = 7;
   DISPLAY_MENU_ITEM_TOGGLE_SLEEP = 8;
   DISPLAY_MENU_ITEM_RUN_IN = 9;
+  DISPLAY_MENU_ITEM_MONEY_MOVEMENT = 10;
 }
 
 // Display result codes
@@ -115,32 +116,6 @@ message display_params_money_movement {
   bool is_receive_flow = 4;
 }
 
-message display_params_success {
-  enum display_params_success_status {
-    // Unused.
-    NONE = 0;
-
-    // Firmware update successfully.
-    FIRMWARE_UPDATED = 1;
-  }
-
-  // Operation status code.
-  display_params_success_status status = 1;
-}
-
-message display_params_error {
-  enum display_params_error_status {
-    // Unused.
-    NONE = 0;
-
-    // Firmware update failed.
-    FIRMWARE_UPDATE_FAILED = 1;
-  }
-
-  // Operation status code.
-  display_params_error_status status = 1;
-}
-
 message display_params_scan {
   // Possible actions to take on scanning.
   enum display_params_scan_action {
@@ -204,8 +179,11 @@ message display_params_menu_fingerprints {
 }
 
 message display_params_firmware_update {
-  string hash = 1 [(nanopb).max_size = 65];
-  string version = 2 [(nanopb).max_size = 32];
+  string version = 1 [(nanopb).max_size = 32]; // Version string for in_progress page (e.g., "v2.1.0")
+  reserved 2;                  // Was fwup_mode
+  uint32 mcu_role = 3;         // MCU_ROLE_CORE, MCU_ROLE_UXC (kept at original field number)
+  reserved 4;                  // Was patch_size
+  uint32 page = 5;             // 0=confirmation, 1=scanning, 2=in_progress (kept at original field number)
 }
 
 // Privileged action types
@@ -262,12 +240,12 @@ message display_show_screen {
     display_params_mfg mfg = 9;
     display_params_money_movement money_movement = 10;
     display_params_empty onboarding = 11;
-    display_params_success success = 12;
-    display_params_error error = 13;
+    // Field numbers 12-13 skipped (previously display_params_success, display_params_error)
     display_params_scan scan = 14;
     display_params_fingerprint fingerprint = 15;
     display_params_locked locked = 16;
     display_params_menu_fingerprints menu_fingerprints = 17;
+    // Field number 18 intentionally skipped (previously used)
     display_params_firmware_update firmware_update = 19;
     display_params_empty test_gesture = 20;
     display_params_empty test_scroll = 21;
@@ -276,7 +254,13 @@ message display_show_screen {
     display_params_empty test_slider = 24;
     display_params_empty test_progress = 25;
     display_params_privileged_action privileged_action = 26;
+
+    // Render the power off screen (USB-plugged power off).
+    display_params_empty power_off = 27;
   }
+
+  // Reserved field numbers from oneof (previously used fields)
+  reserved 12, 13, 18;
 }
 
 // Prepare sleep command

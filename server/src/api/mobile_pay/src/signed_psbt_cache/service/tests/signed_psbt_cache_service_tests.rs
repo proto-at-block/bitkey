@@ -2,7 +2,8 @@ use std::str::FromStr;
 
 use bdk_utils::bdk::bitcoin::absolute::LockTime;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
-use bdk_utils::bdk::bitcoin::{Address, Transaction, TxOut};
+use bdk_utils::bdk::bitcoin::transaction::Version;
+use bdk_utils::bdk::bitcoin::{Address, Amount, Transaction, TxOut};
 use database::ddb;
 use database::ddb::{Connection, Repository};
 use http_server::config;
@@ -21,10 +22,14 @@ async fn test_caches_with_correct_txid() {
     service.put(psbt.clone()).await.unwrap();
 
     // act
-    let cached_psbt = service.get(psbt.unsigned_tx.txid()).await.unwrap().unwrap();
+    let cached_psbt = service
+        .get(psbt.unsigned_tx.compute_txid())
+        .await
+        .unwrap()
+        .unwrap();
 
     // assert
-    assert_eq!(cached_psbt.txid, psbt.unsigned_tx.txid());
+    assert_eq!(cached_psbt.txid, psbt.unsigned_tx.compute_txid());
 }
 
 async fn connection() -> Connection {
@@ -41,11 +46,11 @@ fn construct_psbt() -> Psbt {
         .script_pubkey();
     let payee_amount_sats: u64 = 100_000;
     Psbt::from_unsigned_tx(Transaction {
-        version: 0,
+        version: Version::TWO,
         lock_time: LockTime::ZERO,
         input: Vec::new(),
         output: vec![TxOut {
-            value: payee_amount_sats,
+            value: Amount::from_sat(payee_amount_sats),
             script_pubkey: payee_script_pubkey,
         }],
     })

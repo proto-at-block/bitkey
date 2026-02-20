@@ -88,7 +88,7 @@ data class DeviceSettingsFormBodyModel(
             } else if (replacementPending != null) {
               replacementPending
             } else if (updateVersion != null) {
-              currentVersion
+              updateVersion
             } else {
               lastSyncDate
             }

@@ -1,16 +1,15 @@
 import re
 import unittest
-
 from typing import Optional
-from elftools.elf.sections import Section, Symbol
-from elftools.elf.elffile import ELFFile
-from elftools.dwarf.dwarfinfo import DWARFInfo
 
-from Crypto.Signature import DSS
 from Crypto.Hash import SHA256
+from Crypto.Signature import DSS
+from elftools.dwarf.dwarfinfo import DWARFInfo
+from elftools.elf.elffile import ELFFile
+from elftools.elf.sections import Section, Symbol
 
 from . import decorators, fwut, reporter
-from .keys import get_key, get_all_keys
+from .keys import get_all_keys, get_key
 
 
 class TestCase(unittest.TestCase):
@@ -22,8 +21,7 @@ class TestCase(unittest.TestCase):
     def _dry_run(self, result: reporter.TestResult):
         result.startTest(self)
         try:
-            decorators.skip_unless_firmware_applies(
-                getattr(self, self._testMethodName))
+            decorators.skip_unless_firmware_applies(getattr(self, self._testMethodName))
             result.addSuccess(self)
         except unittest.SkipTest as e:
             result.addSkip(self, str(e))
@@ -48,7 +46,10 @@ class TestCase(unittest.TestCase):
             hex_pattern: Hexadecimal regular expression pattern to search for
             message: Optional message to display upon failure.
         """
-        if re.search(hex_pattern, fwut.FirmwareUnderTest.firmware_hex, re.IGNORECASE) is None:
+        if (
+            re.search(hex_pattern, fwut.FirmwareUnderTest.firmware_hex, re.IGNORECASE)
+            is None
+        ):
             if message is None:
                 message = f"Pattern '{hex_pattern}' was not found in firmware"
             self.fail(message)
@@ -63,8 +64,9 @@ class TestCase(unittest.TestCase):
         Asserts that the elf file has dwarf info
         """
         elf = self.get_elf_file()
-        self.assertTrue(elf.has_dwarf_info(),
-                        "Firmware does not have dwarf info for analysis")
+        self.assertTrue(
+            elf.has_dwarf_info(), "Firmware does not have dwarf info for analysis"
+        )
 
         return elf.get_dwarf_info()
 
@@ -78,13 +80,11 @@ class TestCase(unittest.TestCase):
         self.assertIsNotNone(elf_symbols, "ELF symbol section not found")
 
         matching = elf_symbols[symbol_name]
-        self.assertEqual(1, len(matching),
-                         f"Number of symbols found for {symbol_name}")
+        self.assertEqual(1, len(matching), f"Number of symbols found for {symbol_name}")
         return matching[0]
 
     def get_elf_symbol_value_from_symbol(self, symbol: Symbol) -> int:
-        """Get the value of the given symbol
-        """
+        """Get the value of the given symbol"""
         return symbol.entry.st_value
 
     def get_elf_symbol_value_from_name(self, symbol_name: str) -> int:
@@ -131,13 +131,15 @@ class TestCase(unittest.TestCase):
 
         data_start = sect.header.sh_addr
         data_end = data_start + sect.header.sh_size
-        self.assertTrue(data_start <= sym.entry.st_value <
-                        data_end, f"Symbol {symbol_name} not in {section_name}")
+        self.assertTrue(
+            data_start <= sym.entry.st_value < data_end,
+            f"Symbol {symbol_name} not in {section_name}",
+        )
 
         offset = sym.entry.st_value - data_start
         size = sym.entry.st_size
 
-        return sect.data()[offset: offset + size]
+        return sect.data()[offset : offset + size]
 
     def get_elf_section_by_name(self, section_name: str) -> Section:
         """Get a particular section from the elf file
@@ -179,7 +181,9 @@ class TestCase(unittest.TestCase):
 
         return section.data()
 
-    def get_elf_data_from_addr_range(self, start_addr: int, end_addr: int, fill_bytes: bytes = b'\xff') -> bytes:
+    def get_elf_data_from_addr_range(
+        self, start_addr: int, end_addr: int, fill_bytes: bytes = b"\xff"
+    ) -> bytes:
         """Get the data from start_addr to end_addr even if it spans multiple segments
 
         Gaps in-between segments will be filled with fill_bytes
@@ -199,7 +203,7 @@ class TestCase(unittest.TestCase):
         found_segments.sort(key=lambda s: s.header.p_paddr)
 
         prev_end = found_segments[0].header.p_paddr
-        data = b''
+        data = b""
 
         for segment in found_segments:
             if segment.header.p_paddr < prev_end:
@@ -225,8 +229,7 @@ class TestCase(unittest.TestCase):
         dwarf = self.get_dwarf_section()
 
         self.assertIsNotNone(dwarf.debug_str_sec, "No debug string section")
-        self.assertGreater(dwarf.debug_str_sec.size, 0,
-                           "No debug strings in firmware")
+        self.assertGreater(dwarf.debug_str_sec.size, 0, "No debug strings in firmware")
 
         # Stream state is cached. Need to reset for every read.
         dwarf.debug_str_sec.stream.seek(0)
@@ -235,27 +238,32 @@ class TestCase(unittest.TestCase):
 
         # Find the debug string that starts with 'name'. Note: Strings are split by a NULL byte.
         matching_strs = list(
-            filter(lambda s: s.startswith(name), debug_strs.split(b"\x00")))
+            filter(lambda s: s.startswith(name), debug_strs.split(b"\x00"))
+        )
 
         if limit is not None:
-            self.assertLessEqual(len(matching_strs), limit,
-                                 f"{name} defined too many times")
+            self.assertLessEqual(
+                len(matching_strs), limit, f"{name} defined too many times"
+            )
 
         # Return the body (after name)
-        return [body[len(name):].strip() for body in matching_strs]
+        return [body[len(name) :].strip() for body in matching_strs]
 
     def verify_signature(self, key_fmt: str, data: bytes, signature: bytes):
-        '''Verify a signature using a key and data.
+        """Verify a signature using a key and data.
 
         OK: if the signature is valid
         WARNING: if production firmware is signed with dev key, but don't fail
         FAIL: if dev firmware is signed with prod key
         FAIL if signed firmware is not signed with either key
-        '''
+        """
 
-        key = get_key(key_fmt)
+        try:
+            key = get_key(key_fmt)
+        except FileNotFoundError as e:
+            self.fail(f"Key not found: {e}")
         h = SHA256.new(data)
-        verifier = DSS.new(key, 'fips-186-3')
+        verifier = DSS.new(key, "fips-186-3")
 
         try:
             verifier.verify(h, signature)
@@ -269,11 +277,10 @@ class TestCase(unittest.TestCase):
         security = fwut.FirmwareUnderTest.security
         keys = get_all_keys(key_fmt, security)
         for key in keys:
-            verifier = DSS.new(key, 'fips-186-3')
+            verifier = DSS.new(key, "fips-186-3")
             try:
                 verifier.verify(h, signature)
-                raise Warning(
-                    "Warning: Firmware signed with incorrect key type")
+                raise Warning("Warning: Firmware signed with incorrect key type")
             except ValueError:
                 pass
 
@@ -282,12 +289,11 @@ class TestCase(unittest.TestCase):
         opposite_keys = get_all_keys(key_fmt, opposite_security)
 
         for key in opposite_keys:
-            verifier = DSS.new(key, 'fips-186-3')
+            verifier = DSS.new(key, "fips-186-3")
             try:
                 verifier.verify(h, signature)
                 if fwut.FirmwareUnderTest.is_production():
-                    raise Warning(
-                        "Warning: Prod fw is dev signed")
+                    raise Warning("Warning: Prod fw is dev signed")
                 else:
                     self.fail("Dev firmware is production signed")
             except ValueError:

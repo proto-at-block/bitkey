@@ -18,6 +18,10 @@ class SensitiveDataValidatorTest : FunSpec({
     "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy", // P2SH
     "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq" // Bech32
   )
+  val bitcoinTxids = listOf(
+    "4b0d77bd5985df9d70f1eb4f26b339a61416507e61ff31ad2d95d9586393be0b",
+    "A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1B2"
+  )
 
   test("detect bitcoin private key in log message") {
     bitcoinKeys.forEach {
@@ -71,6 +75,28 @@ class SensitiveDataValidatorTest : FunSpec({
           message = "This is a benign log message"
         )
       ).shouldViolateNamed("Bitcoin addresses")
+    }
+  }
+
+  test("detect bitcoin transaction ID in log message") {
+    bitcoinTxids.forEach {
+      SensitiveDataValidator.check(
+        LogEntry(
+          tag = "SomeTag",
+          message = "Failed to broadcast transaction $it"
+        )
+      ).shouldViolateNamed("Bitcoin transaction ID")
+    }
+  }
+
+  test("detect bitcoin transaction ID in log tag") {
+    bitcoinTxids.forEach {
+      SensitiveDataValidator.check(
+        LogEntry(
+          tag = "Tx:$it",
+          message = "This is a benign log message"
+        )
+      ).shouldViolateNamed("Bitcoin transaction ID")
     }
   }
 

@@ -205,7 +205,7 @@ impl TransactionVerificationCommonFields {
         Self {
             id,
             account_id,
-            txid: psbt.unsigned_tx.txid(),
+            txid: psbt.unsigned_tx.compute_txid(),
             psbt,
             // figure out expiry
             expires_at: OffsetDateTime::now_utc() + time::Duration::hours(24),

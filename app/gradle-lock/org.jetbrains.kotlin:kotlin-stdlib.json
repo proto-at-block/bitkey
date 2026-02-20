@@ -16,21 +16,6 @@
             ]
         },
         {
-            "version": "2.0.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-stdlib-2.0.20.jar": "fb169596659a518357c4b2c16f43dc75ab1c4980565ed4b4a317a050e5e39006"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[app]",
-                "gradle-plugins[bdk-ffi]",
-                "gradle-plugins[bitkey]"
-            ]
-        },
-        {
             "version": "2.1.20",
             "variants": [
                 {
@@ -47,6 +32,20 @@
             "dependency-locking-groups": [
                 "build-classpath",
                 "kotlin-compiler"
+            ]
+        },
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-2.2.20.jar": "8836ccffd3585fadda9901244b20d42901d2f3cd581058d8434e2ffabcf3a3e7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[app]",
+                "gradle-plugins[bitkey]"
             ]
         }
     ]

@@ -247,6 +247,22 @@ void max77734_set_ldo_low_power_mode(void) {
   }
 }
 
+void max77734_disable_ldo(void) {
+  max77734_reg_cnfg_ldo_b_t ldo_b = {0};
+  if (!read_register(MAX77734_REG_CNFG_LDO_B, ldo_b.bytes)) {
+    LOGE("Failed to read LDO_B register");
+    return;
+  }
+
+  // Set LDO to low power mode and disable
+  ldo_b.values.LDO_PM = MAX77734_LDO_PM_LOW_POWER;
+  ldo_b.values.LDO_EN = MAX77734_LDO_EN_AUTO;
+
+  if (!write_register(MAX77734_REG_CNFG_LDO_B, ldo_b.bytes)) {
+    LOGE("Failed to write LDO_B register");
+  }
+}
+
 void max77734_print_registers(void) {
   printf("Interrupts and Status\n");
   PRINT_REGISTER(MAX77734_REG_INT_GLBL);

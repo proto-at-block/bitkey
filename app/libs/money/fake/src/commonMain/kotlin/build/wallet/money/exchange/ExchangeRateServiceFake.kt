@@ -2,6 +2,9 @@ package build.wallet.money.exchange
 
 import build.wallet.money.currency.Currency
 import build.wallet.money.currency.code.IsoCurrencyTextCode
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -19,6 +22,9 @@ class ExchangeRateServiceFake(private val clock: Clock = Clock.System) : Exchang
 
   override val exchangeRates = MutableStateFlow(initialRates)
 
+  /** Controls what [syncRates] returns. Default is success with initial rates. */
+  var syncRatesResult: Result<List<ExchangeRate>, Error> = Ok(initialRates)
+
   override fun mostRecentRatesSinceDurationForCurrency(
     duration: Duration,
     currency: Currency,
@@ -32,8 +38,19 @@ class ExchangeRateServiceFake(private val clock: Clock = Clock.System) : Exchang
     }
   }
 
+  override suspend fun syncRates(): Result<List<ExchangeRate>, Error> {
+    return syncRatesResult.onSuccess { rates ->
+      exchangeRates.value = rates
+    }
+  }
+
+  override suspend fun clearRates() {
+    exchangeRates.value = emptyList()
+  }
+
   fun reset() {
     exchangeRates.value = initialRates
+    syncRatesResult = Ok(initialRates)
   }
 
   private fun List<ExchangeRate>.timeRetrievedForCurrency(currency: Currency): Instant? {

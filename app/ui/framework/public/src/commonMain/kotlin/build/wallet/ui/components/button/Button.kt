@@ -5,24 +5,13 @@ package build.wallet.ui.components.button
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -32,6 +21,7 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.components.sheet.LocalSheetCloser
 import build.wallet.ui.compose.resId
+import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.Click
 import build.wallet.ui.model.SheetClosingClick
@@ -43,7 +33,6 @@ import build.wallet.ui.model.button.ButtonModel.Treatment
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.coroutines.launch
-import androidx.compose.material3.Button as MaterialButton
 
 @Composable
 fun Button(
@@ -172,69 +161,57 @@ internal fun Button(
   onClick: () -> Unit,
   content: @Composable () -> Unit,
 ) {
-  val interactionSource = remember { MutableInteractionSource() }
-
-  MaterialButton(
-    interactionSource = interactionSource,
-    onClick = {
-      if (!isLoading) onClick()
-    },
+  Box(
     modifier =
       modifier
-        .resId(testTag).run {
+        .resId(testTag)
+        .run {
           style.height?.let { height(it) } ?: this
-        },
-    enabled = enabled,
-    shape = style.shape,
-    contentPadding = PaddingValues(0.dp),
-    colors =
-      when {
-        style.isTextButton -> ButtonDefaults.textButtonColors(contentColor = style.textStyle.color)
-        else ->
-          ButtonDefaults.buttonColors(
-            containerColor = style.backgroundColor,
-            disabledContainerColor = style.backgroundColor
+        }
+        .defaultMinSize(minWidth = style.minWidth)
+        .thenIf(style.fillWidth) {
+          Modifier.fillMaxWidth()
+        }
+        .scalingClickable(
+          enabled = enabled && !isLoading,
+          onClick = onClick
+        )
+        .clip(style.shape)
+        .thenIf(!style.isTextButton) {
+          Modifier.background(
+            color = style.backgroundColor,
+            shape = style.shape
           )
-      }
+        },
+    contentAlignment = Alignment.Center
   ) {
     Box(
       modifier =
         Modifier
-          .fillMaxHeight()
-          .defaultMinSize(minWidth = style.minWidth)
-          .thenIf(style.fillWidth) {
-            Modifier.fillMaxWidth()
-          },
+          .defaultMinSize(minHeight = 48.dp)
+          .padding(
+            vertical = style.verticalPadding,
+            horizontal = style.horizontalPadding
+          ),
       contentAlignment = Alignment.Center
     ) {
-      Box(
-        modifier =
-          Modifier
-            .defaultMinSize(minHeight = ButtonDefaults.MinHeight)
-            .padding(
-              vertical = style.verticalPadding,
-              horizontal = style.horizontalPadding
-            ),
-        contentAlignment = Alignment.Center
+      AnimatedVisibility(
+        visible = isLoading,
+        enter = fadeIn(),
+        exit = fadeOut()
       ) {
-        this@MaterialButton.AnimatedVisibility(
-          visible = isLoading,
-          enter = fadeIn(),
-          exit = fadeOut()
-        ) {
-          LoadingIndicator(
-            modifier = Modifier.size(24.dp),
-            color = style.iconColor
-          )
-        }
+        LoadingIndicator(
+          modifier = Modifier.size(24.dp),
+          color = style.iconColor
+        )
+      }
 
-        this@MaterialButton.AnimatedVisibility(
-          visible = !isLoading,
-          enter = fadeIn(),
-          exit = fadeOut()
-        ) {
-          content()
-        }
+      AnimatedVisibility(
+        visible = !isLoading,
+        enter = fadeIn(),
+        exit = fadeOut()
+      ) {
+        content()
       }
     }
   }

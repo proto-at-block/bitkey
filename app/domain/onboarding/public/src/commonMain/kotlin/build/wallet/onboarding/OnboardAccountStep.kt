@@ -30,4 +30,10 @@ sealed interface OnboardAccountStep {
    * Represents the step where the customer needs to complete the notification preferences setup.
    */
   data object NotificationPreferences : OnboardAccountStep
+
+  /**
+   * Represents the step where the customer needs to build the hardware descriptor.
+   * Only shown for W3 hardware.
+   */
+  data object BuildHardwareDescriptor : OnboardAccountStep
 }

@@ -82,10 +82,7 @@ void ui_task_mpu_init(void) {
   mpu_set_region(regions, idx++, (void*)&__nfc_task_data_start__,
                  mpu_calc_region_size(&__nfc_task_data_start__, &__nfc_task_data_end__),
                  MPU_PARAMS_RW_NOEXEC);
-
-  /* Required for run-in testing. */
-  _ui_thread_regions.privilege = rtos_thread_privileged_bit;
-#else
-  _ui_thread_regions.privilege = rtos_thread_unprivileged_bit;
 #endif
+
+  _ui_thread_regions.privilege = rtos_thread_privileged_bit;
 }

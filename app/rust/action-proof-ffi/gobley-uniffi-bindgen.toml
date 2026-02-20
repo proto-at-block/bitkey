@@ -1,0 +1,6 @@
+# Additional UniFFI config used by `just generate-bindings`.
+#
+# This is merged with `uniffi.toml` by `gobley-uniffi-bindgen` to enable Kotlin
+# Multiplatform output (commonMain/jvmMain/androidMain/nativeMain).
+kotlin_multiplatform = true
+kotlin_targets = ["android", "jvm", "native"]

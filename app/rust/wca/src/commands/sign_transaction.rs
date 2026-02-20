@@ -1,4 +1,4 @@
-use bitcoin::{bip32::Fingerprint, psbt::PartiallySignedTransaction, secp256k1::Secp256k1};
+use bitcoin::{bip32::Fingerprint, psbt::Psbt as PartiallySignedTransaction, secp256k1::Secp256k1};
 use miniscript::psbt::PsbtExt;
 use next_gen::prelude::*;
 use std::result::Result;

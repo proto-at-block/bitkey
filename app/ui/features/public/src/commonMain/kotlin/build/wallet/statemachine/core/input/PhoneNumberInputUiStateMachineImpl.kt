@@ -112,6 +112,15 @@ class PhoneNumberInputUiStateMachineImpl(
               )
             }
         ),
+      secondaryButton =
+        props.onSkipSecondaryButton?.let { onSkip ->
+          ButtonModel(
+            text = "Skip",
+            treatment = ButtonModel.Treatment.Secondary,
+            size = Footer,
+            onClick = StandardClick(onSkip)
+          )
+        },
       onClose = { props.onClose() },
       onSkip =
         props.skipBottomSheetProvider?.let {

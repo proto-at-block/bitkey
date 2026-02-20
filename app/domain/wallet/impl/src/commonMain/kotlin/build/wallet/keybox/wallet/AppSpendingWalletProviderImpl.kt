@@ -6,7 +6,7 @@ import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactory
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.SpendingWalletDescriptor
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
-import build.wallet.bitcoin.wallet.WalletV2Provider
+import build.wallet.bitcoin.wallet.SpendingWalletV2Provider
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.keybox.SoftwareKeybox
@@ -23,7 +23,7 @@ import com.github.michaelbull.result.toErrorIfNull
 @BitkeyInject(AppScope::class)
 class AppSpendingWalletProviderImpl(
   private val spendingWalletProvider: SpendingWalletProvider,
-  private val walletV2Provider: WalletV2Provider,
+  private val spendingWalletV2Provider: SpendingWalletV2Provider,
   private val bdk2FeatureFlag: Bdk2FeatureFlag,
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val descriptorBuilder: BitcoinMultiSigDescriptorBuilder,
@@ -39,7 +39,7 @@ class AppSpendingWalletProviderImpl(
           .bind()
 
       if (bdk2FeatureFlag.isEnabled()) {
-        walletV2Provider
+        spendingWalletV2Provider
           .getWallet(walletDescriptor)
           .logFailure { "Error creating v2 wallet for keyset." }
           .bind()
@@ -61,7 +61,7 @@ class AppSpendingWalletProviderImpl(
           .bind()
 
       if (bdk2FeatureFlag.isEnabled()) {
-        walletV2Provider
+        spendingWalletV2Provider
           .getWallet(walletDescriptor)
           .logFailure { "Error creating v2 wallet for keybox." }
           .bind()

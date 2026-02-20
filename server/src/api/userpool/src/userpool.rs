@@ -19,7 +19,7 @@ use dyn_clone::DynClone;
 use rand::Rng;
 use secp256k1::ecdsa::Signature;
 
-use secp256k1::hashes::sha256;
+use secp256k1::hashes::{sha256, Hash};
 use secp256k1::PublicKey;
 use secp256k1::{Message, Secp256k1};
 use serde::{Deserialize, Serialize};
@@ -896,7 +896,8 @@ impl CognitoIdpConnection for FakeCognitoConnection {
             let challenge = session_store
                 .get(&session)
                 .ok_or(UserPoolError::InvalidSession)?;
-            let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_bytes());
+            let hash = sha256::Hash::hash(challenge.as_bytes()).to_byte_array();
+            let message = Message::from_digest(hash);
 
             if let Ok(signature) = Signature::from_str(&challenge_response) {
                 secp.verify_ecdsa(&message, &signature, public_key).is_ok()

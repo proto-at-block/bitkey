@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock2
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
@@ -296,7 +297,8 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
       hardwareAuthKey = newHwAuthKey,
       appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
       factorToRecover = Hardware,
-      serverRecovery = LostHardwareServerRecoveryMock
+      serverRecovery = LostHardwareServerRecoveryMock,
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
     nfcTransactor.transactResult = Ok(Unit)

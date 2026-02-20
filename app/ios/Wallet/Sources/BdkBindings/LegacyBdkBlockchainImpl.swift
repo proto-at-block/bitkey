@@ -41,7 +41,7 @@ class LegacyBdkBlockchainImpl: BdkBlockchain {
         return BdkResult {
             guard let tx = try ffiBlockchain.getTx(txid: txid) else {
                 throw BdkError
-                    .TransactionNotFound(message: "Transaction with id \(txid) not found.")
+                    .TransactionNotFound(message: "Transaction not found.")
             }
             return tx.toBdkTransaction()
         }

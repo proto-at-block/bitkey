@@ -1,13 +1,19 @@
+#include "arithmetic.h"
 #include "assert.h"
 #include "attributes.h"
 #include "bitlog.h"
+#include "confirmation_manager.h"
+#include "coproc_power.h"
+#include "exti.h"
 #include "ipc.h"
 #include "kv.h"
 #include "log.h"
+#include "mcu_reset.h"
 #include "metadata.h"
 #include "power.h"
 #include "proto_helpers.h"
 #include "rtos.h"
+#include "sysevent.h"
 #include "sysinfo.h"
 #include "sysinfo_task_impl.h"
 #include "uc.h"
@@ -17,13 +23,29 @@
 
 #include <string.h>
 
-#define SLEEP_PREP_TIMEOUT_MS (500)
-#define BITLOG_SAVE_DELAY_MS  (50)
+#define SYSINFO_SLEEP_PREP_TIMEOUT_MS (500)
+
+/**
+ * @brief Delay, after power off, to check for a touch event if USB is plugged
+ * in, preventing power off.
+ */
+#define SYSINFO_POWER_OFF_TOUCH_DELAY_MS (50)
+
+/**
+ * @brief Polling frequency to check for a touch or USB un-plug event during
+ * device power off.
+ */
+#define SYSINFO_POWER_OFF_POLL_MS (10)
+
+extern power_config_t power_config;
 
 static SHARED_TASK_DATA device_info_t device_info_for_ui;
+static SHARED_TASK_DATA fwpb_device_info_rsp_device_info_mcu uxc_mcu_info = {0};
 
 static void _sysinfo_task_handle_coproc_boot_message(void* proto, void* UNUSED(context));
 static void _sysinfo_task_handle_coproc_metadata(void* proto, void* UNUSED(context));
+static void _sysinfo_task_handle_coproc_coredump(void* proto, void* UNUSED(context));
+static void _sysinfo_task_handle_coproc_events(void* proto, void* UNUSED(context));
 
 static void send_initial_device_info(void) {
   memset(&device_info_for_ui, 0, sizeof(device_info_for_ui));
@@ -83,6 +105,10 @@ void sysinfo_task_register_listeners(void) {
   uc_route_register(fwpb_uxc_msg_device_boot_status_msg_tag,
                     _sysinfo_task_handle_coproc_boot_message, NULL);
   uc_route_register(fwpb_uxc_msg_device_meta_rsp_tag, _sysinfo_task_handle_coproc_metadata, NULL);
+  uc_route_register(fwpb_uxc_msg_device_coredump_get_rsp_tag, _sysinfo_task_handle_coproc_coredump,
+                    NULL);
+  uc_route_register(fwpb_uxc_msg_device_events_get_rsp_tag, _sysinfo_task_handle_coproc_events,
+                    NULL);
 }
 
 bool sysinfo_task_port_handle_message(ipc_ref_t* message) {
@@ -119,15 +145,79 @@ void sysinfo_task_handle_coproc_metadata(ipc_ref_t* message) {
   uc_free_recv_proto(msg_device);
 
   // Send the IPC message.
-  proto_send_rsp_without_free(rsp);
-  ipc_proto_free((uint8_t*)rsp);
+  proto_send_rsp(NULL, rsp);
+}
+
+void sysinfo_task_handle_coproc_coredump(ipc_ref_t* message) {
+  ASSERT((message != NULL) && (message->object != NULL));
+
+  fwpb_uxc_msg_device* msg_device = message->object;
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+  rsp->which_msg = fwpb_wallet_rsp_coredump_get_rsp_tag;
+  rsp->msg.coredump_get_rsp.rsp_status = msg_device->msg.coredump_get_rsp.rsp_status;
+  rsp->msg.coredump_get_rsp.coredump_count = msg_device->msg.coredump_get_rsp.coredump_count;
+  rsp->msg.coredump_get_rsp.mcu_role = msg_device->msg.coredump_get_rsp.mcu_role;
+  rsp->msg.coredump_get_rsp.mcu_name = msg_device->msg.coredump_get_rsp.mcu_name;
+  rsp->msg.coredump_get_rsp.has_coredump_fragment =
+    msg_device->msg.coredump_get_rsp.has_coredump_fragment;
+
+  // If there is a coredump fragment present, then copy it over.
+  if (rsp->msg.coredump_get_rsp.has_coredump_fragment) {
+    rsp->msg.coredump_get_rsp.coredump_fragment.offset =
+      msg_device->msg.coredump_get_rsp.coredump_fragment.offset;
+    rsp->msg.coredump_get_rsp.coredump_fragment.complete =
+      msg_device->msg.coredump_get_rsp.coredump_fragment.complete;
+    rsp->msg.coredump_get_rsp.coredump_fragment.coredumps_remaining =
+      msg_device->msg.coredump_get_rsp.coredump_fragment.coredumps_remaining;
+
+    const size_t coredump_size =
+      BLK_MIN(msg_device->msg.coredump_get_rsp.coredump_fragment.data.size,
+              sizeof(rsp->msg.coredump_get_rsp.coredump_fragment.data.bytes));
+    memcpy(rsp->msg.coredump_get_rsp.coredump_fragment.data.bytes,
+           msg_device->msg.coredump_get_rsp.coredump_fragment.data.bytes, coredump_size);
+    msg_device->msg.coredump_get_rsp.coredump_fragment.data.size = coredump_size;
+  }
+  uc_free_recv_proto(msg_device);
+
+  // Send the IPC message.
+  proto_send_rsp(NULL, rsp);
+}
+
+void sysinfo_task_handle_coproc_events(ipc_ref_t* message) {
+  ASSERT((message != NULL) && (message->object != NULL));
+
+  fwpb_uxc_msg_device* msg_device = message->object;
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+  rsp->which_msg = fwpb_wallet_rsp_events_get_rsp_tag;
+  rsp->msg.events_get_rsp.rsp_status = msg_device->msg.events_get_rsp.rsp_status;
+  rsp->msg.events_get_rsp.version = msg_device->msg.events_get_rsp.version;
+  rsp->msg.events_get_rsp.mcu_role = msg_device->msg.events_get_rsp.mcu_role;
+  rsp->msg.events_get_rsp.has_fragment = msg_device->msg.events_get_rsp.has_fragment;
+
+  // If there is a fragment present, then copy it over.
+  if (rsp->msg.events_get_rsp.has_fragment) {
+    rsp->msg.events_get_rsp.fragment.remaining_size =
+      msg_device->msg.events_get_rsp.fragment.remaining_size;
+
+    const size_t fragment_size = BLK_MIN(msg_device->msg.events_get_rsp.fragment.data.size,
+                                         sizeof(rsp->msg.events_get_rsp.fragment.data.bytes));
+    memcpy(rsp->msg.events_get_rsp.fragment.data.bytes,
+           msg_device->msg.events_get_rsp.fragment.data.bytes, fragment_size);
+    rsp->msg.events_get_rsp.fragment.data.size = fragment_size;
+  }
+  uc_free_recv_proto(msg_device);
+
+  // Send the IPC message.
+  proto_send_rsp(NULL, rsp);
 }
 
 void sysinfo_task_request_coproc_metadata(fwpb_wallet_cmd* cmd) {
   fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
+  const uint8_t mcu_role = cmd->msg.meta_cmd.mcu_role;
 
   // Copy over the message.
   msg->which_msg = fwpb_uxc_msg_host_meta_cmd_tag;
+  msg->msg.meta_cmd.mcu_role = mcu_role;
   ipc_proto_free((uint8_t*)cmd);
 
   const bool sent = uc_send(msg);
@@ -136,13 +226,63 @@ void sysinfo_task_request_coproc_metadata(fwpb_wallet_cmd* cmd) {
     fwpb_wallet_rsp* rsp = proto_get_rsp();
     rsp->which_msg = fwpb_wallet_rsp_meta_rsp_tag;
     rsp->msg.meta_rsp.rsp_status = fwpb_meta_rsp_meta_rsp_status_ERROR;
-    proto_send_rsp_without_free(rsp);
-    ipc_proto_free((uint8_t*)rsp);
+    rsp->msg.meta_rsp.mcu_role = mcu_role;
+    proto_send_rsp(NULL, rsp);
+  }
+}
+
+void sysinfo_task_request_coproc_coredump(fwpb_wallet_cmd* cmd) {
+  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
+  const uint8_t mcu_role = cmd->msg.coredump_get_cmd.mcu_role;
+
+  // Copy over the message.
+  msg->which_msg = fwpb_uxc_msg_host_coredump_get_cmd_tag;
+  msg->msg.coredump_get_cmd.type = cmd->msg.coredump_get_cmd.type;
+  msg->msg.coredump_get_cmd.offset = cmd->msg.coredump_get_cmd.offset;
+  msg->msg.coredump_get_cmd.mcu_role = mcu_role;
+  ipc_proto_free((uint8_t*)cmd);
+
+  const bool sent = uc_send(msg);
+  if (!sent) {
+    // Force a failure response.
+    fwpb_wallet_rsp* rsp = proto_get_rsp();
+    rsp->which_msg = fwpb_wallet_rsp_coredump_get_rsp_tag;
+    rsp->msg.coredump_get_rsp.rsp_status = fwpb_coredump_get_rsp_coredump_get_rsp_status_ERROR;
+    rsp->msg.coredump_get_rsp.mcu_role = mcu_role;
+    proto_send_rsp(NULL, rsp);
+  }
+}
+
+void sysinfo_task_request_coproc_events(fwpb_wallet_cmd* cmd) {
+  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
+  const uint8_t mcu_role = cmd->msg.events_get_cmd.mcu_role;
+
+  // Copy over the message.
+  msg->which_msg = fwpb_uxc_msg_host_events_get_cmd_tag;
+  msg->msg.events_get_cmd.mcu_role = mcu_role;
+  ipc_proto_free((uint8_t*)cmd);
+
+  const bool sent = uc_send(msg);
+  if (!sent) {
+    // Force a failure response.
+    fwpb_wallet_rsp* rsp = proto_get_rsp();
+    rsp->which_msg = fwpb_wallet_rsp_events_get_rsp_tag;
+    rsp->msg.events_get_rsp.rsp_status = fwpb_events_get_rsp_events_get_rsp_status_ERROR;
+    rsp->msg.events_get_rsp.mcu_role = mcu_role;
+    proto_send_rsp(NULL, rsp);
   }
 }
 
 static void _sysinfo_task_handle_coproc_boot_message(void* proto, void* UNUSED(context)) {
   static sysinfo_boot_status_t sysinfo_boot_status SHARED_TASK_DATA;
+
+  fwpb_uxc_boot_status_msg* msg = &((fwpb_uxc_msg_device*)proto)->msg.boot_status_msg;
+  uxc_mcu_info.mcu_role = fwpb_mcu_role_MCU_ROLE_UXC;
+  uxc_mcu_info.mcu_name = fwpb_mcu_name_MCU_NAME_STM32U5;
+  uxc_mcu_info.version.major = msg->version.major;
+  uxc_mcu_info.version.minor = msg->version.minor;
+  uxc_mcu_info.version.patch = msg->version.patch;
+  uxc_mcu_info.has_version = true;
 
   uc_free_recv_proto(proto);
 
@@ -157,8 +297,25 @@ static void _sysinfo_task_handle_coproc_metadata(void* proto, void* UNUSED(conte
   ipc_send(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_METADATA);
 }
 
-void sysinfo_task_port_prepare_sleep_and_power_down(void) {
+void sysinfo_task_port_prepare_power_down(void) {
   LOGD("Preparing for coordinated power down");
+  UI_SHOW_EVENT(UI_EVENT_POWER_OFF);
+
+  // If USB is plugged in, we cannot power off, so instead we turn off the
+  // screen and poll until USB is un-plugged.
+  if (power_is_plugged_in()) {
+    // We clear before polling to ensure the touch event came in after we
+    // started polling.
+    rtos_thread_sleep(SYSINFO_POWER_OFF_TOUCH_DELAY_MS);
+    sysevent_clear(SYSEVENT_TOUCH | SYSEVENT_CAPTOUCH);
+
+    // If there is a touch event (captouch or screen) while USB is plugged
+    // in, we exit to reset under the assumption that the user wants to
+    // use their device.
+    while (power_is_plugged_in() && !sysevent_get(SYSEVENT_TOUCH | SYSEVENT_CAPTOUCH)) {
+      rtos_thread_sleep(SYSINFO_POWER_OFF_POLL_MS);
+    }
+  }
 
   // Send prepare sleep command to UXC
   fwpb_uxc_msg_host* cmd = uc_alloc_send_proto();
@@ -173,15 +330,71 @@ void sysinfo_task_port_prepare_sleep_and_power_down(void) {
     LOGE("Failed to allocate proto for prepare sleep command");
   }
 
-  // Wait for UXC to enter monitor mode and send IPC_SYSINFO_UXC_SLEEP_READY
-  // (If IPC arrives first, it will power down immediately)
-  rtos_thread_sleep(SLEEP_PREP_TIMEOUT_MS);
-  // Timeout - UXC didn't respond in time
-  BITLOG_EVENT(sleep_prep_timeout, 0);
-  // Give bitlog time to save
-  rtos_thread_sleep(BITLOG_SAVE_DELAY_MS);
+  // If we successfully send the message to the UXC, we expect to get a
+  // response to continue the shutdown flow, so start a shutdown timer to
+  // handle the case in which we do not get the response.
+  sysinfo_task_start_shutdown_timer(SYSINFO_SLEEP_PREP_TIMEOUT_MS);
+}
 
-  LOGW("UXC sleep ready timeout - powering down anyway");
-  power_set_ldo_low_power_mode();  // Reduce LDO quiescent current before sleep
-  power_set_retain(false);
+void sysinfo_task_port_power_down(void) {
+  if (power_is_plugged_in()) {
+    // If USB is plugged in, we cannot power down, so instead we just reset.
+    coproc_power_assert_reset();
+    mcu_reset_with_reason(MCU_RESET_POWER_DOWN_USB_PLUGGED);
+  } else {
+    if (sysinfo_task_in_ship_state()) {
+      // Disable LDO completely for ship state (packout mode).
+      power_disable_ldo();
+    } else {
+      // Reduce LDO quiescent current before sleep.
+      power_set_ldo_low_power_mode();
+    }
+    power_set_retain(false);
+  }
+}
+
+void sysinfo_task_port_populate_mcu_info(fwpb_device_info_rsp* rsp) {
+  ASSERT(rsp != NULL);
+
+  uint8_t index = 0;
+  metadata_t metadata = {0};
+  fwpb_firmware_slot active_slot = fwpb_firmware_slot_SLOT_A;
+  if (metadata_get_active_slot(&metadata, &active_slot) != METADATA_VALID) {
+    rsp->device_info_mcus_count = 0;
+    return;
+  }
+
+  rsp->device_info_mcus_count = index + 1;
+  rsp->device_info_mcus[index].mcu_role = fwpb_mcu_role_MCU_ROLE_CORE;
+  rsp->device_info_mcus[index].mcu_name = fwpb_mcu_name_MCU_NAME_EFR32;
+  rsp->device_info_mcus[index].has_version = true;
+  rsp->device_info_mcus[index].version.major = metadata.version.major;
+  rsp->device_info_mcus[index].version.minor = metadata.version.minor;
+  rsp->device_info_mcus[index].version.patch = metadata.version.patch;
+  index++;
+
+  if (uxc_mcu_info.has_version) {
+    rsp->device_info_mcus_count = index + 1;
+    rsp->device_info_mcus[index].mcu_role = uxc_mcu_info.mcu_role;
+    rsp->device_info_mcus[index].mcu_name = uxc_mcu_info.mcu_name;
+    rsp->device_info_mcus[index].has_version = true;
+    rsp->device_info_mcus[index].version.major = uxc_mcu_info.version.major;
+    rsp->device_info_mcus[index].version.minor = uxc_mcu_info.version.minor;
+    rsp->device_info_mcus[index].version.patch = uxc_mcu_info.version.patch;
+    index++;
+  }
+}
+
+static void _sysinfo_task_handle_coproc_coredump(void* proto, void* UNUSED(context)) {
+  // Pass through the pointer. Sysinfo task will handle free'ing the data.
+  ipc_send(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_COREDUMP);
+}
+
+static void _sysinfo_task_handle_coproc_events(void* proto, void* UNUSED(context)) {
+  // Pass through the pointer. Sysinfo task will handle free'ing the data.
+  ipc_send(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_EVENTS);
+}
+
+bool sysinfo_task_port_dispatch_confirmation_result(ipc_ref_t* message) {
+  return confirmation_manager_dispatch_result(message);
 }

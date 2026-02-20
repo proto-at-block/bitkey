@@ -1,0 +1,116 @@
+From a3284c969b0d0c551ee49a3650da989f967b27f3 Mon Sep 17 00:00:00 2001
+From: klopez4212 <klopez4212@gmail.com>
+Date: Fri, 30 Jan 2026 09:42:31 +0000
+Subject: [PATCH] fix(label): Trim trailing spaces when calculating
+ centered/right-aligned text width
+
+When text is wrapped, trailing spaces on each line were being included
+in width calculations, causing centered and right-aligned text to
+appear shifted. This fix trims trailing spaces (and line terminators)
+before measuring line width for alignment purposes.
+
+Fixes #5679
+---
+ src/draw/lv_draw_label.c     | 24 ++++++++++++++++++++----
+ src/widgets/label/lv_label.c | 31 +++++++++++++++++++++----------
+ 2 files changed, 41 insertions(+), 14 deletions(-)
+
+diff --git a/src/draw/lv_draw_label.c b/src/draw/lv_draw_label.c
+index 5276eb7ee..b65be72bb 100644
+--- a/src/draw/lv_draw_label.c
++++ b/src/draw/lv_draw_label.c
+@@ -312,13 +312,21 @@ void lv_draw_label_iterate_characters(lv_draw_task_t * t, const lv_draw_label_ds
+ 
+     /*Align to middle*/
+     if(align == LV_TEXT_ALIGN_CENTER) {
+-        line_width = lv_text_get_width(&dsc->text[line_start], line_end - line_start, font, &attributes);
++        uint32_t trimmed_len = line_end - line_start;
++        while(trimmed_len > 0 && dsc->text[line_start + trimmed_len - 1] == ' ') {
++            trimmed_len--;
++        }
++        line_width = lv_text_get_width(&dsc->text[line_start], trimmed_len, font, &attributes);
+         pos.x += (lv_area_get_width(coords) - line_width) / 2;
+ 
+     }
+     /*Align to the right*/
+     else if(align == LV_TEXT_ALIGN_RIGHT) {
+-        line_width = lv_text_get_width(&dsc->text[line_start], line_end - line_start, font, &attributes);
++        uint32_t trimmed_len = line_end - line_start;
++        while(trimmed_len > 0 && dsc->text[line_start + trimmed_len - 1] == ' ') {
++            trimmed_len--;
++        }
++        line_width = lv_text_get_width(&dsc->text[line_start], trimmed_len, font, &attributes);
+         pos.x += lv_area_get_width(coords) - line_width;
+     }
+ 
+@@ -553,15 +561,23 @@ void lv_draw_label_iterate_characters(lv_draw_task_t * t, const lv_draw_label_ds
+         pos.x = coords->x1;
+         /*Align to middle*/
+         if(align == LV_TEXT_ALIGN_CENTER) {
++            uint32_t trimmed_len = line_end - line_start;
++            while(trimmed_len > 0 && dsc->text[line_start + trimmed_len - 1] == ' ') {
++                trimmed_len--;
++            }
+             line_width =
+-                lv_text_get_width(&dsc->text[line_start], line_end - line_start, font, &text_attributes);
++                lv_text_get_width(&dsc->text[line_start], trimmed_len, font, &text_attributes);
+ 
+             pos.x += (lv_area_get_width(coords) - line_width) / 2;
+         }
+         /*Align to the right*/
+         else if(align == LV_TEXT_ALIGN_RIGHT) {
++            uint32_t trimmed_len = line_end - line_start;
++            while(trimmed_len > 0 && dsc->text[line_start + trimmed_len - 1] == ' ') {
++                trimmed_len--;
++            }
+             line_width =
+-                lv_text_get_width(&dsc->text[line_start], line_end - line_start, font, &text_attributes);
++                lv_text_get_width(&dsc->text[line_start], trimmed_len, font, &text_attributes);
+             pos.x += lv_area_get_width(coords) - line_width;
+         }
+ 
+diff --git a/src/widgets/label/lv_label.c b/src/widgets/label/lv_label.c
+index d550043c5..a9d5e226b 100644
+--- a/src/widgets/label/lv_label.c
++++ b/src/widgets/label/lv_label.c
+@@ -1445,16 +1445,27 @@ static lv_text_flag_t get_label_flags(lv_label_t * label)
+ static void calculate_x_coordinate(int32_t * x, const lv_text_align_t align, const char * txt, uint32_t length,
+                                    const lv_font_t * font, lv_area_t * txt_coords, lv_text_attributes_t * attributes)
+ {
+-    if(align == LV_TEXT_ALIGN_CENTER) {
+-        const int32_t line_w = lv_text_get_width(txt, length, font, attributes);
+-        *x += lv_area_get_width(txt_coords) / 2 - line_w / 2;
+-    }
+-    else if(align == LV_TEXT_ALIGN_RIGHT) {
+-        const int32_t line_w = lv_text_get_width(txt, length, font, attributes);
+-        *x += lv_area_get_width(txt_coords) - line_w;
+-    }
+-    else {
+-        /* Nothing to do */
++    if(align == LV_TEXT_ALIGN_CENTER || align == LV_TEXT_ALIGN_RIGHT) {
++        uint32_t trimmed_len = length;
++        while(trimmed_len > 0) {
++            char c = txt[trimmed_len - 1];
++            if(c == '\0' || c == '\n' || c == '\r') {
++                trimmed_len--;
++            }
++            else {
++                break;
++            }
++        }
++        while(trimmed_len > 0 && txt[trimmed_len - 1] == ' ') {
++            trimmed_len--;
++        }
++        const int32_t line_w = lv_text_get_width(txt, trimmed_len, font, attributes);
++        if(align == LV_TEXT_ALIGN_CENTER) {
++            *x += lv_area_get_width(txt_coords) / 2 - line_w / 2;
++        }
++        else {
++            *x += lv_area_get_width(txt_coords) - line_w;
++        }
+     }
+ }
+ 
+-- 
+2.51.0
+

@@ -1,0 +1,16 @@
+-- Make coachmark expiration column optional.
+-- SQLite doesn't support ALTER COLUMN, so we need to recreate the table.
+CREATE TABLE coachmarkEntity_new(
+  id            TEXT NOT NULL PRIMARY KEY,
+  viewed        INTEGER NOT NULL,
+  expiration    INTEGER
+);
+
+INSERT INTO coachmarkEntity_new(id, viewed, expiration)
+SELECT id, viewed, expiration FROM coachmarkEntity;
+
+DROP TABLE coachmarkEntity;
+
+ALTER TABLE coachmarkEntity_new RENAME TO coachmarkEntity;
+
+PRAGMA foreign_key_check;

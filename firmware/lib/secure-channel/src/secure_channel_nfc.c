@@ -102,12 +102,12 @@ secure_channel_err_t secure_nfc_channel_encrypt(uint8_t* plaintext, uint8_t* cip
                                                 uint32_t len, uint8_t nonce[AES_GCM_IV_LENGTH],
                                                 uint8_t mac[AES_GCM_TAG_LENGTH]) {
   return secure_channel_cipher(&secure_channel_ctx, SECURE_CHANNEL_ENCRYPT, plaintext, ciphertext,
-                               len, nonce, mac);
+                               len, NULL, 0, nonce, mac);
 }
 
 secure_channel_err_t secure_nfc_channel_decrypt(uint8_t* ciphertext, uint8_t* plaintext,
                                                 uint32_t len, uint8_t nonce[AES_GCM_IV_LENGTH],
                                                 uint8_t mac[AES_GCM_TAG_LENGTH]) {
   return secure_channel_cipher(&secure_channel_ctx, SECURE_CHANNEL_DECRYPT, ciphertext, plaintext,
-                               len, nonce, mac);
+                               len, NULL, 0, nonce, mac);
 }

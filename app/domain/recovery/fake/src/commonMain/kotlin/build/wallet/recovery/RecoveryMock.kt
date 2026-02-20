@@ -3,6 +3,7 @@ package build.wallet.recovery
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock2
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.App
@@ -26,19 +27,19 @@ val StillRecoveringInitiatedRecoveryMock =
     hardwareAuthKey = HwAuthPublicKey(Secp256k1PublicKey("hardware-auth-key")),
     appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
     factorToRecover = App,
-    serverRecovery =
-      ServerRecovery(
-        fullAccountId = FullAccountId("account-id"),
-        delayStartTime = someInstant,
-        delayEndTime = someInstant + 2.hours,
-        lostFactor = Hardware,
-        destinationAppGlobalAuthPubKey =
-          PublicKey("lost-hardware-recovery-app-auth-pubKey"),
-        destinationAppRecoveryAuthPubKey =
-          PublicKey("lost-hardware-recovery-app-auth-pubKey"),
-        destinationHardwareAuthPubKey =
-          HwAuthPublicKey(
-            Secp256k1PublicKey("lost-hardware-recovery-hardware-auth-pubKey")
-          )
-      )
+    serverRecovery = ServerRecovery(
+      fullAccountId = FullAccountId("account-id"),
+      delayStartTime = someInstant,
+      delayEndTime = someInstant + 2.hours,
+      lostFactor = Hardware,
+      destinationAppGlobalAuthPubKey =
+        PublicKey("lost-hardware-recovery-app-auth-pubKey"),
+      destinationAppRecoveryAuthPubKey =
+        PublicKey("lost-hardware-recovery-app-auth-pubKey"),
+      destinationHardwareAuthPubKey =
+        HwAuthPublicKey(
+          Secp256k1PublicKey("lost-hardware-recovery-hardware-auth-pubKey")
+        )
+    ),
+    originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
   )

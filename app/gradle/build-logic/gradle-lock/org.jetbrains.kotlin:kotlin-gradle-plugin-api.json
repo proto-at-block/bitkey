@@ -2,20 +2,6 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin-api",
     "components": [
         {
-            "version": "2.0.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-gradle-plugin-api-2.0.20-gradle85.jar": "0f7357bc5ccc8e3681ec3b4643c70cad2883b246c8b7af7d6d971c41e3934f2d",
-                        "kotlin-gradle-plugin-api-2.0.20.jar": "0f7357bc5ccc8e3681ec3b4643c70cad2883b246c8b7af7d6d971c41e3934f2d"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[build-logic]"
-            ]
-        },
-        {
             "version": "2.1.20",
             "variants": [
                 {
@@ -27,6 +13,20 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
+            ]
+        },
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-gradle-plugin-api-2.2.20-gradle813.jar": "7607ee5c7a0ca53fa592ee7c540ee808962a7bad8fee9ed78fe674841463d95d",
+                        "kotlin-gradle-plugin-api-2.2.20.jar": "7607ee5c7a0ca53fa592ee7c540ee808962a7bad8fee9ed78fe674841463d95d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
             ]
         }
     ]

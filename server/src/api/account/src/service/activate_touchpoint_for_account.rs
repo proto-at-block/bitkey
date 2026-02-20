@@ -15,8 +15,8 @@ impl Service {
             account.get_touchpoint_by_id(input.touchpoint_id.to_owned())
         {
             if existing_touchpoint.is_active() {
-                event!(Level::ERROR, "Touchpoint already active",);
-                return Err(AccountError::TouchpointAlreadyActive);
+                event!(Level::INFO, "Touchpoint already active, returning success");
+                return Ok(existing_touchpoint.clone());
             }
 
             match existing_touchpoint {
@@ -41,7 +41,7 @@ impl Service {
                 _ => Err(AccountError::Unexpected),
             }
         } else {
-            event!(Level::ERROR, "Touchpoint not found",);
+            event!(Level::ERROR, "Touchpoint not found");
             Err(AccountError::TouchpointNotFound)
         }?;
 

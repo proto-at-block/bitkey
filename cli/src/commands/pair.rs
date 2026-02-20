@@ -1,7 +1,7 @@
 use std::{thread::sleep, time::Duration};
 
 use anyhow::Result;
-use bdk::bitcoin::Network;
+use bdk_wallet::bitcoin::Network;
 use wca::pcsc::{PCSCTransactor, Transactor, TransactorError};
 
 use crate::{

@@ -1,5 +1,7 @@
 use bitcoin::{
-    bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey},
+    bip32::{
+        ChainCode, ChildNumber, DerivationPath, Xpriv as ExtendedPrivKey, Xpub as ExtendedPubKey,
+    },
     key::Secp256k1,
     psbt::Psbt,
     secp256k1::{
@@ -104,7 +106,7 @@ pub fn server_account_dpub(
 /// Generates server root xpub given network and server root public key
 pub fn server_root_xpub(network: Network, server_root_pubkey: PublicKey) -> ExtendedPubKey {
     ExtendedPubKey {
-        network,
+        network: network.into(),
         depth: 0,
         parent_fingerprint: Default::default(),
         child_number: ChildNumber::from_normal_idx(0).expect("root child number"),
@@ -213,7 +215,10 @@ mod tests {
     use std::str::FromStr;
 
     use bitcoin::{
-        bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint},
+        bip32::{
+            ChildNumber, DerivationPath, Fingerprint, Xpriv as ExtendedPrivKey,
+            Xpub as ExtendedPubKey,
+        },
         secp256k1::Secp256k1,
         Network,
     };
@@ -238,7 +243,7 @@ mod tests {
                 assert_eq!(xkey.derivation_path, DerivationPath::default());
 
                 // Verify the xpub network matches
-                assert_eq!(xkey.xkey.network, Network::Bitcoin);
+                assert_eq!(xkey.xkey.network, Network::Bitcoin.into());
             }
             _ => panic!("Expected XPub descriptor key"),
         }
@@ -278,7 +283,7 @@ mod tests {
         let xpub = server_root_xpub(Network::Bitcoin, server_root_pubkey.inner);
 
         // Verify root xpub properties
-        assert_eq!(xpub.network, Network::Bitcoin);
+        assert_eq!(xpub.network, Network::Bitcoin.into());
         assert_eq!(xpub.depth, 0);
         assert_eq!(xpub.parent_fingerprint, Fingerprint::default());
         assert_eq!(xpub.child_number, ChildNumber::from_normal_idx(0).unwrap());

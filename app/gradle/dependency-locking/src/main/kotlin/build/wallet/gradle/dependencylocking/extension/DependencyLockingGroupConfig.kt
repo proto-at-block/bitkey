@@ -25,7 +25,9 @@ abstract class DependencyLockingGroupConfig : Named {
       pinnedDependencies.add(
         dependency.map {
           // Uses internal Gradle API but there seems to be no better way to configure constraints without touching `Project` which sometimes breaks configuration cache.
-          DefaultDependencyConstraint.strictly(it.group, it.name, it.version ?: "")
+          DefaultDependencyConstraint(it.group, it.name, it.version ?: "").apply {
+            version { strictly(it.version ?: "") }
+          }
         }
       )
     }
@@ -40,7 +42,9 @@ abstract class DependencyLockingGroupConfig : Named {
 
       pinnedDependencies.add(
         providerFactory.provider {
-          DefaultDependencyConstraint.strictly(components[0], components[1], components[2])
+          DefaultDependencyConstraint(components[0], components[1], components[2]).apply {
+            version { strictly(components[2]) }
+          }
         }
       )
     }

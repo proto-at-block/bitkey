@@ -8,6 +8,7 @@ import android.os.Build.VERSION_CODES
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
@@ -17,6 +18,7 @@ import build.wallet.logging.logInfo
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.ui.app.App
+import build.wallet.ui.theme.Theme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -53,13 +55,16 @@ class MainActivity : FragmentActivity() {
 
       val activityComponent = activityComponent.await()
 
+      observeThemeChanges(activityComponent)
+
       setContent {
         App(
           model = activityComponent.appUiStateMachine.model(Unit),
           deviceInfo = appComponent.deviceInfoProvider.getDeviceInfo(),
           accelerometer = appComponent.accelerometer,
           themePreferenceService = activityComponent.themePreferenceService,
-          haptics = appComponent.haptics
+          haptics = appComponent.haptics,
+          designSystemUpdatesEnabled = activityComponent.designSystemUpdatesFeatureFlag.flagValue()
         )
       }
 
@@ -176,6 +181,18 @@ class MainActivity : FragmentActivity() {
         }
       }
       .stateIn(lifecycleScope, SharingStarted.Eagerly, false)
+  }
+
+  private fun observeThemeChanges(activityComponent: AndroidActivityComponent) {
+    lifecycleScope.launch {
+      activityComponent.themePreferenceService.theme().collect { theme ->
+        val nightMode = when (theme) {
+          Theme.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+          Theme.DARK -> AppCompatDelegate.MODE_NIGHT_YES
+        }
+        AppCompatDelegate.setDefaultNightMode(nightMode)
+      }
+    }
   }
 }
 

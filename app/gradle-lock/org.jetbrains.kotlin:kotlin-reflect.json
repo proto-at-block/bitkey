@@ -28,19 +28,6 @@
             ]
         },
         {
-            "version": "2.0.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-reflect-2.0.20.jar": "18f451e6b4b7bd1d1f9d60849c3cbf160e115302f97a2008c190d505c439c670"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
-            ]
-        },
-        {
             "version": "2.1.20",
             "variants": [
                 {
@@ -51,6 +38,19 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
+            ]
+        },
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-reflect-2.2.20.jar": "8209083a4a7c4e476d9842b078308fa96a96f07a6bd99f05f3586ee13289ab26"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
             ]
         }
     ]

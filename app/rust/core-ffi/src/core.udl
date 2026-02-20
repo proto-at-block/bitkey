@@ -27,11 +27,18 @@ namespace core {
   ExtendedPubKey server_root_xpub(Network network, PublicKey server_root_pubkey);
   [Throws=PublicKeyError]
   PublicKey extract_public_key(DescriptorPublicKey descriptor_public_key);
+  [Throws=XpubChaincodeError]
+  sequence<u8> extract_xpub_chaincode([ByRef] string xpub);
 };
 
 [Error]
 enum PublicKeyError {
   "UnsupportedDescriptorPublicKeyType",
+};
+
+[Error]
+interface XpubChaincodeError {
+  InvalidXpub(string reason);
 };
 
 [Error]

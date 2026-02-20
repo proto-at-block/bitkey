@@ -7,6 +7,7 @@ import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.Fee
@@ -61,10 +62,23 @@ class SpendingWalletMock(
     return newAddressResult
   }
 
+  var newAddressInfoResult: Result<BitcoinAddressInfo, Error> =
+    Ok(BitcoinAddressInfo(address = someBitcoinAddress, index = 0u))
+
+  override suspend fun getNewAddressInfo(): Result<BitcoinAddressInfo, Error> {
+    return newAddressInfoResult
+  }
+
   var peekAddressResult: Result<BitcoinAddress, Error> = Ok(someBitcoinAddress)
 
   override suspend fun peekAddress(index: UInt): Result<BitcoinAddress, Error> {
     return peekAddressResult
+  }
+
+  var revealAddressResult: Result<BitcoinAddress, Error> = Ok(someBitcoinAddress)
+
+  override suspend fun revealAddress(index: UInt): Result<BitcoinAddress, Error> {
+    return revealAddressResult
   }
 
   var lastUnusedAddressResult: Result<BitcoinAddress, Error> = Ok(someBitcoinAddress)
@@ -106,13 +120,16 @@ class SpendingWalletMock(
 
   fun reset() {
     newAddressResult = Ok(someBitcoinAddress)
+    newAddressInfoResult = Ok(BitcoinAddressInfo(address = someBitcoinAddress, index = 0u))
     peekAddressResult = Ok(someBitcoinAddress)
+    revealAddressResult = Ok(someBitcoinAddress)
     balanceFlow.value = null
     transactionsFlow.value = null
     unspentOutputsFlow.value = null
     signPsbtResult = null
     createSignedPsbtResult = null
     createSignedPsbtResults.clear()
+    lastCreateSignedPsbtConstructionType = null
     createPsbtResult = null
     createPsbtResults.clear()
     isMineResult = Ok(false)
@@ -140,7 +157,7 @@ class SpendingWalletMock(
         id = "psbt-id",
         base64 = "some-base-64",
         fee = Fee(feeAmount),
-        baseSize = 10000,
+        vsize = 10000,
         numOfInputs = 1,
         amountSats = 10000UL
       )
@@ -150,10 +167,12 @@ class SpendingWalletMock(
   var createSignedPsbtResult: Result<Psbt, Throwable>? = null
   val createSignedPsbtResults =
     mutableMapOf<BitcoinAddress, Result<Psbt, Throwable>>()
+  var lastCreateSignedPsbtConstructionType: SpendingWallet.PsbtConstructionMethod? = null
 
   override suspend fun createSignedPsbt(
     constructionType: SpendingWallet.PsbtConstructionMethod,
   ): Result<Psbt, Throwable> {
+    lastCreateSignedPsbtConstructionType = constructionType
     createSignedPsbtResult?.let { return it }
 
     if (constructionType is SpendingWallet.PsbtConstructionMethod.Regular) {
@@ -174,7 +193,7 @@ class SpendingWalletMock(
         id = "psbt-id",
         base64 = "some-base-64",
         fee = Fee(feeAmount),
-        baseSize = 10000,
+        vsize = 10000,
         numOfInputs = 1,
         amountSats = 10000UL
       )

@@ -311,4 +311,44 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
       awaitItem().bottomSheetModel.shouldBeNull()
     }
   }
+
+  test("secondary skip button - shown when onSkipSecondaryButton is provided") {
+    val onSkipSecondaryButtonCalls = turbines.create<Unit>("on skip secondary button shown calls")
+    stateMachine.test(
+      props.copy(
+        onSkipSecondaryButton = { onSkipSecondaryButtonCalls += Unit }
+      )
+    ) {
+      awaitBody<FormBodyModel> {
+        // Secondary button should be present with "Skip" text
+        secondaryButton.shouldNotBeNull().text.shouldBe("Skip")
+      }
+    }
+  }
+
+  test("secondary skip button - clicking calls callback") {
+    val onSkipSecondaryButtonCalls = turbines.create<Unit>("on skip secondary button click calls")
+    stateMachine.test(
+      props.copy(
+        onSkipSecondaryButton = { onSkipSecondaryButtonCalls += Unit }
+      )
+    ) {
+      awaitBody<FormBodyModel> {
+        secondaryButton.shouldNotBeNull().onClick.invoke()
+        onSkipSecondaryButtonCalls.awaitItem()
+      }
+    }
+  }
+
+  test("secondary skip button - not shown when onSkipSecondaryButton is null") {
+    stateMachine.test(
+      props.copy(
+        onSkipSecondaryButton = null
+      )
+    ) {
+      awaitBody<FormBodyModel> {
+        secondaryButton.shouldBeNull()
+      }
+    }
+  }
 })

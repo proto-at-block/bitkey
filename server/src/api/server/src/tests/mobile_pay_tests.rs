@@ -269,7 +269,8 @@ mod get_mobile_pay_tests {
 
     use bdk_utils::bdk::bitcoin::absolute::LockTime;
     use bdk_utils::bdk::bitcoin::psbt::Psbt;
-    use bdk_utils::bdk::bitcoin::{Address, ScriptBuf, Transaction, TxOut};
+    use bdk_utils::bdk::bitcoin::transaction::Version;
+    use bdk_utils::bdk::bitcoin::{Address, Amount, ScriptBuf, Transaction, TxOut};
     use bdk_utils::constants::ONE_BTC_IN_SATOSHIS;
     use bdk_utils::error::BdkUtilError;
     use bdk_utils::{AttributableWallet, SpkWithDerivationPaths};
@@ -334,6 +335,8 @@ mod get_mobile_pay_tests {
     #[case::get_mobile_pay_balance_with_fiat_spending_limit(USD_SPENDING_LIMIT)]
     #[tokio::test]
     async fn test_get_mobile_pay_balance(#[case] spending_limit: SpendingLimit) {
+        use bdk_utils::bdk::bitcoin::Amount;
+
         let payee_script_pubkey = Address::from_str("bc1qvh30c5k24q4z2h6e88tvsv7x3xyj7m4g37e498")
             .unwrap()
             .assume_checked()
@@ -370,18 +373,18 @@ mod get_mobile_pay_tests {
         let change_amount_sats: u64 = 306_249;
 
         let psbt = Psbt::from_unsigned_tx(Transaction {
-            version: 0,
+            version: Version::TWO,
             lock_time: LockTime::ZERO,
             input: Vec::new(),
             output: vec![
                 // payee output
                 TxOut {
-                    value: payee_amount_sats,
+                    value: Amount::from_sat(payee_amount_sats),
                     script_pubkey: payee_script_pubkey,
                 },
                 // change output
                 TxOut {
-                    value: change_amount_sats,
+                    value: Amount::from_sat(change_amount_sats),
                     script_pubkey: change_script_pubkey.clone(),
                 },
             ],
@@ -436,18 +439,18 @@ mod get_mobile_pay_tests {
         let mut spending_record =
             DailySpendingRecord::try_new(&account.id, OffsetDateTime::now_utc().date()).unwrap();
         let psbt = Psbt::from_unsigned_tx(Transaction {
-            version: 0,
+            version: Version::TWO,
             lock_time: LockTime::ZERO,
             input: Vec::new(),
             output: vec![
                 // payee output
                 TxOut {
-                    value: 50000,
+                    value: Amount::from_sat(50000),
                     script_pubkey: payee_script_pubkey,
                 },
                 // change output
                 TxOut {
-                    value: 0,
+                    value: Amount::from_sat(0),
                     script_pubkey: change_script_pubkey.clone(),
                 },
             ],
@@ -514,18 +517,18 @@ mod get_mobile_pay_tests {
         let mut spending_record =
             DailySpendingRecord::try_new(&account.id, OffsetDateTime::now_utc().date()).unwrap();
         let psbt = Psbt::from_unsigned_tx(Transaction {
-            version: 0,
+            version: Version::TWO,
             lock_time: LockTime::ZERO,
             input: Vec::new(),
             output: vec![
                 // payee output
                 TxOut {
-                    value: 1_100,
+                    value: Amount::from_sat(1_100),
                     script_pubkey: payee_script_pubkey,
                 },
                 // change output
                 TxOut {
-                    value: 100,
+                    value: Amount::from_sat(100),
                     script_pubkey: change_script_pubkey.clone(),
                 },
             ],

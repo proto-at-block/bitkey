@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Result};
-use bdk::{
+use bdk_wallet::{
     bitcoin::bip32::ChildNumber,
     descriptor::{DescriptorPublicKey, ExtendedDescriptor},
     miniscript::Descriptor,
     signer::SignerOrdering,
-    Wallet,
+    KeychainKind, Wallet,
 };
-use sled::{Db, Tree};
+use sled::Db;
 use wca::{pcsc::NullTransactor, signing::ExtendDerivationPath};
 
 use crate::{
@@ -15,15 +15,13 @@ use crate::{
     signers::Spending,
 };
 
-use super::DB_WALLET;
-
 impl SignerPair {
     pub(crate) fn wallet(
         &self,
         account: &Account,
-        db: &Db,
+        _db: &Db,
         context: Option<&SafeTransactor>,
-    ) -> Result<Wallet<Tree>> {
+    ) -> Result<Wallet> {
         // Guard clause to ensure account's key material is of Keysets variant
         let account_keysets = match &account.key_material {
             KeyMaterial::Keyset(keysets) => keysets,
@@ -34,18 +32,15 @@ impl SignerPair {
         let receive_descriptor = keyset.receiving().into_multisig_descriptor();
         let change_descriptor = keyset.change().into_multisig_descriptor();
 
-        let mut wallet = Wallet::new(
-            receive_descriptor,
-            Some(change_descriptor),
-            self.network,
-            db.open_tree(DB_WALLET)?,
-        )?;
+        let mut wallet = Wallet::create(receive_descriptor, change_descriptor)
+            .network(self.network)
+            .create_wallet_no_persist()?;
 
         let signer_application = self
             .application
             .signer(&SafeTransactor::new(NullTransactor));
         wallet.add_signer(
-            bdk::KeychainKind::External,
+            KeychainKind::External,
             SignerOrdering::default(),
             signer_application.clone(),
         );
@@ -53,7 +48,7 @@ impl SignerPair {
         if let Some(context) = context {
             let signer_hardware = self.hardware.signer(context);
             wallet.add_signer(
-                bdk::KeychainKind::External,
+                KeychainKind::External,
                 SignerOrdering::default(),
                 signer_hardware.clone(),
             );

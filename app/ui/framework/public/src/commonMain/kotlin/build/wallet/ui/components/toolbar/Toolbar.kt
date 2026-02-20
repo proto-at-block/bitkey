@@ -25,13 +25,16 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.compose.getScreenSize
 import build.wallet.ui.compose.thenIfNotNull
+import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.model.toolbar.ToolbarModel.HeroContent
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import org.jetbrains.compose.resources.DrawableResource
@@ -76,15 +79,30 @@ fun Toolbar(
 
 @Composable
 fun ToolbarAccessory(model: ToolbarAccessoryModel) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+
   when (model) {
     is ButtonAccessory -> Button(model.model)
-    is IconAccessory ->
+    is IconAccessory -> {
+      // Override circle size when design system V2 is enabled
+      val iconBackgroundType = if (isDesignSystemV2Enabled) {
+        when (val bg = model.model.iconModel.iconBackgroundType) {
+          is IconBackgroundType.Circle -> IconBackgroundType.Circle(
+            circleSize = IconSize.Custom(44),
+            color = bg.color
+          )
+          else -> bg
+        }
+      } else {
+        model.model.iconModel.iconBackgroundType
+      }
+
       IconButton(
         iconModel =
           IconModel(
             icon = (model.model.iconModel.iconImage as IconImage.LocalImage).icon,
             iconSize = model.model.iconModel.iconSize,
-            iconBackgroundType = model.model.iconModel.iconBackgroundType,
+            iconBackgroundType = iconBackgroundType,
             iconTint = model.model.iconModel.iconTint
           ),
         color =
@@ -97,6 +115,7 @@ fun ToolbarAccessory(model: ToolbarAccessoryModel) {
         enabled = model.model.enabled,
         onClick = { model.model.onClick.invoke() }
       )
+    }
   }
 }
 

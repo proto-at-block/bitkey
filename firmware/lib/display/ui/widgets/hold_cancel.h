@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "hold_ring.h"
+#include "dot_ring.h"
 #include "lvgl.h"
 
 #include <stdbool.h>
@@ -36,8 +36,10 @@ typedef struct {
   lv_obj_t* overlay;                // Semi-transparent black overlay
   lv_obj_t* icon_bg;                // Grey circle background for X icon
   lv_obj_t* icon_x;                 // White X icon
+  lv_obj_t* icon_check;             // Check icon (shown on completion)
   lv_obj_t* cancel_label;           // "CANCEL" text label below icon
-  hold_ring_t ring;                 // Red hold ring animation
+  lv_obj_t* hold_label;             // "HOLD" text label at top (shown while holding)
+  dot_ring_t ring;                  // Red dot ring animation
   lv_obj_t* dismiss_btn_container;  // Dismiss button pill container
   lv_obj_t* dismiss_btn_icon;       // Dismiss button back arrow icon
 
@@ -48,9 +50,10 @@ typedef struct {
   const char* initial_text;
   const char* completed_text;
 
-  bool is_showing;      // True if currently visible
-  bool is_initialized;  // True if widget created
-  bool hold_completed;  // True if hold duration met, waiting for release
+  bool is_showing;             // True if currently visible
+  bool is_initialized;         // True if widget created
+  bool hold_completed;         // True if hold duration met, waiting for release
+  lv_timer_t* complete_timer;  // Timer for completion delay
 } hold_cancel_t;
 
 /**

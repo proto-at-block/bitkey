@@ -1,6 +1,10 @@
+#include "aes.h"
+#include "attestation.h"
 #include "cobs.h"
 #include "criterion_test_utils.h"
 #include "fff.h"
+#include "hkdf.h"
+#include "key_management.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
 #include "uc.h"
@@ -50,6 +54,61 @@ FAKE_VOID_FUNC(rtos_timer_start, rtos_timer_t*, uint32_t);
 FAKE_VOID_FUNC(rtos_timer_stop, rtos_timer_t*);
 FAKE_VOID_FUNC(rtos_timer_restart, rtos_timer_t*);
 FAKE_VALUE_FUNC(bool, rtos_timer_expired, rtos_timer_t*);
+
+static uint8_t mock_aes_key_buf[] = {
+  0xb5, 0x2c, 0x50, 0x5a, 0x37, 0xd7, 0x8e, 0xda, 0x5d, 0xd3, 0x4f, 0x20, 0xc2, 0x25, 0x40, 0xea,
+  0x1b, 0x58, 0x96, 0x3c, 0xf8, 0xe5, 0xbf, 0x8f, 0xfa, 0x85, 0xf9, 0xf2, 0x49, 0x25, 0x05, 0xb4,
+};
+
+static key_handle_t mock_aes_key = {
+  .alg = ALG_AES_256,
+  .storage_type = KEY_STORAGE_EXTERNAL_PLAINTEXT,
+  .key.bytes = mock_aes_key_buf,
+  .key.size = sizeof(mock_aes_key_buf),
+};
+
+static uint32_t _encrypt_call_count = 0;
+secure_bool_t _mock_encrypt(uint8_t const* plaintext, uint8_t* ciphertext, uint32_t len,
+                            uint8_t const* aad, uint32_t aad_len, uint8_t* nonce, uint8_t* mac) {
+  _encrypt_call_count++;
+  bool res = aes_gcm_encrypt(plaintext, ciphertext, len, nonce, mac, aad, aad_len, &mock_aes_key);
+  if (res) {
+    return SECURE_TRUE;
+  }
+  return SECURE_FALSE;
+}
+
+static uint32_t _decrypt_call_count = 0;
+secure_bool_t _mock_decrypt(uint8_t const* ciphertext, uint8_t* plaintext, uint32_t len,
+                            uint8_t const* aad, uint32_t aad_len, uint8_t* nonce, uint8_t* mac) {
+  _decrypt_call_count++;
+  bool res = aes_gcm_decrypt(ciphertext, plaintext, len, nonce, mac, aad, aad_len, &mock_aes_key);
+  if (res) {
+    return SECURE_TRUE;
+  }
+  return SECURE_FALSE;
+}
+
+static uint32_t _send_seq_ctr = 0;
+uint32_t _mock_get_send_seq(void) {
+  return ++_send_seq_ctr;
+}
+
+static uint32_t _recv_seq_ctr = 0;
+bool _mock_check_recv_seq(uint32_t new_seq) {
+  if (new_seq > _recv_seq_ctr) {
+    _recv_seq_ctr = new_seq;
+    return true;
+  }
+  return false;
+}
+
+static uc_crypto_api_t const _mock_crypto_api = {
+  .gcm_encrypt = &_mock_encrypt,
+  .gcm_decrypt = &_mock_decrypt,
+  .check_recv_seq = &_mock_check_recv_seq,
+  .get_send_seq = &_mock_get_send_seq,
+};
 
 typedef struct {
   uint8_t* enc_buffer;
@@ -355,11 +414,6 @@ Test(uc, decode_split) {
   cr_assert_eq(1, rtos_mutex_unlock_fake.call_count);
 }
 
-Test(uc, decode_encrypted) {
-  // TODO(W-13812): Add test for encrypted data.
-  cr_assert(true);
-}
-
 Test(uc, encode_plaintext) {
   rtos_mutex_lock_fake.return_val = true;
   rtos_mutex_unlock_fake.return_val = true;
@@ -419,9 +473,99 @@ Test(uc, encode_plaintext) {
   cr_assert_eq(2, rtos_mutex_unlock_fake.call_count);
 }
 
-Test(uc, encode_encrypted) {
-  // TODO(W-13812: Add test for encrypted data.
-  cr_assert(true);
+Test(uc, encode_decode_encrypted) {
+  rtos_mutex_lock_fake.return_val = true;
+  rtos_mutex_unlock_fake.return_val = true;
+  rtos_event_group_wait_bits_fake.return_val = UC_EVENT_ACK;
+  _encrypt_call_count = 0;
+  _decrypt_call_count = 0;
+  fwpb_uxc_msg_device uxc_msg = fwpb_uxc_msg_device_init_default;
+  uxc_msg.which_msg = fwpb_uxc_msg_device_display_touch_tag;
+  uxc_msg.msg.display_touch.has_coord = true;
+  uxc_msg.msg.display_touch.coord.x = 6;
+  uxc_msg.msg.display_touch.coord.y = 7;
+
+  const uint32_t bits[] = {UC_EVENT_ACK};
+  SET_RETURN_SEQ(rtos_event_group_wait_bits, (uint32_t*)bits, sizeof(bits));
+
+  _send_seq_ctr = 0x12345678;
+  _recv_seq_ctr = 0x12345676;
+  uc_init(on_send, &_mock_crypto_api, &send_ctx);
+  test_uc_init_mode_device();
+
+  uint8_t buffer[UC_TEST_BUF_SIZE];
+  send_ctx = (send_context_t){.enc_buffer = (uint8_t*)buffer,
+                              .enc_buffer_len = sizeof(buffer),
+                              .enc_len = 0,
+                              .call_count = 0};
+
+  uc_err_t err =
+    uc_encode(uxc_msg.which_msg, (void*)&uxc_msg, sizeof(uxc_msg), 0, on_send, &send_ctx);
+  cr_assert_eq(UC_ERR_NONE, err);
+  cr_assert_eq(1, _encrypt_call_count);
+  cr_assert_eq(0x12345679, _send_seq_ctr);
+
+  const size_t enc_len = send_ctx.enc_len;
+
+  recv_context_t recv_context = {.host = false};
+  test_uc_init_mode_host();
+  uint32_t bytes_consumed;
+  err = uc_decode(buffer, enc_len, on_recv, (void*)&recv_context, &bytes_consumed);
+  cr_assert_eq(UC_ERR_NONE, err);
+  cr_assert_eq(1, _decrypt_call_count);
+  cr_assert_eq(enc_len, bytes_consumed);
+  cr_assert_eq(0x12345679, _recv_seq_ctr);
+
+  fwpb_uxc_msg_device* recv_msg = &recv_context.msg_device;
+  cr_assert_eq(fwpb_uxc_msg_device_display_touch_tag, recv_context.proto_tag);
+  cr_assert_eq(fwpb_uxc_msg_device_display_touch_tag, recv_msg->which_msg);
+  cr_assert_eq(6, recv_msg->msg.display_touch.coord.x);
+  cr_assert_eq(7, recv_msg->msg.display_touch.coord.y);
+}
+
+Test(uc, drop_replay) {
+  rtos_mutex_lock_fake.return_val = true;
+  rtos_mutex_unlock_fake.return_val = true;
+  rtos_event_group_wait_bits_fake.return_val = UC_EVENT_ACK;
+  _encrypt_call_count = 0;
+  _decrypt_call_count = 0;
+  fwpb_uxc_msg_device uxc_msg = fwpb_uxc_msg_device_init_default;
+  uxc_msg.which_msg = fwpb_uxc_msg_device_display_touch_tag;
+
+  const uint32_t bits[] = {UC_EVENT_ACK};
+  SET_RETURN_SEQ(rtos_event_group_wait_bits, (uint32_t*)bits, sizeof(bits));
+
+  _send_seq_ctr = 0x12345678;
+  // Message should be dropped since new_seq <= recv_seq_ctr
+  _recv_seq_ctr = 0x12345679;
+  uc_init(on_send, &_mock_crypto_api, &send_ctx);
+  test_uc_init_mode_device();
+
+  uint8_t buffer[UC_TEST_BUF_SIZE];
+  send_ctx = (send_context_t){.enc_buffer = (uint8_t*)buffer,
+                              .enc_buffer_len = sizeof(buffer),
+                              .enc_len = 0,
+                              .call_count = 0};
+
+  uc_err_t err =
+    uc_encode(uxc_msg.which_msg, (void*)&uxc_msg, sizeof(uxc_msg), 0, on_send, &send_ctx);
+  cr_assert_eq(UC_ERR_NONE, err);
+  cr_assert_eq(1, _encrypt_call_count);
+  cr_assert_eq(0x12345679, _send_seq_ctr);
+
+  const size_t enc_len = send_ctx.enc_len;
+
+  recv_context_t recv_context = {.host = false};
+  test_uc_init_mode_host();
+  uint32_t bytes_consumed;
+  err = uc_decode(buffer, enc_len, on_recv, (void*)&recv_context, &bytes_consumed);
+  cr_assert_eq(UC_ERR_NONE, err);
+  cr_assert_eq(1, _decrypt_call_count);
+  cr_assert_eq(enc_len, bytes_consumed);
+
+  // Message dropped so nothing received and counter is not incremented.
+  cr_assert_eq(0x12345679, _recv_seq_ctr);
+  cr_assert_eq(0, recv_context.proto_tag);
 }
 
 Test(uc, encode_decode) {
@@ -524,7 +668,7 @@ Test(uc, alloc_free) {
   rtos_semaphore_take_fake.return_val = true;
   rtos_semaphore_give_fake.return_val = true;
 
-  uc_init(on_send, &send_ctx);
+  uc_init(on_send, &_mock_crypto_api, &send_ctx);
   void* mem = uc_alloc_send_proto();
   cr_assert(mem != NULL);
 

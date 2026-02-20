@@ -3,16 +3,14 @@ package build.wallet.integration.statemachine.create
 import app.cash.turbine.ReceiveTurbine
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_SERVER_KEYS_LOADING
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.onboarding.OnboardingKeyboxStep
-import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
-import build.wallet.onboarding.OnboardingKeyboxStep.DescriptorBackup
-import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
+import build.wallet.onboarding.OnboardingKeyboxStep.*
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
@@ -113,15 +111,25 @@ private suspend inline fun <reified T : BodyModel> AppTester.testCloseAndReopenA
 internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCreateKeyboxScreens() {
   awaitUntilBody<ChooseAccountAccessModel>()
     .clickSetUpNewWalletButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(
-    HW_ACTIVATION_INSTRUCTIONS,
+
+  // Handle both W3 (HW_ACTIVATION_INSTRUCTIONS_V2) and legacy (HW_ACTIVATION_INSTRUCTIONS) flows
+  val initialScreen = awaitUntilBody<PairNewHardwareBodyModel>(
     matching = {
       // Wait until loading state is cleared from the primary button
       !it.primaryButton.isLoading
     }
-  ).clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(HW_PAIR_INSTRUCTIONS)
-    .clickPrimaryButton()
+  )
+
+  val isW3Flow = initialScreen.eventTrackerScreenInfo?.eventTrackerScreenId == HW_ACTIVATION_INSTRUCTIONS_V2
+
+  initialScreen.clickPrimaryButton()
+
+  if (!isW3Flow) {
+    // Legacy flow: activation instructions -> pair instructions -> NFC -> fingerprint -> NFC
+    awaitUntilBody<PairNewHardwareBodyModel>(HW_PAIR_INSTRUCTIONS)
+      .clickPrimaryButton()
+  }
+
   awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
     .clickPrimaryButton()
   awaitUntilBody<LoadingSuccessBodyModel>(NEW_ACCOUNT_SERVER_KEYS_LOADING) {
@@ -151,6 +159,15 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardKeyboxScre
       NotificationPreferences -> advanceThroughOnboardingNotificationSetupScreens()
       DescriptorBackup -> {
         // no-op, auto-progresses to cloud backup
+      }
+
+      BuildHardwareDescriptor -> {
+        awaitUntilBody<LoadingSuccessBodyModel>(LOADING_ONBOARDING_STEP) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+
+        awaitUntilBody<PairNewHardwareBodyModel>(BUILD_HARDWARE_DESCRIPTOR_INTRO)
+          .clickPrimaryButton()
       }
     }
   }

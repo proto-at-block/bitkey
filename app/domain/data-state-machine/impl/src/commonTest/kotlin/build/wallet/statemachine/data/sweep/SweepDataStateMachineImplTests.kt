@@ -734,7 +734,7 @@ private fun Psbt.copyId(id: String) =
     id = id,
     base64 = this.base64,
     fee = this.fee,
-    baseSize = this.baseSize,
+    vsize = this.vsize,
     numOfInputs = this.numOfInputs,
     amountSats = this.amountSats
   )
@@ -744,7 +744,7 @@ private fun Psbt.copyBase64(base64: String) =
     id = this.id,
     base64 = base64,
     fee = this.fee,
-    baseSize = this.baseSize,
+    vsize = this.vsize,
     numOfInputs = this.numOfInputs,
     amountSats = this.amountSats
   )

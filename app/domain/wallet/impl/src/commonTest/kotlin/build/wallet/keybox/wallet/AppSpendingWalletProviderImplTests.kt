@@ -5,13 +5,13 @@ import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactoryFake
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.bitcoin.wallet.SpendingWalletProviderMock
-import build.wallet.bitcoin.wallet.WalletV2ProviderMock
+import build.wallet.bitcoin.wallet.SpendingWalletV2ProviderMock
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
-import build.wallet.feature.setFlagValue
+import build.wallet.feature.flags.setBdk2Enabled
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -20,7 +20,7 @@ import io.kotest.matchers.shouldBe
 class AppSpendingWalletProviderImplTests : FunSpec({
 
   val spendingWalletProvider = SpendingWalletProviderMock()
-  val walletV2Provider = WalletV2ProviderMock()
+  val spendingWalletV2Provider = SpendingWalletV2ProviderMock()
   val featureFlagDao = FeatureFlagDaoFake()
   val bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao)
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
@@ -32,7 +32,7 @@ class AppSpendingWalletProviderImplTests : FunSpec({
 
   val provider = AppSpendingWalletProviderImpl(
     spendingWalletProvider = spendingWalletProvider,
-    walletV2Provider = walletV2Provider,
+    spendingWalletV2Provider = spendingWalletV2Provider,
     bdk2FeatureFlag = bdk2FeatureFlag,
     appPrivateKeyDao = appPrivateKeyDao,
     descriptorBuilder = descriptorBuilder,
@@ -41,10 +41,12 @@ class AppSpendingWalletProviderImplTests : FunSpec({
 
   beforeTest {
     featureFlagDao.reset()
+    bdk2FeatureFlag.reset()
+    bdk2FeatureFlag.initializeFromDao()
     appPrivateKeyDao.reset()
-    walletV2Provider.reset()
+    spendingWalletV2Provider.reset()
     spendingWalletProvider.walletResult = Ok(v1Wallet)
-    walletV2Provider.walletResult = Ok(v2Wallet)
+    spendingWalletV2Provider.walletResult = Ok(v2Wallet)
 
     // Set up the app private key for the keyset
     appPrivateKeyDao.storeAppSpendingKeyPair(
@@ -56,7 +58,7 @@ class AppSpendingWalletProviderImplTests : FunSpec({
   }
 
   test("uses legacy wallet provider when feature flag is disabled") {
-    bdk2FeatureFlag.setFlagValue(false)
+    bdk2FeatureFlag.setBdk2Enabled(false)
 
     val result = provider.getSpendingWallet(SpendingKeysetMock)
 
@@ -65,7 +67,7 @@ class AppSpendingWalletProviderImplTests : FunSpec({
   }
 
   test("uses V2 wallet provider when feature flag is enabled") {
-    bdk2FeatureFlag.setFlagValue(true)
+    bdk2FeatureFlag.setBdk2Enabled(true)
 
     val result = provider.getSpendingWallet(SpendingKeysetMock)
 

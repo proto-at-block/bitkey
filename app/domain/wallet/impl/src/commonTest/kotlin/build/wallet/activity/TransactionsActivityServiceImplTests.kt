@@ -10,7 +10,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outg
 import build.wallet.bitcoin.transactions.BitcoinTransactionMock
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitcoin.wallet.WalletV2ProviderMock
+import build.wallet.bitcoin.wallet.SpendingWalletV2ProviderMock
 import build.wallet.bitcoin.wallet.WatchingWalletMock
 import build.wallet.bitcoin.wallet.WatchingWalletProviderMock
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -24,6 +24,7 @@ import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
+import build.wallet.feature.flags.setBdk2Enabled
 import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.code.IsoCurrencyTextCode
@@ -59,7 +60,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
   val featureFlagDao = FeatureFlagDaoFake()
   val featureFlag = ExpectedTransactionsPhase2FeatureFlag(featureFlagDao)
   val bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao)
-  val walletV2Provider = WalletV2ProviderMock()
+  val spendingWalletV2Provider = SpendingWalletV2ProviderMock()
   lateinit var service: TransactionsActivityServiceImpl
 
   val wallet = SpendingWalletMock(turbines::create)
@@ -127,8 +128,10 @@ class TransactionsActivityServiceImplTests : FunSpec({
     accountService.reset()
     bitcoinWalletService.reset()
     featureFlag.reset()
+    bdk2FeatureFlag.reset()
+    bdk2FeatureFlag.initializeFromDao()
     watchingWalletProvider.reset()
-    walletV2Provider.reset()
+    spendingWalletV2Provider.reset()
 
     bitcoinWalletService.spendingWallet.value = wallet
     bitcoinWalletService.setTransactions(
@@ -146,7 +149,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
       bitcoinWalletService = bitcoinWalletService,
       accountService = accountService,
       watchingWalletProvider = watchingWalletProvider,
-      walletV2Provider = walletV2Provider,
+      spendingWalletV2Provider = spendingWalletV2Provider,
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       listKeysetsF8eClient = listKeysetsF8eClient,
       appScope = TestScope(),
@@ -247,7 +250,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
       )
 
     accountService.setActiveAccount(accountWithInactiveKeyset)
-    bdk2FeatureFlag.setFlagValue(false)
+    bdk2FeatureFlag.setBdk2Enabled(false)
 
     createBackgroundScope().launch { service.executeWork() }
 
@@ -256,7 +259,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
       requestedDescriptors.first().identifier.shouldBe("WatchingWallet inactive-keyset-id")
     }
 
-    walletV2Provider.requestedDescriptors.value.shouldBe(emptyList())
+    spendingWalletV2Provider.requestedDescriptors.value.shouldBe(emptyList())
   }
 
   test("inactive wallets use V2 provider when BDK2 flag enabled") {
@@ -281,11 +284,11 @@ class TransactionsActivityServiceImplTests : FunSpec({
       )
 
     accountService.setActiveAccount(accountWithInactiveKeyset)
-    bdk2FeatureFlag.setFlagValue(true)
+    bdk2FeatureFlag.setBdk2Enabled(true)
 
     createBackgroundScope().launch { service.executeWork() }
 
-    walletV2Provider.requestedDescriptors.test {
+    spendingWalletV2Provider.requestedDescriptors.test {
       val requestedDescriptors = awaitUntil { it.size == 1 }
       requestedDescriptors.first().identifier.shouldBe("WatchingWallet inactive-keyset-id")
     }

@@ -2,11 +2,11 @@
     "module-identifier": "io.outfoxx:swiftpoet",
     "components": [
         {
-            "version": "1.6.4",
+            "version": "1.6.5",
             "variants": [
                 {
                     "artifacts": {
-                        "swiftpoet-1.6.4.jar": "1795596aadcab101476dc4373b72a0bf796b752fe901cc3151084fa456f02e8a"
+                        "swiftpoet-1.6.5.jar": "8f825d9eb0ffda5561a55d6764b52195cfe254289fce6a80d211571a338e894f"
                     }
                 }
             ],

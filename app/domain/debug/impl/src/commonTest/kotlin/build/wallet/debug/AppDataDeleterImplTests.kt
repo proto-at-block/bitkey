@@ -36,7 +36,7 @@ import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.FirmwareMetadataDaoMock
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockMethod
-import build.wallet.fwup.FwupDataDaoProviderMock
+import build.wallet.fwup.FwupDataDaoMock
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.inappsecurity.BiometricPreferenceFake
 import build.wallet.inappsecurity.HideBalancePreferenceFake
@@ -102,7 +102,7 @@ class AppDataDeleterImplTests : FunSpec({
   val recoveryDaoMock = RecoveryDaoMock(turbines::create)
   val authSignatureStatusProvider = F8eAuthSignatureStatusProviderFake()
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
-  val fwupDataDaoProvider = FwupDataDaoProviderMock(turbines::create)
+  val fwupDataDao = FwupDataDaoMock(turbines::create)
   val securityRecommendationInteractionDao = SecurityRecommendationInteractionDaoMock()
   val coachmarkService = CoachmarkServiceMock(
     turbineFactory = turbines::create
@@ -124,7 +124,7 @@ class AppDataDeleterImplTests : FunSpec({
       onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
       mobilePayService = mobilePayService,
       outgoingTransactionDetailDao = transactionDetailDao,
-      fwupDataDaoProvider = fwupDataDaoProvider,
+      fwupDataDao = fwupDataDao,
       firmwareDeviceInfoDao = firmwareDeviceIdentifiersDao,
       firmwareMetadataDao = firmwareMetadataDao,
       transactionPriorityPreference = transactionPriorityPreference,
@@ -209,7 +209,7 @@ class AppDataDeleterImplTests : FunSpec({
       notificationTouchpointDao.clearCalls.awaitItem()
       onboardingKeyboxStepStateDao.clearCalls.awaitItem()
       onboardingKeyboxSealedCsekDao.sealedCsek.shouldBeNull()
-      fwupDataDaoProvider.fwupDataDaoMock.clearCalls.awaitItem()
+      fwupDataDao.clearCalls.awaitItem()
       firmwareDeviceIdentifiersDao.clearCalls.awaitItem()
       firmwareMetadataDao.clearCalls.awaitItem()
       transactionPriorityPreference.preference.shouldBeNull()

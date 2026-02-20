@@ -8,12 +8,14 @@ public final class BitkeyW1Commands: NfcCommands {
         session: NfcSession,
         patchSize: KotlinUInt?,
         fwupMode: Shared.FwupMode,
-        mcuRole: Shared.McuRole = .core
+        mcuRole: Shared.McuRole = .core,
+        version: String
     ) async throws -> Shared.HardwareInteraction {
         let result = try await FwupStart(
             patchSize: patchSize?.uint32Value,
             fwupMode: fwupMode.toCoreFwupMode(),
-            mcuRole: mcuRole.toCoreMcuRole()
+            mcuRole: mcuRole.toCoreMcuRole(),
+            version: version
         ).transceive(session: session)
         switch result {
         case let .success(value):
@@ -318,7 +320,7 @@ public final class BitkeyW1Commands: NfcCommands {
                 asyncSign: session.parameters.asyncNfcSigning
             ).transceive(session: session),
             fee: psbt.fee,
-            baseSize: psbt.baseSize,
+            vsize: psbt.vsize,
             numOfInputs: psbt.numOfInputs,
             amountSats: psbt.amountSats,
             inputs: psbt.inputs,
@@ -474,7 +476,57 @@ public final class BitkeyW1Commands: NfcCommands {
             return Shared.ConfirmationResultWipeDevice(success: success)
         case let .fwupStart(success):
             return Shared.ConfirmationResultFwupStart(success: success)
+        case let .chunkedDataAvailable(totalSize):
+            return Shared.ConfirmationResultChunkedDataAvailable(totalSize: totalSize)
+        case .signActionProof:
+            throw NfcException.CommandError(
+                message: "W1 hardware does not support SignActionProof",
+                cause: nil
+            ).asError()
         }
+    }
+
+    public func getConfirmationResultChunk(
+        session: NfcSession,
+        handles: Shared.ConfirmationHandles,
+        chunkIndex: UInt32
+    ) async throws -> Shared.ChunkData {
+        let result = try await GetConfirmationResultChunk(
+            responseHandle: handles.responseHandle.map(\.uint8Value),
+            confirmationHandle: handles.confirmationHandle.map(\.uint8Value),
+            chunkIndex: chunkIndex
+        ).transceive(session: session)
+        return Shared.ChunkData(
+            chunk: result.chunk.map { KotlinUByte(value: $0) },
+            isLast: result.isLast,
+            remainingSize: result.remainingSize
+        )
+    }
+
+    public func getAddress(
+        session _: NfcSession,
+        addressIndex _: UInt32
+    ) async throws -> String {
+        throw NfcException.CommandError(
+            message: "getAddress is not supported on W1 hardware. This is a W3-only feature.",
+            cause: nil
+        ).asError()
+    }
+
+    public func verifyKeysAndBuildDescriptor(
+        session _: NfcSession,
+        appSpendingKey _: OkioByteString,
+        appSpendingKeyChaincode _: OkioByteString,
+        networkMainnet _: Bool,
+        appAuthKey _: OkioByteString,
+        serverSpendingKey _: OkioByteString,
+        serverSpendingKeyChaincode _: OkioByteString,
+        wsmSignature _: OkioByteString
+    ) async throws -> KotlinBoolean {
+        throw NfcException.CommandError(
+            message: "verifyKeysAndBuildDescriptor is not supported on W1 hardware. This is a W3-only feature.",
+            cause: nil
+        ).asError()
     }
 }
 

@@ -33,7 +33,7 @@ class FirmwareDataServiceImplTests : FunSpec({
   val firmwareDeviceInfoDao =
     FirmwareDeviceInfoDaoMock(turbines::create)
   val fwupDataFetcher = FwupDataFetcherMock(turbines::create)
-  val fwupDataDaoProvider = FwupDataDaoProviderMock(turbines::create)
+  val fwupDataDao = FwupDataDaoMock(turbines::create)
   val hardwareProvisionedAppKeyStatusDao = HardwareProvisionedAppKeyStatusDaoFake()
 
   val appSessionManager = AppSessionManagerFake()
@@ -45,13 +45,13 @@ class FirmwareDataServiceImplTests : FunSpec({
     service = FirmwareDataServiceImpl(
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       fwupDataFetcher = fwupDataFetcher,
-      fwupDataDaoProvider = fwupDataDaoProvider,
+      fwupDataDao = fwupDataDao,
       appSessionManager = appSessionManager,
-      firmwareUpdateSyncFrequency = FirmwareUpdateSyncFrequency(),
+      firmwareUpdateSyncFrequency = FirmwareUpdateSyncFrequency(defaultAppConfigService),
       hardwareProvisionedAppKeyStatusDao = hardwareProvisionedAppKeyStatusDao
     )
     firmwareDeviceInfoDao.reset()
-    fwupDataDaoProvider.reset(testName = it.name.testName)
+    fwupDataDao.reset(testName = it.name.testName)
     fwupDataFetcher.reset(testName = it.name.testName)
     appSessionManager.reset()
     defaultAppConfigService.reset()
@@ -67,12 +67,12 @@ class FirmwareDataServiceImplTests : FunSpec({
 
     testCoroutineScheduler.runCurrent()
     fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.setMcuFwupDataCalls.awaitItem()
+    fwupDataDao.setMcuFwupDataCalls.awaitItem()
 
     testCoroutineScheduler.advanceTimeBy(1.hours)
     // emit again after the polling duration
     fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.setMcuFwupDataCalls.awaitItem()
+    fwupDataDao.setMcuFwupDataCalls.awaitItem()
   }
 
   test("syncer doesn't run in the background") {
@@ -91,7 +91,7 @@ class FirmwareDataServiceImplTests : FunSpec({
     appSessionManager.appDidEnterForeground()
     testCoroutineScheduler.advanceTimeBy(1.hours)
     fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.setMcuFwupDataCalls.awaitItem()
+    fwupDataDao.setMcuFwupDataCalls.awaitItem()
   }
 
   test("changing deviceInfo triggers a sync") {
@@ -104,18 +104,18 @@ class FirmwareDataServiceImplTests : FunSpec({
 
     testCoroutineScheduler.runCurrent()
     fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.setMcuFwupDataCalls.awaitItem()
+    fwupDataDao.setMcuFwupDataCalls.awaitItem()
 
     firmwareDeviceInfoDao.setDeviceInfo(info.copy(version = "new-version"))
     fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.setMcuFwupDataCalls.awaitItem()
+    fwupDataDao.setMcuFwupDataCalls.awaitItem()
   }
 
   test("updateFirmwareVersion updates device info and clears fwup") {
     // No device info clears the fwup dao
     service.updateFirmwareVersion(mcuUpdates = McuFwupDataListMock_W1)
-    fwupDataDaoProvider.fwupDataDaoMock.clearCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.clearAllMcuStatesCalls.awaitItem()
+    fwupDataDao.clearCalls.awaitItem()
+    fwupDataDao.clearAllMcuStatesCalls.awaitItem()
 
     // With device info sets the new version and clears the fwup dao
     val info = FirmwareDeviceInfoMock
@@ -126,8 +126,8 @@ class FirmwareDataServiceImplTests : FunSpec({
     // device info updated with new version
     firmwareDeviceInfoDao.getDeviceInfo().get()
       .shouldBe(info.copy(version = "1.0.0-fake"))
-    fwupDataDaoProvider.fwupDataDaoMock.clearCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.clearAllMcuStatesCalls.awaitItem()
+    fwupDataDao.clearCalls.awaitItem()
+    fwupDataDao.clearAllMcuStatesCalls.awaitItem()
   }
 
   test("updateFirmwareVersion with W3 multi-MCU updates both CORE and UXC versions") {
@@ -159,8 +159,8 @@ class FirmwareDataServiceImplTests : FunSpec({
       .shouldBe(McuFwupDataMock_W3_UXC.version)
 
     // DAO should be cleared
-    fwupDataDaoProvider.fwupDataDaoMock.clearCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.clearAllMcuStatesCalls.awaitItem()
+    fwupDataDao.clearCalls.awaitItem()
+    fwupDataDao.clearAllMcuStatesCalls.awaitItem()
   }
 
   test("updateFirmwareVersion with partial MCU update only updates provided MCUs") {
@@ -188,8 +188,8 @@ class FirmwareDataServiceImplTests : FunSpec({
     updatedInfo.mcuInfo.find { it.mcuRole == McuRole.UXC }?.firmwareVersion
       .shouldBe("1.0.0") // Unchanged
 
-    fwupDataDaoProvider.fwupDataDaoMock.clearCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.clearAllMcuStatesCalls.awaitItem()
+    fwupDataDao.clearCalls.awaitItem()
+    fwupDataDao.clearAllMcuStatesCalls.awaitItem()
   }
 
   test("firmwareData updates when deviceInfo or fwUp changes") {
@@ -206,9 +206,15 @@ class FirmwareDataServiceImplTests : FunSpec({
       val info = FirmwareDeviceInfoMock
       firmwareDeviceInfoDao.setDeviceInfo(info)
 
+      // Intermediate emission: deviceInfo updated but mcuFwupData not yet
+      awaitItem().shouldNotBeNull().apply {
+        firmwareUpdateState.shouldBe(UpToDate)
+        firmwareDeviceInfo.shouldBe(info)
+      }
+
       // Capture the periodic sync work
       fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-      fwupDataDaoProvider.fwupDataDaoMock.setMcuFwupDataCalls.awaitItem()
+      fwupDataDao.setMcuFwupDataCalls.awaitItem()
 
       // firmwareInfo set to info, with pending update from sync
       awaitItem().shouldNotBeNull().apply {
@@ -230,7 +236,7 @@ class FirmwareDataServiceImplTests : FunSpec({
     with(fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()) {
       this.info.shouldBe(FirmwareDeviceInfoMock)
     }
-    fwupDataDaoProvider.fwupDataDaoMock.setMcuFwupDataCalls.awaitItem().shouldBe(mcuFwupData)
+    fwupDataDao.setMcuFwupDataCalls.awaitItem().shouldBe(mcuFwupData)
   }
 
   test("syncLatestFwupData clears FwupDataDao for NoUpdateNeeded error") {
@@ -240,8 +246,8 @@ class FirmwareDataServiceImplTests : FunSpec({
     service.syncLatestFwupData()
 
     fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.clearAllMcuFwupDataCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.clearCalls.awaitItem()
+    fwupDataDao.clearAllMcuFwupDataCalls.awaitItem()
+    fwupDataDao.clearCalls.awaitItem()
   }
 
   test("syncLatestFwupData doesn't do anything for other DownloadErrors") {
@@ -252,63 +258,6 @@ class FirmwareDataServiceImplTests : FunSpec({
     service.syncLatestFwupData()
 
     fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-    fwupDataDaoProvider.fwupDataDaoMock.clearAllMcuFwupDataCalls.expectNoEvents()
-  }
-
-  test("firmwareData switches DAO when hardware fake setting changes") {
-    // Create service with real FwupDataDaoProviderImpl to test DAO switching
-    val realFwupDataDaoImpl = FwupDataDaoMock { name -> turbines.create("real-$name") }
-    val realFwupDataDaoFake = FwupDataDaoMock { name -> turbines.create("fake-$name") }
-    val realFwupDataDaoProvider = FwupDataDaoProviderImpl(
-      fwupDataDaoImpl = realFwupDataDaoImpl,
-      fwupDataDaoFake = realFwupDataDaoFake,
-      accountConfigService = defaultAppConfigService,
-      appCoroutineScope = backgroundScope
-    )
-
-    val serviceWithRealProvider = FirmwareDataServiceImpl(
-      firmwareDeviceInfoDao = firmwareDeviceInfoDao,
-      fwupDataFetcher = fwupDataFetcher,
-      fwupDataDaoProvider = realFwupDataDaoProvider,
-      appSessionManager = appSessionManager,
-      firmwareUpdateSyncFrequency = FirmwareUpdateSyncFrequency(),
-      hardwareProvisionedAppKeyStatusDao = hardwareProvisionedAppKeyStatusDao
-    )
-
-    serviceWithRealProvider.firmwareData().test {
-      backgroundScope.launch {
-        serviceWithRealProvider.executeWork()
-      }
-
-      // Initial state: real DAO
-      awaitItem().shouldNotBeNull().apply {
-        firmwareUpdateState.shouldBe(UpToDate)
-      }
-
-      // Set fake fwup data in the fake DAO only (using MCU data now)
-      realFwupDataDaoFake.setMcuFwupData(listOf(McuFwupDataMock))
-      realFwupDataDaoFake.setMcuFwupDataCalls.awaitItem()
-
-      // Switch to fake hardware - should start using fake DAO with its data
-      defaultAppConfigService.setIsHardwareFake(true)
-      testCoroutineScheduler.runCurrent()
-
-      // Should now emit with the fake DAO's data
-      awaitItem().shouldNotBeNull().apply {
-        val expectedMcuData = listOf(McuFwupDataMock).toImmutableList()
-        firmwareUpdateState.shouldBe(PendingUpdate(mcuUpdates = expectedMcuData))
-      }
-
-      // Switch back to real hardware - should use real DAO (which has no data)
-      defaultAppConfigService.setIsHardwareFake(false)
-      testCoroutineScheduler.runCurrent()
-
-      // The switch to real hardware triggers a clear call on the real DAO
-      realFwupDataDaoImpl.clearCalls.awaitItem()
-
-      awaitItem().shouldNotBeNull().apply {
-        firmwareUpdateState.shouldBe(UpToDate)
-      }
-    }
+    fwupDataDao.clearAllMcuFwupDataCalls.expectNoEvents()
   }
 })

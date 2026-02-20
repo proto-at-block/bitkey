@@ -62,4 +62,22 @@ void fwup_task_handle_coproc_fwup_transfer(ipc_ref_t* message);
  */
 void fwup_task_handle_coproc_fwup_finish(ipc_ref_t* message);
 
+/**
+ * @brief Handles FWUP start command with port-specific behavior.
+ *
+ * @param message  Pointer to the FWUP start message.
+ *
+ * @return `true` if handled successfully, otherwise `false`.
+ */
+bool fwup_task_port_handle_start_cmd(ipc_ref_t* message);
+
+/**
+ * @brief Handles FWUP confirmation result forwarded from sysinfo task.
+ *
+ * @param message  Pointer to the get_confirmation_result IPC message.
+ *
+ * @return `true` if handled successfully, otherwise `false`.
+ */
+bool fwup_handle_confirmation_result(ipc_ref_t* message);
+
 /** @} */

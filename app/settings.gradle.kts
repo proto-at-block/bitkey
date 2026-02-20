@@ -17,7 +17,10 @@ pluginManagement {
 
   includeBuild("gradle/build-logic")
   includeBuild("gradle/dependency-locking")
+  includeBuild("gradle/detekt-rules")
 }
+
+includeBuild("gradle/detekt-rules")
 
 buildscript {
   repositories {
@@ -45,7 +48,7 @@ dependencyResolutionManagement {
 }
 
 plugins {
-  id("com.github.burrunan.s3-build-cache") version "1.8.4"
+  id("com.github.burrunan.s3-build-cache") version "1.9.5"
 }
 
 val isCi = System.getenv().containsKey("CI")
@@ -59,6 +62,10 @@ buildCache {
     bucket = "000000000000-bitkey-gha-build-cache"
     prefix = "gradle/"
 
+    // Remote cache is CI-only due to AWS credential complexity for local developers.
+    // Enabling locally would require each dev to configure AWS CLI with appropriate IAM role.
+    // Decision made Nov 2023 (PR #10949) - local disk cache deemed sufficient.
+    // To enable: set isEnabled=true, isPush=isCi (read-only for locals).
     isEnabled = isCi
     isPush = true
     lookupDefaultAwsCredentials = true
@@ -77,6 +84,13 @@ buildCache {
  */
 fun module(name: String) {
   val nameParts = name.split(":").filter { it.isNotBlank() }
+  val projectDir = nameParts.fold(rootDir) { acc, part -> acc.resolve(part) }
+
+  require(projectDir.exists()) {
+    "Module directory does not exist: ${projectDir.relativeTo(rootDir)} (declared as '$name'). " +
+      "Remove stale entry from settings.gradle.kts or create the missing directory."
+  }
+
   val projectName =
     if (nameParts.size > 1) {
       val outerName = nameParts.first()
@@ -87,10 +101,7 @@ fun module(name: String) {
     }
 
   include(projectName)
-  project(projectName).projectDir =
-    nameParts.fold(rootDir) { acc, part ->
-      acc.resolve(part)
-    }
+  project(projectName).projectDir = projectDir
 }
 
 module(":android:app")
@@ -139,9 +150,6 @@ module(":domain:feature-flag:public")
 module(":domain:hardware:fake")
 module(":domain:hardware:impl")
 module(":domain:hardware:public")
-module(":domain:home:fake")
-module(":domain:home:impl")
-module(":domain:home:public")
 module(":domain:in-app-security:fake")
 module(":domain:in-app-security:impl")
 module(":domain:in-app-security:public")
@@ -273,6 +281,7 @@ module(":rust:core-ffi")
 module(":rust:bdk-android-ffi")
 module(":rust:bdk-ffi")
 module(":rust:firmware-ffi")
+module(":rust:action-proof-ffi")
 module(":sample:android-app")
 module(":sample:shared")
 module(":shared:app-component:impl")

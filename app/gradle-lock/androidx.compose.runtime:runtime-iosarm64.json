@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-iosarm64",
+    "components": [
+        {
+            "version": "1.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-iosArm64Main-1.9.3.klib": "a7dbddbc1cf277385ae236bb28dd9baefec132cd886c65251e7d296b7b163578"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime-iosarm64-1.9.3-metadata.jar": "6df4a0733d3cb4486d4172e858b25a4300a321c0dd87f089eb530addd641229e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

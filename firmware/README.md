@@ -52,6 +52,21 @@ $ inv --help build
 $ inv clean build flash
 ```
 
+## testing
+
+```bash
+# Run all unit tests
+inv test
+
+# Run UI snapshot tests
+inv snapshot.verify
+
+# Regenerate snapshot golden images after UI changes
+inv snapshot.gen --force
+```
+
+See `app/ui-snapshot/README.md` for snapshot test details.
+
 ## nfc communication
 
 W1 supports two application layer NFC interfaces:
@@ -68,4 +83,3 @@ NDEF is a standard protocol to interact with all NFC tags. NDEF is basically a s
 WCA is protobufs-over-APDUs, and will be used for all other app to firmware comms.
 
 [The WCA command set is fully documented in Github.](https://github.com/proto-at-block/bitkey/tree/main/firmware/lib/wca) Refer there for the most up-to-date information. Since protos can be bigger than APDUs, WCA allows splitting up protos while sending or receiving.
-

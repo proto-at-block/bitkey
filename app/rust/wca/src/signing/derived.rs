@@ -1,5 +1,5 @@
 use bitcoin::{
-    bip32::Fingerprint, psbt::PartiallySignedTransaction, secp256k1::PublicKey,
+    bip32::Fingerprint, psbt::Psbt as PartiallySignedTransaction, secp256k1::PublicKey,
     sighash::SighashCache,
 };
 
@@ -59,8 +59,8 @@ impl Signer for DerivedKeySigner {
 mod tests {
     use std::str::FromStr;
 
-    use bdk::wallet::{get_funded_wallet, AddressIndex};
-    use bitcoin::bip32::Fingerprint;
+    use bdk_wallet::KeychainKind;
+    use bitcoin::{bip32::Fingerprint, psbt::Psbt as PartiallySignedTransaction};
     use miniscript::{Descriptor, DescriptorPublicKey};
 
     use crate::signing::Signer;
@@ -146,17 +146,13 @@ mod tests {
         assert!(signables.is_empty());
     }
 
-    fn get_drain_psbt(dpub: DescriptorPublicKey) -> bitcoin::psbt::PartiallySignedTransaction {
-        let descriptor = Descriptor::<DescriptorPublicKey>::new_wpkh(dpub).unwrap();
-        let (wallet, _, _) = get_funded_wallet(&descriptor.to_string());
+    fn get_drain_psbt(dpub: DescriptorPublicKey) -> PartiallySignedTransaction {
+        let descriptor = Descriptor::<DescriptorPublicKey>::new_wpkh(dpub.clone()).unwrap();
+        let (mut wallet, _) =
+            bdk_wallet::test_utils::get_funded_wallet_single(&descriptor.to_string());
+        let destination = wallet.reveal_next_address(KeychainKind::External);
         let mut builder = wallet.build_tx();
-        builder.drain_wallet().drain_to(
-            wallet
-                .get_address(AddressIndex::New)
-                .unwrap()
-                .script_pubkey(),
-        );
-        let (psbt, _) = builder.finish().unwrap();
-        psbt
+        builder.drain_wallet().drain_to(destination.script_pubkey());
+        builder.finish().unwrap()
     }
 }

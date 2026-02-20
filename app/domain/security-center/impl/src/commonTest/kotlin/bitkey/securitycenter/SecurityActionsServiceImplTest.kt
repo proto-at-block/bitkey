@@ -12,6 +12,8 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Clock
 
@@ -23,6 +25,29 @@ class SecurityActionsServiceImplTest : FunSpec({
 
   beforeTest {
     metricTrackerService.reset()
+  }
+
+  test("initial state is null before executeWork") {
+    val service = SecurityActionsServiceImpl(
+      AppKeyCloudBackupHealthActionFactoryFake(),
+      EekCloudBackupHealthActionFactoryFake(),
+      SocialRecoveryActionFactoryFake(),
+      BiometricActionFactoryFake(),
+      CriticalAlertsActionFactoryFake(),
+      FingerprintsActionFactoryFake(),
+      HardwareDeviceActionFactoryFake(),
+      TxVerificationActionFactoryFake(),
+      KeysetSyncActionFactoryFake(),
+      eventTracker,
+      metricTrackerService,
+      securityRecommendationInteractionDao,
+      clock
+    )
+
+    // Before executeWork() is called, state should be null
+    // This prevents race conditions where code checks recommendations
+    // before real data has loaded
+    service.securityActionsWithRecommendations.value.shouldBeNull()
   }
 
   test("get security actions with at risk recommendations") {
@@ -45,7 +70,8 @@ class SecurityActionsServiceImplTest : FunSpec({
     service.executeWork()
 
     service.securityActionsWithRecommendations.test {
-      awaitItem().apply {
+      // After executeWork(), state should be non-null with real data
+      awaitItem().shouldNotBeNull().apply {
         securityActions.map { it.type() }.shouldContainExactly(
           SecurityActionType.HARDWARE_DEVICE,
           SecurityActionType.FINGERPRINTS,
@@ -129,7 +155,8 @@ class SecurityActionsServiceImplTest : FunSpec({
     service.executeWork()
 
     service.securityActionsWithRecommendations.test {
-      awaitItem().apply {
+      // After executeWork(), state should be non-null with real data
+      awaitItem().shouldNotBeNull().apply {
         securityActions.map { it.type() }.shouldContainExactly(
           SecurityActionType.HARDWARE_DEVICE,
           SecurityActionType.FINGERPRINTS,

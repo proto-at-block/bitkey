@@ -7,15 +7,17 @@ Some useful acronyms:
 
 import fnmatch
 import operator
-from typing import Optional, Callable
 from collections.abc import Generator
+from typing import Callable, Optional
 
 from elftools.dwarf.compileunit import CompileUnit
 from elftools.dwarf.die import DIE
 from elftools.dwarf.dwarfinfo import DWARFInfo
 
 
-def die_has_tag_value(die: DIE, tag: str, value: bytes, op: Callable = operator.eq) -> bool:
+def die_has_tag_value(
+    die: DIE, tag: str, value: bytes, op: Callable = operator.eq
+) -> bool:
     """Check that the die has a tag with the given value.
 
     Performs a lot of checks that get really redundant really fast.
@@ -63,7 +65,9 @@ def get_cu_containing_offset(dwarf: DWARFInfo, offset: int) -> Optional[CompileU
     return None
 
 
-def get_die_at_offset(dwarf: DWARFInfo, offset: int, cu: Optional[CompileUnit] = None) -> DIE:
+def get_die_at_offset(
+    dwarf: DWARFInfo, offset: int, cu: Optional[CompileUnit] = None
+) -> DIE:
     """Get a DIE for a given offset
 
     The currently released pyelftools version (0.26) lacks this functionality. However, the master branch does. Once
@@ -109,7 +113,9 @@ def gen_producers(dwarf: DWARFInfo, filename_pattern: bytes) -> Generator[bytes,
             yield producer, filename
 
 
-def get_function_from_file(dwarf: DWARFInfo, function: bytes, file_fnmatch: bytes) -> Optional[DIE]:
+def get_function_from_file(
+    dwarf: DWARFInfo, function: bytes, file_fnmatch: bytes
+) -> Optional[DIE]:
     """Get the dwarf subprogram (DW_TAG_subprogram) for the given function in a file
 
     TODO: Maybe make this a generator and support regex on all arguments?
@@ -140,7 +146,9 @@ def get_function_from_file(dwarf: DWARFInfo, function: bytes, file_fnmatch: byte
     return None
 
 
-def die_search(dwarf: DWARFInfo, die: DIE, accepted_tags: tuple, recurse_tags: tuple) -> DIE:
+def die_search(
+    dwarf: DWARFInfo, die: DIE, accepted_tags: tuple, recurse_tags: tuple
+) -> DIE:
     """Function that supports recursive searching through a given DIE for particular tags
 
     If a DW_AT_abstract_origin is found, perform the DIE lookup
@@ -190,7 +198,12 @@ def gen_function_call_names(dwarf: DWARFInfo, die: DIE) -> Generator[bytes]:
     Yields:
         (unicode): Name of every call found within the subprogram
     """
-    for f in die_search(dwarf, die, ("DW_TAG_GNU_call_site", "DW_TAG_call_site"), ("DW_TAG_lexical_block",)):
+    for f in die_search(
+        dwarf,
+        die,
+        ("DW_TAG_GNU_call_site", "DW_TAG_call_site"),
+        ("DW_TAG_lexical_block",),
+    ):
         if "DW_AT_name" in f.attributes:
             yield f.attributes["DW_AT_name"].value
 

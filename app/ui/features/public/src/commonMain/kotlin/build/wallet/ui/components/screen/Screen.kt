@@ -8,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -17,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -173,31 +171,17 @@ internal fun Screen(
   systemUiModel: SystemUIModel? = null,
   onTwoFingerDoubleTap: (() -> Unit)? = null,
 ) {
-  @Composable
-  fun ScreenContents() =
-    ScreenContents(
-      modifier = modifier,
-      bodyContent = bodyContent,
-      onTwoFingerDoubleTap = onTwoFingerDoubleTap
-    )
+  ScreenContents(
+    modifier = modifier,
+    bodyContent = bodyContent,
+    onTwoFingerDoubleTap = onTwoFingerDoubleTap
+  )
 
-  if (alertModel == null) {
-    ScreenContents()
-  } else {
-    // Wrap ScreenContents in Surface with AlertDialog if
-    // alertModel is nonnull
-    Surface(
-      modifier = Modifier
-        .fillMaxSize()
-        .alpha(0.5f),
-      color = Color.Black
-    ) {
-      AlertDialog(model = alertModel)
-      ScreenContents()
-    }
+  // Add alert bottom sheet, system UI, toast if any
+  alertModel?.let {
+    AlertDialog(model = it)
   }
 
-  // Add bottom sheet, system UI, toast if any
   bottomSheetModel?.let {
     Sheet(model = it)
   }

@@ -1,7 +1,7 @@
 use anyhow::Result;
-use bdk::bitcoin::psbt::Input;
-use bdk::bitcoin::{
-    psbt::PartiallySignedTransaction,
+use bdk_wallet::bitcoin::psbt::Input;
+use bdk_wallet::bitcoin::{
+    psbt::Psbt as PartiallySignedTransaction,
     secp256k1::{Secp256k1, SecretKey},
 };
 use rand::random;
@@ -57,7 +57,7 @@ fn approve_inputs(
 mod tests {
     use std::collections::BTreeMap;
 
-    use bdk::bitcoin::{
+    use bdk_wallet::bitcoin::{
         hashes::{Hash, HashEngine},
         secp256k1::{rand, Message, Secp256k1},
     };
@@ -67,15 +67,16 @@ mod tests {
     use super::*;
 
     fn generate_random_input(
-        secp: &Secp256k1<bdk::bitcoin::secp256k1::All>,
+        secp: &Secp256k1<bdk_wallet::bitcoin::secp256k1::All>,
         rng: &mut rand::rngs::ThreadRng,
     ) -> (Input, SecretKey, PublicKey, Vec<u8>) {
         let (priv_key, pub_key) = secp.generate_keypair(rng);
         let msg_slice: [u8; 32] = random();
         let msg = Message::from_slice(&msg_slice).unwrap();
-        let sig = bdk::bitcoin::ecdsa::Signature::sighash_all(secp.sign_ecdsa(&msg, &priv_key));
+        let sig =
+            bdk_wallet::bitcoin::ecdsa::Signature::sighash_all(secp.sign_ecdsa(&msg, &priv_key));
 
-        let bdk_pk = bdk::bitcoin::PublicKey {
+        let bdk_pk = bdk_wallet::bitcoin::PublicKey {
             compressed: true,
             inner: pub_key,
         };
@@ -106,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_approve_psbt_with_client_verification() {
-        use bdk::bitcoin::hashes::sha256;
+        use bdk_wallet::bitcoin::hashes::sha256;
 
         // Create a secp context
         let secp = Secp256k1::new();

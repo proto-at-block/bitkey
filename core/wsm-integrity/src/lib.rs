@@ -1,5 +1,5 @@
 use bitcoin::base58::decode_check;
-use bitcoin::hashes::sha256;
+use bitcoin::hashes::{sha256, Hash};
 use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::{Message, Secp256k1};
 
@@ -92,7 +92,7 @@ impl WsmIntegrityVerifier {
             hash_input.extend_from_slice(ctx.to_bytes());
             hash_input.extend_from_slice(message);
 
-            let digest = Message::from_hashed_data::<sha256::Hash>(&hash_input);
+            let digest = Message::from_digest(sha256::Hash::hash(&hash_input).to_byte_array());
             if secp.verify_ecdsa(&digest, &sig, &pk).is_ok() {
                 return Ok(true);
             }

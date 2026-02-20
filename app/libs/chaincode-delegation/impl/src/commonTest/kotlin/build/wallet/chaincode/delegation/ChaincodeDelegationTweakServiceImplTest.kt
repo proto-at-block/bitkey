@@ -28,7 +28,7 @@ class ChaincodeDelegationTweakServiceImplTest : FunSpec({
     id = "psbt-id",
     base64 = "original-psbt",
     fee = Fee(BitcoinMoney.sats(0)),
-    baseSize = 0,
+    vsize = 0,
     numOfInputs = 0,
     amountSats = 0u
   )

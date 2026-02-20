@@ -11,6 +11,7 @@
 #include "hash.h"
 #include "hex.h"
 #include "log.h"
+#include "mcu.h"
 #include "perf.h"
 #include "rtos_mpu.h"
 #include "security_config.h"
@@ -26,6 +27,11 @@
 #define DELTA_INLINE_SUPPORTED          0
 #define FWUP_DELTA_PATCH_SIGNATURE_SIZE 64
 #define PATCH_PATH                      "patch.bin"
+// Patch must include at least one byte of data plus the signature.
+#define FWUP_DELTA_MIN_PATCH_SIZE (FWUP_DELTA_PATCH_SIGNATURE_SIZE + 1)
+// Reject invalid patch sizes. 128K is a reasonable upper bound, but we can
+// change it later.
+#define FWUP_DELTA_MAX_PATCH_SIZE (128 * 1024)
 
 #ifndef EMBEDDED_BUILD
 #define portRAISE_PRIVILEGE()
@@ -44,7 +50,12 @@ static struct {
   uintptr_t target_slot_base_addr;
   uintptr_t target_slot_offset_pointer;
   bool file_opened;
+  alignas(MCU_FLASH_WRITE_ALIGNMENT) uint8_t write_buffer[MCU_FLASH_WRITE_ALIGNMENT];
+  size_t write_buffer_fill;
 } delta_state = {0};
+
+_Static_assert(sizeof(delta_state.write_buffer) == MCU_FLASH_WRITE_ALIGNMENT,
+               "write_buffer must match flash write alignment");
 
 static struct {
   perf_counter_t* process;
@@ -85,48 +96,91 @@ static int from_seek(void* UNUSED(arg_p), int offset) {
 }
 
 static int to_write(void* UNUSED(arg_p), const uint8_t* buf_p, size_t size) {
-  uint8_t* buffer = (uint8_t*)buf_p;
-  size_t write_size = size;
+  const uint8_t* src = buf_p;
+  size_t remaining = size;
 
-  const uintptr_t raw_addr =
-    delta_state.target_slot_base_addr + delta_state.target_slot_offset_pointer;
-  const uintptr_t aligned_addr =
-    raw_addr & ~(sizeof(uint32_t) - 1);  // Round down to nearest multiple of sizeof(uint32_t).
-  const void* flash_write_addr = (void*)aligned_addr;
+  // detools may emit sub-alignment writes. On some MCUs (e.g., STM32U5), each
+  // aligned flash block can only be programmed once after erase.
+  // We therefore buffer tails and only program full MCU_FLASH_WRITE_ALIGNMENT
+  // blocks, padding the final block on flush. Note: MCU_FLASH_WRITE_ALIGNMENT
+  // is target-specific (e.g., 4 bytes on EFR32, 16 bytes on STM32U5).
 
-  const size_t alignment_offset = raw_addr - aligned_addr;
+  // If we have pending data, fill the block and write it once.
+  if (delta_state.write_buffer_fill > 0) {
+    const size_t space_in_buffer = MCU_FLASH_WRITE_ALIGNMENT - delta_state.write_buffer_fill;
+    const size_t to_copy = (remaining < space_in_buffer) ? remaining : space_in_buffer;
 
-  // If flash_write_addr is unaligned, or size is not a multiple of 4, we need to
-  // step back to the nearest multiple of 4 and write the data there, taking care
-  // to preserve what was already in flash.
-  if (aligned_addr != raw_addr || size % sizeof(uint32_t) != 0) {
-    alignas(sizeof(uint32_t)) static uint8_t scratch[512];
+    memcpy(delta_state.write_buffer + delta_state.write_buffer_fill, src, to_copy);
+    delta_state.write_buffer_fill += to_copy;
+    src += to_copy;
+    remaining -= to_copy;
 
-    _Static_assert(sizeof(scratch) > sizeof(((fwpb_fwup_transfer_cmd_fwup_data_t*)0)->bytes),
-                   "Scratch buffer is too small to fit FWUP data.");
+    if (delta_state.write_buffer_fill == MCU_FLASH_WRITE_ALIGNMENT) {
+      const uintptr_t flash_addr =
+        delta_state.target_slot_base_addr + delta_state.target_slot_offset_pointer;
 
-    // Read the existing data from flash into the scratch buffer.
-    memcpy(scratch, flash_write_addr, sizeof(scratch));
+      if (!fwup_flash_write(perf.flash_write, (void*)flash_addr, delta_state.write_buffer,
+                            MCU_FLASH_WRITE_ALIGNMENT)) {
+        LOGI("to_write failed: dst=%08X, src=%p, size=%d", (unsigned int)flash_addr,
+             delta_state.write_buffer, MCU_FLASH_WRITE_ALIGNMENT);
+        return -1;
+      }
 
-    // Overwrite the relevant part of the scratch buffer with buf_p.
-    memcpy(scratch + alignment_offset, buf_p, size);
+      delta_state.target_slot_offset_pointer += MCU_FLASH_WRITE_ALIGNMENT;
+      delta_state.write_buffer_fill = 0;
+    } else {
+      return 0;
+    }
+  }
 
-    // The size to write should be rounded up to a multiple of sizeof(uint32_t).
-    write_size = size + alignment_offset;
-    if (write_size % sizeof(uint32_t) != 0) {
-      write_size += sizeof(uint32_t) - (write_size % sizeof(uint32_t));
+  // Fast path: write full aligned blocks directly from the input buffer.
+  if (remaining >= MCU_FLASH_WRITE_ALIGNMENT) {
+    const size_t aligned_len = remaining - (remaining % MCU_FLASH_WRITE_ALIGNMENT);
+    const uintptr_t flash_addr =
+      delta_state.target_slot_base_addr + delta_state.target_slot_offset_pointer;
+
+    if (!fwup_flash_write(perf.flash_write, (void*)flash_addr, src, aligned_len)) {
+      LOGI("to_write failed: dst=%08X, src=%p, size=%d", (unsigned int)flash_addr, src,
+           aligned_len);
+      return -1;
     }
 
-    buffer = scratch;
+    delta_state.target_slot_offset_pointer += aligned_len;
+    src += aligned_len;
+    remaining -= aligned_len;
   }
 
-  if (fwup_flash_write(perf.flash_write, (void*)flash_write_addr, buffer, write_size)) {
-    delta_state.target_slot_offset_pointer += size;  // Don't include the "padding" bytes.
-    return 0;
-  } else {
-    LOGI("to_write failed: dst=%p, src=%p, size=%d", flash_write_addr, buffer, write_size);
-    return -1;
+  // Buffer any trailing bytes (< alignment) to avoid reprogramming a quad-word.
+  if (remaining > 0) {
+    memcpy(delta_state.write_buffer, src, remaining);
+    delta_state.write_buffer_fill = remaining;
   }
+
+  return 0;
+}
+
+static bool flush_write_buffer(void) {
+  if (delta_state.write_buffer_fill == 0) {
+    return true;
+  }
+
+  // Pad the remaining buffer with 0xFF (erased flash value)
+  memset(delta_state.write_buffer + delta_state.write_buffer_fill, 0xFF,
+         MCU_FLASH_WRITE_ALIGNMENT - delta_state.write_buffer_fill);
+
+  const uintptr_t flash_addr =
+    delta_state.target_slot_base_addr + delta_state.target_slot_offset_pointer;
+
+  if (!fwup_flash_write(perf.flash_write, (void*)flash_addr, delta_state.write_buffer,
+                        MCU_FLASH_WRITE_ALIGNMENT)) {
+    LOGE("flush_write_buffer failed: dst=%08X", (unsigned int)flash_addr);
+    return false;
+  }
+
+  delta_state.target_slot_offset_pointer += MCU_FLASH_WRITE_ALIGNMENT;
+  delta_state.write_buffer_fill = 0;
+
+  return true;
 }
 
 static bool fwup_delta_write_patch(fwpb_fwup_transfer_cmd* cmd) {
@@ -134,7 +188,7 @@ static bool fwup_delta_write_patch(fwpb_fwup_transfer_cmd* cmd) {
 
   fwpb_fwup_transfer_cmd_fwup_data_t data = cmd->fwup_data;
 
-  const uint32_t max_chunk_size = sizeof(data.bytes);
+  const uint32_t max_chunk_size = fwup_flash_get_max_chunk_size();
   const uint32_t write_address_offset = (cmd->sequence_id * max_chunk_size) + cmd->offset;
 
   if (data.size > max_chunk_size) {
@@ -177,12 +231,16 @@ bool fwup_delta_init(fwup_delta_cfg_t cfg, perf_counter_t* perf_flash_write,
   delta_state.active_slot_offset_pointer = 0;
   delta_state.target_slot_base_addr = cfg.target_slot_base_addr;
   delta_state.target_slot_offset_pointer = 0;
+  delta_state.write_buffer_fill = 0;
+
+  if ((cfg.target_slot_base_addr % MCU_FLASH_WRITE_ALIGNMENT) != 0) {
+    LOGE("Target slot base addr not aligned: %p", (void*)cfg.target_slot_base_addr);
+    return false;
+  }
 
   memset(&apply_patch, 0, sizeof(apply_patch));
 
-  if (cfg.patch_size > (128 * 1024)) {
-    // Reject invalid patch sizes. 128K is a reasonable upper bound, but we can
-    // change it later.
+  if (cfg.patch_size < FWUP_DELTA_MIN_PATCH_SIZE || cfg.patch_size > FWUP_DELTA_MAX_PATCH_SIZE) {
     LOGE("Got an invalid patch size");
     return false;
   }
@@ -269,6 +327,11 @@ bool fwup_delta_transfer(fwpb_fwup_transfer_cmd* cmd, fwpb_fwup_transfer_rsp* rs
 
 static bool verify_patch(uint8_t* buf, uint32_t buf_size, uint32_t patch_size) {
   ASSERT(buf && buf_size >= SHA256_DIGEST_SIZE);
+
+  if (patch_size < FWUP_DELTA_MIN_PATCH_SIZE) {
+    LOGE("Patch too small");
+    return false;
+  }
 
   hash_stream_ctx_t sha256 = {0};
   if (!crypto_sha256_stream_init(&sha256)) {
@@ -385,9 +448,15 @@ static bool apply_patch_from_file(void) {
 
 finalize:
   finalize_status = detools_apply_patch_finalize(&apply_patch);
-  result = finalize_status >= 0;
-  if (!result) {
+  if (finalize_status < 0) {
+    result = false;
     BITLOG_EVENT(fwup_delta_apply_patch_err, finalize_status);
+  } else {
+    // Flush any remaining buffered data with 0xFF padding
+    result = flush_write_buffer();
+    if (!result) {
+      LOGE("Failed to flush write buffer");
+    }
   }
   LOGD("Patch %s", result ? "applied" : "failed");
 out:
@@ -401,7 +470,10 @@ bool fwup_delta_finish(fwpb_fwup_finish_cmd* cmd) {
   switch (cmd->mode) {
     case fwpb_fwup_mode_FWUP_MODE_DELTA_INLINE:
 #if DELTA_INLINE_SUPPORTED
-      return detools_apply_patch_finalize(&apply_patch) >= 0;
+      if (detools_apply_patch_finalize(&apply_patch) < 0) {
+        return false;
+      }
+      return flush_write_buffer();
 #else
       LOGE("Delta inline not supported");
       return false;

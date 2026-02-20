@@ -29,6 +29,7 @@ fun PhoneNumberInputScreenModel(
   textFieldSelection: IntRange,
   onTextFieldValueChange: (String, IntRange) -> Unit,
   primaryButton: ButtonModel,
+  secondaryButton: ButtonModel? = null,
   onClose: () -> Unit,
   onSkip: (() -> Unit)?,
   errorOverlayModel: SheetModel? = null,
@@ -41,6 +42,7 @@ fun PhoneNumberInputScreenModel(
     textFieldSelection = textFieldSelection,
     onTextFieldValueChange = onTextFieldValueChange,
     primaryButton = primaryButton,
+    secondaryButton = secondaryButton,
     onClose = onClose,
     onSkip = onSkip
   ),
@@ -48,7 +50,7 @@ fun PhoneNumberInputScreenModel(
   bottomSheetModel = errorOverlayModel
 )
 
-private data class PhoneNumberInputBodyModel(
+data class PhoneNumberInputBodyModel(
   val title: String,
   val subline: String? = null,
   val textFieldValue: String,
@@ -56,6 +58,7 @@ private data class PhoneNumberInputBodyModel(
   val textFieldSelection: IntRange,
   val onTextFieldValueChange: (String, IntRange) -> Unit,
   override val primaryButton: ButtonModel,
+  override val secondaryButton: ButtonModel? = null,
   val onClose: () -> Unit,
   val onSkip: (() -> Unit)?,
 ) : FormBodyModel(
@@ -92,7 +95,8 @@ private data class PhoneNumberInputBodyModel(
             )
         )
       ),
-    primaryButton = primaryButton
+    primaryButton = primaryButton,
+    secondaryButton = secondaryButton
   )
 
 fun PhoneNumberInputErrorSheetModel(

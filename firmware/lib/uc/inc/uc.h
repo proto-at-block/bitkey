@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "secutils.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -80,6 +82,19 @@ typedef enum {
    * @brief Ran out of memory posting to task queue.
    */
   UC_ERR_Q_MAX = 12,
+
+  /**
+   * @brief Failure while encrypting message payload.
+   *
+   */
+  UC_ERR_ENCRYPT_FAILED = 13,
+
+  /**
+   * @brief Failure when decrypting message payload
+   *
+   * @note This could be due to an authentication tag mismatch.
+   */
+  UC_ERR_DECRYPT_FAILED = 14,
 } uc_err_t;
 
 /**
@@ -96,12 +111,99 @@ typedef enum {
 typedef uint32_t (*uc_send_callback_t)(void* context, const uint8_t* data, size_t data_len);
 
 /**
+ * @brief Callback to encrypt plaintext using AES-GCM.
+ *
+ * Generates a random nonce and outputs the authentication tag.
+ * May encrypt in-place (plaintext == ciphertext is allowed).
+ *
+ * The key is not an input because it is handled by the callback.
+ *
+ * This callback must be thread safe.
+ *
+ * @param[in] plaintext Input data to encrypt.
+ * @param[out] ciphertext Output buffer for encrypted data. May be same as plaintext.
+ * @param len Length of plaintext/ciphertext in bytes.
+ * @param[in] aad Additional data to be authenticated
+ * @param[in] aad_len Length of aad
+ * @param[out] nonce Output buffer for the generated IV. Must be AES_GCM_IV_LENGTH bytes.
+ * @param[out] mac Output buffer for the authentication tag. Must be AES_GCM_TAG_LENGTH bytes.
+ * @return SECURE_TRUE on success, SECURE_FALSE on failure.
+ */
+typedef secure_bool_t (*uc_gcm_encrypt_callback_t)(uint8_t const* plaintext, uint8_t* ciphertext,
+                                                   uint32_t len, uint8_t const* aad,
+                                                   uint32_t aad_len, uint8_t* nonce, uint8_t* mac);
+
+/**
+ * @brief Callback to decrypt ciphertext using AES-GCM
+ *
+ * Verifies the authentication tag before returning plaintext.
+ *
+ * The key is not an input because it is handled by the callback.
+ *
+ * This callback must be thread safe.
+ *
+ * @param[in] ciphertext Input encrypted data.
+ * @param[out] plaintext Output buffer for decrypted data. Must NOT be same as ciphertext.
+ * @param len Length of ciphertext/plaintext in bytes.
+ * @param[in] aad Additional data to be authenticated
+ * @param[in] aad_len Length of aad
+ * @param[in] nonce The IV used during encryption. Must be AES_GCM_IV_LENGTH bytes.
+ * @param[in] mac The authentication tag to verify. Must be AES_GCM_TAG_LENGTH bytes.
+ * @return SECURE_TRUE on success, SECURE_FALSE on failure.
+ */
+typedef secure_bool_t (*uc_gcm_decrypt_callback_t)(uint8_t const* ciphertext, uint8_t* plaintext,
+                                                   uint32_t len, uint8_t const* aad,
+                                                   uint32_t aad_len, uint8_t* nonce, uint8_t* mac);
+
+/**
+ * @brief Callback to get the next sequence number for sending encrypted messages.
+ *
+ * Returns a monotonically increasing sequence number used to prevent replay attacks.
+ * The sequence number is included in the AAD during encryption.
+ *
+ * This callback must be thread safe.
+ *
+ * @return The next sequence number to use.
+ */
+typedef uint32_t (*uc_get_send_seq_cb)(void);
+
+/**
+ * @brief Callback to validate a received sequence number for replay protection.
+ *
+ * Checks whether the received sequence number is valid (i.e. greater than previous
+ * sequence numbers). Used to detect and reject replayed messages.
+ *
+ * This callback must be thread safe.
+ *
+ * @param new_seq The sequence number received in the incoming message.
+ * @return true if the sequence number is valid and should be accepted, false otherwise.
+ */
+typedef bool (*uc_check_recv_seq_cb)(uint32_t new_seq);
+
+/**
+ * @brief Cryptographic API callbacks for UC message encryption and replay protection.
+ */
+typedef struct {
+  /** @brief Callback for AES-GCM encryption of outgoing messages. */
+  uc_gcm_encrypt_callback_t gcm_encrypt;
+  /** @brief Callback for AES-GCM decryption of incoming messages. */
+  uc_gcm_decrypt_callback_t gcm_decrypt;
+  /** @brief Callback to get the next send sequence number for replay protection. */
+  uc_get_send_seq_cb get_send_seq;
+  /** @brief Callback to validate received sequence numbers for replay protection. */
+  uc_check_recv_seq_cb check_recv_seq;
+} uc_crypto_api_t;
+
+/**
  * @brief Initializes the internal state used by the UC library.
  *
- * @param send_cb  Callback to invoke to send data.
- * @param context  User-supplied context pointer.
+ * @note If crypto_api is NULL messages will not be encrypted.
+ *
+ * @param send_cb     Callback to invoke to send data.
+ * @param crypto_api  Cryptographic API callbacks for encryption and replay protection.
+ * @param context     User-supplied context pointer.
  */
-void uc_init(uc_send_callback_t send_cb, void* context);
+void uc_init(uc_send_callback_t send_cb, uc_crypto_api_t const* crypto_api, void* context);
 
 /**
  * @brief Performs an idle check for the UC library, sending an ACK if necessary.

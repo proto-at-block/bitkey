@@ -39,4 +39,7 @@ enum class CreateAccountEventTrackerScreenId : EventTrackerScreenId {
 
   /** Screen showing options for how to create an account (hardware vs this device) */
   CREATE_ACCOUNT_OPTIONS,
+
+  /** Screen showing instructions to tap Bitkey device to build hardware descriptor */
+  BUILD_HARDWARE_DESCRIPTOR_INTRO,
 }

@@ -31,5 +31,10 @@ sealed class ChaincodeDelegationError(
     message: String?,
   ) : ChaincodeDelegationError(cause, message)
 
+  class XpubChaincodeExtraction(
+    cause: Throwable?,
+    message: String?,
+  ) : ChaincodeDelegationError(cause, message)
+
   class Unknown(cause: Throwable?, message: String?) : ChaincodeDelegationError(cause, message)
 }

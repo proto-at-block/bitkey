@@ -39,7 +39,7 @@ prost-build = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-bdk = { workspace = true }
+bdk_wallet = { workspace = true, features = ["test-utils"] }
 bitcoin = { workspace = true, features = ["base64", "rand"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

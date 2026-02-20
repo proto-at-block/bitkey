@@ -15,8 +15,6 @@ pub enum MempoolIndexerError {
     DeserializationError(#[from] bdk_utils::bdk::bitcoin::consensus::encode::Error),
     #[error("Database error {0}")]
     DatabaseError(#[from] DatabaseError),
-    #[error("Unable to parse block hash as hex {0}")]
-    BlockHashParseError(#[from] bdk_utils::bdk::bitcoin::hashes::hex::Error),
-    #[error("Parse Address error: {0}")]
-    ParseAddress(#[from] bdk_utils::bdk::bitcoin::address::Error),
+    #[error(transparent)]
+    ParseAddress(#[from] bdk_utils::bdk::bitcoin::address::error::ParseError),
 }

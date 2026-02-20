@@ -175,8 +175,8 @@ impl Signer {
 
             let input = &mut self.psbt.inputs[signable_idx];
             input.tap_key_sig = Some(bitcoin::taproot::Signature {
-                sig: ZkpSchnorrSignature(final_sig).into(),
-                hash_ty: input
+                signature: ZkpSchnorrSignature(final_sig).into(),
+                sighash_type: input
                     .taproot_hash_ty()
                     .map_err(|_| SigningError::InvalidPsbt)?,
             });

@@ -247,7 +247,7 @@ impl FrostSigner {
 mod tests {
     use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
     use bitcoin::{
-        bip32::{DerivationPath, ExtendedPubKey},
+        bip32::{DerivationPath, Xpub as ExtendedPubKey},
         Network,
     };
     use crypto::frost::{
@@ -315,7 +315,7 @@ mod tests {
         fn assert_descriptor_properties(
             descriptor: &DescriptorPublicKey,
             network_to_assert: Network,
-            expected_path: &str,
+            expected_path: &DerivationPath,
         ) {
             match descriptor {
                 DescriptorPublicKey::XPub(DescriptorXKey {
@@ -324,8 +324,8 @@ mod tests {
                     wildcard,
                     derivation_path,
                 }) => {
-                    assert_eq!(*network, network_to_assert);
-                    assert_eq!(origin_path.to_string(), expected_path);
+                    assert_eq!(*network, network_to_assert.into());
+                    assert_eq!(origin_path, expected_path);
                     assert_eq!(*wildcard, Wildcard::Unhardened);
                     assert_eq!(*derivation_path, DerivationPath::default());
                 }
@@ -345,8 +345,16 @@ mod tests {
             mainnet_descriptor.external.master_fingerprint(),
             mainnet_descriptor.change.master_fingerprint()
         );
-        assert_descriptor_properties(&mainnet_descriptor.external, Network::Bitcoin, "m/86/0/0/0");
-        assert_descriptor_properties(&mainnet_descriptor.change, Network::Bitcoin, "m/86/0/0/1");
+        assert_descriptor_properties(
+            &mainnet_descriptor.external,
+            Network::Bitcoin,
+            &DerivationPath::from_str("m/86/0/0/0").unwrap(),
+        );
+        assert_descriptor_properties(
+            &mainnet_descriptor.change,
+            Network::Bitcoin,
+            &DerivationPath::from_str("m/86/0/0/1").unwrap(),
+        );
 
         // Test signet paths
         let signet_descriptor = compute_frost_wallet_descriptor(agg_public_key, Network::Signet);
@@ -360,7 +368,15 @@ mod tests {
             signet_descriptor.external.master_fingerprint(),
             signet_descriptor.change.master_fingerprint()
         );
-        assert_descriptor_properties(&signet_descriptor.external, Network::Signet, "m/86/1/0/0");
-        assert_descriptor_properties(&signet_descriptor.change, Network::Signet, "m/86/1/0/1");
+        assert_descriptor_properties(
+            &signet_descriptor.external,
+            Network::Signet,
+            &DerivationPath::from_str("m/86/1/0/0").unwrap(),
+        );
+        assert_descriptor_properties(
+            &signet_descriptor.change,
+            Network::Signet,
+            &DerivationPath::from_str("m/86/1/0/1").unwrap(),
+        );
     }
 }

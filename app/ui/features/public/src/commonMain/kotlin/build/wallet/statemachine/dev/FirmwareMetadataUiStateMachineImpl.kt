@@ -13,6 +13,7 @@ import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadataDao
+import build.wallet.firmware.McuInfo
 import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -24,6 +25,7 @@ import build.wallet.statemachine.dev.FirmwareMetadataUiStateMachineImpl.State.Re
 import build.wallet.statemachine.dev.FirmwareMetadataUiStateMachineImpl.State.ShowingMetadataUiState
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
 import okio.ByteString.Companion.toByteString
 
@@ -45,7 +47,16 @@ class FirmwareMetadataUiStateMachineImpl(
               .onSuccess { metadata ->
                 when (metadata) {
                   null -> logWarn { "No active metadata found" }
-                  else -> state = ShowingMetadataUiState(firmwareMetadata = metadata)
+                  else -> {
+                    val mcuInfo = firmwareDeviceInfoDao.getDeviceInfo()
+                      .get()
+                      ?.mcuInfo
+                      .orEmpty()
+                    state = ShowingMetadataUiState(
+                      firmwareMetadata = metadata,
+                      mcuInfo = mcuInfo
+                    )
+                  }
                 }
               }
               .logFailure { "Failed to read active metadata from db" }
@@ -101,12 +112,12 @@ class FirmwareMetadataUiStateMachineImpl(
           onFirmwareMetadataRefreshClick = {
             state = ReadingMetadataUiState
           },
-          firmwareMetadataModel = currentState.firmwareMetadata.toModel()
+          firmwareMetadataModel = currentState.firmwareMetadata.toModel(currentState.mcuInfo)
         ).asModalScreen()
     }
   }
 
-  private fun FirmwareMetadata.toModel() =
+  private fun FirmwareMetadata.toModel(mcuInfo: List<McuInfo>) =
     FirmwareMetadataModel(
       activeSlot = activeSlot.name,
       gitId = gitId,
@@ -115,12 +126,21 @@ class FirmwareMetadataUiStateMachineImpl(
       build = build,
       timestamp = timestamp.toString(),
       hash = hash.toByteArray().toByteString().hex(),
-      hwRevision = hwRevision
+      hwRevision = hwRevision,
+      mcuInfo = mcuInfo.map { it.toModel() }
+    )
+
+  private fun McuInfo.toModel() =
+    McuInfoModel(
+      role = mcuRole.name,
+      name = mcuName.name,
+      firmwareVersion = firmwareVersion
     )
 
   private sealed class State {
     data class ShowingMetadataUiState(
       val firmwareMetadata: FirmwareMetadata,
+      val mcuInfo: List<McuInfo>,
     ) : State()
 
     data object LoadingMetadataUiState : State()

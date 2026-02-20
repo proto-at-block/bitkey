@@ -7,4 +7,11 @@
     <item name="android:navigationBarColor">@android:color/transparent</item>
     <item name="android:windowDrawsSystemBarBackgrounds">true</item>
   </style>
+
+  <!-- Bitkey DatePicker Theme for Light Mode -->
+  <!-- Only uses public attributes: colorAccent controls selection color, date highlights, and buttons -->
+  <style name="BitkeyDatePickerDialog" parent="android:Theme.Material.Light.Dialog">
+    <item name="android:colorAccent">@color/bitkey_primary</item>
+    <item name="android:colorPrimary">@color/bitkey_primary</item>
+  </style>
 </resources>

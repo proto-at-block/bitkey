@@ -123,6 +123,9 @@ adpu_from_proto!(MetaCmd);
 adpu_from_proto!(QueryAuthenticationCmd);
 adpu_from_proto!(SealCsekCmd);
 adpu_from_proto!(SignTxnCmd);
+adpu_from_proto!(SignStartCmd);
+adpu_from_proto!(SignTransferCmd);
+adpu_from_proto!(GetConfirmationResultChunkCmd);
 adpu_from_proto!(StartFingerprintEnrollmentCmd);
 adpu_from_proto!(TelemetryIdGetCmd);
 adpu_from_proto!(DeviceInfoCmd);
@@ -142,6 +145,9 @@ adpu_from_proto!(FingerprintResetRequestCmd);
 adpu_from_proto!(FingerprintResetFinalizeCmd);
 adpu_from_proto!(ProvisionAppAuthPubkeyCmd);
 adpu_from_proto!(GetConfirmationResultCmd);
+adpu_from_proto!(GetAddressCmd);
+adpu_from_proto!(VerifyKeysAndBuildDescriptorCmd);
+adpu_from_proto!(SignActionProofCmd);
 
 impl TryFrom<crate::fwpb::CoredumpGetCmd> for apdu::Command {
     type Error = EncodeError;

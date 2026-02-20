@@ -26,6 +26,7 @@ class AnalyticsOptionsUiStateMachineImpl(
       Customer, Emergency -> null
       Development, Alpha, Team ->
         ListGroupModel(
+          header = "Analytics",
           style = ListGroupStyle.DIVIDER,
           items =
             immutableListOf(

@@ -253,6 +253,14 @@ class NfcConfirmableSessionUiStateMachineImpl(
       is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
         onStateChange(EmulatingPrompt(options = result.options))
       }
+      is HardwareInteraction.RequiresTransfer -> {
+        // RequiresTransfer is for transaction signing with chunked data transfer.
+        // NfcConfirmableSessionUiStateMachine only handles simple confirm/deny flows.
+        // Use SignTransactionNfcSessionUiStateMachine for transfer flows.
+        throw NfcException.CommandError(
+          message = "RequiresTransfer not supported by NfcConfirmableSessionUiStateMachine"
+        )
+      }
     }
   }
 }

@@ -60,9 +60,8 @@ typedef struct {
     } menu;
 
     struct {
-      uint8_t current_page;         // Multi-page digest (0=verification, 1=confirm, 2=updating)
-      bool showing_confirm;         // True when on Verify/Cancel screen
-      firmware_update_data_t data;  // Firmware update metadata (version, digest, size)
+      uint8_t current_page;  // Multi-page digest (0=verification, 1=confirm, 2=updating)
+      bool showing_confirm;  // True when on Verify/Cancel screen
     } firmware_update;
 
     struct {

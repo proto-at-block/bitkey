@@ -122,8 +122,7 @@ const ApplicationCertificate_t app_certificate = {
 
 const uint32_t app_properties_version = 0;
 
-#define APP_PROPERTIES_ID \
-  { 0 }
+#define APP_PROPERTIES_ID {0}
 
 USED ApplicationProperties_t sl_app_properties = {
   .magic = APPLICATION_PROPERTIES_MAGIC,
@@ -191,7 +190,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FuzzedDataProvider fuzzed_data(data, size);
 
   fwup_init((uint32_t*)firmware_b_slot, (uint32_t*)firmware_a_slot, firmware_b_signature,
-            kFirmwareSlotSize, true);
+            kFirmwareSlotSize, true, SECURE_FALSE);
   bitlog_init((bitlog_api_t){
     .timestamp_cb = timestamp,
   });

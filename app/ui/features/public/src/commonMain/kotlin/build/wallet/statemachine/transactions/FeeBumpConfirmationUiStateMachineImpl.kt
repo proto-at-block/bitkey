@@ -1,7 +1,6 @@
 package build.wallet.statemachine.transactions
 
 import androidx.compose.runtime.*
-import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.fees.FeeRate
@@ -15,14 +14,14 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateService
+import build.wallet.nfc.NfcException
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.send.*
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachine
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorContext
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiError
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiProps
@@ -38,7 +37,7 @@ import kotlinx.collections.immutable.toImmutableList
 class FeeBumpConfirmationUiStateMachineImpl(
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
   private val exchangeRateService: ExchangeRateService,
-  private val nfcSessionUIStateMachine: NfcConfirmableSessionUiStateMachine,
+  private val signTransactionNfcSessionUiStateMachine: SignTransactionNfcSessionUiStateMachine,
   private val transferInitiatedUiStateMachine: TransferInitiatedUiStateMachine,
   private val bitcoinWalletService: BitcoinWalletService,
   private val feeEstimationErrorUiStateMachine: FeeEstimationErrorUiStateMachine,
@@ -114,16 +113,10 @@ class FeeBumpConfirmationUiStateMachineImpl(
         }
       }
 
-      is State.SigningWithHardware -> nfcSessionUIStateMachine.model(
-        NfcConfirmableSessionUIStateMachineProps(
-          session = { session, commands ->
-            commands.signTransaction(
-              session = session,
-              psbt = currentState.appSignedPsbt,
-              spendingKeyset = props.account.keybox.activeSpendingKeyset
-            )
-          },
-          onCancel = {
+      is State.SigningWithHardware -> signTransactionNfcSessionUiStateMachine.model(
+        SignTransactionNfcSessionUiProps(
+          psbt = currentState.appSignedPsbt,
+          onBack = {
             uiState = State.ConfirmingFeeBump(
               appSignedPsbt = currentState.appSignedPsbt,
               feeRate = props.newFeeRate
@@ -131,10 +124,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
           },
           onSuccess = { psbt: Psbt ->
             uiState = State.BroadcastingTransaction(psbt)
-          },
-          screenPresentationStyle = ScreenPresentationStyle.Modal,
-          eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION,
-          shouldShowLongRunningOperation = true
+          }
         )
       )
       is State.BroadcastingTransaction -> {
@@ -287,6 +277,7 @@ private fun Error.toFeeEstimationError(): FeeEstimationErrorUiError =
     is BdkError.Electrum,
     is BdkError.Rpc,
     is NetworkingError,
+    is NfcException,
     -> FeeEstimationErrorUiError.LoadFailed(isConnectivityError = true)
     else -> FeeEstimationErrorUiError.Generic
   }

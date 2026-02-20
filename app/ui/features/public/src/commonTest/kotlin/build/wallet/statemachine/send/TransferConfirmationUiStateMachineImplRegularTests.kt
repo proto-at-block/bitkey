@@ -3,7 +3,6 @@ package build.wallet.statemachine.send
 import app.cash.turbine.test
 import bitkey.account.AccountConfigServiceFake
 import bitkey.verification.TxVerificationServiceFake
-import build.wallet.account.AccountServiceFake
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.fees.Fee
@@ -29,9 +28,9 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachineMock
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -39,7 +38,6 @@ import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Ok
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -78,8 +76,8 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
       initialModel = initialModel
     ) {}
 
-  // Initialize the NfcSessionUIStateMachine
-  val nfcSessionUIStateMachine = NfcConfirmableSessionUiStateMachineMock("nfc-regular")
+  // Initialize the SignTransactionNfcSessionUiStateMachine
+  val signTransactionNfcSessionUiStateMachine = SignTransactionNfcSessionUiStateMachineMock("sign-txn-nfc-regular")
 
   // Define the TransferConfirmationUiProps with callbacks connected to the turbine instances
   @Suppress("DEPRECATION")
@@ -107,7 +105,6 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   val mobilePayService = MobilePayServiceMock(turbines::create)
   val feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake()
   val appFunctionalityService = AppFunctionalityServiceFake()
-  val accountService = AccountServiceFake()
   val txVerificationService = TxVerificationServiceFake()
   val verificationFlag = TxVerificationFeatureFlag(FeatureFlagDaoFake())
   val accountConfigService = AccountConfigServiceFake()
@@ -115,16 +112,15 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   // Initialize the TransferConfirmationUiStateMachineImpl with all dependencies
   val stateMachine = TransferConfirmationUiStateMachineImpl(
     transactionDetailsCardUiStateMachine = transactionDetailsCardUiStateMachine,
-    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    signTransactionNfcSessionUiStateMachine = signTransactionNfcSessionUiStateMachine,
     transactionPriorityPreference = transactionPriorityPreference,
     feeOptionListUiStateMachine = feeOptionListUiStateMachine,
     bitcoinWalletService = bitcoinWalletService,
     mobilePayService = mobilePayService,
     appFunctionalityService = appFunctionalityService,
-    accountService = accountService,
+    accountConfigService = accountConfigService,
     txVerificationService = txVerificationService,
-    txVerificationFeatureFlag = verificationFlag,
-    accountConfigService = accountConfigService
+    txVerificationFeatureFlag = verificationFlag
   )
 
   // Reset mocks before each test
@@ -135,7 +131,6 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     bitcoinWalletService.spendingWallet.value = spendingWallet
     mobilePayService.reset()
     appFunctionalityService.reset()
-    accountService.reset()
     txVerificationService.reset()
     verificationFlag.reset()
   }
@@ -153,7 +148,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     mobilePayService = mobilePayService,
     appSignedPsbt = appSignedPsbt,
     appAndHwSignedPsbt = appAndHwSignedPsbt,
-    nfcSessionUIStateMachineId = nfcSessionUIStateMachine.id,
+    signTransactionNfcSessionUIStateMachineId = signTransactionNfcSessionUiStateMachine.id,
     txVerificationServiceFake = txVerificationService,
     verificationFlag = verificationFlag
   )
@@ -204,10 +199,9 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
       }
 
       // SigningWithHardware
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>>(
-        id = nfcSessionUIStateMachine.id
+      awaitBodyMock<SignTransactionNfcSessionUiProps>(
+        id = signTransactionNfcSessionUiStateMachine.id
       ) {
-        shouldShowLongRunningOperation.shouldBeTrue()
         onSuccess(appAndHwSignedPsbt)
       }
 
@@ -265,5 +259,53 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
           .shouldBe(BitcoinMoney.btc(BigDecimal.TEN))
       }
     }
+  }
+
+  test("pre-built PSBTs are used instead of creating new ones") {
+    val preBuiltPsbts = build.wallet.bitcoin.transactions.PsbtsForSendAmount(
+      fastest = appSignedPsbt.copy(id = "pre-built-fastest"),
+      thirtyMinutes = appSignedPsbt.copy(id = "pre-built-thirty"),
+      sixtyMinutes = appSignedPsbt.copy(id = "pre-built-sixty")
+    )
+
+    // Ensure createSignedPsbt is never called when using pre-built PSBTs
+    spendingWallet.createSignedPsbtResult = null
+
+    stateMachine.test(
+      props.copy(preBuiltPsbts = preBuiltPsbts)
+    ) {
+      // CreatingAppSignedPsbt - but using pre-built PSBTs
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // ViewingTransferConfirmation
+      awaitBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("Send your transfer")
+        clickPrimaryButton()
+      }
+
+      // SigningWithHardware
+      awaitBodyMock<SignTransactionNfcSessionUiProps>(
+        id = signTransactionNfcSessionUiStateMachine.id
+      ) {
+        onSuccess(appAndHwSignedPsbt)
+      }
+
+      // FinalizingAndBroadcastingTransaction
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      bitcoinWalletService.broadcastedPsbts.test {
+        awaitUntil { it.isNotEmpty() }.shouldContainExactly(appAndHwSignedPsbt)
+      }
+    }
+
+    onTransferInitiatedCalls.awaitItem()
   }
 })

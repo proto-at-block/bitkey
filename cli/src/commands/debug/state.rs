@@ -5,13 +5,12 @@ use anyhow::{anyhow, Result};
 use aws_config::{BehaviorVersion, SdkConfig};
 use aws_credential_types::provider::ProvideCredentials;
 use aws_sdk_dynamodb::types::AttributeValue;
-use bdk::bitcoin::bip32::ChildNumber;
-use bdk::bitcoin::Network;
-use bdk::database::MemoryDatabase;
-use bdk::keys::DescriptorPublicKey;
-use bdk::miniscript::descriptor::{DescriptorXKey, WshInner};
-use bdk::miniscript::Descriptor;
-use bdk::Wallet;
+use bdk_wallet::bitcoin::bip32::ChildNumber;
+use bdk_wallet::bitcoin::Network;
+use bdk_wallet::keys::DescriptorPublicKey;
+use bdk_wallet::miniscript::descriptor::{DescriptorXKey, WshInner};
+use bdk_wallet::miniscript::Descriptor;
+use bdk_wallet::Wallet;
 
 const RECEIVING_PATH: [ChildNumber; 1] = [ChildNumber::Normal { index: 0 }];
 const CHANGE_PATH: [ChildNumber; 1] = [ChildNumber::Normal { index: 1 }];
@@ -27,7 +26,7 @@ pub struct DebugState {
     pub ear_config: Option<SdkConfig>,
     pub account: Option<HashMap<String, AttributeValue>>,
     pub descriptors: Option<HashMap<String, String>>,
-    pub wallets: HashMap<String, Wallet<MemoryDatabase>>,
+    pub wallets: HashMap<String, Wallet>,
 }
 
 impl DebugState {
@@ -106,7 +105,7 @@ impl DebugState {
         &mut self,
         keyset_id: &String,
         keyset: &AttributeValue,
-    ) -> Result<&Wallet<MemoryDatabase>> {
+    ) -> Result<&mut Wallet> {
         if !self.wallets.contains_key(keyset_id) {
             let Some(descriptors) = self.descriptors.as_ref() else {
                 return Err(anyhow!(
@@ -129,14 +128,14 @@ impl DebugState {
             let descriptors = [RECEIVING_PATH, CHANGE_PATH]
                 .iter()
                 .map(|path| {
-                    dpks.pks
+                    dpks.pks()
                         .iter()
                         .map(|dpk| match dpk {
                             DescriptorPublicKey::XPub(xpub) => {
+                                let derivation_path = xpub.derivation_path.extend(*path);
                                 DescriptorPublicKey::XPub(DescriptorXKey {
-                                    derivation_path: xpub.derivation_path.extend(path),
-                                    origin: xpub.origin.clone(),
-                                    ..*xpub
+                                    derivation_path,
+                                    ..xpub.clone()
                                 })
                             }
                             _ => unimplemented!(),
@@ -157,17 +156,14 @@ impl DebugState {
                 _ => Network::Bitcoin,
             };
 
-            let wallet = Wallet::new(
-                receive_desc,
-                Some(change_desc),
-                network,
-                MemoryDatabase::new(),
-            )?;
+            let wallet = Wallet::create(receive_desc, change_desc)
+                .network(network)
+                .create_wallet_no_persist()?;
 
             self.wallets.insert(keyset_id.to_string(), wallet);
         }
 
-        Ok(self.wallets.get(keyset_id).unwrap())
+        Ok(self.wallets.get_mut(keyset_id).unwrap())
     }
 }
 

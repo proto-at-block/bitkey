@@ -1,4 +1,3 @@
-
 # Products
 PRODUCT_W1A = "w1a"
 PRODUCT_W3A_CORE = "w3a-core"
@@ -10,11 +9,15 @@ PRODUCTS = {
 }
 
 # Platforms
-PLATFORM_DVT = "dvt"
+PLATFORM_PROTO = "proto"
 PLATFORM_EVT = "evt"
+PLATFORM_PDVT = "pdvt"
+PLATFORM_DVT = "dvt"
 PLATFORMS = {
-    PLATFORM_DVT,
+    PLATFORM_PROTO,
     PLATFORM_EVT,
+    PLATFORM_PDVT,
+    PLATFORM_DVT,
 }
 
 # Assets
@@ -50,12 +53,12 @@ SECURITIES = {
 }
 
 # Firmware Signer environments
-SIGNER_LOCALSTACK = "localstack"
+SIGNER_PERSONAL = "personal"
 SIGNER_DEVELOPMENT = "development"
 SIGNER_STAGING = "staging"
 SIGNER_PRODUCTION = "production"
 SIGNER_ENVS = {
-    SIGNER_LOCALSTACK,
+    SIGNER_PERSONAL,
     SIGNER_DEVELOPMENT,
     SIGNER_STAGING,
     SIGNER_PRODUCTION,

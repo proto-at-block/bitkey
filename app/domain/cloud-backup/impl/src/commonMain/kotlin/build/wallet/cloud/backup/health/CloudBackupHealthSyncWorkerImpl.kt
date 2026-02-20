@@ -42,7 +42,7 @@ class CloudBackupHealthSyncWorkerImpl(
 
   override suspend fun executeWork() {
     logDebug { "CloudBackupHealthSyncWorker: starting execution" }
-    
+
     val account = accountService.activeAccount().first() as? FullAccount
     if (account == null) {
       logDebug { "CloudBackupHealthSyncWorker: skipping - no active full account" }

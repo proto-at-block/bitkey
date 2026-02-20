@@ -9,6 +9,7 @@
 #pragma once
 
 #include "perf.h"
+#include "secutils.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -32,6 +33,7 @@ typedef struct {
   void* target_slot_signature;
   size_t app_slot_size;
   bool support_bl_upgrade;
+  volatile secure_bool_t require_confirmation;
 } fwup_priv_t;
 
 /** @} */

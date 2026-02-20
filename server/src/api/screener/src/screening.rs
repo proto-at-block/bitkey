@@ -1,4 +1,4 @@
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::bitcoin::{Address, Network};
 use errors::ApiError;
 use feature_flags::flag::{evaluate_flag_value, ContextKey};

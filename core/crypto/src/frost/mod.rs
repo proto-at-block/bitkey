@@ -1,5 +1,5 @@
 use bitcoin::{
-    bip32::{ChildNumber, ExtendedPubKey},
+    bip32::{ChildNumber, Xpub},
     secp256k1::{
         schnorr::Signature,
         serde::{Deserialize, Serialize},
@@ -140,13 +140,13 @@ pub const FROST_CHAINCODE: [u8; 32] = [
 pub fn compute_frost_master_xpub(
     public_key: bitcoin::secp256k1::PublicKey,
     network: Network,
-) -> ExtendedPubKey {
-    ExtendedPubKey {
+) -> Xpub {
+    Xpub {
         depth: 0,
         parent_fingerprint: Default::default(),
         child_number: ChildNumber::Normal { index: 0 },
         chain_code: FROST_CHAINCODE.into(),
-        network,
+        network: network.into(),
         public_key,
     }
 }

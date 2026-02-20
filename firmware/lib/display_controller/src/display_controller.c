@@ -68,7 +68,7 @@ static fwpb_display_result display_controller_send_command(const fwpb_display_co
 // Forward declarations for static functions
 static void lock_device(void);
 static void unlock_device(void);
-static void enter_flow(flow_id_t flow, const void* entry_data);
+static void enter_flow(flow_id_t flow, const void* entry_data, bool clear_nav_stack);
 static void handle_flow_action_result(flow_action_result_t result);
 static void refresh_screen(void);
 
@@ -264,7 +264,6 @@ void display_controller_tick(void) {
 }
 
 void display_controller_show_initial_screen(void) {
-  LOGI("UXC ready received, showing initial screen at %ldms", rtos_thread_systime());
   controller.initial_screen_shown = true;
   refresh_screen();
 }
@@ -344,7 +343,7 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
     case UI_EVENT_ENROLLMENT_START: {
       // Prevents resetting the page when enrollment is triggered internally
       if (controller.current_flow != FLOW_FINGERPRINT_MGMT) {
-        enter_flow(FLOW_FINGERPRINT_MGMT, NULL);
+        enter_flow(FLOW_FINGERPRINT_MGMT, NULL, false);
       }
       break;
     }
@@ -384,15 +383,55 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
       break;
     }
 
+    case UI_EVENT_FWUP_CONFIRMATION:
+      // 'break' intentionally omitted.
     case UI_EVENT_FWUP_START: {
-      enter_flow(FLOW_FIRMWARE_UPDATE, data);
+      if (controller.current_flow != FLOW_FIRMWARE_UPDATE) {
+        enter_flow(FLOW_FIRMWARE_UPDATE, data, true);
+      }
       break;
     }
 
     case UI_EVENT_SHOW_MENU: {
-      enter_flow(FLOW_MENU, NULL);
+      enter_flow(FLOW_MENU, NULL, false);
       break;
     }
+
+    case UI_EVENT_START_SEND_TRANSACTION: {
+      if (!controller.is_locked && data && len == sizeof(send_transaction_data_t)) {
+        flow_transaction_entry_data_t entry = {
+          .is_receive_flow = false,
+        };
+        memcpy(&entry.data.send, data, sizeof(send_transaction_data_t));
+        enter_flow(FLOW_TRANSACTION, &entry, true);
+      }
+      break;
+    }
+
+    case UI_EVENT_START_RECEIVE_TRANSACTION: {
+      if (!controller.is_locked && data && len == sizeof(receive_transaction_data_t)) {
+        flow_transaction_entry_data_t entry = {
+          .is_receive_flow = true,
+        };
+        memcpy(&entry.data.receive, data, sizeof(receive_transaction_data_t));
+        enter_flow(FLOW_TRANSACTION, &entry, true);
+      }
+      break;
+    }
+
+    case UI_EVENT_START_PRIVILEGED_ACTION: {
+      if (!controller.is_locked && data && len == sizeof(fwpb_display_params_privileged_action)) {
+        enter_flow(FLOW_PRIVILEGED_ACTIONS, data, true);
+      }
+      break;
+    }
+
+    case UI_EVENT_POWER_OFF:
+      controller.current_flow = FLOW_COUNT;
+      display_controller_show_screen(&controller, fwpb_display_show_screen_power_off_tag,
+                                     fwpb_display_transition_DISPLAY_TRANSITION_NONE,
+                                     TRANSITION_DURATION_NONE);
+      break;
 
     case UI_EVENT_BATTERY_SOC:
       // 'break' intentionally omitted.
@@ -419,7 +458,7 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
     case UI_EVENT_MFGTEST_SHOW_SCREEN: {
       // Enter MFG flow if not already in it, passing payload as entry_data
       if (!in_flow() || controller.current_flow != FLOW_MFG) {
-        enter_flow(FLOW_MFG, data);
+        enter_flow(FLOW_MFG, data, false);
       }
       break;
     }
@@ -459,96 +498,98 @@ static void lock_device(void) {
 
   // Reset menu state when locking
   controller.nav.menu.selected_item =
-    fwpb_display_menu_item_DISPLAY_MENU_ITEM_FINGERPRINTS;  // Reset to first menu item
-  controller.nav.fingerprint_menu.selected_item = 0;        // Reset fingerprint menu too
+    fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE;  // Default to Lock Device
+  controller.nav.fingerprint_menu.selected_item = 0;       // Reset fingerprint menu too
 
-  // Clear current flow before calling enter_flow to prevent it from pushing to stack
-  controller.current_flow = FLOW_SCAN;
-
-  // Clear navigation stack so unlock returns to scan
-  controller.nav_stack_depth = 0;
-
-  enter_flow(FLOW_LOCKED, NULL);
+  enter_flow(FLOW_LOCKED, NULL, true);  // clear nav stack
 }
 
 static void unlock_device(void) {
   controller.is_locked = false;
 }
 
-static void enter_flow(flow_id_t flow, const void* entry_data) {
-  // Push to navigation stack when leaving menu for a sub-flow
-  // Also push when leaving fingerprints menu for enrollment
-  if ((controller.current_flow == FLOW_MENU && flow != FLOW_MENU) ||
-      (controller.current_flow == FLOW_FINGERPRINTS_MENU && flow == FLOW_FINGERPRINT_MGMT)) {
-    // Leaving menu or fingerprints menu, save the selection
-    if (controller.nav_stack_depth < ARRAY_SIZE(controller.nav_stack)) {
-      controller.nav_stack[controller.nav_stack_depth].flow = controller.current_flow;
+// Transitions between flows with proper lifecycle management and navigation stack control.
+// Phone-initiated flows (transactions, firmware updates) clear the stack, while
+// device-driven flows (menu navigation) preserve it for proper back behavior.
+static void enter_flow(flow_id_t flow, const void* entry_data, bool clear_nav_stack) {
+  // Exit current flow's cleanup before transitioning
+  const flow_handler_t* current_handler = flow_handlers[controller.current_flow];
+  if (current_handler && current_handler->on_exit) {
+    current_handler->on_exit(&controller);
+  }
 
-      // Save the appropriate selection based on which flow we're leaving
-      if (controller.current_flow == FLOW_MENU) {
-        controller.nav_stack[controller.nav_stack_depth].saved_selection =
-          controller.nav.menu.selected_item;
-      } else if (controller.current_flow == FLOW_FINGERPRINTS_MENU) {
-        controller.nav_stack[controller.nav_stack_depth].saved_selection =
-          controller.nav.fingerprint_menu.selected_item;
+  // Clear navigation stack if requested (phone-driven flows)
+  if (clear_nav_stack) {
+    controller.nav_stack_depth = 0;
+    LOGD("Clearing nav stack: flow %d -> flow %d", controller.current_flow, flow);
+  } else {
+    // Push to stack when leaving menu/fingerprints menu for sub-flows
+    if ((controller.current_flow == FLOW_MENU && flow != FLOW_MENU) ||
+        (controller.current_flow == FLOW_FINGERPRINTS_MENU && flow == FLOW_FINGERPRINT_MGMT)) {
+      // Save current selection before entering sub-flow
+      if (controller.nav_stack_depth < ARRAY_SIZE(controller.nav_stack)) {
+        controller.nav_stack[controller.nav_stack_depth].flow = controller.current_flow;
+
+        // Save the appropriate selection based on which flow we're leaving
+        if (controller.current_flow == FLOW_MENU) {
+          controller.nav_stack[controller.nav_stack_depth].saved_selection =
+            controller.nav.menu.selected_item;
+        } else if (controller.current_flow == FLOW_FINGERPRINTS_MENU) {
+          controller.nav_stack[controller.nav_stack_depth].saved_selection =
+            controller.nav.fingerprint_menu.selected_item;
+        }
+
+        LOGD("Nav stack push: depth=%d, from_flow=%d, to_flow=%d", controller.nav_stack_depth,
+             controller.current_flow, flow);
+        controller.nav_stack_depth++;
       }
-
-      LOGD("Nav stack push: depth=%d, from_flow=%d, to_flow=%d", controller.nav_stack_depth,
-           controller.current_flow, flow);
-      controller.nav_stack_depth++;
     }
   }
 
   flow_id_t previous_flow = controller.current_flow;
   controller.current_flow = flow;
 
-  // Clear the params union before entering any new flow
+  // Clear params before entering new flow
   memset(&controller.show_screen.params, 0, sizeof(controller.show_screen.params));
 
-  // Reset menu selection only when entering menu directly from scan (not from a submenu)
+  // Reset menu selection when entering from scan (not from sub-flow)
   if (flow == FLOW_MENU && previous_flow == FLOW_SCAN) {
-    controller.nav.menu.selected_item = fwpb_display_menu_item_DISPLAY_MENU_ITEM_FINGERPRINTS;
+    controller.nav.menu.selected_item = fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE;
   }
 
-  // Call flow's on_enter handler to set up initial screen
+  // Initialize flow state via on_enter handler
   const flow_handler_t* handler = flow_handlers[flow];
   if (handler && handler->on_enter) {
     handler->on_enter(&controller, entry_data);
   }
 
-  // Always use standard fade transition (flows can update screen later if needed)
+  // Show initial screen with fade transition
   display_controller_show_screen(&controller, controller.show_screen.which_params,
                                  fwpb_display_transition_DISPLAY_TRANSITION_FADE,
                                  TRANSITION_DURATION_STANDARD);
 
-  // Query fingerprint status when entering menu
-  // This ensures status is fresh before user navigates to fingerprints submenu
+  // Refresh fingerprint status when entering menu
   if (flow == FLOW_MENU) {
     display_controller_query_fingerprint_status();
   }
 }
 
-// Process flow action results - handles navigation, exit, or no-op
+// Processes flow action results to handle navigation, exit, or internal flow operations.
 static void handle_flow_action_result(flow_action_result_t result) {
-  const flow_handler_t* handler = flow_handlers[controller.current_flow];
-
   switch (result.type) {
-    case FLOW_RESULT_HANDLED:
-      // Flow handled internally, nothing to do
+    case FLOW_RESULT_HANDLED: {
+      // Flow handled action internally
       break;
+    }
 
-    case FLOW_RESULT_EXIT_FLOW:
-      // Exit current flow and return to caller (or scan if no caller)
-      if (handler && handler->on_exit) {
-        handler->on_exit(&controller);
-      }
-
-      // Pop nav stack and return to caller flow
+    case FLOW_RESULT_EXIT_FLOW: {
+      // Exit current flow and return to caller (or idle state if no caller)
+      // Pop nav stack and restore previous flow
       if (controller.nav_stack_depth > 0) {
         controller.nav_stack_depth--;
         flow_id_t return_flow = controller.nav_stack[controller.nav_stack_depth].flow;
 
-        // Restore menu selection if returning to MENU or FINGERPRINTS_MENU
+        // Restore saved selection
         if (return_flow == FLOW_MENU) {
           controller.nav.menu.selected_item =
             controller.nav_stack[controller.nav_stack_depth].saved_selection;
@@ -561,28 +602,26 @@ static void handle_flow_action_result(flow_action_result_t result) {
                controller.nav.fingerprint_menu.selected_item, controller.nav_stack_depth + 1);
         }
 
-        enter_flow(return_flow, NULL);
+        enter_flow(return_flow, NULL, false);
       } else {
-        // No caller on stack, return to appropriate idle state based on lock status
-        enter_flow(controller.is_locked ? FLOW_LOCKED : FLOW_SCAN, NULL);
+        // No caller on stack, return to idle state
+        enter_flow(controller.is_locked ? FLOW_LOCKED : FLOW_SCAN, NULL, false);
       }
       break;
+    }
 
-    case FLOW_RESULT_NAVIGATE:
-      // Exit current flow, enter new flow with data
-      if (handler && handler->on_exit) {
-        handler->on_exit(&controller);
-      }
-
-      // Check if enter_flow will push to stack (to avoid pop+push which overwrites)
+    case FLOW_RESULT_NAVIGATE: {
+      // Navigate to new flow with optional data
+      // Avoid pop+push when enter_flow will push (prevents overwriting stack)
       bool will_push = (controller.current_flow == FLOW_MENU && result.target_flow != FLOW_MENU) ||
                        (controller.current_flow == FLOW_FINGERPRINTS_MENU &&
                         result.target_flow == FLOW_FINGERPRINT_MGMT);
+      const void* entry_data = result.has_data ? &result.data : NULL;
 
-      // Only pop if enter_flow won't push (to avoid overwriting stack entries)
+      // Pop stack only if enter_flow won't push (avoids overwriting)
       if (!will_push && controller.nav_stack_depth > 0) {
         controller.nav_stack_depth--;
-        // Restore menu selection from the entry we just popped
+        // Restore selection from popped entry
         if (result.target_flow == FLOW_MENU) {
           uint8_t old_selection = controller.nav.menu.selected_item;
           controller.nav.menu.selected_item =
@@ -599,18 +638,17 @@ static void handle_flow_action_result(flow_action_result_t result) {
         }
       }
 
-      // Pass data pointer from result union
-      const void* entry_data = result.has_data ? &result.data : NULL;
-      enter_flow(result.target_flow, entry_data);
+      // Enter new flow with provided data
+      enter_flow(result.target_flow, entry_data, false);
       break;
+    }
   }
 }
 
-// Wrapper for flows to update their own screen (enforces ownership)
+// Allows flows to update their own screen with transitions/animations.
+// Enforces ownership - flows can only update the screen they initialized in on_enter.
 void flow_update_current_screen(display_controller_t* controller,
                                 fwpb_display_transition transition, uint32_t duration_ms) {
-  // Flow can only update its own screen (already set in on_enter via which_params)
-  // Controller validates we're in a flow
   if (!in_flow()) {
     LOGE("Attempted to update screen outside of flow");
     return;
@@ -620,11 +658,8 @@ void flow_update_current_screen(display_controller_t* controller,
                                  duration_ms);
 }
 
-// Legacy flow functions removed - all flows now use on_action() handlers
-
 static void refresh_screen(void) {
-  // Re-display current screen with updated params (for page navigation)
-  // Use slide transitions for better visual feedback during navigation
+  // Re-display current screen with updated params
   fwpb_display_transition transition = fwpb_display_transition_DISPLAY_TRANSITION_NONE;
 
   display_controller_show_screen(&controller, controller.show_screen.which_params, transition,
@@ -642,8 +677,6 @@ void display_controller_show_screen(display_controller_t* ctrl, pb_size_t params
     return;
   }
 
-  // LOGI("Showing screen: params_tag=%lu, transition=%d", (unsigned long)params_tag, transition);
-
   // Safety check: Validate that we're in a proper state to show this screen
   bool valid_state = false;
 
@@ -656,9 +689,8 @@ void display_controller_show_screen(display_controller_t* ctrl, pb_size_t params
       // Scan screen valid when unlocked
       valid_state = !ctrl->is_locked;
       break;
-    case fwpb_display_show_screen_success_tag:
-    case fwpb_display_show_screen_error_tag:
-      // These can be shown from any state as temporary feedback
+    case fwpb_display_show_screen_power_off_tag:
+      // Always valid to enter the power off screen.
       valid_state = true;
       break;
     case fwpb_display_show_screen_mfg_tag:
@@ -775,16 +807,18 @@ void display_controller_handle_action_lock_device(void) {
 
 void display_controller_handle_action_power_off(void) {
 #ifdef EMBEDDED_BUILD
-  ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF);
-#endif
+  // Sysinfo Task handles power off on embedded systems.
+  ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF_REQUESTED);
+#else
   display_controller_handle_action_exit();
+#endif
 }
 
 void display_controller_handle_action_start_enrollment(void) {
   LOGI("handle_action_start_enrollment: current_flow=%d", controller.current_flow);
   if (controller.current_flow != FLOW_FINGERPRINT_MGMT) {
     LOGI("Not in FINGERPRINT_MGMT flow, entering it");
-    enter_flow(FLOW_FINGERPRINT_MGMT, NULL);
+    enter_flow(FLOW_FINGERPRINT_MGMT, NULL, false);
   } else {
     LOGI("Already in FINGERPRINT_MGMT flow, triggering enrollment");
 
@@ -792,7 +826,7 @@ void display_controller_handle_action_start_enrollment(void) {
     // Trigger actual biometric enrollment via auth task
     static SHARED_TASK_DATA auth_start_fingerprint_enrollment_internal_t cmd;
     cmd.index = controller.nav.fingerprint.slot_index;
-    strncpy(cmd.label, "Finger", sizeof(cmd.label) - 1);
+    snprintf(cmd.label, sizeof(cmd.label), "Fingerprint %d", cmd.index + 1);
     ipc_send(auth_port, &cmd, sizeof(cmd), IPC_AUTH_START_FINGERPRINT_ENROLLMENT_INTERNAL);
     LOGI("Sent IPC to start enrollment at index %d", cmd.index);
 #endif

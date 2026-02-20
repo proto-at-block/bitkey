@@ -37,6 +37,7 @@ utoipa-swagger-ui = { workspace = true }
 
 # path dependencies
 account = { workspace = true }
+action-proof = { workspace = true }
 analytics = { workspace = true }
 authn_authz = { workspace = true }
 bdk_utils = { workspace = true, features = ["test-helpers"] }
@@ -85,8 +86,10 @@ workers = { workspace = true }
 wsm-rust-client = { workspace = true }
 
 [dev-dependencies]
+authn_authz = { workspace = true, features = ["test-utils"] }
 aws-sdk-sqs = { workspace = true }
 base64 = { workspace = true }
+bdk_bitcoind_rpc = { workspace = true }
 bdk_utils = { workspace = true }
 crypto = { workspace = true, features = [
   "chaincode_delegation",
@@ -104,6 +107,7 @@ regex = { version = "1.10.6", features = [] }
 rstest = { workspace = true }
 sha2 = { workspace = true }
 tower = { workspace = true, features = ["util"] }
+wsm-compat = { workspace = true }
 
 [features]
 partnerships = ["dep:partnerships"]

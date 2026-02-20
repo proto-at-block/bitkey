@@ -1,0 +1,156 @@
+# Docker Compose configuration for running integration tests in a container
+# This includes the backend services from server/ and adds a test runner container
+
+include:
+  - ../../server/docker-compose-integration.yml
+
+services:
+  # Set up the treasury wallet with funds before tests run
+  setup-treasury:
+    image: kylemanna/bitcoind:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "🔧 Setting up the treasury wallet..."
+        BITCOINCLI="bitcoin-cli -regtest -rpcconnect=bitcoind -rpcuser=test -rpcpassword=test"
+
+        # Wait for bitcoind RPC to be ready
+        echo "⏳ Waiting for bitcoind RPC..."
+        until $$BITCOINCLI getblockchaininfo > /dev/null 2>&1; do
+          sleep 1
+        done
+        echo "✅ bitcoind RPC is ready"
+
+        # Create wallet
+        WALLET_NAME="testwallet"
+        if $$BITCOINCLI -named createwallet wallet_name=$$WALLET_NAME blank=true 2>&1 | grep -q "already exists"; then
+          echo "✅ Treasury wallet already exists, loading..."
+          $$BITCOINCLI loadwallet $$WALLET_NAME 2>/dev/null || true
+        else
+          echo "📝 Importing descriptors..."
+          $$BITCOINCLI -rpcwallet=$$WALLET_NAME importdescriptors '[
+            {
+                "desc": "wpkh(tprv8h8PWPocKYoPkajXdGQhTwnqb9sSBiT6vGif5zJongZoAXKmWxkTcqZpRPNmtzzFojgN4k7DFdeMUY2cHFQCwEyQRyejXcs2RKjnbZTPMj3/84h/1h/0h/0/*)#hhlcx0nt",
+                "timestamp": "now",
+                "active": true,
+                "internal": false
+            },
+            {
+                "desc": "wpkh(tprv8h8PWPocKYoPkajXdGQhTwnqb9sSBiT6vGif5zJongZoAXKmWxkTcqZpRPNmtzzFojgN4k7DFdeMUY2cHFQCwEyQRyejXcs2RKjnbZTPMj3/84h/1h/0h/1/*)#xr6em6rn",
+                "timestamp": "now",
+                "active": true,
+                "internal": true
+            }
+          ]'
+          echo "✅ Created treasury wallet"
+        fi
+
+        # Mine blocks to fund the wallet
+        ADDR=$$($$BITCOINCLI -rpcwallet=$$WALLET_NAME getnewaddress)
+        echo "⛏️  Mining 101 blocks to treasury address $$ADDR"
+        $$BITCOINCLI generatetoaddress 101 $$ADDR > /dev/null
+
+        BALANCE=$$($$BITCOINCLI -rpcwallet=$$WALLET_NAME getbalance)
+        echo "✅ Treasury wallet funded with $$BALANCE BTC"
+
+        # Write marker file for healthcheck and keep running
+        touch /tmp/setup-complete
+        echo "🔄 Treasury setup complete. Waiting for tests..."
+        tail -f /dev/null
+    depends_on:
+      bitcoind:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/setup-complete"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+      start_period: 5s
+    restart: "no"
+
+  integration-tests:
+    build:
+      context: ../..
+      dockerfile: app/integration-test-container/Dockerfile
+      args:
+        # Pass source hash to bust Docker cache when app/ or server/ changes
+        SOURCE_HASH: ${SOURCE_HASH:-unknown}
+    volumes:
+      # Mount the entire repo so gradle can access all source files
+      - ../..:/workspace:cached
+      # Use named volumes for build caches to speed up subsequent runs
+      - gradle-cache:/root/.gradle
+      - rust-cargo-cache:/usr/local/cargo/registry
+      - rust-target-cache:/workspace/app/rust/_build
+      # Shadow hermit's bin directory with a volume for container-specific binaries
+      - bin-overlay:/workspace/bin
+    working_dir: /workspace/app
+    environment:
+      # Override defaults to connect to services in Docker network
+      F8E_ENVIRONMENT: http://toxiproxy:8080
+      ELECTRUM_HTTP_URL: http://esplora:8100
+      BITCOIND_DOMAIN: bitcoind:18443
+      BITCOIND_USER: test
+      BITCOIND_PASSWORD: test
+      BITCOIN_NETWORK: REGTEST
+      # Gradle settings
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Xmx4g"
+      # Pass through LaunchDarkly SDK key if set
+      LAUNCHDARKLY_SDK_KEY: ${LAUNCHDARKLY_SDK_KEY:-}
+    depends_on:
+      toxiproxy:
+        condition: service_started
+      fromagerie:
+        condition: service_healthy
+      wsm-api:
+        condition: service_started
+      wsm-enclave:
+        condition: service_started
+      esplora:
+        condition: service_started
+      setup-treasury:
+        condition: service_healthy
+    # Default command - set up environment and run tests
+    command: >
+      bash -c "
+        set -o pipefail  # Make pipeline fail if gradle fails (even with tee)
+
+        # Clean up stale Gradle locks
+        find /root/.gradle -name '*.lock' -delete 2>/dev/null || true;
+
+        # Create symlinks in the bin-overlay volume (shadows host's hermit bin/)
+        # The build.gradle.kts expects cargo/rustup at /workspace/bin/
+        ln -sf /usr/local/cargo/bin/cargo /workspace/bin/cargo;
+        ln -sf /usr/local/cargo/bin/rustup /workspace/bin/rustup;
+
+        # Create no-op hermit activation script (hermit is not available in container)
+        echo '# no-op for container' > /workspace/bin/activate-hermit;
+
+        # Clean first to avoid path conflicts from host builds
+        echo '🧹 Running gradle clean...';
+        cd /workspace/app && gradle --no-daemon --no-watch-fs clean;
+
+        # Generate UniFFI bindings
+        # Use generate-bindings directly (not bdk-ffi-bindings which also runs vendor-libs)
+        echo '🔧 Generating UniFFI bindings...';
+        (cd /workspace/app/rust/bdk-ffi && just generate-bindings);
+        (cd /workspace/app/rust/action-proof-ffi && just generate-bindings);
+
+        # Ensure generated bindings are up-to-date
+        cd /workspace && git diff --exit-code;
+
+        # Run integration tests
+        echo '🧪 Running integration tests...';
+        cd /workspace/app && gradle --no-daemon --no-watch-fs jvmIntegrationTest --rerun 2>&1 | tee /tmp/gradle.log || {
+          echo '=== Checking for errors in build log ==='
+          grep -i -A5 'error:' /tmp/gradle.log | tail -100
+          exit 1
+        }
+      "
+
+volumes:
+  gradle-cache:
+  rust-cargo-cache:
+  rust-target-cache:
+  bin-overlay:

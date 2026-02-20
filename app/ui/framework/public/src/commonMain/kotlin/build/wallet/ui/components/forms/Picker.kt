@@ -1,21 +1,22 @@
 package build.wallet.ui.components.forms
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
-import build.wallet.ui.components.label.labelStyle
+import build.wallet.ui.components.radio.RadioButton
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -30,19 +31,13 @@ fun <Option : Any> ItemPickerField(
     mutableStateOf(false)
   }
 
-  val textStyle =
-    WalletTheme.labelStyle(
-      type = LabelType.Body2Regular,
-      treatment = LabelTreatment.Primary
-    )
-
   Row(
     modifier =
       modifier
         .clip(RoundedCornerShape(size = 32.dp))
         .defaultMinSize(
-          minWidth = TextFieldDefaults.MinWidth,
-          minHeight = TextFieldDefaults.MinHeight
+          minWidth = 280.dp, // Material3 default TextField minimum width
+          minHeight = 56.dp // Material3 default TextField minimum height
         )
         .background(color = WalletTheme.colors.foreground10)
         .clickable {
@@ -50,10 +45,11 @@ fun <Option : Any> ItemPickerField(
         },
     verticalAlignment = Alignment.CenterVertically
   ) {
-    Text(
+    Label(
       modifier = Modifier.padding(horizontal = 16.dp),
       text = model.titleSelector(model.selectedOption),
-      style = textStyle
+      type = LabelType.Body2Regular,
+      treatment = LabelTreatment.Primary
     )
   }
 
@@ -73,7 +69,6 @@ fun <Option : Any> ItemPickerField(
   }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun <Option : Any> ItemPickerDialog(
   selectedOption: Option?,
@@ -82,15 +77,22 @@ private fun <Option : Any> ItemPickerDialog(
   onOptionSelected: (Option) -> Unit,
   onDismiss: () -> Unit,
 ) {
-  BasicAlertDialog(
-    onDismissRequest = onDismiss,
-    modifier = Modifier.background(WalletTheme.colors.background)
+  Dialog(
+    onDismissRequest = onDismiss
   ) {
     Column(
-      modifier =
-        Modifier
-          .fillMaxWidth()
-          .verticalScroll(rememberScrollState()),
+      modifier = Modifier
+        .background(
+          color = WalletTheme.colors.containerBackground,
+          shape = RoundedCornerShape(16.dp)
+        )
+        .border(
+          width = 1.dp,
+          color = WalletTheme.colors.foreground10,
+          shape = RoundedCornerShape(16.dp)
+        )
+        .fillMaxWidth()
+        .verticalScroll(rememberScrollState()),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       options.forEach { option ->
@@ -107,10 +109,7 @@ private fun <Option : Any> ItemPickerDialog(
           RadioButton(
             selected = selectedOption == option,
             onClick = { onOptionSelected(option) },
-            colors =
-              RadioButtonDefaults.colors(
-                selectedColor = WalletTheme.colors.bitkeyPrimary
-              )
+            selectedColor = WalletTheme.colors.bitkeyPrimary
           )
           Label(
             text = titleSelector(option),

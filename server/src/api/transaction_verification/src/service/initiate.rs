@@ -1,7 +1,7 @@
 use super::Service;
 use crate::error::TransactionVerificationError;
 use account::service::FetchAccountInput;
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::bitcoin::Network;
 use exchange_rate::currency_conversion::sats_for;
 use exchange_rate::error::ExchangeRateError;
@@ -32,6 +32,7 @@ use types::{
         entities::TransactionVerification, service::InitiateVerificationResult,
     },
 };
+use wsm_compat::{bdk_pubkey_from_wsm, bdk_signature_from_wsm};
 
 impl Service {
     #[instrument(skip(self, wallet_provider, psbt))]
@@ -67,13 +68,22 @@ impl Service {
                 .approve_psbt(&psbt.to_string(), hardware_auth_pubkey)
                 .await
                 .map_err(TransactionVerificationError::from)?;
+
+            let hw_auth_public_key =
+                bdk_pubkey_from_wsm(&grant.hw_auth_public_key).map_err(|_| {
+                    TransactionVerificationError::InvalidTransactionVerificationGrantData
+                })?;
+            let signature = bdk_signature_from_wsm(&grant.signature).map_err(|_| {
+                TransactionVerificationError::InvalidTransactionVerificationGrantData
+            })?;
+
             InitiateVerificationResult::SignedWithoutVerification {
                 psbt,
                 hw_grant: TransactionVerificationGrantView {
                     version: grant.version,
-                    hw_auth_public_key: grant.hw_auth_public_key,
+                    hw_auth_public_key,
                     commitment: grant.commitment,
-                    signature: grant.signature,
+                    signature,
                     reverse_hash_chain: grant.reverse_hash_chain,
                 },
             }
@@ -82,7 +92,7 @@ impl Service {
         } else {
             if let Some(tx_verification) = self
                 .repo
-                .fetch_pending_by_txid(&psbt.unsigned_tx.txid())
+                .fetch_pending_by_txid(&psbt.unsigned_tx.compute_txid())
                 .await?
             {
                 return Ok(InitiateVerificationResult::VerificationRequested {

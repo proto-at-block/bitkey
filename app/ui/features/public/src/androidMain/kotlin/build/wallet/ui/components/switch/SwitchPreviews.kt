@@ -20,3 +20,15 @@ fun SwitchPreview() {
     }
   }
 }
+
+@Preview
+@Composable
+fun SwitchDisabledPreview() {
+  PreviewWalletTheme {
+    Column {
+      Switch(checked = true, onCheckedChange = {}, enabled = false)
+      Spacer(Modifier.height(5.dp))
+      Switch(checked = false, onCheckedChange = {}, enabled = false)
+    }
+  }
+}

@@ -11,7 +11,9 @@
                 }
             ],
             "dependency-locking-groups": [
-                "gradle-plugins[bdk-ffi]"
+                "gradle-plugins[action-proof-ffi]",
+                "gradle-plugins[bdk-ffi]",
+                "gradle-plugins[wallet-impl]"
             ]
         }
     ]

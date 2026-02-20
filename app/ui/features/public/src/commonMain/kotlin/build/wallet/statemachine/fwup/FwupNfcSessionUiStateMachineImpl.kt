@@ -68,7 +68,7 @@ class FwupNfcSessionUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val nfcReaderCapability: NfcReaderCapability,
   private val nfcTransactor: NfcTransactor,
-  private val fwupDataDaoProvider: FwupDataDaoProvider,
+  private val fwupDataDao: FwupDataDao,
   private val firmwareDataService: FirmwareDataService,
   private val accountConfigService: AccountConfigService,
   private val keyboxDao: KeyboxDao,
@@ -252,6 +252,25 @@ class FwupNfcSessionUiStateMachineImpl(
           eventTrackerContext = FWUP
         ).asModalScreen()
       }
+
+      is AwaitingNextMcuStartUiState -> {
+        ScreenModel(
+          body = FwupNextComponentReadyModel(
+            completedIndex = state.currentMcuIndex, // 1-based for display (currentMcuIndex is already +1)
+            totalMcus = state.totalMcus,
+            onBack = props.onBack,
+            onContinue = {
+              // Start NFC session for the next MCU
+              setState(
+                InNfcSessionUiState(
+                  mcuUpdates = state.mcuUpdates,
+                  currentMcuIndex = state.currentMcuIndex
+                )
+              )
+            }
+          )
+        )
+      }
     }
   }
 
@@ -375,7 +394,10 @@ class FwupNfcSessionUiStateMachineImpl(
               isHardwareFake = isHardwareFake,
               hardwareType = hardwareType,
               needsAuthentication = true,
-              shouldLock = true,
+              // For W3 two-tap flow: don't lock after the initial transaction because user
+              // needs to confirm on the (unlocked) device before the second tap.
+              // Lock after the continuation completes, or for W1 where FWUP completes in one tap.
+              shouldLock = continuation != null || hardwareType != HardwareType.W3,
               skipFirmwareTelemetry = true,
               nfcFlowName = if (continuation != null) "fwup-confirmation" else "fwup",
               onTagConnected = {
@@ -462,9 +484,9 @@ class FwupNfcSessionUiStateMachineImpl(
             is FwupTransactionResult.Completed -> {
               // Check if there are more MCUs to update
               if (!state.isLastMcu) {
-                // Move to next MCU (fresh start, no fetchResult)
+                // Show intermediate screen before starting next MCU
                 setProgress(0.0f)
-                setState(InNfcSessionUiState(state.mcuUpdates, state.currentMcuIndex + 1))
+                setState(AwaitingNextMcuStartUiState(state.mcuUpdates, state.currentMcuIndex + 1))
               } else {
                 // All MCUs updated successfully
                 setState(SuccessUiState(state.mcuUpdates, state.currentMcuIndex))
@@ -577,7 +599,8 @@ class FwupNfcSessionUiStateMachineImpl(
               FwupMode.Delta -> mcuFwupData.firmware.size.toUInt()
             },
           fwupMode = mcuFwupData.fwupMode,
-          mcuRole = mcuRole
+          mcuRole = mcuRole,
+          version = mcuFwupData.version
         )
 
       val didStart = when (startResult) {
@@ -589,6 +612,12 @@ class FwupNfcSessionUiStateMachineImpl(
         is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
           // Fake hardware emulated prompt - show prompt selection UI
           return FwupTransactionResult.RequiresEmulatedPrompt(startResult.options)
+        }
+        is HardwareInteraction.RequiresTransfer -> {
+          // RequiresTransfer is only for transaction signing, should never happen in fwup
+          throw NfcException.CommandError(
+            message = "Unexpected RequiresTransfer in fwup context"
+          )
         }
       }
 
@@ -753,7 +782,7 @@ class FwupNfcSessionUiStateMachineImpl(
   }
 
   private suspend fun getMcuSequenceId(mcuRole: build.wallet.firmware.McuRole): UInt =
-    fwupDataDaoProvider.get().value.getMcuSequenceId(mcuRole)
+    fwupDataDao.getMcuSequenceId(mcuRole)
       .logFailure { "Failed to get fwup sequence ID for MCU $mcuRole, using 0 as default." }
       .getOrElse { 0u }
 
@@ -761,7 +790,7 @@ class FwupNfcSessionUiStateMachineImpl(
     mcuRole: build.wallet.firmware.McuRole,
     sequenceId: UInt,
   ) {
-    fwupDataDaoProvider.get().value.setMcuSequenceId(mcuRole, sequenceId)
+    fwupDataDao.setMcuSequenceId(mcuRole, sequenceId)
   }
 }
 
@@ -819,6 +848,19 @@ private sealed interface FwupNfcSessionUiState {
       override val mcuUpdates: ImmutableList<McuFwupData>,
       override val currentMcuIndex: Int = 0,
       val options: List<EmulatedPromptOption<Boolean>>,
+    ) : InSessionUiState(mcuUpdates, currentMcuIndex)
+
+    /**
+     * Shown between MCU updates in a sequence. Tells user the previous component is done
+     * and prompts them to start the next component update.
+     * Flow: User taps continue → NFC session → fwupStart → device confirmation → transfer
+     *
+     * TODO: Remove this intermediate screen once firmware is updated to not require
+     *  confirmation for individual MCUs in a sequenced update.
+     */
+    data class AwaitingNextMcuStartUiState(
+      override val mcuUpdates: ImmutableList<McuFwupData>,
+      override val currentMcuIndex: Int,
     ) : InSessionUiState(mcuUpdates, currentMcuIndex)
   }
 

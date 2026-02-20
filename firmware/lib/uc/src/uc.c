@@ -1,5 +1,6 @@
 #include "uc.h"
 
+#include "aes.h"
 #include "assert.h"
 #include "bitlog.h"
 #include "cobs.h"
@@ -19,6 +20,57 @@
 #include <string.h>
 
 uc_state_priv_t _uc_state_priv SHARED_TASK_DATA = {0};
+
+static secure_bool_t _cipher_no_op(uint8_t const* input, uint8_t* output, uint32_t len,
+                                   uint8_t const* aad, uint32_t aad_len, uint8_t* nonce,
+                                   uint8_t* mac) {
+  (void)aad;
+  (void)aad_len;
+  (void)nonce;
+  (void)mac;
+  memmove(output, input, len);
+  return SECURE_TRUE;
+}
+
+static uint32_t _uc_send_seq_no_op(void) {
+  return 0;
+}
+
+static bool _uc_check_recv_seq_no_op(uint32_t new_seq) {
+  (void)new_seq;
+  return true;
+}
+
+static void _uc_write_seq_num(uint32_t seq_num, uint8_t* buffer) {
+  buffer[0] = (seq_num >> 0) & 0xff;
+  buffer[1] = (seq_num >> 8) & 0xff;
+  buffer[2] = (seq_num >> 16) & 0xff;
+  buffer[3] = (seq_num >> 24) & 0xff;
+}
+
+static uint32_t _uc_read_seq_num(uint8_t const* buffer) {
+  uint32_t seq_num = 0;
+  seq_num |= (uint32_t)buffer[0] << 0;
+  seq_num |= (uint32_t)buffer[1] << 8;
+  seq_num |= (uint32_t)buffer[2] << 16;
+  seq_num |= (uint32_t)buffer[3] << 24;
+  return seq_num;
+}
+
+static bool _uc_should_encrypt(uint32_t proto_tag) {
+  switch (proto_tag) {
+#if (UC_HOST_MODE == 1)
+    case fwpb_uxc_msg_host_display_cmd_tag:
+      return true;
+#else
+    case fwpb_uxc_msg_device_display_action_tag:
+    case fwpb_uxc_msg_device_display_touch_tag:
+      return true;
+#endif
+    default:
+      return false;
+  }
+}
 
 static void* _uc_get_msg_buffer(size_t* msg_buffer_size) {
   ASSERT(msg_buffer_size != NULL);
@@ -142,11 +194,6 @@ uc_err_t uc_process_msg(uc_msg_t* msg, size_t msg_len, void* proto_buffer, size_
       return UC_ERR_CRC_MISMATCH;
     }
 
-    if (proto_buffer_len < hdr->payload_len) {
-      // Buffer is too small to fit the entire decoded message.
-      return UC_ERR_DECODE_TOO_SMALL;
-    }
-
     if (((hdr->flags & UC_MSG_HDR_FLAGS_ACK) || (hdr->flags & UC_MSG_HDR_FLAGS_NACK)) &&
         (hdr->ack_seq_num >= _uc_state_priv.send_seq_num)) {
       // Notify the blocked task (if any) of an ACK/NACK.
@@ -154,8 +201,52 @@ uc_err_t uc_process_msg(uc_msg_t* msg, size_t msg_len, void* proto_buffer, size_
       rtos_event_group_set_bits(&_uc_state_priv.ack_events, flags);
     }
 
-    if (hdr->flags & UC_MSG_HDR_FLAGS_ENCRYPTED) {
-      // TODO(W-13812): Support decryption (in-place).
+    if ((hdr->flags & UC_MSG_HDR_FLAGS_ENCRYPTED) && (hdr->payload_len > 0)) {
+      if (hdr->payload_len < AES_GCM_IV_LENGTH + AES_GCM_TAG_LENGTH) {
+        LOGE("Payload too small for encrypted message.");
+        return UC_ERR_DECODE_FAILED;
+      }
+      const size_t plaintext_len = hdr->payload_len - (UC_ENCRYPTION_PADDING);
+      // CRC is calculated after encryption so it is 0 when it is included in AAD
+      msg->hdr.crc = 0;
+
+      // Setup aad
+      uint32_t const crypto_recv_seq_num =
+        _uc_read_seq_num(&msg->payload[plaintext_len + AES_GCM_IV_LENGTH + AES_GCM_TAG_LENGTH]);
+      uint8_t aad[sizeof(msg->hdr) + sizeof(uint32_t)];
+      memcpy(aad, &msg->hdr, sizeof(msg->hdr));
+      _uc_write_seq_num(crypto_recv_seq_num, &aad[sizeof(msg->hdr)]);
+
+      uint8_t* mac = &msg->payload[plaintext_len + AES_GCM_IV_LENGTH];
+
+      // The nonce is copied out below so that there is room to offset the decrypted
+      // output from the input. See docs for UC_DECRYPT_OFFSET for more info.
+      _Static_assert(UC_DECRYPT_OFFSET <= AES_GCM_IV_LENGTH,
+                     "Not enough room to offset ciphertext");
+      uint8_t nonce[AES_GCM_IV_LENGTH];
+      memcpy(nonce, &msg->payload[plaintext_len], AES_GCM_IV_LENGTH);
+
+      memmove(&msg->payload[UC_DECRYPT_OFFSET], msg->payload, plaintext_len);
+      if (_uc_state_priv.crypto.gcm_decrypt(&msg->payload[UC_DECRYPT_OFFSET], msg->payload,
+                                            plaintext_len, aad, sizeof(aad), nonce,
+                                            mac) != SECURE_TRUE) {
+        LOGE("Decrypt failed for: %ld", hdr->proto_tag);
+        return UC_ERR_DECRYPT_FAILED;
+      }
+
+      msg->hdr.payload_len = plaintext_len;
+      if (!_uc_state_priv.crypto.check_recv_seq(crypto_recv_seq_num)) {
+        _uc_put_msg_buffer(msg);
+        // Could be duplicate because of a retransmit so just log a warning.
+        LOGW("Message dropped to prevent replay (tag=%ld).", hdr->proto_tag);
+        return UC_ERR_NONE;
+      }
+    }
+
+    if (proto_buffer_len < hdr->payload_len) {
+      // Buffer is too small to fit the entire decoded message.
+      LOGE("Proto buffer too small.");
+      return UC_ERR_DECODE_TOO_SMALL;
     }
 
     if ((hdr->flags & UC_MSG_HDR_FLAGS_FIRST_MSG) && (hdr->send_seq_num == 1)) {
@@ -239,12 +330,28 @@ void uc_init_mode(const void* enc_proto_fields, const size_t enc_proto_size,
   rtos_semaphore_create_counting(&_uc_state_priv.send_sem, UC_MSG_MAX_NUM, UC_MSG_MAX_NUM);
 }
 
-void uc_init(uc_send_callback_t send_cb, void* context) {
+void uc_init(uc_send_callback_t send_cb, uc_crypto_api_t const* crypto_api, void* context) {
 #define REGIONS(X)                                                       \
   X(uc_pool, send_protos, sizeof(UC_CFG_ENC_PROTO_TYPE), UC_MSG_MAX_NUM) \
   X(uc_pool, recv_protos, sizeof(UC_CFG_DEC_PROTO_TYPE), UC_MSG_MAX_NUM)
   _uc_state_priv.mempool = mempool_create(uc_pool);
 #undef REGIONS
+
+  if (crypto_api == NULL) {
+    _uc_state_priv.crypto = (uc_crypto_api_t){
+      .gcm_encrypt = &_cipher_no_op,
+      .gcm_decrypt = &_cipher_no_op,
+      .check_recv_seq = &_uc_check_recv_seq_no_op,
+      .get_send_seq = &_uc_send_seq_no_op,
+    };
+    LOGW("No crypto API provided. UXC message will not be encrypted.");
+  } else {
+    ASSERT(crypto_api->gcm_encrypt != NULL);
+    ASSERT(crypto_api->gcm_decrypt != NULL);
+    ASSERT(crypto_api->get_send_seq != NULL);
+    ASSERT(crypto_api->check_recv_seq != NULL);
+    _uc_state_priv.crypto = *crypto_api;
+  }
 
   uc_init_mode(UC_CFG_ENC_PROTO_FIELDS, sizeof(UC_CFG_ENC_PROTO_TYPE), UC_CFG_DEC_PROTO_FIELDS,
                sizeof(UC_CFG_DEC_PROTO_TYPE), send_cb, context);
@@ -289,11 +396,14 @@ uc_err_t uc_encode(uint32_t proto_tag, void* proto, uint16_t proto_len, uint16_t
     msg->hdr.flags |= UC_MSG_HDR_FLAGS_FIRST_MSG;
   }
 
-  // TODO(W-13812): Determine if proto needs to be encrypted and then encrypt
-  // it in place.
-  const bool encrypted = false;
-  (void)encrypted;
-  if (encrypted) {
+  if (_uc_should_encrypt(proto_tag)) {
+    if (proto_len >
+        (msg_buffer_size - (sizeof(uc_msg_hdr_t) + AES_GCM_IV_LENGTH + AES_GCM_TAG_LENGTH))) {
+      _uc_put_msg_buffer(msg);
+      ASSERT(rtos_mutex_unlock(&_uc_state_priv.wr_mutex));
+      LOGE("Buffer not large enough for payload plus encryption overhead");
+      return UC_ERR_TOO_LARGE;
+    }
     msg->hdr.flags |= UC_MSG_HDR_FLAGS_ENCRYPTED;
   }
 
@@ -308,8 +418,30 @@ uc_err_t uc_encode(uint32_t proto_tag, void* proto, uint16_t proto_len, uint16_t
       ASSERT(rtos_mutex_unlock(&_uc_state_priv.wr_mutex));
       return UC_ERR_PROTO_ENCODE_FAILED;
     }
+    if ((msg->hdr.flags & UC_MSG_HDR_FLAGS_ENCRYPTED) && (ostream.bytes_written > 0)) {
+      msg->hdr.payload_len = ostream.bytes_written + UC_ENCRYPTION_PADDING;
+      uint8_t* nonce = &msg->payload[ostream.bytes_written];
+      uint8_t* mac = &msg->payload[ostream.bytes_written + AES_GCM_IV_LENGTH];
+      uint32_t const crypto_send_seq_num = _uc_state_priv.crypto.get_send_seq();
+      _uc_write_seq_num(
+        crypto_send_seq_num,
+        &msg->payload[ostream.bytes_written + AES_GCM_IV_LENGTH + AES_GCM_TAG_LENGTH]);
 
-    msg->hdr.payload_len = ostream.bytes_written;
+      // Setup aad
+      uint8_t aad[sizeof(msg->hdr) + sizeof(uint32_t)];
+      memcpy(aad, &msg->hdr, sizeof(msg->hdr));
+      _uc_write_seq_num(crypto_send_seq_num, &aad[sizeof(msg->hdr)]);
+
+      if (_uc_state_priv.crypto.gcm_encrypt(msg->payload, msg->payload, ostream.bytes_written, aad,
+                                            sizeof(aad), nonce, mac) != SECURE_TRUE) {
+        LOGE("Encrypt failed for: %ld", proto_tag);
+        _uc_put_msg_buffer(msg);
+        ASSERT(rtos_mutex_unlock(&_uc_state_priv.wr_mutex));
+        return UC_ERR_ENCRYPT_FAILED;
+      }
+    } else {
+      msg->hdr.payload_len = ostream.bytes_written;
+    }
   } else {
     msg->hdr.payload_len = 0;
   }

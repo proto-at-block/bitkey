@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-annotation-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-annotation-iosSimulatorArm64Main-1.9.3.klib": "68fcef3bebfed2ea638783733c587f4f94ad19c8dfecde35b0e7b0fdb055bc9a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime-annotation-iossimulatorarm64-1.9.3-metadata.jar": "5dad84d9fb7a5ec9169b934f501ea724cf084fa806e46db585fe1f880aa82b38"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

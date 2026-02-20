@@ -105,14 +105,8 @@ static void cmd_display_flow_run(int argc, char** argv) {
 
   // Handle firmware update
   if (strcasecmp(flow_name, "fwup") == 0 || strcasecmp(flow_name, "firmware") == 0) {
-    firmware_update_data_t fwup_data = {
-      .digest = "abc123def456789012345678901234567890123456789012345678901234567890",
-      .version = 12345,
-      .size = 524288,
-    };
-
-    UI_SHOW_EVENT_WITH_DATA(UI_EVENT_FWUP_START, &fwup_data, sizeof(fwup_data));
-    printf("Started firmware update flow with dummy data\n");
+    UI_SHOW_EVENT(UI_EVENT_FWUP_START);
+    printf("Started firmware update flow\n");
     return;
   }
 

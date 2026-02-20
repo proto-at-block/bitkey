@@ -16,7 +16,7 @@ use crate::{
     metrics::{FACTORY, FACTORY_NAME},
     service::{
         authorize_privileged_action::{
-            AuthenticationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+            AuthorizationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
             PrivilegedActionRequestValidatorBuilder,
         },
         cancel_pending_instance::CancelPendingDelayAndNotifyInstanceByTokenInput,
@@ -240,8 +240,9 @@ pub async fn configure_privileged_action_delay_durations(
             account_id: &account_id,
             privileged_action_definition: &PrivilegedActionType::ConfigurePrivilegedActionDelays
                 .into(),
-            authentication: AuthenticationContext::KeyClaims(&key_proof),
+            authorization: AuthorizationContext::KeyClaims(&key_proof),
             privileged_action_request: &privileged_action_request,
+            validation_context: None,
             request_validator: PrivilegedActionRequestValidatorBuilder::default()
                 .on_initiate_delay_and_notify(Box::new(
                     |r: ConfigurePrivilegedActionDelayDurationsRequest| {
@@ -434,7 +435,6 @@ pub async fn cancel_pending_delay_and_notify_instance_by_token(
 )]
 pub async fn cancel_pending_out_of_band_instance(
     Path((account_id, instance_id)): Path<(AccountId, PrivilegedActionInstanceId)>,
-    key_proof: KeyClaims,
     State(privileged_action_service): State<PrivilegedActionService>,
 ) -> Result<Json<CancelPendingInstanceResponse>, ApiError> {
     privileged_action_service
@@ -610,20 +610,19 @@ async fn confirm_transaction_verification_policy(
 fn validate_out_of_band_authorization(
     authorization_strategy: &AuthorizationStrategyRecord,
 ) -> Result<(), ApiError> {
-    let out_of_band = match authorization_strategy {
-        AuthorizationStrategyRecord::OutOfBand(out_of_band) => out_of_band,
-        _ => {
-            return Err(ApiError::GenericBadRequest(
-                "Invalid authorization strategy: expected OutOfBand".to_string(),
-            ))
-        }
+    let AuthorizationStrategyRecord::OutOfBand(out_of_band) = authorization_strategy else {
+        return Err(ApiError::GenericBadRequest(
+            "Invalid authorization strategy: expected OutOfBand".to_string(),
+        ));
     };
-    match out_of_band.status {
-        RecordStatus::Pending => Ok(()),
-        _ => Err(ApiError::GenericBadRequest(
+
+    if out_of_band.status != RecordStatus::Pending {
+        return Err(ApiError::GenericBadRequest(
             "Privileged action is not pending".to_string(),
-        )),
+        ));
     }
+
+    Ok(())
 }
 
 async fn continue_out_of_band_privileged_action<T>(
@@ -651,8 +650,9 @@ where
                     .privileged_action_type
                     .clone()
                     .into(),
-                authentication: AuthenticationContext::Standard,
+                authorization: AuthorizationContext::Standard,
                 privileged_action_request: &continue_request,
+                validation_context: None,
                 request_validator: PrivilegedActionRequestValidatorBuilder::default().build()?,
             })
             .await?;

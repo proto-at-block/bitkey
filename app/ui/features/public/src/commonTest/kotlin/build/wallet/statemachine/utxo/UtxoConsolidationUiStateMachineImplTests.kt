@@ -2,10 +2,10 @@ package build.wallet.statemachine.utxo
 
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UTXO_CONSOLIDATION_SIGN_TRANSACTION
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId.UTXO_CONSOLIDATION_EXCEEDED_MAX_COUNT
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.utxo.UtxoConsolidationContext
 import build.wallet.bitcoin.utxo.UtxoConsolidationParams
@@ -19,8 +19,8 @@ import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachineMock
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitSheet
@@ -28,7 +28,6 @@ import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.TimeZoneProviderMock
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
@@ -40,7 +39,7 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
   val dateTimeFormatter = DateTimeFormatterMock()
   val timeZoneProvider = TimeZoneProviderMock()
   val utxoConsolidationService = UtxoConsolidationServiceFake()
-  val nfcSessionUiStateMachine = NfcConfirmableSessionUiStateMachineMock("nfc-fake-state-machine")
+  val signTransactionNfcSessionUiStateMachine = SignTransactionNfcSessionUiStateMachineMock("sign-txn-nfc")
 
   val stateMachine = UtxoConsolidationUiStateMachineImpl(
     accountService = accountService,
@@ -50,7 +49,7 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
     dateTimeFormatter = dateTimeFormatter,
     timeZoneProvider = timeZoneProvider,
     utxoConsolidationService = utxoConsolidationService,
-    nfcSessionUiStateMachine = nfcSessionUiStateMachine
+    signTransactionNfcSessionUiStateMachine = signTransactionNfcSessionUiStateMachine
   )
 
   val props = UtxoConsolidationProps(
@@ -87,8 +86,9 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       }
 
       // Nfc signing
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>> {
-        shouldShowLongRunningOperation.shouldBeTrue()
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
+        psbt.shouldBe(PsbtMock)
+        eventTrackerContext.shouldBe(UTXO_CONSOLIDATION_SIGN_TRANSACTION)
         onSuccess(PsbtMock) // NB: Psbt doesn't match the consolidation params
       }
 
@@ -189,8 +189,8 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       }
 
       // Nfc signing
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Psbt>> {
-        shouldShowLongRunningOperation.shouldBeTrue()
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
+        psbt.shouldBe(PsbtMock)
         onSuccess(PsbtMock)
       }
 
@@ -214,6 +214,38 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       awaitBody<UtxoConsolidationConfirmationModel>()
       awaitBody<UtxoConsolidationConfirmationModel> {
         balanceTitle.shouldBe("Value of UTXOs")
+      }
+    }
+  }
+
+  test("NFC signing back navigation returns to confirmation screen") {
+    stateMachine.test(props) {
+      // Loading the consolidation psbt
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      // Confirmation screen
+      awaitBody<UtxoConsolidationConfirmationModel>()
+      awaitBody<UtxoConsolidationConfirmationModel> {
+        onContinue.invoke()
+      }
+
+      // Tap & Hold info half sheet
+      awaitSheet<TapAndHoldToConsolidateUtxosBodyModel> {
+        onConsolidate()
+      }
+
+      // User cancels NFC signing
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
+        psbt.shouldBe(PsbtMock)
+        onBack()
+      }
+
+      // Should return to confirmation screen
+      awaitBody<UtxoConsolidationConfirmationModel>()
+      awaitBody<UtxoConsolidationConfirmationModel> {
+        balanceTitle.shouldBe("Wallet balance")
       }
     }
   }

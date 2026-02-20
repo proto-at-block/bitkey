@@ -57,6 +57,25 @@ class SigningKeys:
         return directory
 
 
+class PatchSigningKeys:
+    """Keys for signing/verifying delta patches."""
+
+    def __init__(self, keys_dir, product, key_type):
+        if product in (PRODUCT_W3A_UXC, "w3a"):
+            key_prefix = "w3a-core"
+        else:
+            key_prefix = product
+
+        directory = os.path.join(keys_dir, f"{key_prefix}-{key_type.lower()}")
+        assert os.path.isdir(directory), f"Key directory not found: {directory}"
+
+        self.public_key_path = os.path.join(directory, f"{key_prefix}-patch-signing-key-{key_type.lower()}.1.pub.pem")
+        self.private_key_path = os.path.join(directory, f"{key_prefix}-patch-signing-key-{key_type.lower()}.1.priv.pem")
+        self.cert_path = None
+        self.key_type = key_type
+        self.product = product
+
+
 class KeyManager(ABC):
     @abstractmethod
     def generate_signature(self, digest: SHA256.SHA256Hash) -> bytes:

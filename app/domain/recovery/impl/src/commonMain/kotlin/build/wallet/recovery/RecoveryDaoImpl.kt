@@ -135,7 +135,8 @@ class RecoveryDaoImpl(
           destinationAppSpendingKey = progress.appKeyBundle.spendingKey,
           destinationHardwareSpendingKey = progress.hwKeyBundle.spendingKey,
           appGlobalAuthKeyHwSignature = progress.appGlobalAuthKeyHwSignature,
-          lostFactor = progress.lostFactor
+          lostFactor = progress.lostFactor,
+          originalAppGlobalAuthKey = progress.originalAppGlobalAuthKey
         )
       }
   }
@@ -233,6 +234,13 @@ class RecoveryDaoImpl(
         saveKeyboxAsActive(keyboxToActivate)
       }
   }
+
+  override suspend fun isLocalRecoveryPresent(): Result<Boolean, DbTransactionError> {
+    return databaseProvider.database()
+      .awaitTransactionWithResult {
+        return@awaitTransactionWithResult recoveryQueries.getLocalRecovery().executeAsOneOrNull() != null
+      }
+  }
 }
 
 private fun ActiveServerRecoveryEntity.toServerRecovery(): ServerRecovery {
@@ -307,7 +315,8 @@ private fun LocalRecoveryAttemptEntity.serverRecoveryPresent(
       hardwareAuthKey = destinationHardwareAuthKey,
       factorToRecover = lostFactor,
       appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
-      serverRecovery = serverRecovery.toServerRecovery()
+      serverRecovery = serverRecovery.toServerRecovery(),
+      originalAppGlobalAuthKey = originalAppGlobalAuthKey
     )
 
   val hwKeysMatch = serverRecovery.destinationHardwareAuthKey == destinationHardwareAuthKey
@@ -339,7 +348,8 @@ private fun LocalRecoveryAttemptEntity.serverRecoveryMissing(): Recovery {
       hardwareAuthKey = destinationHardwareAuthKey,
       factorToRecover = lostFactor,
       sealedCsek = it,
-      sealedSsek = sealedSsek
+      sealedSsek = sealedSsek,
+      originalAppGlobalAuthKey = originalAppGlobalAuthKey
     )
   }
 
@@ -402,7 +412,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           hardwareAuthKey = destinationHardwareAuthKey,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           factorToRecover = lostFactor,
-          keysets = storedKeysets
+          keysets = storedKeysets,
+          originalAppGlobalAuthKey = originalAppGlobalAuthKey
         )
       }
 
@@ -417,7 +428,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           hardwareAuthKey = destinationHardwareAuthKey,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           factorToRecover = lostFactor,
-          keysets = storedKeysets
+          keysets = storedKeysets,
+          originalAppGlobalAuthKey = originalAppGlobalAuthKey
         )
       }
 
@@ -434,7 +446,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           factorToRecover = lostFactor,
           sealedCsek = sealedCsek!!,
           sealedSsek = sealedSsek,
-          keysets = storedKeysets
+          keysets = storedKeysets,
+          originalAppGlobalAuthKey = originalAppGlobalAuthKey
         )
       }
 
@@ -451,7 +464,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           factorToRecover = lostFactor,
           sealedCsek = sealedCsek!!,
           sealedSsek = sealedSsek,
-          keysets = storedKeysets
+          keysets = storedKeysets,
+          originalAppGlobalAuthKey = originalAppGlobalAuthKey
         )
       }
 
@@ -468,7 +482,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           factorToRecover = lostFactor,
           sealedCsek = sealedCsek!!,
           sealedSsek = sealedSsek,
-          keysets = storedKeysets
+          keysets = storedKeysets,
+          originalAppGlobalAuthKey = originalAppGlobalAuthKey
         )
       } else {
         // Spending keys have been created but not yet activated
@@ -483,7 +498,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           factorToRecover = lostFactor,
           sealedCsek = sealedCsek!!,
           sealedSsek = sealedSsek,
-          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
+          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+          originalAppGlobalAuthKey = originalAppGlobalAuthKey
         )
       }
     } else {
@@ -497,7 +513,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
         appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
         factorToRecover = lostFactor,
         sealedCsek = sealedCsek!!,
-        sealedSsek = sealedSsek
+        sealedSsek = sealedSsek,
+        originalAppGlobalAuthKey = originalAppGlobalAuthKey
       )
     }
   } else {

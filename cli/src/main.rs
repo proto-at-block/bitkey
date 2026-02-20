@@ -12,11 +12,9 @@ mod signers;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use bdk::bitcoin::{address::NetworkUnchecked, network::constants::Network};
-
-use bdk::bitcoin::Address;
-use bdk::blockchain::ElectrumBlockchain;
-use bdk::electrum_client::Client as ElectrumClient;
+use bdk_electrum::{electrum_client::Client as ElectrumClient, BdkElectrumClient};
+use bdk_wallet::bitcoin::Address;
+use bdk_wallet::bitcoin::{address::NetworkUnchecked, Network};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use rustify::blocking::clients::reqwest::Client;
@@ -211,24 +209,24 @@ async fn main() -> Result<()> {
         },
         Commands::Wallet { command } => match command {
             WalletCommands::Status {} => commands::wallet::status(&client, &db)?,
-            WalletCommands::Balance {} => commands::wallet::balance(&client, &db, blockchain)?,
+            WalletCommands::Balance {} => commands::wallet::balance(&client, &db, &blockchain)?,
             WalletCommands::Transactions {} => {
-                commands::wallet::transactions(&client, &db, blockchain)?
+                commands::wallet::transactions(&client, &db, &blockchain)?
             }
             WalletCommands::Drain { recipient } => {
-                commands::wallet::drain(&client, &db, blockchain, recipient.assume_checked())?
+                commands::wallet::drain(&client, &db, &blockchain, recipient.assume_checked())?
             }
             WalletCommands::ServerSend { recipient, amount } => commands::wallet::server_send(
                 &client,
                 &db,
-                blockchain,
+                &blockchain,
                 recipient.assume_checked(),
                 amount,
             )?,
             WalletCommands::HardwareSend { recipient, amount } => commands::wallet::hardware_send(
                 &client,
                 &db,
-                blockchain,
+                &blockchain,
                 recipient.assume_checked(),
                 amount,
             )?,
@@ -251,11 +249,11 @@ async fn main() -> Result<()> {
                     commands::wallet::recovery::complete::complete_delay_notify(&client, &db)?
                 }
             },
-            WalletCommands::Utxos {} => commands::wallet::utxos(&client, &db, blockchain)?,
+            WalletCommands::Utxos {} => commands::wallet::utxos(&client, &db, &blockchain)?,
         },
         Commands::EndToEnd {
             ref treasury_root_key,
-        } => commands::end_to_end::end_to_end(&client, blockchain, treasury_root_key)?,
+        } => commands::end_to_end::end_to_end(&client, &blockchain, treasury_root_key)?,
         Commands::Firmware { command } => match command {
             FirmwareCommands::Metadata {} => commands::firmware::metadata()?,
             FirmwareCommands::Upload {
@@ -285,6 +283,6 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn blockchain(electrum: &str) -> Result<ElectrumBlockchain> {
-    Ok(ElectrumBlockchain::from(ElectrumClient::new(electrum)?))
+fn blockchain(electrum: &str) -> Result<BdkElectrumClient<ElectrumClient>> {
+    Ok(BdkElectrumClient::new(ElectrumClient::new(electrum)?))
 }

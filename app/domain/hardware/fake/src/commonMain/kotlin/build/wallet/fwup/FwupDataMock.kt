@@ -72,7 +72,7 @@ val McuFwupDataMock_W3_UXC =
 val McuFwupDataListMock_W1 = immutableListOf(McuFwupDataMock_W1_CORE)
 
 /**
- * Mock list of MCU updates for W3 device (CORE + UXC).
- * Ordered with CORE first as required by firmware.
+ * Mock list of MCU updates for W3 device (UXC + CORE).
+ * Ordered with UXC first, CORE second.
  */
-val McuFwupDataListMock_W3 = immutableListOf(McuFwupDataMock_W3_CORE, McuFwupDataMock_W3_UXC)
+val McuFwupDataListMock_W3 = immutableListOf(McuFwupDataMock_W3_UXC, McuFwupDataMock_W3_CORE)

@@ -3,7 +3,6 @@ package build.wallet.statemachine.account
 import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.NoActiveAccountData
 
 /**
  * A state machine when there is no existing active account and no existing
@@ -15,7 +14,9 @@ import build.wallet.statemachine.data.keybox.NoActiveAccountData
 interface ChooseAccountAccessUiStateMachine : StateMachine<ChooseAccountAccessUiProps, ScreenModel>
 
 data class ChooseAccountAccessUiProps(
-  val chooseAccountAccessData: NoActiveAccountData.GettingStartedData,
+  val onStartLiteAccountCreation: () -> Unit,
+  val onStartRecovery: () -> Unit,
+  val onStartEmergencyExitRecovery: () -> Unit,
   val onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
   val onCreateFullAccount: () -> Unit,
 )

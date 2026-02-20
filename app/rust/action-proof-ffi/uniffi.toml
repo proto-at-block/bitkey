@@ -1,0 +1,5 @@
+[bindings.kotlin]
+package_name = "uniffi.actionproof"
+cdylib_name = "actionproof"
+
+[bindings.swift]

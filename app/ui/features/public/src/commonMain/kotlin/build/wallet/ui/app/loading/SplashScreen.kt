@@ -2,13 +2,14 @@ package build.wallet.ui.app.loading
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.bitkey_logo_mark
@@ -60,24 +61,24 @@ fun SplashScreen(
 
 @Composable
 private fun BitkeyLogoMark() {
-  Icon(
+  Image(
     modifier = Modifier.height(38.dp),
     painter = painterResource(Res.drawable.bitkey_logo_mark),
     contentDescription = "Bitkey Logo",
-    tint = Color.White
+    colorFilter = ColorFilter.tint(Color.White)
   )
 }
 
 @Composable
 private fun BitkeyWordMark() {
-  Icon(
+  Image(
     modifier =
       Modifier
         .padding(top = 5.dp)
         .height(38.dp),
     painter = painterResource(Res.drawable.bitkey_word_mark),
     contentDescription = "Bitkey",
-    tint = Color.White
+    colorFilter = ColorFilter.tint(Color.White)
   )
 }
 

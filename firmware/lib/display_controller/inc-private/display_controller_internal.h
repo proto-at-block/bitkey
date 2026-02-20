@@ -27,6 +27,15 @@ typedef struct {
   bool has_data;
 } flow_action_result_t;
 
+// Entry data for FLOW_TRANSACTION.
+typedef struct {
+  bool is_receive_flow;
+  union {
+    send_transaction_data_t send;
+    receive_transaction_data_t receive;
+  } data;
+} flow_transaction_entry_data_t;
+
 // Helper functions for common result patterns
 static inline flow_action_result_t flow_result_handled(void) {
   return (flow_action_result_t){.type = FLOW_RESULT_HANDLED};

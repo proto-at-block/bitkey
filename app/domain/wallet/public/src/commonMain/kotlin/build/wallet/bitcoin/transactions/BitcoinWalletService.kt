@@ -47,7 +47,7 @@ interface BitcoinWalletService {
   suspend fun createPsbtsForSendAmount(
     sendAmount: BitcoinTransactionSendAmount,
     recipientAddress: BitcoinAddress,
-  ): Result<Map<EstimatedTransactionPriority, Psbt>, Error>
+  ): Result<PsbtsForSendAmount, Error>
 }
 
 suspend fun BitcoinWalletService.getTransactionData(): TransactionsData =

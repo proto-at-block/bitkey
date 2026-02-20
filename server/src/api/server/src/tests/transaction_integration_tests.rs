@@ -16,23 +16,19 @@ use ulid::Ulid;
 use account::service::{tests::default_electrum_rpc_uris, FetchAccountInput};
 use bdk_utils::{
     bdk::{
-        self,
         bitcoin::{
-            bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey},
+            bip32::{DerivationPath, Xpriv as ExtendedPrivKey, Xpub as ExtendedPubKey},
             ecdsa,
             key::Secp256k1,
-            psbt::PartiallySignedTransaction,
+            psbt::Psbt,
             secp256k1::Message,
-            Address, Network as BdkNetwork, OutPoint, Txid,
+            Address, Amount, FeeRate, Network as BdkNetwork, OutPoint, PublicKey, Txid,
         },
-        database::MemoryDatabase,
-        electrum_client::Error as ElectrumClientError,
         keys::DescriptorPublicKey,
         miniscript::descriptor::{DescriptorXKey, Wildcard},
-        wallet::{AddressIndex, AddressInfo},
-        Error::Electrum,
-        KeychainKind, SignOptions, Wallet,
+        AddressInfo, KeychainKind, SignOptions, Wallet,
     },
+    electrum::electrum_client::Error as ElectrumClientError,
     error::BdkUtilError,
     DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait,
 };
@@ -72,6 +68,9 @@ use crate::tests::mobile_pay_tests::build_mobile_pay_request;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::{gen_services, gen_services_with_overrides, GenServiceOverrides};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use wsm_compat::{
+    fingerprint_0_32_to_0_30, psbt_0_30_to_0_32, psbt_0_32_to_0_30, xpub_0_32_to_0_30,
+};
 
 mock! {
     TransactionBroadcaster { }
@@ -79,7 +78,7 @@ mock! {
         fn broadcast(
             &self,
             network: bdk_utils::bdk::bitcoin::Network,
-            transaction: &mut PartiallySignedTransaction,
+            transaction: &mut Psbt,
             rpc_uris: &ElectrumRpcUris
         ) -> Result<(), BdkUtilError>;
     }
@@ -101,7 +100,7 @@ async fn sign_transaction_test(
         .times(if expect_broadcast { 1 } else { 0 })
         .returning(move |_, _, _| match broadcast_failure_mode {
             Some(BroadcastFailureMode::Generic) => Err(BdkUtilError::TransactionBroadcastError(
-                Electrum(ElectrumClientError::Message("Fail".to_string())),
+                ElectrumClientError::Message("Fail".to_string()),
             )),
             // Specific protocol failure to test true positive case
             Some(BroadcastFailureMode::ElectrumDuplicateTx) => {
@@ -109,9 +108,9 @@ async fn sign_transaction_test(
             }
             // Generic protocol failure to guard against type-1 (false-positive) errors
             Some(BroadcastFailureMode::ElectrumGeneric) => {
-                Err(BdkUtilError::TransactionBroadcastError(Electrum(
+                Err(BdkUtilError::TransactionBroadcastError(
                     ElectrumClientError::Protocol(json!({"code": -77,"message": "Fail"})),
-                )))
+                ))
             }
             None => Ok(()),
         });
@@ -120,7 +119,8 @@ async fn sign_transaction_test(
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
@@ -130,7 +130,7 @@ async fn sign_transaction_test(
         override_psbt.to_string()
     } else {
         build_app_signed_psbt_for_protocol(
-            &fixture,
+            &mut fixture,
             gen_external_wallet_address(),
             transfer_amount,
             &with_inputs,
@@ -410,9 +410,9 @@ async fn test_failed_broadcast_does_not_count_against_spending_limit() {
         .returning(move |_, _, _| {
             let attempt = attempts.fetch_add(1, Ordering::SeqCst);
             if attempt == 0 {
-                Err(BdkUtilError::TransactionBroadcastError(Electrum(
+                Err(BdkUtilError::TransactionBroadcastError(
                     ElectrumClientError::Message("Fail".to_string()),
-                )))
+                ))
             } else {
                 Ok(())
             }
@@ -422,7 +422,7 @@ async fn test_failed_broadcast_does_not_count_against_spending_limit() {
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let fixture = setup_fixture(
+    let mut fixture = setup_fixture(
         &mut context,
         &client,
         &bootstrap.services,
@@ -455,7 +455,7 @@ async fn test_failed_broadcast_does_not_count_against_spending_limit() {
     );
 
     let psbt = build_app_signed_psbt_for_protocol(
-        &fixture,
+        &mut fixture,
         gen_external_wallet_address(),
         transfer_amount,
         &[],
@@ -539,14 +539,15 @@ async fn sign_transaction_with_transaction_verification_test(
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
 
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
 
     let app_signed_psbt =
-        build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 2_000, &[]);
+        build_app_signed_psbt_for_protocol(&mut fixture, gen_external_wallet_address(), 2_000, &[]);
 
     let limit = SpendingLimit {
         active: true,
@@ -742,16 +743,17 @@ async fn spend_limit_transaction_test(
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
 
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
         .expect("Keys not found");
     let recipient = match should_self_addressed_tx {
-        true => fixture.wallet.get_address(AddressIndex::New).unwrap(),
+        true => fixture.wallet.next_unused_address(KeychainKind::External),
         false => gen_external_wallet_address(),
     };
-    let app_signed_psbt = build_app_signed_psbt_for_protocol(&fixture, recipient, 2_000, &[]);
+    let app_signed_psbt = build_app_signed_psbt_for_protocol(&mut fixture, recipient, 2_000, &[]);
 
     let limit = SpendingLimit {
         active: true,
@@ -966,7 +968,8 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, source_protocol).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, source_protocol).await;
 
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
@@ -1036,7 +1039,7 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
 
     let app_signed_psbt = if target_external_address {
         build_sweep_psbt_for_protocol(
-            &fixture,
+            &mut fixture,
             SweepDestination::External(gen_external_wallet_address().address),
         )
     } else {
@@ -1057,11 +1060,10 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
                     .unwrap();
 
                 build_sweep_psbt_for_protocol(
-                    &fixture,
+                    &mut fixture,
                     SweepDestination::External(
                         active_wallet
-                            .get_address(AddressIndex::Peek(0))
-                            .unwrap()
+                            .peek_address(KeychainKind::External, 0)
                             .address,
                     ),
                 )
@@ -1101,21 +1103,20 @@ async fn bypass_mobile_spend_limit_for_sweep_test(
                     server_dpub.clone(),
                 );
 
-                let wallet = Wallet::new(
+                let wallet = Wallet::create_single(
                     descriptor_keyset
                         .receiving()
                         .into_multisig_descriptor()
                         .unwrap(),
-                    None,
-                    active_keyset.network().into(),
-                    MemoryDatabase::new(),
                 )
+                .network(active_keyset.network().into())
+                .create_wallet_no_persist()
                 .unwrap();
 
-                let sweep_address = wallet.get_address(AddressIndex::Peek(0)).unwrap().address;
+                let sweep_address = wallet.peek_address(KeychainKind::External, 0).address;
                 let destination =
                     sweep_destination_for_ccd(app_xpub, hw_xpub, server_root_xpub, sweep_address);
-                build_sweep_psbt_for_protocol(&fixture, destination)
+                build_sweep_psbt_for_protocol(&mut fixture, destination)
             }
         }
     };
@@ -1155,12 +1156,13 @@ async fn disabled_mobile_pay_spend_limit_test(wallet_protocol: WalletTestProtoco
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
         .expect("Keys not found");
     let recipient = gen_external_wallet_address();
-    let app_signed_psbt = build_app_signed_psbt_for_protocol(&fixture, recipient, 2_000, &[]);
+    let app_signed_psbt = build_app_signed_psbt_for_protocol(&mut fixture, recipient, 2_000, &[]);
 
     let limit = SpendingLimit {
         active: false,
@@ -1214,7 +1216,8 @@ async fn mismatched_account_id_keyproof_test(wallet_protocol: WalletTestProtocol
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
@@ -1260,7 +1263,7 @@ async fn mismatched_account_id_keyproof_test(wallet_protocol: WalletTestProtocol
 
     // Attempt to sign a transaction with a different account id
     let app_signed_psbt =
-        build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 2_000, &[])
+        build_app_signed_psbt_for_protocol(&mut fixture, gen_external_wallet_address(), 2_000, &[])
             .to_string();
     let response = client
         .sign_transaction_with_keyset_and_keyproof_account_id(
@@ -1307,7 +1310,8 @@ async fn fail_sends_to_sanctioned_address_test(wallet_protocol: WalletTestProtoc
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
@@ -1334,7 +1338,8 @@ async fn fail_sends_to_sanctioned_address_test(wallet_protocol: WalletTestProtoc
     );
 
     let app_signed_psbt =
-        build_app_signed_psbt_for_protocol(&fixture, blocked_address_info, 2_000, &[]).to_string();
+        build_app_signed_psbt_for_protocol(&mut fixture, blocked_address_info, 2_000, &[])
+            .to_string();
 
     let request_data = SignTransactionData {
         psbt: app_signed_psbt.to_string(),
@@ -1382,7 +1387,8 @@ async fn fail_to_send_if_kill_switch_is_on_test(wallet_protocol: WalletTestProto
 
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
@@ -1408,7 +1414,7 @@ async fn fail_to_send_if_kill_switch_is_on_test(wallet_protocol: WalletTestProto
     );
 
     let app_signed_psbt =
-        build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 2_000, &[])
+        build_app_signed_psbt_for_protocol(&mut fixture, gen_external_wallet_address(), 2_000, &[])
             .to_string();
     let actual_response = client
         .sign_transaction_with_keyset(
@@ -1437,7 +1443,8 @@ async fn fail_if_signed_with_different_wallet_test(wallet_protocol: WalletTestPr
     let (mut context, bootstrap) = gen_services().await;
 
     let client = TestClient::new(bootstrap.router).await;
-    let fixture = setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
     let keys = context
         .get_authentication_keys_for_account_id(&fixture.account.id)
         .unwrap();
@@ -1468,8 +1475,12 @@ async fn fail_if_signed_with_different_wallet_test(wallet_protocol: WalletTestPr
 
     // Test PSBT without signatures
     {
-        let mut psbt_without_signatures =
-            build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 2_000, &[]);
+        let mut psbt_without_signatures = build_app_signed_psbt_for_protocol(
+            &mut fixture,
+            gen_external_wallet_address(),
+            2_000,
+            &[],
+        );
         for input in &mut psbt_without_signatures.inputs {
             input.partial_sigs.clear();
         }
@@ -1492,15 +1503,21 @@ async fn fail_if_signed_with_different_wallet_test(wallet_protocol: WalletTestPr
 
     // Test PSBT with >1 signatures
     {
-        let mut psbt_with_two_signatures =
-            build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 1_000, &[]);
+        let mut psbt_with_two_signatures = build_app_signed_psbt_for_protocol(
+            &mut fixture,
+            gen_external_wallet_address(),
+            1_000,
+            &[],
+        );
         for input in &mut psbt_with_two_signatures.inputs {
             let sig = ecdsa::Signature::sighash_all(secp.sign_ecdsa(
                 &Message::from_slice(&[0; 32]).unwrap(),
                 &master_xprv.private_key,
             ));
 
-            input.partial_sigs.insert(xpub.to_pub(), sig);
+            input
+                .partial_sigs
+                .insert(PublicKey::new(xpub.to_pub().0), sig);
         }
 
         let response = client
@@ -1521,8 +1538,12 @@ async fn fail_if_signed_with_different_wallet_test(wallet_protocol: WalletTestPr
 
     // Test PSBT with signature that does not belong to wallet
     {
-        let mut psbt_with_attacker_signature =
-            build_app_signed_psbt_for_protocol(&fixture, gen_external_wallet_address(), 1_000, &[]);
+        let mut psbt_with_attacker_signature = build_app_signed_psbt_for_protocol(
+            &mut fixture,
+            gen_external_wallet_address(),
+            1_000,
+            &[],
+        );
         for input in &mut psbt_with_attacker_signature.inputs {
             // Clear out all partial signatures, and insert a signature that does not belong to the wallet
             input.partial_sigs.clear();
@@ -1532,7 +1553,9 @@ async fn fail_if_signed_with_different_wallet_test(wallet_protocol: WalletTestPr
                 &master_xprv.private_key,
             ));
 
-            input.partial_sigs.insert(xpub.to_pub(), sig);
+            input
+                .partial_sigs
+                .insert(PublicKey::new(xpub.to_pub().0), sig);
         }
 
         let response = client
@@ -1579,7 +1602,7 @@ async fn test_sign_psbt_v2_happy_path() {
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (account, wallet) =
+    let (account, mut wallet) =
         create_default_account_with_private_wallet(&mut context, &client, &bootstrap.services)
             .await;
 
@@ -1612,12 +1635,14 @@ async fn test_sign_psbt_v2_happy_path() {
 
     // Simulate app signing a PSBT
     let app_signed_psbt = {
-        let (psbt, _details) = {
+        let psbt = {
             let mut builder = wallet.build_tx();
             builder
-                .add_recipient(gen_external_wallet_address().script_pubkey(), 30_000)
-                .enable_rbf()
-                .fee_rate(bdk::FeeRate::from_sat_per_vb(1.0));
+                .add_recipient(
+                    gen_external_wallet_address().script_pubkey(),
+                    Amount::from_sat(30_000),
+                )
+                .fee_rate(FeeRate::from_sat_per_vb(1).expect("Invalid feerate"));
             builder.finish().expect("Failed to build transaction")
         };
 
@@ -1627,7 +1652,10 @@ async fn test_sign_psbt_v2_happy_path() {
                 origin: Some(ref origin),
                 xkey,
                 ..
-            }) => HwAccountLevelDescriptorPublicKeys::new(origin.0, xkey),
+            }) => HwAccountLevelDescriptorPublicKeys::new(
+                fingerprint_0_32_to_0_30(origin.0).expect("Unable to convert fingerprint to 0.30"),
+                xpub_0_32_to_0_30(xkey).expect("Unable to convert XPub to 0.30"),
+            ),
             _ => panic!("Unsupported"),
         };
 
@@ -1645,21 +1673,31 @@ async fn test_sign_psbt_v2_happy_path() {
             _ => panic!("Expected XPub descriptor"),
         };
 
-        let mut psbt = UntweakedPsbt::new(psbt)
-            .with_source_wallet_tweaks(&Keyset {
-                hw_descriptor_public_keys: HwAccountLevelDescriptorPublicKeys::new(
-                    hw_descriptor_public_keys.root_fingerprint(),
-                    hw_descriptor_public_keys.account_xpub(),
-                ),
-                server_root_xpub: predefined_server_root_xpub(keyset.network, keyset.server_pub),
-                app_account_xpub_with_origin: XpubWithOrigin {
-                    fingerprint: predefined_keys.app_root_xprv.fingerprint(&Secp256k1::new()),
-                    xpub: app_account_xpub,
-                },
-            })
-            .unwrap()
-            .into_psbt();
+        let psbt =
+            UntweakedPsbt::new(psbt_0_32_to_0_30(&psbt).expect("Unable to convert PSBT to 0.30"))
+                .with_source_wallet_tweaks(&Keyset {
+                    hw_descriptor_public_keys: HwAccountLevelDescriptorPublicKeys::new(
+                        hw_descriptor_public_keys.root_fingerprint(),
+                        hw_descriptor_public_keys.account_xpub(),
+                    ),
+                    server_root_xpub: xpub_0_32_to_0_30(predefined_server_root_xpub(
+                        keyset.network,
+                        keyset.server_pub,
+                    ))
+                    .expect("Unable to convert XPub to 0.30"),
+                    app_account_xpub_with_origin: XpubWithOrigin {
+                        fingerprint: fingerprint_0_32_to_0_30(
+                            predefined_keys.app_root_xprv.fingerprint(&Secp256k1::new()),
+                        )
+                        .expect("Unable to convert fingerprint to 0.30"),
+                        xpub: xpub_0_32_to_0_30(app_account_xpub)
+                            .expect("Unable to convert XPub to 0.30"),
+                    },
+                })
+                .unwrap()
+                .into_psbt();
 
+        let mut psbt = psbt_0_30_to_0_32(&psbt).expect("Unable to convert PSBT to 0.32");
         wallet.sign(&mut psbt, SignOptions::default()).unwrap();
 
         psbt

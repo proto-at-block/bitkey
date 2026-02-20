@@ -87,7 +87,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
   test("initial state - zero limit") {
     stateMachine.test(props) {
       awaitBody<SpendingLimitPickerModel> {
-        with(entryMode.shouldBeTypeOf<EntryMode.Keypad>().amountModel) {
+        with(amountModel) {
           primaryAmount.shouldBe("$0")
           secondaryAmount.shouldBe("0 sats")
         }
@@ -101,7 +101,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitBody<SpendingLimitPickerModel> {
-        entryMode.shouldBeTypeOf<EntryMode.Keypad>()
+        amountModel.shouldNotBeNull()
         setLimitButtonModel.isEnabled.shouldBeTrue()
       }
     }

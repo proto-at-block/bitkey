@@ -4,15 +4,16 @@
 #include "log.h"
 #include "lvgl.h"
 #include "mcu_gpio.h"
+#include "rtos.h"
 #include "touch.h"
 #include "ui.h"
 
 #define DISPLAY_PWR_RAIL_MIN_DELAY_MS   1     // Minimum delay between power rail transitions
 #define DISPLAY_PWR_RESET_DELAY_MS      10    // Delay after final rail before reset
-#define STALE_COUNT_THRESHOLD           1     // Number of stale reads before forcing release
 #define TOUCH_SCROLL_LIMIT              15    // Scroll limit in pixels
 #define TOUCH_LONG_PRESS_TIME_MS        500   // Long press detection time
 #define TOUCH_LONG_PRESS_REPEAT_TIME_MS 2000  // Long press repeat time
+#define TOUCH_MAX_EVENT_AGE_MS          50    // Discard touch events older than this
 
 // Display configuration.
 extern display_config_t display_config;
@@ -61,7 +62,7 @@ static void lvgl_flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* co
   const uint32_t pixel_count = w * h;
   lv_draw_sw_rgb565_swap((lv_color16_t*)color_p, pixel_count);
 
-  // Flush
+  // Flush to display
   gfx_flush(color_p, area->x1, area->y1, area->x2, area->y2, gfx_flush_complete, disp);
 }
 
@@ -74,54 +75,57 @@ static void display_configure_power_pins(void) {
   }
 }
 
-// LVGL touch read callback
+// LVGL touch read callback - feeds buffered events with timestamps via continue_reading
 static void touch_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
   (void)indev;
 
-  static uint32_t last_timestamp_ms = 0;
-  static uint8_t stale_count = 0;
-  static lv_indev_state_t last_state = LV_INDEV_STATE_RELEASED;
+  // Track last known point for reporting position when buffer is empty
+  static lv_point_t last_point = {0, 0};
 
-  touch_event_t latest_event;
-  // Try to get coordinates from touch controller
-  touch_get_latest_event(&latest_event);
+  touch_event_t event;
+  uint32_t now_ms = rtos_thread_systime();
 
-  /* Mapping from touch controller to GUI is inverted*/
-  data->point.x = MAX_DISP_WIDTH - latest_event.coord.x - 1;
-  data->point.x = data->point.x < 0 ? 0 : data->point.x;
-  data->point.x = data->point.x >= MAX_DISP_WIDTH ? MAX_DISP_WIDTH - 1 : data->point.x;
+  // Pop events, discarding any that are too old
+  while (touch_pop_event(&event)) {
+    uint32_t age_ms = now_ms - event.timestamp_ms;
+    if (age_ms <= TOUCH_MAX_EVENT_AGE_MS) {
+      // Event is fresh enough, process it
+      // Map coordinates (inverted)
+      int32_t x = MAX_DISP_WIDTH - event.coord.x - 1;
+      int32_t y = MAX_DISP_HEIGHT - event.coord.y - 1;
+      data->point.x = (x < 0) ? 0 : (x >= MAX_DISP_WIDTH) ? MAX_DISP_WIDTH - 1 : x;
+      data->point.y = (y < 0) ? 0 : (y >= MAX_DISP_HEIGHT) ? MAX_DISP_HEIGHT - 1 : y;
 
-  data->point.y = MAX_DISP_HEIGHT - latest_event.coord.y - 1;
-  data->point.y = data->point.y < 0 ? 0 : data->point.y;
-  data->point.y = data->point.y >= MAX_DISP_HEIGHT ? MAX_DISP_HEIGHT - 1 : data->point.y;
+      // Set state based on event type
+      switch (event.event_type) {
+        case TOUCH_EVENT_TOUCH_DOWN:
+        case TOUCH_EVENT_CONTACT:
+          data->state = LV_INDEV_STATE_PRESSED;
+          break;
+        case TOUCH_EVENT_TOUCH_UP:
+        default:
+          data->state = LV_INDEV_STATE_RELEASED;
+          break;
+      }
 
-  // Check if this is the same data we read last time (stale)
-  if (latest_event.timestamp_ms == last_timestamp_ms) {
-    stale_count++;
+      // Pass the actual event timestamp - LVGL tick is now synced with rtos_thread_systime()
+      data->timestamp = event.timestamp_ms;
 
-    if ((stale_count >= STALE_COUNT_THRESHOLD) && (last_state != LV_INDEV_STATE_RELEASED)) {
-      last_state = LV_INDEV_STATE_RELEASED;
+      // Check if more events are buffered
+      data->continue_reading = (touch_event_buffer_count() > 0);
+
+      // Save point for when buffer is empty
+      last_point = data->point;
+      return;
     }
-
-    data->state = last_state;
-
-  } else {
-    last_timestamp_ms = latest_event.timestamp_ms;
-    stale_count = 0;
-    switch (latest_event.event_type) {
-      case TOUCH_EVENT_TOUCH_DOWN:
-      case TOUCH_EVENT_CONTACT:
-        data->state = LV_INDEV_STATE_PRESSED;
-        break;
-
-      case TOUCH_EVENT_TOUCH_UP:
-      default:
-        data->state = LV_INDEV_STATE_RELEASED;
-        break;
-    }
-
-    last_state = data->state;
+    // Event is stale, discard and check next
   }
+
+  // No fresh events in buffer - report RELEASED state
+  data->point = last_point;
+  data->state = LV_INDEV_STATE_RELEASED;
+  data->timestamp = 0;
+  data->continue_reading = false;
 }
 
 // Initialize touch integration with display
@@ -154,6 +158,9 @@ void display_init(void) {
   // Start LVGL
   lv_init();
 
+  // Sync LVGL tick with RTOS time so touch timestamps work correctly
+  lv_tick_inc(rtos_thread_systime());
+
   // Setup draw buffers using config dimensions
   uint16_t disp_width = display_config.gfx_config.display_width;
   uint16_t disp_height = display_config.gfx_config.display_height;
@@ -183,8 +190,16 @@ void display_init(void) {
 }
 
 void display_update(void) {
+  // Sync LVGL tick to current RTOS time before processing events.
+  // This ensures touch event timestamps (from rtos_thread_systime()) are always
+  // <= lv_tick_get(), preventing unsigned underflow in elapsed time calculations.
+  uint32_t now_ms = rtos_thread_systime();
+  uint32_t current_tick = lv_tick_get();
+  if (now_ms > current_tick) {
+    lv_tick_inc(now_ms - current_tick);
+  }
+
   lv_task_handler();
-  lv_tick_inc(display_config.update_period_ms);
 }
 
 void display_power_on(void) {

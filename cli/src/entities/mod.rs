@@ -2,7 +2,7 @@ pub mod display;
 
 use std::sync::Arc;
 
-use bdk::{
+use bdk_wallet::{
     bitcoin::{
         secp256k1::{ecdsa::Signature, PublicKey},
         Network,

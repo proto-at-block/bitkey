@@ -4,16 +4,14 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use axum::body::Body;
+use bdk_utils::bdk::bitcoin::FeeRate;
 use bdk_utils::bdk::bitcoin::Txid;
+use bdk_utils::bdk::AddressInfo;
+use bdk_utils::bdk::KeychainKind;
 use bdk_utils::{
     bdk::{
-        bitcoin::{
-            key::Secp256k1,
-            psbt::{PartiallySignedTransaction, Psbt},
-        },
-        database::AnyDatabase,
-        wallet::{AddressIndex, AddressInfo},
-        FeeRate, SignOptions, Wallet,
+        bitcoin::{key::Secp256k1, psbt::Psbt},
+        SignOptions, Wallet,
     },
     error::BdkUtilError,
     signature::sign_message,
@@ -980,8 +978,7 @@ async fn test_complete_inheritance_claim_success(
     let beneficiary_address = beneficiary_wallet
         .as_ref()
         .expect("beneficiary wallet missing")
-        .get_address(AddressIndex::Peek(0))
-        .expect("failed to peek beneficiary address")
+        .peek_address(KeychainKind::External, 0)
         .address;
 
     let protocol = if benefactor_is_private {
@@ -990,7 +987,7 @@ async fn test_complete_inheritance_claim_success(
         WalletTestProtocol::Legacy
     };
 
-    let source_fixture = WalletFixture {
+    let mut source_fixture = WalletFixture {
         protocol,
         account: benefactor_full_account.clone(),
         wallet: benefactor_wallet,
@@ -1015,7 +1012,7 @@ async fn test_complete_inheritance_claim_success(
         SweepDestination::External(beneficiary_address)
     };
 
-    let psbt = build_sweep_psbt_for_protocol(&source_fixture, destination);
+    let psbt = build_sweep_psbt_for_protocol(&mut source_fixture, destination);
 
     // act
     let uri = format!(
@@ -1068,7 +1065,7 @@ async fn test_complete_inheritance_claim_success(
         expected_response_json_without_psbt
     );
 
-    assert_eq!(actual_psbt_txid, psbt.unsigned_tx.txid());
+    assert_eq!(actual_psbt_txid, psbt.unsigned_tx.compute_txid());
 }
 
 #[rstest]
@@ -1167,8 +1164,8 @@ async fn test_complete_inheritance_claim_rbf_success() {
         benefactor,
         beneficiary,
         recovery_relationship_id,
-        benefactor_wallet,
-        beneficiary_wallet,
+        mut benefactor_wallet,
+        mut beneficiary_wallet,
     } = setup_benefactor_and_beneficiary_account(
         &mut context,
         &bootstrap,
@@ -1187,7 +1184,12 @@ async fn test_complete_inheritance_claim_rbf_success() {
         &recovery_relationship_id,
     )
     .await;
-    let (psbt, _) = build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 5.0, true);
+    let (psbt, _) = build_sweep_psbt(
+        &mut benefactor_wallet,
+        beneficiary_wallet.as_mut(),
+        FeeRate::from_sat_per_vb(5).expect("Invalid feerate"),
+        true,
+    );
     let auth = &CognitoAuthentication::Wallet {
         is_app_signed: true,
         is_hardware_signed: true,
@@ -1212,8 +1214,12 @@ async fn test_complete_inheritance_claim_rbf_success() {
         )
         .await;
 
-    let (rbf_psbt, _) =
-        build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 7.0, true);
+    let (rbf_psbt, _) = build_sweep_psbt(
+        &mut benefactor_wallet,
+        beneficiary_wallet.as_mut(),
+        FeeRate::from_sat_per_vb(7).expect("Invalid feerate"),
+        true,
+    );
 
     // act
     let rbf_response = client
@@ -1238,7 +1244,7 @@ async fn test_complete_inheritance_claim_rbf_success() {
         .expect("psbt_txid field missing");
     let actual_psbt_txid = Txid::from_str(actual_psbt_txid).expect("psbt_txid should be valid");
 
-    assert_eq!(actual_psbt_txid, rbf_psbt.unsigned_tx.txid());
+    assert_eq!(actual_psbt_txid, rbf_psbt.unsigned_tx.compute_txid());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -1250,8 +1256,8 @@ async fn test_complete_inheritance_claim_sanctions_failure() {
         benefactor,
         beneficiary,
         recovery_relationship_id,
-        benefactor_wallet,
-        beneficiary_wallet,
+        mut benefactor_wallet,
+        mut beneficiary_wallet,
     } = setup_benefactor_and_beneficiary_account(
         &mut context,
         &bootstrap,
@@ -1270,8 +1276,12 @@ async fn test_complete_inheritance_claim_sanctions_failure() {
         &recovery_relationship_id,
     )
     .await;
-    let (psbt, beneficiary_address) =
-        build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 5.0, true);
+    let (psbt, beneficiary_address) = build_sweep_psbt(
+        &mut benefactor_wallet,
+        beneficiary_wallet.as_mut(),
+        FeeRate::from_sat_per_vb(5).expect("Invalid feerate"),
+        true,
+    );
 
     // add beneficiary to blocked list
     let blocked_hash_set = HashSet::from([beneficiary_address.to_string()]);
@@ -1325,8 +1335,8 @@ async fn test_complete_inheritance_claim_unsigned_psbt_fails() {
         benefactor,
         beneficiary,
         recovery_relationship_id,
-        benefactor_wallet,
-        beneficiary_wallet,
+        mut benefactor_wallet,
+        mut beneficiary_wallet,
     } = setup_benefactor_and_beneficiary_account(
         &mut context,
         &bootstrap,
@@ -1345,7 +1355,12 @@ async fn test_complete_inheritance_claim_unsigned_psbt_fails() {
         &recovery_relationship_id,
     )
     .await;
-    let (psbt, _) = build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 5.0, false);
+    let (psbt, _) = build_sweep_psbt(
+        &mut benefactor_wallet,
+        beneficiary_wallet.as_mut(),
+        FeeRate::from_sat_per_vb(5).expect("Invalid feerate"),
+        false,
+    );
 
     // act
     let uri = format!(
@@ -1430,32 +1445,25 @@ async fn create_locked_claim(
 }
 
 fn build_sweep_psbt(
-    benefactor_wallet: &Wallet<AnyDatabase>,
-    beneficiary_wallet: Option<&Wallet<AnyDatabase>>,
-    fee: f32,
+    benefactor_wallet: &mut Wallet,
+    beneficiary_wallet: Option<&mut Wallet>,
+    fee_rate: FeeRate,
     sign: bool,
-) -> (PartiallySignedTransaction, AddressInfo) {
+) -> (Psbt, AddressInfo) {
     let beneficiary_address = beneficiary_wallet
         .expect("Beneficiary wallet not created")
-        .get_address(AddressIndex::New)
-        .expect("Could not get address");
+        .reveal_next_address(KeychainKind::External);
 
     let mut builder = benefactor_wallet.build_tx();
     builder
         .drain_wallet()
         .drain_to(beneficiary_address.script_pubkey())
-        .fee_rate(FeeRate::from_sat_per_vb(fee));
+        .fee_rate(fee_rate);
 
-    let (mut psbt, _) = builder.finish().expect("Could not build psbt");
+    let mut psbt = builder.finish().expect("Could not build psbt");
 
     if sign {
-        let _ = benefactor_wallet.sign(
-            &mut psbt,
-            SignOptions {
-                remove_partial_sigs: false,
-                ..SignOptions::default()
-            },
-        );
+        let _ = benefactor_wallet.sign(&mut psbt, SignOptions::default());
     }
     (psbt, beneficiary_address)
 }
@@ -1529,8 +1537,8 @@ async fn test_delete_relationship_with_claim(
         benefactor,
         beneficiary,
         recovery_relationship_id,
-        benefactor_wallet,
-        beneficiary_wallet,
+        mut benefactor_wallet,
+        mut beneficiary_wallet,
     } = setup_benefactor_and_beneficiary_account(
         &mut context,
         &bootstrap,
@@ -1555,13 +1563,17 @@ async fn test_delete_relationship_with_claim(
             .fetch_inheritance_claim(&claim_id)
             .await
             .expect("Claim not found");
-        let (psbt, _) =
-            build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 5.0, true);
+        let (psbt, _) = build_sweep_psbt(
+            &mut benefactor_wallet,
+            beneficiary_wallet.as_mut(),
+            FeeRate::from_sat_per_vb(5).expect("Invalid feerate"),
+            true,
+        );
         inheritance_repository
             .persist_inheritance_claim(&InheritanceClaim::Completed(InheritanceClaimCompleted {
                 common_fields: claim.common_fields().to_owned(),
                 completion_method: InheritanceCompletionMethod::WithPsbt {
-                    txid: psbt.unsigned_tx.txid(),
+                    txid: psbt.unsigned_tx.compute_txid(),
                 },
                 completed_at: OffsetDateTime::now_utc(),
             }))

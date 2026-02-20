@@ -7,7 +7,7 @@
 #include "display_action.h"
 #include "lvgl.h"
 #include "ui.h"
-#include "widgets/hold_ring.h"
+#include "widgets/dot_ring.h"
 #include "widgets/mfg_burnin_grid.h"
 #include "widgets/mfg_starfield_fps.h"
 #include "widgets/top_back.h"
@@ -21,6 +21,9 @@
 
 // Screen configuration
 #define SCREEN_BRIGHTNESS 100
+
+// Timing
+#define HOLD_TO_CONFIRM_DURATION_MS 2000
 
 // Layout configuration
 #define CHECK_BUTTON_SIZE          80  // Check button size (circular)
@@ -57,7 +60,7 @@ static lv_obj_t* status_label = NULL;
 
 // Widgets
 static lv_obj_t* check_button = NULL;
-static hold_ring_t approve_ring = {0};
+static dot_ring_t approve_ring = {0};
 static top_back_t back_button = {0};
 static top_back_t status_back_button = {0};
 static mfg_starfield_fps_t fps_widget = {0};
@@ -83,9 +86,12 @@ static void check_button_event_handler(lv_event_t* e) {
   lv_event_code_t code = lv_event_get_code(e);
 
   if (code == LV_EVENT_PRESSED) {
-    hold_ring_start(&approve_ring, HOLD_RING_COLOR_GREEN, on_approve_complete, NULL);
+    dot_ring_show(&approve_ring);
+    dot_ring_animate_fill(&approve_ring, 100, HOLD_TO_CONFIRM_DURATION_MS, DOT_RING_COLOR_GREEN,
+                          DOT_RING_FILL_SPLIT, on_approve_complete, NULL);
   } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
-    hold_ring_stop(&approve_ring);
+    dot_ring_stop(&approve_ring);
+    dot_ring_hide(&approve_ring);
   }
 }
 
@@ -156,8 +162,8 @@ static void setup_runin_start_screen(lv_obj_t* scr, const fwpb_display_show_scre
     lv_obj_center(check_icon);
   }
 
-  // Create hold ring widget
-  hold_ring_create(scr, &approve_ring);
+  // Create dot ring widget
+  dot_ring_create(scr, &approve_ring);
 }
 
 static void setup_runin_countdown(lv_obj_t* scr, const fwpb_display_show_screen* show_screen) {
@@ -393,7 +399,7 @@ void screen_mfg_run_in_destroy(void) {
 
   // Cleanup widgets
   mfg_starfield_fps_destroy(&fps_widget);
-  hold_ring_destroy(&approve_ring);
+  dot_ring_destroy(&approve_ring);
   top_back_destroy(&back_button);
   top_back_destroy(&status_back_button);
   check_button = NULL;

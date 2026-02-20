@@ -5,12 +5,13 @@ use std::str::FromStr;
 
 use anyhow::{anyhow, Result};
 use base64::prelude::{Engine as _, BASE64_STANDARD, BASE64_STANDARD_NO_PAD};
-use bdk::blockchain::{ConfigurableBlockchain, ElectrumBlockchain, ElectrumBlockchainConfig};
-use bdk::electrum_client::ElectrumApi;
-use bdk::keys::DescriptorPublicKey;
-use bdk::miniscript::Descriptor;
-use bdk::wallet::AddressIndex;
-use bdk::SyncOptions;
+use bdk_electrum::electrum_client::Client as ElectrumClient;
+use bdk_electrum::electrum_client::Config as ElectrumConfig;
+use bdk_electrum::electrum_client::ElectrumApi;
+use bdk_electrum::BdkElectrumClient;
+use bdk_wallet::keys::DescriptorPublicKey;
+use bdk_wallet::miniscript::Descriptor;
+use bdk_wallet::KeychainKind;
 use crypto::p256_box::P256Box;
 use rustyline::error::ReadlineError;
 use rustyline::{Config, Editor};
@@ -421,14 +422,10 @@ async fn handle_list_keysets(state: &mut DebugState) -> Result<()> {
             let wallet = state.get_wallet(&keyset_id, &keyset).map_err(|e| {
                 anyhow!("❌ Failed to get wallet for keyset {}: {:?}", keyset_id, e)
             })?;
-            let blockchain = ElectrumBlockchain::from_config(&ElectrumBlockchainConfig {
-                url: electrum_url.clone(),
-                socks5: None,
-                retry: 0,
-                timeout: None,
-                stop_gap: gap_limit,
-                validate_domain: true,
-            })
+            let electrum_client = ElectrumClient::from_config(
+                &electrum_url,
+                ElectrumConfig::builder().timeout(Some(5)).build(),
+            )
             .map_err(|e| {
                 anyhow!(
                     "❌ Failed to configure Electrum blockchain with URL {}: {:?}",
@@ -436,18 +433,28 @@ async fn handle_list_keysets(state: &mut DebugState) -> Result<()> {
                     e
                 )
             })?;
-            wallet
-                .sync(&blockchain, SyncOptions::default())
+            let client = BdkElectrumClient::new(electrum_client);
+            let request = wallet.start_full_scan();
+            let update = client
+                .full_scan(request, gap_limit, 10, true)
                 .map_err(|e| {
                     anyhow!("❌ Failed to sync wallet for keyset {}: {:?}", keyset_id, e)
                 })?;
-
-            let balance = wallet.get_balance().map_err(|e| {
-                anyhow!("❌ Failed to get balance for keyset {}: {:?}", keyset_id, e)
+            wallet.apply_update(update).map_err(|e| {
+                anyhow!(
+                    "❌ Failed to apply update for keyset {}: {:?}",
+                    keyset_id,
+                    e
+                )
             })?;
+
+            let balance = wallet.balance();
             balances.push((
                 keyset_id.clone(),
-                (active_keyset_id == keyset_id, Some(balance.confirmed)),
+                (
+                    active_keyset_id == keyset_id,
+                    Some(balance.confirmed.to_sat()),
+                ),
             ));
         } else {
             balances.push((keyset_id.clone(), (active_keyset_id == keyset_id, None)));
@@ -508,42 +515,40 @@ async fn handle_list_addresses(args: &[&str], state: &mut DebugState) -> Result<
                 .map_err(|e| {
                     anyhow!("❌ Failed to get wallet for keyset {}: {:?}", keyset_id, e)
                 })?;
-            let blockchain = ElectrumBlockchain::from_config(&ElectrumBlockchainConfig {
-                url: electrum_url.clone(),
-                socks5: None,
-                retry: 0,
-                timeout: None,
-                stop_gap: gap_limit,
-                validate_domain: true,
-            })
-            .map_err(|e| {
-                anyhow!(
-                    "❌ Failed to configure Electrum blockchain with URL {}: {:?}",
-                    electrum_url,
-                    e
+            let client = BdkElectrumClient::new(
+                ElectrumClient::from_config(
+                    &electrum_url,
+                    ElectrumConfig::builder().timeout(Some(5)).build(),
                 )
-            })?;
-            wallet
-                .sync(&blockchain, SyncOptions::default())
+                .map_err(|e| {
+                    anyhow!(
+                        "❌ Failed to configure Electrum blockchain with URL {}: {:?}",
+                        electrum_url,
+                        e
+                    )
+                })?,
+            );
+            let request = wallet.start_full_scan();
+            let update = client
+                .full_scan(request, gap_limit, 10, true)
                 .map_err(|e| {
                     anyhow!("❌ Failed to sync wallet for keyset {}: {:?}", keyset_id, e)
                 })?;
+            wallet.apply_update(update).map_err(|e| {
+                anyhow!(
+                    "❌ Failed to apply update for keyset {}: {:?}",
+                    keyset_id,
+                    e
+                )
+            })?;
 
             let mut receive_balances = Vec::new();
             let mut change_balances = Vec::new();
 
+            let electrum_client = client.inner;
             for i in 0..gap_limit {
-                let addr = wallet
-                    .get_address(AddressIndex::Reset(i as u32))
-                    .map_err(|e| {
-                        anyhow!(
-                            "❌ Failed to derive receiving address {} for keyset {}: {:?}",
-                            i,
-                            keyset_id,
-                            e
-                        )
-                    })?;
-                let bal = blockchain
+                let addr = wallet.peek_address(KeychainKind::External, i as u32);
+                let bal = electrum_client
                     .script_get_balance(&addr.address.script_pubkey())
                     .map_err(|e| {
                         anyhow!(
@@ -556,21 +561,12 @@ async fn handle_list_addresses(args: &[&str], state: &mut DebugState) -> Result<
                 receive_balances.push((addr.address.to_string(), bal.confirmed));
             }
             for i in 0..gap_limit {
-                let addr = wallet
-                    .get_internal_address(AddressIndex::Reset(i as u32))
-                    .map_err(|e| {
-                        anyhow!(
-                            "❌ Failed to derive change address {} for keyset {}: {:?}",
-                            i,
-                            keyset_id,
-                            e
-                        )
-                    })?;
-                let bal = blockchain
+                let addr = wallet.peek_address(KeychainKind::Internal, i as u32);
+                let bal = electrum_client
                     .script_get_balance(&addr.address.script_pubkey())
                     .map_err(|e| {
                         anyhow!(
-                            "❌ Failed to get balance for change address {} in keyset {}: {:?}",
+                            "❌ Failed to get balance for receiving address {} in keyset {}: {:?}",
                             i,
                             keyset_id,
                             e
@@ -920,7 +916,10 @@ async fn handle_prepare_funding(args: &[&str], state: &mut DebugState) -> Result
             // Generate addresses
             let mut addresses = Vec::new();
             for _ in 0..utxo_count {
-                let address = wallet.get_address(AddressIndex::New)?.address.to_string();
+                let address = wallet
+                    .reveal_next_address(KeychainKind::External)
+                    .address
+                    .to_string();
                 addresses.push(address);
             }
 

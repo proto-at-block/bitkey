@@ -1,0 +1,18 @@
+{
+    "module-identifier": "it.krzeminski:snakeyaml-engine-kmp-jvm",
+    "components": [
+        {
+            "version": "3.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "snakeyaml-engine-kmp-jvm-3.1.1.jar": "733e1347e3ec909e8a7ee199e48a64d0180569461b3bc08c8a6bb1335f5ce1bd"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

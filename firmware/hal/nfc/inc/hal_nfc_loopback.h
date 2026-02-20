@@ -18,8 +18,10 @@
  *
  * @param mode        The NFC reader mode to use.
  * @param timeout_ms  Timeout (milliseconds) for card detection.
+ * @param continuous  If true, keep NFC active and restart polling after each
+ *                    card detection. If false, stop after first detection.
  */
-void hal_nfc_loopback_test_start(hal_nfc_mode_t mode, uint32_t timeout_ms);
+void hal_nfc_loopback_test_start(hal_nfc_mode_t mode, uint32_t timeout_ms, bool continuous);
 
 /**
  * @brief Returns `true` if a loopback test was run and succeeded.

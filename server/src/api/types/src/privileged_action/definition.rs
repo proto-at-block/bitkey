@@ -8,9 +8,8 @@ use crate::account::AccountType;
 
 use super::shared::{PrivilegedActionDelayDuration, PrivilegedActionType};
 
-const ONE_HOUR_SECS: usize = 3600;
-const ONE_DAY_SECS: usize = 24 * ONE_HOUR_SECS;
-const SEVENTY_TWO_HOURS_SECS: usize = 72 * ONE_HOUR_SECS;
+const ONE_DAY_SECS: usize = 24 * 60 * 60;
+const SEVENTY_TWO_HOURS_SECS: usize = 3 * ONE_DAY_SECS;
 const SEVEN_DAYS_SECS: usize = 7 * ONE_DAY_SECS;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
@@ -83,24 +82,26 @@ impl PrivilegedActionDefinition {
         self.authorization_strategies
             .get(&account_type)
             .cloned()
-            .map(|strategy| match strategy {
-                AuthorizationStrategyDefinition::DelayAndNotify(mut definition) => {
-                    if let (true, Some(configured_delay_duration_secs)) = (
-                        definition.delay_configurable,
-                        configured_delay_durations
-                            .iter()
-                            .find(|c| c.privileged_action_type == self.privileged_action_type)
-                            .map(|c| c.delay_duration_secs),
-                    ) {
-                        definition.delay_duration_secs = configured_delay_duration_secs;
+            .map(|strategy| {
+                let authorization_strategy = match strategy {
+                    AuthorizationStrategyDefinition::DelayAndNotify(mut definition) => {
+                        if let (true, Some(configured_delay_duration_secs)) = (
+                            definition.delay_configurable,
+                            configured_delay_durations
+                                .iter()
+                                .find(|c| c.privileged_action_type == self.privileged_action_type)
+                                .map(|c| c.delay_duration_secs),
+                        ) {
+                            definition.delay_duration_secs = configured_delay_duration_secs;
+                        }
+                        AuthorizationStrategyDefinition::DelayAndNotify(definition)
                     }
-                    AuthorizationStrategyDefinition::DelayAndNotify(definition)
+                    other => other,
+                };
+                ResolvedPrivilegedActionDefinition {
+                    privileged_action_type: self.privileged_action_type.clone(),
+                    authorization_strategy,
                 }
-                _ => strategy,
-            })
-            .map(|strategy| ResolvedPrivilegedActionDefinition {
-                privileged_action_type: self.privileged_action_type.clone(),
-                authorization_strategy: strategy,
             })
     }
 }

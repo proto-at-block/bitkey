@@ -2,11 +2,11 @@
     "module-identifier": "androidx.savedstate:savedstate",
     "components": [
         {
-            "version": "1.2.1",
+            "version": "1.3.3",
             "variants": [
                 {
                     "artifacts": {
-                        "savedstate-1.2.1.aar": "21a7d4bcf6bdb94ad7b9283801529300b4fbb8808ca4f191e0cdce6fd8e4705a"
+                        "savedstate-metadata-1.3.3.jar": "84a7b7c75a3bed96f5b1345247a7a07bebefb50168e4ced654bf290d990e17b7"
                     }
                 }
             ],

@@ -46,4 +46,31 @@ class IconSnapshots : FunSpec({
       )
     }
   }
+
+  test("small market icons") {
+    paparazzi.snapshot {
+      MarketIconGrid(size = IconSize.Small)
+    }
+  }
+
+  test("regular market icons") {
+    paparazzi.snapshot {
+      MarketIconGrid(size = IconSize.Regular)
+    }
+  }
+
+  test("large market icons") {
+    paparazzi.snapshot {
+      MarketIconGrid(size = IconSize.Large)
+    }
+  }
+
+  test("tinted market icons") {
+    paparazzi.snapshot {
+      MarketIconGrid(
+        size = IconSize.Regular,
+        color = WalletTheme.colors.warningForeground
+      )
+    }
+  }
 })

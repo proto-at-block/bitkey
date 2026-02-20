@@ -255,7 +255,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("no skip showing after resend code when skip sheet not provided") {
-    stateMachine.test(props.copy(skipBottomSheetProvider = null)) {
+    stateMachine.testWithVirtualTime(props.copy(skipBottomSheetProvider = null)) {
       // Resend code blocked
       awaitBody<FormBodyModel> {
         mainContentList.first()

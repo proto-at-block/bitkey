@@ -24,8 +24,8 @@ import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.data.keybox.StartIntent
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.*
+import build.wallet.statemachine.root.StartIntent
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 

@@ -18,7 +18,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadataDao
-import build.wallet.fwup.FwupDataDaoProvider
+import build.wallet.fwup.FwupDataDao
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.inappsecurity.HideBalancePreference
@@ -58,7 +58,7 @@ class AppDataDeleterImpl(
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val mobilePayService: MobilePayService,
   private val outgoingTransactionDetailDao: OutgoingTransactionDetailDao,
-  private val fwupDataDaoProvider: FwupDataDaoProvider,
+  private val fwupDataDao: FwupDataDao,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val firmwareMetadataDao: FirmwareMetadataDao,
   private val transactionPriorityPreference: TransactionPriorityPreference,
@@ -97,7 +97,7 @@ class AppDataDeleterImpl(
       onboardingKeyboxHardwareKeysDao.clear()
       mobilePayService.deleteLocal()
       outgoingTransactionDetailDao.clear()
-      fwupDataDaoProvider.get().value.clear()
+      fwupDataDao.clear()
       firmwareDeviceInfoDao.clear()
       firmwareMetadataDao.clear()
       authTokensService.clear()

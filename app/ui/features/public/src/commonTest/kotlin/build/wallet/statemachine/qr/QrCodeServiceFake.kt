@@ -8,9 +8,15 @@ class QrCodeServiceFake : QrCodeService {
 
   var result: Result<QRMatrix, Error> = Ok(defaultQrMatrix)
 
-  override suspend fun generateQrCode(data: String): Result<QRMatrix, Error> = result
+  var lastGeneratedQrCodeData: String? = null
+
+  override suspend fun generateQrCode(data: String): Result<QRMatrix, Error> {
+    lastGeneratedQrCodeData = data
+    return result
+  }
 
   fun reset() {
     result = Ok(defaultQrMatrix)
+    lastGeneratedQrCodeData = null
   }
 }

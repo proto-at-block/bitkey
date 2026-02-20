@@ -84,6 +84,7 @@ kotlin {
         implementation(projects.libs.cloudStoreFake)
         implementation(projects.domain.emergencyExitKitFake)
         implementation(projects.domain.f8eClientFake)
+        implementation(projects.libs.memfaultFake)
         implementation(projects.libs.moneyFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.secureEnclaveFake)

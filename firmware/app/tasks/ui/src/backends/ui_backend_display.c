@@ -10,6 +10,7 @@
 #include "metadata.h"
 #include "rtos.h"
 #include "sleep.h"
+#include "sysevent.h"
 #include "sysinfo.h"
 #include "uc.h"
 #include "uc_route.h"
@@ -17,6 +18,11 @@
 #include "ui_events.h"
 #include "ui_messaging.h"
 #include "uxc.pb.h"
+
+#ifdef MFGTEST
+#include "ipc_messages_mfgtest_port.h"
+#include "rtos_thread.h"
+#endif
 
 #include <stddef.h>
 #include <stdint.h>
@@ -42,6 +48,7 @@ static void handle_touch_event(void* proto, void* UNUSED(context)) {
     return;
   }
 
+  sysevent_set(SYSEVENT_TOUCH);
   sleep_refresh_power_timer();
   refresh_auth();
 
@@ -51,6 +58,13 @@ static void handle_touch_event(void* proto, void* UNUSED(context)) {
   if (touch->event == fwpb_display_touch_display_touch_event_DISPLAY_TOUCH_EVENT_TOUCH) {
     ui_event_touch_t touch_event = {.x = touch->coord.x, .y = touch->coord.y};
     UI_SHOW_EVENT_WITH_DATA(UI_EVENT_MFGTEST_TOUCH, (uint8_t*)&touch_event, sizeof(touch_event));
+
+    // Send touch point to mfgtest task for buffering
+    static SHARED_TASK_DATA mfgtest_touch_point_t touch_point_msg;
+    touch_point_msg.x = touch->coord.x;
+    touch_point_msg.y = touch->coord.y;
+    touch_point_msg.timestamp_ms = rtos_thread_systime();
+    ipc_send(mfgtest_port, &touch_point_msg, sizeof(touch_point_msg), IPC_MFGTEST_TOUCH_POINT);
   }
 #endif
 
@@ -217,7 +231,7 @@ static void display_backend_handle_display_action(uint32_t action, uint32_t data
       bool ready = (data != 0);
       LOGD("UXC sleep ready action received: %d", ready);
       if (ready) {
-        ipc_send_empty(sysinfo_port, IPC_SYSINFO_UXC_SLEEP_READY);
+        ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF);
       }
       break;
     }

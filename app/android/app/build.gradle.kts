@@ -15,9 +15,9 @@ buildLogic {
   app {
     version(
       yyyy = 2026,
-      version = 0,
-      patch = 1,
-      build = 1
+      version = 2,
+      patch = 0,
+      build = 5
     )
   }
   compose {
@@ -57,7 +57,7 @@ android {
       isShrinkResources = false
     }
 
-    // Build Type for Production builds (currently in External Beta).
+    // Build Type for Production builds
     // App ID = "world.bitkey"
     register("customer") {
       initWith(getByName("release"))
@@ -132,6 +132,7 @@ licensee {
 
 dependencies {
   implementation(libs.android.activity.ktx)
+  implementation(libs.android.appcompat)
   implementation(libs.android.compose.ui.activity)
   implementation(libs.android.core.ktx)
   implementation(libs.android.lifecycle.process)

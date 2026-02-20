@@ -34,6 +34,9 @@ kotlin {
 
     commonTest.dependencies {
       implementation(projects.libs.testingPublic)
+      implementation(projects.domain.accountFake)
+      implementation(projects.domain.hardwareFake)
+      implementation(projects.libs.platformFake)
     }
   }
 }

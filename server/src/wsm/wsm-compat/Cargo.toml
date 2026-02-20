@@ -1,0 +1,13 @@
+[package]
+edition = { workspace = true }
+name = "wsm-compat"
+publish.workspace = true
+version = "0.1.0"
+
+[dependencies]
+bdk_utils = { workspace = true }
+thiserror = { workspace = true }
+wsm-common = { workspace = true }
+
+[lints]
+workspace = true

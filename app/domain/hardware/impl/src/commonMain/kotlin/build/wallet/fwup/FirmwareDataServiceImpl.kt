@@ -13,7 +13,6 @@ import build.wallet.fwup.FwupDataFetcher.FwupDataFetcherError.DownloadError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
-import build.wallet.nfc.FakeFirmwareDeviceInfo
 import build.wallet.nfc.HardwareProvisionedAppKeyStatusDao
 import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
@@ -26,14 +25,13 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
 class FirmwareDataServiceImpl(
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val fwupDataFetcher: FwupDataFetcher,
-  private val fwupDataDaoProvider: FwupDataDaoProvider,
+  private val fwupDataDao: FwupDataDao,
   private val appSessionManager: AppSessionManager,
   private val firmwareUpdateSyncFrequency: FirmwareUpdateSyncFrequency,
   private val hardwareProvisionedAppKeyStatusDao: HardwareProvisionedAppKeyStatusDao,
@@ -63,7 +61,7 @@ class FirmwareDataServiceImpl(
       launch {
         combine(
           firmwareDeviceInfoDao.deviceInfo(),
-          fwupDataDaoProvider.get().flatMapLatest { dao -> dao.mcuFwupData() }
+          fwupDataDao.mcuFwupData()
         ) { firmwareDeviceInfoResult, mcuFwupDataResult ->
           val firmwareDeviceInfo = firmwareDeviceInfoResult.get()
           val mcuFwupDataList = mcuFwupDataResult.get()
@@ -104,8 +102,8 @@ class FirmwareDataServiceImpl(
         logError { "Firmware device info null after fwup. This should not happen" }
       }
 
-      fwupDataDaoProvider.get().value.clear().bind()
-      fwupDataDaoProvider.get().value.clearAllMcuStates().bind()
+      fwupDataDao.clear().bind()
+      fwupDataDao.clearAllMcuStates().bind()
     }
   }
 
@@ -114,8 +112,10 @@ class FirmwareDataServiceImpl(
   override suspend fun syncLatestFwupData(): Result<Unit, Error> {
     return coroutineBinding {
       val firmwareDeviceInfo = firmwareDeviceInfoDao.getDeviceInfo().bind()
-      if (firmwareDeviceInfo != null && firmwareDeviceInfo.serial != FakeFirmwareDeviceInfo.serial) {
+      if (firmwareDeviceInfo != null) {
         // Get and store new FWUP data, if any.
+        // FwupDataFetcher internally uses providers that automatically select
+        // the appropriate dependencies (real or fake) based on account configuration.
         val mcuFwupDataList =
           fwupDataFetcher
             .fetchLatestFwupData(
@@ -130,15 +130,14 @@ class FirmwareDataServiceImpl(
             )
             .bind()
 
-        val dao = fwupDataDaoProvider.get().value
         when (mcuFwupDataList) {
           // No update needed, clear anything in [FwupDataDao] just in case there's something there
           null -> {
-            dao.clearAllMcuFwupData().bind()
-            dao.clear().bind()
+            fwupDataDao.clearAllMcuFwupData().bind()
+            fwupDataDao.clear().bind()
           }
           // There's an update, store it locally to be ready to apply to the HW
-          else -> dao.setMcuFwupData(mcuFwupDataList).bind()
+          else -> fwupDataDao.setMcuFwupData(mcuFwupDataList).bind()
         }
       }
     }

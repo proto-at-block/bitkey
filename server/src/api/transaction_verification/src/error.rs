@@ -43,6 +43,8 @@ pub enum TransactionVerificationError {
     InvalidWebAuthToken,
     #[error("Invalid keyset type: {0}")]
     InvalidKeysetType(KeysetId),
+    #[error("Invalid transaction verification grant data")]
+    InvalidTransactionVerificationGrantData,
     #[error("One or more script pub keys are invalid. Cannot check transaction.")]
     InvalidScriptPubKeys,
     #[error("One or more outputs belong to sanctioned individuals.")]
@@ -84,6 +86,7 @@ impl From<TransactionVerificationError> for ApiError {
             | TransactionVerificationError::PsbtParsingFailed(_)
             | TransactionVerificationError::InvalidWebAuthToken
             | TransactionVerificationError::InvalidKeysetType(_)
+            | TransactionVerificationError::InvalidTransactionVerificationGrantData
             | TransactionVerificationError::InvalidScriptPubKeys
             | TransactionVerificationError::OutputsBelongToSanctionedIndividuals => {
                 ApiError::GenericBadRequest(err_msg)

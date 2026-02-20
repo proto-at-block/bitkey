@@ -123,7 +123,7 @@ async fn test_sign_and_complete_claim_success(requested_psbt: Psbt) {
     assert_eq!(
         completed_claim.completion_method,
         InheritanceCompletionMethod::WithPsbt {
-            txid: requested_psbt.unsigned_tx.txid()
+            txid: requested_psbt.unsigned_tx.compute_txid()
         }
     );
     assert_eq!(
@@ -165,7 +165,7 @@ async fn test_sign_and_complete_claim_existing_psbt_rbf_success(requested_psbt: 
     assert_eq!(
         updated_completed_claim.completion_method,
         InheritanceCompletionMethod::WithPsbt {
-            txid: requested_psbt.unsigned_tx.txid()
+            txid: requested_psbt.unsigned_tx.compute_txid()
         }
     );
     assert_eq!(
@@ -274,7 +274,7 @@ async fn test_sign_and_complete_claim_after_zero_balance_completed_success(reque
     assert_eq!(
         updated_completed_claim.completion_method,
         InheritanceCompletionMethod::WithPsbt {
-            txid: requested_psbt.unsigned_tx.txid()
+            txid: requested_psbt.unsigned_tx.compute_txid()
         }
     );
     assert_eq!(

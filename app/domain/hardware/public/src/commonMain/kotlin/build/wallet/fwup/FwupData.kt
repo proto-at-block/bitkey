@@ -65,7 +65,7 @@ data class McuFwupData(
  * Contains firmware updates for all MCUs that need updating.
  *
  * @property bundleVersion The overall bundle version
- * @property mcuUpdates List of per-MCU updates, ordered with CORE first
+ * @property mcuUpdates List of per-MCU updates, ordered with UXC first, then CORE
  */
 data class FwupBundleData(
   val bundleVersion: String,
@@ -73,10 +73,10 @@ data class FwupBundleData(
 ) {
   init {
     require(mcuUpdates.isNotEmpty()) { "mcuUpdates cannot be empty" }
-    // Verify CORE comes first if present
-    val coreIndex = mcuUpdates.indexOfFirst { it.mcuRole == McuRole.CORE }
-    if (coreIndex > 0) {
-      error("CORE MCU must be first in mcuUpdates list")
+    // Verify UXC comes first if present (for W3 multi-MCU updates)
+    val uxcIndex = mcuUpdates.indexOfFirst { it.mcuRole == McuRole.UXC }
+    if (uxcIndex > 0) {
+      error("UXC MCU must be first in mcuUpdates list for W3 devices")
     }
   }
 }

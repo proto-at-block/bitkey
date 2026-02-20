@@ -24,4 +24,7 @@ enum class InactiveWalletSweepEventTrackerScreenId : EventTrackerScreenId {
 
   /** Help screen explaining why the wallet requires a sweep */
   INACTIVE_WALLET_HELP,
+
+  /** Warning screen shown on W3 when there are multiple transactions to sign */
+  INACTIVE_WALLET_SWEEP_MULTIPLE_TRANSACTIONS_WARNING,
 }

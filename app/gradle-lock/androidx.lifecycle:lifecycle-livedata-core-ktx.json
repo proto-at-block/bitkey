@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-livedata-core-ktx",
     "components": [
         {
-            "version": "2.8.7",
+            "version": "2.9.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-livedata-core-ktx-2.8.7.aar": "b6e785e8532b155921310563a90fd262b5dacf6964aeea6cbbe412ac1da59460"
+                        "lifecycle-livedata-core-ktx-2.9.4.aar": "f55b7a8d433e9b8163154ccaa42fa2be55c70cd1ede5eeea521a4b4b884dd4fe"
                     }
                 }
             ],

@@ -22,6 +22,29 @@ fun tickerFlow(interval: Duration): Flow<Unit> {
 }
 
 /**
+ * Factory for ticker flows.
+ *
+ * Use the default implementation in production. In tests, you can substitute a manual
+ * implementation to avoid timing-based flakiness when the periodic tick is incidental
+ * to the behavior under test.
+ */
+interface TickerFlowFactory {
+  /**
+   * Creates a ticker flow that emits at the given [interval].
+   *
+   * Test fakes may ignore [interval] and emit manually.
+   */
+  fun create(interval: Duration): Flow<Unit>
+}
+
+/**
+ * Default ticker flow factory backed by [tickerFlow].
+ */
+class TickerFlowFactoryImpl : TickerFlowFactory {
+  override fun create(interval: Duration): Flow<Unit> = tickerFlow(interval)
+}
+
+/**
  * Launches a coroutine that runs a given block of code at a fixed interval.
  */
 fun CoroutineScope.launchTicker(

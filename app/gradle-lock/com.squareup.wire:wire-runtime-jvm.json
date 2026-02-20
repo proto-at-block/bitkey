@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-runtime-jvm",
     "components": [
         {
-            "version": "4.9.11",
+            "version": "5.3.5",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-runtime-jvm-4.9.11.jar": "5e57449d35d13d33089cfd96963d72e25a96642fd8937a52b79670cd9994385a"
+                        "wire-runtime-jvm-5.3.5.jar": "6db6b4f76f12a28afb3fa19ad69fb4610f605dda8803c3a9f37bea87ec256760"
                     }
                 }
             ],

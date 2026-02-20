@@ -25,6 +25,7 @@ import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.components.layout.MeasureWithoutPlacement
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconSize.Small
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -50,11 +51,14 @@ fun HeroAmount(
   onSwapClick: (() -> Unit)? = null,
   isLoading: Boolean = false,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val horizontalAlignment = if (isDesignSystemV2Enabled) Alignment.Start else Alignment.CenterHorizontally
+
   CollapsibleLabelContainer(
     modifier = modifier,
     collapsed = hideBalance,
     verticalArrangement = Arrangement.spacedBy((-4).dp),
-    horizontalAlignment = Alignment.CenterHorizontally,
+    horizontalAlignment = horizontalAlignment,
     topContent = {
       Box(
         modifier = Modifier
@@ -111,7 +115,11 @@ private fun HeroAmountBottom(
   onSwapClick: (() -> Unit)? = null,
   isLoading: Boolean = false,
 ) {
-  Column(horizontalAlignment = Alignment.CenterHorizontally) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val columnAlignment = if (isDesignSystemV2Enabled) Alignment.Start else Alignment.CenterHorizontally
+  val rowArrangement = if (isDesignSystemV2Enabled) Arrangement.Start else Arrangement.Center
+
+  Column(horizontalAlignment = columnAlignment) {
     Spacer(Modifier.height(2.dp))
     Row(
       modifier = Modifier
@@ -121,7 +129,7 @@ private fun HeroAmountBottom(
           }
         },
       verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.Center
+      horizontalArrangement = rowArrangement
     ) {
       Box(
         modifier = Modifier.loadingScrim(isLoading),

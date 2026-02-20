@@ -13,11 +13,13 @@ interface AppStateDeleterOptionsUiStateMachine : StateMachine<AppStateDeleterOpt
  * @property [onDeleteAppKeyRequest] called when "Delete App Key" is pressed.
  * @property [onDeleteAppKeyBackupRequest] called when "Delete App Key" is pressed.
  * @property [onDeleteAppKeyAndBackupRequest] called when "Delete App Key and Backup" is pressed.
+ * @property [onDeleteOnboardingAppKeyRequest] called when "Delete Onboarding App Key" is pressed.
  */
 data class AppStateDeleterOptionsUiProps(
   val onDeleteAppKeyRequest: () -> Unit,
   val onDeleteAppKeyBackupRequest: () -> Unit,
   val onDeleteAppKeyAndBackupRequest: () -> Unit,
   val onDeleteAllBackupRequest: () -> Unit,
+  val onDeleteOnboardingAppKeyRequest: () -> Unit,
   val showDeleteAppKey: Boolean,
 )

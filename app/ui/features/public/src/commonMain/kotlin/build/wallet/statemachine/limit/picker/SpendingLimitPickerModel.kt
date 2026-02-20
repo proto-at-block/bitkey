@@ -5,7 +5,6 @@ import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.ui.app.limit.SpendingLimitPickerScreen
@@ -13,7 +12,6 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.slider.AmountSliderModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
@@ -22,8 +20,8 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 data class SpendingLimitPickerModel(
   override val onBack: () -> Unit,
   val toolbarModel: ToolbarModel,
-  val headerModel: FormHeaderModel?,
-  val entryMode: EntryMode,
+  val amountModel: MoneyAmountEntryModel,
+  val keypadModel: KeypadModel,
   val setLimitButtonModel: ButtonModel,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
@@ -33,21 +31,16 @@ data class SpendingLimitPickerModel(
   constructor(
     onBack: () -> Unit,
     toolbarModel: ToolbarModel,
-    entryMode: EntryMode,
+    amountModel: MoneyAmountEntryModel,
+    keypadModel: KeypadModel,
     setLimitButtonEnabled: Boolean,
     setLimitButtonLoading: Boolean,
     onSetLimitClick: () -> Unit,
   ) : this(
     onBack = onBack,
     toolbarModel = toolbarModel,
-    headerModel = when (entryMode) {
-      is EntryMode.Slider -> FormHeaderModel(
-        headline = "Set a daily limit",
-        subline = "Total daily transactions below this amount won’t need your Bitkey device."
-      )
-      else -> null
-    },
-    entryMode = entryMode,
+    amountModel = amountModel,
+    keypadModel = keypadModel,
     setLimitButtonModel =
       BitkeyInteractionButtonModel(
         text = "Confirm daily limit",
@@ -62,15 +55,4 @@ data class SpendingLimitPickerModel(
   override fun render(modifier: Modifier) {
     SpendingLimitPickerScreen(modifier, model = this)
   }
-}
-
-sealed class EntryMode {
-  data class Slider(
-    val sliderModel: AmountSliderModel,
-  ) : EntryMode()
-
-  data class Keypad(
-    val amountModel: MoneyAmountEntryModel,
-    val keypadModel: KeypadModel,
-  ) : EntryMode()
 }

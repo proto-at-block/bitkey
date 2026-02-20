@@ -20,7 +20,7 @@ pub struct CachedPsbtTxid {
 impl CachedPsbtTxid {
     pub fn try_new(psbt: Psbt) -> Result<Self, MobilepayDatetimeError> {
         Ok(Self {
-            txid: psbt.unsigned_tx.txid(),
+            txid: psbt.unsigned_tx.compute_txid(),
             expiring_at: OffsetDateTime::now_utc()
                 .checked_add(Duration::hours(RETENTION_HOURS))
                 .ok_or_else(|| {

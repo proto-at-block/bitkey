@@ -8,7 +8,6 @@ import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.limit.picker.EntryMode.Keypad
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
@@ -23,7 +22,6 @@ import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.setupMobilePay
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class MobilePayE2ETests : FunSpec({
   context("keypad-based mobile pay amount entry") {
@@ -47,18 +45,16 @@ class MobilePayE2ETests : FunSpec({
 
         awaitUntilBody<SpendingLimitPickerModel> {
           setLimitButtonModel.shouldBeDisabled()
-          with(entryMode.shouldBeTypeOf<Keypad>()) {
-            keypadModel.onButtonPress(KeypadButton.Digit.One)
-            keypadModel.onButtonPress(KeypadButton.Digit.Zero)
-            keypadModel.onButtonPress(KeypadButton.Digit.Zero)
-            keypadModel.onButtonPress(KeypadButton.Digit.Zero)
-            keypadModel.onButtonPress(KeypadButton.Digit.Zero)
-            keypadModel.onButtonPress(KeypadButton.Digit.Zero)
-          }
+          keypadModel.onButtonPress(KeypadButton.Digit.One)
+          keypadModel.onButtonPress(KeypadButton.Digit.Zero)
+          keypadModel.onButtonPress(KeypadButton.Digit.Zero)
+          keypadModel.onButtonPress(KeypadButton.Digit.Zero)
+          keypadModel.onButtonPress(KeypadButton.Digit.Zero)
+          keypadModel.onButtonPress(KeypadButton.Digit.Zero)
         }
         awaitUntilBody<SpendingLimitPickerModel>(
           matching = {
-            (it.entryMode as Keypad).amountModel.primaryAmount == "$100,000"
+            it.amountModel.primaryAmount == "$100,000"
           }
         ) {
           setLimitButtonModel.shouldBeEnabled()
@@ -110,7 +106,7 @@ class MobilePayE2ETests : FunSpec({
 
         awaitUntilBody<SpendingLimitPickerModel>(
           matching = {
-            (it.entryMode as Keypad).amountModel.primaryAmount == "$100"
+            it.amountModel.primaryAmount == "$100"
           }
         ) {
           setLimitButtonModel.shouldBeEnabled()

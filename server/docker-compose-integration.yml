@@ -27,7 +27,8 @@ services:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       REGTEST_ELECTRUM_SERVER_URI: tcp://toxiproxy:8102
-      REGTEST_ELECTRUM_SERVER_EXTERNAL_URI: tcp://localhost:8101
+      # Configurable via env var so containerized app tests can override to use Docker network hostname
+      REGTEST_ELECTRUM_SERVER_EXTERNAL_URI: ${REGTEST_ELECTRUM_SERVER_EXTERNAL_URI:-tcp://localhost:8101}
       PARTNER_SECRET_OVERRIDE_TESTNETFAUCET: |
         {
           "partner": "TestnetFaucet",

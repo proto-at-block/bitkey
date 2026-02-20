@@ -27,4 +27,10 @@ interface ExchangeRateDao {
    * Returns all of the local historical exchange rates for the given time.
    */
   suspend fun historicalExchangeRatesAtTime(time: Instant): List<ExchangeRate>?
+
+  /**
+   * Clears all exchange rates from local storage.
+   * Used for debug/testing purposes only.
+   */
+  suspend fun clear(): Result<Unit, Error>
 }

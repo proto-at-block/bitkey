@@ -34,10 +34,7 @@ impl PsbtTxidCacheRepository {
             })?;
 
         let item = item_output.item.ok_or_else(|| {
-            event!(
-                Level::INFO,
-                "cached psbt for txid {txid} not found in the database"
-            );
+            event!(Level::INFO, "cached psbt not found in the database");
             DatabaseError::ObjectNotFound(database_object)
         })?;
         try_from_item(item.clone(), database_object)
