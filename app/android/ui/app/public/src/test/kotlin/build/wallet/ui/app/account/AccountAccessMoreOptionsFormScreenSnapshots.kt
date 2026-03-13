@@ -18,6 +18,7 @@ class AccountAccessMoreOptionsFormScreenSnapshots :
             onRestoreYourWalletClick = {},
             onBeTrustedContactClick = {},
             onRecoverFromOrphanedKeysClick = null,
+            onResetExistingDevice = null,
             canShowCustomerSupport = false,
             onCustomerSupportClick = {}
           )
@@ -33,7 +34,24 @@ class AccountAccessMoreOptionsFormScreenSnapshots :
             onRestoreYourWalletClick = {},
             onBeTrustedContactClick = {},
             onRecoverFromOrphanedKeysClick = null,
+            onResetExistingDevice = null,
             canShowCustomerSupport = true,
+            onCustomerSupportClick = {}
+          )
+        )
+      }
+    }
+
+    test("regular app variant - wipe existing device option visible") {
+      paparazzi.snapshot {
+        FormScreen(
+          AccountAccessMoreOptionsFormBodyModel(
+            onBack = {},
+            onRestoreYourWalletClick = {},
+            onBeTrustedContactClick = {},
+            onRecoverFromOrphanedKeysClick = null,
+            onResetExistingDevice = {},
+            canShowCustomerSupport = false,
             onCustomerSupportClick = {}
           )
         )

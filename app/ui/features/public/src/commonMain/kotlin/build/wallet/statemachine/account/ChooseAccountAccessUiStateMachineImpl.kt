@@ -10,6 +10,8 @@ import build.wallet.emergencyexitkit.EmergencyExitKitDataProvider
 import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
 import build.wallet.feature.flags.PublicCustomerSupportFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logWarn
 import build.wallet.money.formatter.MoneyDisplayFormatter
@@ -28,6 +30,8 @@ import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.recovery.orphaned.OrphanedAccountSelectionBodyModel
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.time.DateTimeFormatter
@@ -51,6 +55,8 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val orphanedKeyRecoveryFeatureFlag: OrphanedKeyRecoveryFeatureFlag,
   private val feedbackUiStateMachine: FeedbackUiStateMachine,
   private val publicCustomerSupportFeatureFlag: PublicCustomerSupportFeatureFlag,
+  private val wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
+  private val wipingDeviceUiStateMachine: WipingDeviceUiStateMachine,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
@@ -148,6 +154,11 @@ class ChooseAccountAccessUiStateMachineImpl(
             } else {
               null
             },
+            onResetExistingDevice = if (wipeHardwareLoggedOutFeatureFlag.isEnabled()) {
+              { state = ResettingExistingDevice }
+            } else {
+              null
+            },
             canShowCustomerSupport = customerSupportFlag.value,
             onCustomerSupportClick = { state = ShowingCustomerSupport }
           ).asRootScreen()
@@ -206,6 +217,14 @@ class ChooseAccountAccessUiStateMachineImpl(
       is ShowingCustomerSupport -> feedbackUiStateMachine.model(
         props = FeedbackUiProps(
           onBack = { state = ShowingAccountAccessMoreOptions }
+        )
+      )
+
+      is ResettingExistingDevice -> wipingDeviceUiStateMachine.model(
+        props = WipingDeviceProps(
+          onBack = { state = ShowingAccountAccessMoreOptions },
+          onSuccess = { state = ShowingAccountAccessMoreOptions },
+          fullAccount = null
         )
       )
     }
@@ -393,6 +412,11 @@ class ChooseAccountAccessUiStateMachineImpl(
      * Showing 'Contact us' for feedback.
      */
     data object ShowingCustomerSupport : State
+
+    /**
+     * Showing the wipe device flow for resetting an existing device from a logged-out state.
+     */
+    data object ResettingExistingDevice : State
   }
 }
 

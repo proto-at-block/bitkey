@@ -11,6 +11,7 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
 import build.wallet.feature.flags.PublicCustomerSupportFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -24,6 +25,8 @@ import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.dev.DebugMenuScreen
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -31,6 +34,7 @@ import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.TimeZoneProviderMock
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -45,6 +49,9 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val orphanedKeyDetectionService = OrphanedKeyDetectionServiceMock(turbines::create)
   val orphanedKeyRecoveryService = OrphanedKeyRecoveryServiceMock(turbines::create)
   val publicCustomerSupportFeatureFlag = PublicCustomerSupportFeatureFlag(featureFlagDao)
+  val wipeHardwareLoggedOutFeatureFlag = WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
+  val wipingDeviceUiStateMachine = object : WipingDeviceUiStateMachine,
+    ScreenStateMachineMock<WipingDeviceProps>(id = "wiping-device") {}
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val createSoftwareWalletUiStateMachine = object : CreateSoftwareWalletUiStateMachine,
     ScreenStateMachineMock<CreateSoftwareWalletProps>(
@@ -70,6 +77,8 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       moneyDisplayFormatter = MoneyDisplayFormatterFake,
       feedbackUiStateMachine = feedbackUiStateMachine,
       publicCustomerSupportFeatureFlag = publicCustomerSupportFeatureFlag,
+      wipeHardwareLoggedOutFeatureFlag = wipeHardwareLoggedOutFeatureFlag,
+      wipingDeviceUiStateMachine = wipingDeviceUiStateMachine,
       dateTimeFormatter = DateTimeFormatterMock(),
       timeZoneProvider = TimeZoneProviderMock(),
       keyboxDao = keyboxDao
@@ -217,6 +226,35 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
         onRestoreEmergencyExitKit()
       }
       startEmergencyExitRecoveryCalls.awaitItem()
+    }
+  }
+
+  test("Wipe device disabled by default") {
+    stateMachine.test(props) {
+      awaitBody<ChooseAccountAccessModel> {
+        buttons[1].shouldNotBeNull().onClick()
+      }
+
+      awaitBody<AccountAccessMoreOptionsFormBodyModel> {
+        onResetExistingDevice.shouldBeNull()
+      }
+    }
+  }
+
+  test("wipe existing device") {
+    wipeHardwareLoggedOutFeatureFlag.setFlagValue(true)
+    stateMachine.test(props) {
+      awaitBody<ChooseAccountAccessModel> {
+        buttons[1].shouldNotBeNull().onClick()
+      }
+
+      awaitBody<AccountAccessMoreOptionsFormBodyModel> {
+        onResetExistingDevice.shouldNotBeNull().invoke()
+      }
+
+      awaitBodyMock<WipingDeviceProps> {
+        fullAccount.shouldBeNull()
+      }
     }
   }
 

@@ -70,6 +70,7 @@ class WipingDeviceIntroUiStateMachineImpl(
           }
         }
         WipingDeviceIntroModel(
+          presentedModally = props.fullAccount != null,
           onBack = props.onBack,
           onWipeDevice = { uiState = ScanToContinueState },
           bottomSheet = null
@@ -85,6 +86,7 @@ class WipingDeviceIntroUiStateMachineImpl(
         )
 
         WipingDeviceIntroModel(
+          presentedModally = props.fullAccount != null,
           onBack = props.onBack,
           onWipeDevice = { uiState = ScanToContinueState },
           bottomSheet = bottomSheet
@@ -92,41 +94,49 @@ class WipingDeviceIntroUiStateMachineImpl(
       }
 
       is ScanningState -> {
-        val spendingWallet = remember { bitcoinWalletService.spendingWallet() }
-          .collectAsState()
-          .value
+        if (props.fullAccount != null) {
+          val spendingWallet = remember { bitcoinWalletService.spendingWallet() }
+            .collectAsState()
+            .value
 
-        InitialDeviceTapModel(
-          onTapPairedDevice = {
-            val balance = transactionsData?.balance
-            if (balance == null) {
-              uiState = SpendableBalanceCheckFailedState
-            } else if (balance.untrustedPending.isPositive) {
-              // Incoming pending transaction, treat as spendable and send to
-              // transfer funds before wipe sheet
-              uiState = TransferringFundsState
-            } else if (balance.spendable.isPositive && spendingWallet != null) {
-              // Spendable balance, check if it's actually spendable
-              scope.launch {
-                spendingWallet.isBalanceSpendable()
-                  .onSuccess { isSpendable ->
-                    if (isSpendable) {
-                      uiState = TransferringFundsState
-                    } else {
-                      props.onDeviceConfirmed(true)
+          InitialDeviceTapModel(
+            onTapPairedDevice = {
+              val balance = transactionsData?.balance
+              if (balance == null) {
+                uiState = SpendableBalanceCheckFailedState
+              } else if (balance.untrustedPending.isPositive) {
+                uiState = TransferringFundsState
+              } else if (balance.spendable.isPositive && spendingWallet != null) {
+                scope.launch {
+                  spendingWallet.isBalanceSpendable()
+                    .onSuccess { isSpendable ->
+                      if (isSpendable) {
+                        uiState = TransferringFundsState
+                      } else {
+                        props.onDeviceConfirmed(true)
+                      }
+                    }.onFailure {
+                      uiState = SpendableBalanceCheckFailedState
                     }
-                  }.onFailure {
-                    uiState = SpendableBalanceCheckFailedState
-                  }
+                }
+              } else {
+                props.onDeviceConfirmed(true)
               }
-            } else {
-              props.onDeviceConfirmed(true)
+            },
+            onCancel = {
+              uiState = IntroState()
             }
-          },
-          onCancel = {
-            uiState = IntroState()
-          }
-        )
+          )
+        } else {
+          UnpairedDeviceTapModel(
+            onTapDevice = {
+              uiState = UnpairedDeviceWarningState
+            },
+            onCancel = {
+              uiState = IntroState()
+            }
+          )
+        }
       }
 
       is SpendableBalanceCheckFailedState -> {
@@ -140,8 +150,24 @@ class WipingDeviceIntroUiStateMachineImpl(
         )
       }
 
+      is UnpairedDeviceWarningState -> {
+        val bottomSheet = UnpairedDeviceWarningSheet(
+          onWipeDevice = {
+            props.onDeviceConfirmed(false)
+          },
+          onCancel = { uiState = IntroState() }
+        )
+
+        WipingDeviceIntroModel(
+          presentedModally = props.fullAccount != null,
+          onBack = props.onBack,
+          onWipeDevice = { uiState = ScanToContinueState },
+          bottomSheet = bottomSheet
+        )
+      }
+
       is TransferringFundsState -> {
-        val shouldNotReach = transactionsData?.balance == null
+        val shouldNotReach = transactionsData?.balance == null || props.fullAccount == null
         LaunchedEffect("log-should-not-reach-TransferringFundsState", shouldNotReach) {
           if (shouldNotReach) {
             logError {
@@ -151,6 +177,7 @@ class WipingDeviceIntroUiStateMachineImpl(
         }
 
         WipingDeviceIntroModel(
+          presentedModally = props.fullAccount != null,
           onBack = props.onBack,
           onWipeDevice = { uiState = ScanToContinueState },
           bottomSheet = TransferFundsBeforeWipeSheet(
@@ -167,11 +194,13 @@ class WipingDeviceIntroUiStateMachineImpl(
 
   @Composable
   fun WipingDeviceIntroModel(
+    presentedModally: Boolean = true,
     onBack: () -> Unit,
     onWipeDevice: () -> Unit,
     bottomSheet: SheetModel? = null,
   ): ScreenModel {
     val wipingDeviceModel = WipingDeviceIntroBodyModel(
+      presentedModally = presentedModally,
       onBack = onBack,
       onWipeDevice = onWipeDevice
     )
@@ -182,28 +211,6 @@ class WipingDeviceIntroUiStateMachineImpl(
       presentationStyle = ScreenPresentationStyle.Root
     )
   }
-
-  private data class WipingDeviceIntroBodyModel(
-    override val onBack: () -> Unit,
-    val onWipeDevice: () -> Unit,
-  ) : FormBodyModel(
-      id = WipingDeviceEventTrackerScreenId.RESET_DEVICE_INTRO,
-      onBack = null,
-      toolbar = ToolbarModel(
-        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBack)
-      ),
-      header = FormHeaderModel(
-        headline = "Permanently wipe your device",
-        subline = "Always transfer the funds from this wallet to a new wallet before wiping this device.\n\n" +
-          "Wiping a device can lead to permanent loss of funds."
-      ),
-      primaryButton = ButtonModel(
-        text = "Wipe device",
-        size = ButtonModel.Size.Footer,
-        treatment = ButtonModel.Treatment.Secondary,
-        onClick = StandardClick { onWipeDevice() }
-      )
-    )
 
   @Composable
   private fun ScanToContinueSheet(
@@ -254,14 +261,49 @@ class WipingDeviceIntroUiStateMachineImpl(
     return nfcSessionUIStateMachine.model(
       NfcSessionUIStateMachineProps(
         session = { session, commands ->
-          // Any command will result in an nfc interceptor validating that the hardware is paired; we
-          // just need to choose one that requires the device to be unlocked.
           commands.getDeviceInfo(session)
         },
         onSuccess = { onTapPairedDevice() },
         onCancel = onCancel,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
         eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
+      )
+    )
+  }
+
+  @Composable
+  private fun UnpairedDeviceTapModel(
+    onTapDevice: () -> Unit,
+    onCancel: () -> Unit,
+  ): ScreenModel {
+    return nfcSessionUIStateMachine.model(
+      NfcSessionUIStateMachineProps(
+        session = { session, commands ->
+          commands.getDeviceInfo(session)
+        },
+        onSuccess = { onTapDevice() },
+        onCancel = onCancel,
+        hardwareVerification = NfcSessionUIStateMachineProps.HardwareVerification.NotRequired,
+        needsAuthentication = false,
+        shouldLock = false,
+        screenPresentationStyle = ScreenPresentationStyle.Modal,
+        eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
+      )
+    )
+  }
+
+  @Composable
+  private fun UnpairedDeviceWarningSheet(
+    onWipeDevice: () -> Unit,
+    onCancel: () -> Unit,
+  ): SheetModel {
+    return SheetModel(
+      size = SheetSize.DEFAULT,
+      onClosed = onCancel,
+      body = UnpairedDeviceWarningSheetBodyModel(
+        subline = "This device might be protecting funds. If you wipe the device, the funds may no longer be accessible.",
+        onWipeDevice = onWipeDevice,
+        onCancel = onCancel
       )
     )
   }
@@ -281,7 +323,6 @@ class WipingDeviceIntroUiStateMachineImpl(
       balance.total,
       fiatCurrency
     ) {
-      // Sync fiat balance
       val convertedFiatBalance = currencyConverter
         .convert(
           fromAmount = balance.total,
@@ -292,7 +333,6 @@ class WipingDeviceIntroUiStateMachineImpl(
 
       fiatBalance = convertedFiatBalance
 
-      // Get active spending limit
       when (val mobilePayData = mobilePayService.mobilePayData.firstOrNull()) {
         is MobilePayEnabledData -> {
           spendingLimit = mobilePayData.activeSpendingLimit
@@ -443,6 +483,11 @@ private sealed interface WipingDeviceIntroUiState {
    * Error checking spendable balance
    */
   data object SpendableBalanceCheckFailedState : WipingDeviceIntroUiState
+
+  /**
+   * Warning state for unpaired device
+   */
+  data object UnpairedDeviceWarningState : WipingDeviceIntroUiState
 
   /**
    * Viewing the transfer funds before wipe bottom sheet

@@ -78,7 +78,7 @@ internal fun selectPartnerPurchaseQuoteModel(
             trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
             explainer = when {
               isCashApp && isCashAppPromotionEnabled -> ListItemExplainer(
-                title = "No fees, no spread · Ends 12/31",
+                title = "No fees, no spread · Ends 4/29",
                 iconButton = IconButtonModel(
                   iconModel = IconModel(
                     icon = Icon.SmallIconInformationFilled,
@@ -142,7 +142,7 @@ data class CashAppInfoBodyModel(
     toolbar = null,
     header = FormHeaderModel(
       headline = "0% fees, 0% spread",
-      subline = "Buy bitcoin from Cash App with no fees or spread from now until December 31.",
+      subline = "Buy bitcoin from Cash App with no fees or spread from now until April 29.",
       iconModel = cashAppLogoUrl?.let { logo ->
         IconModel(
           iconImage = IconImage.UrlImage(

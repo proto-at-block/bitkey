@@ -231,6 +231,11 @@ interface FeatureFlagsComponent {
   fun vaultsFeatureFlag(featureFlagDao: FeatureFlagDao) = VaultsFeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun wipeHardwareLoggedOutFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
     coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
@@ -275,6 +280,7 @@ interface FeatureFlagsComponent {
     iosCloudKitBackupFeatureFlag: IosCloudKitBackupFeatureFlag,
     designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
     vaultsFeatureFlag: VaultsFeatureFlag,
+    wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       bdk2FeatureFlag,
@@ -318,7 +324,8 @@ interface FeatureFlagsComponent {
       cloudBackupHealthLoggingFeatureFlag,
       cloudBackupForceReuploadTimestampFeatureFlag,
       designSystemUpdatesFeatureFlag,
-      vaultsFeatureFlag
+      vaultsFeatureFlag,
+      wipeHardwareLoggedOutFeatureFlag
     )
   }
 }

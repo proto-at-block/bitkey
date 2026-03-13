@@ -26,6 +26,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
   val onRestoreYourWalletClick: (() -> Unit),
   val onBeTrustedContactClick: (() -> Unit),
   val onRecoverFromOrphanedKeysClick: (() -> Unit)?,
+  val onResetExistingDevice: (() -> Unit)?,
   val canShowCustomerSupport: Boolean,
   val onCustomerSupportClick: (() -> Unit),
 ) : FormBodyModel(
@@ -75,6 +76,20 @@ data class AccountAccessMoreOptionsFormBodyModel(
                   )
                 ),
                 title = "Restore from keychain",
+                onClick = it,
+                trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
+              )
+            },
+            onResetExistingDevice?.let {
+              ListItemModel(
+                leadingAccessory = IconAccessory(
+                  iconPadding = 12,
+                  model = IconModel(
+                    icon = Icon.SmallIconBitkey,
+                    iconSize = IconSize.Small
+                  )
+                ),
+                title = "Wipe an existing device",
                 onClick = it,
                 trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
               )

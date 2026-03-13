@@ -16,6 +16,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.nfc.ConfirmationHandlerOverride
 import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.ConfirmationScreen
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.WipingDevice
@@ -250,6 +251,11 @@ class WipingDeviceConfirmationUiStateMachineImpl(
           }
         },
         onCancel = onCancel,
+        hardwareVerification = if (isDevicePaired) {
+          HardwareVerification.Required()
+        } else {
+          HardwareVerification.NotRequired
+        },
         screenPresentationStyle = ScreenPresentationStyle.Modal,
         shouldLock = false,
         eventTrackerContext = NfcEventTrackerScreenIdContext.WIPE_DEVICE,

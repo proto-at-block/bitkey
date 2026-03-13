@@ -6,8 +6,6 @@ import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.firmware.FirmwareDeviceInfo
-import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
@@ -17,6 +15,8 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
+import build.wallet.firmware.FirmwareDeviceInfo
+import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.wipedevice.intro.WipingDeviceIntroProps
@@ -38,7 +38,7 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
   val stateMachine = WipingDeviceIntroUiStateMachineImpl(
     nfcSessionUIStateMachine =
       object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
-        "wiping device nfc"
+        "nfc-session"
       ) {},
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),

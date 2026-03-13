@@ -22,6 +22,9 @@ enum class WipingDeviceEventTrackerScreenId : EventTrackerScreenId {
   /** Confirm to continue screen */
   RESET_DEVICE_CONFIRMATION,
 
+  /** Unpaired device warning sheet */
+  RESET_DEVICE_UNPAIRED_WARNING,
+
   /** Scan and reset confirmation sheet */
   SCAN_AND_RESET_SHEET,
 
